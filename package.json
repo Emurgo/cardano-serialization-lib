@@ -1,0 +1,42 @@
+{
+  "name": "haskell-js-test",
+  "version": "0.0.0",
+  "description": "haskell js test",
+  "main": "index.js",
+  "scripts": {
+    "build": "babel src -d dist",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && nodemon ./src/index.js --max_old_space_size=4096 --inspect --exec babel-node",
+    "prod": "rimraf ./dist && yarn run build && export NODE_ENV=${NODE_ENV:-develop} && babel-node ./src/index.js --max_old_space_size=4096 --inspect" 
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.6.0",
+    "@babel/polyfill": "^7.2.5",
+    "babel-plugin-dynamic-import-node": "2.3.0",
+    "cbor": "^5.0.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.5.5",
+    "@babel/core": "^7.5.5",
+    "@babel/node": "^7.5.5",
+    "@babel/plugin-proposal-class-properties": "^7.5.5",
+    "@babel/plugin-proposal-decorators": "^7.4.4",
+    "@babel/plugin-syntax-dynamic-import": "7.2.0",
+    "@babel/preset-env": "^7.5.5",
+    "@babel/preset-flow": "^7.0.0",
+    "babel-eslint": "^10.0.3",
+    "babel-jest": "^24.9.0",
+    "eslint": "^6.2.2",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-flowtype": "^4.2.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-mocha": "^6.1.0",
+    "flow-bin": "^0.106.2",
+    "flow-typed": "^2.6.2",
+    "jest": "^24.9.0",
+    "nodemon": "^1.19.1",
+    "rimraf": "^3.0.0"
+  }
+}
