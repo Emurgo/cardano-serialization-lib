@@ -6,3 +6,15 @@ foo = {
 	z : int,
 	0 : tstr
 }
+
+block = {
+	header : int,
+	bodies : [* body],
+;	metadata : { * uint => int }
+}
+
+body = {
+	txs : [+int]
+}
+
+mapper = { * tstr => int }

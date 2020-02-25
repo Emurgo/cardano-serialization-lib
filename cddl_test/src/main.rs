@@ -1,27 +1,12 @@
-//use cddl;
-
-use serde::Serialize;
-use serde::Deserialize;
-use serde_cbor::Serializer;
-use serde_cbor::ser::SliceWrite;
-use serde_cbor::tags::Tagged;
+// use serde::Serialize;
+// use serde::Deserialize;
+// use serde_cbor::Serializer;
+// use serde_cbor::ser::SliceWrite;
+// use serde_cbor::tags::Tagged;
 
 use std::io::Write;
 
 use cddl::ast::*;
-
-// #[derive(Deserialize, Serialize)]
-// enum Foo {
-//     Zero(i32),
-//     One(Tagged<(i32, i32)>, i32),
-//     Two
-// }
-
-// #[derive(Deserialize, Serialize)]
-// struct Bar {
-//     int: i32,
-//     rational: Tagged<(i32, i32)>,
-// }
 
 fn group_entry_to_field_name(entry: &GroupEntry) -> String {
     match entry {
@@ -29,55 +14,65 @@ fn group_entry_to_field_name(entry: &GroupEntry) -> String {
             match vmk.member_key.as_ref().unwrap() {
                 MemberKey::Value(value) => format!("value_{}", value),
                 MemberKey::Bareword(ident) => ident.to_string(),
-                _ => "member_key_type1_not_implemented".to_string(),
+                MemberKey::Type1(_) => panic!("Encountered Type1 member key in multi-field map - not supported"),
             }
         },
         GroupEntry::TypeGroupname(tge) => tge.name.to_string(),
-        GroupEntry::InlineGroup(_) => panic!("not implemented"),
+        GroupEntry::InlineGroup(_) => panic!("not implemented (define a new struct for this!)"),
     }
 }
 
 // TODO: Can we do this, or do we need to be more explicit to match the schema?
 fn convert_types(raw: &str) -> &str {
     match raw {
+        "uint" => "u32",
+        "nint" => "i32",
         "int" => "i32",
-        "tstr" => "String",
+        "tstr" | "text" => "String",
+        // TODO: Is this right to have it be Vec<u8>?
+        "bstr" | "bytes" => "Vec<u8>",
+        // What about bingint/other stuff in the standard prelude?
         x => x,
+    }
+}
+
+fn rust_type_from_type2(type2: &Type2) -> String {
+    match type2 {
+        // ignoring IntValue/FloatValue/other primitives since they're not in the shelley spec
+        // ie Type2::UintValue(value) => format!("uint<{}>", value),
+        // generic args not in shelley.cddl
+        // TODO: socket plugs (used in hash type)
+        Type2::Typename((ident, _generic_arg)) => convert_types(&(ident.0).0).to_owned(),
+        // Map(group) not implemented as it's not in shelley.cddl
+        Type2::Array(group) => {
+            let mut s = String::new();
+            for choice in &group.0 {
+                // special case for homogenous arrays
+                if let Some((entry, _has_comma)) = choice.0.first() {
+                    let element_type = match entry {
+                        GroupEntry::ValueMemberKey(vmk) => rust_type(&vmk.entry_type),
+                        GroupEntry::TypeGroupname(tgn) => tgn.name.to_string(),
+                        _ => format!("UNSUPPORTED_ARRAY_ELEMENT<{:?}>", entry),
+                    };
+                    s.push_str(&format!("Vec<{}>", element_type));
+                } else {
+                    // TODO: how do we handle this? tuples?
+                    // or creating a struct definition and referring to it
+                    // by name?
+                }
+                // TODO: handle group choices (enums?)
+                break;
+            }
+            s
+        },
+        x => format!("unsupported<{:?}>", x),
     }
 }
 
 fn rust_type(t: &Type) -> String {
     for type1 in t.0.iter() {
         // ignoring range control operator here, only interested in Type2
-        return match &type1.type2 {
-            // ignoring IntValue/FloatValue/other primitives since they're not in the shelley spec
-            // ie Type2::UintValue(value) => format!("uint<{}>", value),
-            // generic args not in shelley.cddl
-            // TODO: socket plugs (used in hash type)
-            Type2::Typename((ident, _generic_arg)) => convert_types(&(ident.0).0).to_owned(),
-            // Map(group) not implemented as it's not in shelley.cddl
-            Type2::Array(group) => {
-                let mut s = String::new();
-                for choice in &group.0 {
-                    // special case for homogenous arrays
-                    if let Some((entry, _has_comma)) = choice.0.first() {
-                        let element_type = match entry {
-                            GroupEntry::ValueMemberKey(vmk) => rust_type(&vmk.entry_type),
-                            _ => format!("UNSUPPORTED_ARRAY_ELEMENT<{:?}>", entry),
-                        };
-                        s.push_str(&format!("Vec<{}>", element_type));
-                    } else {
-                        // TODO: how do we handle this? tuples?
-                        // or creating a struct definition and referring to it
-                        // by name?
-                    }
-                    // TODO: handle group choices (enums?)
-                    break;
-                }
-                s
-            },
-            x => format!("unsupported<{:?}>", x),
-        };
+        return rust_type_from_type2(&type1.type2);
 
         // TODO: how to handle type choices? define an enum for every option?
         //       deserializing would be more complicated since you'd
@@ -126,11 +121,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                 let mut s = scope.new_struct(tr.name.to_string().as_ref());
                                 // We could re-use this for arrays I guess and add a tag?
-                                for (group_entry, _has_comma) in &group_choice.0 {
-                                    s.field(
-                                        &group_entry_to_field_name(group_entry),
-                                        format!("Option<{}>", group_entry_to_type_name(group_entry))
-                                    );
+
+                                // Here we test if this is a struct vs a table.
+                                // struct: { x: int, y: int }, etc
+                                // table: { * int => tstr }, etc
+                                // this assumes that all maps representing tables are homogenous
+                                // and contain no other fields. I am not sure if this is a guarantee in
+                                // cbor but I would hope that the cddl specs we are using follow this.
+
+                                // Is there a more concise/readable way of expressing this in rust?
+                                let table_types: Option<(&Type2, &Type)> = if group_choice.0.len() == 1 {
+                                    if let Some((GroupEntry::ValueMemberKey(vmk), _)) = group_choice.0.first() {
+                                        match &vmk.member_key {
+                                            // TODO: Do we need to handle cuts for what we're doing?
+                                            // Does the range control operator matter?
+                                            Some(MemberKey::Type1(type1)) => Some((&type1.0.type2, &vmk.entry_type)),
+                                            _ => None
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                };
+                                match table_types {
+                                    Some((domain, range)) => {
+                                        s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(domain), rust_type(range)));
+                                    },
+                                    None => {
+                                        for (group_entry, _has_comma) in &group_choice.0 {
+                                            s.field(
+                                                &group_entry_to_field_name(group_entry),
+                                                format!("Option<{}>", group_entry_to_type_name(group_entry))
+                                            );
+                                        }
+                                    }
                                 }
 
                                 // TODO: support multiple choices
@@ -155,20 +180,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     println!("{}", scope.to_string());
-
-    // let foo = Foo::One(Tagged::new(Some(20), (4, 2)), 9);
-    // serde_cbor::to_writer(std::fs::File::create("foo.cbor")?, &foo)?;
-
-
-    // let bar = Bar {
-    //     int: 144,
-    //     rational: Tagged::new(Some(20), (4, 2)),
-    // };
-    // //serde_cbor::to_writer(std::fs::File::create("bar.cbor")?, &bar)?;
-    // let mut file_bar = std::fs::File::create("bar.cbor")?;
-    // let bar_packed = serde_cbor::ser::to_vec_packed(&bar)?;
-    // file_bar.write_all(&bar_packed)?;
-
 
     Ok(())
 }
