@@ -8,7 +8,6 @@ use serde_cbor::tags::Tagged;
 
 use std::io::Write;
 
-use codegen::*;
 use cddl::ast::*;
 
 // #[derive(Deserialize, Serialize)]
@@ -38,10 +37,59 @@ fn group_entry_to_field_name(entry: &GroupEntry) -> String {
     }
 }
 
+// TODO: Can we do this, or do we need to be more explicit to match the schema?
+fn convert_types(raw: &str) -> &str {
+    match raw {
+        "int" => "i32",
+        "tstr" => "String",
+        x => x,
+    }
+}
+
+fn rust_type(t: &Type) -> String {
+    for type1 in t.0.iter() {
+        // ignoring range control operator here, only interested in Type2
+        return match &type1.type2 {
+            // ignoring IntValue/FloatValue/other primitives since they're not in the shelley spec
+            // ie Type2::UintValue(value) => format!("uint<{}>", value),
+            // generic args not in shelley.cddl
+            // TODO: socket plugs (used in hash type)
+            Type2::Typename((ident, _generic_arg)) => convert_types(&(ident.0).0).to_owned(),
+            // Map(group) not implemented as it's not in shelley.cddl
+            Type2::Array(group) => {
+                let mut s = String::new();
+                for choice in &group.0 {
+                    // special case for homogenous arrays
+                    if let Some((entry, _has_comma)) = choice.0.first() {
+                        let element_type = match entry {
+                            GroupEntry::ValueMemberKey(vmk) => rust_type(&vmk.entry_type),
+                            _ => format!("UNSUPPORTED_ARRAY_ELEMENT<{:?}>", entry),
+                        };
+                        s.push_str(&format!("Vec<{}>", element_type));
+                    } else {
+                        // TODO: how do we handle this? tuples?
+                        // or creating a struct definition and referring to it
+                        // by name?
+                    }
+                    // TODO: handle group choices (enums?)
+                    break;
+                }
+                s
+            },
+            x => format!("unsupported<{:?}>", x),
+        };
+
+        // TODO: how to handle type choices? define an enum for every option?
+        //       deserializing would be more complicated since you'd
+        //       have to test them until one matches.
+    }
+    panic!("rust_type() is broken for: '{}'", t)
+}
+
 fn group_entry_to_type_name(entry: &GroupEntry) -> String {
     match entry {
-        GroupEntry::ValueMemberKey(vmk) => vmk.entry_type.to_string(),
-        GroupEntry::TypeGroupname(tge) => tge.name.to_string(),
+        GroupEntry::ValueMemberKey(vmk) => rust_type(&vmk.entry_type),//convert_types(&vmk.entry_type.to_string()).to_owned(),
+        GroupEntry::TypeGroupname(tge) => "TGN".to_owned() + &tge.name.to_string(),
         GroupEntry::InlineGroup(_) => panic!("not implemented"),
     }
 }
@@ -75,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 // handles ValueMemberKey only
                                 // TODO: TypeGroupname / InlinedGroup are not supported yet
                                 // TODO: handle non-integer keys (all keys in shelley.cddl are uint)
-                                
+
                                 let mut s = scope.new_struct(tr.name.to_string().as_ref());
                                 // We could re-use this for arrays I guess and add a tag?
                                 for (group_entry, _has_comma) in &group_choice.0 {

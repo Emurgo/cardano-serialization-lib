@@ -1,8 +1,8 @@
+bar = int
+
 foo = {
-	x : int,
-	y : int,
+	x : bar,
+	y : [[int]],
 	z : int,
 	0 : tstr
 }
-
-bar = foo
