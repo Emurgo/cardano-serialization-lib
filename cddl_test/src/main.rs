@@ -89,11 +89,70 @@ fn group_entry_to_type_name(entry: &GroupEntry) -> String {
     }
 }
 
+// Separate function for when we support multiple choices as an enum
+fn codegen_group(scope: &mut codegen::Scope, group: &Group, name: &str) {
+    for group_choice in &group.0 {
+        codegen_group_choice(scope, group_choice, name);
+
+        // TODO: support multiple choices
+        // this should be refactored into a common area for groups too.
+        break;
+    }
+}
+
+fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice, name: &str) {
+    // handles ValueMemberKey only
+    // TODO: TypeGroupname / InlinedGroup are not supported yet
+    // TODO: handle non-integer keys (all keys in shelley.cddl are uint)
+
+    let mut s = scope.new_struct(name);
+    // We could re-use this for arrays I guess and add a tag?
+
+    // Here we test if this is a struct vs a table.
+    // struct: { x: int, y: int }, etc
+    // table: { * int => tstr }, etc
+    // this assumes that all maps representing tables are homogenous
+    // and contain no other fields. I am not sure if this is a guarantee in
+    // cbor but I would hope that the cddl specs we are using follow this.
+
+    // Is there a more concise/readable way of expressing this in rust?
+    let table_types: Option<(&Type2, &Type)> = if group_choice.0.len() == 1 {
+        if let Some((GroupEntry::ValueMemberKey(vmk), _)) = group_choice.0.first() {
+            match &vmk.member_key {
+                // TODO: Do we need to handle cuts for what we're doing?
+                // Does the range control operator matter?
+                Some(MemberKey::Type1(type1)) => Some((&type1.0.type2, &vmk.entry_type)),
+                _ => None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    match table_types {
+        Some((domain, range)) => {
+            s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(domain), rust_type(range)));
+        },
+        None => {
+            let mut ser_func = codegen::Impl::new("cbor_event::se::Serialize");
+            for (group_entry, _has_comma) in &group_choice.0 {
+                s.field(
+                    &group_entry_to_field_name(group_entry),
+                    format!("Option<{}>", group_entry_to_type_name(group_entry))
+                );
+            }
+        }
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cddl_in = std::fs::read_to_string("supported.cddl").unwrap();
     let cddl = cddl::parser::cddl_from_str(&cddl_in)?;
     //println!("CDDL file: {}", cddl);
     let mut scope = codegen::Scope::new();
+    let mut group_module = codegen::Module::new("groups");
+    let mut group_scope = group_module.scope();
     for rule in cddl.rules {
         match rule {
             Rule::Type(tr) => {
@@ -108,60 +167,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // ignores control operators - only used in shelley spec to limit string length for application metadata
                     match &choice.type2 {
                         Type2::Typename((identifier, _generic_arg)) => {
-                            // TODO: either replace tstr/ uint etc with str or String / usize, etc
-                            // or include type aliases for those.
-                            scope.raw(format!("type {} = {};", tr.name, identifier).as_ref());
+                            scope.raw(format!("type {} = {};", tr.name, convert_types(&identifier.to_string())).as_ref());
                         },
                         // TODO: try to re-use/refactor this for arrays
                         Type2::Map(group) => {
-                            for group_choice in &group.0 {
-                                // handles ValueMemberKey only
-                                // TODO: TypeGroupname / InlinedGroup are not supported yet
-                                // TODO: handle non-integer keys (all keys in shelley.cddl are uint)
-
-                                let mut s = scope.new_struct(tr.name.to_string().as_ref());
-                                // We could re-use this for arrays I guess and add a tag?
-
-                                // Here we test if this is a struct vs a table.
-                                // struct: { x: int, y: int }, etc
-                                // table: { * int => tstr }, etc
-                                // this assumes that all maps representing tables are homogenous
-                                // and contain no other fields. I am not sure if this is a guarantee in
-                                // cbor but I would hope that the cddl specs we are using follow this.
-
-                                // Is there a more concise/readable way of expressing this in rust?
-                                let table_types: Option<(&Type2, &Type)> = if group_choice.0.len() == 1 {
-                                    if let Some((GroupEntry::ValueMemberKey(vmk), _)) = group_choice.0.first() {
-                                        match &vmk.member_key {
-                                            // TODO: Do we need to handle cuts for what we're doing?
-                                            // Does the range control operator matter?
-                                            Some(MemberKey::Type1(type1)) => Some((&type1.0.type2, &vmk.entry_type)),
-                                            _ => None
-                                        }
-                                    } else {
-                                        None
-                                    }
-                                } else {
-                                    None
-                                };
-                                match table_types {
-                                    Some((domain, range)) => {
-                                        s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(domain), rust_type(range)));
-                                    },
-                                    None => {
-                                        for (group_entry, _has_comma) in &group_choice.0 {
-                                            s.field(
-                                                &group_entry_to_field_name(group_entry),
-                                                format!("Option<{}>", group_entry_to_type_name(group_entry))
-                                            );
-                                        }
-                                    }
-                                }
-
-                                // TODO: support multiple choices
-                                // this should be refactored into a common area for groups too.
-                                break;
-                            }
+                            codegen_group(group_scope, group, tr.name.to_string().as_ref());
                         },
                         x => {
                             println!("\nignored typename {} -> {:?}\n", tr.name, x);
@@ -170,15 +180,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     //println!("{} type2 = {:?}\n", tr.name, choice.type2);
                     //s.field("foo", "usize");
-                    // remove and implement choices
+                    // remove and implement type choices
                     break;
                 }
             },
-            Rule::Group(gr) => {
-
+            Rule::Group(group_rule) => {
+                // Freely defined group - no need to generate anything outside of group module
+                match &group_rule.entry {
+                    GroupEntry::InlineGroup((_occur, inline_group)) => {
+                        codegen_group(group_scope, inline_group, &group_rule.name.to_string());
+                    },
+                    x => panic!("Group rule with non-inline group? {:?}", x),
+                }
             },
         }
     }
+    scope.push_module(group_module);
     println!("{}", scope.to_string());
 
     Ok(())

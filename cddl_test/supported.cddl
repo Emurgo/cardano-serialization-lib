@@ -10,11 +10,11 @@ foo = {
 block = {
 	header : int,
 	bodies : [* body],
-;	metadata : { * uint => int }
+	metadata : { * uint => int }
 }
 
-body = {
+body = (
 	txs : [+int]
-}
+)
 
 mapper = { * tstr => int }
