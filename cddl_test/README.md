@@ -11,31 +11,47 @@ or if another approach would be better.
 
 * Reads type references e.g. `foo = bar`
 * Reads root-level maps and generates a struct with all keys as fields.
-* Supports root-level maps-as-tables e.g. `foo = { * int => tstr }`
-* Supports array members (not not root-level yet) e.g. `foo = { bar: [int] }`
+* Supports root-level maps-as-tables e.g. `foo = { * int => tstr }` [struct only, needs serialization]
+* Supports array members (not not root-level yet) e.g. `foo = { bar: [int] }` [struct only, needs serialization]
 
 The `supported.cddl` file contains all supported features thus far and outputs the following code:
 ```rust
-type bar = int;
+use std::io::Write;
 
-struct foo {
-    x: Option<bar>,
-    y: Option<Vec<Vec<i32>>>,
-    z: Option<i32>,
-    value_0: Option<String>,
-}
+use cbor_event::{self, de::Deserializer, se::Serializer};
 
-struct block {
-    header: Option<i32>,
-    bodies: Option<Vec<body>>,
-}
+type bar = u64;
 
-struct body {
-    txs: Option<Vec<i32>>,
-}
+mod groups {
+    use super::*;
 
-struct mapper {
-    table: std::collections::BTreeMap<String, i32>,
+    struct foo {
+        x: Option<bar>,
+        z: Option<u64>,
+        value_0: Option<String>,
+    }
+
+    impl cbor_event::se::Serialize for foo {
+        fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+            self.x.clone().unwrap().serialize(serializer);
+            self.z.clone().unwrap().serialize(serializer);
+            self.value_0.clone().unwrap().serialize(serializer)
+        }
+    }
+
+    struct block {
+        header: Option<u64>,
+    }
+
+    impl cbor_event::se::Serialize for block {
+        fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+            self.header.clone().unwrap().serialize(serializer)
+        }
+    }
+
+    struct mapper {
+        table: std::collections::BTreeMap<String, u64>,
+    }
 }
 ```
 
@@ -50,6 +66,9 @@ transaction_body =
   , 7 : metadata_hash
   }
 ```
+
+The clones will be removed if possible.
+The groups module will define the base representation of any group, and a wrapper type for either map or array will be defined for external use (wasm exposure).
 
 ### Current issues ###
 

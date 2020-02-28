@@ -1,10 +1,12 @@
-// use serde::Serialize;
-// use serde::Deserialize;
-// use serde_cbor::Serializer;
-// use serde_cbor::ser::SliceWrite;
-// use serde_cbor::tags::Tagged;
-
-use std::io::Write;
+// We need to figure how out we handle integers as they can only be serialized as
+// Unsigned or Negative. Do we do an enum for the int type?
+// It's only used in transaction_metadata as one choice.
+// How it has to be serialized (assuming number: i32):
+// if number >= 0 {
+//     serializer.write_unsigned_integer(number as u64)
+// } else {
+//     serializer.write_negative_integer(number as i64)
+// }
 
 use cddl::ast::*;
 
@@ -25,11 +27,19 @@ fn group_entry_to_field_name(entry: &GroupEntry) -> String {
 // TODO: Can we do this, or do we need to be more explicit to match the schema?
 fn convert_types(raw: &str) -> &str {
     match raw {
-        "uint" => "u32",
-        "nint" => "i32",
-        "int" => "i32",
+        "uint" => "u64",
+        // Not sure on this one, I think they can be bigger than i64 can fit
+        // but the cbor_event serialization takes the argument as an i64
+        "nint" => "i64",
+        // TODO: define enum or something as otherwise it can overflow i64
+        // and also we can't define the serialization traits for types
+        // that are defined outside of this crate (includes primitives)
+        //"int" => "i64",
         "tstr" | "text" => "String",
         // TODO: Is this right to have it be Vec<u8>?
+        // the serialization library for bytes takes type [u8]
+        // so we'll have to put some logic in there I guess?
+        // it might be necessary to put a wrapper type..
         "bstr" | "bytes" => "Vec<u8>",
         // What about bingint/other stuff in the standard prelude?
         x => x,
@@ -135,13 +145,35 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
             s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(domain), rust_type(range)));
         },
         None => {
-            let mut ser_func = codegen::Impl::new("cbor_event::se::Serialize");
-            for (group_entry, _has_comma) in &group_choice.0 {
+            let mut ser_impl = codegen::Impl::new(name);
+            ser_impl.impl_trait("cbor_event::se::Serialize");
+            let mut s_impl = codegen::Impl::new(name);
+            let mut ser_func = ser_impl.new_fn("serialize")
+                .generic("'se, W: Write")
+                .ret("cbor_event::Result<&'se mut Serializer<W>>")
+                .arg_ref_self()
+                .arg("serializer", "&'se mut Serializer<W>");
+            // can't use _has_comma to detect last element as you can have a trailing
+            // comma on the last line in valid CDDL
+            for (i, (group_entry, _has_comma)) in group_choice.0.iter().enumerate() {
+                let field_name = group_entry_to_field_name(group_entry);
                 s.field(
-                    &group_entry_to_field_name(group_entry),
+                    &field_name,
                     format!("Option<{}>", group_entry_to_type_name(group_entry))
                 );
+                // TODO: support conditional members (100% necessary for heterogenous maps (not tables))
+                // TODO: proper support since this assumes all members implement the trait
+                //       maybe we could put a special case for primitives or Maps/Vecs?
+                // TODO: remove clone()? Without it String gets moved out.
+                ser_func.line(
+                    format!(
+                        "self.{}.clone().unwrap().serialize(serializer){}",
+                        field_name,
+                        if i == group_choice.0.len() - 1 { "" } else { ";" } ));
             }
+            scope.push_impl(ser_impl);
+            // TODO: write code for serializing as map vs array
+            //scope.push_impl(s_impl);
         }
     }
 }
@@ -151,8 +183,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cddl = cddl::parser::cddl_from_str(&cddl_in)?;
     //println!("CDDL file: {}", cddl);
     let mut scope = codegen::Scope::new();
+    // Can't generate groups of imports with codegen::Import so we just output this as raw text
+    // since we don't need it to be dynamic so it's fine. codegen::Impl::new("a", "{z::b, z::c}")
+    // does not work.
+    scope.raw("use cbor_event::{self, de::Deserializer, se::Serializer};");
+    scope.import("std::io", "Write");
     let mut group_module = codegen::Module::new("groups");
     let mut group_scope = group_module.scope();
+    group_scope.import("super", "*");
     for rule in cddl.rules {
         match rule {
             Rule::Type(tr) => {

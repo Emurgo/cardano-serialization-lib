@@ -1,20 +1,20 @@
-bar = int
+bar = uint
 
 foo = {
 	x : bar,
-	y : [[int]],
-	z : int,
+;	y : [[uint]],
+	z : uint,
 	0 : tstr
 }
 
 block = {
-	header : int,
-	bodies : [* body],
-	metadata : { * uint => int }
+	header : uint,
+;	bodies : [* body],
+;	metadata : { * uint => uint }
 }
 
-body = (
-	txs : [+int]
-)
+;body = (
+;	txs : [+uint]
+;)
 
-mapper = { * tstr => int }
+mapper = { * tstr => uint }
