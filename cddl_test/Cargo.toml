@@ -9,3 +9,4 @@ edition = "2018"
 cbor_event = "2.1.3"
 cddl = "0.3.18"
 codegen = "0.1.1"
+wasm-bindgen = { version = "0.2", features=["serde-serialize"] }

@@ -1,4 +1,3 @@
-
 // We need to figure how out we handle integers as they can only be serialized as
 // Unsigned or Negative. Do we do an enum for the int type?
 // It's only used in transaction_metadata as one choice.
@@ -100,6 +99,36 @@ fn group_entry_to_type_name(entry: &GroupEntry) -> String {
     }
 }
 
+fn codegen_group_as_map(scope: &mut codegen::Scope, group: &Group, name: &str) {
+    scope.raw("#[wasm_bindgen]");
+    let s = scope.new_struct(name);
+    s.field("group", format!("groups::{}", name));
+    let mut ser_impl = codegen::Impl::new(name);
+    ser_impl.impl_trait("cbor_event::se::Serialize");
+    let ser_func = ser_impl.new_fn("serialize")
+        .generic("'se, W: Write")
+        .ret("cbor_event::Result<&'se mut Serializer<W>>")
+        .arg_ref_self()
+        .arg("serializer", "&'se mut Serializer<W>");
+    let mut group_impl = codegen::Impl::new(name);
+    let to_bytes = group_impl.new_fn("to_bytes")
+        .ret("Vec<u8>")
+        .arg_ref_self();
+    for group_choice in &group.0 {
+        // TODO: support multiple choices
+        // this should be refactored into a common area for group choices too.
+        break;
+    }
+    ser_func.line("self.group.serialize_as_map(serializer)");
+    to_bytes.line("let mut buf = Serializer::new_vec();");
+    to_bytes.line("self.serialize(&mut buf).unwrap();");
+    to_bytes.line("buf.finalize()");
+    scope.push_impl(ser_impl);
+    scope.raw("#[wasm_bindgen]");
+    scope.push_impl(group_impl);
+    // TODO: write accessors here? would be common with codegen_group_as_array
+}
+
 // Separate function for when we support multiple choices as an enum
 fn codegen_group(scope: &mut codegen::Scope, group: &Group, name: &str) {
     for group_choice in &group.0 {
@@ -111,23 +140,8 @@ fn codegen_group(scope: &mut codegen::Scope, group: &Group, name: &str) {
     }
 }
 
-fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice, name: &str) {
-    // handles ValueMemberKey only
-    // TODO: TypeGroupname / InlinedGroup are not supported yet
-    // TODO: handle non-integer keys (all keys in shelley.cddl are uint)
-
-    let s = scope.new_struct(name);
-    // We could re-use this for arrays I guess and add a tag?
-
-    // Here we test if this is a struct vs a table.
-    // struct: { x: int, y: int }, etc
-    // table: { * int => tstr }, etc
-    // this assumes that all maps representing tables are homogenous
-    // and contain no other fields. I am not sure if this is a guarantee in
-    // cbor but I would hope that the cddl specs we are using follow this.
-
-    // Is there a more concise/readable way of expressing this in rust?
-    let table_types: Option<(&Type2, &Type)> = if group_choice.0.len() == 1 {
+fn table_domain_range(group_choice: &GroupChoice) -> Option<(&Type2, &Type)> {
+    if group_choice.0.len() == 1 {
         if let Some((GroupEntry::ValueMemberKey(vmk), _)) = group_choice.0.first() {
             match &vmk.member_key {
                 // TODO: Do we need to handle cuts for what we're doing?
@@ -140,24 +154,49 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
         }
     } else {
         None
-    };
+    }
+}
+
+fn make_serialization_function(name: &str) -> codegen::Function {
+    let mut f = codegen::Function::new(name);
+    f
+        .generic("'se, W: Write")
+        .ret("cbor_event::Result<&'se mut Serializer<W>>")
+        .arg_ref_self()
+        .arg("serializer", "&'se mut Serializer<W>")
+        .vis("pub (super)");
+    f
+}
+
+fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice, name: &str) {
+    // handles ValueMemberKey only
+    // TODO: TypeGroupname / InlinedGroup are not supported yet
+    // TODO: handle non-integer keys (all keys in shelley.cddl are uint)
+
+    let s = scope.new_struct(name);
+    s.vis("pub (super)");
+    let mut s_impl = codegen::Impl::new(name);
+    // We could re-use this for arrays I guess and add a tag?
+
+    // Here we test if this is a struct vs a table.
+    // struct: { x: int, y: int }, etc
+    // table: { * int => tstr }, etc
+    // this assumes that all maps representing tables are homogenous
+    // and contain no other fields. I am not sure if this is a guarantee in
+    // cbor but I would hope that the cddl specs we are using follow this.
+
+    // Is there a more concise/readable way of expressing this in rust?
+    let table_types = table_domain_range(group_choice);
     match table_types {
         Some((domain, range)) => {
             s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(domain), rust_type(range)));
+            let mut ser_map = make_serialization_function("serialize_as_map");
+            ser_map.line("panic!(\"TODO: implement\");");
+            s_impl.push_fn(ser_map);
         },
         None => {
-            let mut ser_array = codegen::Function::new("serialize_as_array");
-            ser_array
-                .generic("'se, W: Write")
-                .ret("cbor_event::Result<&'se mut Serializer<W>>")
-                .arg_ref_self()
-                .arg("serializer", "&'se mut Serializer<W>");
-            let mut ser_map = codegen::Function::new("serialize_as_map");
-            ser_map
-                .generic("'se, W: Write")
-                .ret("cbor_event::Result<&'se mut Serializer<W>>")
-                .arg_ref_self()
-                .arg("serializer", "&'se mut Serializer<W>");
+            let mut ser_array = make_serialization_function("serialize_as_array");
+            let mut ser_map = make_serialization_function("serialize_as_map");
             ser_array.line(format!("serializer.write_array(cbor_event::Len::Len({}u64))?;", group_choice.0.len()));
             ser_map.line(format!("serializer.write_array(cbor_event::Len::Len({}u64))?;", group_choice.0.len()));
             // can't use _has_comma to detect last element as you can have a trailing
@@ -192,13 +231,11 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
             }
             ser_array.line("serializer.write_special(cbor_event::Special::Break)");
             ser_map.line("serializer.write_special(cbor_event::Special::Break)");
-            let mut s_impl = codegen::Impl::new(name);
             s_impl.push_fn(ser_array);
             s_impl.push_fn(ser_map);
-            // TODO: write code for serializing as map vs array
-            scope.push_impl(s_impl);
         }
     }
+    scope.push_impl(s_impl);
 }
 
 
@@ -212,6 +249,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // does not work.
     scope.raw("use cbor_event::{self, de::{Deserialize, Deserializer}, se::{Serialize, Serializer}};");
     scope.import("std::io", "Write");
+    scope.import("wasm_bindgen::prelude", "*");
     let mut group_module = codegen::Module::new("groups");
     let group_scope = group_module.scope();
     group_scope.import("super", "*");
@@ -233,7 +271,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         },
                         // TODO: try to re-use/refactor this for arrays
                         Type2::Map(group) => {
-                            codegen_group(group_scope, group, tr.name.to_string().as_ref());                       
+                            let group_name = tr.name.to_string();
+                            codegen_group(group_scope, group, group_name.as_ref());
+                            codegen_group_as_map(&mut scope, group, group_name.as_ref());
                         },
                         x => {
                             println!("\nignored typename {} -> {:?}\n", tr.name, x);
