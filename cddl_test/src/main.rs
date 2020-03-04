@@ -1,4 +1,3 @@
-
 // We need to figure how out we handle integers as they can only be serialized as
 // Unsigned or Negative. Do we do an enum for the int type?
 // It's only used in transaction_metadata as one choice.
@@ -47,7 +46,7 @@ fn convert_types(raw: &str) -> &str {
         // the serialization library for bytes takes type [u8]
         // so we'll have to put some logic in there I guess?
         // it might be necessary to put a wrapper type..
-        "bstr" | "bytes" => "Vec<u8>",
+        "bstr" | "bytes" => "Bytes",
         // What about bingint/other stuff in the standard prelude?
         x => x,
     }
@@ -72,7 +71,7 @@ fn rust_type_from_type2(type2: &Type2) -> Option<String> {
                         GroupEntry::TypeGroupname(tgn) => Some(tgn.name.to_string()),
                         _ => Some(format!("UNSUPPORTED_ARRAY_ELEMENT<{:?}>", entry)),
                     };
-                    s.push_str(&format!("Vec<{}>", element_type.unwrap()));
+                    s.push_str(&format!("Array<{}>", element_type.unwrap()));
                 } else {
                     // TODO: how do we handle this? tuples?
                     // or creating a struct definition and referring to it
@@ -138,12 +137,13 @@ fn codegen_group(scope: &mut codegen::Scope, group: &Group, name: &str) {
         let mut e_impl = codegen::Impl::new(name);
         // TODO: serialize map. this is an issue since the implementations might not exist.
         let mut ser_array = make_serialization_function("serialize_as_array");
-        let mut match_block = codegen::Block::new("match");
+        ser_array.vis("pub (super)");
+        let mut match_block = codegen::Block::new("match self");
         for (i, group_choice) in group.0.iter().enumerate() {
             let variant_name = name.to_owned() + &i.to_string();
             e.push_variant(codegen::Variant::new(&format!("{}({})", variant_name, variant_name)));
             codegen_group_choice(scope, group_choice, &variant_name);
-            match_block.line(format!("{}(x) => x.serialize_as_array(serializer),", variant_name));
+            match_block.line(format!("{}::{}(x) => x.serialize_as_array(serializer),", name, variant_name));
         }
         ser_array.push_block(match_block);
         e_impl.push_fn(ser_array);
@@ -175,8 +175,7 @@ fn make_serialization_function(name: &str) -> codegen::Function {
         .generic("'se, W: Write")
         .ret("cbor_event::Result<&'se mut Serializer<W>>")
         .arg_ref_self()
-        .arg("serializer", "&'se mut Serializer<W>")
-        .vis("pub (super)");
+        .arg("serializer", "&'se mut Serializer<W>");
     f
 }
 
@@ -203,14 +202,20 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
         Some((domain, range)) => {
             s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(domain).unwrap(), rust_type(range).unwrap()));
             let mut ser_map = make_serialization_function("serialize_as_map");
-            ser_map.line("panic!(\"TODO: implement\");");
+            ser_map
+                .vis("pub (super)")
+                .line("panic!(\"TODO: implement\");");
             s_impl.push_fn(ser_map);
         },
         None => {
             let mut ser_array = make_serialization_function("serialize_as_array");
             let mut ser_map = make_serialization_function("serialize_as_map");
-            ser_array.line(format!("serializer.write_array(cbor_event::Len::Len({}u64))?;", group_choice.0.len()));
-            ser_map.line(format!("serializer.write_array(cbor_event::Len::Len({}u64))?;", group_choice.0.len()));
+            ser_array
+                .vis("pub (super)")
+                .line(format!("serializer.write_array(cbor_event::Len::Len({}u64))?;", group_choice.0.len()));
+            ser_map
+                .vis("pub (super)")
+                .line(format!("serializer.write_array(cbor_event::Len::Len({}u64))?;", group_choice.0.len()));
             // If we have a group with entries that have no names, that's fine for arrays
             // but not for maps, so if we encounter one assume we should not generate
             // map-related functions.
@@ -292,6 +297,17 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
 }
 
 
+// struct Array<T>(Vec<T>);
+
+// impl<T> std::ops::Deref for Array<T> {
+//     type Target = Vec<T>;
+
+//     fn deref(&self) -> &Vec<T> {
+//         &self.0
+//     }
+// }
+
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cddl_in = std::fs::read_to_string("supported.cddl").unwrap();
     let cddl = cddl::parser::cddl_from_str(&cddl_in)?;
@@ -303,6 +319,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     scope.raw("use cbor_event::{self, de::{Deserialize, Deserializer}, se::{Serialize, Serializer}};");
     scope.import("std::io", "Write");
     scope.import("wasm_bindgen::prelude", "*");
+    // We need wrapper types for arrays/bytes as we can't specialize Vec<T> to cbor_event's Serialize
+    // as they come from different external crates.
+    scope.new_struct("Array<T>(Vec<T>)");
+    scope
+        .new_impl("Array<T>")
+        .generic("T")
+        .impl_trait("std::ops::Deref")
+        .associate_type("Target", "Vec<T>")
+        .new_fn("deref")
+        .arg_ref_self()
+        .ret("&Vec<T>")
+        .line("&self.0");
+    scope
+        .new_struct("Bytes(Vec<u8>)")
+        .derive("Clone");
+    scope
+        .new_impl("Bytes")
+        .impl_trait("Serialize")
+        .new_fn("serialize")
+        .arg_ref_self()
+        .arg("serializer", "&'a mut Serializer<W>")
+        .generic("'a, W: Write + Sized")
+        .ret("cbor_event::Result<&'a mut Serializer<W>>")
+        .line("serializer.write_bytes(&self.0[..])");
     let mut group_module = codegen::Module::new("groups");
     let group_scope = group_module.scope();
     group_scope.import("super", "*");
