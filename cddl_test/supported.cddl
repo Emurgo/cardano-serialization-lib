@@ -18,3 +18,28 @@ block = {
 ;)
 
 mapper = { * tstr => uint }
+
+
+
+
+; minimal support for address
+;pointer = (uint, uint, uint)
+pointer = uint
+
+$hash /= bytes
+
+keyhash = $hash
+
+scripthash = $hash
+
+address =
+ (  0, keyhash, keyhash       ; base address
+ // 1, keyhash, scripthash    ; base address
+ // 2, scripthash, keyhash    ; base address
+ // 3, scripthash, scripthash ; base address
+ // 4, keyhash, pointer       ; pointer address
+ // 5, scripthash, pointer    ; pointer address
+ // 6, keyhash                ; enterprise address (null staking reference)
+ // 7, scripthash             ; enterprise address (null staking reference)
+ // 8, keyhash                ; bootstrap address
+ )

@@ -92,8 +92,7 @@ checksum = "2b6cda8a789815488ee290d106bc97dba47785dae73d63576fc42c126912a451"
 [[package]]
 name = "cddl"
 version = "0.3.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4beed9743b1a889aee281dcf7fd5039f51caa0a47ef05f82591bc508949c8ed9"
+source = "git+https://github.com/anweiss/cddl?branch=fix-grpchoice-parsing#8a373157658449f9b815ec4dc8b42303e2ee98c7"
 dependencies = [
  "annotate-snippets",
  "base16",

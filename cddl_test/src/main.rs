@@ -1,3 +1,4 @@
+
 // We need to figure how out we handle integers as they can only be serialized as
 // Unsigned or Negative. Do we do an enum for the int type?
 // It's only used in transaction_metadata as one choice.
@@ -10,16 +11,22 @@
 
 use cddl::ast::*;
 
-fn group_entry_to_field_name(entry: &GroupEntry) -> String {
+fn group_entry_to_field_name(entry: &GroupEntry, index: usize) -> String {
     match entry {
-        GroupEntry::ValueMemberKey(vmk) => {
-            match vmk.member_key.as_ref().unwrap() {
-                MemberKey::Value(value) => format!("value_{}", value),
-                MemberKey::Bareword(ident) => ident.to_string(),
+        GroupEntry::ValueMemberKey(vmk) => match vmk.member_key.as_ref() {
+            Some(member_key) => match member_key {
+                MemberKey::Value(value) => format!("key_{}", value),
+                MemberKey::Bareword(ident) => ("bw_".to_owned() + &ident.to_string()),
                 MemberKey::Type1(_) => panic!("Encountered Type1 member key in multi-field map - not supported"),
-            }
+            },
+            None => format!("index_{}", index),
         },
-        GroupEntry::TypeGroupname(tge) => tge.name.to_string(),
+        GroupEntry::TypeGroupname(tge) => {
+            // This was before, but it makes more sense for what we've done so far
+            // to have it be indexed. This may or may not be correct.
+            //("tgn_".to_owned() + &tge.name.to_string()),
+            format!("index_{}", index)
+        },
         GroupEntry::InlineGroup(_) => panic!("not implemented (define a new struct for this!)"),
     }
 }
@@ -46,13 +53,14 @@ fn convert_types(raw: &str) -> &str {
     }
 }
 
-fn rust_type_from_type2(type2: &Type2) -> String {
+// Returns None if this is a fixed value that we should not be storing
+fn rust_type_from_type2(type2: &Type2) -> Option<String> {
     match type2 {
         // ignoring IntValue/FloatValue/other primitives since they're not in the shelley spec
         // ie Type2::UintValue(value) => format!("uint<{}>", value),
         // generic args not in shelley.cddl
         // TODO: socket plugs (used in hash type)
-        Type2::Typename((ident, _generic_arg)) => convert_types(&(ident.0).0).to_owned(),
+        Type2::Typename((ident, _generic_arg)) => Some(convert_types(&(ident.0).0).to_owned()),
         // Map(group) not implemented as it's not in shelley.cddl
         Type2::Array(group) => {
             let mut s = String::new();
@@ -61,10 +69,10 @@ fn rust_type_from_type2(type2: &Type2) -> String {
                 if let Some((entry, _has_comma)) = choice.0.first() {
                     let element_type = match entry {
                         GroupEntry::ValueMemberKey(vmk) => rust_type(&vmk.entry_type),
-                        GroupEntry::TypeGroupname(tgn) => tgn.name.to_string(),
-                        _ => format!("UNSUPPORTED_ARRAY_ELEMENT<{:?}>", entry),
+                        GroupEntry::TypeGroupname(tgn) => Some(tgn.name.to_string()),
+                        _ => Some(format!("UNSUPPORTED_ARRAY_ELEMENT<{:?}>", entry)),
                     };
-                    s.push_str(&format!("Vec<{}>", element_type));
+                    s.push_str(&format!("Vec<{}>", element_type.unwrap()));
                 } else {
                     // TODO: how do we handle this? tuples?
                     // or creating a struct definition and referring to it
@@ -73,13 +81,13 @@ fn rust_type_from_type2(type2: &Type2) -> String {
                 // TODO: handle group choices (enums?)
                 break;
             }
-            s
+            Some(s)
         },
-        x => format!("unsupported<{:?}>", x),
+        x => None,
     }
 }
 
-fn rust_type(t: &Type) -> String {
+fn rust_type(t: &Type) -> Option<String> {
     for type1 in t.0.iter() {
         // ignoring range control operator here, only interested in Type2
         return rust_type_from_type2(&type1.type2);
@@ -91,10 +99,10 @@ fn rust_type(t: &Type) -> String {
     panic!("rust_type() is broken for: '{}'", t)
 }
 
-fn group_entry_to_type_name(entry: &GroupEntry) -> String {
+fn group_entry_to_type_name(entry: &GroupEntry) -> Option<String> {
     match entry {
         GroupEntry::ValueMemberKey(vmk) => rust_type(&vmk.entry_type),//convert_types(&vmk.entry_type.to_string()).to_owned(),
-        GroupEntry::TypeGroupname(tge) => "TGN".to_owned() + &tge.name.to_string(),
+        GroupEntry::TypeGroupname(tge) => Some(tge.name.to_string()),
         GroupEntry::InlineGroup(_) => panic!("not implemented"),
     }
 }
@@ -105,24 +113,16 @@ fn codegen_group_as_map(scope: &mut codegen::Scope, group: &Group, name: &str) {
     s.field("group", format!("groups::{}", name));
     let mut ser_impl = codegen::Impl::new(name);
     ser_impl.impl_trait("cbor_event::se::Serialize");
-    let ser_func = ser_impl.new_fn("serialize")
-        .generic("'se, W: Write")
-        .ret("cbor_event::Result<&'se mut Serializer<W>>")
-        .arg_ref_self()
-        .arg("serializer", "&'se mut Serializer<W>");
+    let mut ser_func = make_serialization_function("serialize");
     let mut group_impl = codegen::Impl::new(name);
     let to_bytes = group_impl.new_fn("to_bytes")
         .ret("Vec<u8>")
         .arg_ref_self();
-    for group_choice in &group.0 {
-        // TODO: support multiple choices
-        // this should be refactored into a common area for group choices too.
-        break;
-    }
     ser_func.line("self.group.serialize_as_map(serializer)");
     to_bytes.line("let mut buf = Serializer::new_vec();");
     to_bytes.line("self.serialize(&mut buf).unwrap();");
     to_bytes.line("buf.finalize()");
+    ser_impl.push_fn(ser_func);
     scope.push_impl(ser_impl);
     scope.raw("#[wasm_bindgen]");
     scope.push_impl(group_impl);
@@ -131,12 +131,24 @@ fn codegen_group_as_map(scope: &mut codegen::Scope, group: &Group, name: &str) {
 
 // Separate function for when we support multiple choices as an enum
 fn codegen_group(scope: &mut codegen::Scope, group: &Group, name: &str) {
-    for group_choice in &group.0 {
-        codegen_group_choice(scope, group_choice, name);
-
-        // TODO: support multiple choices
-        // this should be refactored into a common area for groups too.
-        break;
+    if group.0.len() == 1 {
+        codegen_group_choice(scope, group.0.first().unwrap(), name);
+    } else {
+        let mut e = codegen::Enum::new(name);
+        let mut e_impl = codegen::Impl::new(name);
+        // TODO: serialize map. this is an issue since the implementations might not exist.
+        let mut ser_array = make_serialization_function("serialize_as_array");
+        let mut match_block = codegen::Block::new("match");
+        for (i, group_choice) in group.0.iter().enumerate() {
+            let variant_name = name.to_owned() + &i.to_string();
+            e.push_variant(codegen::Variant::new(&format!("{}({})", variant_name, variant_name)));
+            codegen_group_choice(scope, group_choice, &variant_name);
+            match_block.line(format!("{}(x) => x.serialize_as_array(serializer),", variant_name));
+        }
+        ser_array.push_block(match_block);
+        e_impl.push_fn(ser_array);
+        scope.push_enum(e);
+        scope.push_impl(e_impl);
     }
 }
 
@@ -189,7 +201,7 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
     let table_types = table_domain_range(group_choice);
     match table_types {
         Some((domain, range)) => {
-            s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(domain), rust_type(range)));
+            s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(domain).unwrap(), rust_type(range).unwrap()));
             let mut ser_map = make_serialization_function("serialize_as_map");
             ser_map.line("panic!(\"TODO: implement\");");
             s_impl.push_fn(ser_map);
@@ -199,40 +211,81 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
             let mut ser_map = make_serialization_function("serialize_as_map");
             ser_array.line(format!("serializer.write_array(cbor_event::Len::Len({}u64))?;", group_choice.0.len()));
             ser_map.line(format!("serializer.write_array(cbor_event::Len::Len({}u64))?;", group_choice.0.len()));
-            // can't use _has_comma to detect last element as you can have a trailing
-            // comma on the last line in valid CDDL
-            for (group_entry, _has_comma) in &group_choice.0 {
-                let field_name = group_entry_to_field_name(group_entry);
-                s.field(
-                    &field_name,
-                    format!("Option<{}>", group_entry_to_type_name(group_entry))
-                );
-                // TODO: support conditional members (100% necessary for heterogenous maps (not tables))
-                // TODO: proper support since this assumes all members implement the trait
-                //       maybe we could put a special case for primitives or Maps/Vecs?
-                // TODO: remove clone()? Without it String gets moved out.
-                ser_array.line(format!("self.{}.clone().unwrap().serialize(serializer)?;", field_name));
-                ser_map.line(match group_entry {
-                    GroupEntry::ValueMemberKey(vmk) => {
-                        match vmk.member_key.as_ref().unwrap() {
-                            MemberKey::Value(value) => match value {
-                                cddl::token::Value::UINT(x) => format!("serializer.write_unsigned_integer({})?;", x),
-                                _ => panic!("unsupported map identifier: {}", value),
+            // If we have a group with entries that have no names, that's fine for arrays
+            // but not for maps, so if we encounter one assume we should not generate
+            // map-related functions.
+            // In the future we could change this tool to only emit the array or map
+            // functions when they are strictly necessary (wrapped in array or map elsewhere)
+            // This would also reduce error checking here since we wouldn't hit certain cases
+            let mut contains_entries_without_names = false;
+            for (index, (group_entry, _has_comma)) in group_choice.0.iter().enumerate() {
+                let field_name = group_entry_to_field_name(group_entry, index);
+                // Unsupported types so far are fixed values, only have fields
+                // for these.
+                if let Some(type_name) = group_entry_to_type_name(group_entry) {
+                    s.field(
+                        &field_name,
+                        format!("Option<{}>", type_name)
+                    );
+                    // TODO: support conditional members (100% necessary for heterogenous maps (not tables))
+                    // TODO: proper support since this assumes all members implement the trait
+                    //       maybe we could put a special case for primitives or Maps/Vecs?
+                    // TODO: remove clone()? Without it String gets moved out.
+                    ser_array.line(format!("self.{}.clone().unwrap().serialize(serializer)?;", field_name));
+                    match group_entry {
+                        GroupEntry::ValueMemberKey(vmk) => {
+                            match vmk.member_key.as_ref() {
+                                Some(member_key) => match member_key {
+                                    MemberKey::Value(value) => match value {
+                                        cddl::token::Value::UINT(x) => {
+                                            ser_map.line(format!("serializer.write_unsigned_integer({})?;", x));
+                                        },
+                                        _ => panic!("unsupported map identifier(1): {:?}", value),
+                                    },
+                                    MemberKey::Bareword(ident) => {
+                                        ser_map.line(format!("serializer.write_text(\"{}\")?;", ident.to_string()));
+                                    },
+                                    x => panic!("unsupported map identifier(2): {:?}", x),
+                                },
+                                None => {
+                                    contains_entries_without_names = true;
+                                },
+                            }
+                        },
+                        // TODO: why are we hitting this?
+                        // GroupEntry::TypeGroupname(tgn) => match tgn.name.to_string().as_ref() {
+                        //     "uint" => format!("serializer.write_unsigned_integer({})?;", x),
+                        //     x => panic!("TODO: serialize '{}'", x),
+                        // },
+                        x => {
+                            //panic!("unsupported map identifier(3): {:?}", x),
+                            // TODO: only generate map vs array stuff when needed to avoid this hack
+                            contains_entries_without_names = true;
+                        },
+                    };
+                    ser_map.line(format!("self.{}.clone().unwrap().serialize(serializer)?;", field_name));
+                } else {
+                    // TODO: do we need to support type choices here?!
+                    match group_entry {
+                        GroupEntry::ValueMemberKey(vmk) => match vmk.entry_type.0.first() {
+                            Some(x) => match &x.type2 {
+                                Type2::UintValue(x) => {
+                                    ser_array.line(format!("serializer.write_unsigned_integer({})?;", x));
+                                },
+                                x => panic!("unsupported fixed type: {}", x),
                             },
-                            MemberKey::Bareword(ident) => {
-                                format!("serializer.write_text(\"{}\")?;", ident.to_string())
-                            },
-                            x => panic!("unsupported map identifier: {}", x),
-                        }
-                    },
-                    x => panic!("unsupported map identifier: {}", x),
-                });
-                ser_map.line(format!("self.{}.clone().unwrap().serialize(serializer)?;", field_name));
+                            None => unreachable!(),
+                        },
+                        _ => panic!("unsupported fixed type: {:?}", group_entry),
+                    }
+                }
             }
             ser_array.line("serializer.write_special(cbor_event::Special::Break)");
             ser_map.line("serializer.write_special(cbor_event::Special::Break)");
             s_impl.push_fn(ser_array);
-            s_impl.push_fn(ser_map);
+            if !contains_entries_without_names {
+                s_impl.push_fn(ser_map);
+            }
         }
     }
     scope.push_impl(s_impl);
