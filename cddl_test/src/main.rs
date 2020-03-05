@@ -1,3 +1,4 @@
+
 // We need to figure how out we handle integers as they can only be serialized as
 // Unsigned or Negative. Do we do an enum for the int type?
 // It's only used in transaction_metadata as one choice.
@@ -15,7 +16,7 @@ fn group_entry_to_field_name(entry: &GroupEntry, index: usize) -> String {
         GroupEntry::ValueMemberKey(vmk) => match vmk.member_key.as_ref() {
             Some(member_key) => match member_key {
                 MemberKey::Value(value) => format!("key_{}", value),
-                MemberKey::Bareword(ident) => ("bw_".to_owned() + &ident.to_string()),
+                MemberKey::Bareword(ident) => ident.to_string(),
                 MemberKey::Type1(_) => panic!("Encountered Type1 member key in multi-field map - not supported"),
             },
             None => format!("index_{}", index),
@@ -101,14 +102,13 @@ fn rust_type(t: &Type) -> Option<String> {
 fn group_entry_to_type_name(entry: &GroupEntry) -> Option<String> {
     match entry {
         GroupEntry::ValueMemberKey(vmk) => rust_type(&vmk.entry_type),//convert_types(&vmk.entry_type.to_string()).to_owned(),
-        GroupEntry::TypeGroupname(tge) => Some(tge.name.to_string()),
+        GroupEntry::TypeGroupname(tge) => Some(convert_types(&tge.name.to_string()).to_owned()),
         GroupEntry::InlineGroup(_) => panic!("not implemented"),
     }
 }
 
 fn codegen_group_as_map(scope: &mut codegen::Scope, group: &Group, name: &str) {
-    scope.raw("#[wasm_bindgen]");
-    let s = scope.new_struct(name);
+    let mut s = codegen::Struct::new(name);
     s.field("group", format!("groups::{}", name));
     let mut ser_impl = codegen::Impl::new(name);
     ser_impl.impl_trait("cbor_event::se::Serialize");
@@ -122,10 +122,51 @@ fn codegen_group_as_map(scope: &mut codegen::Scope, group: &Group, name: &str) {
     to_bytes.line("self.serialize(&mut buf).unwrap();");
     to_bytes.line("buf.finalize()");
     ser_impl.push_fn(ser_func);
+    // TODO: write accessors here? would be common with codegen_group_as_array
+    if group.0.len() == 1 {
+        let group_choice = group.0.first().unwrap();
+        let table_types = table_domain_range(group_choice);
+        match table_types {
+            Some((domain, range)) => {
+                // TODO: how to handle constructors for a table?
+            },
+            None => {
+                let mut new_func = codegen::Function::new("new");
+                new_func
+                    .ret(name)
+                    .vis("pub (super)");
+                let mut new_func_block = codegen::Block::new(name);
+                let mut output_comma = false;
+                let mut args = format!("group: groups::{}::new(", name);
+                for (index, (group_entry, _has_comma)) in group_choice.0.iter().enumerate() {
+                    let field_name = group_entry_to_field_name(group_entry, index);
+                    // Unsupported types so far are fixed values, only have fields
+                    // for these.
+                    if let Some(type_name) = group_entry_to_type_name(group_entry) {
+                        if output_comma {
+                            args.push_str(", ");
+                        } else {
+                            output_comma = true;
+                        }
+                        // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
+                        new_func.arg(&field_name, format!("Option<{}>", type_name));
+                        args.push_str(&field_name);
+                    }
+                }
+                args.push_str(")");
+                new_func_block.line(args);
+                new_func.push_block(new_func_block);
+                group_impl.push_fn(new_func);
+            }
+        }
+    } else {
+        // TODO: support enums
+    }
+    scope.raw("#[wasm_bindgen]");
+    scope.push_struct(s);
     scope.push_impl(ser_impl);
     scope.raw("#[wasm_bindgen]");
     scope.push_impl(group_impl);
-    // TODO: write accessors here? would be common with codegen_group_as_array
 }
 
 // Separate function for when we support multiple choices as an enum
@@ -223,15 +264,20 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
             // functions when they are strictly necessary (wrapped in array or map elsewhere)
             // This would also reduce error checking here since we wouldn't hit certain cases
             let mut contains_entries_without_names = false;
+            let mut new_func = codegen::Function::new("new");
+            new_func
+                .ret(name)
+                .vis("pub (super)");
+            let mut new_func_block = codegen::Block::new(name);
             for (index, (group_entry, _has_comma)) in group_choice.0.iter().enumerate() {
                 let field_name = group_entry_to_field_name(group_entry, index);
                 // Unsupported types so far are fixed values, only have fields
                 // for these.
                 if let Some(type_name) = group_entry_to_type_name(group_entry) {
-                    s.field(
-                        &field_name,
-                        format!("Option<{}>", type_name)
-                    );
+                    s.field(&field_name, format!("Option<{}>", type_name));
+                    // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
+                    new_func.arg(&field_name, format!("Option<{}>", type_name));
+                    new_func_block.line(format!("{}: {},", field_name, field_name));
                     // TODO: support conditional members (100% necessary for heterogenous maps (not tables))
                     // TODO: proper support since this assumes all members implement the trait
                     //       maybe we could put a special case for primitives or Maps/Vecs?
@@ -287,6 +333,8 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
             }
             ser_array.line("serializer.write_special(cbor_event::Special::Break)");
             ser_map.line("serializer.write_special(cbor_event::Special::Break)");
+            new_func.push_block(new_func_block);
+            s_impl.push_fn(new_func);
             s_impl.push_fn(ser_array);
             if !contains_entries_without_names {
                 s_impl.push_fn(ser_map);
@@ -295,18 +343,6 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
     }
     scope.push_impl(s_impl);
 }
-
-
-// struct Array<T>(Vec<T>);
-
-// impl<T> std::ops::Deref for Array<T> {
-//     type Target = Vec<T>;
-
-//     fn deref(&self) -> &Vec<T> {
-//         &self.0
-//     }
-// }
-
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cddl_in = std::fs::read_to_string("supported.cddl").unwrap();
