@@ -11,6 +11,8 @@
 
 use cddl::ast::*;
 
+//static free_groups = std::collections::BTreeMap<Group>;
+
 fn group_entry_to_field_name(entry: &GroupEntry, index: usize) -> String {
     match entry {
         GroupEntry::ValueMemberKey(vmk) => match vmk.member_key.as_ref() {
@@ -21,7 +23,7 @@ fn group_entry_to_field_name(entry: &GroupEntry, index: usize) -> String {
             },
             None => format!("index_{}", index),
         },
-        GroupEntry::TypeGroupname(tge) => {
+        GroupEntry::TypeGroupname(_) => {
             // This was before, but it makes more sense for what we've done so far
             // to have it be indexed. This may or may not be correct.
             //("tgn_".to_owned() + &tge.name.to_string()),
@@ -107,9 +109,12 @@ fn group_entry_to_type_name(entry: &GroupEntry) -> Option<String> {
     }
 }
 
-fn codegen_group_as_map(scope: &mut codegen::Scope, group: &Group, name: &str) {
+// as_map = true generates as map-serialized, and false as array-serialized
+fn codegen_group_exposed(scope: &mut codegen::Scope, group: &Group, name: &str, as_map: bool) {
     let mut s = codegen::Struct::new(name);
-    s.field("group", format!("groups::{}", name));
+    s
+        .vis("pub")
+        .field("group", format!("groups::{}", name));
     let mut ser_impl = codegen::Impl::new(name);
     ser_impl.impl_trait("cbor_event::se::Serialize");
     let mut ser_func = make_serialization_function("serialize");
@@ -117,7 +122,11 @@ fn codegen_group_as_map(scope: &mut codegen::Scope, group: &Group, name: &str) {
     let to_bytes = group_impl.new_fn("to_bytes")
         .ret("Vec<u8>")
         .arg_ref_self();
-    ser_func.line("self.group.serialize_as_map(serializer)");
+    if as_map {
+        ser_func.line("self.group.serialize_as_map(serializer)");
+    } else {
+        ser_func.line("self.group.serialize_as_array(serializer)");
+    }
     to_bytes.line("let mut buf = Serializer::new_vec();");
     to_bytes.line("self.serialize(&mut buf).unwrap();");
     to_bytes.line("buf.finalize()");
@@ -134,7 +143,7 @@ fn codegen_group_as_map(scope: &mut codegen::Scope, group: &Group, name: &str) {
                 let mut new_func = codegen::Function::new("new");
                 new_func
                     .ret(name)
-                    .vis("pub (super)");
+                    .vis("pub");
                 let mut new_func_block = codegen::Block::new(name);
                 let mut output_comma = false;
                 let mut args = format!("group: groups::{}::new(", name);
@@ -160,7 +169,35 @@ fn codegen_group_as_map(scope: &mut codegen::Scope, group: &Group, name: &str) {
             }
         }
     } else {
-        // TODO: support enums
+        for (i, group_choice) in group.0.iter().enumerate() {
+            let variant_name = name.to_owned() + &i.to_string();
+            let mut new_func = codegen::Function::new(&format!("new_{}", variant_name));
+            new_func
+                .ret("Self")
+                .vis("pub");
+            let mut new_func_block = codegen::Block::new(name);
+            let mut output_comma = false;
+            let mut args = format!("group: groups::{}::{}(groups::{}::new(", name, variant_name, variant_name);
+            for (index, (group_entry, _has_comma)) in group_choice.0.iter().enumerate() {
+                let field_name = group_entry_to_field_name(group_entry, index);
+                // Unsupported types so far are fixed values, only have fields
+                // for these.
+                if let Some(type_name) = group_entry_to_type_name(group_entry) {
+                    if output_comma {
+                        args.push_str(", ");
+                    } else {
+                        output_comma = true;
+                    }
+                    // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
+                    new_func.arg(&field_name, format!("Option<{}>", type_name));
+                    args.push_str(&field_name);
+                }
+            }
+            args.push_str("))");
+            new_func_block.line(args);
+            new_func.push_block(new_func_block);
+            group_impl.push_fn(new_func);
+        }
     }
     scope.raw("#[wasm_bindgen]");
     scope.push_struct(s);
@@ -175,6 +212,7 @@ fn codegen_group(scope: &mut codegen::Scope, group: &Group, name: &str) {
         codegen_group_choice(scope, group.0.first().unwrap(), name);
     } else {
         let mut e = codegen::Enum::new(name);
+        e.vis("pub (super)");
         let mut e_impl = codegen::Impl::new(name);
         // TODO: serialize map. this is an issue since the implementations might not exist.
         let mut ser_array = make_serialization_function("serialize_as_array");
@@ -266,7 +304,7 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
             let mut contains_entries_without_names = false;
             let mut new_func = codegen::Function::new("new");
             new_func
-                .ret(name)
+                .ret("Self")
                 .vis("pub (super)");
             let mut new_func_block = codegen::Block::new(name);
             for (index, (group_entry, _has_comma)) in group_choice.0.iter().enumerate() {
@@ -367,9 +405,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .arg_ref_self()
         .ret("&Vec<T>")
         .line("&self.0");
+    scope.raw("#[wasm_bindgen]");
     scope
         .new_struct("Bytes(Vec<u8>)")
-        .derive("Clone");
+        .derive("Clone")
+        .vis("pub");
     scope
         .new_impl("Bytes")
         .impl_trait("Serialize")
@@ -398,11 +438,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Type2::Typename((identifier, _generic_arg)) => {
                             scope.raw(format!("type {} = {};", tr.name, convert_types(&identifier.to_string())).as_ref());
                         },
-                        // TODO: try to re-use/refactor this for arrays
                         Type2::Map(group) => {
                             let group_name = tr.name.to_string();
                             codegen_group(group_scope, group, group_name.as_ref());
-                            codegen_group_as_map(&mut scope, group, group_name.as_ref());
+                            codegen_group_exposed(&mut scope, group, group_name.as_ref(), true);
+                        },
+                        Type2::Array(group) => {
+                            let group_name = tr.name.to_string();
+                            codegen_group(group_scope, group, group_name.as_ref());
+                            codegen_group_exposed(&mut scope, group, group_name.as_ref(), false);
                         },
                         x => {
                             println!("\nignored typename {} -> {:?}\n", tr.name, x);

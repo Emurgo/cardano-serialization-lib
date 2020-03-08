@@ -33,7 +33,7 @@ keyhash = hash
 scripthash = hash
 
 address =
- (  0, keyhash, keyhash       ; base address
+ [  0, keyhash, keyhash       ; base address
  // 1, keyhash, scripthash    ; base address
  // 2, scripthash, keyhash    ; base address
  // 3, scripthash, scripthash ; base address
@@ -42,4 +42,9 @@ address =
  // 6, keyhash                ; enterprise address (null staking reference)
  // 7, scripthash             ; enterprise address (null staking reference)
  // 8, keyhash                ; bootstrap address
- )
+ ]
+
+transaction_input = [transaction_id : hash, index : uint]
+
+; replace address with address type
+transaction_output = [address : tstr, amount : uint]
