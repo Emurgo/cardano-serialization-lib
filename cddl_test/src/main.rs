@@ -10,6 +10,7 @@
 // }
 
 use cddl::ast::*;
+use std::collections::BTreeMap;
 
 //static free_groups = std::collections::BTreeMap<Group>;
 
@@ -85,7 +86,7 @@ fn rust_type_from_type2(type2: &Type2) -> Option<String> {
             }
             Some(s)
         },
-        x => None,
+        _ => None,
     }
 }
 
@@ -109,8 +110,18 @@ fn group_entry_to_type_name(entry: &GroupEntry) -> Option<String> {
     }
 }
 
+fn convert_to_wasm_friendly_arg<'a>(type_aliases: &'a BTreeMap<String, String>, arg_type: &'a str) -> &'a str {
+    match type_aliases.get(arg_type) {
+        Some(alias) => convert_to_wasm_friendly_arg(type_aliases, alias),
+        None => match arg_type {
+            "Bytes" => "Vec<u8>",
+            x => x,
+        },
+    }
+}
+
 // as_map = true generates as map-serialized, and false as array-serialized
-fn codegen_group_exposed(scope: &mut codegen::Scope, group: &Group, name: &str, as_map: bool) {
+fn codegen_group_exposed(type_aliases: &BTreeMap<String, String>, scope: &mut codegen::Scope, group: &Group, name: &str, as_map: bool) {
     let mut s = codegen::Struct::new(name);
     s
         .vis("pub")
@@ -121,7 +132,8 @@ fn codegen_group_exposed(scope: &mut codegen::Scope, group: &Group, name: &str, 
     let mut group_impl = codegen::Impl::new(name);
     let to_bytes = group_impl.new_fn("to_bytes")
         .ret("Vec<u8>")
-        .arg_ref_self();
+        .arg_ref_self()
+        .vis("pub");
     if as_map {
         ser_func.line("self.group.serialize_as_map(serializer)");
     } else {
@@ -158,8 +170,8 @@ fn codegen_group_exposed(scope: &mut codegen::Scope, group: &Group, name: &str, 
                             output_comma = true;
                         }
                         // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
-                        new_func.arg(&field_name, format!("Option<{}>", type_name));
-                        args.push_str(&field_name);
+                        new_func.arg(&field_name, convert_to_wasm_friendly_arg(type_aliases, &type_name));
+                        args.push_str(&format!("Some({}.into())", field_name));
                     }
                 }
                 args.push_str(")");
@@ -189,8 +201,8 @@ fn codegen_group_exposed(scope: &mut codegen::Scope, group: &Group, name: &str, 
                         output_comma = true;
                     }
                     // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
-                    new_func.arg(&field_name, format!("Option<{}>", type_name));
-                    args.push_str(&field_name);
+                    new_func.arg(&field_name, convert_to_wasm_friendly_arg(type_aliases, &type_name));
+                    args.push_str(&format!("Some({}.into())", field_name));
                 }
             }
             args.push_str("))");
@@ -346,7 +358,7 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
                         //     "uint" => format!("serializer.write_unsigned_integer({})?;", x),
                         //     x => panic!("TODO: serialize '{}'", x),
                         // },
-                        x => {
+                        _ => {
                             //panic!("unsupported map identifier(3): {:?}", x),
                             // TODO: only generate map vs array stuff when needed to avoid this hack
                             contains_entries_without_names = true;
@@ -383,6 +395,7 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut type_aliases = BTreeMap::<String, String>::new();
     let cddl_in = std::fs::read_to_string("supported.cddl").unwrap();
     let cddl = cddl::parser::cddl_from_str(&cddl_in)?;
     //println!("CDDL file: {}", cddl);
@@ -390,6 +403,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Can't generate groups of imports with codegen::Import so we just output this as raw text
     // since we don't need it to be dynamic so it's fine. codegen::Impl::new("a", "{z::b, z::c}")
     // does not work.
+    scope.raw("// This library was code-generated using an experimental CDDL to rust tool:\n// https://github.com/Emurgo/cardano-serialization-lib/tree/master/cddl_test");
     scope.raw("use cbor_event::{self, de::{Deserialize, Deserializer}, se::{Serialize, Serializer}};");
     scope.import("std::io", "Write");
     scope.import("wasm_bindgen::prelude", "*");
@@ -410,6 +424,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .new_struct("Bytes(Vec<u8>)")
         .derive("Clone")
         .vis("pub");
+    scope.raw("#[wasm_bindgen]");
+    scope
+        .new_impl("Bytes")
+        .new_fn("new")
+        .vis("pub")
+        .arg("data", "&[u8]")
+        .ret("Self")
+        .line("Self(data.into())");
+    scope
+        .new_impl("Bytes")
+        .impl_trait("From<Vec<u8>>")
+        .new_fn("from")
+        .arg("data", "Vec<u8>")
+        .ret("Self")
+        .line("Self(data)");
     scope
         .new_impl("Bytes")
         .impl_trait("Serialize")
@@ -425,28 +454,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for rule in cddl.rules {
         match rule {
             Rule::Type(tr) => {
-                // (1) does not handle optioanl generic parameters
+                // (1) does not handle optional generic parameters
                 // (2) does not handle ranges - I think they're the character position in the CDDL
                 // (3) is_type_choice_alternate ignored since shelley cddl doesn't need it
                 //     It's used, but used for no reason as it is the initial definition
                 //     (which is also valid cddl), but it would be fine as = instead of /=
-                //let mut s = scope.new_struct(tr.name.to_string().as_ref());
                 // TODO: choices (as enums I guess?)
                 for choice in &tr.value.0 {
                     // ignores control operators - only used in shelley spec to limit string length for application metadata
                     match &choice.type2 {
                         Type2::Typename((identifier, _generic_arg)) => {
-                            scope.raw(format!("type {} = {};", tr.name, convert_types(&identifier.to_string())).as_ref());
+                            let alias = tr.name.to_string();
+                            let base_type = convert_types(&identifier.to_string()).to_owned();
+                            scope.raw(format!("type {} = {};", alias, base_type).as_ref());
+                            type_aliases.insert(alias, base_type);
                         },
                         Type2::Map(group) => {
                             let group_name = tr.name.to_string();
                             codegen_group(group_scope, group, group_name.as_ref());
-                            codegen_group_exposed(&mut scope, group, group_name.as_ref(), true);
+                            codegen_group_exposed(&type_aliases, &mut scope, group, group_name.as_ref(), true);
                         },
                         Type2::Array(group) => {
                             let group_name = tr.name.to_string();
                             codegen_group(group_scope, group, group_name.as_ref());
-                            codegen_group_exposed(&mut scope, group, group_name.as_ref(), false);
+                            codegen_group_exposed(&type_aliases, &mut scope, group, group_name.as_ref(), false);
                         },
                         x => {
                             println!("\nignored typename {} -> {:?}\n", tr.name, x);
