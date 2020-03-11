@@ -91,8 +91,8 @@ checksum = "2b6cda8a789815488ee290d106bc97dba47785dae73d63576fc42c126912a451"
 
 [[package]]
 name = "cddl"
-version = "0.3.18"
-source = "git+https://github.com/anweiss/cddl?branch=fix-grpchoice-parsing#8a373157658449f9b815ec4dc8b42303e2ee98c7"
+version = "0.4.0"
+source = "git+https://github.com/anweiss/cddl#8da92bc60de9b9a7579b2ea810e817058272d30f"
 dependencies = [
  "annotate-snippets",
  "base16",
@@ -117,7 +117,6 @@ dependencies = [
  "cbor_event",
  "cddl",
  "codegen",
- "wasm-bindgen",
 ]
 
 [[package]]

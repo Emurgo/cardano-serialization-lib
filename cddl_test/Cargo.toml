@@ -7,7 +7,6 @@ edition = "2018"
 
 [dependencies]
 cbor_event = "2.1.3"
-#cddl = "0.3.18"
-cddl = { git = "https://github.com/anweiss/cddl", branch = "fix-grpchoice-parsing" }
+#cddl = "0.4.0"
+cddl = { git = "https://github.com/anweiss/cddl", branch = "master" }
 codegen = "0.1.1"
-wasm-bindgen = { version = "0.2", features=["serde-serialize"] }

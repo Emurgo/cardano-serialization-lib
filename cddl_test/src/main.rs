@@ -63,7 +63,7 @@ fn rust_type_from_type2(type2: &Type2) -> Option<String> {
         // ie Type2::UintValue(value) => format!("uint<{}>", value),
         // generic args not in shelley.cddl
         // TODO: socket plugs (used in hash type)
-        Type2::Typename((ident, _generic_arg)) => Some(convert_types(&(ident.0).0).to_owned()),
+        Type2::Typename((ident, _generic_arg)) => Some(convert_types(&ident.ident).to_owned()),
         // Map(group) not implemented as it's not in shelley.cddl
         Type2::Array(group) => {
             let mut s = String::new();
@@ -381,8 +381,10 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
                     }
                 }
             }
-            ser_array.line("serializer.write_special(cbor_event::Special::Break)");
-            ser_map.line("serializer.write_special(cbor_event::Special::Break)");
+            ser_array.line("Ok(serializer)");
+            ser_map.line("Ok(serializer)");
+            //ser_array.line("serializer.write_special(cbor_event::Special::Break)");
+            //ser_map.line("serializer.write_special(cbor_event::Special::Break)");
             new_func.push_block(new_func_block);
             s_impl.push_fn(new_func);
             s_impl.push_fn(ser_array);
@@ -407,6 +409,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     scope.raw("use cbor_event::{self, de::{Deserialize, Deserializer}, se::{Serialize, Serializer}};");
     scope.import("std::io", "Write");
     scope.import("wasm_bindgen::prelude", "*");
+    // TODO: maybe export this as a prelude.rs file instead of creating it in code since it's static
     // We need wrapper types for arrays/bytes as we can't specialize Vec<T> to cbor_event's Serialize
     // as they come from different external crates.
     scope.new_struct("Array<T>(Vec<T>)");
@@ -502,7 +505,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     scope.push_module(group_module);
-    println!("{}", scope.to_string());
+    //println!("{}", scope.to_string());
+    match std::fs::remove_dir_all("export/src") {
+        Ok(()) => (),
+        Err(e) => (),
+    };
+    std::fs::create_dir_all("export/src").unwrap();
+    std::fs::write("export/src/lib.rs", scope.to_string()).unwrap();
+    std::fs::copy("static/Cargo.toml", "export/Cargo.toml").unwrap();
+    
 
     Ok(())
 }
