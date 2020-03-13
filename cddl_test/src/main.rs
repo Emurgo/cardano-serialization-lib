@@ -14,6 +14,73 @@ use std::collections::BTreeMap;
 
 //static free_groups = std::collections::BTreeMap<Group>;
 
+struct GlobalScope {
+    global_scope: codegen::Scope,
+    already_generated: std::collections::BTreeSet<String>,
+}
+
+impl GlobalScope {
+    fn new() -> Self {
+        Self {
+            global_scope: codegen::Scope::new(),
+            already_generated: std::collections::BTreeSet::new(),
+        }
+    }
+
+    // direct raw access
+    fn scope(&mut self) -> &mut codegen::Scope {
+        &mut self.global_scope
+    }
+
+    // generate array type ie [Foo] generates Foos if not already created
+    fn generate_array_type(&mut self, element_type: String) {
+        let array_type = format!("{}s", element_type);
+        if self.already_generated.insert(array_type.clone()) {
+            let mut s = codegen::Struct::new(&array_type);
+            s
+                .field("data", format!("Vec<{}>", element_type))
+                .vis("pub")
+                .derive("Clone");
+            // TODO: accessors/wasm exposure
+            self.global_scope.raw("#[wasm_bindgen]");
+            self.global_scope.push_struct(s);
+            let mut ser_impl = codegen::Impl::new(&array_type);
+            ser_impl.impl_trait("cbor_event::se::Serialize");
+            let mut ser_func = make_serialization_function("serialize");
+            ser_func.line("serializer.write_array(cbor_event::Len::Len(self.data.len() as u64))?;");
+            let mut loop_block = codegen::Block::new("for element in &self.data");
+            loop_block.line("element.serialize(serializer)?;");
+            ser_func.push_block(loop_block);
+            ser_func.line("Ok(serializer)");
+            ser_impl.push_fn(ser_func);
+            self.global_scope.push_impl(ser_impl);
+            let mut array_impl = codegen::Impl::new(&array_type);
+            array_impl
+                .new_fn("new")
+                .ret("Self")
+                .line("Self { data: Vec::new() }");
+            array_impl
+                .new_fn("size")
+                .ret("usize")
+                .arg_ref_self()
+                .line("self.data.len()");
+            array_impl
+                .new_fn("get")
+                .ret(&element_type)
+                .arg_ref_self()
+                .arg("index", "usize")
+                .line("self.data[index].clone()");
+            array_impl
+                .new_fn("add")
+                .arg_mut_self()
+                .arg("elem", &element_type)
+                .line("self.data.push(elem);");
+            self.global_scope.raw("#[wasm_bindgen]");
+            self.global_scope.push_impl(array_impl);
+        }
+    }
+}
+
 fn group_entry_to_field_name(entry: &GroupEntry, index: usize) -> String {
     match entry {
         GroupEntry::ValueMemberKey(vmk) => match vmk.member_key.as_ref() {
@@ -57,7 +124,7 @@ fn convert_types(raw: &str) -> &str {
 }
 
 // Returns None if this is a fixed value that we should not be storing
-fn rust_type_from_type2(type2: &Type2) -> Option<String> {
+fn rust_type_from_type2(global: &mut GlobalScope, type2: &Type2) -> Option<String> {
     match type2 {
         // ignoring IntValue/FloatValue/other primitives since they're not in the shelley spec
         // ie Type2::UintValue(value) => format!("uint<{}>", value),
@@ -71,11 +138,12 @@ fn rust_type_from_type2(type2: &Type2) -> Option<String> {
                 // special case for homogenous arrays
                 if let Some((entry, _has_comma)) = choice.0.first() {
                     let element_type = match entry {
-                        GroupEntry::ValueMemberKey(vmk) => rust_type(&vmk.entry_type),
+                        GroupEntry::ValueMemberKey(vmk) => rust_type(global, &vmk.entry_type),
                         GroupEntry::TypeGroupname(tgn) => Some(tgn.name.to_string()),
                         _ => Some(format!("UNSUPPORTED_ARRAY_ELEMENT<{:?}>", entry)),
-                    };
-                    s.push_str(&format!("Array<{}>", element_type.unwrap()));
+                    }.unwrap();
+                    s.push_str(&format!("{}s", element_type));
+                    global.generate_array_type(element_type);
                 } else {
                     // TODO: how do we handle this? tuples?
                     // or creating a struct definition and referring to it
@@ -90,10 +158,10 @@ fn rust_type_from_type2(type2: &Type2) -> Option<String> {
     }
 }
 
-fn rust_type(t: &Type) -> Option<String> {
+fn rust_type(global: &mut GlobalScope, t: &Type) -> Option<String> {
     for type1 in t.0.iter() {
         // ignoring range control operator here, only interested in Type2
-        return rust_type_from_type2(&type1.type2);
+        return rust_type_from_type2(global, &type1.type2);
 
         // TODO: how to handle type choices? define an enum for every option?
         //       deserializing would be more complicated since you'd
@@ -102,12 +170,14 @@ fn rust_type(t: &Type) -> Option<String> {
     panic!("rust_type() is broken for: '{}'", t)
 }
 
-fn group_entry_to_type_name(entry: &GroupEntry) -> Option<String> {
-    match entry {
-        GroupEntry::ValueMemberKey(vmk) => rust_type(&vmk.entry_type),//convert_types(&vmk.entry_type.to_string()).to_owned(),
+fn group_entry_to_type_name(global: &mut GlobalScope, entry: &GroupEntry) -> Option<String> {
+    let ret = match entry {
+        GroupEntry::ValueMemberKey(vmk) => rust_type(global, &vmk.entry_type),//convert_types(&vmk.entry_type.to_string()).to_owned(),
         GroupEntry::TypeGroupname(tge) => Some(convert_types(&tge.name.to_string()).to_owned()),
         GroupEntry::InlineGroup(_) => panic!("not implemented"),
-    }
+    };
+    println!("group_entry_to_typename({:?}) = {:?}\n", entry, ret);
+    ret
 }
 
 fn convert_to_wasm_friendly_arg<'a>(type_aliases: &'a BTreeMap<String, String>, arg_type: &'a str) -> &'a str {
@@ -121,11 +191,12 @@ fn convert_to_wasm_friendly_arg<'a>(type_aliases: &'a BTreeMap<String, String>, 
 }
 
 // as_map = true generates as map-serialized, and false as array-serialized
-fn codegen_group_exposed(type_aliases: &BTreeMap<String, String>, scope: &mut codegen::Scope, group: &Group, name: &str, as_map: bool) {
+fn codegen_group_exposed(global: &mut GlobalScope, type_aliases: &BTreeMap<String, String>, group: &Group, name: &str, as_map: bool) {
     let mut s = codegen::Struct::new(name);
     s
         .vis("pub")
-        .field("group", format!("groups::{}", name));
+        .field("group", format!("groups::{}", name))
+        .derive("Clone");
     let mut ser_impl = codegen::Impl::new(name);
     ser_impl.impl_trait("cbor_event::se::Serialize");
     let mut ser_func = make_serialization_function("serialize");
@@ -163,7 +234,7 @@ fn codegen_group_exposed(type_aliases: &BTreeMap<String, String>, scope: &mut co
                     let field_name = group_entry_to_field_name(group_entry, index);
                     // Unsupported types so far are fixed values, only have fields
                     // for these.
-                    if let Some(type_name) = group_entry_to_type_name(group_entry) {
+                    if let Some(type_name) = group_entry_to_type_name(global, group_entry) {
                         if output_comma {
                             args.push_str(", ");
                         } else {
@@ -194,7 +265,7 @@ fn codegen_group_exposed(type_aliases: &BTreeMap<String, String>, scope: &mut co
                 let field_name = group_entry_to_field_name(group_entry, index);
                 // Unsupported types so far are fixed values, only have fields
                 // for these.
-                if let Some(type_name) = group_entry_to_type_name(group_entry) {
+                if let Some(type_name) = group_entry_to_type_name(global, group_entry) {
                     if output_comma {
                         args.push_str(", ");
                     } else {
@@ -211,20 +282,22 @@ fn codegen_group_exposed(type_aliases: &BTreeMap<String, String>, scope: &mut co
             group_impl.push_fn(new_func);
         }
     }
-    scope.raw("#[wasm_bindgen]");
-    scope.push_struct(s);
-    scope.push_impl(ser_impl);
-    scope.raw("#[wasm_bindgen]");
-    scope.push_impl(group_impl);
+    global.scope().raw("#[wasm_bindgen]");
+    global.scope().push_struct(s);
+    global.scope().push_impl(ser_impl);
+    global.scope().raw("#[wasm_bindgen]");
+    global.scope().push_impl(group_impl);
 }
 
 // Separate function for when we support multiple choices as an enum
-fn codegen_group(scope: &mut codegen::Scope, group: &Group, name: &str) {
+fn codegen_group(global: &mut GlobalScope, scope: &mut codegen::Scope, group: &Group, name: &str) {
     if group.0.len() == 1 {
-        codegen_group_choice(scope, group.0.first().unwrap(), name);
+        codegen_group_choice(global, scope, group.0.first().unwrap(), name);
     } else {
         let mut e = codegen::Enum::new(name);
-        e.vis("pub (super)");
+        e
+            .vis("pub (super)")
+            .derive("Clone");
         let mut e_impl = codegen::Impl::new(name);
         // TODO: serialize map. this is an issue since the implementations might not exist.
         let mut ser_array = make_serialization_function("serialize_as_array");
@@ -233,7 +306,7 @@ fn codegen_group(scope: &mut codegen::Scope, group: &Group, name: &str) {
         for (i, group_choice) in group.0.iter().enumerate() {
             let variant_name = name.to_owned() + &i.to_string();
             e.push_variant(codegen::Variant::new(&format!("{}({})", variant_name, variant_name)));
-            codegen_group_choice(scope, group_choice, &variant_name);
+            codegen_group_choice(global, scope, group_choice, &variant_name);
             match_block.line(format!("{}::{}(x) => x.serialize_as_array(serializer),", name, variant_name));
         }
         ser_array.push_block(match_block);
@@ -270,13 +343,15 @@ fn make_serialization_function(name: &str) -> codegen::Function {
     f
 }
 
-fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice, name: &str) {
+fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, group_choice: &GroupChoice, name: &str) {
     // handles ValueMemberKey only
     // TODO: TypeGroupname / InlinedGroup are not supported yet
     // TODO: handle non-integer keys (all keys in shelley.cddl are uint)
 
     let s = scope.new_struct(name);
-    s.vis("pub (super)");
+    s
+        .vis("pub (super)")
+        .derive("Clone");
     let mut s_impl = codegen::Impl::new(name);
     // We could re-use this for arrays I guess and add a tag?
 
@@ -291,7 +366,7 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
     let table_types = table_domain_range(group_choice);
     match table_types {
         Some((domain, range)) => {
-            s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(domain).unwrap(), rust_type(range).unwrap()));
+            s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(global, domain).unwrap(), rust_type(global, range).unwrap()));
             let mut ser_map = make_serialization_function("serialize_as_map");
             ser_map
                 .vis("pub (super)")
@@ -323,7 +398,7 @@ fn codegen_group_choice(scope: &mut codegen:: Scope, group_choice: &GroupChoice,
                 let field_name = group_entry_to_field_name(group_entry, index);
                 // Unsupported types so far are fixed values, only have fields
                 // for these.
-                if let Some(type_name) = group_entry_to_type_name(group_entry) {
+                if let Some(type_name) = group_entry_to_type_name(global, group_entry) {
                     s.field(&field_name, format!("Option<{}>", type_name));
                     // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
                     new_func.arg(&field_name, format!("Option<{}>", type_name));
@@ -401,48 +476,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cddl_in = std::fs::read_to_string("supported.cddl").unwrap();
     let cddl = cddl::parser::cddl_from_str(&cddl_in)?;
     //println!("CDDL file: {}", cddl);
-    let mut scope = codegen::Scope::new();
+    let mut global = GlobalScope::new();
     // Can't generate groups of imports with codegen::Import so we just output this as raw text
     // since we don't need it to be dynamic so it's fine. codegen::Impl::new("a", "{z::b, z::c}")
     // does not work.
-    scope.raw("// This library was code-generated using an experimental CDDL to rust tool:\n// https://github.com/Emurgo/cardano-serialization-lib/tree/master/cddl_test");
-    scope.raw("use cbor_event::{self, de::{Deserialize, Deserializer}, se::{Serialize, Serializer}};");
-    scope.import("std::io", "Write");
-    scope.import("wasm_bindgen::prelude", "*");
+    global.scope().raw("// This library was code-generated using an experimental CDDL to rust tool:\n// https://github.com/Emurgo/cardano-serialization-lib/tree/master/cddl_test");
+    global.scope().raw("use cbor_event::{self, de::{Deserialize, Deserializer}, se::{Serialize, Serializer}};");
+    global.scope().import("std::io", "Write");
+    global.scope().import("wasm_bindgen::prelude", "*");
     // TODO: maybe export this as a prelude.rs file instead of creating it in code since it's static
     // We need wrapper types for arrays/bytes as we can't specialize Vec<T> to cbor_event's Serialize
     // as they come from different external crates.
-    scope.new_struct("Array<T>(Vec<T>)");
-    scope
-        .new_impl("Array<T>")
-        .generic("T")
-        .impl_trait("std::ops::Deref")
-        .associate_type("Target", "Vec<T>")
-        .new_fn("deref")
-        .arg_ref_self()
-        .ret("&Vec<T>")
-        .line("&self.0");
-    scope.raw("#[wasm_bindgen]");
-    scope
+    // global.scope().new_struct("Array<T>(Vec<T>)");
+    // global.scope()
+    //     .new_impl("Array<T>")
+    //     .generic("T")
+    //     .impl_trait("std::ops::Deref")
+    //     .associate_type("Target", "Vec<T>")
+    //     .new_fn("deref")
+    //     .arg_ref_self()
+    //     .ret("&Vec<T>")
+    //     .line("&self.0");
+    global.scope().raw("#[wasm_bindgen]");
+    global.scope()
         .new_struct("Bytes(Vec<u8>)")
         .derive("Clone")
         .vis("pub");
-    scope.raw("#[wasm_bindgen]");
-    scope
+    global.scope().raw("#[wasm_bindgen]");
+    global.scope()
         .new_impl("Bytes")
         .new_fn("new")
         .vis("pub")
         .arg("data", "&[u8]")
         .ret("Self")
         .line("Self(data.into())");
-    scope
+    global.scope()
         .new_impl("Bytes")
         .impl_trait("From<Vec<u8>>")
         .new_fn("from")
         .arg("data", "Vec<u8>")
         .ret("Self")
         .line("Self(data)");
-    scope
+    global.scope()
         .new_impl("Bytes")
         .impl_trait("Serialize")
         .new_fn("serialize")
@@ -469,18 +544,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Type2::Typename((identifier, _generic_arg)) => {
                             let alias = tr.name.to_string();
                             let base_type = convert_types(&identifier.to_string()).to_owned();
-                            scope.raw(format!("type {} = {};", alias, base_type).as_ref());
+                            global.scope().raw(format!("type {} = {};", alias, base_type).as_ref());
                             type_aliases.insert(alias, base_type);
                         },
                         Type2::Map(group) => {
                             let group_name = tr.name.to_string();
-                            codegen_group(group_scope, group, group_name.as_ref());
-                            codegen_group_exposed(&type_aliases, &mut scope, group, group_name.as_ref(), true);
+                            codegen_group(&mut global, group_scope, group, group_name.as_ref());
+                            codegen_group_exposed(&mut global, &type_aliases, group, group_name.as_ref(), true);
                         },
                         Type2::Array(group) => {
                             let group_name = tr.name.to_string();
-                            codegen_group(group_scope, group, group_name.as_ref());
-                            codegen_group_exposed(&type_aliases, &mut scope, group, group_name.as_ref(), false);
+                            codegen_group(&mut global, group_scope, group, group_name.as_ref());
+                            codegen_group_exposed(&mut global, &type_aliases, group, group_name.as_ref(), false);
                         },
                         x => {
                             println!("\nignored typename {} -> {:?}\n", tr.name, x);
@@ -496,24 +571,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Rule::Group(group_rule) => {
                 // Freely defined group - no need to generate anything outside of group module
                 match &group_rule.entry {
-                    GroupEntry::InlineGroup((_occur, inline_group)) => {
-                        codegen_group(group_scope, inline_group, &group_rule.name.to_string());
+                    GroupEntry::InlineGroup((_occsur, inline_group)) => {
+                        codegen_group(&mut global, group_scope, inline_group, &group_rule.name.to_string());
                     },
                     x => panic!("Group rule with non-inline group? {:?}", x),
                 }
             },
         }
     }
-    scope.push_module(group_module);
-    //println!("{}", scope.to_string());
+    global.scope().push_module(group_module);
     match std::fs::remove_dir_all("export/src") {
         Ok(()) => (),
-        Err(e) => (),
+        Err(_) => (),
     };
     std::fs::create_dir_all("export/src").unwrap();
-    std::fs::write("export/src/lib.rs", scope.to_string()).unwrap();
+    std::fs::write("export/src/lib.rs", global.scope().to_string()).unwrap();
     std::fs::copy("static/Cargo.toml", "export/Cargo.toml").unwrap();
-    
+    std::fs::copy("static/prelude.rs", "export/src/prelude.rs").unwrap();
 
     Ok(())
 }
