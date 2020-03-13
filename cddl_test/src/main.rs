@@ -154,7 +154,14 @@ fn rust_type_from_type2(global: &mut GlobalScope, type2: &Type2) -> Option<Strin
             }
             Some(s)
         },
-        _ => None,
+        // unsure if we need to handle the None case - when does this happen?
+        Type2::TaggedData((Some(tag), wrapped_type)) => {
+            Some(format!("TaggedData<{}>", rust_type(global, wrapped_type).unwrap()))
+        },
+        _ => {
+            println!("Ignoring Type2: {:?}", type2);
+            None
+        },
     }
 }
 
@@ -484,48 +491,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     global.scope().raw("use cbor_event::{self, de::{Deserialize, Deserializer}, se::{Serialize, Serializer}};");
     global.scope().import("std::io", "Write");
     global.scope().import("wasm_bindgen::prelude", "*");
-    // TODO: maybe export this as a prelude.rs file instead of creating it in code since it's static
-    // We need wrapper types for arrays/bytes as we can't specialize Vec<T> to cbor_event's Serialize
-    // as they come from different external crates.
-    // global.scope().new_struct("Array<T>(Vec<T>)");
-    // global.scope()
-    //     .new_impl("Array<T>")
-    //     .generic("T")
-    //     .impl_trait("std::ops::Deref")
-    //     .associate_type("Target", "Vec<T>")
-    //     .new_fn("deref")
-    //     .arg_ref_self()
-    //     .ret("&Vec<T>")
-    //     .line("&self.0");
-    global.scope().raw("#[wasm_bindgen]");
-    global.scope()
-        .new_struct("Bytes(Vec<u8>)")
-        .derive("Clone")
-        .vis("pub");
-    global.scope().raw("#[wasm_bindgen]");
-    global.scope()
-        .new_impl("Bytes")
-        .new_fn("new")
-        .vis("pub")
-        .arg("data", "&[u8]")
-        .ret("Self")
-        .line("Self(data.into())");
-    global.scope()
-        .new_impl("Bytes")
-        .impl_trait("From<Vec<u8>>")
-        .new_fn("from")
-        .arg("data", "Vec<u8>")
-        .ret("Self")
-        .line("Self(data)");
-    global.scope()
-        .new_impl("Bytes")
-        .impl_trait("Serialize")
-        .new_fn("serialize")
-        .arg_ref_self()
-        .arg("serializer", "&'a mut Serializer<W>")
-        .generic("'a, W: Write + Sized")
-        .ret("cbor_event::Result<&'a mut Serializer<W>>")
-        .line("serializer.write_bytes(&self.0[..])");
+    global.scope().import("prelude", "*");
+    global.scope().raw("mod prelude;");
     let mut group_module = codegen::Module::new("groups");
     let group_scope = group_module.scope();
     group_scope.import("super", "*");
