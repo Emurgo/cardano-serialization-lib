@@ -48,3 +48,14 @@ transaction_input = [transaction_id : hash, index : uint]
 
 ; replace address with address type
 transaction_output = [address : tstr, amount : uint]
+
+transaction_body =
+  { 0 : #6.258([* transaction_input])
+  , 1 : [* transaction_output]
+;  , ? 2 : [* delegation_certificate]
+;  , ? 3 : withdrawals
+;  , 4 : coin ; fee
+;  , 5 : uint ; ttl
+;  , ? 6 : full_update
+;  , ? 7 : metadata_hash
+  }
