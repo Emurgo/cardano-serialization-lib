@@ -84,7 +84,7 @@ impl RustType {
                 if let RustType::Tagged(_, _) = &**ty {
                     expr.push_str(".data");
                 };
-                // non-literal type are contained in vec wrapper types
+                // non-literal types are contained in vec wrapper types
                 if !ty.directly_wasm_exposable() {
                     expr.push_str(".data");
                 }
@@ -556,7 +556,7 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
                         GroupEntry::ValueMemberKey{ ge, .. } => match ge.entry_type.type_choices.first() {
                             Some(x) => match &x.type2 {
                                 Type2::UintValue{ value, .. } => {
-                                    ser_array.line(format!("serializer.write_unsigned_integer({})?;", x));
+                                    ser_array.line(format!("serializer.write_unsigned_integer({})?;", value));
                                 },
                                 x => panic!("unsupported fixed type: {}", x),
                             },
