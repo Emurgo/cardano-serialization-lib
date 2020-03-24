@@ -91,8 +91,9 @@ checksum = "2b6cda8a789815488ee290d106bc97dba47785dae73d63576fc42c126912a451"
 
 [[package]]
 name = "cddl"
-version = "0.4.0"
-source = "git+https://github.com/anweiss/cddl#8da92bc60de9b9a7579b2ea810e817058272d30f"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bdfc6f29b7d3191d7b0431ed5c8bd0a78b669adae14ed4c0e95dacf115b0605"
 dependencies = [
  "annotate-snippets",
  "base16",
