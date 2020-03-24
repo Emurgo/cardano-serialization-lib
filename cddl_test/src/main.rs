@@ -9,8 +9,11 @@
 //     serializer.write_negative_integer(number as i64)
 // }
 
+mod codegen_helpers;
+
 use cddl::ast::*;
 use std::collections::{BTreeMap, BTreeSet};
+use codegen_helpers::CodeBlock;
 
 #[derive(Clone, Debug)]
 enum RustType {
@@ -204,22 +207,22 @@ impl GlobalScope {
         RustType::Array(Box::new(element_type))
     }
 
-    fn generate_serialize(&mut self, rust_type: &RustType, mut expr: String, func: &mut codegen::Function, as_map: bool) {
-        func.line(format!("// DEBUG - generated from: {:?}", rust_type));
+    fn generate_serialize<T: CodeBlock>(&mut self, rust_type: &RustType, mut expr: String, body: &mut T, as_map: bool) {
+        body.line(format!("// DEBUG - generated from: {:?}", rust_type));
         match rust_type {
             RustType::Primitive(_) => {
                 // clone() is to handle String, might not be necessary
-                func.line(format!("{}.clone().serialize(serializer)?;", expr));
+                body.line(format!("{}.clone().serialize(serializer)?;", expr));
             },
             RustType::Rust(t) => {
                 if self.generate_if_plain_group((*t).clone(), as_map) {
                     if as_map {
-                        func.line(format!("{}.serialize_as_embedded_map_group(serializer)?;", expr));
+                        body.line(format!("{}.serialize_as_embedded_map_group(serializer)?;", expr));
                     } else {
-                        func.line(format!("{}.serialize_as_embedded_array_group(serializer)?;", expr));
+                        body.line(format!("{}.serialize_as_embedded_array_group(serializer)?;", expr));
                     }
                 } else {
-                    func.line(format!("{}.serialize(serializer)?;", expr));
+                    body.line(format!("{}.serialize(serializer)?;", expr));
                 }
             },
             RustType::Array(ty) => {
@@ -231,17 +234,17 @@ impl GlobalScope {
                 if !ty.directly_wasm_exposable() {
                     expr.push_str(".data");
                 }
-                func.line(format!("serializer.write_array(cbor_event::Len::Len({}.len() as u64))?;", expr));
+                body.line(format!("serializer.write_array(cbor_event::Len::Len({}.len() as u64))?;", expr));
                 if !ty.directly_wasm_exposable() {
                     expr = format!("&{}", expr);
                 }
                 let mut loop_block = codegen::Block::new(&format!("for element in {}", expr));
                 loop_block.line("element.serialize(serializer)?;");
-                func.push_block(loop_block);
+                body.push_block(loop_block);
             },
             RustType::Tagged(tag, ty) => {
-                func.line(format!("serializer.write_tag({}u64)?;", tag));
-                self.generate_serialize(ty, format!("{}.data", expr), func, as_map)
+                body.line(format!("serializer.write_tag({}u64)?;", tag));
+                self.generate_serialize(ty, format!("{}.data", expr), body, as_map)
             },
         }
     }
@@ -586,6 +589,7 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
                     // TODO: remove clone()? Without it String gets moved out.
                     //ser_array.line(format!("self.{}.clone().unwrap().serialize(serializer)?;", field_name));
                     global.generate_serialize(&rust_type, format!("self.{}.as_ref().unwrap()", field_name), &mut ser_array_embedded, false);
+                    let mut optional_map_ser_block = codegen::Block::new(&format!("if let Some(field) = &self.{}", field_name));
                     // This match is for serializing KEYS for MAPS only
                     match group_entry {
                         GroupEntry::ValueMemberKey{ ge, .. } => {
@@ -593,16 +597,16 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
                                 Some(member_key) => match member_key {
                                     MemberKey::Value{ value, .. } => match value {
                                         cddl::token::Value::UINT(x) => {
-                                            ser_map_embedded.line(format!("serializer.write_unsigned_integer({})?;", x));
+                                            optional_map_ser_block.line(format!("serializer.write_unsigned_integer({})?;", x));
                                         },
                                         _ => panic!("unsupported map identifier(1): {:?}", value),
                                     },
                                     MemberKey::Bareword{ ident, .. } => {
-                                        ser_map_embedded.line(format!("serializer.write_text(\"{}\")?;", ident.to_string()));
+                                        optional_map_ser_block.line(format!("serializer.write_text(\"{}\")?;", ident.to_string()));
                                     },
                                     MemberKey::Type1{ t1, .. } => match t1.type2 {
                                         Type2::UintValue{ value, .. } => {
-                                            ser_map_embedded.line(format!("serializer.write_unsigned_integer({})?;", value));
+                                            optional_map_ser_block.line(format!("serializer.write_unsigned_integer({})?;", value));
                                         },
                                         _ => panic!("unsupported map identifier(2): {:?}", member_key),
                                     },
@@ -623,7 +627,8 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
                             contains_entries_without_names = true;
                         },
                     };
-                    global.generate_serialize(&rust_type, format!("self.{}.as_ref().unwrap()", field_name), &mut ser_map_embedded, true);
+                    global.generate_serialize(&rust_type, String::from("field"), &mut optional_map_ser_block, true);
+                    ser_map_embedded.push_block(optional_map_ser_block);
                 } else {
                     // TODO: do we need to support type choices here?!
                     // This is for when the entry was a literal value
