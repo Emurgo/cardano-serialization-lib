@@ -59,3 +59,21 @@ transaction_body =
 ;  , ? 6 : full_update
 ;  , ? 7 : metadata_hash
   }
+
+vkey = bytes
+
+signature = bytes
+
+vkeywitness = [ vkey, signature ]
+
+transaction_witness_set =
+  { ?0 => [* vkeywitness ]
+  , ?1 => [* script ]
+  }
+
+script =
+  [  0, keyhash
+  // 1, [ * script ]
+  // 2, [ * script ]
+  // 3, uint, [ * script ]
+  ]

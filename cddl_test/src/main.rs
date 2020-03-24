@@ -253,7 +253,10 @@ fn group_entry_to_field_name(entry: &GroupEntry, index: usize) -> String {
             Some(member_key) => match member_key {
                 MemberKey::Value{ value, .. } => format!("key_{}", value),
                 MemberKey::Bareword{ ident, .. } => ident.to_string(),
-                MemberKey::Type1{ .. } => panic!("Encountered Type1 member key in multi-field map - not supported"),
+                MemberKey::Type1{ t1, .. } => match t1.type2 {
+                    Type2::UintValue{ value, .. } => format!("key_{}", value),
+                    _ => panic!("Encountered Type1 member key in multi-field map - not supported: {:?}", entry),
+                },
             },
             None => format!("index_{}", index),
         },
@@ -597,7 +600,12 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
                                     MemberKey::Bareword{ ident, .. } => {
                                         ser_map_embedded.line(format!("serializer.write_text(\"{}\")?;", ident.to_string()));
                                     },
-                                    x => panic!("unsupported map identifier(2): {:?}", x),
+                                    MemberKey::Type1{ t1, .. } => match t1.type2 {
+                                        Type2::UintValue{ value, .. } => {
+                                            ser_map_embedded.line(format!("serializer.write_unsigned_integer({})?;", value));
+                                        },
+                                        _ => panic!("unsupported map identifier(2): {:?}", member_key),
+                                    },
                                 },
                                 None => {
                                     contains_entries_without_names = true;
