@@ -54,13 +54,20 @@ impl RustType {
     fn for_member(&self) -> String {
         match self {
             RustType::Primitive(s) => s.clone(),
-            RustType::Rust(s) => s.clone(),
+            RustType::Rust(s) => format!("super::{}", s.clone()),
             RustType::Array(ty) => if ty.directly_wasm_exposable() {
                 format!("Vec<{}>", ty.for_wasm())
             } else {
                 format!("{}s", ty.for_wasm())
             },
             RustType::Tagged(_tag, ty) => format!("TaggedData<{}>", ty.for_wasm()),
+        }
+    }
+
+    fn raw_rust_name(&self) -> String {
+        match self {
+            RustType::Rust(s) => s.clone(),
+            _ => self.for_member(),
         }
     }
 
@@ -125,7 +132,7 @@ impl GlobalScope {
 
     fn type_alias(&mut self, alias: String, value: &str) {
         let base_type = self.new_raw_type(value);
-        self.global_scope.raw(format!("type {} = {};", alias, base_type.for_member()).as_ref());
+        self.global_scope.raw(format!("type {} = {};", alias, base_type.raw_rust_name()).as_ref());
         self.type_aliases.insert(alias.to_string(), base_type);
     }
 
@@ -155,7 +162,7 @@ impl GlobalScope {
     // generate array type ie [Foo] generates Foos if not already created
     fn generate_array_type(&mut self, element_type: RustType) -> RustType {
         let element_type_wasm = element_type.for_wasm();
-        let element_type_rust = element_type.for_member();
+        let element_type_rust = element_type.raw_rust_name();
         let array_type = format!("{}s", element_type_rust);
         if self.already_generated.insert(array_type.clone()) {
             let mut s = codegen::Struct::new(&array_type);
@@ -217,9 +224,9 @@ impl GlobalScope {
             RustType::Rust(t) => {
                 if self.generate_if_plain_group((*t).clone(), as_map) {
                     if as_map {
-                        body.line(format!("{}.serialize_as_embedded_map_group(serializer)?;", expr));
+                        body.line(format!("{}.group.serialize_as_embedded_map_group(serializer)?;", expr));
                     } else {
-                        body.line(format!("{}.serialize_as_embedded_array_group(serializer)?;", expr));
+                        body.line(format!("{}.group.serialize_as_embedded_array_group(serializer)?;", expr));
                     }
                 } else {
                     body.line(format!("{}.serialize(serializer)?;", expr));
@@ -269,7 +276,7 @@ fn group_entry_to_field_name(entry: &GroupEntry, index: usize) -> String {
             //("tgn_".to_owned() + &tge.name.to_string()),
             format!("index_{}", index)
         },
-        GroupEntry::InlineGroup{ .. } => panic!("not implemented (define a new struct for this!)"),
+        GroupEntry::InlineGroup{ group, .. } => panic!("not implemented (define a new struct for this!) = {}\n\n {:?}", group, group),
     }
 }
 
@@ -395,7 +402,7 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as
                         }
                         // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
                         new_func.arg(&field_name, rust_type.for_wasm());
-                        args.push_str(&format!("Some({}.into())", rust_type.from_wasm_boundary(&field_name)));
+                        args.push_str(&format!(/*"Some({}.into())"*/"Some({})", rust_type.from_wasm_boundary(&field_name)));
                     }
                 }
                 args.push_str(")");
@@ -426,7 +433,7 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as
                     }
                     // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
                     new_func.arg(&field_name, type_name.for_wasm());
-                    args.push_str(&format!("Some({}.into())", field_name));
+                    args.push_str(&format!(/*"Some({}.into())"*/"Some({})", field_name));
                 }
             }
             args.push_str("))");
@@ -538,11 +545,18 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
     let table_types = table_domain_range(group_choice);
     match table_types {
         Some((domain, range)) => {
-            s.field("table", format!("std::collections::BTreeMap<{}, {}>", rust_type_from_type2(global, domain).unwrap().for_member(), rust_type(global, range).unwrap().for_member()));
+            let key_type = rust_type_from_type2(global, domain).unwrap();
+            let value_type = rust_type(global, range).unwrap();
+            s.field("table", format!("std::collections::BTreeMap<{}, {}>", key_type.for_member(), value_type.for_member()));
             let mut ser_map = make_serialization_function("serialize_as_map");
+            let mut table_loop = codegen::Block::new("for (key, value) in &self.table");
+            global.generate_serialize(&key_type, String::from("key"), &mut table_loop, true);
+            global.generate_serialize(&value_type, String::from("value"), &mut table_loop, true);
             ser_map
                 .vis("pub (super)")
-                .line("panic!(\"TODO: implement\");");
+                .line(format!("serializer.write_map(cbor_event::Len::Indefinite)?;"))
+                .push_block(table_loop)
+                .line("serializer.write_special(cbor_event::Special::Break)");
             s_impl.push_fn(ser_map);
         },
         None => {
@@ -698,6 +712,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     for cddl_rule in &cddl.rules {
+        println!("\n\n------------------------------------------\n- Handling rule: {}\n------------------------------------", cddl_rule.name());
         match cddl_rule {
             Rule::Type{ rule, .. } => {
                 // (1) does not handle optional generic parameters
@@ -757,6 +772,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::write("export/src/lib.rs", global.scope().to_string()).unwrap();
     std::fs::copy("static/Cargo.toml", "export/Cargo.toml").unwrap();
     std::fs::copy("static/prelude.rs", "export/src/prelude.rs").unwrap();
+
+    println!("\n\nPlain groups:");
+    for plain_group in global.plain_groups.iter() {
+        println!("{}", plain_group.0);
+    }
 
     Ok(())
 }
