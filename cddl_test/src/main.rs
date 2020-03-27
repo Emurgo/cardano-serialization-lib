@@ -12,8 +12,15 @@
 mod codegen_helpers;
 
 use cddl::ast::*;
-use std::collections::{BTreeMap, BTreeSet};
 use codegen_helpers::CodeBlock;
+use std::collections::{BTreeMap, BTreeSet};
+use either::{Either};
+
+enum GenScope
+{
+    Root,
+    Groups,
+}
 
 #[derive(Clone, Debug)]
 enum RustType {
@@ -51,10 +58,13 @@ impl RustType {
         }
     }
 
-    fn for_member(&self) -> String {
+    fn for_member(&self, scope: GenScope) -> String {
         match self {
             RustType::Primitive(s) => s.clone(),
-            RustType::Rust(s) => format!("super::{}", s.clone()),
+            RustType::Rust(s) => match scope {
+                GenScope::Root => s.clone(),
+                GenScope::Groups => format!("super::{}", s),
+            },
             RustType::Array(ty) => if ty.directly_wasm_exposable() {
                 format!("Vec<{}>", ty.for_wasm())
             } else {
@@ -64,16 +74,9 @@ impl RustType {
         }
     }
 
-    fn raw_rust_name(&self) -> String {
+    fn from_wasm_boundary(&self, expr: &str, scope: GenScope) -> String {
         match self {
-            RustType::Rust(s) => s.clone(),
-            _ => self.for_member(),
-        }
-    }
-
-    fn from_wasm_boundary(&self, expr: &str) -> String {
-        match self {
-            RustType::Tagged(tag, ty) => format!("TaggedData::<{}>::new({}, {})", ty.for_member(), expr, tag),
+            RustType::Tagged(tag, ty) => format!("TaggedData::<{}>::new({}, {})", ty.for_member(scope), expr, tag),
             _ => expr.to_owned(),
         }
     }
@@ -132,7 +135,7 @@ impl GlobalScope {
 
     fn type_alias(&mut self, alias: String, value: &str) {
         let base_type = self.new_raw_type(value);
-        self.global_scope.raw(format!("type {} = {};", alias, base_type.raw_rust_name()).as_ref());
+        self.global_scope.raw(format!("type {} = {};", alias, base_type.for_member(GenScope::Root)).as_ref());
         self.type_aliases.insert(alias.to_string(), base_type);
     }
 
@@ -161,8 +164,14 @@ impl GlobalScope {
 
     // generate array type ie [Foo] generates Foos if not already created
     fn generate_array_type(&mut self, element_type: RustType) -> RustType {
+        if element_type.directly_wasm_exposable() {
+            return RustType::Array(Box::new(element_type));
+        }
+        if let RustType::Rust(name) = &element_type {
+            self.generate_if_plain_group(name.clone(), false);
+        }
         let element_type_wasm = element_type.for_wasm();
-        let element_type_rust = element_type.raw_rust_name();
+        let element_type_rust = element_type.for_member(GenScope::Root);
         let array_type = format!("{}s", element_type_rust);
         if self.already_generated.insert(array_type.clone()) {
             let mut s = codegen::Struct::new(&array_type);
@@ -293,7 +302,8 @@ fn rust_type_from_type2(global: &mut GlobalScope, type2: &Type2) -> Option<RustT
             let mut arr_type = None;
             for choice in &group.group_choices {
                 // special case for homogenous arrays
-                if let Some((entry, _has_comma)) = choice.group_entries.first() {
+                if choice.group_entries.len() == 1{
+                    let (entry, _has_comma) = choice.group_entries.first().unwrap();
                     let element_type = match entry {
                         GroupEntry::ValueMemberKey{ ge, .. } => rust_type(global, &ge.entry_type),
                         GroupEntry::TypeGroupname{ ge, .. } => Some(global.new_raw_type(&ge.name.to_string())),//Some(RustType::new_raw(&tgn.name.to_string())),
@@ -301,9 +311,7 @@ fn rust_type_from_type2(global: &mut GlobalScope, type2: &Type2) -> Option<RustT
                     }.unwrap();
                     arr_type = Some(global.generate_array_type(element_type));
                 } else {
-                    // TODO: how do we handle this? tuples?
-                    // or creating a struct definition and referring to it
-                    // by name?
+                    panic!("TODO: how do we handle this? tuples? or creating a struct definition and referring to it by name?")
                 }
                 // TODO: handle group choices (enums?)
                 break;
@@ -343,29 +351,34 @@ fn group_entry_to_type_name(global: &mut GlobalScope, entry: &GroupEntry) -> Opt
     ret
 }
 
-// as_map = true generates as map-serialized, and false as array-serialized
-fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as_map: bool) {
+fn create_exposed_group(name: &str) -> (codegen::Struct, codegen::Impl) {
     let mut s = codegen::Struct::new(name);
-    s
-        .vis("pub")
-        .field("group", format!("groups::{}", name))
-        .derive("Clone");
-    let mut ser_impl = codegen::Impl::new(name);
-    ser_impl.impl_trait("cbor_event::se::Serialize");
-    let mut ser_func = make_serialization_function("serialize");
+    s.derive("Clone");
     let mut group_impl = codegen::Impl::new(name);
-    let to_bytes = group_impl.new_fn("to_bytes")
+    group_impl.new_fn("to_bytes")
         .ret("Vec<u8>")
         .arg_ref_self()
-        .vis("pub");
+        .vis("pub")
+        .line("let mut buf = Serializer::new_vec();")
+        .line("self.serialize(&mut buf).unwrap();")
+        .line("buf.finalize()");
+    (s, group_impl)
+}
+
+// as_map = true generates as map-serialized, and false as array-serialized
+fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as_map: bool) {
+    let (mut s, mut group_impl) = create_exposed_group(name);
+    s
+        .vis("pub")
+        .field("group", format!("groups::{}", name));
+    let mut ser_func = make_serialization_function("serialize");
+    let mut ser_impl = codegen::Impl::new(name);
+    ser_impl.impl_trait("cbor_event::se::Serialize");
     if as_map {
         ser_func.line("self.group.serialize_as_map(serializer)");
     } else {
         ser_func.line("self.group.serialize_as_array(serializer)");
     }
-    to_bytes.line("let mut buf = Serializer::new_vec();");
-    to_bytes.line("self.serialize(&mut buf).unwrap();");
-    to_bytes.line("buf.finalize()");
     ser_impl.push_fn(ser_func);
     let mut from_impl = codegen::Impl::new(name);
     from_impl
@@ -391,7 +404,7 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as
                 let mut output_comma = false;
                 let mut args = format!("group: groups::{}::new(", name);
                 for (index, (group_entry, _has_comma)) in group_choice.group_entries.iter().enumerate() {
-                    let field_name = group_entry_to_field_name(group_entry, index);
+                    let field_name = group_entry_to_field_name(group_entry, index); 
                     // Unsupported types so far are fixed values, only have fields
                     // for these.
                     if let Some(rust_type) = group_entry_to_type_name(global, group_entry) {
@@ -402,7 +415,7 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as
                         }
                         // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
                         new_func.arg(&field_name, rust_type.for_wasm());
-                        args.push_str(&format!(/*"Some({}.into())"*/"Some({})", rust_type.from_wasm_boundary(&field_name)));
+                        args.push_str(&format!(/*"Some({}.into())"*/"Some({})", rust_type.from_wasm_boundary(&field_name, GenScope::Groups)));
                     }
                 }
                 args.push_str(")");
@@ -547,7 +560,7 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
         Some((domain, range)) => {
             let key_type = rust_type_from_type2(global, domain).unwrap();
             let value_type = rust_type(global, range).unwrap();
-            s.field("table", format!("std::collections::BTreeMap<{}, {}>", key_type.for_member(), value_type.for_member()));
+            s.field("table", format!("std::collections::BTreeMap<{}, {}>", key_type.for_member(GenScope::Groups), value_type.for_member(GenScope::Groups)));
             let mut ser_map = make_serialization_function("serialize_as_map");
             let mut table_loop = codegen::Block::new("for (key, value) in &self.table");
             global.generate_serialize(&key_type, String::from("key"), &mut table_loop, true);
@@ -593,9 +606,9 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
                 let field_name = group_entry_to_field_name(group_entry, index);
                 // Unsupported types so far are fixed values, only have fields for these.
                 if let Some(rust_type) = group_entry_to_type_name(global, group_entry) {
-                    s.field(&field_name, format!("Option<{}>", rust_type.for_member()));
+                    s.field(&field_name, format!("Option<{}>", rust_type.for_member(GenScope::Groups)));
                     // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
-                    new_func.arg(&field_name, format!("Option<{}>", rust_type.for_member()));
+                    new_func.arg(&field_name, format!("Option<{}>", rust_type.for_member(GenScope::Groups)));
                     new_func_block.line(format!("{}: {},", field_name, field_name));
                     // TODO: support conditional members (100% necessary for heterogenous maps (not tables))
                     // TODO: proper support since this assumes all members implement the trait
@@ -681,6 +694,71 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
     methods
 }
 
+fn generate_type(global: &mut GlobalScope, group_scope: &mut codegen::Scope, type_name: &str, type2: &Type2) {
+    match type2 {
+        Type2::Typename{ ident, .. } => {
+            // Using RustType here just to get a string out of it that applies
+            // common conversions like uint -> u64. Since we're only using it
+            // to get a String, we should be fine.
+            global.type_alias(type_name.to_owned(), &ident.to_string());
+        },
+        Type2::Map{ group, .. } => {
+            codegen_group(global, group_scope, group, type_name);
+            codegen_group_exposed(global, group, type_name, true);
+        },
+        Type2::Array{ group, .. } => {
+            codegen_group(global, group_scope, group, type_name);
+            codegen_group_exposed(global, group, type_name, false);
+        },
+        Type2::TaggedData{ tag, t, .. } => {
+            let tag = tag.unwrap();
+            assert_eq!(t.type_choices.len(), 1, "root level tagged type choices not supported");
+            let inner_type = &t.type_choices.first().unwrap().type2;
+            let field_type = RustType::Tagged(tag, Box::new(match match inner_type {
+                Type2::Typename{ ident, .. } => Either::Right(ident),
+                Type2::Map{ group, .. } => Either::Left(group),
+                Type2::Array{ group, .. } => Either::Left(group),
+                x => panic!("only supports tagged arrays/maps/typenames - found: {:?} in rule {}", x, type_name),
+            } {
+                Either::Left(_group) => {
+                    let inner_group_name = format!("Untagged{}", type_name);
+                    //codegen_group(global, group_scope, group, &inner_group_name);
+                    generate_type(global, group_scope, &inner_group_name, inner_type);
+                    global.new_raw_type(&inner_group_name)
+                },
+                Either::Right(ident) => global.new_raw_type(&ident.to_string()),
+            }));
+            let (mut s, mut group_impl) = create_exposed_group(type_name);
+            s.field("data", field_type.for_member(GenScope::Root));
+            let mut ser_func = make_serialization_function("serialize");
+            let mut ser_impl = codegen::Impl::new(type_name);
+            ser_impl.impl_trait("cbor_event::se::Serialize");
+            global.generate_serialize(&field_type, String::from("self.data"), &mut ser_func, true /* as_map is ignored here */);
+            ser_impl.push_fn(ser_func);
+            let mut new_func = codegen::Function::new("new");
+                new_func
+                    .ret(type_name)
+                    .arg("data", field_type.for_wasm())
+                    .vis("pub");
+                let mut new_func_block = codegen::Block::new(type_name);
+                new_func_block.line(format!(
+                    "data: {},",
+                    field_type.from_wasm_boundary("data", GenScope::Root)));
+                new_func.push_block(new_func_block);
+                group_impl.push_fn(new_func);
+                global.scope().raw("#[wasm_bindgen]");
+                global.scope().push_struct(s);
+                global.scope().push_impl(ser_impl);
+                //global.scope().push_impl(from_impl);
+                global.scope().raw("#[wasm_bindgen]");
+                global.scope().push_impl(group_impl);
+        },
+        x => {
+            println!("\nignored typename {} -> {:?}\n", type_name, x);
+        },
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cddl_in = std::fs::read_to_string("supported.cddl").unwrap();
     let cddl = cddl::parser::cddl_from_str(&cddl_in)?;
@@ -702,7 +780,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ie x = (3, 4), y = [1, x, 2] would be [1, 3, 4, 2] instead of [1, [3, 4], 2]
     for cddl_rule in &cddl.rules {
         if let Rule::Group{ rule, .. } = cddl_rule {
-            // 1Freely defined group - no need to generate anything outside of group module
+            // Freely defined group - no need to generate anything outside of group module
             match &rule.entry {
                 GroupEntry::InlineGroup{ group, .. } => {
                     global.mark_plain_group(rule.name.to_string(), group.clone());
@@ -723,29 +801,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // TODO: choices (as enums I guess?)
                 for choice in &rule.value.type_choices {
                     // ignores control operators - only used in shelley spec to limit string length for application metadata
-                    match &choice.type2 {
-                        Type2::Typename{ ident, .. } => {
-                            let alias = rule.name.to_string();
-                            // Using RustType here just to get a string out of it that applies
-                            // common conversions like uint -> u64. Since we're only using it
-                            // to get a String, we should be fine.
-                            global.type_alias(alias, &ident.to_string());
-                        },
-                        Type2::Map{ group, .. } => {
-                            let group_name = rule.name.to_string();
-                            codegen_group(&mut global, group_scope, group, group_name.as_ref());
-                            codegen_group_exposed(&mut global, group, group_name.as_ref(), true);
-                        },
-                        Type2::Array{ group, .. } => {
-                            let group_name = rule.name.to_string();
-                            codegen_group(&mut global, group_scope, group, group_name.as_ref());
-                            codegen_group_exposed(&mut global, group, group_name.as_ref(), false);
-                        },
-                        x => {
-                            println!("\nignored typename {} -> {:?}\n", rule.name, x);
-                            // ignored
-                        }
-                    }
+                    generate_type(&mut global, group_scope, &rule.name.to_string(), &choice.type2);
                     //println!("{} type2 = {:?}\n", tr.name, choice.type2);
                     //s.field("foo", "usize");
                     // remove and implement type choices

@@ -72,8 +72,8 @@ transaction_body =
   , 1 : [* transaction_output]
   , ? 2 : [* delegation_certificate]
 ;  , ? 3 : withdrawals
-;  , 4 : coin ; fee
-;  , 5 : uint ; ttl
+  , 4 : coin ; fee
+  , 5 : uint ; ttl
 ;  , ? 6 : full_update
 ;  , ? 7 : metadata_hash
   }
@@ -92,12 +92,28 @@ script =
   // 3, uint, [ * script ]
   ]
 
-;credential =
-;  (  0, keyhash
-;  // 1, scripthash
-;  // 2, genesishash
-;  )
+credential =
+  (  0, keyhash
+  // 1, scripthash
+  // 2, genesishash
+  )
 ; withdrawals = { * [credential] => coin }
+
+unit_interval = rational
+
+rational =  #6.30(
+   [ numerator   : uint
+   , denominator : uint
+   ])
+
+pool_params = ( #6.258([* keyhash]) ; pool owners
+              , coin                ; cost
+              , unit_interval       ; margin
+              , coin                ; pledge
+              , keyhash             ; operator
+              , vrf_keyhash        ; vrf keyhash
+              , [credential]        ; reward account
+              )
 
 delegation_certificate =
   [ 0, keyhash                       ; stake key registration
@@ -110,7 +126,7 @@ delegation_certificate =
   // 5                                ; stake script delegation
       , scripthash                    ; delegating script
       , keyhash                       ; key delegated to
-;  // 6, keyhash, pool_params          ; stake pool registration
+  // 6, keyhash, pool_params          ; stake pool registration
   // 7, keyhash, epoch                ; stake pool retirement
   // 8                                ; genesis key delegation
       , genesishash                   ; delegating key
@@ -118,13 +134,5 @@ delegation_certificate =
   // 9, move_instantaneous_reward ; move instantaneous rewards
   ]
 
-;pool_params = ( #6.258([* keyhash]) ; pool owners
-;              , coin                ; cost
-;              , unit_interval       ; margin
-;              , coin                ; pledge
-;              , keyhash             ; operator
-;              , vrf_keyhash        ; vrf keyhash
-;              , [credential]        ; reward account
-;              )
 
 move_instantaneous_reward = { * keyhash => coin }
