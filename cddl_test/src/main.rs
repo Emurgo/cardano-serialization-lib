@@ -392,15 +392,38 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as
         let group_choice = group.group_choices.first().unwrap();
         let table_types = table_domain_range(group_choice);
         match table_types {
+            // Table map - homogenous key/value types
             Some((domain, range)) => {
-                // TODO: how to handle constructors for a table?
+                let key_type = rust_type_from_type2(global, domain).unwrap();
+                let value_type = rust_type(global, range).unwrap();
+                let mut new_func = codegen::Function::new("new");
+                new_func
+                    .ret("Self")
+                    .vis("pub");
+                let mut new_func_block = codegen::Block::new("Self");
+                new_func_block.line("table: std::collections::BTreeMap::new(),");
+                new_func.push_block(new_func_block);
+                group_impl.push_fn(new_func);
+                let mut insert_func = codegen::Function::new("insert");
+                insert_func
+                    .vis("pub")
+                    .arg_mut_self()
+                    .arg("key", key_type.for_wasm())
+                    .arg("value", value_type.for_wasm())
+                    .line(
+                        format!(
+                            "self.table.insert({}, {});",
+                            key_type.from_wasm_boundary("key", GenScope::Root),
+                            value_type.from_wasm_boundary("value", GenScope::Root)));
+                group_impl.push_fn(insert_func);
             },
+            // Heterogenous map with defined key/value pairs in the cddl like a struct
             None => {
                 let mut new_func = codegen::Function::new("new");
                 new_func
-                    .ret(name)
+                    .ret("Self")
                     .vis("pub");
-                let mut new_func_block = codegen::Block::new(name);
+                let mut new_func_block = codegen::Block::new("Self");
                 let mut output_comma = false;
                 let mut args = format!("group: groups::{}::new(", name);
                 for (index, (group_entry, _has_comma)) in group_choice.group_entries.iter().enumerate() {
@@ -415,7 +438,7 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as
                         }
                         // TODO: what about genuinely optional types? or maps? we should get that working properly at some point
                         new_func.arg(&field_name, rust_type.for_wasm());
-                        args.push_str(&format!(/*"Some({}.into())"*/"Some({})", rust_type.from_wasm_boundary(&field_name, GenScope::Groups)));
+                        args.push_str(&format!(/*"Some({}.into())"*/"Some({})", rust_type.from_wasm_boundary(&field_name, GenScope::Root)));
                     }
                 }
                 args.push_str(")");
@@ -431,7 +454,7 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as
             new_func
                 .ret("Self")
                 .vis("pub");
-            let mut new_func_block = codegen::Block::new(name);
+            let mut new_func_block = codegen::Block::new("Self");
             let mut output_comma = false;
             let mut args = format!("group: groups::{}::{}(groups::{}::new(", name, variant_name, variant_name);
             for (index, (group_entry, _has_comma)) in group_choice.group_entries.iter().enumerate() {
@@ -601,7 +624,7 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
             new_func
                 .ret("Self")
                 .vis("pub (super)");
-            let mut new_func_block = codegen::Block::new(name);
+            let mut new_func_block = codegen::Block::new("Self");
             for (index, (group_entry, _has_comma)) in group_choice.group_entries.iter().enumerate() {
                 let field_name = group_entry_to_field_name(group_entry, index);
                 // Unsupported types so far are fixed values, only have fields for these.
@@ -737,10 +760,10 @@ fn generate_type(global: &mut GlobalScope, group_scope: &mut codegen::Scope, typ
             ser_impl.push_fn(ser_func);
             let mut new_func = codegen::Function::new("new");
                 new_func
-                    .ret(type_name)
+                    .ret("Self")
                     .arg("data", field_type.for_wasm())
                     .vis("pub");
-                let mut new_func_block = codegen::Block::new(type_name);
+                let mut new_func_block = codegen::Block::new("Self");
                 new_func_block.line(format!(
                     "data: {},",
                     field_type.from_wasm_boundary("data", GenScope::Root)));
