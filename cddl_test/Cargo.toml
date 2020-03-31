@@ -7,6 +7,6 @@ edition = "2018"
 
 [dependencies]
 cbor_event = "2.1.3"
-cddl = "0.5.0"
+cddl = "0.5.2"
 codegen = "0.1.1"
 either = "1.5.3"

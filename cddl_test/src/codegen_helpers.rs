@@ -24,3 +24,19 @@ impl CodeBlock for codegen::Block {
         self.push_block(block)
     }
 }
+
+pub (crate) trait DataType {
+    fn derive(&mut self, derive: &str) -> &mut Self;
+}
+
+impl DataType for codegen::Struct {
+    fn derive(&mut self, derive: &str) -> &mut Self {
+        self.derive(derive)
+    }
+}
+
+impl DataType for codegen::Enum {
+    fn derive(&mut self, derive: &str) -> &mut Self {
+        self.derive(derive)
+    }
+}

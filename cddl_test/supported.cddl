@@ -44,7 +44,7 @@ transaction_body =
   { 0 : #6.258([* transaction_input])
   , 1 : [* transaction_output]
   , ? 2 : [* delegation_certificate]
-;  , ? 3 : withdrawals
+  , ? 3 : withdrawals
   , 4 : coin ; fee
   , 5 : uint ; ttl
 ;  , ? 6 : full_update
@@ -70,7 +70,7 @@ credential =
   // 1, scripthash
   // 2, genesishash
   )
-; withdrawals = { * [credential] => coin }
+ withdrawals = { * [credential] => coin }
 
 unit_interval = rational
 
@@ -104,8 +104,8 @@ delegation_certificate =
   // 8                                ; genesis key delegation
       , genesishash                   ; delegating key
       , keyhash                       ; key delegated to
-;  // 9, move_instantaneous_reward ; move instantaneous rewards
+  // 9, move_instantaneous_reward ; move instantaneous rewards
   ]
 
 
-;move_instantaneous_reward = { * keyhash => coin }
+move_instantaneous_reward = { * keyhash => coin }

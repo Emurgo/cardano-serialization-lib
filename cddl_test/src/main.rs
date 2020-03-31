@@ -12,7 +12,7 @@
 mod codegen_helpers;
 
 use cddl::ast::*;
-use codegen_helpers::CodeBlock;
+use codegen_helpers::{CodeBlock, DataType};
 use std::collections::{BTreeMap, BTreeSet};
 use either::{Either};
 
@@ -189,8 +189,8 @@ impl GlobalScope {
             let mut s = codegen::Struct::new(&array_type);
             s
                 .field("data", format!("Vec<{}>", element_type_rust))
-                .vis("pub")
-                .derive("Clone");
+                .vis("pub");
+            add_struct_derives(&mut s);
             // TODO: accessors/wasm exposure
             self.global_scope.raw("#[wasm_bindgen]");
             self.global_scope.push_struct(s);
@@ -276,6 +276,15 @@ impl GlobalScope {
             },
         }
     }
+}
+
+fn add_struct_derives<T: DataType>(data_type: &mut T) {
+    data_type
+        .derive("Clone")
+        .derive("Eq")
+        .derive("Ord")
+        .derive("PartialEq")
+        .derive("PartialOrd");
 }
 
 fn group_entry_to_field_name(entry: &GroupEntry, index: usize) -> String {
@@ -365,7 +374,7 @@ fn group_entry_to_type_name(global: &mut GlobalScope, entry: &GroupEntry) -> Opt
 
 fn create_exposed_group(name: &str) -> (codegen::Struct, codegen::Impl) {
     let mut s = codegen::Struct::new(name);
-    s.derive("Clone");
+    add_struct_derives(&mut s);
     let mut group_impl = codegen::Impl::new(name);
     group_impl.new_fn("to_bytes")
         .ret("Vec<u8>")
@@ -408,14 +417,16 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as
             Some((domain, range)) => {
                 let key_type = rust_type_from_type2(global, domain).unwrap();
                 let value_type = rust_type(global, range).unwrap();
+                // new
                 let mut new_func = codegen::Function::new("new");
                 new_func
                     .ret("Self")
                     .vis("pub");
                 let mut new_func_block = codegen::Block::new("Self");
-                new_func_block.line("table: std::collections::BTreeMap::new(),");
+                new_func_block.line(format!("group: groups::{}::new(),", name));
                 new_func.push_block(new_func_block);
                 group_impl.push_fn(new_func);
+                // insert
                 let mut insert_func = codegen::Function::new("insert");
                 insert_func
                     .vis("pub")
@@ -424,7 +435,7 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as
                     .arg("value", value_type.for_wasm())
                     .line(
                         format!(
-                            "self.table.insert({}, {});",
+                            "self.group.table.insert({}, {});",
                             key_type.from_wasm_boundary("key", GenScope::Root),
                             value_type.from_wasm_boundary("value", GenScope::Root)));
                 group_impl.push_fn(insert_func);
@@ -503,9 +514,8 @@ fn codegen_group(global: &mut GlobalScope, scope: &mut codegen::Scope, group: &G
         codegen_group_choice(global, scope, group.group_choices.first().unwrap(), name);
     } else {
         let mut e = codegen::Enum::new(name);
-        e
-            .vis("pub (super)")
-            .derive("Clone");
+        e.vis("pub (super)");
+        add_struct_derives(&mut e);
         let mut e_impl = codegen::Impl::new(name);
         // TODO: serialize map. this is an issue since the implementations might not exist.
         //       This is however not required by shelley.cddl so not a priority
@@ -576,8 +586,8 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
     let mut methods = Vec::new();
     let s = scope.new_struct(name);
     s
-        .vis("pub (super)")
-        .derive("Clone");
+        .vis("pub (super)");
+    add_struct_derives(s);
     let mut s_impl = codegen::Impl::new(name);
     // We could re-use this for arrays I guess and add a tag?
 
@@ -594,7 +604,16 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
         Some((domain, range)) => {
             let key_type = rust_type_from_type2(global, domain).unwrap();
             let value_type = rust_type(global, range).unwrap();
-            s.field("table", format!("std::collections::BTreeMap<{}, {}>", key_type.for_member(GenScope::Groups), value_type.for_member(GenScope::Groups)));
+            s.field("pub (super) table", format!("std::collections::BTreeMap<{}, {}>", key_type.for_member(GenScope::Groups), value_type.for_member(GenScope::Groups)));
+            // new
+            let mut new_block = codegen::Block::new("Self");
+            new_block.line("table: std::collections::BTreeMap::new(),");
+            s_impl
+                .new_fn("new")
+                .ret("Self")
+                .vis("pub (super)")
+                .push_block(new_block);
+            // serialize
             let mut ser_map = make_serialization_function("serialize_as_map");
             let mut table_loop = codegen::Block::new("for (key, value) in &self.table");
             global.generate_serialize(&key_type, String::from("key"), &mut table_loop, true);
