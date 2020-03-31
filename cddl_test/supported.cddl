@@ -1,30 +1,3 @@
-bar = uint
-
-foo = {
-	x : bar,
-;	y : [[uint]],
-	z : uint,
-	0 : tstr
-}
-
-block = {
-	header : uint,
-;	bodies : [* body],
-;	metadata : { * uint => uint }
-}
-
-;body = (
-;	txs : [+uint]
-;)
-
-mapper = { * tstr => uint }
-
-
-
-
-; minimal support for address
-; pointer = (uint, uint, uint)
-
 ; changed hash here until we support sockets properly. I don't know why this had a socket anyway in the spec.
 hash = bytes
 
@@ -131,8 +104,8 @@ delegation_certificate =
   // 8                                ; genesis key delegation
       , genesishash                   ; delegating key
       , keyhash                       ; key delegated to
-  // 9, move_instantaneous_reward ; move instantaneous rewards
+;  // 9, move_instantaneous_reward ; move instantaneous rewards
   ]
 
 
-move_instantaneous_reward = { * keyhash => coin }
+;move_instantaneous_reward = { * keyhash => coin }

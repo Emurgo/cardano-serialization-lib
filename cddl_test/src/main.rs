@@ -121,10 +121,22 @@ impl GlobalScope {
     }
 
     fn new_raw_type(&self, raw: &str) -> RustType {
+        let resolved = self.apply_type_aliases(raw);
+        if let RustType::Array(inner) = &resolved {
+            if let RustType::Primitive(inner) = &**inner {
+                if inner == "u8" {
+                    return RustType::Rust(raw.to_owned());
+                }
+            }
+        }
+        resolved
+    }
+
+    fn apply_type_aliases(&self, raw: &str) -> RustType {
         // Assumes we are not trying to pass in any kind of compound type (arrays, etc)
         match self.type_aliases.get(raw) {
             Some(alias) => match alias {
-                RustType::Rust(id) => self.new_raw_type(id),
+                RustType::Rust(id) => self.apply_type_aliases(id),
                 x => x.clone(),
             },
             None => match raw {
@@ -251,9 +263,9 @@ impl GlobalScope {
                     expr.push_str(".data");
                 }
                 body.line(format!("serializer.write_array(cbor_event::Len::Len({}.len() as u64))?;", expr));
-                if !ty.directly_wasm_exposable() {
+                //if !ty.directly_wasm_exposable() {
                     expr = format!("&{}", expr);
-                }
+                //}
                 let mut loop_block = codegen::Block::new(&format!("for element in {}", expr));
                 loop_block.line("element.serialize(serializer)?;");
                 body.push_block(loop_block);
@@ -347,7 +359,7 @@ fn group_entry_to_type_name(global: &mut GlobalScope, entry: &GroupEntry) -> Opt
         GroupEntry::TypeGroupname{ ge, .. } => Some(global.new_raw_type(&ge.name.to_string())),//Some(RustType::new_raw(&tge.name.to_string())),
         GroupEntry::InlineGroup{ .. } => panic!("not implemented"),
     };
-    println!("group_entry_to_typename({:?}) = {:?}\n", entry, ret);
+    //println!("group_entry_to_typename({:?}) = {:?}\n", entry, ret);
     ret
 }
 
@@ -459,8 +471,7 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, as
             let mut args = format!("group: groups::{}::{}(groups::{}::new(", name, variant_name, variant_name);
             for (index, (group_entry, _has_comma)) in group_choice.group_entries.iter().enumerate() {
                 let field_name = group_entry_to_field_name(group_entry, index);
-                // Unsupported types so far are fixed values, only have fields
-                // for these.
+                // Unsupported types so far are fixed values, only have fields for these.
                 if let Some(type_name) = group_entry_to_type_name(global, group_entry) {
                     if output_comma {
                         args.push_str(", ");
@@ -717,13 +728,67 @@ fn codegen_group_choice(global: &mut GlobalScope, scope: &mut codegen:: Scope, g
     methods
 }
 
+fn generate_wrapper_struct(global: &mut GlobalScope, type_name: &str, field_type: &RustType, as_map: bool) {
+    let (mut s, mut group_impl) = create_exposed_group(type_name);
+    s
+        .vis("pub")
+        .field("data", field_type.for_member(GenScope::Root));
+    let mut ser_func = make_serialization_function("serialize");
+    let mut ser_impl = codegen::Impl::new(type_name);
+    ser_impl.impl_trait("cbor_event::se::Serialize");
+    global.generate_serialize(&field_type, String::from("self.data"), &mut ser_func, as_map);
+    ser_func.line("Ok(serializer)");
+    ser_impl.push_fn(ser_func);
+    let mut new_func = codegen::Function::new("new");
+    new_func
+        .ret("Self")
+        .arg("data", field_type.for_wasm())
+        .vis("pub");
+    let mut new_func_block = codegen::Block::new("Self");
+    new_func_block.line(format!(
+        "data: {},",
+        field_type.from_wasm_boundary("data", GenScope::Root)));
+    new_func.push_block(new_func_block);
+    group_impl.push_fn(new_func);
+    global.scope().raw("#[wasm_bindgen]");
+    global.scope().push_struct(s);
+    global.scope().push_impl(ser_impl);
+    //global.scope().push_impl(from_impl);
+    global.scope().raw("#[wasm_bindgen]");
+    global.scope().push_impl(group_impl);
+}
+
 fn generate_type(global: &mut GlobalScope, group_scope: &mut codegen::Scope, type_name: &str, type2: &Type2) {
     match type2 {
         Type2::Typename{ ident, .. } => {
-            // Using RustType here just to get a string out of it that applies
-            // common conversions like uint -> u64. Since we're only using it
-            // to get a String, we should be fine.
-            global.type_alias(type_name.to_owned(), &ident.to_string());
+            // This should be controlled in a better way - maybe we can annotate the cddl
+            // to specify whether or not we want to simply to a typedef to Vec<u8> for bytes
+            // or whether we want to do what we are doing here and creating a custom type.
+            // This is more specific to our own use-case since the binary types via type alises
+            // in the shelley.cddl spec are things that should have their own type and we would
+            // want to expand upon the code later on.
+            // Perhaps we could change the cddl and have some specific tag like "BINARY_FORMAT"
+            // to generate this?
+            if  match ident.to_string().as_ref() {
+                "bytes" | "bstr" => true,
+                ident => if let RustType::Array(inner) = global.apply_type_aliases(ident) {
+                    if let RustType::Primitive(x) = *inner {
+                        x == "u8"
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                },
+            } {
+                let field_type = RustType::Array(Box::new(RustType::Primitive(String::from("u8"))));
+                generate_wrapper_struct(global, type_name, &field_type, false);
+            } else {
+                // Using RustType here just to get a string out of it that applies
+                // common conversions like uint -> u64. Since we're only using it
+                // to get a String, we should be fine.
+                global.type_alias(type_name.to_owned(), &ident.to_string());
+            }
         },
         Type2::Map{ group, .. } => {
             codegen_group(global, group_scope, group, type_name);
@@ -751,30 +816,7 @@ fn generate_type(global: &mut GlobalScope, group_scope: &mut codegen::Scope, typ
                 },
                 Either::Right(ident) => global.new_raw_type(&ident.to_string()),
             }));
-            let (mut s, mut group_impl) = create_exposed_group(type_name);
-            s.field("data", field_type.for_member(GenScope::Root));
-            let mut ser_func = make_serialization_function("serialize");
-            let mut ser_impl = codegen::Impl::new(type_name);
-            ser_impl.impl_trait("cbor_event::se::Serialize");
-            global.generate_serialize(&field_type, String::from("self.data"), &mut ser_func, true /* as_map is ignored here */);
-            ser_impl.push_fn(ser_func);
-            let mut new_func = codegen::Function::new("new");
-                new_func
-                    .ret("Self")
-                    .arg("data", field_type.for_wasm())
-                    .vis("pub");
-                let mut new_func_block = codegen::Block::new("Self");
-                new_func_block.line(format!(
-                    "data: {},",
-                    field_type.from_wasm_boundary("data", GenScope::Root)));
-                new_func.push_block(new_func_block);
-                group_impl.push_fn(new_func);
-                global.scope().raw("#[wasm_bindgen]");
-                global.scope().push_struct(s);
-                global.scope().push_impl(ser_impl);
-                //global.scope().push_impl(from_impl);
-                global.scope().raw("#[wasm_bindgen]");
-                global.scope().push_impl(group_impl);
+            generate_wrapper_struct(global, type_name, &field_type, true /* as_map is ignored here */);
         },
         x => {
             println!("\nignored typename {} -> {:?}\n", type_name, x);
