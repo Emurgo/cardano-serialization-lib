@@ -1,30 +1,3 @@
-bar = uint
-
-foo = {
-	x : bar,
-;	y : [[uint]],
-	z : uint,
-	0 : tstr
-}
-
-block = {
-	header : uint,
-;	bodies : [* body],
-;	metadata : { * uint => uint }
-}
-
-;body = (
-;	txs : [+uint]
-;)
-
-mapper = { * tstr => uint }
-
-
-
-
-; minimal support for address
-; pointer = (uint, uint, uint)
-
 ; changed hash here until we support sockets properly. I don't know why this had a socket anyway in the spec.
 hash = bytes
 
@@ -32,13 +5,29 @@ keyhash = hash
 
 scripthash = hash
 
+genesishash = hash
+
+vkey = bytes
+
+signature = bytes
+
+vrf_keyhash = bytes
+
+vrf_vkey = bytes
+vrf_proof = bytes
+
+kes_vkey = bytes
+
+kes_signature = bytes
+
+pointer = (uint, uint, uint)
 address =
  (  0, keyhash, keyhash       ; base address
  // 1, keyhash, scripthash    ; base address
  // 2, scripthash, keyhash    ; base address
  // 3, scripthash, scripthash ; base address
-; // 4, keyhash, pointer       ; pointer address
-; // 5, scripthash, pointer    ; pointer address
+ // 4, keyhash, pointer       ; pointer address
+ // 5, scripthash, pointer    ; pointer address
  // 6, keyhash                ; enterprise address (null staking reference)
  // 7, scripthash             ; enterprise address (null staking reference)
  // 8, keyhash                ; bootstrap address
@@ -46,16 +35,77 @@ address =
 
 transaction_input = [transaction_id : hash, index : uint]
 
-; replace address with address type
 transaction_output = [address, amount : uint]
+
+coin = uint
+epoch = uint
 
 transaction_body =
   { 0 : #6.258([* transaction_input])
   , 1 : [* transaction_output]
-;  , ? 2 : [* delegation_certificate]
-;  , ? 3 : withdrawals
-;  , 4 : coin ; fee
-;  , 5 : uint ; ttl
+  , ? 2 : [* delegation_certificate]
+  , ? 3 : withdrawals
+  , 4 : coin ; fee
+  , 5 : uint ; ttl
 ;  , ? 6 : full_update
 ;  , ? 7 : metadata_hash
   }
+
+vkeywitness = [ vkey, signature ]
+
+transaction_witness_set =
+  { ?0 => [* vkeywitness ]
+  , ?1 => [* script ]
+  }
+
+script =
+  [  0, keyhash
+  // 1, [ * script ]
+  // 2, [ * script ]
+  // 3, uint, [ * script ]
+  ]
+
+credential =
+  (  0, keyhash
+  // 1, scripthash
+  // 2, genesishash
+  )
+ withdrawals = { * [credential] => coin }
+
+unit_interval = rational
+
+rational =  #6.30(
+   [ numerator   : uint
+   , denominator : uint
+   ])
+
+pool_params = ( #6.258([* keyhash]) ; pool owners
+              , coin                ; cost
+              , unit_interval       ; margin
+              , coin                ; pledge
+              , keyhash             ; operator
+              , vrf_keyhash        ; vrf keyhash
+              , [credential]        ; reward account
+              )
+
+delegation_certificate =
+  [ 0, keyhash                       ; stake key registration
+  // 1, scripthash                    ; stake script registration
+  // 2, keyhash                       ; stake key de-registration
+  // 3, scripthash                    ; stake script de-registration
+  // 4                                ; stake key delegation
+      , keyhash                       ; delegating key
+      , keyhash                       ; key delegated to
+  // 5                                ; stake script delegation
+      , scripthash                    ; delegating script
+      , keyhash                       ; key delegated to
+  // 6, keyhash, pool_params          ; stake pool registration
+  // 7, keyhash, epoch                ; stake pool retirement
+  // 8                                ; genesis key delegation
+      , genesishash                   ; delegating key
+      , keyhash                       ; key delegated to
+  // 9, move_instantaneous_reward ; move instantaneous rewards
+  ]
+
+
+move_instantaneous_reward = { * keyhash => coin }

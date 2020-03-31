@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 //       instead have it either:
 //  1) generate 1 per each wrapped type
 //  2) don't pass it, instead wrap it/unwrap it automatically
-#[derive(Clone)]
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TaggedData<T> {
     pub (crate) data: T,
     pub (crate) tag: u64,
