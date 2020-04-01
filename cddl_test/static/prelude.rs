@@ -27,27 +27,3 @@ impl<T: Serialize> Serialize for TaggedData<T> {
         self.data.serialize(serializer)
     }
 }
-
-
-#[wasm_bindgen]
-#[derive(Clone)]
-pub struct Bytes(Vec<u8>);
-
-#[wasm_bindgen]
-impl Bytes {
-    pub fn new(data: &[u8]) -> Self {
-        Self(data.into())
-    }
-}
-
-impl From<Vec<u8>> for Bytes {
-    fn from(data: Vec<u8>) -> Self {
-        Self(data)
-    }
-}
-
-impl Serialize for Bytes {
-    fn serialize<'a, W: Write + Sized>(&self, serializer: &'a mut Serializer<W>) -> cbor_event::Result<&'a mut Serializer<W>> {
-        serializer.write_bytes(&self.0[..])
-    }
-}
