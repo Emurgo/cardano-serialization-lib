@@ -1,26 +1,25 @@
-
 pub (crate) trait CodeBlock {
-    fn line<T: ToString>(&mut self, line: T) -> &mut Self;
+    fn line(&mut self, line: &str) -> &mut dyn CodeBlock;
 
-    fn push_block(&mut self, block: codegen::Block) -> &mut Self;
+    fn push_block(&mut self, block: codegen::Block) -> &mut dyn CodeBlock;
 }
 
 impl CodeBlock for codegen::Function {
-    fn line<T: ToString>(&mut self, line: T) -> &mut Self {
+    fn line(&mut self, line: &str) -> &mut dyn CodeBlock {
         self.line(line)
     }
 
-    fn push_block(&mut self, block: codegen::Block) -> &mut Self {
+    fn push_block(&mut self, block: codegen::Block) -> &mut dyn CodeBlock {
         self.push_block(block)
     }
 }
 
 impl CodeBlock for codegen::Block {
-    fn line<T: ToString>(&mut self, line: T) -> &mut Self {
+    fn line(&mut self, line: &str) -> &mut dyn CodeBlock {
         self.line(line)
     }
     
-    fn push_block(&mut self, block: codegen::Block) -> &mut Self {
+    fn push_block(&mut self, block: codegen::Block) -> &mut dyn CodeBlock {
         self.push_block(block)
     }
 }
