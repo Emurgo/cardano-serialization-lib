@@ -148,14 +148,18 @@ impl GlobalScope {
                 x => x.clone(),
             },
             None => match raw {
-                x => RustType::Rust(x.to_owned()),
+                x => RustType::Rust(convert_to_camel_case(x)),
             },
         }
     }
 
-    fn type_alias(&mut self, alias: String, value: &str) {
+    fn generate_type_alias(&mut self, alias: String, value: &str) {
         let base_type = self.new_raw_type(value);
         self.global_scope.raw(format!("type {} = {};", alias, base_type.for_member(GenScope::Root)).as_ref());
+        self.apply_type_alias_without_codegen(alias, base_type);
+    }
+
+    fn apply_type_alias_without_codegen(&mut self, alias: String, base_type: RustType) {
         self.type_aliases.insert(alias.to_string(), base_type);
     }
 
@@ -295,6 +299,51 @@ impl GlobalScope {
     }
 }
 
+fn convert_to_snake_case(ident: &str) -> String {
+    let mut snake_case = String::new();
+    for c in ident.chars() {
+        match c {
+            '-' => {
+                snake_case.push('_');
+            },
+            '$' | '#' => {
+                // ignored
+            },
+            c => {
+                if c.is_ascii_uppercase() && !snake_case.is_empty() {
+                    snake_case.push('_')
+                }
+                snake_case.push(c.to_ascii_lowercase());
+            }
+        }
+    }
+    snake_case
+}
+
+fn convert_to_camel_case(ident: &str) -> String {
+    let mut camel_case = String::new();
+    let mut uppercase = true;
+    for c in ident.chars() {
+        match c {
+            '_' | '-' => {
+                uppercase = true;
+            },
+            '$' | '@' => {
+                // ignored
+            },
+            c => {
+                if uppercase {
+                    camel_case.push(c.to_ascii_uppercase());
+                    uppercase = false;
+                } else {
+                    camel_case.push(c);
+                }
+            },
+        }
+    }
+    camel_case
+}
+
 fn add_struct_derives<T: DataType>(data_type: &mut T) {
     data_type
         .derive("Clone")
@@ -309,7 +358,7 @@ fn group_entry_to_field_name(entry: &GroupEntry, index: usize) -> String {
         GroupEntry::ValueMemberKey{ ge, .. } => match ge.member_key.as_ref() {
             Some(member_key) => match member_key {
                 MemberKey::Value{ value, .. } => format!("key_{}", value),
-                MemberKey::Bareword{ ident, .. } => ident.to_string(),
+                MemberKey::Bareword{ ident, .. } => convert_to_snake_case(&ident.to_string()),
                 MemberKey::Type1{ t1, .. } => match t1.type2 {
                     Type2::UintValue{ value, .. } => format!("key_{}", value),
                     _ => panic!("Encountered Type1 member key in multi-field map - not supported: {:?}", entry),
@@ -502,7 +551,7 @@ fn codegen_group_exposed(global: &mut GlobalScope, group: &Group, name: &str, re
         // Group choices - inner group is an enum, need to generate multiple new functions
         for (i, group_choice) in group.group_choices.iter().enumerate() {
             let variant_name = name.to_owned() + &i.to_string();
-            let mut new_func = codegen::Function::new(&format!("new_{}", variant_name));
+            let mut new_func = codegen::Function::new(&format!("new_{}", convert_to_snake_case(&variant_name)));
             new_func
                 .ret("Self")
                 .vis("pub");
@@ -839,9 +888,9 @@ fn generate_type(global: &mut GlobalScope, type_name: &str, type2: &Type2) {
             // want to expand upon the code later on.
             // Perhaps we could change the cddl and have some specific tag like "BINARY_FORMAT"
             // to generate this?
-            if match ident.to_string().as_ref() {
+            let generate_binary_wrapper = match ident.to_string().as_ref() {
                 "bytes" | "bstr" => true,
-                ident => if let RustType::Array(inner) = global.apply_type_aliases(ident) {
+                ident => if let RustType::Array(inner) = global.apply_type_aliases(&convert_to_camel_case(ident)) {
                     if let RustType::Primitive(x) = *inner {
                         x == "u8"
                     } else {
@@ -850,14 +899,16 @@ fn generate_type(global: &mut GlobalScope, type_name: &str, type2: &Type2) {
                 } else {
                     false
                 },
-            } {
+            };
+            if generate_binary_wrapper {
                 let field_type = RustType::Array(Box::new(RustType::Primitive(String::from("u8"))));
                 generate_wrapper_struct(global, type_name, &field_type, Representation::Array);
+                global.apply_type_alias_without_codegen(type_name.to_owned(), field_type);
             } else {
                 // Using RustType here just to get a string out of it that applies
                 // common conversions like uint -> u64. Since we're only using it
                 // to get a String, we should be fine.
-                global.type_alias(type_name.to_owned(), &ident.to_string());
+                global.generate_type_alias(type_name.to_owned(), &ident.to_string());
             }
         },
         Type2::Map{ group, .. } => {
@@ -915,7 +966,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Freely defined group - no need to generate anything outside of group module
             match &rule.entry {
                 GroupEntry::InlineGroup{ group, .. } => {
-                    global.mark_plain_group(rule.name.to_string(), group.clone());
+                    global.mark_plain_group(convert_to_camel_case(&rule.name.to_string()), group.clone());
                 },
                 x => panic!("Group rule with non-inline group? {:?}", x),
             }
@@ -933,7 +984,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // TODO: choices (as enums I guess?)
                 for choice in &rule.value.type_choices {
                     // ignores control operators - only used in shelley spec to limit string length for application metadata
-                    generate_type(&mut global, &rule.name.to_string(), &choice.type2);
+                    generate_type(&mut global, &convert_to_camel_case(&rule.name.to_string()), &choice.type2);
                     //println!("{} type2 = {:?}\n", tr.name, choice.type2);
                     //s.field("foo", "usize");
                     // remove and implement type choices
