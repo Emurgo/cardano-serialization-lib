@@ -11,6 +11,8 @@ mod prelude;
 
 mod groups;
 
+mod js_chain_libs;
+
 #[wasm_bindgen]
 
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
@@ -208,11 +210,12 @@ impl Signature {
         buf.finalize()
     }
 
-    pub fn new(data: Vec<u8>) -> Self {
-        Self {
-            data: data,
-        }
-    }
+    // we probably don't want to create one directly from bytes, do we?
+    // pub fn new(data: Vec<u8>) -> Self {
+    //     Self {
+    //         data: data,
+    //     }
+    // }
 }
 
 #[wasm_bindgen]
@@ -483,57 +486,57 @@ impl Address {
         buf.finalize()
     }
 
-    pub fn new_address0(index_1: Keyhash, index_2: Keyhash) -> Self {
+    pub fn new_base(spending: Keyhash, deleg: Keyhash) -> Self {
         Self {
-            group: groups::Address::Address0(groups::Address0::new(index_1, index_2))
+            group: groups::Address::Address0(groups::Address0::new(spending, deleg))
         }
     }
 
-    pub fn new_address1(index_1: Keyhash, index_2: Scripthash) -> Self {
+    pub fn new_base_with_multisig_delegation(spending: Keyhash, deleg: Scripthash) -> Self {
         Self {
-            group: groups::Address::Address1(groups::Address1::new(index_1, index_2))
+            group: groups::Address::Address1(groups::Address1::new(spending, deleg))
         }
     }
 
-    pub fn new_address2(index_1: Scripthash, index_2: Keyhash) -> Self {
+    pub fn new_multisig_base_delegation(spending: Scripthash, deleg: Keyhash) -> Self {
         Self {
-            group: groups::Address::Address2(groups::Address2::new(index_1, index_2))
+            group: groups::Address::Address2(groups::Address2::new(spending, deleg))
         }
     }
 
-    pub fn new_address3(index_1: Scripthash, index_2: Scripthash) -> Self {
+    pub fn new_multisig(spending: Scripthash, deleg: Scripthash) -> Self {
         Self {
-            group: groups::Address::Address3(groups::Address3::new(index_1, index_2))
+            group: groups::Address::Address3(groups::Address3::new(spending, deleg))
         }
     }
 
-    pub fn new_address4(index_1: Keyhash, index_2: Pointer) -> Self {
+    pub fn new_base_pointer(spending: Keyhash, deleg: Pointer) -> Self {
         Self {
-            group: groups::Address::Address4(groups::Address4::new(index_1, index_2))
+            group: groups::Address::Address4(groups::Address4::new(spending, deleg))
         }
     }
 
-    pub fn new_address5(index_1: Scripthash, index_2: Pointer) -> Self {
+    pub fn new_multisig_pointer(spending: Scripthash, deleg: Pointer) -> Self {
         Self {
-            group: groups::Address::Address5(groups::Address5::new(index_1, index_2))
+            group: groups::Address::Address5(groups::Address5::new(spending, deleg))
         }
     }
 
-    pub fn new_address6(index_1: Keyhash) -> Self {
+    pub fn new_enterprise(spending: Keyhash) -> Self {
         Self {
-            group: groups::Address::Address6(groups::Address6::new(index_1))
+            group: groups::Address::Address6(groups::Address6::new(spending))
         }
     }
 
-    pub fn new_address7(index_1: Scripthash) -> Self {
+    pub fn new_multisig_enterprise(spending: Scripthash) -> Self {
         Self {
-            group: groups::Address::Address7(groups::Address7::new(index_1))
+            group: groups::Address::Address7(groups::Address7::new(spending))
         }
     }
 
-    pub fn new_address8(index_1: Keyhash) -> Self {
+    pub fn new_bootstrap(spending: Keyhash) -> Self {
         Self {
-            group: groups::Address::Address8(groups::Address8::new(index_1))
+            group: groups::Address::Address8(groups::Address8::new(spending))
         }
     }
 }
@@ -566,9 +569,9 @@ impl TransactionOutput {
         buf.finalize()
     }
 
-    pub fn new(index_0: Address, amount: u32) -> Self {
+    pub fn new(address: Address, amount: Coin) -> Self {
         Self {
-            group: groups::TransactionOutput::new(index_0, amount)
+            group: groups::TransactionOutput::new(address, amount)
         }
     }
 }
@@ -716,9 +719,9 @@ impl TransactionBody {
         buf.finalize()
     }
 
-    pub fn new(key_0: TransactionInputs, key_1: TransactionOutputs, key_4: Coin, key_5: u32) -> Self {
+    pub fn new(inputs: TransactionInputs, outputs: TransactionOutputs, fee: Coin, ttl: u32) -> Self {
         Self {
-            group: groups::TransactionBody::new(TaggedData::<TransactionInputs>::new(key_0, 258), key_1, key_4, key_5)
+            group: groups::TransactionBody::new(TaggedData::<TransactionInputs>::new(inputs, 258), outputs, fee, ttl)
         }
     }
 }
