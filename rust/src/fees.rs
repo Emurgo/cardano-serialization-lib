@@ -28,9 +28,12 @@ fn multisig_node_count(root: &Script) -> usize {
 
 fn cert_size(cert: &DelegationCertificate) -> usize {
     match &cert.0 {
-        DelegationCertificateEnum::StakeKeyReg(_) => SMALL_ARRAY + LABEL_SIZE + HASH_OBJ,
-        DelegationCertificateEnum::StakeKeyDereg(_) => SMALL_ARRAY + LABEL_SIZE + HASH_OBJ,
-        DelegationCertificateEnum::StakeDeleg(_) => SMALL_ARRAY + LABEL_SIZE + 2 * HASH_OBJ,
+        DelegationCertificateEnum::StakeKeyReg(_) |
+        DelegationCertificateEnum::StakeScriptKeyReg(_) => SMALL_ARRAY + LABEL_SIZE + HASH_OBJ,
+        DelegationCertificateEnum::StakeKeyDereg(_) |
+        DelegationCertificateEnum::StakeScriptKeyDereg(_) => SMALL_ARRAY + LABEL_SIZE + HASH_OBJ,
+        DelegationCertificateEnum::StakeDeleg(_) |
+        DelegationCertificateEnum::StakeScriptDeleg(_) => SMALL_ARRAY + LABEL_SIZE + 2 * HASH_OBJ,
         DelegationCertificateEnum::PoolRegistration(PoolRegistration{ pool_params, .. }) => {
             SMALL_ARRAY + LABEL_SIZE + HASH_OBJ
             // pool owners
@@ -57,7 +60,6 @@ fn cert_size(cert: &DelegationCertificate) -> usize {
         DelegationCertificateEnum::MoveRewardsCert(mir) => {
             SMALL_ARRAY + LABEL_SIZE + MAP_PREFIX + mir.move_instantaneous_reward.len() * (UINT + HASH_OBJ)
         },
-        _ => panic!("txsize()'s cert_size() not implemented for everything (no multisig certs were in the Haskell code for their txsize)"),
     }
 }
 
