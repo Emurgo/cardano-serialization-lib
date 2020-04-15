@@ -8,6 +8,8 @@ use cbor_event::{self, de::{Deserialize, Deserializer}, se::{Serialize, Serializ
 
 mod serialization;
 
+mod fees;
+
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Hash(Vec<u8>);
@@ -65,6 +67,23 @@ pub struct Genesishash(Vec<u8>);
 
 #[wasm_bindgen]
 impl Genesishash {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Serializer::new_vec();
+        self.serialize(&mut buf).unwrap();
+        buf.finalize()
+    }
+
+    pub fn new(data: Vec<u8>) -> Self {
+        Self(data)
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MetadataHash(Vec<u8>);
+
+#[wasm_bindgen]
+impl MetadataHash {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -543,7 +562,7 @@ impl TransactionInputs {
         Self(Vec::new())
     }
 
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
@@ -566,7 +585,7 @@ impl TransactionOutputs {
         Self(Vec::new())
     }
 
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
@@ -589,7 +608,7 @@ impl DelegationCertificates {
         Self(Vec::new())
     }
 
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
@@ -674,7 +693,7 @@ impl Vkeywitnesss {
         Self(Vec::new())
     }
 
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
@@ -697,7 +716,7 @@ impl Scripts {
         Self(Vec::new())
     }
 
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
@@ -743,12 +762,12 @@ impl TransactionWitnessSet {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Script0 {
+pub struct ScriptKeyNode {
     keyhash: Keyhash,
 }
 
 #[wasm_bindgen]
-impl Script0 {
+impl ScriptKeyNode {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -764,12 +783,12 @@ impl Script0 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Script1 {
+pub struct ScriptAllOfNode {
     scripts: Scripts,
 }
 
 #[wasm_bindgen]
-impl Script1 {
+impl ScriptAllOfNode {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -785,12 +804,12 @@ impl Script1 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Script2 {
+pub struct ScriptAnyOfNode {
     scripts: Scripts,
 }
 
 #[wasm_bindgen]
-impl Script2 {
+impl ScriptAnyOfNode {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -806,13 +825,13 @@ impl Script2 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Script3 {
+pub struct ScriptMOfNode {
     m: u32,
     scripts: Scripts,
 }
 
 #[wasm_bindgen]
-impl Script3 {
+impl ScriptMOfNode {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -829,10 +848,10 @@ impl Script3 {
 
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum ScriptEnum {
-    Script0(Script0),
-    Script1(Script1),
-    Script2(Script2),
-    Script3(Script3),
+    ScriptKeyNode(ScriptKeyNode),
+    ScriptAllOfNode(ScriptAllOfNode),
+    ScriptAnyOfNode(ScriptAnyOfNode),
+    ScriptMOfNode(ScriptMOfNode),
 }
 
 #[wasm_bindgen]
@@ -848,19 +867,19 @@ impl Script {
     }
 
     pub fn new_script0(keyhash: Keyhash) -> Self {
-        Self(ScriptEnum::Script0(Script0::new(keyhash)))
+        Self(ScriptEnum::ScriptKeyNode(ScriptKeyNode::new(keyhash)))
     }
 
     pub fn new_script1(scripts: Scripts) -> Self {
-        Self(ScriptEnum::Script1(Script1::new(scripts)))
+        Self(ScriptEnum::ScriptAllOfNode(ScriptAllOfNode::new(scripts)))
     }
 
     pub fn new_script2(scripts: Scripts) -> Self {
-        Self(ScriptEnum::Script2(Script2::new(scripts)))
+        Self(ScriptEnum::ScriptAnyOfNode(ScriptAnyOfNode::new(scripts)))
     }
 
     pub fn new_script3(m: u32, scripts: Scripts) -> Self {
-        Self(ScriptEnum::Script3(Script3::new(m, scripts)))
+        Self(ScriptEnum::ScriptMOfNode(ScriptMOfNode::new(m, scripts)))
     }
 }
 
@@ -969,7 +988,7 @@ impl Credentials {
         Self(Vec::new())
     }
 
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
@@ -1005,6 +1024,10 @@ impl Withdrawals {
     pub fn insert(&mut self, key: Credentials, value: Coin) {
         self.table.insert(key, value);
     }
+
+    pub fn len(&self) -> usize {
+        self.table.len()
+    }
 }
 
 type UnitInterval = Rational;
@@ -1032,14 +1055,39 @@ impl Rational {
     }
 }
 
+type Url = String;
+
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DelegationCertificate0 {
+pub struct PoolMetadata {
+    url: Url,
+    metadata_hash: MetadataHash,
+}
+
+#[wasm_bindgen]
+impl PoolMetadata {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Serializer::new_vec();
+        self.serialize(&mut buf).unwrap();
+        buf.finalize()
+    }
+
+    pub fn new(url: Url, metadata_hash: MetadataHash) -> Self {
+        Self {
+            url: url,
+            metadata_hash: metadata_hash,
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct StakeKeyReg {
     keyhash: Keyhash,
 }
 
 #[wasm_bindgen]
-impl DelegationCertificate0 {
+impl StakeKeyReg {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -1055,12 +1103,12 @@ impl DelegationCertificate0 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DelegationCertificate1 {
+pub struct StakeScriptKeyReg {
     scripthash: Scripthash,
 }
 
 #[wasm_bindgen]
-impl DelegationCertificate1 {
+impl StakeScriptKeyReg {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -1076,12 +1124,12 @@ impl DelegationCertificate1 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DelegationCertificate2 {
+pub struct StakeKeyDereg {
     keyhash: Keyhash,
 }
 
 #[wasm_bindgen]
-impl DelegationCertificate2 {
+impl StakeKeyDereg {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -1097,12 +1145,12 @@ impl DelegationCertificate2 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DelegationCertificate3 {
+pub struct StakeScriptKeyDereg {
     scripthash: Scripthash,
 }
 
 #[wasm_bindgen]
-impl DelegationCertificate3 {
+impl StakeScriptKeyDereg {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -1118,13 +1166,13 @@ impl DelegationCertificate3 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DelegationCertificate4 {
+pub struct StakeDeleg {
     deleg_from: Keyhash,
     deleg_to: Keyhash,
 }
 
 #[wasm_bindgen]
-impl DelegationCertificate4 {
+impl StakeDeleg {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -1141,13 +1189,13 @@ impl DelegationCertificate4 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DelegationCertificate5 {
+pub struct StakeScriptDeleg {
     deleg_from: Scripthash,
     deleg_to: Keyhash,
 }
 
 #[wasm_bindgen]
-impl DelegationCertificate5 {
+impl StakeScriptDeleg {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -1172,7 +1220,7 @@ impl Keyhashs {
         Self(Vec::new())
     }
 
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
@@ -1187,14 +1235,63 @@ impl Keyhashs {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Urls(Vec<Url>);
+
+#[wasm_bindgen]
+impl Urls {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> Url {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: Url) {
+        self.0.push(elem);
+    }
+}
+
+#[wasm_bindgen]
+
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct PoolMetadatas(Vec<PoolMetadata>);
+
+#[wasm_bindgen]
+impl PoolMetadatas {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> PoolMetadata {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: PoolMetadata) {
+        self.0.push(elem);
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PoolParams {
-    owners: Keyhashs,
-    cost: Coin,
-    margin: UnitInterval,
-    pledge: Coin,
     operator: Keyhash,
     vrf_keyhash: VrfKeyhash,
-    reward_account: Credentials,
+    cost: Coin,
+    pledge: Coin,
+    margin: UnitInterval,
+    reward_account: Credential,
+    owners: Keyhashs,
+    relays: Urls,
+    metadata: PoolMetadatas,
 }
 
 #[wasm_bindgen]
@@ -1205,28 +1302,30 @@ impl PoolParams {
         buf.finalize()
     }
 
-    pub fn new(owners: Keyhashs, cost: Coin, margin: UnitInterval, pledge: Coin, operator: Keyhash, vrf_keyhash: VrfKeyhash, reward_account: Credentials) -> Self {
+    pub fn new(operator: Keyhash, vrf_keyhash: VrfKeyhash, cost: Coin, pledge: Coin, margin: UnitInterval, reward_account: Credential, owners: Keyhashs, relays: Urls, metadata: PoolMetadatas) -> Self {
         Self {
-            owners: owners,
-            cost: cost,
-            margin: margin,
-            pledge: pledge,
             operator: operator,
             vrf_keyhash: vrf_keyhash,
+            cost: cost,
+            pledge: pledge,
+            margin: margin,
             reward_account: reward_account,
+            owners: owners,
+            relays: relays,
+            metadata: metadata,
         }
     }
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DelegationCertificate6 {
+pub struct PoolRegistration {
     keyhash: Keyhash,
     pool_params: PoolParams,
 }
 
 #[wasm_bindgen]
-impl DelegationCertificate6 {
+impl PoolRegistration {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -1243,13 +1342,13 @@ impl DelegationCertificate6 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DelegationCertificate7 {
+pub struct PoolRetirement {
     keyhash: Keyhash,
     epoch: Epoch,
 }
 
 #[wasm_bindgen]
-impl DelegationCertificate7 {
+impl PoolRetirement {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -1266,13 +1365,13 @@ impl DelegationCertificate7 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DelegationCertificate8 {
+pub struct GenesisKeyDeleg {
     deleg_from: Genesishash,
     deleg_to: Keyhash,
 }
 
 #[wasm_bindgen]
-impl DelegationCertificate8 {
+impl GenesisKeyDeleg {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -1289,12 +1388,12 @@ impl DelegationCertificate8 {
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DelegationCertificate9 {
+pub struct MoveRewardsCert {
     move_instantaneous_reward: MoveInstantaneousReward,
 }
 
 #[wasm_bindgen]
-impl DelegationCertificate9 {
+impl MoveRewardsCert {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Serializer::new_vec();
         self.serialize(&mut buf).unwrap();
@@ -1310,16 +1409,16 @@ impl DelegationCertificate9 {
 
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum DelegationCertificateEnum {
-    DelegationCertificate0(DelegationCertificate0),
-    DelegationCertificate1(DelegationCertificate1),
-    DelegationCertificate2(DelegationCertificate2),
-    DelegationCertificate3(DelegationCertificate3),
-    DelegationCertificate4(DelegationCertificate4),
-    DelegationCertificate5(DelegationCertificate5),
-    DelegationCertificate6(DelegationCertificate6),
-    DelegationCertificate7(DelegationCertificate7),
-    DelegationCertificate8(DelegationCertificate8),
-    DelegationCertificate9(DelegationCertificate9),
+    StakeKeyReg(StakeKeyReg),
+    StakeScriptKeyReg(StakeScriptKeyReg),
+    StakeKeyDereg(StakeKeyDereg),
+    StakeScriptKeyDereg(StakeScriptKeyDereg),
+    StakeDeleg(StakeDeleg),
+    StakeScriptDeleg(StakeScriptDeleg),
+    PoolRegistration(PoolRegistration),
+    PoolRetirement(PoolRetirement),
+    GenesisKeyDeleg(GenesisKeyDeleg),
+    MoveRewardsCert(MoveRewardsCert),
 }
 
 #[wasm_bindgen]
@@ -1334,44 +1433,44 @@ impl DelegationCertificate {
         buf.finalize()
     }
 
-    pub fn new_delegation_certificate0(keyhash: Keyhash) -> Self {
-        Self(DelegationCertificateEnum::DelegationCertificate0(DelegationCertificate0::new(keyhash)))
+    pub fn new_key_reg(keyhash: Keyhash) -> Self {
+        Self(DelegationCertificateEnum::StakeKeyReg(StakeKeyReg::new(keyhash)))
     }
 
-    pub fn new_delegation_certificate1(scripthash: Scripthash) -> Self {
-        Self(DelegationCertificateEnum::DelegationCertificate1(DelegationCertificate1::new(scripthash)))
+    pub fn new_script_key_reg(scripthash: Scripthash) -> Self {
+        Self(DelegationCertificateEnum::StakeScriptKeyReg(StakeScriptKeyReg::new(scripthash)))
     }
 
-    pub fn new_delegation_certificate2(keyhash: Keyhash) -> Self {
-        Self(DelegationCertificateEnum::DelegationCertificate2(DelegationCertificate2::new(keyhash)))
+    pub fn new_key_dereg(keyhash: Keyhash) -> Self {
+        Self(DelegationCertificateEnum::StakeKeyDereg(StakeKeyDereg::new(keyhash)))
     }
 
-    pub fn new_delegation_certificate3(scripthash: Scripthash) -> Self {
-        Self(DelegationCertificateEnum::DelegationCertificate3(DelegationCertificate3::new(scripthash)))
+    pub fn new_script_key_dereg(scripthash: Scripthash) -> Self {
+        Self(DelegationCertificateEnum::StakeScriptKeyDereg(StakeScriptKeyDereg::new(scripthash)))
     }
 
-    pub fn new_delegation_certificate4(deleg_from: Keyhash, deleg_to: Keyhash) -> Self {
-        Self(DelegationCertificateEnum::DelegationCertificate4(DelegationCertificate4::new(deleg_from, deleg_to)))
+    pub fn new_delegation(deleg_from: Keyhash, deleg_to: Keyhash) -> Self {
+        Self(DelegationCertificateEnum::StakeDeleg(StakeDeleg::new(deleg_from, deleg_to)))
     }
 
-    pub fn new_delegation_certificate5(deleg_from: Scripthash, deleg_to: Keyhash) -> Self {
-        Self(DelegationCertificateEnum::DelegationCertificate5(DelegationCertificate5::new(deleg_from, deleg_to)))
+    pub fn new_script_delegation(deleg_from: Scripthash, deleg_to: Keyhash) -> Self {
+        Self(DelegationCertificateEnum::StakeScriptDeleg(StakeScriptDeleg::new(deleg_from, deleg_to)))
     }
 
-    pub fn new_delegation_certificate6(keyhash: Keyhash, pool_params: PoolParams) -> Self {
-        Self(DelegationCertificateEnum::DelegationCertificate6(DelegationCertificate6::new(keyhash, pool_params)))
+    pub fn new_pool_reg(keyhash: Keyhash, pool_params: PoolParams) -> Self {
+        Self(DelegationCertificateEnum::PoolRegistration(PoolRegistration::new(keyhash, pool_params)))
     }
 
-    pub fn new_delegation_certificate7(keyhash: Keyhash, epoch: Epoch) -> Self {
-        Self(DelegationCertificateEnum::DelegationCertificate7(DelegationCertificate7::new(keyhash, epoch)))
+    pub fn new_pool_retire(keyhash: Keyhash, epoch: Epoch) -> Self {
+        Self(DelegationCertificateEnum::PoolRetirement(PoolRetirement::new(keyhash, epoch)))
     }
 
-    pub fn new_delegation_certificate8(deleg_from: Genesishash, deleg_to: Keyhash) -> Self {
-        Self(DelegationCertificateEnum::DelegationCertificate8(DelegationCertificate8::new(deleg_from, deleg_to)))
+    pub fn new_genesis_delegate(deleg_from: Genesishash, deleg_to: Keyhash) -> Self {
+        Self(DelegationCertificateEnum::GenesisKeyDeleg(GenesisKeyDeleg::new(deleg_from, deleg_to)))
     }
 
-    pub fn new_delegation_certificate9(move_instantaneous_reward: MoveInstantaneousReward) -> Self {
-        Self(DelegationCertificateEnum::DelegationCertificate9(DelegationCertificate9::new(move_instantaneous_reward)))
+    pub fn new_move_rewards(move_instantaneous_reward: MoveInstantaneousReward) -> Self {
+        Self(DelegationCertificateEnum::MoveRewardsCert(MoveRewardsCert::new(move_instantaneous_reward)))
     }
 }
 
@@ -1397,5 +1496,9 @@ impl MoveInstantaneousReward {
 
     pub fn insert(&mut self, key: Keyhash, value: Coin) {
         self.table.insert(key, value);
+    }
+
+    pub fn len(&self) -> usize {
+        self.table.len()
     }
 }

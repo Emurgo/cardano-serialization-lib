@@ -47,6 +47,16 @@ impl cbor_event::se::Serialize for Genesishash {
     }
 }
 
+impl cbor_event::se::Serialize for MetadataHash {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
 impl cbor_event::se::Serialize for Vkey {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
@@ -488,7 +498,7 @@ impl SerializeEmbeddedGroup for TransactionWitnessSet {
     }
 }
 
-impl cbor_event::se::Serialize for Script0 {
+impl cbor_event::se::Serialize for ScriptKeyNode {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -496,7 +506,7 @@ impl cbor_event::se::Serialize for Script0 {
     }
 }
 
-impl SerializeEmbeddedGroup for Script0 {
+impl SerializeEmbeddedGroup for ScriptKeyNode {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(0)?;
         self.keyhash.serialize(serializer)?;
@@ -504,7 +514,7 @@ impl SerializeEmbeddedGroup for Script0 {
     }
 }
 
-impl cbor_event::se::Serialize for Script1 {
+impl cbor_event::se::Serialize for ScriptAllOfNode {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -512,7 +522,7 @@ impl cbor_event::se::Serialize for Script1 {
     }
 }
 
-impl SerializeEmbeddedGroup for Script1 {
+impl SerializeEmbeddedGroup for ScriptAllOfNode {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(1)?;
         serializer.write_array(cbor_event::Len::Len(self.scripts.0.len() as u64))?;
@@ -523,7 +533,7 @@ impl SerializeEmbeddedGroup for Script1 {
     }
 }
 
-impl cbor_event::se::Serialize for Script2 {
+impl cbor_event::se::Serialize for ScriptAnyOfNode {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -531,7 +541,7 @@ impl cbor_event::se::Serialize for Script2 {
     }
 }
 
-impl SerializeEmbeddedGroup for Script2 {
+impl SerializeEmbeddedGroup for ScriptAnyOfNode {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(2)?;
         serializer.write_array(cbor_event::Len::Len(self.scripts.0.len() as u64))?;
@@ -542,7 +552,7 @@ impl SerializeEmbeddedGroup for Script2 {
     }
 }
 
-impl cbor_event::se::Serialize for Script3 {
+impl cbor_event::se::Serialize for ScriptMOfNode {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -550,7 +560,7 @@ impl cbor_event::se::Serialize for Script3 {
     }
 }
 
-impl SerializeEmbeddedGroup for Script3 {
+impl SerializeEmbeddedGroup for ScriptMOfNode {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(3)?;
         self.m.clone().serialize(serializer)?;
@@ -573,10 +583,10 @@ impl cbor_event::se::Serialize for ScriptEnum {
 impl SerializeEmbeddedGroup for ScriptEnum {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         match self {
-            ScriptEnum::Script0(x) => x.serialize_as_embedded_group(serializer),
-            ScriptEnum::Script1(x) => x.serialize_as_embedded_group(serializer),
-            ScriptEnum::Script2(x) => x.serialize_as_embedded_group(serializer),
-            ScriptEnum::Script3(x) => x.serialize_as_embedded_group(serializer),
+            ScriptEnum::ScriptKeyNode(x) => x.serialize_as_embedded_group(serializer),
+            ScriptEnum::ScriptAllOfNode(x) => x.serialize_as_embedded_group(serializer),
+            ScriptEnum::ScriptAnyOfNode(x) => x.serialize_as_embedded_group(serializer),
+            ScriptEnum::ScriptMOfNode(x) => x.serialize_as_embedded_group(serializer),
         }
     }
 }
@@ -723,7 +733,7 @@ impl SerializeEmbeddedGroup for Rational {
     }
 }
 
-impl cbor_event::se::Serialize for DelegationCertificate0 {
+impl cbor_event::se::Serialize for PoolMetadata {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -731,7 +741,23 @@ impl cbor_event::se::Serialize for DelegationCertificate0 {
     }
 }
 
-impl SerializeEmbeddedGroup for DelegationCertificate0 {
+impl SerializeEmbeddedGroup for PoolMetadata {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        self.url.serialize(serializer)?;
+        self.metadata_hash.serialize(serializer)?;
+        Ok(serializer)
+    }
+}
+
+impl cbor_event::se::Serialize for StakeKeyReg {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Indefinite)?;
+        self.serialize_as_embedded_group(serializer)?;
+        serializer.write_special(cbor_event::Special::Break)
+    }
+}
+
+impl SerializeEmbeddedGroup for StakeKeyReg {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(0)?;
         self.keyhash.serialize(serializer)?;
@@ -739,7 +765,7 @@ impl SerializeEmbeddedGroup for DelegationCertificate0 {
     }
 }
 
-impl cbor_event::se::Serialize for DelegationCertificate1 {
+impl cbor_event::se::Serialize for StakeScriptKeyReg {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -747,7 +773,7 @@ impl cbor_event::se::Serialize for DelegationCertificate1 {
     }
 }
 
-impl SerializeEmbeddedGroup for DelegationCertificate1 {
+impl SerializeEmbeddedGroup for StakeScriptKeyReg {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(1)?;
         self.scripthash.serialize(serializer)?;
@@ -755,7 +781,7 @@ impl SerializeEmbeddedGroup for DelegationCertificate1 {
     }
 }
 
-impl cbor_event::se::Serialize for DelegationCertificate2 {
+impl cbor_event::se::Serialize for StakeKeyDereg {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -763,7 +789,7 @@ impl cbor_event::se::Serialize for DelegationCertificate2 {
     }
 }
 
-impl SerializeEmbeddedGroup for DelegationCertificate2 {
+impl SerializeEmbeddedGroup for StakeKeyDereg {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(2)?;
         self.keyhash.serialize(serializer)?;
@@ -771,7 +797,7 @@ impl SerializeEmbeddedGroup for DelegationCertificate2 {
     }
 }
 
-impl cbor_event::se::Serialize for DelegationCertificate3 {
+impl cbor_event::se::Serialize for StakeScriptKeyDereg {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -779,7 +805,7 @@ impl cbor_event::se::Serialize for DelegationCertificate3 {
     }
 }
 
-impl SerializeEmbeddedGroup for DelegationCertificate3 {
+impl SerializeEmbeddedGroup for StakeScriptKeyDereg {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(3)?;
         self.scripthash.serialize(serializer)?;
@@ -787,7 +813,7 @@ impl SerializeEmbeddedGroup for DelegationCertificate3 {
     }
 }
 
-impl cbor_event::se::Serialize for DelegationCertificate4 {
+impl cbor_event::se::Serialize for StakeDeleg {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -795,7 +821,7 @@ impl cbor_event::se::Serialize for DelegationCertificate4 {
     }
 }
 
-impl SerializeEmbeddedGroup for DelegationCertificate4 {
+impl SerializeEmbeddedGroup for StakeDeleg {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(4)?;
         self.deleg_from.serialize(serializer)?;
@@ -804,7 +830,7 @@ impl SerializeEmbeddedGroup for DelegationCertificate4 {
     }
 }
 
-impl cbor_event::se::Serialize for DelegationCertificate5 {
+impl cbor_event::se::Serialize for StakeScriptDeleg {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -812,7 +838,7 @@ impl cbor_event::se::Serialize for DelegationCertificate5 {
     }
 }
 
-impl SerializeEmbeddedGroup for DelegationCertificate5 {
+impl SerializeEmbeddedGroup for StakeScriptDeleg {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(5)?;
         self.deleg_from.serialize(serializer)?;
@@ -821,7 +847,27 @@ impl SerializeEmbeddedGroup for DelegationCertificate5 {
     }
 }
 
+impl cbor_event::se::Serialize for Urls {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
 impl cbor_event::se::Serialize for Keyhashs {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl cbor_event::se::Serialize for PoolMetadatas {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
         for element in &self.0 {
@@ -841,25 +887,30 @@ impl cbor_event::se::Serialize for PoolParams {
 
 impl SerializeEmbeddedGroup for PoolParams {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        self.operator.serialize(serializer)?;
+        self.vrf_keyhash.serialize(serializer)?;
+        self.cost.serialize(serializer)?;
+        self.pledge.serialize(serializer)?;
+        self.margin.serialize(serializer)?;
+        self.reward_account.serialize_as_embedded_group(serializer)?;
         serializer.write_tag(258u64)?;
         serializer.write_array(cbor_event::Len::Len(self.owners.0.len() as u64))?;
         for element in &self.owners.0 {
             element.serialize(serializer)?;
         }
-        self.cost.serialize(serializer)?;
-        self.margin.serialize(serializer)?;
-        self.pledge.serialize(serializer)?;
-        self.operator.serialize(serializer)?;
-        self.vrf_keyhash.serialize(serializer)?;
-        serializer.write_array(cbor_event::Len::Len(self.reward_account.0.len() as u64))?;
-        for element in &self.reward_account.0 {
+        serializer.write_array(cbor_event::Len::Len(self.relays.0.len() as u64))?;
+        for element in &self.relays.0 {
+            element.serialize(serializer)?;
+        }
+        serializer.write_array(cbor_event::Len::Len(self.metadata.0.len() as u64))?;
+        for element in &self.metadata.0 {
             element.serialize(serializer)?;
         }
         Ok(serializer)
     }
 }
 
-impl cbor_event::se::Serialize for DelegationCertificate6 {
+impl cbor_event::se::Serialize for PoolRegistration {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -867,7 +918,7 @@ impl cbor_event::se::Serialize for DelegationCertificate6 {
     }
 }
 
-impl SerializeEmbeddedGroup for DelegationCertificate6 {
+impl SerializeEmbeddedGroup for PoolRegistration {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(6)?;
         self.keyhash.serialize(serializer)?;
@@ -876,7 +927,7 @@ impl SerializeEmbeddedGroup for DelegationCertificate6 {
     }
 }
 
-impl cbor_event::se::Serialize for DelegationCertificate7 {
+impl cbor_event::se::Serialize for PoolRetirement {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -884,7 +935,7 @@ impl cbor_event::se::Serialize for DelegationCertificate7 {
     }
 }
 
-impl SerializeEmbeddedGroup for DelegationCertificate7 {
+impl SerializeEmbeddedGroup for PoolRetirement {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(7)?;
         self.keyhash.serialize(serializer)?;
@@ -893,7 +944,7 @@ impl SerializeEmbeddedGroup for DelegationCertificate7 {
     }
 }
 
-impl cbor_event::se::Serialize for DelegationCertificate8 {
+impl cbor_event::se::Serialize for GenesisKeyDeleg {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -901,7 +952,7 @@ impl cbor_event::se::Serialize for DelegationCertificate8 {
     }
 }
 
-impl SerializeEmbeddedGroup for DelegationCertificate8 {
+impl SerializeEmbeddedGroup for GenesisKeyDeleg {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(8)?;
         self.deleg_from.serialize(serializer)?;
@@ -910,7 +961,7 @@ impl SerializeEmbeddedGroup for DelegationCertificate8 {
     }
 }
 
-impl cbor_event::se::Serialize for DelegationCertificate9 {
+impl cbor_event::se::Serialize for MoveRewardsCert {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
         self.serialize_as_embedded_group(serializer)?;
@@ -918,7 +969,7 @@ impl cbor_event::se::Serialize for DelegationCertificate9 {
     }
 }
 
-impl SerializeEmbeddedGroup for DelegationCertificate9 {
+impl SerializeEmbeddedGroup for MoveRewardsCert {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(9)?;
         self.move_instantaneous_reward.serialize(serializer)?;
@@ -937,16 +988,16 @@ impl cbor_event::se::Serialize for DelegationCertificateEnum {
 impl SerializeEmbeddedGroup for DelegationCertificateEnum {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         match self {
-            DelegationCertificateEnum::DelegationCertificate0(x) => x.serialize_as_embedded_group(serializer),
-            DelegationCertificateEnum::DelegationCertificate1(x) => x.serialize_as_embedded_group(serializer),
-            DelegationCertificateEnum::DelegationCertificate2(x) => x.serialize_as_embedded_group(serializer),
-            DelegationCertificateEnum::DelegationCertificate3(x) => x.serialize_as_embedded_group(serializer),
-            DelegationCertificateEnum::DelegationCertificate4(x) => x.serialize_as_embedded_group(serializer),
-            DelegationCertificateEnum::DelegationCertificate5(x) => x.serialize_as_embedded_group(serializer),
-            DelegationCertificateEnum::DelegationCertificate6(x) => x.serialize_as_embedded_group(serializer),
-            DelegationCertificateEnum::DelegationCertificate7(x) => x.serialize_as_embedded_group(serializer),
-            DelegationCertificateEnum::DelegationCertificate8(x) => x.serialize_as_embedded_group(serializer),
-            DelegationCertificateEnum::DelegationCertificate9(x) => x.serialize_as_embedded_group(serializer),
+            DelegationCertificateEnum::StakeKeyReg(x) => x.serialize_as_embedded_group(serializer),
+            DelegationCertificateEnum::StakeScriptKeyReg(x) => x.serialize_as_embedded_group(serializer),
+            DelegationCertificateEnum::StakeKeyDereg(x) => x.serialize_as_embedded_group(serializer),
+            DelegationCertificateEnum::StakeScriptKeyDereg(x) => x.serialize_as_embedded_group(serializer),
+            DelegationCertificateEnum::StakeDeleg(x) => x.serialize_as_embedded_group(serializer),
+            DelegationCertificateEnum::StakeScriptDeleg(x) => x.serialize_as_embedded_group(serializer),
+            DelegationCertificateEnum::PoolRegistration(x) => x.serialize_as_embedded_group(serializer),
+            DelegationCertificateEnum::PoolRetirement(x) => x.serialize_as_embedded_group(serializer),
+            DelegationCertificateEnum::GenesisKeyDeleg(x) => x.serialize_as_embedded_group(serializer),
+            DelegationCertificateEnum::MoveRewardsCert(x) => x.serialize_as_embedded_group(serializer),
         }
     }
 }
