@@ -8,10 +8,12 @@ use cbor_event::{self, de::{Deserialize, Deserializer}, se::{Serialize, Serializ
 
 mod serialization;
 
+mod js_chain_libs;
+
 mod fees;
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Hash(Vec<u8>);
 
 #[wasm_bindgen]
@@ -28,7 +30,7 @@ impl Hash {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Keyhash(Vec<u8>);
 
 #[wasm_bindgen]
@@ -45,7 +47,7 @@ impl Keyhash {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Scripthash(Vec<u8>);
 
 #[wasm_bindgen]
@@ -62,7 +64,7 @@ impl Scripthash {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Genesishash(Vec<u8>);
 
 #[wasm_bindgen]
@@ -79,7 +81,7 @@ impl Genesishash {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MetadataHash(Vec<u8>);
 
 #[wasm_bindgen]
@@ -96,7 +98,7 @@ impl MetadataHash {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Vkey(Vec<u8>);
 
 #[wasm_bindgen]
@@ -113,7 +115,7 @@ impl Vkey {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Signature(Vec<u8>);
 
 #[wasm_bindgen]
@@ -130,7 +132,7 @@ impl Signature {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct VrfKeyhash(Vec<u8>);
 
 #[wasm_bindgen]
@@ -147,7 +149,7 @@ impl VrfKeyhash {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct VrfVkey(Vec<u8>);
 
 #[wasm_bindgen]
@@ -164,7 +166,7 @@ impl VrfVkey {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct VrfProof(Vec<u8>);
 
 #[wasm_bindgen]
@@ -181,7 +183,7 @@ impl VrfProof {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct KesVkey(Vec<u8>);
 
 #[wasm_bindgen]
@@ -198,7 +200,7 @@ impl KesVkey {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct KesSignature(Vec<u8>);
 
 #[wasm_bindgen]
@@ -215,7 +217,7 @@ impl KesSignature {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionInput {
     transaction_id: Hash,
     index: u32,
@@ -238,7 +240,7 @@ impl TransactionInput {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BaseAddress {
     spending: Keyhash,
     deleg: Keyhash,
@@ -261,7 +263,7 @@ impl BaseAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BaseAddressScriptDelegation {
     spending: Keyhash,
     deleg: Scripthash,
@@ -284,7 +286,7 @@ impl BaseAddressScriptDelegation {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BaseScriptAddress {
     spending: Scripthash,
     deleg: Keyhash,
@@ -307,7 +309,7 @@ impl BaseScriptAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BaseScriptAddressScriptDeleg {
     spending: Scripthash,
     deleg: Scripthash,
@@ -330,7 +332,7 @@ impl BaseScriptAddressScriptDeleg {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Pointer {
     slot: u32,
     tx_index: u32,
@@ -355,7 +357,7 @@ impl Pointer {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PointerAddress {
     spending: Keyhash,
     deleg: Pointer,
@@ -378,7 +380,7 @@ impl PointerAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PointerMultisigAddress {
     spending: Scripthash,
     deleg: Pointer,
@@ -401,7 +403,7 @@ impl PointerMultisigAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EnterpriseAddress {
     spending: Keyhash,
 }
@@ -422,7 +424,7 @@ impl EnterpriseAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EnterpriseMultisigAddress {
     spending: Scripthash,
 }
@@ -443,7 +445,7 @@ impl EnterpriseMultisigAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BootstrapAddress {
     spending: Keyhash,
 }
@@ -463,7 +465,7 @@ impl BootstrapAddress {
     }
 }
 
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum AddressEnum {
     BaseAddress(BaseAddress),
     BaseAddressScriptDelegation(BaseAddressScriptDelegation),
@@ -477,7 +479,7 @@ enum AddressEnum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Address(AddressEnum);
 
 #[wasm_bindgen]
@@ -488,7 +490,7 @@ impl Address {
         buf.finalize()
     }
 
-    pub fn new_base_(spending: Keyhash, deleg: Keyhash) -> Self {
+    pub fn new_base(spending: Keyhash, deleg: Keyhash) -> Self {
         Self(AddressEnum::BaseAddress(BaseAddress::new(spending, deleg)))
     }
 
@@ -526,7 +528,7 @@ impl Address {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionOutput {
     address: Address,
     amount: u32,
@@ -553,7 +555,7 @@ type Coin = u32;
 type Epoch = u32;
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionInputs(Vec<TransactionInput>);
 
 #[wasm_bindgen]
@@ -576,7 +578,7 @@ impl TransactionInputs {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionOutputs(Vec<TransactionOutput>);
 
 #[wasm_bindgen]
@@ -599,7 +601,7 @@ impl TransactionOutputs {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DelegationCertificates(Vec<DelegationCertificate>);
 
 #[wasm_bindgen]
@@ -622,7 +624,7 @@ impl DelegationCertificates {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionBody {
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
@@ -661,7 +663,7 @@ impl TransactionBody {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Vkeywitness {
     vkey: Vkey,
     signature: Signature,
@@ -684,7 +686,7 @@ impl Vkeywitness {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Vkeywitnesss(Vec<Vkeywitness>);
 
 #[wasm_bindgen]
@@ -707,7 +709,7 @@ impl Vkeywitnesss {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Scripts(Vec<Script>);
 
 #[wasm_bindgen]
@@ -730,7 +732,7 @@ impl Scripts {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionWitnessSet {
     key_witnesses: Option<Vkeywitnesss>,
     script_witnesses: Option<Scripts>,
@@ -761,7 +763,7 @@ impl TransactionWitnessSet {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ScriptKeyNode {
     keyhash: Keyhash,
 }
@@ -782,7 +784,7 @@ impl ScriptKeyNode {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ScriptAllOfNode {
     scripts: Scripts,
 }
@@ -803,7 +805,7 @@ impl ScriptAllOfNode {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ScriptAnyOfNode {
     scripts: Scripts,
 }
@@ -824,7 +826,7 @@ impl ScriptAnyOfNode {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ScriptMOfNode {
     m: u32,
     scripts: Scripts,
@@ -846,7 +848,7 @@ impl ScriptMOfNode {
     }
 }
 
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum ScriptEnum {
     ScriptKeyNode(ScriptKeyNode),
     ScriptAllOfNode(ScriptAllOfNode),
@@ -855,7 +857,7 @@ enum ScriptEnum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Script(ScriptEnum);
 
 #[wasm_bindgen]
@@ -884,7 +886,7 @@ impl Script {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Credential0 {
     keyhash: Keyhash,
 }
@@ -905,7 +907,7 @@ impl Credential0 {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Credential1 {
     scripthash: Scripthash,
 }
@@ -926,7 +928,7 @@ impl Credential1 {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Credential2 {
     genesishash: Genesishash,
 }
@@ -946,7 +948,7 @@ impl Credential2 {
     }
 }
 
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum CredentialEnum {
     Credential0(Credential0),
     Credential1(Credential1),
@@ -954,7 +956,7 @@ enum CredentialEnum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Credential(CredentialEnum);
 
 #[wasm_bindgen]
@@ -979,7 +981,7 @@ impl Credential {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Credentials(Vec<Credential>);
 
 #[wasm_bindgen]
@@ -1002,7 +1004,7 @@ impl Credentials {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Withdrawals {
     table: std::collections::BTreeMap<Credentials, Coin>,
 }
@@ -1033,7 +1035,7 @@ impl Withdrawals {
 type UnitInterval = Rational;
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Rational {
     numerator: u32,
     denominator: u32,
@@ -1058,7 +1060,7 @@ impl Rational {
 type Url = String;
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PoolMetadata {
     url: Url,
     metadata_hash: MetadataHash,
@@ -1081,7 +1083,7 @@ impl PoolMetadata {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StakeKeyReg {
     keyhash: Keyhash,
 }
@@ -1102,7 +1104,7 @@ impl StakeKeyReg {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StakeScriptKeyReg {
     scripthash: Scripthash,
 }
@@ -1123,7 +1125,7 @@ impl StakeScriptKeyReg {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StakeKeyDereg {
     keyhash: Keyhash,
 }
@@ -1144,7 +1146,7 @@ impl StakeKeyDereg {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StakeScriptKeyDereg {
     scripthash: Scripthash,
 }
@@ -1165,7 +1167,7 @@ impl StakeScriptKeyDereg {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StakeDeleg {
     deleg_from: Keyhash,
     deleg_to: Keyhash,
@@ -1188,7 +1190,7 @@ impl StakeDeleg {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StakeScriptDeleg {
     deleg_from: Scripthash,
     deleg_to: Keyhash,
@@ -1211,7 +1213,7 @@ impl StakeScriptDeleg {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Keyhashs(Vec<Keyhash>);
 
 #[wasm_bindgen]
@@ -1234,7 +1236,7 @@ impl Keyhashs {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Urls(Vec<Url>);
 
 #[wasm_bindgen]
@@ -1258,7 +1260,7 @@ impl Urls {
 
 #[wasm_bindgen]
 
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PoolMetadatas(Vec<PoolMetadata>);
 
 #[wasm_bindgen]
@@ -1281,7 +1283,7 @@ impl PoolMetadatas {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PoolParams {
     operator: Keyhash,
     vrf_keyhash: VrfKeyhash,
@@ -1318,7 +1320,7 @@ impl PoolParams {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PoolRegistration {
     keyhash: Keyhash,
     pool_params: PoolParams,
@@ -1341,7 +1343,7 @@ impl PoolRegistration {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PoolRetirement {
     keyhash: Keyhash,
     epoch: Epoch,
@@ -1364,7 +1366,7 @@ impl PoolRetirement {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct GenesisKeyDeleg {
     deleg_from: Genesishash,
     deleg_to: Keyhash,
@@ -1387,7 +1389,7 @@ impl GenesisKeyDeleg {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MoveRewardsCert {
     move_instantaneous_reward: MoveInstantaneousReward,
 }
@@ -1407,7 +1409,7 @@ impl MoveRewardsCert {
     }
 }
 
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum DelegationCertificateEnum {
     StakeKeyReg(StakeKeyReg),
     StakeScriptKeyReg(StakeScriptKeyReg),
@@ -1422,7 +1424,7 @@ enum DelegationCertificateEnum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DelegationCertificate(DelegationCertificateEnum);
 
 #[wasm_bindgen]
@@ -1475,7 +1477,7 @@ impl DelegationCertificate {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MoveInstantaneousReward {
     table: std::collections::BTreeMap<Keyhash, Coin>,
 }
