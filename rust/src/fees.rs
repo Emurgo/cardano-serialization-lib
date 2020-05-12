@@ -112,6 +112,7 @@ pub fn txsize(tx: &TransactionBody, witness: &TransactionWitnessSet) -> usize {
 mod tests {
     use super::*;
     use js_chain_libs::*;
+    use address::*;
 
     const HLEN: usize = 4;
     const SLEN: usize = 13;
@@ -131,7 +132,7 @@ mod tests {
         Keyhash::new(vec![3; HLEN])
     }
     fn alice_addr() -> Address {
-        Address::new_base(alice_pay(), alice_stake())
+        BaseAddress::new(3, AddrCred::from_keyhash(alice_pay()), AddrCred::from_keyhash(alice_stake())).to_address()
     }
     fn bob_key() -> PrivateKey {
         PrivateKey::from_normal_bytes(&[29, 121, 11, 180, 125, 92, 240, 44, 174, 77, 75, 175, 52, 177, 31, 232, 186, 118, 65, 184, 118, 3, 159, 236, 29, 166, 235, 108, 101, 13, 67, 36]).unwrap()
@@ -143,7 +144,7 @@ mod tests {
         Keyhash::new(vec![6; HLEN])
     }
     fn bob_addr() -> Address {
-        Address::new_base(bob_pay(), bob_stake())
+        BaseAddress::new(3, AddrCred::from_keyhash(bob_pay()), AddrCred::from_keyhash(bob_stake())).to_address()
     }
 
     fn make_witnesses_vkey(tx: &TransactionBody, pks: Vec<&PrivateKey>) -> TransactionWitnessSet {
@@ -199,17 +200,17 @@ mod tests {
         assert_eq!(txsize(&body, &w), 92);
     }
 
-    #[test]
-    fn tx_delegate_stake() {
-        let mut inputs = TransactionInputs::new();
-        inputs.add(TransactionInput::new(genesis_id(), 0));
-        let mut outputs = TransactionOutputs::new();
-        outputs.add(TransactionOutput::new(alice_addr(), 10));
-        let mut body = TransactionBody::new(inputs, outputs, 94, 10);
-        let mut certs = DelegationCertificates::new();
-        certs.add(DelegationCertificate::new_delegation(bob_);
-        body.set_certs(certs);
-        let w = make_witnesses_vkey(&body, vec![&alice_key()]);
-        assert_eq!(txsize(&body, &w), 92);
-    }
+    // #[test]
+    // fn tx_delegate_stake() {
+    //     let mut inputs = TransactionInputs::new();
+    //     inputs.add(TransactionInput::new(genesis_id(), 0));
+    //     let mut outputs = TransactionOutputs::new();
+    //     outputs.add(TransactionOutput::new(alice_addr(), 10));
+    //     let mut body = TransactionBody::new(inputs, outputs, 94, 10);
+    //     let mut certs = DelegationCertificates::new();
+    //     certs.add(DelegationCertificate::new_delegation(bob_);
+    //     body.set_certs(certs);
+    //     let w = make_witnesses_vkey(&body, vec![&alice_key()]);
+    //     assert_eq!(txsize(&body, &w), 92);
+    // }
 }
