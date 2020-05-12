@@ -1,6 +1,32 @@
 use super::*;
 use prelude::*;
 
+// returns (Number represented, bytes read) if valid encoding
+// or None if decoding prematurely finished
+fn variable_nat_decode(bytes: &[u8]) -> Option<(u64, usize)> {
+    let mut output = 0u64;
+    let mut bytes_read = 0;
+    for byte in bytes {
+        output = (output << 7) | (byte & 0x7F) as u64;
+        bytes_read += 1;
+        if (byte & 0x80) == 0 {
+            return Some((output, bytes_read));
+        }
+    }
+    None
+}
+
+fn variable_nat_encode(mut num: u64) -> Vec<u8> {
+    let mut output = vec![num as u8 & 0x7F];
+    num /= 128;
+    while num > 0 {
+        output.push((num & 0x7F) as u8 | 0x80);
+        num /= 128;
+    }
+    output.reverse();
+    output
+}
+
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum AddrCredType {
     Key(Keyhash),
@@ -53,6 +79,8 @@ impl AddrCred {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum AddrType {
     Base(BaseAddress),
+    Ptr(PointerAddress),
+    Enterprise(EnterpriseAddress),
 }
 
 #[wasm_bindgen]
@@ -70,13 +98,30 @@ impl Address {
             AddrType::Base(base) => {
                 let header: u8 = (base.payment.kind() << 4)
                            | (base.stake.kind() << 5)
-                           | base.network;
+                           | (base.network & 0xF);
                 buf.push(header);
                 buf.extend(base.payment.to_bytes());
                 buf.extend(base.stake.to_bytes());
             },
-            _ => unimplemented!(),
+            AddrType::Ptr(ptr) => {
+                let header: u8 = 0b0100_0000
+                               | (ptr.payment.kind() << 4)
+                               | (ptr.network & 0xF);
+                buf.push(header);
+                buf.extend(ptr.payment.to_bytes());
+                buf.extend(variable_nat_encode(ptr.stake.slot));
+                buf.extend(variable_nat_encode(ptr.stake.tx_index));
+                buf.extend(variable_nat_encode(ptr.stake.cert_index));
+            },
+            AddrType::Enterprise(enterprise) => {
+                let header: u8 = 0b0110_0000
+                               | (enterprise.payment.kind() << 4)
+                               | (enterprise.network & 0xF);
+                buf.push(header);
+                buf.extend(enterprise.payment.to_bytes());
+            },
         }
+        println!("to_bytes({:?}) = {:?}", self, buf);
         buf
     }
 
@@ -112,13 +157,24 @@ impl Address {
             },
             // pointer
             0b0100 | 0b0101 => {
-                // TODO: figure out those uints (are they CBOR?)
-                unimplemented!()
+                let mut byte_index = 1;
+                let payment_cred = read_addr_cred(4, 1);
+                byte_index += hash_len;
+                let (slot, slot_bytes) = variable_nat_decode(&data[byte_index..])
+                    .ok_or(DeserializeError::new("Address.slot", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                byte_index += slot_bytes;
+                let (tx_index, tx_bytes) = variable_nat_decode(&data[byte_index..])
+                    .ok_or(DeserializeError::new("Address.tx_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                byte_index += tx_bytes;
+                let (cert_index, cert_bytes) = variable_nat_decode(&data[byte_index..])
+                    .ok_or(DeserializeError::new("Address.cert_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                byte_index += cert_bytes;
+                // TODO: check trailing bytes or not? or return how many were read?
+                AddrType::Ptr(PointerAddress::new(network, payment_cred, Pointer::new(slot, tx_index, cert_index)))
             },
             // enterprise
             0b0110 | 0b0111 => {
-                //EnterpriseAddress::new(read_addr_cred(4, 1))
-                unimplemented!()
+                AddrType::Enterprise(EnterpriseAddress::new(network, read_addr_cred(4, 1)))
             },
             // byron
             0b1000 => {
@@ -174,16 +230,130 @@ impl BaseAddress {
     }
 }
 
+
+#[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct EnterpriseAddress {
+    network: u8,
+    payment: AddrCred,
+}
+
+#[wasm_bindgen]
+impl EnterpriseAddress {
+    pub fn new(network: u8, payment: AddrCred) -> Self {
+        Self {
+            network,
+            payment,
+        }
+    }
+
+    pub fn payment_cred(&self) -> AddrCred {
+        self.payment.clone()
+    }
+
+    pub fn to_address(&self) -> Address {
+        Address(AddrType::Enterprise(self.clone()))
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Pointer {
+    slot: u64,
+    tx_index: u64,
+    cert_index: u64,
+}
+
+#[wasm_bindgen]
+impl Pointer {
+    pub fn new(slot: u64, tx_index: u64, cert_index: u64) -> Self {
+        Self {
+            slot,
+            tx_index,
+            cert_index,
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct PointerAddress {
+    network: u8,
+    payment: AddrCred,
+    stake: Pointer,
+}
+
+#[wasm_bindgen]
+impl PointerAddress {
+    pub fn new(network: u8, payment: AddrCred, stake: Pointer) -> Self {
+        Self {
+            network,
+            payment,
+            stake,
+        }
+    }
+
+    pub fn payment_cred(&self) -> AddrCred {
+        self.payment.clone()
+    }
+
+    pub fn stake_ponter(&self) -> Pointer {
+        self.stake.clone()
+    }
+
+    pub fn to_address(&self) -> Address {
+        Address(AddrType::Ptr(self.clone()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn base() {
+    fn variable_nat_encoding() {
+        let cases = [
+            0u64,
+            127u64,
+            128u64,
+            255u64,
+            256275757658493284u64
+        ];
+        for case in cases.iter() {
+            let encoded = variable_nat_encode(*case);
+            let decoded = variable_nat_decode(&encoded).unwrap().0;
+            assert_eq!(*case, decoded);
+        }
+    }
+
+    #[test]
+    fn base_serialize_consistency() {
         let base = BaseAddress::new(
-            0,
+            5,
             AddrCred::from_keyhash(Keyhash::new(vec![23; 28])),
             AddrCred::from_scripthash(Scripthash::new(vec![42; 28])));
         let addr = base.to_address();
+        let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
+        assert_eq!(addr.to_bytes(), addr2.to_bytes());
+    }
+
+    #[test]
+    fn ptr_serialize_consistency() {
+        let ptr = PointerAddress::new(
+            25,
+            AddrCred::from_keyhash(Keyhash::new(vec![23; 28])),
+            Pointer::new(2354556573, 127, 0));
+        let addr = ptr.to_address();
+        let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
+        assert_eq!(addr.to_bytes(), addr2.to_bytes());
+    }
+
+    #[test]
+    fn enterprise_serialize_consistency() {
+        let enterprise = EnterpriseAddress::new(
+            64,
+            AddrCred::from_keyhash(Keyhash::new(vec![23; 28])));
+        let addr = enterprise.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
     }
