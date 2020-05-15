@@ -31,6 +31,7 @@ impl Hash {
     }
 }
 
+// TODO: refactor to [u8; 28]
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Keyhash(Vec<u8>);
@@ -43,7 +44,8 @@ impl Keyhash {
         buf.finalize()
     }
 
-    pub fn new(data: Vec<u8>) -> Self {
+    fn new(data: Vec<u8>) -> Self {
+        assert_eq!(data.len(), 28);
         Self(data)
     }
 }

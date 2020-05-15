@@ -1,5 +1,6 @@
 use super::*;
 use prelude::*;
+use bech32::ToBase32;
 
 // returns (Number represented, bytes read) if valid encoding
 // or None if decoding prematurely finished
@@ -185,6 +186,16 @@ impl Address {
         };
         Ok(Address(addr))
     }
+
+    pub fn to_bech32(&self) -> String {
+        bech32::encode("addr", self.to_bytes().to_base32()).unwrap()
+    }
+
+    pub fn from_bech32(bech_str: &str) -> Result<Self, JsValue> {
+        let (_hrp, u5data) = bech32::decode(bech_str).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let data = bech32::FromBase32::from_base32(&u5data).unwrap();
+        Self::from_bytes(data)
+    }
 }
 
 impl cbor_event::se::Serialize for Address {
@@ -309,6 +320,7 @@ impl PointerAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use js_chain_libs::*;
 
     #[test]
     fn variable_nat_encoding() {
@@ -356,5 +368,192 @@ mod tests {
         let addr = enterprise.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
+    }
+
+    fn root_key_12() -> Bip32PrivateKey {
+        let entropy = [0xdf, 0x9e, 0xd2, 0x5e, 0xd1, 0x46, 0xbf, 0x43, 0x33, 0x6a, 0x5d, 0x7c, 0xf7, 0x39, 0x59, 0x94];
+        Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
+    }
+
+    fn root_key_15() -> Bip32PrivateKey {
+        let entropy = [0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12];
+        Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
+    }
+
+    fn root_key_24() -> Bip32PrivateKey {
+        let entropy = [0x4e, 0x82, 0x8f, 0x9a, 0x67, 0xdd, 0xcf, 0xf0, 0xe6, 0x39, 0x1a, 0xd4, 0xf2, 0x6d, 0xdb, 0x75, 0x79, 0xf5, 0x9b, 0xa1, 0x4b, 0x6d, 0xd4, 0xba, 0xf6, 0x3d, 0xcf, 0xdb, 0x9d, 0x24, 0x20, 0xda];
+        Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
+    }
+
+    fn harden(index: u32) -> u32 {
+        index | 0x80_00_00_00
+    }
+
+    #[test]
+    fn bip32_12_base() {
+        let spend = root_key_12()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let stake = root_key_12()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let stake_cred = AddrCred::from_keyhash(stake.hash());
+        let addr_net_0 = BaseAddress::new(0, spend_cred.clone(), stake_cred.clone()).to_address();
+        assert_eq!(addr_net_0.to_bech32(), "addr1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqcyl47r");
+        let addr_net_3 = BaseAddress::new(3, spend_cred, stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(), "addr1qw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqzhyupd");
+    }
+
+    #[test]
+    fn bip32_12_enterprise() {
+        let spend = root_key_12()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let addr_net_0 = EnterpriseAddress::new(0, spend_cred.clone()).to_address();
+        assert_eq!(addr_net_0.to_bech32(), "addr1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers6g8jlq");
+        let addr_net_3 = EnterpriseAddress::new(3, spend_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(), "addr1vw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers6h7glf");
+    }
+
+    #[test]
+    fn bip32_12_pointer() {
+        let spend = root_key_12()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let addr_net_0 = PointerAddress::new(0, spend_cred.clone(), Pointer::new(1, 2, 3)).to_address();
+        assert_eq!(addr_net_0.to_bech32(), "addr1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspqgpslhplej");
+        let addr_net_3 = PointerAddress::new(3, spend_cred, Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(addr_net_3.to_bech32(), "addr1gw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2x4v58t");
+    }
+
+    #[test]
+    fn bip32_15_base() {
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let stake_cred = AddrCred::from_keyhash(stake.hash());
+        let addr_net_0 = BaseAddress::new(0, spend_cred.clone(), stake_cred.clone()).to_address();
+        assert_eq!(addr_net_0.to_bech32(), "addr1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qwmnp2v");
+        let addr_net_3 = BaseAddress::new(3, spend_cred, stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(), "addr1qdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2q5ggg4z");
+    }
+
+    #[test]
+    fn bip32_15_enterprise() {
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let addr_net_0 = EnterpriseAddress::new(0, spend_cred.clone()).to_address();
+        assert_eq!(addr_net_0.to_bech32(), "addr1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0yu80w");
+        let addr_net_3 = EnterpriseAddress::new(3, spend_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(), "addr1vdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0m9a08");
+    }
+
+    #[test]
+    fn bip32_15_pointer() {
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let addr_net_0 = PointerAddress::new(0, spend_cred.clone(), Pointer::new(1, 2, 3)).to_address();
+        assert_eq!(addr_net_0.to_bech32(), "addr1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsjej5ck");
+        let addr_net_3 = PointerAddress::new(3, spend_cred, Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(addr_net_3.to_bech32(), "addr1gdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5evph3wczvf27l8yfx");
+    }
+
+    #[test]
+    fn bip32_24_base() {
+        let spend = root_key_24()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let stake = root_key_24()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let stake_cred = AddrCred::from_keyhash(stake.hash());
+        let addr_net_0 = BaseAddress::new(0, spend_cred.clone(), stake_cred.clone()).to_address();
+        assert_eq!(addr_net_0.to_bech32(), "addr1qqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33su9wxrs");
+        let addr_net_3 = BaseAddress::new(3, spend_cred, stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(), "addr1qvy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sxk40u7");
+    }
+
+    #[test]
+    fn bip32_24_enterprise() {
+        let spend = root_key_24()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let addr_net_0 = EnterpriseAddress::new(0, spend_cred.clone()).to_address();
+        assert_eq!(addr_net_0.to_bech32(), "addr1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqsg0y49");
+        let addr_net_3 = EnterpriseAddress::new(3, spend_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(), "addr1vvy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqshk74v");
+    }
+
+    #[test]
+    fn bip32_24_pointer() {
+        let spend = root_key_24()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let addr_net_0 = PointerAddress::new(0, spend_cred.clone(), Pointer::new(1, 2, 3)).to_address();
+        assert_eq!(addr_net_0.to_bech32(), "addr1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgpst4xf0c");
+        let addr_net_3 = PointerAddress::new(3, spend_cred, Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(addr_net_3.to_bech32(), "addr1gvy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnyph3wczvf29j6huk");
     }
 }

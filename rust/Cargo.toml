@@ -7,11 +7,13 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+
+cryptoxide = "0.2.0"
 cbor_event = "2.1.3"
 wasm-bindgen = { version = "0.2", features=["serde-serialize"] }
 chain-crypto = { path = "./chain-libs/chain-crypto" }
 chain-impl-mockchain = { path = "./chain-libs/chain-impl-mockchain" }
-bech32 = "0.6"
+bech32 = "0.7.2"
 hex = "0.4.0"
 js-sys = "0.3.24"
 rand_os = { version = "0.1", features = ["wasm-bindgen"] }
