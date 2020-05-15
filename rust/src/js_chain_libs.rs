@@ -88,7 +88,7 @@ impl Bip32PrivateKey {
     }
 
     pub fn hash(&self) -> Keyhash {
-        Keyhash::new(blake2b224(self.to_raw_key().as_bytes().as_ref()).to_vec())
+        Keyhash::new(blake2b224(self.to_raw_key().as_bytes().as_ref()))
     }
 }
 
@@ -152,7 +152,7 @@ impl Bip32PublicKey {
     }
 
     pub fn hash(&self) -> Keyhash {
-        Keyhash::new(blake2b224(self.to_raw_key().as_bytes().as_ref()).to_vec())
+        Keyhash::new(blake2b224(self.to_raw_key().as_bytes().as_ref()))
     }
 }
 

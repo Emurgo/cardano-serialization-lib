@@ -71,8 +71,8 @@ impl AddrCred {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         match &self.0 {
-            AddrCredType::Key(hash) => hash.0.clone(),
-            AddrCredType::Script(hash) => hash.0.clone(),
+            AddrCredType::Key(hash) => hash.0.to_vec(),
+            AddrCredType::Script(hash) => hash.0.to_vec(),
         }
     }
 }
@@ -131,6 +131,7 @@ impl Address {
     }
 
     fn from_bytes_impl(data: Vec<u8>) -> Result<Self, DeserializeError> {
+        use std::convert::TryInto;
         println!("reading from: {:?}", data);
         // header has 4 bytes addr type discrim then 4 bytes network discrim.
         // Copied from shelley.cddl:
@@ -143,10 +144,10 @@ impl Address {
         let network = header & 0x0F;
         let hash_len = 28;
         let read_addr_cred = |bit: u8, pos: usize| {
-            let x = if header & (1 << bit)  == 0{
-                AddrCred::from_keyhash(Keyhash::new(data[pos..pos+hash_len].to_vec()))
+            let x = if header & (1 << bit)  == 0 {
+                AddrCred::from_keyhash(Keyhash::new(data[pos..pos+hash_len].try_into().unwrap()))
             } else {
-                AddrCred::from_scripthash(Scripthash::new(data[pos..pos+hash_len].to_vec()))
+                AddrCred::from_scripthash(Scripthash::new(data[pos..pos+hash_len].try_into().unwrap()))
             };
             println!("read cred: {:?}", x);
             x
@@ -154,35 +155,52 @@ impl Address {
         let addr = match (header & 0xF0) >> 4 {
             // base
             0b0000 | 0b0001 | 0b0010 | 0b0011 => {
+                if data.len() < 57 {
+                    return Err(cbor_event::Error::NotEnough(data.len(), 57).into());
+                }
+                if data.len() > 57 {
+                    return Err(cbor_event::Error::TrailingData.into());
+                }
                 AddrType::Base(BaseAddress::new(network, read_addr_cred(4, 1), read_addr_cred(5, 1 + hash_len)))
             },
             // pointer
             0b0100 | 0b0101 => {
+                if data.len() < 32 {
+                    // possibly more, but depends on how many bytes the natural numbers are for the pointer
+                    return Err(cbor_event::Error::NotEnough(data.len(), 32).into());
+                }
                 let mut byte_index = 1;
                 let payment_cred = read_addr_cred(4, 1);
                 byte_index += hash_len;
                 let (slot, slot_bytes) = variable_nat_decode(&data[byte_index..])
-                    .ok_or(DeserializeError::new("Address.slot", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                    .ok_or(DeserializeError::new("Address.Pointer.slot", DeserializeFailure::VariableLenNatDecodeFailed))?;
                 byte_index += slot_bytes;
                 let (tx_index, tx_bytes) = variable_nat_decode(&data[byte_index..])
-                    .ok_or(DeserializeError::new("Address.tx_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                    .ok_or(DeserializeError::new("Address.Pointer.tx_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
                 byte_index += tx_bytes;
                 let (cert_index, cert_bytes) = variable_nat_decode(&data[byte_index..])
-                    .ok_or(DeserializeError::new("Address.cert_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                    .ok_or(DeserializeError::new("Address.Pointer.cert_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
                 byte_index += cert_bytes;
-                // TODO: check trailing bytes or not? or return how many were read?
+                if byte_index > data.len() {
+                    return Err(cbor_event::Error::TrailingData.into());
+                }
                 AddrType::Ptr(PointerAddress::new(network, payment_cred, Pointer::new(slot, tx_index, cert_index)))
             },
             // enterprise
             0b0110 | 0b0111 => {
+                if data.len() < 29 {
+                    return Err(cbor_event::Error::NotEnough(data.len(), 29).into());
+                }
+                if data.len() > 29 {
+                    return Err(cbor_event::Error::TrailingData.into());
+                }
                 AddrType::Enterprise(EnterpriseAddress::new(network, read_addr_cred(4, 1)))
             },
             // byron
             0b1000 => {
                 unimplemented!()
             },
-            // TODO: return error
-            _ => unimplemented!(),
+            _ => return Err(DeserializeFailure::BadAddressType(header).into()),
         };
         Ok(Address(addr))
     }
@@ -342,8 +360,8 @@ mod tests {
     fn base_serialize_consistency() {
         let base = BaseAddress::new(
             5,
-            AddrCred::from_keyhash(Keyhash::new(vec![23; 28])),
-            AddrCred::from_scripthash(Scripthash::new(vec![42; 28])));
+            AddrCred::from_keyhash(Keyhash::new([23; 28])),
+            AddrCred::from_scripthash(Scripthash::new([42; 28])));
         let addr = base.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -353,7 +371,7 @@ mod tests {
     fn ptr_serialize_consistency() {
         let ptr = PointerAddress::new(
             25,
-            AddrCred::from_keyhash(Keyhash::new(vec![23; 28])),
+            AddrCred::from_keyhash(Keyhash::new([23; 28])),
             Pointer::new(2354556573, 127, 0));
         let addr = ptr.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
@@ -364,7 +382,7 @@ mod tests {
     fn enterprise_serialize_consistency() {
         let enterprise = EnterpriseAddress::new(
             64,
-            AddrCred::from_keyhash(Keyhash::new(vec![23; 28])));
+            AddrCred::from_keyhash(Keyhash::new([23; 28])));
         let addr = enterprise.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());

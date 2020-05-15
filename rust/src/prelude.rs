@@ -19,6 +19,7 @@ impl std::fmt::Display for Key {
 
 #[derive(Debug)]
 pub enum DeserializeFailure {
+    BadAddressType(u8),
     BreakInDefiniteLen,
     CBOR(cbor_event::Error),
     EndingBreakMissing,
@@ -67,6 +68,7 @@ impl std::fmt::Display for DeserializeError {
             None => write!(f, "Deserialization: "),
         }?;
         match &self.failure {
+            DeserializeFailure::BadAddressType(header) => write!(f, "Encountered unknown address header {:#08b}", header),
             DeserializeFailure::BreakInDefiniteLen => write!(f, "Encountered CBOR Break while reading definite length sequence"),
             DeserializeFailure::CBOR(e) => e.fmt(f),
             DeserializeFailure::EndingBreakMissing => write!(f, "Missing ending CBOR Break"),
@@ -127,30 +129,3 @@ pub trait DeserializeEmbeddedGroup {
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> where Self: Sized;
 }
-
-// CBOR has int = int / nint
-#[wasm_bindgen]
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Int(i128);
-
-#[wasm_bindgen]
-impl Int {
-    pub fn new(x: u64) -> Self {
-        Self(x as i128)
-    }
-
-    pub fn new_negative(x: u64) -> Self {
-        Self(-(x as i128))
-    }
-}
-
-impl cbor_event::se::Serialize for Int {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        if self.0 < 0 {
-            serializer.write_negative_integer((-self.0) as i64)
-        } else {
-            serializer.write_unsigned_integer(self.0 as u64)
-        }
-    }
-}
-// TODO: deserialize
