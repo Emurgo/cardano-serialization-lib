@@ -82,6 +82,7 @@ enum AddrType {
     Base(BaseAddress),
     Ptr(PointerAddress),
     Enterprise(EnterpriseAddress),
+    Reward(RewardAddress),
 }
 
 #[wasm_bindgen]
@@ -91,7 +92,7 @@ pub struct Address(AddrType);
 // to/from_bytes() are the raw encoding without a wrapping CBOR Bytes tag
 // while Serialize and Deserialize traits include that for inclusion with
 // other CBOR types
-//#[wasm_bindgen]
+#[wasm_bindgen]
 impl Address {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
@@ -121,25 +122,42 @@ impl Address {
                 buf.push(header);
                 buf.extend(enterprise.payment.to_bytes());
             },
+            AddrType::Reward(reward) => {
+                let header: u8 = 0b1110_0000
+                                | (reward.payment.kind() << 4)
+                                | (reward.network & 0xF);
+                buf.push(header);
+                buf.extend(reward.payment.to_bytes());
+            },
         }
         println!("to_bytes({:?}) = {:?}", self, buf);
         buf
     }
 
-    pub fn from_bytes(data: Vec<u8>) -> Result<Self, JsValue> {
+    pub fn from_bytes(data: Vec<u8>) -> Result<Address, JsValue> {
         Self::from_bytes_impl(data).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
-    fn from_bytes_impl(data: Vec<u8>) -> Result<Self, DeserializeError> {
+    fn from_bytes_impl(data: Vec<u8>) -> Result<Address, DeserializeError> {
         use std::convert::TryInto;
         println!("reading from: {:?}", data);
         // header has 4 bytes addr type discrim then 4 bytes network discrim.
         // Copied from shelley.cddl:
-        // bit 7: byron/shelley
+        //
+        // shelley payment addresses:
+        // bit 7: 0
         // bit 6: base/other
         // bit 5: pointer/enterprise [for base: stake cred is keyhash/scripthash]
         // bit 4: payment cred is keyhash/scripthash
-        // bits 3-0 (for shelley addr): network id
+        // bits 3-0: network id
+        //
+        // reward addresses:
+        // bits 7-5: 111
+        // bit 4: credential is keyhash/scripthash
+        // bits 3-0: network id
+        //
+        // byron addresses:
+        // bits 7-4: 1000
         let header = data[0];
         let network = header & 0x0F;
         let hash_len = 28;
@@ -196,6 +214,16 @@ impl Address {
                 }
                 AddrType::Enterprise(EnterpriseAddress::new(network, read_addr_cred(4, 1)))
             },
+            // reward
+            0b1110 | 0b1111 => {
+                if data.len() < 29 {
+                    return Err(cbor_event::Error::NotEnough(data.len(), 29).into());
+                }
+                if data.len() > 29 {
+                    return Err(cbor_event::Error::TrailingData.into());
+                }
+                AddrType::Reward(RewardAddress::new(network, read_addr_cred(4, 1)))
+            }
             // byron
             0b1000 => {
                 unimplemented!()
@@ -209,7 +237,7 @@ impl Address {
         bech32::encode("addr", self.to_bytes().to_base32()).unwrap()
     }
 
-    pub fn from_bech32(bech_str: &str) -> Result<Self, JsValue> {
+    pub fn from_bech32(bech_str: &str) -> Result<Address, JsValue> {
         let (_hrp, u5data) = bech32::decode(bech_str).map_err(|e| JsValue::from_str(&e.to_string()))?;
         let data = bech32::FromBase32::from_base32(&u5data).unwrap();
         Self::from_bytes(data)
@@ -282,6 +310,31 @@ impl EnterpriseAddress {
 
     pub fn to_address(&self) -> Address {
         Address(AddrType::Enterprise(self.clone()))
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct RewardAddress {
+    network: u8,
+    payment: AddrCred,
+}
+
+#[wasm_bindgen]
+impl RewardAddress {
+    pub fn new(network: u8, payment: AddrCred) -> Self {
+        Self {
+            network,
+            payment,
+        }
+    }
+
+    pub fn payment_cred(&self) -> AddrCred {
+        self.payment.clone()
+    }
+
+    pub fn to_address(&self) -> Address {
+        Address(AddrType::Reward(self.clone()))
     }
 }
 
@@ -384,6 +437,16 @@ mod tests {
             64,
             AddrCred::from_keyhash(Keyhash::new([23; 28])));
         let addr = enterprise.to_address();
+        let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
+        assert_eq!(addr.to_bytes(), addr2.to_bytes());
+    }
+
+    #[test]
+    fn reward_serialize_consistency() {
+        let reward = RewardAddress::new(
+            9,
+            AddrCred::from_scripthash(Scripthash::new([127; 28])));
+        let addr = reward.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
     }
