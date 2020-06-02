@@ -1,5 +1,4 @@
-// taken directly from js-chain-libs just to test things:
-
+use cbor_event::{de::Deserializer, se::Serializer};
 use chain_impl_mockchain as chain;
 use chain_crypto as crypto;
 use chain::{key};
@@ -10,13 +9,16 @@ use wasm_bindgen::prelude::*;
 
 use cryptoxide::blake2b::Blake2b;
 
-use super::Keyhash;
+use crate::prelude::*;
 
 fn blake2b224(data: &[u8]) -> [u8; 28] {
     let mut out = [0; 28];
     Blake2b::blake2b(&mut out, data, &[]);
     out
 }
+
+// All key structs were taken from js-chain-libs:
+// https://github.com/Emurgo/js-chain-libs
 
 #[wasm_bindgen]
 pub struct Bip32PrivateKey(crypto::SecretKey<crypto::Ed25519Bip32>);
@@ -87,8 +89,8 @@ impl Bip32PrivateKey {
         Bip32PrivateKey(crypto::derive::from_bip39_entropy(&entropy, &password))
     }
 
-    pub fn hash(&self) -> Keyhash {
-        Keyhash::new(blake2b224(self.to_raw_key().as_bytes().as_ref()))
+    pub fn hash(&self) -> AddrKeyHash {
+        AddrKeyHash::from(blake2b224(self.to_raw_key().as_bytes().as_ref()))
     }
 }
 
@@ -151,8 +153,8 @@ impl Bip32PublicKey {
         self.0.to_bech32_str()
     }
 
-    pub fn hash(&self) -> Keyhash {
-        Keyhash::new(blake2b224(self.to_raw_key().as_bytes().as_ref()))
+    pub fn hash(&self) -> AddrKeyHash {
+        AddrKeyHash::from(blake2b224(self.to_raw_key().as_bytes().as_ref()))
     }
 }
 
@@ -328,3 +330,56 @@ macro_rules! impl_signature {
 }
 
 impl_signature!(Ed25519Signature, Vec<u8>, crypto::Ed25519);
+
+macro_rules! impl_hash_type {
+    ($name:ident, $byte_count:expr) => {
+        #[wasm_bindgen]
+        #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+        pub struct $name([u8; $byte_count]);
+
+        #[wasm_bindgen]
+        impl $name {
+            pub fn to_bytes(&self) -> Vec<u8> {
+                self.0.to_vec()
+            }
+
+            pub fn from_bytes(bytes: Vec<u8>) -> Result<$name, JsValue> {
+                FromBytes::from_bytes(bytes)
+            }
+        }
+
+        // can't expose [T; N] to wasm for new() but it's useful internally so we implement From trait
+        impl From<[u8; $byte_count]> for $name {
+            fn from(bytes: [u8; $byte_count]) -> Self {
+                Self(bytes)
+            }
+        }
+
+        impl cbor_event::se::Serialize for $name {
+            fn serialize<'se, W: std::io::Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+                serializer.write_bytes(self.0)
+            }
+        }
+        
+        impl Deserialize for $name {
+            fn deserialize<R: std::io::BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+                use std::convert::TryInto;
+                let bytes = raw.bytes()?;
+                if bytes.len() != $byte_count {
+                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(bytes.len() as u64), "hash length")).into());
+                }
+                Ok($name(bytes[..$byte_count].try_into().unwrap()))
+            }
+        }
+    }
+}
+
+impl_hash_type!(AddrKeyHash, 28);
+impl_hash_type!(ScriptHash, 28);
+
+impl_hash_type!(TransactionHash, 32);
+impl_hash_type!(GenesisDelegateHash, 32);
+impl_hash_type!(PoolKeyHash, 32);
+impl_hash_type!(GenesisHash, 32);
+impl_hash_type!(MetadataHash, 32);
+impl_hash_type!(VrfKeyHash, 32);

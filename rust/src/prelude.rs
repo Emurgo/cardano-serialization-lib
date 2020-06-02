@@ -1,5 +1,5 @@
 use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
-use std::io::{BufRead, Write};
+use std::io::{BufRead, Seek, Write};
 use wasm_bindgen::prelude::*;
 
 #[derive(Debug)]
@@ -22,6 +22,7 @@ pub enum DeserializeFailure {
     BadAddressType(u8),
     BreakInDefiniteLen,
     CBOR(cbor_event::Error),
+    DuplicateKey(Key),
     EndingBreakMissing,
     ExpectedNull,
     FixedValueMismatch{
@@ -29,6 +30,7 @@ pub enum DeserializeFailure {
         expected: Key,
     },
     MandatoryFieldMissing(Key),
+    NoVariantMatched,
     TagMismatch{
         found: u64,
         expected: u64,
@@ -71,10 +73,12 @@ impl std::fmt::Display for DeserializeError {
             DeserializeFailure::BadAddressType(header) => write!(f, "Encountered unknown address header {:#08b}", header),
             DeserializeFailure::BreakInDefiniteLen => write!(f, "Encountered CBOR Break while reading definite length sequence"),
             DeserializeFailure::CBOR(e) => e.fmt(f),
+            DeserializeFailure::DuplicateKey(key) => write!(f, "Duplicate key: {}", key),
             DeserializeFailure::EndingBreakMissing => write!(f, "Missing ending CBOR Break"),
             DeserializeFailure::ExpectedNull => write!(f, "Expected null, found other type"),
             DeserializeFailure::FixedValueMismatch{ found, expected } => write!(f, "Expected fixed value {} found {}", expected, found),
             DeserializeFailure::MandatoryFieldMissing(key) => write!(f, "Mandatory field {} not found", key),
+            DeserializeFailure::NoVariantMatched => write!(f, "No variant matched"),
             DeserializeFailure::TagMismatch{ found, expected } => write!(f, "Expected tag {}, found {}", expected, found),
             DeserializeFailure::UnknownKey(key) => write!(f, "Found unexpected key {}", key),
             DeserializeFailure::UnexpectedKeyType(ty) => write!(f, "Found unexpected key of CBOR type {:?}", ty),
@@ -111,21 +115,44 @@ pub trait SerializeEmbeddedGroup {
 
 // same as cbor_event::de::Deserialize but with our DeserializeError
 pub trait Deserialize {
-    fn deserialize<R: BufRead>(
+    fn deserialize<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
     ) -> Result<Self, DeserializeError> where Self: Sized;
 }
 
 impl<T: cbor_event::de::Deserialize> Deserialize for T {
-    fn deserialize<R: BufRead>(raw: &mut Deserializer<R>) -> Result<T, DeserializeError> {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<T, DeserializeError> {
         T::deserialize(raw).map_err(|e| DeserializeError::from(e))
     }
 }
 
 // should we ne passing len by mut ref? or how do we keep track of finite length issues?
 pub trait DeserializeEmbeddedGroup {
-    fn deserialize_as_embedded_group<R: BufRead>(
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> where Self: Sized;
+}
+
+pub trait ToBytes {
+    fn to_bytes(&self) -> Vec<u8>;
+}
+
+impl<T: cbor_event::se::Serialize> ToBytes for T {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Serializer::new_vec();
+        self.serialize(&mut buf).unwrap();
+        buf.finalize()
+    }
+}
+
+pub trait FromBytes {
+    fn from_bytes(data: Vec<u8>) -> Result<Self, JsValue> where Self: Sized;
+}
+
+impl<T: Deserialize + Sized> FromBytes for T {
+    fn from_bytes(data: Vec<u8>) -> Result<Self, JsValue> {
+        let mut raw = Deserializer::from(std::io::Cursor::new(data));
+        Self::deserialize(&mut raw).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
 }
