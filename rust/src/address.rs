@@ -206,9 +206,11 @@ impl Address {
         // bits 7-4: 1000
         let header = data[0];
         let network = header & 0x0F;
-        let hash_len = 28;
+        const HASH_LEN: usize = AddrKeyHash::BYTE_COUNT;
+        // should be static assert but it's maybe not worth importing a whole external crate for it now
+        assert_eq!(ScriptHash::BYTE_COUNT, HASH_LEN);
         let read_addr_cred = |bit: u8, pos: usize| {
-            let hash_bytes: [u8; 28] = data[pos..pos+hash_len].try_into().unwrap();
+            let hash_bytes: [u8; HASH_LEN] = data[pos..pos+HASH_LEN].try_into().unwrap();
             let x = if header & (1 << bit)  == 0 {
                 StakeCredential::from_keyhash(AddrKeyHash::from(hash_bytes))
             } else {
@@ -226,7 +228,7 @@ impl Address {
                 if data.len() > 57 {
                     return Err(cbor_event::Error::TrailingData.into());
                 }
-                AddrType::Base(BaseAddress::new(network, read_addr_cred(4, 1), read_addr_cred(5, 1 + hash_len)))
+                AddrType::Base(BaseAddress::new(network, read_addr_cred(4, 1), read_addr_cred(5, 1 + HASH_LEN)))
             },
             // pointer
             0b0100 | 0b0101 => {
@@ -236,7 +238,7 @@ impl Address {
                 }
                 let mut byte_index = 1;
                 let payment_cred = read_addr_cred(4, 1);
-                byte_index += hash_len;
+                byte_index += HASH_LEN;
                 let (slot, slot_bytes) = variable_nat_decode(&data[byte_index..])
                     .ok_or(DeserializeError::new("Address.Pointer.slot", DeserializeFailure::VariableLenNatDecodeFailed))?;
                 byte_index += slot_bytes;
@@ -253,20 +255,20 @@ impl Address {
             },
             // enterprise
             0b0110 | 0b0111 => {
-                if data.len() < 29 {
-                    return Err(cbor_event::Error::NotEnough(data.len(), 29).into());
+                if data.len() < HASH_LEN + 1 {
+                    return Err(cbor_event::Error::NotEnough(data.len(), HASH_LEN + 1).into());
                 }
-                if data.len() > 29 {
+                if data.len() > HASH_LEN + 1 {
                     return Err(cbor_event::Error::TrailingData.into());
                 }
                 AddrType::Enterprise(EnterpriseAddress::new(network, read_addr_cred(4, 1)))
             },
             // reward
             0b1110 | 0b1111 => {
-                if data.len() < 29 {
-                    return Err(cbor_event::Error::NotEnough(data.len(), 29).into());
+                if data.len() < HASH_LEN + 1 {
+                    return Err(cbor_event::Error::NotEnough(data.len(), HASH_LEN + 1).into());
                 }
-                if data.len() > 29 {
+                if data.len() > HASH_LEN + 1 {
                     return Err(cbor_event::Error::TrailingData.into());
                 }
                 AddrType::Reward(RewardAddress::new(network, read_addr_cred(4, 1)))
@@ -460,8 +462,8 @@ mod tests {
     fn base_serialize_consistency() {
         let base = BaseAddress::new(
             5,
-            StakeCredential::from_keyhash(AddrKeyHash::from([23; 28])),
-            StakeCredential::from_scripthash(ScriptHash::from([42; 28])));
+            StakeCredential::from_keyhash(AddrKeyHash::from([23; AddrKeyHash::BYTE_COUNT])),
+            StakeCredential::from_scripthash(ScriptHash::from([42; ScriptHash::BYTE_COUNT])));
         let addr = base.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -471,7 +473,7 @@ mod tests {
     fn ptr_serialize_consistency() {
         let ptr = PointerAddress::new(
             25,
-            StakeCredential::from_keyhash(AddrKeyHash::from([23; 28])),
+            StakeCredential::from_keyhash(AddrKeyHash::from([23; AddrKeyHash::BYTE_COUNT])),
             Pointer::new(2354556573, 127, 0));
         let addr = ptr.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
@@ -482,7 +484,7 @@ mod tests {
     fn enterprise_serialize_consistency() {
         let enterprise = EnterpriseAddress::new(
             64,
-            StakeCredential::from_keyhash(AddrKeyHash::from([23; 28])));
+            StakeCredential::from_keyhash(AddrKeyHash::from([23; AddrKeyHash::BYTE_COUNT])));
         let addr = enterprise.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -492,7 +494,7 @@ mod tests {
     fn reward_serialize_consistency() {
         let reward = RewardAddress::new(
             9,
-            StakeCredential::from_scripthash(ScriptHash::from([127; 28])));
+            StakeCredential::from_scripthash(ScriptHash::from([127; AddrKeyHash::BYTE_COUNT])));
         let addr = reward.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());

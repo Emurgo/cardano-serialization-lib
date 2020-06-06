@@ -348,6 +348,11 @@ macro_rules! impl_hash_type {
             }
         }
 
+        // associated consts are not supported in wasm_bindgen
+        impl $name {
+            pub const BYTE_COUNT: usize = $byte_count;
+        }
+
         // can't expose [T; N] to wasm for new() but it's useful internally so we implement From trait
         impl From<[u8; $byte_count]> for $name {
             fn from(bytes: [u8; $byte_count]) -> Self {
