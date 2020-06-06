@@ -9,9 +9,10 @@ use cbor_event::Type as CBORType;
 use cbor_event::Special as CBORSpecial;
 
 mod address;
-mod serialization;
 mod crypto;
+mod fees;
 mod prelude;
+mod serialization;
 
 use address::*;
 use crypto::*;
@@ -937,6 +938,7 @@ pub struct TransactionBody {
     ttl: u32,
     certs: Option<Certificates>,
     withdrawals: Option<Withdrawals>,
+    metadata_hash: Option<MetadataHash>,
 }
 
 #[wasm_bindgen]
@@ -949,12 +951,16 @@ impl TransactionBody {
         FromBytes::from_bytes(data)
     }
 
-    pub fn set_key_4(&mut self, certs: Certificates) {
+    pub fn set_certs(&mut self, certs: Certificates) {
         self.certs = Some(certs)
     }
 
-    pub fn set_key_5(&mut self, withdrawals: Withdrawals) {
+    pub fn set_withdrawals(&mut self, withdrawals: Withdrawals) {
         self.withdrawals = Some(withdrawals)
+    }
+    
+    pub fn set_metadata_hash(&mut self, metadata_hash: MetadataHash) {
+        self.metadata_hash = Some(metadata_hash)
     }
 
     pub fn new(inputs: TransactionInputs, outputs: TransactionOutputs, fee: Coin, ttl: u32) -> Self {
@@ -965,6 +971,7 @@ impl TransactionBody {
             ttl,
             certs: None,
             withdrawals: None,
+            metadata_hash: None,
         }
     }
 }
@@ -1021,6 +1028,157 @@ impl TransactionWitnessSet {
         Self {
             vkeys: None,
             scripts: None,
+        }
+    }
+}
+
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MapTransactionMetadatumToTransactionMetadatum(std::collections::BTreeMap<TransactionMetadatum, TransactionMetadatum>);
+
+#[wasm_bindgen]
+impl MapTransactionMetadatumToTransactionMetadatum {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        ToBytes::to_bytes(self)
+    }
+
+    pub fn from_bytes(data: Vec<u8>) -> Result<MapTransactionMetadatumToTransactionMetadatum, JsValue> {
+        FromBytes::from_bytes(data)
+    }
+
+    pub fn new() -> Self {
+        Self(std::collections::BTreeMap::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn insert(&mut self, key: TransactionMetadatum, value: TransactionMetadatum) -> Option<TransactionMetadatum> {
+        self.0.insert(key, value)
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct TransactionMetadatums(Vec<TransactionMetadatum>);
+
+#[wasm_bindgen]
+impl TransactionMetadatums {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> TransactionMetadatum {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: TransactionMetadatum) {
+        self.0.push(elem);
+    }
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum TransactionMetadatumEnum {
+    MapTransactionMetadatumToTransactionMetadatum(MapTransactionMetadatumToTransactionMetadatum),
+    ArrTransactionMetadatum(TransactionMetadatums),
+    Int(Int),
+    Bytes(Vec<u8>),
+    Text(String),
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct TransactionMetadatum(TransactionMetadatumEnum);
+
+#[wasm_bindgen]
+impl TransactionMetadatum {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        ToBytes::to_bytes(self)
+    }
+
+    pub fn from_bytes(data: Vec<u8>) -> Result<TransactionMetadatum, JsValue> {
+        FromBytes::from_bytes(data)
+    }
+
+    pub fn new_map_transaction_metadatum_to_transaction_metadatum(map_transaction_metadatum_to_transaction_metadatum: MapTransactionMetadatumToTransactionMetadatum) -> Self {
+        Self(TransactionMetadatumEnum::MapTransactionMetadatumToTransactionMetadatum(map_transaction_metadatum_to_transaction_metadatum))
+    }
+
+    pub fn new_arr_transaction_metadatum(arr_transaction_metadatum: TransactionMetadatums) -> Self {
+        Self(TransactionMetadatumEnum::ArrTransactionMetadatum(arr_transaction_metadatum))
+    }
+
+    pub fn new_int(int: Int) -> Self {
+        Self(TransactionMetadatumEnum::Int(int))
+    }
+
+    pub fn new_bytes(bytes: Vec<u8>) -> Self {
+        Self(TransactionMetadatumEnum::Bytes(bytes))
+    }
+
+    pub fn new_text(text: String) -> Self {
+        Self(TransactionMetadatumEnum::Text(text))
+    }
+}
+
+type TransactionMetadadumLabel = u32;
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct TransactionMetadata(std::collections::BTreeMap<TransactionMetadadumLabel, TransactionMetadatum>);
+
+#[wasm_bindgen]
+impl TransactionMetadata {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        ToBytes::to_bytes(self)
+    }
+
+    pub fn from_bytes(data: Vec<u8>) -> Result<TransactionMetadata, JsValue> {
+        FromBytes::from_bytes(data)
+    }
+
+    pub fn new() -> Self {
+        Self(std::collections::BTreeMap::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn insert(&mut self, key: TransactionMetadadumLabel, value: TransactionMetadatum) -> Option<TransactionMetadatum> {
+        self.0.insert(key, value)
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Transaction {
+    body: TransactionBody,
+    witness_set: TransactionWitnessSet,
+    metadata: Option<TransactionMetadata>,
+}
+
+#[wasm_bindgen]
+impl Transaction {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        ToBytes::to_bytes(self)
+    }
+
+    pub fn from_bytes(data: Vec<u8>) -> Result<Transaction, JsValue> {
+        FromBytes::from_bytes(data)
+    }
+
+    pub fn new(body: TransactionBody, witness_set: TransactionWitnessSet, metadata: Option<TransactionMetadata>) -> Self {
+        Self {
+            body,
+            witness_set,
+            metadata,
         }
     }
 }

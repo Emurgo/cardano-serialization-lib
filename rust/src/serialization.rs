@@ -1930,6 +1930,11 @@ impl SerializeEmbeddedGroup for TransactionBody {
             // DEBUG - generated from: Rust(RustIdent("Withdrawals"))
             field.serialize(serializer)?;
         }
+        if let Some(field) = &self.metadata_hash {
+            serializer.write_unsigned_integer(7)?;
+            // DEBUG - generated from: Rust(RustIdent("MetadataHash"))
+            field.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
@@ -1951,6 +1956,7 @@ impl DeserializeEmbeddedGroup for TransactionBody {
         let mut ttl = None;
         let mut certs = None;
         let mut withdrawals = None;
+        let mut metadata_hash = None;
         let mut read = 0;
         while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
             match raw.cbor_type()? {
@@ -2009,6 +2015,14 @@ impl DeserializeEmbeddedGroup for TransactionBody {
                             Ok(Withdrawals::deserialize(raw)?)
                         })().map_err(|e| e.annotate("withdrawals"))?);
                     },
+                    7 =>  {
+                        if withdrawals.is_some() {
+                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(7)).into());
+                        }
+                        metadata_hash = Some((|| -> Result<_, DeserializeError> {
+                            Ok(MetadataHash::deserialize(raw)?)
+                        })().map_err(|e| e.annotate("metadata_hash"))?);
+                    },
                     unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                 },
                 CBORType::Text => match raw.text()?.as_str() {
@@ -2045,6 +2059,7 @@ impl DeserializeEmbeddedGroup for TransactionBody {
             ttl,
             certs,
             withdrawals,
+            metadata_hash,
         })
     }
 }
@@ -2154,5 +2169,266 @@ impl DeserializeEmbeddedGroup for TransactionWitnessSet {
             vkeys,
             scripts,
         })
+    }
+}
+
+
+impl cbor_event::se::Serialize for MapTransactionMetadatumToTransactionMetadatum {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_map(cbor_event::Len::Indefinite)?;
+        self.serialize_as_embedded_group(serializer)?;
+        serializer.write_special(CBORSpecial::Break)
+    }
+}
+
+impl SerializeEmbeddedGroup for MapTransactionMetadatumToTransactionMetadatum {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        for (key, value) in &self.0 {
+            key.serialize(serializer)?;
+            value.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for MapTransactionMetadatumToTransactionMetadatum {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut table = std::collections::BTreeMap::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.map()?;
+            while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                let key = TransactionMetadatum::deserialize(raw)?;
+                let value = TransactionMetadatum::deserialize(raw)?;
+                if table.insert(key.clone(), value).is_some() {
+                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
+                }
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("MapTransactionMetadatumToTransactionMetadatum"))?;
+        Ok(Self(table))
+    }
+}
+
+impl cbor_event::se::Serialize for TransactionMetadatums {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for TransactionMetadatums {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                arr.push(TransactionMetadatum::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("TransactionMetadatums"))?;
+        Ok(Self(arr))
+    }
+}
+
+impl cbor_event::se::Serialize for TransactionMetadatumEnum {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        self.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for TransactionMetadatumEnum {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        match self {
+            TransactionMetadatumEnum::MapTransactionMetadatumToTransactionMetadatum(x) => {
+                x.serialize(serializer)
+            },
+            TransactionMetadatumEnum::ArrTransactionMetadatum(x) => {
+                x.serialize(serializer)
+            },
+            TransactionMetadatumEnum::Int(x) => {
+                x.serialize(serializer)
+            },
+            TransactionMetadatumEnum::Bytes(x) => {
+                serializer.write_bytes(&x)
+            },
+            TransactionMetadatumEnum::Text(x) => {
+                serializer.write_text(&x)
+            },
+        }
+    }
+}
+
+impl Deserialize for TransactionMetadatumEnum {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
+        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+            Ok(MapTransactionMetadatumToTransactionMetadatum::deserialize(raw)?)
+        })(raw)
+        {
+            Ok(variant) => return Ok(TransactionMetadatumEnum::MapTransactionMetadatumToTransactionMetadatum(variant)),
+            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+        };
+        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+            Ok(TransactionMetadatums::deserialize(raw)?)
+        })(raw)
+        {
+            Ok(variant) => return Ok(TransactionMetadatumEnum::ArrTransactionMetadatum(variant)),
+            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+        };
+        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+            Ok(Int::deserialize(raw)?)
+        })(raw)
+        {
+            Ok(variant) => return Ok(TransactionMetadatumEnum::Int(variant)),
+            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+        };
+        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+            Ok(raw.bytes()?)
+        })(raw)
+        {
+            Ok(variant) => return Ok(TransactionMetadatumEnum::Bytes(variant)),
+            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+        };
+        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+            Ok(String::deserialize(raw)?)
+        })(raw)
+        {
+            Ok(variant) => return Ok(TransactionMetadatumEnum::Text(variant)),
+            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+        };
+        Err(DeserializeError::new("TransactionMetadatumEnum", DeserializeFailure::NoVariantMatched.into()))
+    }
+}
+
+impl cbor_event::se::Serialize for TransactionMetadatum {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        self.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for TransactionMetadatum {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        self.0.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl Deserialize for TransactionMetadatum {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        Ok(Self(TransactionMetadatumEnum::deserialize(raw)?))
+    }
+}
+
+impl cbor_event::se::Serialize for TransactionMetadata {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_map(cbor_event::Len::Indefinite)?;
+        self.serialize_as_embedded_group(serializer)?;
+        serializer.write_special(CBORSpecial::Break)
+    }
+}
+
+impl SerializeEmbeddedGroup for TransactionMetadata {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        for (key, value) in &self.0 {
+            key.serialize(serializer)?;
+            value.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for TransactionMetadata {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut table = std::collections::BTreeMap::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.map()?;
+            while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                let key = u32::deserialize(raw)?;
+                let value = TransactionMetadatum::deserialize(raw)?;
+                if table.insert(key.clone(), value).is_some() {
+                    return Err(DeserializeFailure::DuplicateKey(Key::Uint(key.into())).into());
+                }
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("TransactionMetadata"))?;
+        Ok(Self(table))
+    }
+}
+
+impl cbor_event::se::Serialize for Transaction {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Indefinite)?;
+        self.serialize_as_embedded_group(serializer)?;
+        serializer.write_special(CBORSpecial::Break)
+    }
+}
+
+impl SerializeEmbeddedGroup for Transaction {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        self.body.serialize(serializer)?;
+        self.witness_set.serialize(serializer)?;
+        match &self.metadata {
+            Some(x) => {
+                x.serialize(serializer)
+            },
+            None => serializer.write_special(CBORSpecial::Null),
+        }?;
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for Transaction {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            let ret = Self::deserialize_as_embedded_group(raw, len);
+            match len {
+                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Indefinite => match raw.special()? {
+                    CBORSpecial::Break => /* it's ok */(),
+                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                },
+            }
+            ret
+        })().map_err(|e| e.annotate("Transaction"))
+    }
+}
+
+impl DeserializeEmbeddedGroup for Transaction {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+        let body = (|| -> Result<_, DeserializeError> {
+            Ok(TransactionBody::deserialize(raw)?)
+        })().map_err(|e| e.annotate("body"))?;
+        let witness_set = (|| -> Result<_, DeserializeError> {
+            Ok(TransactionWitnessSet::deserialize(raw)?)
+        })().map_err(|e| e.annotate("witness_set"))?;
+        let metadata = (|| -> Result<_, DeserializeError> {
+            Ok(match raw.cbor_type()? != CBORType::Special {
+                true => {
+                    Some(TransactionMetadata::deserialize(raw)?)
+                },
+                false => {
+                    if raw.special()? != CBORSpecial::Null {
+                        return Err(DeserializeFailure::ExpectedNull.into());
+                    }
+                    None
+                }
+            })
+        })().map_err(|e| e.annotate("metadata"))?;
+        Ok(Transaction::new(body, witness_set, metadata))
     }
 }
