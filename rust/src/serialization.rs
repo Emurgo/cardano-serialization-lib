@@ -2016,7 +2016,7 @@ impl DeserializeEmbeddedGroup for TransactionBody {
                         })().map_err(|e| e.annotate("withdrawals"))?);
                     },
                     7 =>  {
-                        if withdrawals.is_some() {
+                        if metadata_hash.is_some() {
                             return Err(DeserializeFailure::DuplicateKey(Key::Uint(7)).into());
                         }
                         metadata_hash = Some((|| -> Result<_, DeserializeError> {
