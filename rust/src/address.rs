@@ -29,51 +29,97 @@ fn variable_nat_encode(mut num: u64) -> Vec<u8> {
 }
 
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
-enum AddrCredType {
-    Key(Keyhash),
-    Script(Scripthash),
+enum StakeCredType {
+    Key(AddrKeyHash),
+    Script(ScriptHash),
 }
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct AddrCred(AddrCredType);
+pub struct StakeCredential(StakeCredType);
 
 #[wasm_bindgen]
-impl AddrCred {
-    pub fn from_keyhash(hash: Keyhash) -> Self {
-        AddrCred(AddrCredType::Key(hash))
+impl StakeCredential {
+    pub fn from_keyhash(hash: AddrKeyHash) -> Self {
+        StakeCredential(StakeCredType::Key(hash))
     }
 
-    pub fn from_scripthash(hash: Scripthash) -> Self {
-        AddrCred(AddrCredType::Script(hash))
+    pub fn from_scripthash(hash: ScriptHash) -> Self {
+        StakeCredential(StakeCredType::Script(hash))
     }
 
-    pub fn to_keyhash(&self) -> Option<Keyhash> {
+    pub fn to_keyhash(&self) -> Option<AddrKeyHash> {
         match &self.0 {
-            AddrCredType::Key(hash) => Some(hash.clone()),
-            AddrCredType::Script(_) => None,
+            StakeCredType::Key(hash) => Some(hash.clone()),
+            StakeCredType::Script(_) => None,
         }
     }
 
-    pub fn to_scripthash(&self) -> Option<Scripthash> {
+    pub fn to_scripthash(&self) -> Option<ScriptHash> {
         match &self.0 {
-            AddrCredType::Key(_) => None,
-            AddrCredType::Script(hash) => Some(hash.clone()),
+            StakeCredType::Key(_) => None,
+            StakeCredType::Script(hash) => Some(hash.clone()),
         }
     }
 
     pub fn kind(&self) -> u8 {
         match &self.0 {
-            AddrCredType::Key(_) => 0,
-            AddrCredType::Script(_) => 1,
+            StakeCredType::Key(_) => 0,
+            StakeCredType::Script(_) => 1,
         }
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
+    fn to_raw_bytes(&self) -> Vec<u8> {
         match &self.0 {
-            AddrCredType::Key(hash) => hash.0.to_vec(),
-            AddrCredType::Script(hash) => hash.0.to_vec(),
+            StakeCredType::Key(hash) => hash.to_bytes(),
+            StakeCredType::Script(hash) => hash.to_bytes(),
         }
+    }
+}
+
+
+
+impl cbor_event::se::Serialize for StakeCredential {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(2))?;
+        match &self.0 {
+            StakeCredType::Key(keyhash) => {
+                serializer.write_unsigned_integer(0u64)?;
+                serializer.write_bytes(keyhash.to_bytes())
+            },
+            StakeCredType::Script(scripthash) => {
+                serializer.write_unsigned_integer(1u64)?;
+                serializer.write_bytes(scripthash.to_bytes())
+            },
+        }
+    }
+}
+
+impl Deserialize for StakeCredential {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            if let cbor_event::Len::Len(n) = len {
+                if n != 2 {
+                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(2, len, "[id, hash]")).into())
+                }
+            }
+            let cred_type = match raw.unsigned_integer()? {
+                0 => StakeCredType::Key(AddrKeyHash::deserialize(raw)?),
+                1 => StakeCredType::Script(ScriptHash::deserialize(raw)?),
+                n => return Err(DeserializeFailure::FixedValueMismatch{
+                    found: Key::Uint(n),
+                    // TODO: change codegen to make FixedValueMismatch support Vec<Key> or ranges or something
+                    expected: Key::Uint(0),
+                }.into()),
+            };
+            if let cbor_event::Len::Indefinite = len {
+                 if raw.special()? != CBORSpecial::Break {
+                    return Err(DeserializeFailure::EndingBreakMissing.into());
+                }
+            }
+            Ok(StakeCredential(cred_type))
+        })().map_err(|e| e.annotate("StakeCredential"))
     }
 }
 
@@ -102,15 +148,15 @@ impl Address {
                            | (base.stake.kind() << 5)
                            | (base.network & 0xF);
                 buf.push(header);
-                buf.extend(base.payment.to_bytes());
-                buf.extend(base.stake.to_bytes());
+                buf.extend(base.payment.to_raw_bytes());
+                buf.extend(base.stake.to_raw_bytes());
             },
             AddrType::Ptr(ptr) => {
                 let header: u8 = 0b0100_0000
                                | (ptr.payment.kind() << 4)
                                | (ptr.network & 0xF);
                 buf.push(header);
-                buf.extend(ptr.payment.to_bytes());
+                buf.extend(ptr.payment.to_raw_bytes());
                 buf.extend(variable_nat_encode(ptr.stake.slot));
                 buf.extend(variable_nat_encode(ptr.stake.tx_index));
                 buf.extend(variable_nat_encode(ptr.stake.cert_index));
@@ -120,14 +166,14 @@ impl Address {
                                | (enterprise.payment.kind() << 4)
                                | (enterprise.network & 0xF);
                 buf.push(header);
-                buf.extend(enterprise.payment.to_bytes());
+                buf.extend(enterprise.payment.to_raw_bytes());
             },
             AddrType::Reward(reward) => {
                 let header: u8 = 0b1110_0000
                                 | (reward.payment.kind() << 4)
                                 | (reward.network & 0xF);
                 buf.push(header);
-                buf.extend(reward.payment.to_bytes());
+                buf.extend(reward.payment.to_raw_bytes());
             },
         }
         println!("to_bytes({:?}) = {:?}", self, buf);
@@ -160,12 +206,15 @@ impl Address {
         // bits 7-4: 1000
         let header = data[0];
         let network = header & 0x0F;
-        let hash_len = 28;
+        const HASH_LEN: usize = AddrKeyHash::BYTE_COUNT;
+        // should be static assert but it's maybe not worth importing a whole external crate for it now
+        assert_eq!(ScriptHash::BYTE_COUNT, HASH_LEN);
         let read_addr_cred = |bit: u8, pos: usize| {
+            let hash_bytes: [u8; HASH_LEN] = data[pos..pos+HASH_LEN].try_into().unwrap();
             let x = if header & (1 << bit)  == 0 {
-                AddrCred::from_keyhash(Keyhash::new(data[pos..pos+hash_len].try_into().unwrap()))
+                StakeCredential::from_keyhash(AddrKeyHash::from(hash_bytes))
             } else {
-                AddrCred::from_scripthash(Scripthash::new(data[pos..pos+hash_len].try_into().unwrap()))
+                StakeCredential::from_scripthash(ScriptHash::from(hash_bytes))
             };
             println!("read cred: {:?}", x);
             x
@@ -179,7 +228,7 @@ impl Address {
                 if data.len() > 57 {
                     return Err(cbor_event::Error::TrailingData.into());
                 }
-                AddrType::Base(BaseAddress::new(network, read_addr_cred(4, 1), read_addr_cred(5, 1 + hash_len)))
+                AddrType::Base(BaseAddress::new(network, read_addr_cred(4, 1), read_addr_cred(5, 1 + HASH_LEN)))
             },
             // pointer
             0b0100 | 0b0101 => {
@@ -189,7 +238,7 @@ impl Address {
                 }
                 let mut byte_index = 1;
                 let payment_cred = read_addr_cred(4, 1);
-                byte_index += hash_len;
+                byte_index += HASH_LEN;
                 let (slot, slot_bytes) = variable_nat_decode(&data[byte_index..])
                     .ok_or(DeserializeError::new("Address.Pointer.slot", DeserializeFailure::VariableLenNatDecodeFailed))?;
                 byte_index += slot_bytes;
@@ -206,20 +255,20 @@ impl Address {
             },
             // enterprise
             0b0110 | 0b0111 => {
-                if data.len() < 29 {
-                    return Err(cbor_event::Error::NotEnough(data.len(), 29).into());
+                if data.len() < HASH_LEN + 1 {
+                    return Err(cbor_event::Error::NotEnough(data.len(), HASH_LEN + 1).into());
                 }
-                if data.len() > 29 {
+                if data.len() > HASH_LEN + 1 {
                     return Err(cbor_event::Error::TrailingData.into());
                 }
                 AddrType::Enterprise(EnterpriseAddress::new(network, read_addr_cred(4, 1)))
             },
             // reward
             0b1110 | 0b1111 => {
-                if data.len() < 29 {
-                    return Err(cbor_event::Error::NotEnough(data.len(), 29).into());
+                if data.len() < HASH_LEN + 1 {
+                    return Err(cbor_event::Error::NotEnough(data.len(), HASH_LEN + 1).into());
                 }
-                if data.len() > 29 {
+                if data.len() > HASH_LEN + 1 {
                     return Err(cbor_event::Error::TrailingData.into());
                 }
                 AddrType::Reward(RewardAddress::new(network, read_addr_cred(4, 1)))
@@ -260,13 +309,13 @@ impl Deserialize for Address {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BaseAddress {
     network: u8,
-    payment: AddrCred,
-    stake: AddrCred,
+    payment: StakeCredential,
+    stake: StakeCredential,
 }
 
 #[wasm_bindgen]
 impl BaseAddress {
-    pub fn new(network: u8, payment: AddrCred, stake: AddrCred) -> Self {
+    pub fn new(network: u8, payment: StakeCredential, stake: StakeCredential) -> Self {
         Self {
             network,
             payment,
@@ -274,11 +323,11 @@ impl BaseAddress {
         }
     }
 
-    pub fn payment_cred(&self) -> AddrCred {
+    pub fn payment_cred(&self) -> StakeCredential {
         self.payment.clone()
     }
 
-    pub fn stake_cred(&self) -> AddrCred {
+    pub fn stake_cred(&self) -> StakeCredential {
         self.stake.clone()
     }
 
@@ -292,19 +341,19 @@ impl BaseAddress {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EnterpriseAddress {
     network: u8,
-    payment: AddrCred,
+    payment: StakeCredential,
 }
 
 #[wasm_bindgen]
 impl EnterpriseAddress {
-    pub fn new(network: u8, payment: AddrCred) -> Self {
+    pub fn new(network: u8, payment: StakeCredential) -> Self {
         Self {
             network,
             payment,
         }
     }
 
-    pub fn payment_cred(&self) -> AddrCred {
+    pub fn payment_cred(&self) -> StakeCredential {
         self.payment.clone()
     }
 
@@ -317,19 +366,19 @@ impl EnterpriseAddress {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct RewardAddress {
     network: u8,
-    payment: AddrCred,
+    payment: StakeCredential,
 }
 
 #[wasm_bindgen]
 impl RewardAddress {
-    pub fn new(network: u8, payment: AddrCred) -> Self {
+    pub fn new(network: u8, payment: StakeCredential) -> Self {
         Self {
             network,
             payment,
         }
     }
 
-    pub fn payment_cred(&self) -> AddrCred {
+    pub fn payment_cred(&self) -> StakeCredential {
         self.payment.clone()
     }
 
@@ -361,13 +410,13 @@ impl Pointer {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PointerAddress {
     network: u8,
-    payment: AddrCred,
+    payment: StakeCredential,
     stake: Pointer,
 }
 
 #[wasm_bindgen]
 impl PointerAddress {
-    pub fn new(network: u8, payment: AddrCred, stake: Pointer) -> Self {
+    pub fn new(network: u8, payment: StakeCredential, stake: Pointer) -> Self {
         Self {
             network,
             payment,
@@ -375,7 +424,7 @@ impl PointerAddress {
         }
     }
 
-    pub fn payment_cred(&self) -> AddrCred {
+    pub fn payment_cred(&self) -> StakeCredential {
         self.payment.clone()
     }
 
@@ -391,7 +440,7 @@ impl PointerAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use js_chain_libs::*;
+    use crypto::*;
 
     #[test]
     fn variable_nat_encoding() {
@@ -413,8 +462,8 @@ mod tests {
     fn base_serialize_consistency() {
         let base = BaseAddress::new(
             5,
-            AddrCred::from_keyhash(Keyhash::new([23; 28])),
-            AddrCred::from_scripthash(Scripthash::new([42; 28])));
+            StakeCredential::from_keyhash(AddrKeyHash::from([23; AddrKeyHash::BYTE_COUNT])),
+            StakeCredential::from_scripthash(ScriptHash::from([42; ScriptHash::BYTE_COUNT])));
         let addr = base.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -424,7 +473,7 @@ mod tests {
     fn ptr_serialize_consistency() {
         let ptr = PointerAddress::new(
             25,
-            AddrCred::from_keyhash(Keyhash::new([23; 28])),
+            StakeCredential::from_keyhash(AddrKeyHash::from([23; AddrKeyHash::BYTE_COUNT])),
             Pointer::new(2354556573, 127, 0));
         let addr = ptr.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
@@ -435,7 +484,7 @@ mod tests {
     fn enterprise_serialize_consistency() {
         let enterprise = EnterpriseAddress::new(
             64,
-            AddrCred::from_keyhash(Keyhash::new([23; 28])));
+            StakeCredential::from_keyhash(AddrKeyHash::from([23; AddrKeyHash::BYTE_COUNT])));
         let addr = enterprise.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -445,7 +494,7 @@ mod tests {
     fn reward_serialize_consistency() {
         let reward = RewardAddress::new(
             9,
-            AddrCred::from_scripthash(Scripthash::new([127; 28])));
+            StakeCredential::from_scripthash(ScriptHash::from([127; AddrKeyHash::BYTE_COUNT])));
         let addr = reward.to_address();
         let addr2 = Address::from_bytes_impl(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -486,8 +535,8 @@ mod tests {
             .derive(2)
             .derive(0)
             .to_public();
-        let spend_cred = AddrCred::from_keyhash(spend.hash());
-        let stake_cred = AddrCred::from_keyhash(stake.hash());
+        let spend_cred = StakeCredential::from_keyhash(spend.hash());
+        let stake_cred = StakeCredential::from_keyhash(stake.hash());
         let addr_net_0 = BaseAddress::new(0, spend_cred.clone(), stake_cred.clone()).to_address();
         assert_eq!(addr_net_0.to_bech32(), "addr1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqcyl47r");
         let addr_net_3 = BaseAddress::new(3, spend_cred, stake_cred).to_address();
@@ -503,7 +552,7 @@ mod tests {
             .derive(0)
             .derive(0)
             .to_public();
-        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let spend_cred = StakeCredential::from_keyhash(spend.hash());
         let addr_net_0 = EnterpriseAddress::new(0, spend_cred.clone()).to_address();
         assert_eq!(addr_net_0.to_bech32(), "addr1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers6g8jlq");
         let addr_net_3 = EnterpriseAddress::new(3, spend_cred).to_address();
@@ -519,7 +568,7 @@ mod tests {
             .derive(0)
             .derive(0)
             .to_public();
-        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let spend_cred = StakeCredential::from_keyhash(spend.hash());
         let addr_net_0 = PointerAddress::new(0, spend_cred.clone(), Pointer::new(1, 2, 3)).to_address();
         assert_eq!(addr_net_0.to_bech32(), "addr1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspqgpslhplej");
         let addr_net_3 = PointerAddress::new(3, spend_cred, Pointer::new(24157, 177, 42)).to_address();
@@ -542,8 +591,8 @@ mod tests {
             .derive(2)
             .derive(0)
             .to_public();
-        let spend_cred = AddrCred::from_keyhash(spend.hash());
-        let stake_cred = AddrCred::from_keyhash(stake.hash());
+        let spend_cred = StakeCredential::from_keyhash(spend.hash());
+        let stake_cred = StakeCredential::from_keyhash(stake.hash());
         let addr_net_0 = BaseAddress::new(0, spend_cred.clone(), stake_cred.clone()).to_address();
         assert_eq!(addr_net_0.to_bech32(), "addr1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qwmnp2v");
         let addr_net_3 = BaseAddress::new(3, spend_cred, stake_cred).to_address();
@@ -559,7 +608,7 @@ mod tests {
             .derive(0)
             .derive(0)
             .to_public();
-        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let spend_cred = StakeCredential::from_keyhash(spend.hash());
         let addr_net_0 = EnterpriseAddress::new(0, spend_cred.clone()).to_address();
         assert_eq!(addr_net_0.to_bech32(), "addr1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0yu80w");
         let addr_net_3 = EnterpriseAddress::new(3, spend_cred).to_address();
@@ -575,7 +624,7 @@ mod tests {
             .derive(0)
             .derive(0)
             .to_public();
-        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let spend_cred = StakeCredential::from_keyhash(spend.hash());
         let addr_net_0 = PointerAddress::new(0, spend_cred.clone(), Pointer::new(1, 2, 3)).to_address();
         assert_eq!(addr_net_0.to_bech32(), "addr1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsjej5ck");
         let addr_net_3 = PointerAddress::new(3, spend_cred, Pointer::new(24157, 177, 42)).to_address();
@@ -598,8 +647,8 @@ mod tests {
             .derive(2)
             .derive(0)
             .to_public();
-        let spend_cred = AddrCred::from_keyhash(spend.hash());
-        let stake_cred = AddrCred::from_keyhash(stake.hash());
+        let spend_cred = StakeCredential::from_keyhash(spend.hash());
+        let stake_cred = StakeCredential::from_keyhash(stake.hash());
         let addr_net_0 = BaseAddress::new(0, spend_cred.clone(), stake_cred.clone()).to_address();
         assert_eq!(addr_net_0.to_bech32(), "addr1qqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33su9wxrs");
         let addr_net_3 = BaseAddress::new(3, spend_cred, stake_cred).to_address();
@@ -615,7 +664,7 @@ mod tests {
             .derive(0)
             .derive(0)
             .to_public();
-        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let spend_cred = StakeCredential::from_keyhash(spend.hash());
         let addr_net_0 = EnterpriseAddress::new(0, spend_cred.clone()).to_address();
         assert_eq!(addr_net_0.to_bech32(), "addr1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqsg0y49");
         let addr_net_3 = EnterpriseAddress::new(3, spend_cred).to_address();
@@ -631,7 +680,7 @@ mod tests {
             .derive(0)
             .derive(0)
             .to_public();
-        let spend_cred = AddrCred::from_keyhash(spend.hash());
+        let spend_cred = StakeCredential::from_keyhash(spend.hash());
         let addr_net_0 = PointerAddress::new(0, spend_cred.clone(), Pointer::new(1, 2, 3)).to_address();
         assert_eq!(addr_net_0.to_bech32(), "addr1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgpst4xf0c");
         let addr_net_3 = PointerAddress::new(3, spend_cred, Pointer::new(24157, 177, 42)).to_address();
