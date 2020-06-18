@@ -8,11 +8,11 @@ use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 use cbor_event::Type as CBORType;
 use cbor_event::Special as CBORSpecial;
 
-mod address;
-mod crypto;
-mod fees;
-mod prelude;
-mod serialization;
+pub mod address;
+pub mod crypto;
+pub mod fees;
+pub mod prelude;
+pub mod serialization;
 
 use address::*;
 use crypto::*;
