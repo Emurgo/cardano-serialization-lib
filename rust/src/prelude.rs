@@ -31,6 +31,8 @@ pub enum DeserializeFailure {
     },
     MandatoryFieldMissing(Key),
     NoVariantMatched,
+    PublicKeyError(chain_crypto::PublicKeyError),
+    SignatureError(chain_crypto::SignatureError),
     TagMismatch{
         found: u64,
         expected: u64,
@@ -79,6 +81,8 @@ impl std::fmt::Display for DeserializeError {
             DeserializeFailure::FixedValueMismatch{ found, expected } => write!(f, "Expected fixed value {} found {}", expected, found),
             DeserializeFailure::MandatoryFieldMissing(key) => write!(f, "Mandatory field {} not found", key),
             DeserializeFailure::NoVariantMatched => write!(f, "No variant matched"),
+            DeserializeFailure::PublicKeyError(e) => write!(f, "PublicKeyError error: {}", e),
+            DeserializeFailure::SignatureError(e) => write!(f, "Signature error: {}", e),
             DeserializeFailure::TagMismatch{ found, expected } => write!(f, "Expected tag {}, found {}", expected, found),
             DeserializeFailure::UnknownKey(key) => write!(f, "Found unexpected key {}", key),
             DeserializeFailure::UnexpectedKeyType(ty) => write!(f, "Found unexpected key of CBOR type {:?}", ty),
@@ -101,6 +105,24 @@ impl From<cbor_event::Error> for DeserializeError {
         DeserializeError {
             location: None,
             failure: DeserializeFailure::CBOR(err),
+        }
+    }
+}
+
+impl From<chain_crypto::SignatureError> for DeserializeError {
+    fn from(err: chain_crypto::SignatureError) -> DeserializeError {
+        DeserializeError {
+            location: None,
+            failure: DeserializeFailure::SignatureError(err),
+        }
+    }
+}
+
+impl From<chain_crypto::PublicKeyError> for DeserializeError {
+    fn from(err: chain_crypto::PublicKeyError) -> DeserializeError {
+        DeserializeError {
+            location: None,
+            failure: DeserializeFailure::PublicKeyError(err),
         }
     }
 }
