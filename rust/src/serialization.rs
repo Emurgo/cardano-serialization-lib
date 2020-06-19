@@ -1866,7 +1866,15 @@ impl Deserialize for TransactionBody {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
-            Self::deserialize_as_embedded_group(raw, len)
+            let ret = Self::deserialize_as_embedded_group(raw, len);
+            match len {
+                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Indefinite => match raw.special()? {
+                    CBORSpecial::Break => /* it's ok */(),
+                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                },
+            }
+            ret
         })().map_err(|e| e.annotate("TransactionBody"))
     }
 }
@@ -2015,7 +2023,15 @@ impl Deserialize for TransactionWitnessSet {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
-            Self::deserialize_as_embedded_group(raw, len)
+            let ret = Self::deserialize_as_embedded_group(raw, len);
+            match len {
+                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Indefinite => match raw.special()? {
+                    CBORSpecial::Break => /* it's ok */(),
+                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                },
+            }
+            ret
         })().map_err(|e| e.annotate("TransactionWitnessSet"))
     }
 }
