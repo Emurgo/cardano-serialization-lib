@@ -95,11 +95,6 @@ impl Bip32PrivateKey {
     pub fn from_bip39_entropy(entropy: &[u8], password: &[u8]) -> Bip32PrivateKey {
         Bip32PrivateKey(crypto::derive::from_bip39_entropy(&entropy, &password))
     }
-
-    pub fn hash(&self) -> AddrKeyHash {
-        // TODO: change back to 224 when Haskell Shelley does
-        AddrKeyHash::from(blake2b256(self.to_raw_key().as_bytes().as_ref()))
-    }
 }
 
 #[wasm_bindgen]
@@ -271,6 +266,11 @@ impl PublicKey {
 
     pub fn verify(&self, data: &[u8], signature: &Ed25519Signature) -> bool {
         signature.0.verify_slice(&self.0, data) == crypto::Verification::Success
+    }
+
+    pub fn hash(&self) -> AddrKeyHash {
+        // TODO: change back to 224 when Haskell Shelley does
+        AddrKeyHash::from(blake2b256(self.as_bytes().as_ref()))
     }
 }
 
@@ -507,7 +507,12 @@ macro_rules! impl_hash_type {
             }
 
             pub fn from_bytes(bytes: Vec<u8>) -> Result<$name, JsValue> {
-                FromBytes::from_bytes(bytes)
+                use std::convert::TryInto;
+                if bytes.len() != $byte_count {
+                    let e = cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(bytes.len() as u64), "hash length");
+                    return Err(JsValue::from_str(&e.to_string()));
+                }
+                Ok($name(bytes[..$byte_count].try_into().unwrap()))
             }
         }
 
