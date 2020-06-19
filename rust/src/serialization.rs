@@ -1866,15 +1866,7 @@ impl Deserialize for TransactionBody {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
+            Self::deserialize_as_embedded_group(raw, len)
         })().map_err(|e| e.annotate("TransactionBody"))
     }
 }
@@ -1961,7 +1953,10 @@ impl DeserializeEmbeddedGroup for TransactionBody {
                 },
                 CBORType::Special => match len {
                     cbor_event::Len::Len(_) => return Err(DeserializeFailure::BreakInDefiniteLen.into()),
-                    cbor_event::Len::Indefinite => break,
+                    cbor_event::Len::Indefinite => match raw.special()? {
+                        CBORSpecial::Break => break,
+                        _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                    },
                 },
                 other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
             }
@@ -2023,15 +2018,7 @@ impl Deserialize for TransactionWitnessSet {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
+            Self::deserialize_as_embedded_group(raw, len)
         })().map_err(|e| e.annotate("TransactionWitnessSet"))
     }
 }
@@ -2069,7 +2056,10 @@ impl DeserializeEmbeddedGroup for TransactionWitnessSet {
                 },
                 CBORType::Special => match len {
                     cbor_event::Len::Len(_) => return Err(DeserializeFailure::BreakInDefiniteLen.into()),
-                    cbor_event::Len::Indefinite => break,
+                    cbor_event::Len::Indefinite => match raw.special()? {
+                        CBORSpecial::Break => break,
+                        _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                    },
                 },
                 other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
             }
