@@ -17,7 +17,14 @@ fn cbor_uint_length(x: u64) -> usize {
 }
 
 #[wasm_bindgen]
-pub fn txsize(tx: &Transaction) -> usize {
+pub fn min_fee(tx: &Transaction) -> usize {
+    const A: usize = 500;
+    const B: usize = 2;
+    let size = txsize(tx);
+    A * size + B
+}
+
+fn txsize(tx: &Transaction) -> usize {
     const UINT: usize = 5;
     const SMALL_ARRAY: usize = 1;
     const HASH_LEN: usize = 32;
