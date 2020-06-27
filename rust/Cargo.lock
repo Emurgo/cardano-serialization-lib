@@ -86,6 +86,7 @@ dependencies = [
  "cbor_event",
  "chain-crypto",
  "chain-impl-mockchain",
+ "clear_on_drop",
  "cryptoxide 0.2.0",
  "hex 0.4.2",
  "js-sys",
