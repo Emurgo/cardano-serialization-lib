@@ -4,6 +4,7 @@ use chain_crypto as crypto;
 use chain::{key};
 use crypto::bech32::Bech32 as _;
 use rand_os::OsRng;
+use std::io::{BufRead, Seek, Write};
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 
@@ -13,6 +14,12 @@ use crate::prelude::*;
 
 fn blake2b224(data: &[u8]) -> [u8; 28] {
     let mut out = [0; 28];
+    Blake2b::blake2b(&mut out, data, &[]);
+    out
+}
+
+pub (crate) fn blake2b256(data: &[u8]) -> [u8; 32] {
+    let mut out = [0; 32];
     Blake2b::blake2b(&mut out, data, &[]);
     out
 }
@@ -88,10 +95,6 @@ impl Bip32PrivateKey {
     pub fn from_bip39_entropy(entropy: &[u8], password: &[u8]) -> Bip32PrivateKey {
         Bip32PrivateKey(crypto::derive::from_bip39_entropy(&entropy, &password))
     }
-
-    pub fn hash(&self) -> AddrKeyHash {
-        AddrKeyHash::from(blake2b224(self.to_raw_key().as_bytes().as_ref()))
-    }
 }
 
 #[wasm_bindgen]
@@ -154,7 +157,7 @@ impl Bip32PublicKey {
     }
 
     pub fn hash(&self) -> AddrKeyHash {
-        AddrKeyHash::from(blake2b224(self.to_raw_key().as_bytes().as_ref()))
+        AddrKeyHash::from(blake2b256(self.to_raw_key().as_bytes().as_ref()))
     }
 }
 
@@ -264,6 +267,153 @@ impl PublicKey {
     pub fn verify(&self, data: &[u8], signature: &Ed25519Signature) -> bool {
         signature.0.verify_slice(&self.0, data) == crypto::Verification::Success
     }
+
+    pub fn hash(&self) -> AddrKeyHash {
+        // TODO: change back to 224 when Haskell Shelley does
+        AddrKeyHash::from(blake2b256(self.as_bytes().as_ref()))
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct Vkey(PublicKey);
+
+#[wasm_bindgen]
+impl Vkey {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        ToBytes::to_bytes(self)
+    }
+
+    pub fn from_bytes(data: Vec<u8>) -> Result<Vkey, JsValue> {
+        FromBytes::from_bytes(data)
+    }
+
+    pub fn new(pk: PublicKey) -> Self {
+        Self(pk)
+    }
+}
+
+impl cbor_event::se::Serialize for Vkey {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_bytes(&self.0.as_bytes())
+    }
+}
+
+impl Deserialize for Vkey {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        Ok(Self(PublicKey(crypto::PublicKey::from_binary(raw.bytes()?.as_ref())?)))
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct Vkeywitness {
+    vkey: Vkey,
+    signature: Ed25519Signature,
+}
+
+#[wasm_bindgen]
+impl Vkeywitness {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        ToBytes::to_bytes(self)
+    }
+
+    pub fn from_bytes(data: Vec<u8>) -> Result<Vkeywitness, JsValue> {
+        FromBytes::from_bytes(data)
+    }
+
+    pub fn new(vkey: Vkey, signature: Ed25519Signature) -> Self {
+        Self {
+            vkey,
+            signature,
+        }
+    }
+}
+
+impl cbor_event::se::Serialize for Vkeywitness {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(2))?;
+        self.vkey.serialize(serializer)?;
+        self.signature.serialize(serializer)
+    }
+}
+
+impl Deserialize for Vkeywitness {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            let vkey = (|| -> Result<_, DeserializeError> {
+                Ok(Vkey::deserialize(raw)?)
+            })().map_err(|e| e.annotate("vkey"))?;
+            let signature = (|| -> Result<_, DeserializeError> {
+                Ok(Ed25519Signature::deserialize(raw)?)
+            })().map_err(|e| e.annotate("signature"))?;
+            let ret = Ok(Vkeywitness::new(vkey, signature));
+            match len {
+                cbor_event::Len::Len(n) => match n {
+                    2 => (),
+                    m => return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(2, len, "")).into()),
+                },
+                cbor_event::Len::Indefinite => match raw.special()? {
+                    cbor_event::Special::Break => /* it's ok */(),
+                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                },
+            }
+            ret
+        })().map_err(|e| e.annotate("Vkeywitness"))
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct Vkeywitnesses(Vec<Vkeywitness>);
+
+#[wasm_bindgen]
+impl Vkeywitnesses {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> Vkeywitness {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: Vkeywitness) {
+        self.0.push(elem);
+    }
+}
+
+impl cbor_event::se::Serialize for Vkeywitnesses {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for Vkeywitnesses {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == cbor_event::Type::Special {
+                    assert_eq!(raw.special()?, cbor_event::Special::Break);
+                    break;
+                }
+                println!("deserializing Vkeywitnesss");
+                arr.push(Vkeywitness::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("Vkeywitnesss"))?;
+        Ok(Self(arr))
+    }
 }
 
 #[wasm_bindgen]
@@ -292,11 +442,12 @@ impl PublicKeys {
 macro_rules! impl_signature {
     ($name:ident, $signee_type:ty, $verifier_type:ty) => {
         #[wasm_bindgen]
+        #[derive(Clone)]
         pub struct $name(crypto::Signature<$signee_type, $verifier_type>);
 
         #[wasm_bindgen]
         impl $name {
-            pub fn as_bytes(&self) -> Vec<u8> {
+            pub fn to_bytes(&self) -> Vec<u8> {
                 self.0.as_ref().to_vec()
             }
 
@@ -326,6 +477,18 @@ macro_rules! impl_signature {
                     .map($name)
             }
         }
+
+        impl cbor_event::se::Serialize for $name {
+            fn serialize<'se, W: std::io::Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+                serializer.write_bytes(self.0.as_ref())
+            }
+        }
+        
+        impl Deserialize for $name {
+            fn deserialize<R: std::io::BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+                Ok(Self(crypto::Signature::from_binary(raw.bytes()?.as_ref())?))
+            }
+        }
     };
 }
 
@@ -335,7 +498,7 @@ macro_rules! impl_hash_type {
     ($name:ident, $byte_count:expr) => {
         #[wasm_bindgen]
         #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
-        pub struct $name([u8; $byte_count]);
+        pub struct $name(pub (crate) [u8; $byte_count]);
 
         #[wasm_bindgen]
         impl $name {
@@ -344,7 +507,12 @@ macro_rules! impl_hash_type {
             }
 
             pub fn from_bytes(bytes: Vec<u8>) -> Result<$name, JsValue> {
-                FromBytes::from_bytes(bytes)
+                use std::convert::TryInto;
+                if bytes.len() != $byte_count {
+                    let e = cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(bytes.len() as u64), "hash length");
+                    return Err(JsValue::from_str(&e.to_string()));
+                }
+                Ok($name(bytes[..$byte_count].try_into().unwrap()))
             }
         }
 
@@ -379,8 +547,9 @@ macro_rules! impl_hash_type {
     }
 }
 
-impl_hash_type!(AddrKeyHash, 28);
-impl_hash_type!(ScriptHash, 28);
+// TODO: change these back to 28 when Haskell Shelley node does
+impl_hash_type!(AddrKeyHash, 32);
+impl_hash_type!(ScriptHash, 32);
 
 impl_hash_type!(TransactionHash, 32);
 impl_hash_type!(GenesisDelegateHash, 32);

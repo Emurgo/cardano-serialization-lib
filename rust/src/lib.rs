@@ -8,11 +8,11 @@ use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 use cbor_event::Type as CBORType;
 use cbor_event::Special as CBORSpecial;
 
-mod address;
-mod crypto;
-mod fees;
-mod prelude;
-mod serialization;
+pub mod address;
+pub mod crypto;
+pub mod fees;
+pub mod prelude;
+pub mod serialization;
 
 use address::*;
 use crypto::*;
@@ -46,71 +46,6 @@ impl UnitInterval {
 type Coin = u64;
 
 type Epoch = u32;
-
-// TODO: Is this *exactly* just crypto::PublicKey?
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Vkey(Vec<u8>);
-
-#[wasm_bindgen]
-impl Vkey {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Vkey, JsValue> {
-        FromBytes::from_bytes(data)
-    }
-
-    pub fn new(data: Vec<u8>) -> Self {
-        Self(data)
-    }
-}
-
-// TODO: this should have specific crypto written into it (fixed size/etc)
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Signature(Vec<u8>);
-
-#[wasm_bindgen]
-impl Signature {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Signature, JsValue> {
-        FromBytes::from_bytes(data)
-    }
-
-    pub fn new(data: Vec<u8>) -> Self {
-        Self(data)
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Vkeywitness {
-    vkey: Vkey,
-    signature: Signature,
-}
-
-#[wasm_bindgen]
-impl Vkeywitness {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Vkeywitness, JsValue> {
-        FromBytes::from_bytes(data)
-    }
-
-    pub fn new(vkey: Vkey, signature: Signature) -> Self {
-        Self {
-            vkey: vkey,
-            signature: signature,
-        }
-    }
-}
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -974,35 +909,22 @@ impl TransactionBody {
             metadata_hash: None,
         }
     }
-}
 
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Vkeywitnesss(Vec<Vkeywitness>);
-
-#[wasm_bindgen]
-impl Vkeywitnesss {
-    pub fn new() -> Self {
-        Self(Vec::new())
+    pub fn hash(&self) -> TransactionHash {
+        TransactionHash::from(crypto::blake2b256(self.to_bytes().as_ref()))
     }
 
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> Vkeywitness {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: Vkeywitness) {
-        self.0.push(elem);
+    pub fn sign(&self, sk: &PrivateKey) -> Vkeywitness {
+        let tx_sign_data = self.hash();
+        let sig = sk.sign(tx_sign_data.0.as_ref());
+        Vkeywitness::new(Vkey::new(sk.to_public()), sig)
     }
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone)]
 pub struct TransactionWitnessSet {
-    vkeys: Option<Vkeywitnesss>,
+    vkeys: Option<Vkeywitnesses>,
     scripts: Option<MultisigScripts>,
 }
 
@@ -1016,7 +938,7 @@ impl TransactionWitnessSet {
         FromBytes::from_bytes(data)
     }
 
-    pub fn set_vkeys(&mut self, vkeys: Vkeywitnesss) {
+    pub fn set_vkeys(&mut self, vkeys: Vkeywitnesses) {
         self.vkeys = Some(vkeys)
     }
 
@@ -1157,7 +1079,7 @@ impl TransactionMetadata {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone)]
 pub struct Transaction {
     body: TransactionBody,
     witness_set: TransactionWitnessSet,

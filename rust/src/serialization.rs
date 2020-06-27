@@ -59,83 +59,6 @@ impl DeserializeEmbeddedGroup for UnitInterval {
     }
 }
 
-impl cbor_event::se::Serialize for Vkey {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        // DEBUG - generated from: Primitive(Bytes)
-        serializer.write_bytes(&self.0)
-    }
-}
-
-impl Deserialize for Vkey {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        println!("deserializing ");
-        Ok(Self(raw.bytes()?))
-    }
-}
-
-impl cbor_event::se::Serialize for Signature {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        // DEBUG - generated from: Primitive(Bytes)
-        serializer.write_bytes(&self.0)
-    }
-}
-
-impl Deserialize for Signature {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        println!("deserializing ");
-        Ok(Self(raw.bytes()?))
-    }
-}
-
-impl cbor_event::se::Serialize for Vkeywitness {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Indefinite)?;
-        self.serialize_as_embedded_group(serializer)?;
-        serializer.write_special(CBORSpecial::Break)
-    }
-}
-
-impl SerializeEmbeddedGroup for Vkeywitness {
-    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        // DEBUG - generated from: Rust(RustIdent("Vkey"))
-        self.vkey.serialize(serializer)?;
-        // DEBUG - generated from: Rust(RustIdent("Signature"))
-        self.signature.serialize(serializer)?;
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for Vkeywitness {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })().map_err(|e| e.annotate("Vkeywitness"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for Vkeywitness {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
-        let vkey = (|| -> Result<_, DeserializeError> {
-            println!("deserializing vkey");
-            Ok(Vkey::deserialize(raw)?)
-        })().map_err(|e| e.annotate("vkey"))?;
-        let signature = (|| -> Result<_, DeserializeError> {
-            println!("deserializing signature");
-            Ok(Signature::deserialize(raw)?)
-        })().map_err(|e| e.annotate("signature"))?;
-        Ok(Vkeywitness::new(vkey, signature))
-    }
-}
-
 impl cbor_event::se::Serialize for MsigPubkey {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Indefinite)?;
@@ -2030,7 +1953,10 @@ impl DeserializeEmbeddedGroup for TransactionBody {
                 },
                 CBORType::Special => match len {
                     cbor_event::Len::Len(_) => return Err(DeserializeFailure::BreakInDefiniteLen.into()),
-                    cbor_event::Len::Indefinite => break,
+                    cbor_event::Len::Indefinite => match raw.special()? {
+                        CBORSpecial::Break => break,
+                        _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                    },
                 },
                 other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
             }
@@ -2061,35 +1987,6 @@ impl DeserializeEmbeddedGroup for TransactionBody {
             withdrawals,
             metadata_hash,
         })
-    }
-}
-
-impl cbor_event::se::Serialize for Vkeywitnesss {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in &self.0 {
-            element.serialize(serializer)?;
-        }
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for Vkeywitnesss {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut arr = Vec::new();
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
-                    break;
-                }
-                println!("deserializing Vkeywitnesss");
-                arr.push(Vkeywitness::deserialize(raw)?);
-            }
-            Ok(())
-        })().map_err(|e| e.annotate("Vkeywitnesss"))?;
-        Ok(Self(arr))
     }
 }
 
@@ -2140,7 +2037,7 @@ impl DeserializeEmbeddedGroup for TransactionWitnessSet {
                         }
                         vkeys = Some((|| -> Result<_, DeserializeError> {
                             println!("deserializing vkeys");
-                            Ok(Vkeywitnesss::deserialize(raw)?)
+                            Ok(Vkeywitnesses::deserialize(raw)?)
                         })().map_err(|e| e.annotate("vkeys"))?);
                     },
                     1 =>  {
@@ -2159,7 +2056,10 @@ impl DeserializeEmbeddedGroup for TransactionWitnessSet {
                 },
                 CBORType::Special => match len {
                     cbor_event::Len::Len(_) => return Err(DeserializeFailure::BreakInDefiniteLen.into()),
-                    cbor_event::Len::Indefinite => break,
+                    cbor_event::Len::Indefinite => match raw.special()? {
+                        CBORSpecial::Break => break,
+                        _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                    },
                 },
                 other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
             }
