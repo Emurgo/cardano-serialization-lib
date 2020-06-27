@@ -104,10 +104,13 @@ mod tests {
         // these tests use mock crypto anyway, but very specific (ShortHash / MockDSIGN)
         // but right now we're only checking against sizes do it's okay for now to mock this out entirely
         let mut w = TransactionWitnessSet::new();
-        let mut vkw = Vkeywitnesss::new();
-        for pk in pks {
-            vkw.add(Vkeywitness::new(Vkey::new(vec![5u8; VLEN]), Signature::new(vec![1u8; SLEN])));
-        }
+        let mut vkw = Vkeywitnesses::new();
+        // for pk in pks {
+        //     vkw.add(Vkeywitness::new(
+        //         Vkey::new(PublicKey::from_bytes(&vec![5u8; VLEN])),
+        //         ED25519Signature::new(vec![1u8; SLEN]))
+        //     );
+        // }
         w.set_vkeys(vkw);
         w
     }

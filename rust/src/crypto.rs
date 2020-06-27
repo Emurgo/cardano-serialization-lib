@@ -157,7 +157,7 @@ impl Bip32PublicKey {
     }
 
     pub fn hash(&self) -> AddrKeyHash {
-        AddrKeyHash::from(blake2b256(self.to_raw_key().as_bytes().as_ref()))
+        AddrKeyHash::from(blake2b224(self.to_raw_key().as_bytes().as_ref()))
     }
 }
 
@@ -269,8 +269,7 @@ impl PublicKey {
     }
 
     pub fn hash(&self) -> AddrKeyHash {
-        // TODO: change back to 224 when Haskell Shelley does
-        AddrKeyHash::from(blake2b256(self.as_bytes().as_ref()))
+        AddrKeyHash::from(blake2b224(self.as_bytes().as_ref()))
     }
 }
 
@@ -407,11 +406,11 @@ impl Deserialize for Vkeywitnesses {
                     assert_eq!(raw.special()?, cbor_event::Special::Break);
                     break;
                 }
-                println!("deserializing Vkeywitnesss");
+                println!("deserializing Vkeywitnesses");
                 arr.push(Vkeywitness::deserialize(raw)?);
             }
             Ok(())
-        })().map_err(|e| e.annotate("Vkeywitnesss"))?;
+        })().map_err(|e| e.annotate("Vkeywitnesses"))?;
         Ok(Self(arr))
     }
 }
@@ -547,9 +546,8 @@ macro_rules! impl_hash_type {
     }
 }
 
-// TODO: change these back to 28 when Haskell Shelley node does
-impl_hash_type!(AddrKeyHash, 32);
-impl_hash_type!(ScriptHash, 32);
+impl_hash_type!(AddrKeyHash, 28);
+impl_hash_type!(ScriptHash, 28);
 
 impl_hash_type!(TransactionHash, 32);
 impl_hash_type!(GenesisDelegateHash, 32);
