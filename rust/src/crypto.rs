@@ -287,8 +287,8 @@ impl Vkey {
         FromBytes::from_bytes(data)
     }
 
-    pub fn new(pk: PublicKey) -> Self {
-        Self(pk)
+    pub fn new(pk: &PublicKey) -> Self {
+        Self(pk.clone())
     }
 }
 
@@ -321,10 +321,10 @@ impl Vkeywitness {
         FromBytes::from_bytes(data)
     }
 
-    pub fn new(vkey: Vkey, signature: Ed25519Signature) -> Self {
+    pub fn new(vkey: &Vkey, signature: &Ed25519Signature) -> Self {
         Self {
-            vkey,
-            signature,
+            vkey: vkey.clone(),
+            signature: signature.clone()
         }
     }
 }
@@ -381,8 +381,8 @@ impl Vkeywitnesses {
         self.0[index].clone()
     }
 
-    pub fn add(&mut self, elem: Vkeywitness) {
-        self.0.push(elem);
+    pub fn add(&mut self, elem: &Vkeywitness) {
+        self.0.push(elem.clone());
     }
 }
 

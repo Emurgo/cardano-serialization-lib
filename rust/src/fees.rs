@@ -73,13 +73,13 @@ mod tests {
         PrivateKey::from_normal_bytes(&[228, 61, 34, 119, 224, 166, 98, 69, 109, 32, 41, 244, 193, 183, 151, 145, 1, 130, 86, 184, 181, 148, 163, 25, 206, 19, 125, 217, 15, 154, 95, 53]).unwrap()
     }
     fn alice_pay() -> StakeCredential {
-        StakeCredential::from_keyhash(AddrKeyHash::from([1u8; AddrKeyHash::BYTE_COUNT]))
+        StakeCredential::from_keyhash(&AddrKeyHash::from([1u8; AddrKeyHash::BYTE_COUNT]))
     }
     fn alice_stake() -> StakeCredential {
-        StakeCredential::from_keyhash(AddrKeyHash::from([2u8;AddrKeyHash::BYTE_COUNT]))
+        StakeCredential::from_keyhash(&AddrKeyHash::from([2u8;AddrKeyHash::BYTE_COUNT]))
     }
     fn alice_addr() -> Address {
-        BaseAddress::new(0, alice_pay(), alice_stake()).to_address()
+        BaseAddress::new(0, &alice_pay(), &alice_stake()).to_address()
     }
     fn alice_pool() -> PoolKeyHash {
         PoolKeyHash::from([10u8; PoolKeyHash::BYTE_COUNT])
@@ -88,16 +88,16 @@ mod tests {
         PrivateKey::from_normal_bytes(&[29, 121, 11, 180, 125, 92, 240, 44, 174, 77, 75, 175, 52, 177, 31, 232, 186, 118, 65, 184, 118, 3, 159, 236, 29, 166, 235, 108, 101, 13, 67, 36]).unwrap()
     }
     fn bob_pay() -> StakeCredential {
-        StakeCredential::from_keyhash(AddrKeyHash::from([3u8; AddrKeyHash::BYTE_COUNT]))
+        StakeCredential::from_keyhash(&AddrKeyHash::from([3u8; AddrKeyHash::BYTE_COUNT]))
     }
     fn bob_stake() -> StakeCredential {
-        StakeCredential::from_keyhash(AddrKeyHash::from([4u8; AddrKeyHash::BYTE_COUNT]))
+        StakeCredential::from_keyhash(&AddrKeyHash::from([4u8; AddrKeyHash::BYTE_COUNT]))
     }
     fn bob_addr() -> Address {
-        BaseAddress::new(0, bob_pay(), bob_stake()).to_address()
+        BaseAddress::new(0, &bob_pay(), &bob_stake()).to_address()
     }
     fn carl_pay() -> StakeCredential {
-        StakeCredential::from_keyhash(AddrKeyHash::from([12u8; AddrKeyHash::BYTE_COUNT]))
+        StakeCredential::from_keyhash(&AddrKeyHash::from([12u8; AddrKeyHash::BYTE_COUNT]))
     }
 
     fn make_mock_witnesses_vkey(tx: &TransactionBody, pks: Vec<&PrivateKey>) -> TransactionWitnessSet {
