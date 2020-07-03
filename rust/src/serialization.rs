@@ -683,7 +683,7 @@ impl DeserializeEmbeddedGroup for PoolParams {
             Ok(UnitInterval::deserialize(raw)?)
         })().map_err(|e| e.annotate("margin"))?;
         let reward_account = (|| -> Result<_, DeserializeError> {
-            Ok(RewardAccount::deserialize(raw)?)
+            Ok(RewardAddress::deserialize(raw)?)
         })().map_err(|e| e.annotate("reward_account"))?;
         let pool_owners = (|| -> Result<_, DeserializeError> {
             Ok(AddrKeyHashes::deserialize(raw)?)
@@ -1530,7 +1530,7 @@ impl Deserialize for Withdrawals {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
                 }
-                let key = RewardAccount::deserialize(raw)?;
+                let key = RewardAddress::deserialize(raw)?;
                 let value = Coin::deserialize(raw)?;
                 if table.insert(key.clone(), value).is_some() {
                     return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());

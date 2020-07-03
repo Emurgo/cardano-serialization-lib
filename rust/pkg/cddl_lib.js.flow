@@ -72,6 +72,11 @@ declare export class Address {
    * @returns {Address}
    */
   static from_bech32(bech_str: string): Address;
+
+  /**
+   * @returns {number}
+   */
+  network_id(): number;
 }
 declare export class BaseAddress {
   free(): void;
@@ -962,7 +967,7 @@ declare export class PoolParams {
    * @param {BigInt} pledge
    * @param {BigInt} cost
    * @param {UnitInterval} margin
-   * @param {RewardAccount} reward_account
+   * @param {RewardAddress} reward_account
    * @param {AddrKeyHashes} pool_owners
    * @param {Relays} relays
    * @param {PoolMetadata | void} pool_metadata
@@ -974,7 +979,7 @@ declare export class PoolParams {
     pledge: BigInt,
     cost: BigInt,
     margin: UnitInterval,
-    reward_account: RewardAccount,
+    reward_account: RewardAddress,
     pool_owners: AddrKeyHashes,
     relays: Relays,
     pool_metadata?: PoolMetadata
@@ -1187,9 +1192,6 @@ declare export class Relays {
    * @param {Relay} elem
    */
   add(elem: Relay): void;
-}
-declare export class RewardAccount {
-  free(): void;
 }
 declare export class RewardAddress {
   free(): void;
@@ -1808,9 +1810,9 @@ declare export class Withdrawals {
   len(): number;
 
   /**
-   * @param {RewardAccount} key
+   * @param {RewardAddress} key
    * @param {BigInt} value
    * @returns {BigInt | void}
    */
-  insert(key: RewardAccount, value: BigInt): BigInt | void;
+  insert(key: RewardAddress, value: BigInt): BigInt | void;
 }

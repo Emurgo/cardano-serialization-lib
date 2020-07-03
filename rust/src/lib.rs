@@ -377,7 +377,7 @@ pub struct PoolParams {
     pledge: Coin,
     cost: Coin,
     margin: UnitInterval,
-    reward_account: RewardAccount,
+    reward_account: RewardAddress,
     pool_owners: AddrKeyHashes,
     relays: Relays,
     pool_metadata: Option<PoolMetadata>,
@@ -393,7 +393,7 @@ impl PoolParams {
         WasmFromBytes::from_bytes(data)
     }
 
-    pub fn new(operator: &PoolKeyHash, vrf_keyhash: &VRFKeyHash, pledge: Coin, cost: Coin, margin: &UnitInterval, reward_account: &RewardAccount, pool_owners: &AddrKeyHashes, relays: &Relays, pool_metadata: Option<PoolMetadata>) -> Self {
+    pub fn new(operator: &PoolKeyHash, vrf_keyhash: &VRFKeyHash, pledge: Coin, cost: Coin, margin: &UnitInterval, reward_account: &RewardAddress, pool_owners: &AddrKeyHashes, relays: &Relays, pool_metadata: Option<PoolMetadata>) -> Self {
         Self {
             operator: operator.clone(),
             vrf_keyhash: vrf_keyhash.clone(),
@@ -819,7 +819,7 @@ type Url = String;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Withdrawals(std::collections::BTreeMap<RewardAccount, Coin>);
+pub struct Withdrawals(std::collections::BTreeMap<RewardAddress, Coin>);
 
 #[wasm_bindgen]
 impl Withdrawals {
@@ -839,7 +839,7 @@ impl Withdrawals {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &RewardAccount, value: Coin) -> Option<Coin> {
+    pub fn insert(&mut self, key: &RewardAddress, value: Coin) -> Option<Coin> {
         self.0.insert(key.clone(), value)
     }
 }

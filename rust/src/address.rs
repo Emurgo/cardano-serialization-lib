@@ -181,10 +181,10 @@ impl Address {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<Address, JsValue> {
-        Self::from_bytes_impl(data).map_err(|e| JsValue::from_str(&e.to_string()))
+        Self::from_bytes_impl(data.as_ref()).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
-    fn from_bytes_impl(data: Vec<u8>) -> Result<Address, DeserializeError> {
+    fn from_bytes_impl(data: &[u8]) -> Result<Address, DeserializeError> {
         use std::convert::TryInto;
         println!("reading from: {:?}", data);
         // header has 4 bits addr type discrim then 4 bits network discrim.
@@ -293,6 +293,15 @@ impl Address {
         let data = bech32::FromBase32::from_base32(&u5data).unwrap();
         Self::from_bytes(data)
     }
+
+    pub fn network_id(&self) -> u8 {
+        match &self.0 {
+            AddrType::Base(a) => a.network,
+            AddrType::Enterprise(a) => a.network,
+            AddrType::Ptr(a) => a.network,
+            AddrType::Reward(a) => a.network,
+        }
+    }
 }
 
 impl cbor_event::se::Serialize for Address {
@@ -303,7 +312,7 @@ impl cbor_event::se::Serialize for Address {
 
 impl Deserialize for Address {
     fn deserialize<R: BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Self::from_bytes_impl(raw.bytes()?)
+        Self::from_bytes_impl(raw.bytes()?.as_ref())
     }
 }
 
@@ -389,6 +398,25 @@ impl RewardAddress {
     }
 }
 
+// needed since we treat RewardAccount like RewardAddress
+impl cbor_event::se::Serialize for RewardAddress {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        self.to_address().serialize(serializer)
+    }
+}
+
+impl Deserialize for RewardAddress {
+    fn deserialize<R: BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<Self, DeserializeError> {
+            let bytes = raw.bytes()?;
+            match Address::from_bytes_impl(bytes.as_ref())?.0 {
+                AddrType::Reward(ra) => Ok(ra),
+                other_address => Err(DeserializeFailure::BadAddressType(bytes[0]).into()),
+            }
+        })().map_err(|e| e.annotate("RewardAddress"))
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Pointer {
@@ -436,29 +464,6 @@ impl PointerAddress {
 
     pub fn to_address(&self) -> Address {
         Address(AddrType::Ptr(self.clone()))
-    }
-}
-
-// TODO: figure out format of RewardAccount - spec says it's just bytes but I'm
-// unsure if it's just a serialized part of a reward account, and also if those are 2 separate things,
-// and if it would include the header or not.
-// It has to be here though so that the rest of the pre-generated code compiles
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct RewardAccount(pub (crate) RewardAddress);
-
-impl cbor_event::se::Serialize for RewardAccount {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        self.0.to_address().serialize(serializer)
-    }
-}
-
-impl Deserialize for RewardAccount {
-    fn deserialize<R: BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(match Address::from_bytes_impl(raw.bytes()?)?.0 {
-            AddrType::Reward(ra) => ra,
-            _ => panic!("figure out how RewardAccount should work"),
-        }))
     }
 }
 
