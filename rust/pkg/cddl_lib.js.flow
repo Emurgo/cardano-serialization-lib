@@ -241,6 +241,60 @@ declare export class Bip32PublicKey {
    */
   hash(): AddrKeyHash;
 }
+declare export class BootstrapWitness {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} data
+   * @returns {BootstrapWitness}
+   */
+  static from_bytes(data: Uint8Array): BootstrapWitness;
+
+  /**
+   * @param {Vkey} vkey
+   * @param {Ed25519Signature} signature
+   * @param {Uint8Array} index_2
+   * @param {Uint8Array} index_3
+   * @param {Uint8Array} index_4
+   * @returns {BootstrapWitness}
+   */
+  static new(
+    vkey: Vkey,
+    signature: Ed25519Signature,
+    index_2: Uint8Array,
+    index_3: Uint8Array,
+    index_4: Uint8Array
+  ): BootstrapWitness;
+}
+declare export class BootstrapWitnesses {
+  free(): void;
+
+  /**
+   * @returns {BootstrapWitnesses}
+   */
+  static new(): BootstrapWitnesses;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {BootstrapWitness}
+   */
+  get(index: number): BootstrapWitness;
+
+  /**
+   * @param {BootstrapWitness} elem
+   */
+  add(elem: BootstrapWitness): void;
+}
 declare export class Certificate {
   free(): void;
 
@@ -439,6 +493,30 @@ declare export class GenesisKeyDelegation {
     genesis_delegate_hash: GenesisDelegateHash
   ): GenesisKeyDelegation;
 }
+declare export class I0OrI1 {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} data
+   * @returns {I0OrI1}
+   */
+  static from_bytes(data: Uint8Array): I0OrI1;
+
+  /**
+   * @returns {I0OrI1}
+   */
+  static new_i0(): I0OrI1;
+
+  /**
+   * @returns {I0OrI1}
+   */
+  static new_i1(): I0OrI1;
+}
 declare export class Int {
   free(): void;
 
@@ -493,6 +571,37 @@ declare export class Ipv6 {
    * @returns {Ipv6}
    */
   static new(data: Uint8Array): Ipv6;
+}
+declare export class MapStakeCredentialToCoin {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} data
+   * @returns {MapStakeCredentialToCoin}
+   */
+  static from_bytes(data: Uint8Array): MapStakeCredentialToCoin;
+
+  /**
+   * @returns {MapStakeCredentialToCoin}
+   */
+  static new(): MapStakeCredentialToCoin;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {StakeCredential} key
+   * @param {BigInt} value
+   * @returns {BigInt | void}
+   */
+  insert(key: StakeCredential, value: BigInt): BigInt | void;
 }
 declare export class MapTransactionMetadatumToTransactionMetadatum {
   free(): void;
@@ -559,21 +668,14 @@ declare export class MoveInstantaneousReward {
   static from_bytes(data: Uint8Array): MoveInstantaneousReward;
 
   /**
+   * @param {I0OrI1} index_0
+   * @param {MapStakeCredentialToCoin} index_1
    * @returns {MoveInstantaneousReward}
    */
-  static new(): MoveInstantaneousReward;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {StakeCredential} key
-   * @param {number} value
-   * @returns {number | void}
-   */
-  insert(key: StakeCredential, value: number): number | void;
+  static new(
+    index_0: I0OrI1,
+    index_1: MapStakeCredentialToCoin
+  ): MoveInstantaneousReward;
 }
 declare export class MoveInstantaneousRewardsCert {
   free(): void;
@@ -693,11 +795,10 @@ declare export class MultiHostName {
   static from_bytes(data: Uint8Array): MultiHostName;
 
   /**
-   * @param {number | void} port
    * @param {string} dns_name
    * @returns {MultiHostName}
    */
-  static new(port: number | void, dns_name: string): MultiHostName;
+  static new(dns_name: string): MultiHostName;
 }
 declare export class MultisigScript {
   free(): void;
@@ -714,28 +815,32 @@ declare export class MultisigScript {
   static from_bytes(data: Uint8Array): MultisigScript;
 
   /**
-   * @param {MsigPubkey} msig_pubkey
+   * @param {AddrKeyHash} addr_keyhash
    * @returns {MultisigScript}
    */
-  static new_msig_pubkey(msig_pubkey: MsigPubkey): MultisigScript;
+  static new_msig_pubkey(addr_keyhash: AddrKeyHash): MultisigScript;
 
   /**
-   * @param {MsigAll} msig_all
+   * @param {MultisigScripts} multisig_scripts
    * @returns {MultisigScript}
    */
-  static new_msig_all(msig_all: MsigAll): MultisigScript;
+  static new_msig_all(multisig_scripts: MultisigScripts): MultisigScript;
 
   /**
-   * @param {MsigAny} msig_any
+   * @param {MultisigScripts} multisig_scripts
    * @returns {MultisigScript}
    */
-  static new_msig_any(msig_any: MsigAny): MultisigScript;
+  static new_msig_any(multisig_scripts: MultisigScripts): MultisigScript;
 
   /**
-   * @param {MsigNOfK} msig_n_of_k
+   * @param {number} n
+   * @param {MultisigScripts} multisig_scripts
    * @returns {MultisigScript}
    */
-  static new_msig_n_of_k(msig_n_of_k: MsigNOfK): MultisigScript;
+  static new_msig_n_of_k(
+    n: number,
+    multisig_scripts: MultisigScripts
+  ): MultisigScript;
 }
 declare export class MultisigScripts {
   free(): void;
@@ -853,11 +958,11 @@ declare export class PoolParams {
 
   /**
    * @param {PoolKeyHash} operator
-   * @param {VrfKeyHash} vrf_keyhash
+   * @param {VRFKeyHash} vrf_keyhash
    * @param {BigInt} pledge
    * @param {BigInt} cost
    * @param {UnitInterval} margin
-   * @param {StakeCredential} reward_account
+   * @param {RewardAccount} reward_account
    * @param {AddrKeyHashes} pool_owners
    * @param {Relays} relays
    * @param {PoolMetadata | void} pool_metadata
@@ -865,11 +970,11 @@ declare export class PoolParams {
    */
   static new(
     operator: PoolKeyHash,
-    vrf_keyhash: VrfKeyHash,
+    vrf_keyhash: VRFKeyHash,
     pledge: BigInt,
     cost: BigInt,
     margin: UnitInterval,
-    reward_account: StakeCredential,
+    reward_account: RewardAccount,
     pool_owners: AddrKeyHashes,
     relays: Relays,
     pool_metadata?: PoolMetadata
@@ -1082,6 +1187,9 @@ declare export class Relays {
    * @param {Relay} elem
    */
   add(elem: Relay): void;
+}
+declare export class RewardAccount {
+  free(): void;
 }
 declare export class RewardAddress {
   free(): void;
@@ -1418,11 +1526,11 @@ declare export class TransactionMetadata {
   len(): number;
 
   /**
-   * @param {number} key
+   * @param {BigInt} key
    * @param {TransactionMetadatum} value
    * @returns {TransactionMetadatum | void}
    */
-  insert(key: number, value: TransactionMetadatum): TransactionMetadatum | void;
+  insert(key: BigInt, value: TransactionMetadatum): TransactionMetadatum | void;
 }
 declare export class TransactionMetadatum {
   free(): void;
@@ -1566,6 +1674,11 @@ declare export class TransactionWitnessSet {
   set_scripts(scripts: MultisigScripts): void;
 
   /**
+   * @param {BootstrapWitnesses} bootstraps
+   */
+  set_bootstraps(bootstraps: BootstrapWitnesses): void;
+
+  /**
    * @returns {TransactionWitnessSet}
    */
   static new(): TransactionWitnessSet;
@@ -1585,11 +1698,25 @@ declare export class UnitInterval {
   static from_bytes(data: Uint8Array): UnitInterval;
 
   /**
-   * @param {number} index_0
-   * @param {number} index_1
+   * @param {BigInt} index_0
+   * @param {BigInt} index_1
    * @returns {UnitInterval}
    */
-  static new(index_0: number, index_1: number): UnitInterval;
+  static new(index_0: BigInt, index_1: BigInt): UnitInterval;
+}
+declare export class VRFKeyHash {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {VRFKeyHash}
+   */
+  static from_bytes(bytes: Uint8Array): VRFKeyHash;
 }
 declare export class Vkey {
   free(): void;
@@ -1656,20 +1783,6 @@ declare export class Vkeywitnesses {
    */
   add(elem: Vkeywitness): void;
 }
-declare export class VrfKeyHash {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {VrfKeyHash}
-   */
-  static from_bytes(bytes: Uint8Array): VrfKeyHash;
-}
 declare export class Withdrawals {
   free(): void;
 
@@ -1695,9 +1808,9 @@ declare export class Withdrawals {
   len(): number;
 
   /**
-   * @param {StakeCredential} key
-   * @param {number} value
-   * @returns {number | void}
+   * @param {RewardAccount} key
+   * @param {BigInt} value
+   * @returns {BigInt | void}
    */
-  insert(key: StakeCredential, value: number): number | void;
+  insert(key: RewardAccount, value: BigInt): BigInt | void;
 }

@@ -647,7 +647,7 @@ macro_rules! impl_hash_type {
                 use std::convert::TryInto;
                 if bytes.len() != $byte_count {
                     let e = cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(bytes.len() as u64), "hash length");
-                    return Err(JsValue::from_str(&e.to_string()));
+                    return Err(JsValue::from_str(&format!("{}: {}", stringify!($name), e)));
                 }
                 Ok($name(bytes[..$byte_count].try_into().unwrap()))
             }
@@ -674,11 +674,13 @@ macro_rules! impl_hash_type {
         impl Deserialize for $name {
             fn deserialize<R: std::io::BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
                 use std::convert::TryInto;
-                let bytes = raw.bytes()?;
-                if bytes.len() != $byte_count {
-                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(bytes.len() as u64), "hash length")).into());
-                }
-                Ok($name(bytes[..$byte_count].try_into().unwrap()))
+                (|| -> Result<Self, DeserializeError> {
+                    let bytes = raw.bytes()?;
+                    if bytes.len() != $byte_count {
+                        return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(bytes.len() as u64), "hash length")).into());
+                    }
+                    Ok($name(bytes[..$byte_count].try_into().unwrap()))
+                })().map_err(|e| e.annotate(stringify!($name)))
             }
         }
     }

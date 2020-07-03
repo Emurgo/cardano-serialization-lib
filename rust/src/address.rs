@@ -204,82 +204,84 @@ impl Address {
         //
         // byron addresses:
         // bits 7-4: 1000
-        let header = data[0];
-        let network = header & 0x0F;
-        const HASH_LEN: usize = AddrKeyHash::BYTE_COUNT;
-        // should be static assert but it's maybe not worth importing a whole external crate for it now
-        assert_eq!(ScriptHash::BYTE_COUNT, HASH_LEN);
-        let read_addr_cred = |bit: u8, pos: usize| {
-            let hash_bytes: [u8; HASH_LEN] = data[pos..pos+HASH_LEN].try_into().unwrap();
-            let x = if header & (1 << bit)  == 0 {
-                StakeCredential::from_keyhash(&AddrKeyHash::from(hash_bytes))
-            } else {
-                StakeCredential::from_scripthash(&ScriptHash::from(hash_bytes))
+        (|| -> Result<Self, DeserializeError> {
+            let header = data[0];
+            let network = header & 0x0F;
+            const HASH_LEN: usize = AddrKeyHash::BYTE_COUNT;
+            // should be static assert but it's maybe not worth importing a whole external crate for it now
+            assert_eq!(ScriptHash::BYTE_COUNT, HASH_LEN);
+            let read_addr_cred = |bit: u8, pos: usize| {
+                let hash_bytes: [u8; HASH_LEN] = data[pos..pos+HASH_LEN].try_into().unwrap();
+                let x = if header & (1 << bit)  == 0 {
+                    StakeCredential::from_keyhash(&AddrKeyHash::from(hash_bytes))
+                } else {
+                    StakeCredential::from_scripthash(&ScriptHash::from(hash_bytes))
+                };
+                println!("read cred: {:?}", x);
+                x
             };
-            println!("read cred: {:?}", x);
-            x
-        };
-        let addr = match (header & 0xF0) >> 4 {
-            // base
-            0b0000 | 0b0001 | 0b0010 | 0b0011 => {
-                if data.len() < 57 {
-                    return Err(cbor_event::Error::NotEnough(data.len(), 57).into());
+            let addr = match (header & 0xF0) >> 4 {
+                // base
+                0b0000 | 0b0001 | 0b0010 | 0b0011 => {
+                    if data.len() < 57 {
+                        return Err(cbor_event::Error::NotEnough(data.len(), 57).into());
+                    }
+                    if data.len() > 57 {
+                        return Err(cbor_event::Error::TrailingData.into());
+                    }
+                    AddrType::Base(BaseAddress::new(network, &read_addr_cred(4, 1), &read_addr_cred(5, 1 + HASH_LEN)))
+                },
+                // pointer
+                0b0100 | 0b0101 => {
+                    if data.len() < 32 {
+                        // possibly more, but depends on how many bytes the natural numbers are for the pointer
+                        return Err(cbor_event::Error::NotEnough(data.len(), 32).into());
+                    }
+                    let mut byte_index = 1;
+                    let payment_cred = read_addr_cred(4, 1);
+                    byte_index += HASH_LEN;
+                    let (slot, slot_bytes) = variable_nat_decode(&data[byte_index..])
+                        .ok_or(DeserializeError::new("Address.Pointer.slot", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                    byte_index += slot_bytes;
+                    let (tx_index, tx_bytes) = variable_nat_decode(&data[byte_index..])
+                        .ok_or(DeserializeError::new("Address.Pointer.tx_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                    byte_index += tx_bytes;
+                    let (cert_index, cert_bytes) = variable_nat_decode(&data[byte_index..])
+                        .ok_or(DeserializeError::new("Address.Pointer.cert_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                    byte_index += cert_bytes;
+                    if byte_index > data.len() {
+                        return Err(cbor_event::Error::TrailingData.into());
+                    }
+                    AddrType::Ptr(PointerAddress::new(network, &payment_cred, &Pointer::new(slot, tx_index, cert_index)))
+                },
+                // enterprise
+                0b0110 | 0b0111 => {
+                    if data.len() < HASH_LEN + 1 {
+                        return Err(cbor_event::Error::NotEnough(data.len(), HASH_LEN + 1).into());
+                    }
+                    if data.len() > HASH_LEN + 1 {
+                        return Err(cbor_event::Error::TrailingData.into());
+                    }
+                    AddrType::Enterprise(EnterpriseAddress::new(network, &read_addr_cred(4, 1)))
+                },
+                // reward
+                0b1110 | 0b1111 => {
+                    if data.len() < HASH_LEN + 1 {
+                        return Err(cbor_event::Error::NotEnough(data.len(), HASH_LEN + 1).into());
+                    }
+                    if data.len() > HASH_LEN + 1 {
+                        return Err(cbor_event::Error::TrailingData.into());
+                    }
+                    AddrType::Reward(RewardAddress::new(network, &read_addr_cred(4, 1)))
                 }
-                if data.len() > 57 {
-                    return Err(cbor_event::Error::TrailingData.into());
-                }
-                AddrType::Base(BaseAddress::new(network, &read_addr_cred(4, 1), &read_addr_cred(5, 1 + HASH_LEN)))
-            },
-            // pointer
-            0b0100 | 0b0101 => {
-                if data.len() < 32 {
-                    // possibly more, but depends on how many bytes the natural numbers are for the pointer
-                    return Err(cbor_event::Error::NotEnough(data.len(), 32).into());
-                }
-                let mut byte_index = 1;
-                let payment_cred = read_addr_cred(4, 1);
-                byte_index += HASH_LEN;
-                let (slot, slot_bytes) = variable_nat_decode(&data[byte_index..])
-                    .ok_or(DeserializeError::new("Address.Pointer.slot", DeserializeFailure::VariableLenNatDecodeFailed))?;
-                byte_index += slot_bytes;
-                let (tx_index, tx_bytes) = variable_nat_decode(&data[byte_index..])
-                    .ok_or(DeserializeError::new("Address.Pointer.tx_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
-                byte_index += tx_bytes;
-                let (cert_index, cert_bytes) = variable_nat_decode(&data[byte_index..])
-                    .ok_or(DeserializeError::new("Address.Pointer.cert_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
-                byte_index += cert_bytes;
-                if byte_index > data.len() {
-                    return Err(cbor_event::Error::TrailingData.into());
-                }
-                AddrType::Ptr(PointerAddress::new(network, &payment_cred, &Pointer::new(slot, tx_index, cert_index)))
-            },
-            // enterprise
-            0b0110 | 0b0111 => {
-                if data.len() < HASH_LEN + 1 {
-                    return Err(cbor_event::Error::NotEnough(data.len(), HASH_LEN + 1).into());
-                }
-                if data.len() > HASH_LEN + 1 {
-                    return Err(cbor_event::Error::TrailingData.into());
-                }
-                AddrType::Enterprise(EnterpriseAddress::new(network, &read_addr_cred(4, 1)))
-            },
-            // reward
-            0b1110 | 0b1111 => {
-                if data.len() < HASH_LEN + 1 {
-                    return Err(cbor_event::Error::NotEnough(data.len(), HASH_LEN + 1).into());
-                }
-                if data.len() > HASH_LEN + 1 {
-                    return Err(cbor_event::Error::TrailingData.into());
-                }
-                AddrType::Reward(RewardAddress::new(network, &read_addr_cred(4, 1)))
-            }
-            // byron
-            0b1000 => {
-                unimplemented!()
-            },
-            _ => return Err(DeserializeFailure::BadAddressType(header).into()),
-        };
-        Ok(Address(addr))
+                // byron
+                0b1000 => {
+                    unimplemented!()
+                },
+                _ => return Err(DeserializeFailure::BadAddressType(header).into()),
+            };
+            Ok(Address(addr))
+        })().map_err(|e| e.annotate("Address"))
     }
 
     pub fn to_bech32(&self) -> String {
