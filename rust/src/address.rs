@@ -437,6 +437,29 @@ impl PointerAddress {
     }
 }
 
+// TODO: figure out format of RewardAccount - spec says it's just bytes but I'm
+// unsure if it's just a serialized part of a reward account, and also if those are 2 separate things,
+// and if it would include the header or not.
+// It has to be here though so that the rest of the pre-generated code compiles
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct RewardAccount(pub (crate) RewardAddress);
+
+impl cbor_event::se::Serialize for RewardAccount {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        self.0.to_address().serialize(serializer)
+    }
+}
+
+impl Deserialize for RewardAccount {
+    fn deserialize<R: BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        Ok(Self(match Address::from_bytes_impl(raw.bytes()?)?.0 {
+            AddrType::Reward(ra) => ra,
+            _ => panic!("figure out how RewardAccount should work"),
+        }))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -347,7 +347,7 @@ impl Deserialize for Vkeywitness {
             let signature = (|| -> Result<_, DeserializeError> {
                 Ok(Ed25519Signature::deserialize(raw)?)
             })().map_err(|e| e.annotate("signature"))?;
-            let ret = Ok(Vkeywitness::new(vkey, signature));
+            let ret = Ok(Vkeywitness::new(&vkey, &signature));
             match len {
                 cbor_event::Len::Len(n) => match n {
                     2 => (),
@@ -406,11 +406,150 @@ impl Deserialize for Vkeywitnesses {
                     assert_eq!(raw.special()?, cbor_event::Special::Break);
                     break;
                 }
-                println!("deserializing Vkeywitnesses");
                 arr.push(Vkeywitness::deserialize(raw)?);
             }
             Ok(())
         })().map_err(|e| e.annotate("Vkeywitnesses"))?;
+        Ok(Self(arr))
+    }
+}
+
+// TODO: custom-write the 3 byte objects and generally make this useable for more than deserialization
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct BootstrapWitness {
+    vkey: Vkey,
+    signature: Ed25519Signature,
+    index_2: Vec<u8>,
+    index_3: Vec<u8>,
+    index_4: Vec<u8>,
+}
+
+#[wasm_bindgen]
+impl BootstrapWitness {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        ToBytes::to_bytes(self)
+    }
+
+    pub fn from_bytes(data: Vec<u8>) -> Result<BootstrapWitness, JsValue> {
+        FromBytes::from_bytes(data)
+    }
+
+    pub fn new(vkey: &Vkey, signature: &Ed25519Signature, index_2: Vec<u8>, index_3: Vec<u8>, index_4: Vec<u8>) -> Self {
+        Self {
+            vkey: vkey.clone(),
+            signature: signature.clone(),
+            index_2: index_2,
+            index_3: index_3,
+            index_4: index_4,
+        }
+    }
+}
+
+impl cbor_event::se::Serialize for BootstrapWitness {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(5))?;
+        self.vkey.serialize(serializer)?;
+        self.signature.serialize(serializer)?;
+        serializer.write_bytes(&self.index_2)?;
+        serializer.write_bytes(&self.index_3)?;
+        serializer.write_bytes(&self.index_4)?;
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for BootstrapWitness {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            let ret = Self::deserialize_as_embedded_group(raw, len);
+            match len {
+                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Indefinite => match raw.special()? {
+                    cbor_event::Special::Break => /* it's ok */(),
+                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                },
+            }
+            ret
+        })().map_err(|e| e.annotate("BootstrapWitness"))
+    }
+}
+
+impl DeserializeEmbeddedGroup for BootstrapWitness {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+        let vkey = (|| -> Result<_, DeserializeError> {
+            Ok(Vkey::deserialize(raw)?)
+        })().map_err(|e| e.annotate("vkey"))?;
+        let signature = (|| -> Result<_, DeserializeError> {
+            Ok(Ed25519Signature::deserialize(raw)?)
+        })().map_err(|e| e.annotate("signature"))?;
+        let index_2 = (|| -> Result<_, DeserializeError> {
+            Ok(raw.bytes()?)
+        })().map_err(|e| e.annotate("index_2"))?;
+        let index_3 = (|| -> Result<_, DeserializeError> {
+            Ok(raw.bytes()?)
+        })().map_err(|e| e.annotate("index_3"))?;
+        let index_4 = (|| -> Result<_, DeserializeError> {
+            Ok(raw.bytes()?)
+        })().map_err(|e| e.annotate("index_4"))?;
+        Ok(BootstrapWitness {
+            vkey,
+            signature,
+            index_2,
+            index_3,
+            index_4,
+        })
+    }
+}
+
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct BootstrapWitnesses(Vec<BootstrapWitness>);
+
+#[wasm_bindgen]
+impl BootstrapWitnesses {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> BootstrapWitness {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &BootstrapWitness) {
+        self.0.push(elem.clone());
+    }
+}
+
+impl cbor_event::se::Serialize for BootstrapWitnesses {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for BootstrapWitnesses {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == cbor_event::Type::Special {
+                    assert_eq!(raw.special()?, cbor_event::Special::Break);
+                    break;
+                }
+                arr.push(BootstrapWitness::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("BootstrapWitnesses"))?;
         Ok(Self(arr))
     }
 }
@@ -554,4 +693,4 @@ impl_hash_type!(GenesisDelegateHash, 32);
 impl_hash_type!(PoolKeyHash, 32);
 impl_hash_type!(GenesisHash, 32);
 impl_hash_type!(MetadataHash, 32);
-impl_hash_type!(VrfKeyHash, 32);
+impl_hash_type!(VRFKeyHash, 32);
