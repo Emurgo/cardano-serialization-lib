@@ -169,10 +169,23 @@ impl<T: cbor_event::se::Serialize> ToBytes for T {
 }
 
 pub trait FromBytes {
-    fn from_bytes(data: Vec<u8>) -> Result<Self, JsValue> where Self: Sized;
+    fn from_bytes(data: &[u8]) -> Result<Self, DeserializeError> where Self: Sized;
 }
 
 impl<T: Deserialize + Sized> FromBytes for T {
+    fn from_bytes(data: &[u8]) -> Result<Self, DeserializeError> {
+        let mut raw = Deserializer::from(std::io::Cursor::new(data));
+        Self::deserialize(&mut raw)
+    }
+}
+
+// this is just to make writing the from_bytes() easier for wasm
+// since we sadly can't expose trait methods directly using wasm_bingen
+pub (crate) trait WasmFromBytes {
+    fn from_bytes(data: Vec<u8>) -> Result<Self, JsValue> where Self: Sized;
+}
+
+impl<T: Deserialize + Sized> WasmFromBytes for T {
     fn from_bytes(data: Vec<u8>) -> Result<Self, JsValue> {
         let mut raw = Deserializer::from(std::io::Cursor::new(data));
         Self::deserialize(&mut raw).map_err(|e| JsValue::from_str(&e.to_string()))

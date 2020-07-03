@@ -32,7 +32,7 @@ impl UnitInterval {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<UnitInterval, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(index_0: u64, index_1: u64) -> Self {
@@ -62,7 +62,7 @@ impl Transaction {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<Transaction, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(body: &TransactionBody, witness_set: &TransactionWitnessSet, metadata: Option<TransactionMetadata>) -> Self {
@@ -164,7 +164,7 @@ impl TransactionBody {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<TransactionBody, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn set_certs(&mut self, certs: &Certificates) {
@@ -206,7 +206,7 @@ impl TransactionInput {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<TransactionInput, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(transaction_id: &TransactionHash, index: u32) -> Self {
@@ -231,7 +231,7 @@ impl TransactionOutput {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<TransactionOutput, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(address: &Address, amount: Coin) -> Self {
@@ -255,7 +255,7 @@ impl StakeRegistration {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<StakeRegistration, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(stake_credential: &StakeCredential) -> Self {
@@ -278,7 +278,7 @@ impl StakeDeregistration {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<StakeDeregistration, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(stake_credential: &StakeCredential) -> Self {
@@ -302,7 +302,7 @@ impl StakeDelegation {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<StakeDelegation, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(stake_credential: &StakeCredential, pool_keyhash: &PoolKeyHash) -> Self {
@@ -380,7 +380,7 @@ impl PoolParams {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<PoolParams, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(operator: &PoolKeyHash, vrf_keyhash: &VRFKeyHash, pledge: Coin, cost: Coin, margin: &UnitInterval, reward_account: &RewardAccount, pool_owners: &AddrKeyHashes, relays: &Relays, pool_metadata: Option<PoolMetadata>) -> Self {
@@ -411,7 +411,7 @@ impl PoolRegistration {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<PoolRegistration, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(pool_params: &PoolParams) -> Self {
@@ -435,7 +435,7 @@ impl PoolRetirement {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<PoolRetirement, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(pool_keyhash: &PoolKeyHash, epoch: Epoch) -> Self {
@@ -460,7 +460,7 @@ impl GenesisKeyDelegation {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<GenesisKeyDelegation, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(genesishash: &GenesisHash, genesis_delegate_hash: &GenesisDelegateHash) -> Self {
@@ -484,7 +484,7 @@ impl MoveInstantaneousRewardsCert {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<MoveInstantaneousRewardsCert, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(move_instantaneous_reward: &MoveInstantaneousReward) -> Self {
@@ -516,7 +516,7 @@ impl Certificate {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<Certificate, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new_stake_registration(stake_registration: &StakeRegistration) -> Self {
@@ -565,7 +565,7 @@ impl I0OrI1 {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<I0OrI1, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new_i0() -> Self {
@@ -588,7 +588,7 @@ impl MapStakeCredentialToCoin {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<MapStakeCredentialToCoin, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new() -> Self {
@@ -618,7 +618,7 @@ impl MoveInstantaneousReward {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<MoveInstantaneousReward, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(index_0: &I0OrI1, index_1: &MapStakeCredentialToCoin) -> Self {
@@ -642,7 +642,7 @@ impl Ipv4 {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<Ipv4, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(data: Vec<u8>) -> Self {
@@ -661,7 +661,7 @@ impl Ipv6 {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<Ipv6, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(data: Vec<u8>) -> Self {
@@ -686,7 +686,7 @@ impl SingleHostAddr {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<SingleHostAddr, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(port: Option<Port>, ipv4: Option<Ipv4>, ipv6: Option<Ipv6>) -> Self {
@@ -712,7 +712,7 @@ impl SingleHostName {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<SingleHostName, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(port: Option<Port>, dns_name: DnsName) -> Self {
@@ -736,7 +736,7 @@ impl MultiHostName {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<MultiHostName, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(dns_name: DnsName) -> Self {
@@ -764,7 +764,7 @@ impl Relay {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<Relay, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new_single_host_addr(single_host_addr: &SingleHostAddr) -> Self {
@@ -794,7 +794,7 @@ impl PoolMetadata {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<PoolMetadata, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(url: Url, metadata_hash: &MetadataHash) -> Self {
@@ -818,7 +818,7 @@ impl Withdrawals {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<Withdrawals, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new() -> Self {
@@ -872,7 +872,7 @@ impl TransactionWitnessSet {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<TransactionWitnessSet, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn set_vkeys(&mut self, vkeys: &Vkeywitnesses) {
@@ -907,7 +907,7 @@ impl MapTransactionMetadatumToTransactionMetadatum {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<MapTransactionMetadatumToTransactionMetadatum, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new() -> Self {
@@ -966,7 +966,7 @@ impl TransactionMetadatum {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<TransactionMetadatum, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new_map_transaction_metadatum_to_transaction_metadatum(map_transaction_metadatum_to_transaction_metadatum: &MapTransactionMetadatumToTransactionMetadatum) -> Self {
@@ -1003,7 +1003,7 @@ impl TransactionMetadata {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<TransactionMetadata, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new() -> Self {
@@ -1032,7 +1032,7 @@ impl MsigPubkey {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<MsigPubkey, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(addr_keyhash: &AddrKeyHash) -> Self {
@@ -1055,7 +1055,7 @@ impl MsigAll {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<MsigAll, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(multisig_scripts: &MultisigScripts) -> Self {
@@ -1078,7 +1078,7 @@ impl MsigAny {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<MsigAny, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(multisig_scripts: &MultisigScripts) -> Self {
@@ -1102,7 +1102,7 @@ impl MsigNOfK {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<MsigNOfK, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(n: u32, multisig_scripts: &MultisigScripts) -> Self {
@@ -1132,7 +1132,7 @@ impl MultisigScript {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<MultisigScript, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new_msig_pubkey(addr_keyhash: &AddrKeyHash) -> Self {

@@ -284,7 +284,7 @@ impl Vkey {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<Vkey, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(pk: &PublicKey) -> Self {
@@ -318,7 +318,7 @@ impl Vkeywitness {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<Vkeywitness, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(vkey: &Vkey, signature: &Ed25519Signature) -> Self {
@@ -432,7 +432,7 @@ impl BootstrapWitness {
     }
 
     pub fn from_bytes(data: Vec<u8>) -> Result<BootstrapWitness, JsValue> {
-        FromBytes::from_bytes(data)
+        WasmFromBytes::from_bytes(data)
     }
 
     pub fn new(vkey: &Vkey, signature: &Ed25519Signature, index_2: Vec<u8>, index_3: Vec<u8>, index_4: Vec<u8>) -> Self {
@@ -631,7 +631,6 @@ macro_rules! impl_signature {
 }
 
 impl_signature!(Ed25519Signature, Vec<u8>, crypto::Ed25519);
-
 macro_rules! impl_hash_type {
     ($name:ident, $byte_count:expr) => {
         #[wasm_bindgen]
