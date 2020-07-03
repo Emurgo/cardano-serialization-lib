@@ -245,7 +245,7 @@ mod tests {
             1,
             5,
             &UnitInterval::new(1, 10),
-            &RewardAccount(RewardAddress::new(0, &alice_stake())),
+            &RewardAddress::new(0, &alice_stake()),
             &owners,
             &relays,
             Some(PoolMetadata::new(String::from("alice.pool"), &MetadataHash::from([0u8; MetadataHash::BYTE_COUNT])))
@@ -335,7 +335,7 @@ mod tests {
         outputs.add(&TransactionOutput::new(&alice_addr(), 10));
         let mut body = TransactionBody::new(&inputs, &outputs, 94, 10);
         let mut withdrawals = Withdrawals::new();
-        withdrawals.insert(&RewardAccount(RewardAddress::new(0, &alice_pay())), 100);
+        withdrawals.insert(&RewardAddress::new(0, &alice_pay()), 100);
         body.set_withdrawals(&withdrawals);
         let w = make_mock_witnesses_vkey(&body, vec![&alice_key(), &alice_key()]);
         let tx = Transaction::new(&body, &w, None);
