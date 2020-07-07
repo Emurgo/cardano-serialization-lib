@@ -156,39 +156,62 @@ pub trait DeserializeEmbeddedGroup {
     ) -> Result<Self, DeserializeError> where Self: Sized;
 }
 
-pub trait ToBytes {
-    fn to_bytes(&self) -> Vec<u8>;
+// JsValue can't be used by non-wasm targets so we use this macro to expose
+// either a DeserializeError or a JsValue error depending on if we're on a
+// wasm or a non-wasm target where JsValue is not available (it panics!).
+// Note: wasm-bindgen doesn't support macros inside impls, so we have to wrap these
+//       in their own impl and invoke the invoke the macro from global scope.
+// TODO: possibly write s generic version of this for other usages (e.g. PrivateKey, etc)
+#[macro_export]
+macro_rules! from_bytes {
+    // Custom from_bytes() code
+    ($name:ident, $data: ident, $body:block) => {
+        // wasm-exposed JsValue return - JsValue panics when used outside wasm
+        #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+        #[wasm_bindgen]
+        impl $name {
+            pub fn from_bytes($data: Vec<u8>) -> Result<$name, JsValue> {
+                $body.map_err(|e| JsValue::from_str(&format!("{}", e)))
+            }
+        }
+        // non-wasm exposed DeserializeError return
+         #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+        impl $name {
+            pub fn from_bytes($data: Vec<u8>) -> Result<$name, DeserializeError> $body
+        }
+    };
+    // Uses Deserialize trait to auto-generate one
+    ($name:ident) => {
+        from_bytes!($name, bytes, {
+            let mut raw = Deserializer::from(std::io::Cursor::new(bytes));
+            Self::deserialize(&mut raw)
+        });
+    };
 }
 
-impl<T: cbor_event::se::Serialize> ToBytes for T {
-    fn to_bytes(&self) -> Vec<u8> {
-        let mut buf = Serializer::new_vec();
-        self.serialize(&mut buf).unwrap();
-        buf.finalize()
+// There's no need to do wasm vs non-wasm as this call can't fail but
+// this is here just to provide a default Serialize-based impl
+// Note: Once again you can't use macros in impls with wasm-bindgen
+//       so make sure you invoke this outside of one
+#[macro_export]
+macro_rules! to_bytes {
+    ($name:ident) => {
+        #[wasm_bindgen]
+        impl $name {
+            pub fn to_bytes(&self) -> Vec<u8> {
+                let mut buf = Serializer::new_vec();
+                self.serialize(&mut buf).unwrap();
+                buf.finalize()
+            }
+        }
     }
 }
 
-pub trait FromBytes {
-    fn from_bytes(data: &[u8]) -> Result<Self, DeserializeError> where Self: Sized;
-}
-
-impl<T: Deserialize + Sized> FromBytes for T {
-    fn from_bytes(data: &[u8]) -> Result<Self, DeserializeError> {
-        let mut raw = Deserializer::from(std::io::Cursor::new(data));
-        Self::deserialize(&mut raw)
-    }
-}
-
-// this is just to make writing the from_bytes() easier for wasm
-// since we sadly can't expose trait methods directly using wasm_bingen
-pub (crate) trait WasmFromBytes {
-    fn from_bytes(data: Vec<u8>) -> Result<Self, JsValue> where Self: Sized;
-}
-
-impl<T: Deserialize + Sized> WasmFromBytes for T {
-    fn from_bytes(data: Vec<u8>) -> Result<Self, JsValue> {
-        let mut raw = Deserializer::from(std::io::Cursor::new(data));
-        Self::deserialize(&mut raw).map_err(|e| JsValue::from_str(&e.to_string()))
+#[macro_export]
+macro_rules! to_from_bytes {
+    ($name:ident) => {
+        to_bytes!($name);
+        from_bytes!($name);
     }
 }
 

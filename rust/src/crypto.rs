@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::*;
 
 use cryptoxide::blake2b::Blake2b;
 
-use crate::prelude::*;
+use super::*;
 
 fn blake2b224(data: &[u8]) -> [u8; 28] {
     let mut out = [0; 28];
@@ -277,16 +277,10 @@ impl PublicKey {
 #[derive(Clone)]
 pub struct Vkey(PublicKey);
 
+to_from_bytes!(Vkey);
+
 #[wasm_bindgen]
 impl Vkey {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Vkey, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(pk: &PublicKey) -> Self {
         Self(pk.clone())
     }
@@ -311,16 +305,10 @@ pub struct Vkeywitness {
     signature: Ed25519Signature,
 }
 
+to_from_bytes!(Vkeywitness);
+
 #[wasm_bindgen]
 impl Vkeywitness {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Vkeywitness, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(vkey: &Vkey, signature: &Ed25519Signature) -> Self {
         Self {
             vkey: vkey.clone(),
@@ -425,16 +413,10 @@ pub struct BootstrapWitness {
     index_4: Vec<u8>,
 }
 
+to_from_bytes!(BootstrapWitness);
+
 #[wasm_bindgen]
 impl BootstrapWitness {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<BootstrapWitness, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(vkey: &Vkey, signature: &Ed25519Signature, index_2: Vec<u8>, index_3: Vec<u8>, index_4: Vec<u8>) -> Self {
         Self {
             vkey: vkey.clone(),
@@ -597,12 +579,6 @@ macro_rules! impl_signature {
                 hex::encode(&self.0.as_ref())
             }
 
-            pub fn from_bytes(bytes: &[u8]) -> Result<$name, JsValue> {
-                crypto::Signature::from_binary(bytes)
-                    .map($name)
-                    .map_err(|e| JsValue::from_str(&format!("{}", e)))
-            }
-
             pub fn from_bech32(bech32_str: &str) -> Result<$name, JsValue> {
                 crypto::Signature::try_from_bech32_str(&bech32_str)
                     .map($name)
@@ -615,6 +591,12 @@ macro_rules! impl_signature {
                     .map($name)
             }
         }
+
+        from_bytes!($name, bytes, {
+            crypto::Signature::from_binary(bytes.as_ref())
+                .map_err(|e| DeserializeError::new(stringify!($name), DeserializeFailure::SignatureError(e)))
+                .map($name)
+        });
 
         impl cbor_event::se::Serialize for $name {
             fn serialize<'se, W: std::io::Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
@@ -642,16 +624,18 @@ macro_rules! impl_hash_type {
             pub fn to_bytes(&self) -> Vec<u8> {
                 self.0.to_vec()
             }
-
-            pub fn from_bytes(bytes: Vec<u8>) -> Result<$name, JsValue> {
-                use std::convert::TryInto;
-                if bytes.len() != $byte_count {
-                    let e = cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(bytes.len() as u64), "hash length");
-                    return Err(JsValue::from_str(&format!("{}: {}", stringify!($name), e)));
-                }
-                Ok($name(bytes[..$byte_count].try_into().unwrap()))
-            }
         }
+
+        from_bytes!($name, bytes, {
+            use std::convert::TryInto;
+            match bytes.len() {
+                $byte_count => Ok($name(bytes[..$byte_count].try_into().unwrap())),
+                other_len => {
+                    let cbor_error = cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(other_len as u64), "hash length");
+                    Err(DeserializeError::new(stringify!($name), DeserializeFailure::CBOR(cbor_error)))
+                },
+            }
+        });
 
         // associated consts are not supported in wasm_bindgen
         impl $name {

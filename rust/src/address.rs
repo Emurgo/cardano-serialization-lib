@@ -135,6 +135,10 @@ enum AddrType {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Address(AddrType);
 
+from_bytes!(Address, data, {
+    Self::from_bytes_impl(data.as_ref())
+});
+
 // to/from_bytes() are the raw encoding without a wrapping CBOR Bytes tag
 // while Serialize and Deserialize traits include that for inclusion with
 // other CBOR types
@@ -178,10 +182,6 @@ impl Address {
         }
         println!("to_bytes({:?}) = {:?}", self, buf);
         buf
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Address, JsValue> {
-        Self::from_bytes_impl(data.as_ref()).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
     fn from_bytes_impl(data: &[u8]) -> Result<Address, DeserializeError> {
@@ -290,8 +290,8 @@ impl Address {
 
     pub fn from_bech32(bech_str: &str) -> Result<Address, JsValue> {
         let (_hrp, u5data) = bech32::decode(bech_str).map_err(|e| JsValue::from_str(&e.to_string()))?;
-        let data = bech32::FromBase32::from_base32(&u5data).unwrap();
-        Self::from_bytes(data)
+        let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data).unwrap();
+        Self::from_bytes_impl(data.as_ref()).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
     pub fn network_id(&self) -> u8 {

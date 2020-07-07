@@ -11,6 +11,7 @@ use cbor_event::Special as CBORSpecial;
 pub mod address;
 pub mod crypto;
 pub mod fees;
+#[macro_use]
 pub mod prelude;
 pub mod serialization;
 
@@ -25,16 +26,10 @@ pub struct UnitInterval {
     index_1: u64,
 }
 
+to_from_bytes!(UnitInterval);
+
 #[wasm_bindgen]
 impl UnitInterval {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<UnitInterval, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(index_0: u64, index_1: u64) -> Self {
         Self {
             index_0: index_0,
@@ -55,16 +50,10 @@ pub struct Transaction {
     metadata: Option<TransactionMetadata>,
 }
 
+to_from_bytes!(Transaction);
+
 #[wasm_bindgen]
 impl Transaction {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Transaction, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(body: &TransactionBody, witness_set: &TransactionWitnessSet, metadata: Option<TransactionMetadata>) -> Self {
         Self {
             body: body.clone(),
@@ -79,6 +68,8 @@ type TransactionIndex = u32;
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionInputs(Vec<TransactionInput>);
+
+to_from_bytes!(TransactionInputs);
 
 #[wasm_bindgen]
 impl TransactionInputs {
@@ -103,6 +94,8 @@ impl TransactionInputs {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionOutputs(Vec<TransactionOutput>);
 
+to_from_bytes!(TransactionOutputs);
+
 #[wasm_bindgen]
 impl TransactionOutputs {
     pub fn new() -> Self {
@@ -125,6 +118,8 @@ impl TransactionOutputs {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Certificates(Vec<Certificate>);
+
+to_from_bytes!(Certificates);
 
 #[wasm_bindgen]
 impl Certificates {
@@ -157,16 +152,10 @@ pub struct TransactionBody {
     metadata_hash: Option<MetadataHash>,
 }
 
+to_from_bytes!(TransactionBody);
+
 #[wasm_bindgen]
 impl TransactionBody {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<TransactionBody, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn set_certs(&mut self, certs: &Certificates) {
         self.certs = Some(certs.clone())
     }
@@ -209,16 +198,10 @@ pub struct TransactionInput {
     index: u32,
 }
 
+to_from_bytes!(TransactionInput);
+
 #[wasm_bindgen]
 impl TransactionInput {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<TransactionInput, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(transaction_id: &TransactionHash, index: u32) -> Self {
         Self {
             transaction_id: transaction_id.clone(),
@@ -234,16 +217,10 @@ pub struct TransactionOutput {
     amount: Coin,
 }
 
+to_from_bytes!(TransactionOutput);
+
 #[wasm_bindgen]
 impl TransactionOutput {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<TransactionOutput, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(address: &Address, amount: Coin) -> Self {
         Self {
             address: address.clone(),
@@ -258,16 +235,10 @@ pub struct StakeRegistration {
     stake_credential: StakeCredential,
 }
 
+to_from_bytes!(StakeRegistration);
+
 #[wasm_bindgen]
 impl StakeRegistration {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<StakeRegistration, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(stake_credential: &StakeCredential) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
@@ -281,16 +252,10 @@ pub struct StakeDeregistration {
     stake_credential: StakeCredential,
 }
 
+to_from_bytes!(StakeDeregistration);
+
 #[wasm_bindgen]
 impl StakeDeregistration {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<StakeDeregistration, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(stake_credential: &StakeCredential) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
@@ -305,16 +270,10 @@ pub struct StakeDelegation {
     pool_keyhash: PoolKeyHash,
 }
 
+to_from_bytes!(StakeDelegation);
+
 #[wasm_bindgen]
 impl StakeDelegation {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<StakeDelegation, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(stake_credential: &StakeCredential, pool_keyhash: &PoolKeyHash) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
@@ -326,6 +285,8 @@ impl StakeDelegation {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct AddrKeyHashes(Vec<AddrKeyHash>);
+
+to_from_bytes!(AddrKeyHashes);
 
 #[wasm_bindgen]
 impl AddrKeyHashes {
@@ -349,6 +310,8 @@ impl AddrKeyHashes {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Relays(Vec<Relay>);
+
+to_from_bytes!(Relays);
 
 #[wasm_bindgen]
 impl Relays {
@@ -383,16 +346,10 @@ pub struct PoolParams {
     pool_metadata: Option<PoolMetadata>,
 }
 
+to_from_bytes!(PoolParams);
+
 #[wasm_bindgen]
 impl PoolParams {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<PoolParams, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(operator: &PoolKeyHash, vrf_keyhash: &VRFKeyHash, pledge: Coin, cost: Coin, margin: &UnitInterval, reward_account: &RewardAddress, pool_owners: &AddrKeyHashes, relays: &Relays, pool_metadata: Option<PoolMetadata>) -> Self {
         Self {
             operator: operator.clone(),
@@ -414,16 +371,10 @@ pub struct PoolRegistration {
     pool_params: PoolParams,
 }
 
+to_from_bytes!(PoolRegistration);
+
 #[wasm_bindgen]
 impl PoolRegistration {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<PoolRegistration, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(pool_params: &PoolParams) -> Self {
         Self {
             pool_params: pool_params.clone(),
@@ -438,16 +389,10 @@ pub struct PoolRetirement {
     epoch: Epoch,
 }
 
+to_from_bytes!(PoolRetirement);
+
 #[wasm_bindgen]
 impl PoolRetirement {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<PoolRetirement, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(pool_keyhash: &PoolKeyHash, epoch: Epoch) -> Self {
         Self {
             pool_keyhash: pool_keyhash.clone(),
@@ -463,16 +408,10 @@ pub struct GenesisKeyDelegation {
     genesis_delegate_hash: GenesisDelegateHash,
 }
 
+to_from_bytes!(GenesisKeyDelegation);
+
 #[wasm_bindgen]
 impl GenesisKeyDelegation {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<GenesisKeyDelegation, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(genesishash: &GenesisHash, genesis_delegate_hash: &GenesisDelegateHash) -> Self {
         Self {
             genesishash: genesishash.clone(),
@@ -487,16 +426,10 @@ pub struct MoveInstantaneousRewardsCert {
     move_instantaneous_reward: MoveInstantaneousReward,
 }
 
+to_from_bytes!(MoveInstantaneousRewardsCert);
+
 #[wasm_bindgen]
 impl MoveInstantaneousRewardsCert {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<MoveInstantaneousRewardsCert, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(move_instantaneous_reward: &MoveInstantaneousReward) -> Self {
         Self {
             move_instantaneous_reward: move_instantaneous_reward.clone(),
@@ -519,16 +452,10 @@ enum CertificateEnum {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Certificate(CertificateEnum);
 
+to_from_bytes!(Certificate);
+
 #[wasm_bindgen]
 impl Certificate {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Certificate, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new_stake_registration(stake_registration: &StakeRegistration) -> Self {
         Self(CertificateEnum::StakeRegistration(stake_registration.clone()))
     }
@@ -570,14 +497,6 @@ pub struct I0OrI1(I0OrI1Enum);
 
 #[wasm_bindgen]
 impl I0OrI1 {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<I0OrI1, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new_i0() -> Self {
         Self(I0OrI1Enum::I0)
     }
@@ -591,16 +510,10 @@ impl I0OrI1 {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MapStakeCredentialToCoin(std::collections::BTreeMap<StakeCredential, Coin>);
 
+to_from_bytes!(MapStakeCredentialToCoin);
+
 #[wasm_bindgen]
 impl MapStakeCredentialToCoin {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<MapStakeCredentialToCoin, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new() -> Self {
         Self(std::collections::BTreeMap::new())
     }
@@ -621,16 +534,10 @@ pub struct MoveInstantaneousReward {
     index_1: MapStakeCredentialToCoin,
 }
 
+to_from_bytes!(MoveInstantaneousReward);
+
 #[wasm_bindgen]
 impl MoveInstantaneousReward {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<MoveInstantaneousReward, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(index_0: &I0OrI1, index_1: &MapStakeCredentialToCoin) -> Self {
         Self {
             index_0: index_0.clone(),
@@ -645,16 +552,10 @@ type Port = u16;
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Ipv4(Vec<u8>);
 
+to_from_bytes!(Ipv4);
+
 #[wasm_bindgen]
 impl Ipv4 {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Ipv4, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(data: Vec<u8>) -> Self {
         Self(data)
     }
@@ -664,16 +565,10 @@ impl Ipv4 {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Ipv6(Vec<u8>);
 
+to_from_bytes!(Ipv6);
+
 #[wasm_bindgen]
 impl Ipv6 {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Ipv6, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(data: Vec<u8>) -> Self {
         Self(data)
     }
@@ -689,16 +584,10 @@ pub struct SingleHostAddr {
     ipv6: Option<Ipv6>,
 }
 
+to_from_bytes!(SingleHostAddr);
+
 #[wasm_bindgen]
 impl SingleHostAddr {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<SingleHostAddr, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(port: Option<Port>, ipv4: Option<Ipv4>, ipv6: Option<Ipv6>) -> Self {
         Self {
             port: port,
@@ -715,16 +604,10 @@ pub struct SingleHostName {
     dns_name: DnsName,
 }
 
+to_from_bytes!(SingleHostName);
+
 #[wasm_bindgen]
 impl SingleHostName {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<SingleHostName, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(port: Option<Port>, dns_name: DnsName) -> Self {
         Self {
             port: port,
@@ -739,16 +622,10 @@ pub struct MultiHostName {
     dns_name: DnsName,
 }
 
+to_from_bytes!(MultiHostName);
+
 #[wasm_bindgen]
 impl MultiHostName {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<MultiHostName, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(dns_name: DnsName) -> Self {
         Self {
             dns_name: dns_name,
@@ -767,16 +644,10 @@ enum RelayEnum {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Relay(RelayEnum);
 
+to_from_bytes!(Relay);
+
 #[wasm_bindgen]
 impl Relay {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Relay, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new_single_host_addr(single_host_addr: &SingleHostAddr) -> Self {
         Self(RelayEnum::SingleHostAddr(single_host_addr.clone()))
     }
@@ -797,16 +668,10 @@ pub struct PoolMetadata {
     metadata_hash: MetadataHash,
 }
 
+to_from_bytes!(PoolMetadata);
+
 #[wasm_bindgen]
 impl PoolMetadata {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<PoolMetadata, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(url: Url, metadata_hash: &MetadataHash) -> Self {
         Self {
             url: url,
@@ -821,16 +686,10 @@ type Url = String;
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Withdrawals(std::collections::BTreeMap<RewardAddress, Coin>);
 
+to_from_bytes!(Withdrawals);
+
 #[wasm_bindgen]
 impl Withdrawals {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Withdrawals, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new() -> Self {
         Self(std::collections::BTreeMap::new())
     }
@@ -847,6 +706,8 @@ impl Withdrawals {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MultisigScripts(Vec<MultisigScript>);
+
+to_from_bytes!(MultisigScripts);
 
 #[wasm_bindgen]
 impl MultisigScripts {
@@ -875,16 +736,10 @@ pub struct TransactionWitnessSet {
     bootstraps: Option<BootstrapWitnesses>,
 }
 
+to_from_bytes!(TransactionWitnessSet);
+
 #[wasm_bindgen]
 impl TransactionWitnessSet {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<TransactionWitnessSet, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn set_vkeys(&mut self, vkeys: &Vkeywitnesses) {
         self.vkeys = Some(vkeys.clone())
     }
@@ -910,16 +765,10 @@ impl TransactionWitnessSet {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MapTransactionMetadatumToTransactionMetadatum(std::collections::BTreeMap<TransactionMetadatum, TransactionMetadatum>);
 
+to_from_bytes!(MapTransactionMetadatumToTransactionMetadatum);
+
 #[wasm_bindgen]
 impl MapTransactionMetadatumToTransactionMetadatum {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<MapTransactionMetadatumToTransactionMetadatum, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new() -> Self {
         Self(std::collections::BTreeMap::new())
     }
@@ -936,6 +785,8 @@ impl MapTransactionMetadatumToTransactionMetadatum {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionMetadatums(Vec<TransactionMetadatum>);
+
+to_from_bytes!(TransactionMetadatums);
 
 #[wasm_bindgen]
 impl TransactionMetadatums {
@@ -969,16 +820,10 @@ enum TransactionMetadatumEnum {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionMetadatum(TransactionMetadatumEnum);
 
+to_from_bytes!(TransactionMetadatum);
+
 #[wasm_bindgen]
 impl TransactionMetadatum {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<TransactionMetadatum, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new_map_transaction_metadatum_to_transaction_metadatum(map_transaction_metadatum_to_transaction_metadatum: &MapTransactionMetadatumToTransactionMetadatum) -> Self {
         Self(TransactionMetadatumEnum::MapTransactionMetadatumToTransactionMetadatum(map_transaction_metadatum_to_transaction_metadatum.clone()))
     }
@@ -1006,16 +851,10 @@ type TransactionMetadadumLabel = u64;
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionMetadata(std::collections::BTreeMap<TransactionMetadadumLabel, TransactionMetadatum>);
 
+to_from_bytes!(TransactionMetadata);
+
 #[wasm_bindgen]
 impl TransactionMetadata {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<TransactionMetadata, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new() -> Self {
         Self(std::collections::BTreeMap::new())
     }
@@ -1035,16 +874,10 @@ pub struct MsigPubkey {
     addr_keyhash: AddrKeyHash,
 }
 
+to_from_bytes!(MsigPubkey);
+
 #[wasm_bindgen]
 impl MsigPubkey {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<MsigPubkey, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(addr_keyhash: &AddrKeyHash) -> Self {
         Self {
             addr_keyhash: addr_keyhash.clone(),
@@ -1058,16 +891,10 @@ pub struct MsigAll {
     multisig_scripts: MultisigScripts,
 }
 
+to_from_bytes!(MsigAll);
+
 #[wasm_bindgen]
 impl MsigAll {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<MsigAll, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(multisig_scripts: &MultisigScripts) -> Self {
         Self {
             multisig_scripts: multisig_scripts.clone(),
@@ -1081,16 +908,10 @@ pub struct MsigAny {
     multisig_scripts: MultisigScripts,
 }
 
+to_from_bytes!(MsigAny);
+
 #[wasm_bindgen]
 impl MsigAny {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<MsigAny, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(multisig_scripts: &MultisigScripts) -> Self {
         Self {
             multisig_scripts: multisig_scripts.clone(),
@@ -1105,16 +926,10 @@ pub struct MsigNOfK {
     multisig_scripts: MultisigScripts,
 }
 
+to_from_bytes!(MsigNOfK);
+
 #[wasm_bindgen]
 impl MsigNOfK {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<MsigNOfK, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new(n: u32, multisig_scripts: &MultisigScripts) -> Self {
         Self {
             n: n,
@@ -1135,16 +950,10 @@ enum MultisigScriptEnum {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MultisigScript(MultisigScriptEnum);
 
+to_from_bytes!(MultisigScript);
+
 #[wasm_bindgen]
 impl MultisigScript {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<MultisigScript, JsValue> {
-        WasmFromBytes::from_bytes(data)
-    }
-
     pub fn new_msig_pubkey(addr_keyhash: &AddrKeyHash) -> Self {
         Self(MultisigScriptEnum::MsigPubkey(MsigPubkey::new(addr_keyhash)))
     }

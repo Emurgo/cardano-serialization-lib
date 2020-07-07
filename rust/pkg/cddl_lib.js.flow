@@ -28,6 +28,17 @@ declare export class AddrKeyHashes {
   free(): void;
 
   /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {AddrKeyHashes}
+   */
+  static from_bytes(bytes: Uint8Array): AddrKeyHashes;
+
+  /**
    * @returns {AddrKeyHashes}
    */
   static new(): AddrKeyHashes;
@@ -52,15 +63,15 @@ declare export class Address {
   free(): void;
 
   /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
    * @param {Uint8Array} data
    * @returns {Address}
    */
   static from_bytes(data: Uint8Array): Address;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
 
   /**
    * @returns {string}
@@ -255,10 +266,10 @@ declare export class BootstrapWitness {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {BootstrapWitness}
    */
-  static from_bytes(data: Uint8Array): BootstrapWitness;
+  static from_bytes(bytes: Uint8Array): BootstrapWitness;
 
   /**
    * @param {Vkey} vkey
@@ -309,10 +320,10 @@ declare export class Certificate {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {Certificate}
    */
-  static from_bytes(data: Uint8Array): Certificate;
+  static from_bytes(bytes: Uint8Array): Certificate;
 
   /**
    * @param {StakeRegistration} stake_registration
@@ -370,6 +381,17 @@ declare export class Certificates {
   free(): void;
 
   /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Certificates}
+   */
+  static from_bytes(bytes: Uint8Array): Certificates;
+
+  /**
    * @returns {Certificates}
    */
   static new(): Certificates;
@@ -409,12 +431,6 @@ declare export class Ed25519Signature {
   to_hex(): string;
 
   /**
-   * @param {Uint8Array} bytes
-   * @returns {Ed25519Signature}
-   */
-  static from_bytes(bytes: Uint8Array): Ed25519Signature;
-
-  /**
    * @param {string} bech32_str
    * @returns {Ed25519Signature}
    */
@@ -425,6 +441,12 @@ declare export class Ed25519Signature {
    * @returns {Ed25519Signature}
    */
   static from_hex(input: string): Ed25519Signature;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Ed25519Signature}
+   */
+  static from_bytes(bytes: Uint8Array): Ed25519Signature;
 }
 declare export class EnterpriseAddress {
   free(): void;
@@ -483,10 +505,10 @@ declare export class GenesisKeyDelegation {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {GenesisKeyDelegation}
    */
-  static from_bytes(data: Uint8Array): GenesisKeyDelegation;
+  static from_bytes(bytes: Uint8Array): GenesisKeyDelegation;
 
   /**
    * @param {GenesisHash} genesishash
@@ -500,17 +522,6 @@ declare export class GenesisKeyDelegation {
 }
 declare export class I0OrI1 {
   free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} data
-   * @returns {I0OrI1}
-   */
-  static from_bytes(data: Uint8Array): I0OrI1;
 
   /**
    * @returns {I0OrI1}
@@ -546,10 +557,10 @@ declare export class Ipv4 {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {Ipv4}
    */
-  static from_bytes(data: Uint8Array): Ipv4;
+  static from_bytes(bytes: Uint8Array): Ipv4;
 
   /**
    * @param {Uint8Array} data
@@ -566,10 +577,10 @@ declare export class Ipv6 {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {Ipv6}
    */
-  static from_bytes(data: Uint8Array): Ipv6;
+  static from_bytes(bytes: Uint8Array): Ipv6;
 
   /**
    * @param {Uint8Array} data
@@ -586,10 +597,10 @@ declare export class MapStakeCredentialToCoin {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {MapStakeCredentialToCoin}
    */
-  static from_bytes(data: Uint8Array): MapStakeCredentialToCoin;
+  static from_bytes(bytes: Uint8Array): MapStakeCredentialToCoin;
 
   /**
    * @returns {MapStakeCredentialToCoin}
@@ -617,11 +628,11 @@ declare export class MapTransactionMetadatumToTransactionMetadatum {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {MapTransactionMetadatumToTransactionMetadatum}
    */
   static from_bytes(
-    data: Uint8Array
+    bytes: Uint8Array
   ): MapTransactionMetadatumToTransactionMetadatum;
 
   /**
@@ -667,10 +678,10 @@ declare export class MoveInstantaneousReward {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {MoveInstantaneousReward}
    */
-  static from_bytes(data: Uint8Array): MoveInstantaneousReward;
+  static from_bytes(bytes: Uint8Array): MoveInstantaneousReward;
 
   /**
    * @param {I0OrI1} index_0
@@ -691,10 +702,10 @@ declare export class MoveInstantaneousRewardsCert {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {MoveInstantaneousRewardsCert}
    */
-  static from_bytes(data: Uint8Array): MoveInstantaneousRewardsCert;
+  static from_bytes(bytes: Uint8Array): MoveInstantaneousRewardsCert;
 
   /**
    * @param {MoveInstantaneousReward} move_instantaneous_reward
@@ -713,10 +724,10 @@ declare export class MsigAll {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {MsigAll}
    */
-  static from_bytes(data: Uint8Array): MsigAll;
+  static from_bytes(bytes: Uint8Array): MsigAll;
 
   /**
    * @param {MultisigScripts} multisig_scripts
@@ -733,10 +744,10 @@ declare export class MsigAny {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {MsigAny}
    */
-  static from_bytes(data: Uint8Array): MsigAny;
+  static from_bytes(bytes: Uint8Array): MsigAny;
 
   /**
    * @param {MultisigScripts} multisig_scripts
@@ -753,10 +764,10 @@ declare export class MsigNOfK {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {MsigNOfK}
    */
-  static from_bytes(data: Uint8Array): MsigNOfK;
+  static from_bytes(bytes: Uint8Array): MsigNOfK;
 
   /**
    * @param {number} n
@@ -774,10 +785,10 @@ declare export class MsigPubkey {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {MsigPubkey}
    */
-  static from_bytes(data: Uint8Array): MsigPubkey;
+  static from_bytes(bytes: Uint8Array): MsigPubkey;
 
   /**
    * @param {AddrKeyHash} addr_keyhash
@@ -794,10 +805,10 @@ declare export class MultiHostName {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {MultiHostName}
    */
-  static from_bytes(data: Uint8Array): MultiHostName;
+  static from_bytes(bytes: Uint8Array): MultiHostName;
 
   /**
    * @param {string} dns_name
@@ -814,10 +825,10 @@ declare export class MultisigScript {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {MultisigScript}
    */
-  static from_bytes(data: Uint8Array): MultisigScript;
+  static from_bytes(bytes: Uint8Array): MultisigScript;
 
   /**
    * @param {AddrKeyHash} addr_keyhash
@@ -849,6 +860,17 @@ declare export class MultisigScript {
 }
 declare export class MultisigScripts {
   free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {MultisigScripts}
+   */
+  static from_bytes(bytes: Uint8Array): MultisigScripts;
 
   /**
    * @returns {MultisigScripts}
@@ -935,10 +957,10 @@ declare export class PoolMetadata {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {PoolMetadata}
    */
-  static from_bytes(data: Uint8Array): PoolMetadata;
+  static from_bytes(bytes: Uint8Array): PoolMetadata;
 
   /**
    * @param {string} url
@@ -956,10 +978,10 @@ declare export class PoolParams {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {PoolParams}
    */
-  static from_bytes(data: Uint8Array): PoolParams;
+  static from_bytes(bytes: Uint8Array): PoolParams;
 
   /**
    * @param {PoolKeyHash} operator
@@ -994,10 +1016,10 @@ declare export class PoolRegistration {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {PoolRegistration}
    */
-  static from_bytes(data: Uint8Array): PoolRegistration;
+  static from_bytes(bytes: Uint8Array): PoolRegistration;
 
   /**
    * @param {PoolParams} pool_params
@@ -1014,10 +1036,10 @@ declare export class PoolRetirement {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {PoolRetirement}
    */
-  static from_bytes(data: Uint8Array): PoolRetirement;
+  static from_bytes(bytes: Uint8Array): PoolRetirement;
 
   /**
    * @param {PoolKeyHash} pool_keyhash
@@ -1146,10 +1168,10 @@ declare export class Relay {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {Relay}
    */
-  static from_bytes(data: Uint8Array): Relay;
+  static from_bytes(bytes: Uint8Array): Relay;
 
   /**
    * @param {SingleHostAddr} single_host_addr
@@ -1171,6 +1193,17 @@ declare export class Relay {
 }
 declare export class Relays {
   free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Relays}
+   */
+  static from_bytes(bytes: Uint8Array): Relays;
 
   /**
    * @returns {Relays}
@@ -1236,10 +1269,10 @@ declare export class SingleHostAddr {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {SingleHostAddr}
    */
-  static from_bytes(data: Uint8Array): SingleHostAddr;
+  static from_bytes(bytes: Uint8Array): SingleHostAddr;
 
   /**
    * @param {number | void} port
@@ -1258,10 +1291,10 @@ declare export class SingleHostName {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {SingleHostName}
    */
-  static from_bytes(data: Uint8Array): SingleHostName;
+  static from_bytes(bytes: Uint8Array): SingleHostName;
 
   /**
    * @param {number | void} port
@@ -1309,10 +1342,10 @@ declare export class StakeDelegation {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {StakeDelegation}
    */
-  static from_bytes(data: Uint8Array): StakeDelegation;
+  static from_bytes(bytes: Uint8Array): StakeDelegation;
 
   /**
    * @param {StakeCredential} stake_credential
@@ -1333,10 +1366,10 @@ declare export class StakeDeregistration {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {StakeDeregistration}
    */
-  static from_bytes(data: Uint8Array): StakeDeregistration;
+  static from_bytes(bytes: Uint8Array): StakeDeregistration;
 
   /**
    * @param {StakeCredential} stake_credential
@@ -1353,10 +1386,10 @@ declare export class StakeRegistration {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {StakeRegistration}
    */
-  static from_bytes(data: Uint8Array): StakeRegistration;
+  static from_bytes(bytes: Uint8Array): StakeRegistration;
 
   /**
    * @param {StakeCredential} stake_credential
@@ -1373,10 +1406,10 @@ declare export class Transaction {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {Transaction}
    */
-  static from_bytes(data: Uint8Array): Transaction;
+  static from_bytes(bytes: Uint8Array): Transaction;
 
   /**
    * @param {TransactionBody} body
@@ -1399,10 +1432,10 @@ declare export class TransactionBody {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {TransactionBody}
    */
-  static from_bytes(data: Uint8Array): TransactionBody;
+  static from_bytes(bytes: Uint8Array): TransactionBody;
 
   /**
    * @param {Certificates} certs
@@ -1467,10 +1500,10 @@ declare export class TransactionInput {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {TransactionInput}
    */
-  static from_bytes(data: Uint8Array): TransactionInput;
+  static from_bytes(bytes: Uint8Array): TransactionInput;
 
   /**
    * @param {TransactionHash} transaction_id
@@ -1481,6 +1514,17 @@ declare export class TransactionInput {
 }
 declare export class TransactionInputs {
   free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {TransactionInputs}
+   */
+  static from_bytes(bytes: Uint8Array): TransactionInputs;
 
   /**
    * @returns {TransactionInputs}
@@ -1512,10 +1556,10 @@ declare export class TransactionMetadata {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {TransactionMetadata}
    */
-  static from_bytes(data: Uint8Array): TransactionMetadata;
+  static from_bytes(bytes: Uint8Array): TransactionMetadata;
 
   /**
    * @returns {TransactionMetadata}
@@ -1543,10 +1587,10 @@ declare export class TransactionMetadatum {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {TransactionMetadatum}
    */
-  static from_bytes(data: Uint8Array): TransactionMetadatum;
+  static from_bytes(bytes: Uint8Array): TransactionMetadatum;
 
   /**
    * @param {MapTransactionMetadatumToTransactionMetadatum} map_transaction_metadatum_to_transaction_metadatum
@@ -1586,6 +1630,17 @@ declare export class TransactionMetadatums {
   free(): void;
 
   /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {TransactionMetadatums}
+   */
+  static from_bytes(bytes: Uint8Array): TransactionMetadatums;
+
+  /**
    * @returns {TransactionMetadatums}
    */
   static new(): TransactionMetadatums;
@@ -1615,10 +1670,10 @@ declare export class TransactionOutput {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {TransactionOutput}
    */
-  static from_bytes(data: Uint8Array): TransactionOutput;
+  static from_bytes(bytes: Uint8Array): TransactionOutput;
 
   /**
    * @param {Address} address
@@ -1629,6 +1684,17 @@ declare export class TransactionOutput {
 }
 declare export class TransactionOutputs {
   free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {TransactionOutputs}
+   */
+  static from_bytes(bytes: Uint8Array): TransactionOutputs;
 
   /**
    * @returns {TransactionOutputs}
@@ -1660,10 +1726,10 @@ declare export class TransactionWitnessSet {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {TransactionWitnessSet}
    */
-  static from_bytes(data: Uint8Array): TransactionWitnessSet;
+  static from_bytes(bytes: Uint8Array): TransactionWitnessSet;
 
   /**
    * @param {Vkeywitnesses} vkeys
@@ -1694,10 +1760,10 @@ declare export class UnitInterval {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {UnitInterval}
    */
-  static from_bytes(data: Uint8Array): UnitInterval;
+  static from_bytes(bytes: Uint8Array): UnitInterval;
 
   /**
    * @param {BigInt} index_0
@@ -1729,10 +1795,10 @@ declare export class Vkey {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {Vkey}
    */
-  static from_bytes(data: Uint8Array): Vkey;
+  static from_bytes(bytes: Uint8Array): Vkey;
 
   /**
    * @param {PublicKey} pk
@@ -1749,10 +1815,10 @@ declare export class Vkeywitness {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {Vkeywitness}
    */
-  static from_bytes(data: Uint8Array): Vkeywitness;
+  static from_bytes(bytes: Uint8Array): Vkeywitness;
 
   /**
    * @param {Vkey} vkey
@@ -1794,10 +1860,10 @@ declare export class Withdrawals {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {Uint8Array} data
+   * @param {Uint8Array} bytes
    * @returns {Withdrawals}
    */
-  static from_bytes(data: Uint8Array): Withdrawals;
+  static from_bytes(bytes: Uint8Array): Withdrawals;
 
   /**
    * @returns {Withdrawals}
