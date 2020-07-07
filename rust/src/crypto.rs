@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::*;
 
 use cryptoxide::blake2b::Blake2b;
 
-use crate::prelude::*;
+use super::*;
 
 fn blake2b224(data: &[u8]) -> [u8; 28] {
     let mut out = [0; 28];
@@ -277,18 +277,12 @@ impl PublicKey {
 #[derive(Clone)]
 pub struct Vkey(PublicKey);
 
+to_from_bytes!(Vkey);
+
 #[wasm_bindgen]
 impl Vkey {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Vkey, JsValue> {
-        FromBytes::from_bytes(data)
-    }
-
-    pub fn new(pk: PublicKey) -> Self {
-        Self(pk)
+    pub fn new(pk: &PublicKey) -> Self {
+        Self(pk.clone())
     }
 }
 
@@ -311,20 +305,14 @@ pub struct Vkeywitness {
     signature: Ed25519Signature,
 }
 
+to_from_bytes!(Vkeywitness);
+
 #[wasm_bindgen]
 impl Vkeywitness {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        ToBytes::to_bytes(self)
-    }
-
-    pub fn from_bytes(data: Vec<u8>) -> Result<Vkeywitness, JsValue> {
-        FromBytes::from_bytes(data)
-    }
-
-    pub fn new(vkey: Vkey, signature: Ed25519Signature) -> Self {
+    pub fn new(vkey: &Vkey, signature: &Ed25519Signature) -> Self {
         Self {
-            vkey,
-            signature,
+            vkey: vkey.clone(),
+            signature: signature.clone()
         }
     }
 }
@@ -347,7 +335,7 @@ impl Deserialize for Vkeywitness {
             let signature = (|| -> Result<_, DeserializeError> {
                 Ok(Ed25519Signature::deserialize(raw)?)
             })().map_err(|e| e.annotate("signature"))?;
-            let ret = Ok(Vkeywitness::new(vkey, signature));
+            let ret = Ok(Vkeywitness::new(&vkey, &signature));
             match len {
                 cbor_event::Len::Len(n) => match n {
                     2 => (),
@@ -381,8 +369,8 @@ impl Vkeywitnesses {
         self.0[index].clone()
     }
 
-    pub fn add(&mut self, elem: Vkeywitness) {
-        self.0.push(elem);
+    pub fn add(&mut self, elem: &Vkeywitness) {
+        self.0.push(elem.clone());
     }
 }
 
@@ -406,11 +394,144 @@ impl Deserialize for Vkeywitnesses {
                     assert_eq!(raw.special()?, cbor_event::Special::Break);
                     break;
                 }
-                println!("deserializing Vkeywitnesses");
                 arr.push(Vkeywitness::deserialize(raw)?);
             }
             Ok(())
         })().map_err(|e| e.annotate("Vkeywitnesses"))?;
+        Ok(Self(arr))
+    }
+}
+
+// TODO: custom-write the 3 byte objects and generally make this useable for more than deserialization
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct BootstrapWitness {
+    vkey: Vkey,
+    signature: Ed25519Signature,
+    index_2: Vec<u8>,
+    index_3: Vec<u8>,
+    index_4: Vec<u8>,
+}
+
+to_from_bytes!(BootstrapWitness);
+
+#[wasm_bindgen]
+impl BootstrapWitness {
+    pub fn new(vkey: &Vkey, signature: &Ed25519Signature, index_2: Vec<u8>, index_3: Vec<u8>, index_4: Vec<u8>) -> Self {
+        Self {
+            vkey: vkey.clone(),
+            signature: signature.clone(),
+            index_2: index_2,
+            index_3: index_3,
+            index_4: index_4,
+        }
+    }
+}
+
+impl cbor_event::se::Serialize for BootstrapWitness {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(5))?;
+        self.vkey.serialize(serializer)?;
+        self.signature.serialize(serializer)?;
+        serializer.write_bytes(&self.index_2)?;
+        serializer.write_bytes(&self.index_3)?;
+        serializer.write_bytes(&self.index_4)?;
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for BootstrapWitness {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            let ret = Self::deserialize_as_embedded_group(raw, len);
+            match len {
+                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Indefinite => match raw.special()? {
+                    cbor_event::Special::Break => /* it's ok */(),
+                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                },
+            }
+            ret
+        })().map_err(|e| e.annotate("BootstrapWitness"))
+    }
+}
+
+impl DeserializeEmbeddedGroup for BootstrapWitness {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+        let vkey = (|| -> Result<_, DeserializeError> {
+            Ok(Vkey::deserialize(raw)?)
+        })().map_err(|e| e.annotate("vkey"))?;
+        let signature = (|| -> Result<_, DeserializeError> {
+            Ok(Ed25519Signature::deserialize(raw)?)
+        })().map_err(|e| e.annotate("signature"))?;
+        let index_2 = (|| -> Result<_, DeserializeError> {
+            Ok(raw.bytes()?)
+        })().map_err(|e| e.annotate("index_2"))?;
+        let index_3 = (|| -> Result<_, DeserializeError> {
+            Ok(raw.bytes()?)
+        })().map_err(|e| e.annotate("index_3"))?;
+        let index_4 = (|| -> Result<_, DeserializeError> {
+            Ok(raw.bytes()?)
+        })().map_err(|e| e.annotate("index_4"))?;
+        Ok(BootstrapWitness {
+            vkey,
+            signature,
+            index_2,
+            index_3,
+            index_4,
+        })
+    }
+}
+
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct BootstrapWitnesses(Vec<BootstrapWitness>);
+
+#[wasm_bindgen]
+impl BootstrapWitnesses {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> BootstrapWitness {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &BootstrapWitness) {
+        self.0.push(elem.clone());
+    }
+}
+
+impl cbor_event::se::Serialize for BootstrapWitnesses {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for BootstrapWitnesses {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == cbor_event::Type::Special {
+                    assert_eq!(raw.special()?, cbor_event::Special::Break);
+                    break;
+                }
+                arr.push(BootstrapWitness::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("BootstrapWitnesses"))?;
         Ok(Self(arr))
     }
 }
@@ -458,12 +579,6 @@ macro_rules! impl_signature {
                 hex::encode(&self.0.as_ref())
             }
 
-            pub fn from_bytes(bytes: &[u8]) -> Result<$name, JsValue> {
-                crypto::Signature::from_binary(bytes)
-                    .map($name)
-                    .map_err(|e| JsValue::from_str(&format!("{}", e)))
-            }
-
             pub fn from_bech32(bech32_str: &str) -> Result<$name, JsValue> {
                 crypto::Signature::try_from_bech32_str(&bech32_str)
                     .map($name)
@@ -476,6 +591,12 @@ macro_rules! impl_signature {
                     .map($name)
             }
         }
+
+        from_bytes!($name, bytes, {
+            crypto::Signature::from_binary(bytes.as_ref())
+                .map_err(|e| DeserializeError::new(stringify!($name), DeserializeFailure::SignatureError(e)))
+                .map($name)
+        });
 
         impl cbor_event::se::Serialize for $name {
             fn serialize<'se, W: std::io::Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
@@ -492,7 +613,6 @@ macro_rules! impl_signature {
 }
 
 impl_signature!(Ed25519Signature, Vec<u8>, crypto::Ed25519);
-
 macro_rules! impl_hash_type {
     ($name:ident, $byte_count:expr) => {
         #[wasm_bindgen]
@@ -504,16 +624,18 @@ macro_rules! impl_hash_type {
             pub fn to_bytes(&self) -> Vec<u8> {
                 self.0.to_vec()
             }
-
-            pub fn from_bytes(bytes: Vec<u8>) -> Result<$name, JsValue> {
-                use std::convert::TryInto;
-                if bytes.len() != $byte_count {
-                    let e = cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(bytes.len() as u64), "hash length");
-                    return Err(JsValue::from_str(&e.to_string()));
-                }
-                Ok($name(bytes[..$byte_count].try_into().unwrap()))
-            }
         }
+
+        from_bytes!($name, bytes, {
+            use std::convert::TryInto;
+            match bytes.len() {
+                $byte_count => Ok($name(bytes[..$byte_count].try_into().unwrap())),
+                other_len => {
+                    let cbor_error = cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(other_len as u64), "hash length");
+                    Err(DeserializeError::new(stringify!($name), DeserializeFailure::CBOR(cbor_error)))
+                },
+            }
+        });
 
         // associated consts are not supported in wasm_bindgen
         impl $name {
@@ -536,11 +658,13 @@ macro_rules! impl_hash_type {
         impl Deserialize for $name {
             fn deserialize<R: std::io::BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
                 use std::convert::TryInto;
-                let bytes = raw.bytes()?;
-                if bytes.len() != $byte_count {
-                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(bytes.len() as u64), "hash length")).into());
-                }
-                Ok($name(bytes[..$byte_count].try_into().unwrap()))
+                (|| -> Result<Self, DeserializeError> {
+                    let bytes = raw.bytes()?;
+                    if bytes.len() != $byte_count {
+                        return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(bytes.len() as u64), "hash length")).into());
+                    }
+                    Ok($name(bytes[..$byte_count].try_into().unwrap()))
+                })().map_err(|e| e.annotate(stringify!($name)))
             }
         }
     }
@@ -554,4 +678,4 @@ impl_hash_type!(GenesisDelegateHash, 32);
 impl_hash_type!(PoolKeyHash, 32);
 impl_hash_type!(GenesisHash, 32);
 impl_hash_type!(MetadataHash, 32);
-impl_hash_type!(VrfKeyHash, 32);
+impl_hash_type!(VRFKeyHash, 32);

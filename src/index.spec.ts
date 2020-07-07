@@ -66,58 +66,51 @@ describe('Addresses', () => {
 
 describe('Transactions', () => {
   it('create transaction', () => {
-    // const txInputs = CardanoWasm.TransactionInputs.new();
-    // {
-    //   txInputs.add(
-    //     CardanoWasm.TransactionInput.new(
-    //       CardanoWasm.TransactionHash.from_bytes(
-    //         Buffer.from('3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7', 'hex'),
-    //       ),
-    //       0, // index
-    //     )
-    //   );
-    // }
-    // const txOutputs = CardanoWasm.TransactionOutputs.new();
-    // {
-    //   txOutputs.add(
-    //     CardanoWasm.TransactionOutput.new(
-    //       CardanoWasm.Address.from_bytes(
-    //         Buffer.from('61a6274badf4c9ca583df893a73139625ff4dc73aaa3082e67d6d5d08e0ce3daa4', 'hex'),
-    //       ),
-    //       BigInt(1),
-    //     )
-    //   );
-    // }
-    // const txBody = CardanoWasm.TransactionBody.new(
-    //   txInputs,
-    //   txOutputs,
-    //   BigInt(42), // fee
-    //   10, // ttl
-    // );
+    const txInputs = CardanoWasm.TransactionInputs.new();
+    {
+      txInputs.add(
+        CardanoWasm.TransactionInput.new(
+          CardanoWasm.TransactionHash.from_bytes(
+            Buffer.from('3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7', 'hex'),
+          ),
+          0, // index
+        )
+      );
+    }
+    const txOutputs = CardanoWasm.TransactionOutputs.new();
+    {
+      txOutputs.add(
+        CardanoWasm.TransactionOutput.new(
+          CardanoWasm.Address.from_bytes(
+            // Buffer.from('61a6274badf4c9ca583df893a73139625ff4dc73aaa3082e67d6d5d08e0ce3daa4', 'hex'),
+            Buffer.from('61a6274badf4c9ca583df893a73139625ff4dc73aaa3082e67d6d5d08e', 'hex'),
+          ),
+          BigInt(1),
+        )
+      );
+    }
+    const txBody = CardanoWasm.TransactionBody.new(
+      txInputs,
+      txOutputs,
+      BigInt(42), // fee
+      10, // ttl
+    );
     
-    // const witnesses = CardanoWasm.TransactionWitnessSet.new();
-    // {
-    //   const vkeyWitnesses = CardanoWasm.Vkeywitnesses.new();
+    const witnesses = CardanoWasm.TransactionWitnessSet.new();
+    {
+      const vkeyWitnesses = CardanoWasm.Vkeywitnesses.new();
 
-      // const prvKey = CardanoWasm.PrivateKey.from_normal_bytes(
-      //   Buffer.from('f7955ca7a24889e892a74851712975c924d536d503eeb1c900a7431900633fb8', 'hex')
-      // );
-      // vkeyWitnesses.add(
-      //   CardanoWasm.Vkeywitness.new(
-      //     CardanoWasm.Vkey.from_bytes(
-      //       Buffer.from('e7d33eeb6f1df124f9f4c226428bc46b4c93ac4bc89dacc85748d1a2b47ded13', 'hex')
-      //     ),
-      //     prvKey.sign(
-      //       // TODO
-      //       Buffer.from('ff', 'hex')
-      //     ),
-      //   )
-      // );
-    //   witnesses.set_vkeys(vkeyWitnesses);
-    // }
-    // CardanoWasm.Transaction.new(
-    //   txBody,
-    //   witnesses,
-    // );
+      const prvKey = CardanoWasm.PrivateKey.from_normal_bytes(
+        Buffer.from('f7955ca7a24889e892a74851712975c924d536d503eeb1c900a7431900633fb8', 'hex')
+      );
+      vkeyWitnesses.add(
+        txBody.sign(prvKey)
+      );
+      witnesses.set_vkeys(vkeyWitnesses);
+    }
+    CardanoWasm.Transaction.new(
+      txBody,
+      witnesses,
+    );
   })
 });
