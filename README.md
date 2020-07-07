@@ -2,16 +2,30 @@
 
 **WARNING** this library is experimental.
 
-This is a library for serialization & deserialization of types related to Cardano's Haskell implementation of Shelley.
+This is a library for serialization & deserialization of data structures used in Cardano's Haskell implementation of Shelley along with useful utility functions.
+
+Serialization/deserialization code is generated automatically from the CDDL specification using [cddl-codegen](https://github.com/Emurgo/cddl-codegen).
+
+This code is available in:
+
+- Native Rust (this repository)
+- [React-Native mobile bindings](https://github.com/Emurgo/react-native-haskell-shelley)
+- [nodejs WASM package](https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-nodejs)
+- [browser WASM package](https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-browser)
+
+If you are looking for legacy bindings, you can find them at the following:
+
+- [Byron WASM bindings](https://github.com/input-output-hk/js-cardano-wasm/tree/master/cardano-wallet)
+- [Jormungandr WASM bindings](https://github.com/emurgo/js-chain-libs)
 
 ## Original specs
 
 Here are the location of the original [CDDL](http://cbor.io/tools.html) specifications:
 
-- Byron: [link](https://github.com/input-output-hk/cardano-ledger-specs/blob/master/byron/cddl-spec/byron.cddl)
-- Shelley: [link](https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/cddl-spec/shelley.cddl#L72)
+- Byron: [link](https://github.com/input-output-hk/cardano-ledger-specs/tree/master/byron/cddl-spec)
+- Shelley: [link](https://github.com/input-output-hk/cardano-ledger-specs/tree/master/shelley/chain-and-ledger/executable-spec/cddl-files)
 
-# Building
+## Building
 
 If you need to install Rust, do the following:
 ```
@@ -25,27 +39,20 @@ To build this repository, do the following:
 ```
 git submodule update --init --recursive
 nvm install && nvm use
-npm run rust:build
+npm run rust:build-nodejs
 npm install
 ```
 
-# Testing
+## Testing
 
 ```
+npm run rust:test
 npm run js:test
 ```
 
-# Generating CDDL instances
+## Publishing
 
-First you need to install `cddl`
 ```
-sudo apt install ruby
-sudo gem install cddl
-sudo gem install cbor-diag
+npm run js:publish-nodejs
+npm run js:publish-browser
 ```
-
-You can generate new tests with
-1) `cddl specs/shelley.cddl generate 1 > test/name_here.diag`
-2) `diag2cbor.rb test/name_here.diag > test/name_here.cbor`
-
-You can combine these together with `cddl specs/shelley.cddl generate 1 | diag2cbor.rb > test/name_here.cbor`

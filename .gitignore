@@ -1,3 +1,5 @@
 node_modules/
 dist/
+publish/
 rust/target
+tsconfig.tsbuildinfo
