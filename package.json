@@ -1,6 +1,6 @@
 {
   "name": "cardano-serialization-lib",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "processing Haskell Shelley testnet",
   "main": "dist/index.js",
   "scripts": {
@@ -19,7 +19,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-push": "npm run rust:test && npm run js:lint && npm run js:test"
+      "pre-push": "npm run rust:test && npm run js:lint && npm run rust:build-nodejs && npm run js:test"
     }
   },
   "author": "EMURGO",
