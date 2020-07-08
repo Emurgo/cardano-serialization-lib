@@ -26,7 +26,7 @@ pub fn min_fee(tx: &Transaction, coefficient: &Coin, constant: &Coin) -> Result<
         .ok_or(JsValue::from_str("Checked call failed"))
 }
 
-pub fn txsize(tx: &Transaction) -> usize {
+fn txsize(tx: &Transaction) -> usize {
     const UINT: usize = 5;
     const SMALL_ARRAY: usize = 1;
     const HASH_LEN: usize = 32;
