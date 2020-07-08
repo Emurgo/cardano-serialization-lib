@@ -38,7 +38,47 @@ impl UnitInterval {
     }
 }
 
-type Coin = u64;
+// Specifies an amount of ADA in terms of lovelace
+// String functions are for environemnts that don't support u64 or BigInt/etc
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Coin(u64);
+
+to_from_bytes!(Coin);
+
+#[wasm_bindgen]
+impl Coin {
+    // May not be supported in all environments as it maps to BigInt with wasm_bindgen
+    pub fn new(value: u64) -> Coin {
+        Self(value)
+    }
+
+    // Create a Coin from a standard rust string representation
+    pub fn from_str(string: &str) -> Result<Coin, JsValue> {
+        string.parse::<u64>()
+            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
+            .map(Coin)
+    }
+
+    // String representation of the Coin value for use from environemtnst hat don't support BigInt
+    pub fn to_str(&self) -> String {
+        format!("{}", self.0)
+    }
+
+    pub fn checked_add(&self, other: &Coin) -> Result<Coin, JsValue> {
+        match self.0.checked_add(other.0) {
+            Some(value) => Ok(Coin(value)),
+            None => Err(JsValue::from_str("overflow")),
+        }
+    }
+
+    pub fn checked_sub(&self, other: &Coin) -> Result<Coin, JsValue> {
+        match self.0.checked_sub(other.0) {
+            Some(value) => Ok(Coin(value)),
+            None => Err(JsValue::from_str("underflow")),
+        }
+    }
+}
 
 type Epoch = u32;
 
@@ -485,64 +525,37 @@ impl Certificate {
     }
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum I0OrI1Enum {
-    I0,
-    I1,
-}
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct I0OrI1(I0OrI1Enum);
-
-#[wasm_bindgen]
-impl I0OrI1 {
-    pub fn new_i0() -> Self {
-        Self(I0OrI1Enum::I0)
-    }
-
-    pub fn new_i1() -> Self {
-        Self(I0OrI1Enum::I1)
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MapStakeCredentialToCoin(std::collections::BTreeMap<StakeCredential, Coin>);
-
-to_from_bytes!(MapStakeCredentialToCoin);
-
-#[wasm_bindgen]
-impl MapStakeCredentialToCoin {
-    pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn insert(&mut self, key: &StakeCredential, value: Coin) -> Option<Coin> {
-        self.0.insert(key.clone(), value)
-    }
+pub enum MIRPot {
+    Reserves,
+    Treasury,
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MoveInstantaneousReward {
-    index_0: I0OrI1,
-    index_1: MapStakeCredentialToCoin,
+    pot: MIRPot,
+    rewards: std::collections::BTreeMap<StakeCredential, Coin>,
 }
 
 to_from_bytes!(MoveInstantaneousReward);
 
 #[wasm_bindgen]
 impl MoveInstantaneousReward {
-    pub fn new(index_0: &I0OrI1, index_1: &MapStakeCredentialToCoin) -> Self {
+    pub fn new(pot: MIRPot) -> Self {
         Self {
-            index_0: index_0.clone(),
-            index_1: index_1.clone(),
+            pot,
+            rewards: std::collections::BTreeMap::new()
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.rewards.len()
+    }
+
+    pub fn insert(&mut self, key: &StakeCredential, value: Coin) -> Option<Coin> {
+        self.rewards.insert(key.clone(), value)
     }
 }
 

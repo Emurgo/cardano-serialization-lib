@@ -10,6 +10,14 @@
  * @returns {number}
  */
 declare export function min_fee(tx: Transaction): number;
+
+/**
+ */
+
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
+|};
 declare export class AddrKeyHash {
   free(): void;
 
@@ -412,6 +420,49 @@ declare export class Certificates {
    */
   add(elem: Certificate): void;
 }
+declare export class Coin {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Coin}
+   */
+  static from_bytes(bytes: Uint8Array): Coin;
+
+  /**
+   * @param {BigInt} value
+   * @returns {Coin}
+   */
+  static new(value: BigInt): Coin;
+
+  /**
+   * @param {string} string
+   * @returns {Coin}
+   */
+  static from_str(string: string): Coin;
+
+  /**
+   * @returns {string}
+   */
+  to_str(): string;
+
+  /**
+   * @param {Coin} other
+   * @returns {Coin}
+   */
+  checked_add(other: Coin): Coin;
+
+  /**
+   * @param {Coin} other
+   * @returns {Coin}
+   */
+  checked_sub(other: Coin): Coin;
+}
 declare export class Ed25519Signature {
   free(): void;
 
@@ -520,19 +571,6 @@ declare export class GenesisKeyDelegation {
     genesis_delegate_hash: GenesisDelegateHash
   ): GenesisKeyDelegation;
 }
-declare export class I0OrI1 {
-  free(): void;
-
-  /**
-   * @returns {I0OrI1}
-   */
-  static new_i0(): I0OrI1;
-
-  /**
-   * @returns {I0OrI1}
-   */
-  static new_i1(): I0OrI1;
-}
 declare export class Int {
   free(): void;
 
@@ -587,37 +625,6 @@ declare export class Ipv6 {
    * @returns {Ipv6}
    */
   static new(data: Uint8Array): Ipv6;
-}
-declare export class MapStakeCredentialToCoin {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {MapStakeCredentialToCoin}
-   */
-  static from_bytes(bytes: Uint8Array): MapStakeCredentialToCoin;
-
-  /**
-   * @returns {MapStakeCredentialToCoin}
-   */
-  static new(): MapStakeCredentialToCoin;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {StakeCredential} key
-   * @param {BigInt} value
-   * @returns {BigInt | void}
-   */
-  insert(key: StakeCredential, value: BigInt): BigInt | void;
 }
 declare export class MapTransactionMetadatumToTransactionMetadatum {
   free(): void;
@@ -684,14 +691,22 @@ declare export class MoveInstantaneousReward {
   static from_bytes(bytes: Uint8Array): MoveInstantaneousReward;
 
   /**
-   * @param {I0OrI1} index_0
-   * @param {MapStakeCredentialToCoin} index_1
+   * @param {number} pot
    * @returns {MoveInstantaneousReward}
    */
-  static new(
-    index_0: I0OrI1,
-    index_1: MapStakeCredentialToCoin
-  ): MoveInstantaneousReward;
+  static new(pot: number): MoveInstantaneousReward;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {StakeCredential} key
+   * @param {Coin} value
+   * @returns {Coin | void}
+   */
+  insert(key: StakeCredential, value: Coin): Coin | void;
 }
 declare export class MoveInstantaneousRewardsCert {
   free(): void;
@@ -986,8 +1001,8 @@ declare export class PoolParams {
   /**
    * @param {PoolKeyHash} operator
    * @param {VRFKeyHash} vrf_keyhash
-   * @param {BigInt} pledge
-   * @param {BigInt} cost
+   * @param {Coin} pledge
+   * @param {Coin} cost
    * @param {UnitInterval} margin
    * @param {RewardAddress} reward_account
    * @param {AddrKeyHashes} pool_owners
@@ -998,8 +1013,8 @@ declare export class PoolParams {
   static new(
     operator: PoolKeyHash,
     vrf_keyhash: VRFKeyHash,
-    pledge: BigInt,
-    cost: BigInt,
+    pledge: Coin,
+    cost: Coin,
     margin: UnitInterval,
     reward_account: RewardAddress,
     pool_owners: AddrKeyHashes,
@@ -1455,14 +1470,14 @@ declare export class TransactionBody {
   /**
    * @param {TransactionInputs} inputs
    * @param {TransactionOutputs} outputs
-   * @param {BigInt} fee
+   * @param {Coin} fee
    * @param {number} ttl
    * @returns {TransactionBody}
    */
   static new(
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
-    fee: BigInt,
+    fee: Coin,
     ttl: number
   ): TransactionBody;
 
@@ -1677,10 +1692,10 @@ declare export class TransactionOutput {
 
   /**
    * @param {Address} address
-   * @param {BigInt} amount
+   * @param {Coin} amount
    * @returns {TransactionOutput}
    */
-  static new(address: Address, amount: BigInt): TransactionOutput;
+  static new(address: Address, amount: Coin): TransactionOutput;
 }
 declare export class TransactionOutputs {
   free(): void;
@@ -1877,8 +1892,8 @@ declare export class Withdrawals {
 
   /**
    * @param {RewardAddress} key
-   * @param {BigInt} value
-   * @returns {BigInt | void}
+   * @param {Coin} value
+   * @returns {Coin | void}
    */
-  insert(key: RewardAddress, value: BigInt): BigInt | void;
+  insert(key: RewardAddress, value: Coin): Coin | void;
 }

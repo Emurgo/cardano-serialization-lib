@@ -36,7 +36,7 @@ fn txsize(tx: &Transaction) -> usize {
     const OUTPUT_SIZE: usize = SMALL_ARRAY + UINT + ADDRESS;
     let input_bytes = tx.body.inputs.to_bytes().len();
     let output_bytes = tx.body.outputs.to_bytes().len();
-    let fee_bytes = cbor_uint_length(tx.body.fee);
+    let fee_bytes = cbor_uint_length(tx.body.fee.0);
     let extra_size = input_bytes + output_bytes + fee_bytes;
     let rest = tx.to_bytes().len() - extra_size;
     tx.body.inputs.len() * INPUT_SIZE + tx.body.outputs.len() * OUTPUT_SIZE + rest
@@ -148,8 +148,8 @@ mod tests {
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(&genesis_id(), 0));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(&alice_addr(), 10));
-        let body = TransactionBody::new(&inputs, &outputs, 94, 10);
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        let body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
         let w = make_mock_witnesses_vkey(&body, vec![&alice_key()]);
         let tx = Transaction::new(&body, &w, None);
         let haskell_crypto_bytes = witness_vkey_bytes_haskell(&w);
@@ -163,12 +163,12 @@ mod tests {
         inputs.add(&TransactionInput::new(&genesis_id(), 0));
         inputs.add(&TransactionInput::new(&genesis_id(), 1));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(&alice_addr(), 10));
-        outputs.add(&TransactionOutput::new(&alice_addr(), 20));
-        outputs.add(&TransactionOutput::new(&alice_addr(), 30));
-        outputs.add(&TransactionOutput::new(&bob_addr(), 40));
-        outputs.add(&TransactionOutput::new(&bob_addr(), 50));
-        let body = TransactionBody::new(&inputs, &outputs, 199, 10);
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(20)));
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(30)));
+        outputs.add(&TransactionOutput::new(&bob_addr(), Coin::new(40)));
+        outputs.add(&TransactionOutput::new(&bob_addr(), Coin::new(50)));
+        let body = TransactionBody::new(&inputs, &outputs, Coin::new(199), 10);
         let w = make_mock_witnesses_vkey(&body, vec![&alice_key(), &bob_key()]);
         let tx = Transaction::new(&body, &w, None);
         let haskell_crypto_bytes = witness_vkey_bytes_haskell(&w);
@@ -181,8 +181,8 @@ mod tests {
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(&genesis_id(), 0));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(&alice_addr(), 10));
-        let mut body = TransactionBody::new(&inputs, &outputs, 94, 10);
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
         let mut certs = Certificates::new();
         certs.add(&Certificate::new_stake_registration(&StakeRegistration::new(&alice_pay())));
         body.set_certs(&certs);
@@ -198,8 +198,8 @@ mod tests {
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(&genesis_id(), 0));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(&alice_addr(), 10));
-        let mut body = TransactionBody::new(&inputs, &outputs, 94, 10);
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
         let mut certs = Certificates::new();
         certs.add(&Certificate::new_stake_delegation(&StakeDelegation::new(&bob_stake(), &alice_pool())));
         body.set_certs(&certs);
@@ -215,8 +215,8 @@ mod tests {
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(&genesis_id(), 0));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(&alice_addr(), 10));
-        let mut body = TransactionBody::new(&inputs, &outputs, 94, 10);
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
         let mut certs = Certificates::new();
         certs.add(&Certificate::new_stake_deregistration(&StakeDeregistration::new(&alice_pay())));
         body.set_certs(&certs);
@@ -232,8 +232,8 @@ mod tests {
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(&genesis_id(), 0));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(&alice_addr(), 10));
-        let mut body = TransactionBody::new(&inputs, &outputs, 94, 10);
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
         let mut certs = Certificates::new();
         let mut owners = AddrKeyHashes::new();
         owners.add(&(alice_stake().to_keyhash().unwrap()));
@@ -242,8 +242,8 @@ mod tests {
         let params = PoolParams::new(
             &alice_pool(),
             &VRFKeyHash::from([0u8; VRFKeyHash::BYTE_COUNT]),
-            1,
-            5,
+            Coin::new(1),
+            Coin::new(5),
             &UnitInterval::new(1, 10),
             &RewardAddress::new(0, &alice_stake()),
             &owners,
@@ -274,8 +274,8 @@ mod tests {
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(&genesis_id(), 0));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(&alice_addr(), 10));
-        let mut body = TransactionBody::new(&inputs, &outputs, 94, 10);
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
         let mut certs = Certificates::new();
         certs.add(&Certificate::new_pool_retirement(&PoolRetirement::new(&alice_pool(), 5)));
         body.set_certs(&certs);
@@ -291,8 +291,8 @@ mod tests {
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(&genesis_id(), 0));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(&alice_addr(), 10));
-        let mut body = TransactionBody::new(&inputs, &outputs, 94, 10);
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
         body.set_metadata_hash(&MetadataHash::from([37; MetadataHash::BYTE_COUNT]));
         let w = make_mock_witnesses_vkey(&body, vec![&alice_key()]);
         let mut metadata = TransactionMetadata::new();
@@ -311,8 +311,8 @@ mod tests {
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(&genesis_id(), 0));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(&alice_addr(), 10));
-        let body = TransactionBody::new(&inputs, &outputs, 94, 10);
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        let body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
         let mut w = make_mock_witnesses_vkey(&body, vec![&alice_key(), &bob_key()]);
         let mut script_witnesses = MultisigScripts::new();
         let mut inner_scripts = MultisigScripts::new();
@@ -332,10 +332,10 @@ mod tests {
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(&genesis_id(), 0));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(&alice_addr(), 10));
-        let mut body = TransactionBody::new(&inputs, &outputs, 94, 10);
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
         let mut withdrawals = Withdrawals::new();
-        withdrawals.insert(&RewardAddress::new(0, &alice_pay()), 100);
+        withdrawals.insert(&RewardAddress::new(0, &alice_pay()), Coin::new(100));
         body.set_withdrawals(&withdrawals);
         let w = make_mock_witnesses_vkey(&body, vec![&alice_key(), &alice_key()]);
         let tx = Transaction::new(&body, &w, None);
