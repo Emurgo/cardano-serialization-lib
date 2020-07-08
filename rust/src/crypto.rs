@@ -672,10 +672,9 @@ macro_rules! impl_hash_type {
 
 impl_hash_type!(AddrKeyHash, 28);
 impl_hash_type!(ScriptHash, 28);
-
 impl_hash_type!(TransactionHash, 32);
-impl_hash_type!(GenesisDelegateHash, 32);
-impl_hash_type!(PoolKeyHash, 32);
-impl_hash_type!(GenesisHash, 32);
+impl_hash_type!(GenesisDelegateHash, 28);
+impl_hash_type!(PoolKeyHash, 28);
+impl_hash_type!(GenesisHash, 28);
 impl_hash_type!(MetadataHash, 32);
-impl_hash_type!(VRFKeyHash, 32);
+impl_hash_type!(VRFKeyHash, 28);

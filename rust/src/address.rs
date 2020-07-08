@@ -223,19 +223,22 @@ impl Address {
             let addr = match (header & 0xF0) >> 4 {
                 // base
                 0b0000 | 0b0001 | 0b0010 | 0b0011 => {
-                    if data.len() < 57 {
-                        return Err(cbor_event::Error::NotEnough(data.len(), 57).into());
+                    const BASE_ADDR_SIZE: usize = 1 + HASH_LEN * 2;
+                    if data.len() < BASE_ADDR_SIZE {
+                        return Err(cbor_event::Error::NotEnough(data.len(), BASE_ADDR_SIZE).into());
                     }
-                    if data.len() > 57 {
+                    if data.len() > BASE_ADDR_SIZE {
                         return Err(cbor_event::Error::TrailingData.into());
                     }
                     AddrType::Base(BaseAddress::new(network, &read_addr_cred(4, 1), &read_addr_cred(5, 1 + HASH_LEN)))
                 },
                 // pointer
                 0b0100 | 0b0101 => {
-                    if data.len() < 32 {
+                    // header + keyhash + 3 natural numbers (min 1 byte each)
+                    const PTR_ADDR_MIN_SIZE: usize = 1 + HASH_LEN + 1 + 1 + 1;
+                    if data.len() < PTR_ADDR_MIN_SIZE {
                         // possibly more, but depends on how many bytes the natural numbers are for the pointer
-                        return Err(cbor_event::Error::NotEnough(data.len(), 32).into());
+                        return Err(cbor_event::Error::NotEnough(data.len(), PTR_ADDR_MIN_SIZE).into());
                     }
                     let mut byte_index = 1;
                     let payment_cred = read_addr_cred(4, 1);
@@ -256,20 +259,22 @@ impl Address {
                 },
                 // enterprise
                 0b0110 | 0b0111 => {
-                    if data.len() < HASH_LEN + 1 {
-                        return Err(cbor_event::Error::NotEnough(data.len(), HASH_LEN + 1).into());
+                    const ENTERPRISE_ADDR_SIZE: usize = 1 + HASH_LEN;
+                    if data.len() < ENTERPRISE_ADDR_SIZE {
+                        return Err(cbor_event::Error::NotEnough(data.len(), ENTERPRISE_ADDR_SIZE).into());
                     }
-                    if data.len() > HASH_LEN + 1 {
+                    if data.len() > ENTERPRISE_ADDR_SIZE {
                         return Err(cbor_event::Error::TrailingData.into());
                     }
                     AddrType::Enterprise(EnterpriseAddress::new(network, &read_addr_cred(4, 1)))
                 },
                 // reward
                 0b1110 | 0b1111 => {
-                    if data.len() < HASH_LEN + 1 {
-                        return Err(cbor_event::Error::NotEnough(data.len(), HASH_LEN + 1).into());
+                    const REWARD_ADDR_SIZE: usize = 1 + HASH_LEN;
+                    if data.len() < REWARD_ADDR_SIZE {
+                        return Err(cbor_event::Error::NotEnough(data.len(), REWARD_ADDR_SIZE).into());
                     }
-                    if data.len() > HASH_LEN + 1 {
+                    if data.len() > REWARD_ADDR_SIZE {
                         return Err(cbor_event::Error::TrailingData.into());
                     }
                     AddrType::Reward(RewardAddress::new(network, &read_addr_cred(4, 1)))
