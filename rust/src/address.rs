@@ -495,7 +495,7 @@ mod tests {
             &StakeCredential::from_keyhash(&AddrKeyHash::from([23; AddrKeyHash::BYTE_COUNT])),
             &StakeCredential::from_scripthash(&ScriptHash::from([42; ScriptHash::BYTE_COUNT])));
         let addr = base.to_address();
-        let addr2 = Address::from_bytes_impl(addr.to_bytes().as_ref()).unwrap();
+        let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
     }
 
@@ -506,7 +506,7 @@ mod tests {
             &StakeCredential::from_keyhash(&AddrKeyHash::from([23; AddrKeyHash::BYTE_COUNT])),
             &Pointer::new(2354556573, 127, 0));
         let addr = ptr.to_address();
-        let addr2 = Address::from_bytes_impl(addr.to_bytes().as_ref()).unwrap();
+        let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
     }
 
@@ -516,7 +516,7 @@ mod tests {
             64,
             &StakeCredential::from_keyhash(&AddrKeyHash::from([23; AddrKeyHash::BYTE_COUNT])));
         let addr = enterprise.to_address();
-        let addr2 = Address::from_bytes_impl(addr.to_bytes().as_ref()).unwrap();
+        let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
     }
 
@@ -526,7 +526,7 @@ mod tests {
             9,
             &StakeCredential::from_scripthash(&ScriptHash::from([127; AddrKeyHash::BYTE_COUNT])));
         let addr = reward.to_address();
-        let addr2 = Address::from_bytes_impl(addr.to_bytes().as_ref()).unwrap();
+        let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
     }
 
