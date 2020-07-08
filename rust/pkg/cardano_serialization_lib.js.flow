@@ -10,6 +10,14 @@
  * @returns {number}
  */
 declare export function min_fee(tx: Transaction): number;
+
+/**
+ */
+
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
+|};
 declare export class AddrKeyHash {
   free(): void;
 
@@ -520,19 +528,6 @@ declare export class GenesisKeyDelegation {
     genesis_delegate_hash: GenesisDelegateHash
   ): GenesisKeyDelegation;
 }
-declare export class I0OrI1 {
-  free(): void;
-
-  /**
-   * @returns {I0OrI1}
-   */
-  static new_i0(): I0OrI1;
-
-  /**
-   * @returns {I0OrI1}
-   */
-  static new_i1(): I0OrI1;
-}
 declare export class Int {
   free(): void;
 
@@ -587,37 +582,6 @@ declare export class Ipv6 {
    * @returns {Ipv6}
    */
   static new(data: Uint8Array): Ipv6;
-}
-declare export class MapStakeCredentialToCoin {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {MapStakeCredentialToCoin}
-   */
-  static from_bytes(bytes: Uint8Array): MapStakeCredentialToCoin;
-
-  /**
-   * @returns {MapStakeCredentialToCoin}
-   */
-  static new(): MapStakeCredentialToCoin;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {StakeCredential} key
-   * @param {BigInt} value
-   * @returns {BigInt | void}
-   */
-  insert(key: StakeCredential, value: BigInt): BigInt | void;
 }
 declare export class MapTransactionMetadatumToTransactionMetadatum {
   free(): void;
@@ -684,14 +648,22 @@ declare export class MoveInstantaneousReward {
   static from_bytes(bytes: Uint8Array): MoveInstantaneousReward;
 
   /**
-   * @param {I0OrI1} index_0
-   * @param {MapStakeCredentialToCoin} index_1
+   * @param {number} pot
    * @returns {MoveInstantaneousReward}
    */
-  static new(
-    index_0: I0OrI1,
-    index_1: MapStakeCredentialToCoin
-  ): MoveInstantaneousReward;
+  static new(pot: number): MoveInstantaneousReward;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {StakeCredential} key
+   * @param {BigInt} value
+   * @returns {BigInt | void}
+   */
+  insert(key: StakeCredential, value: BigInt): BigInt | void;
 }
 declare export class MoveInstantaneousRewardsCert {
   free(): void;

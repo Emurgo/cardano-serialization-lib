@@ -485,64 +485,37 @@ impl Certificate {
     }
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum I0OrI1Enum {
-    I0,
-    I1,
-}
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct I0OrI1(I0OrI1Enum);
-
-#[wasm_bindgen]
-impl I0OrI1 {
-    pub fn new_i0() -> Self {
-        Self(I0OrI1Enum::I0)
-    }
-
-    pub fn new_i1() -> Self {
-        Self(I0OrI1Enum::I1)
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MapStakeCredentialToCoin(std::collections::BTreeMap<StakeCredential, Coin>);
-
-to_from_bytes!(MapStakeCredentialToCoin);
-
-#[wasm_bindgen]
-impl MapStakeCredentialToCoin {
-    pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn insert(&mut self, key: &StakeCredential, value: Coin) -> Option<Coin> {
-        self.0.insert(key.clone(), value)
-    }
+pub enum MIRPot {
+    Reserves,
+    Treasury,
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MoveInstantaneousReward {
-    index_0: I0OrI1,
-    index_1: MapStakeCredentialToCoin,
+    pot: MIRPot,
+    rewards: std::collections::BTreeMap<StakeCredential, Coin>,
 }
 
 to_from_bytes!(MoveInstantaneousReward);
 
 #[wasm_bindgen]
 impl MoveInstantaneousReward {
-    pub fn new(index_0: &I0OrI1, index_1: &MapStakeCredentialToCoin) -> Self {
+    pub fn new(pot: MIRPot) -> Self {
         Self {
-            index_0: index_0.clone(),
-            index_1: index_1.clone(),
+            pot,
+            rewards: std::collections::BTreeMap::new()
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.rewards.len()
+    }
+
+    pub fn insert(&mut self, key: &StakeCredential, value: Coin) -> Option<Coin> {
+        self.rewards.insert(key.clone(), value)
     }
 }
 

@@ -1024,64 +1024,15 @@ impl Deserialize for Certificate {
     }
 }
 
-impl cbor_event::se::Serialize for I0OrI1Enum {
+impl cbor_event::se::Serialize for MoveInstantaneousReward {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self {
-            I0OrI1Enum::I0 => {
-                serializer.write_unsigned_integer(0u64)
-            },
-            I0OrI1Enum::I1 => {
-                serializer.write_unsigned_integer(1u64)
-            },
-        }
-    }
-}
-
-impl Deserialize for I0OrI1Enum {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            let i0_value = raw.unsigned_integer()?;
-            if i0_value != 0 {
-                return Err(DeserializeFailure::FixedValueMismatch{ found: Key::Uint(i0_value), expected: Key::Uint(0) }.into());
-            }
-            Ok(())
-        })(raw)
-        {
-            Ok(()) => return Ok(I0OrI1Enum::I0),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            let i1_value = raw.unsigned_integer()?;
-            if i1_value != 1 {
-                return Err(DeserializeFailure::FixedValueMismatch{ found: Key::Uint(i1_value), expected: Key::Uint(1) }.into());
-            }
-            Ok(())
-        })(raw)
-        {
-            Ok(()) => return Ok(I0OrI1Enum::I1),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        Err(DeserializeError::new("I0OrI1Enum", DeserializeFailure::NoVariantMatched.into()))
-    }
-}
-
-impl cbor_event::se::Serialize for I0OrI1 {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        self.0.serialize(serializer)
-    }
-}
-
-impl Deserialize for I0OrI1 {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(I0OrI1Enum::deserialize(raw)?))
-    }
-}
-
-impl cbor_event::se::Serialize for MapStakeCredentialToCoin {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
-        for (key, value) in &self.0 {
+        serializer.write_map(cbor_event::Len::Len(2))?;
+        match self.pot {
+            MIRPot::Reserves => serializer.write_unsigned_integer(0u64),
+            MIRPot::Treasury => serializer.write_unsigned_integer(1u64),
+        }?;
+        serializer.write_map(cbor_event::Len::Len(self.rewards.len() as u64))?;
+        for (key, value) in &self.rewards {
             key.serialize(serializer)?;
             value.serialize(serializer)?;
         }
@@ -1089,10 +1040,16 @@ impl cbor_event::se::Serialize for MapStakeCredentialToCoin {
     }
 }
 
-impl Deserialize for MapStakeCredentialToCoin {
+impl Deserialize for MoveInstantaneousReward {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         let mut table = std::collections::BTreeMap::new();
-        (|| -> Result<_, DeserializeError> {
+        let pot = (|| -> Result<_, DeserializeError> {
+            let outer_len = raw.array()?;
+            let pot = match raw.unsigned_integer()? {
+                0 => MIRPot::Reserves,
+                1 => MIRPot::Treasury,
+                n => return Err(DeserializeFailure::UnknownKey(Key::Uint(n)).into()),
+            };
             let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
                 if raw.cbor_type()? == CBORType::Special {
@@ -1105,49 +1062,20 @@ impl Deserialize for MapStakeCredentialToCoin {
                     return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
                 }
             }
-            Ok(())
-        })().map_err(|e| e.annotate("MapStakeCredentialToCoin"))?;
-        Ok(Self(table))
-    }
-}
-
-impl cbor_event::se::Serialize for MoveInstantaneousReward {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(2))?;
-        self.index_0.serialize(serializer)?;
-        self.index_1.serialize(serializer)?;
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for MoveInstantaneousReward {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+            match outer_len {
+                cbor_event::Len::Len(n) => if n != 2 {
+                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(n, outer_len, "MoveInstantaneousReward")).into())
+                },
                 cbor_event::Len::Indefinite => match raw.special()? {
                     CBORSpecial::Break => /* it's ok */(),
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
-            }
-            ret
-        })().map_err(|e| e.annotate("MoveInstantaneousReward"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for MoveInstantaneousReward {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
-        let index_0 = (|| -> Result<_, DeserializeError> {
-            Ok(I0OrI1::deserialize(raw)?)
-        })().map_err(|e| e.annotate("index_0"))?;
-        let index_1 = (|| -> Result<_, DeserializeError> {
-            Ok(MapStakeCredentialToCoin::deserialize(raw)?)
-        })().map_err(|e| e.annotate("index_1"))?;
-        Ok(MoveInstantaneousReward {
-            index_0,
-            index_1,
+            };
+            Ok(pot)
+        })().map_err(|e| e.annotate("MoveInstantaneousReward"))?;
+        Ok(Self {
+            pot,
+            rewards: table
         })
     }
 }
