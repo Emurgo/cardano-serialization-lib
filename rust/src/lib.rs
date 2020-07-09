@@ -41,7 +41,7 @@ impl UnitInterval {
 // Specifies an amount of ADA in terms of lovelace
 // String functions are for environments that don't support u64 or BigInt/etc
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Coin(u64);
 
 to_from_bytes!(Coin);

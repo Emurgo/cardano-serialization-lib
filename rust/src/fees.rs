@@ -19,11 +19,7 @@ fn cbor_uint_length(x: u64) -> usize {
 #[wasm_bindgen]
 pub fn min_fee(tx: &Transaction, coefficient: &Coin, constant: &Coin) -> Result<Coin, JsValue> {
     let size = fees::txsize(tx) as u64;
-    size
-        .checked_mul(coefficient.unwrap())
-        .and_then(|val| val.checked_add(constant.unwrap()))
-        .map(Coin)
-        .ok_or(JsValue::from_str("Checked call failed"))
+    Coin::new(size).checked_mul(coefficient)?.checked_add(constant)
 }
 
 fn txsize(tx: &Transaction) -> usize {
