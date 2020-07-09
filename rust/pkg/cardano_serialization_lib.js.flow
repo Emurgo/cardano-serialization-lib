@@ -20,9 +20,52 @@ declare export function min_fee(
 /**
  */
 
+declare export var CertificateKind: {|
+  +StakeRegistration: 0, // 0
+  +StakeDeregistration: 1, // 1
+  +StakeDelegation: 2, // 2
+  +PoolRegistration: 3, // 3
+  +PoolRetirement: 4, // 4
+  +GenesisKeyDelegation: 5, // 5
+  +MoveInstantaneousRewardsCert: 6, // 6
+|};
+
+/**
+ */
+
 declare export var MIRPot: {|
   +Reserves: 0, // 0
   +Treasury: 1, // 1
+|};
+
+/**
+ */
+
+declare export var RelayKind: {|
+  +SingleHostAddr: 0, // 0
+  +SingleHostName: 1, // 1
+  +MultiHostName: 2, // 2
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MapTransactionMetadatumToTransactionMetadatum: 0, // 0
+  +ArrTransactionMetadatum: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MultisigScriptKind: {|
+  +MsigPubkey: 0, // 0
+  +MsigAll: 1, // 1
+  +MsigAny: 2, // 2
+  +MsigNOfK: 3, // 3
 |};
 declare export class AddrKeyHash {
   free(): void;
@@ -390,6 +433,46 @@ declare export class Certificate {
   static new_move_instantaneous_rewards_cert(
     move_instantaneous_rewards_cert: MoveInstantaneousRewardsCert
   ): Certificate;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+
+  /**
+   * @returns {StakeRegistration | void}
+   */
+  as_stake_registration(): StakeRegistration | void;
+
+  /**
+   * @returns {StakeDeregistration | void}
+   */
+  as_stake_deregistration(): StakeDeregistration | void;
+
+  /**
+   * @returns {StakeDelegation | void}
+   */
+  as_stake_delegation(): StakeDelegation | void;
+
+  /**
+   * @returns {PoolRegistration | void}
+   */
+  as_pool_registration(): PoolRegistration | void;
+
+  /**
+   * @returns {PoolRetirement | void}
+   */
+  as_pool_retirement(): PoolRetirement | void;
+
+  /**
+   * @returns {GenesisKeyDelegation | void}
+   */
+  as_genesis_key_delegation(): GenesisKeyDelegation | void;
+
+  /**
+   * @returns {MoveInstantaneousRewardsCert | void}
+   */
+  as_move_instantaneous_rewards_cert(): MoveInstantaneousRewardsCert | void;
 }
 declare export class Certificates {
   free(): void;
@@ -579,6 +662,16 @@ declare export class GenesisKeyDelegation {
   static from_bytes(bytes: Uint8Array): GenesisKeyDelegation;
 
   /**
+   * @returns {GenesisHash}
+   */
+  genesishash(): GenesisHash;
+
+  /**
+   * @returns {GenesisDelegateHash}
+   */
+  genesis_delegate_hash(): GenesisDelegateHash;
+
+  /**
    * @param {GenesisHash} genesishash
    * @param {GenesisDelegateHash} genesis_delegate_hash
    * @returns {GenesisKeyDelegation}
@@ -678,6 +771,12 @@ declare export class MapTransactionMetadatumToTransactionMetadatum {
     key: TransactionMetadatum,
     value: TransactionMetadatum
   ): TransactionMetadatum | void;
+
+  /**
+   * @param {TransactionMetadatum} key
+   * @returns {TransactionMetadatum | void}
+   */
+  get(key: TransactionMetadatum): TransactionMetadatum | void;
 }
 declare export class MetadataHash {
   free(): void;
@@ -740,6 +839,11 @@ declare export class MoveInstantaneousRewardsCert {
   static from_bytes(bytes: Uint8Array): MoveInstantaneousRewardsCert;
 
   /**
+   * @returns {MoveInstantaneousReward}
+   */
+  move_instantaneous_reward(): MoveInstantaneousReward;
+
+  /**
    * @param {MoveInstantaneousReward} move_instantaneous_reward
    * @returns {MoveInstantaneousRewardsCert}
    */
@@ -762,6 +866,11 @@ declare export class MsigAll {
   static from_bytes(bytes: Uint8Array): MsigAll;
 
   /**
+   * @returns {MultisigScripts}
+   */
+  multisig_scripts(): MultisigScripts;
+
+  /**
    * @param {MultisigScripts} multisig_scripts
    * @returns {MsigAll}
    */
@@ -782,6 +891,11 @@ declare export class MsigAny {
   static from_bytes(bytes: Uint8Array): MsigAny;
 
   /**
+   * @returns {MultisigScripts}
+   */
+  multisig_scripts(): MultisigScripts;
+
+  /**
    * @param {MultisigScripts} multisig_scripts
    * @returns {MsigAny}
    */
@@ -800,6 +914,16 @@ declare export class MsigNOfK {
    * @returns {MsigNOfK}
    */
   static from_bytes(bytes: Uint8Array): MsigNOfK;
+
+  /**
+   * @returns {number}
+   */
+  n(): number;
+
+  /**
+   * @returns {MultisigScripts}
+   */
+  multisig_scripts(): MultisigScripts;
 
   /**
    * @param {number} n
@@ -823,6 +947,11 @@ declare export class MsigPubkey {
   static from_bytes(bytes: Uint8Array): MsigPubkey;
 
   /**
+   * @returns {AddrKeyHash}
+   */
+  addr_keyhash(): AddrKeyHash;
+
+  /**
    * @param {AddrKeyHash} addr_keyhash
    * @returns {MsigPubkey}
    */
@@ -841,6 +970,11 @@ declare export class MultiHostName {
    * @returns {MultiHostName}
    */
   static from_bytes(bytes: Uint8Array): MultiHostName;
+
+  /**
+   * @returns {string}
+   */
+  dns_name(): string;
 
   /**
    * @param {string} dns_name
@@ -889,6 +1023,31 @@ declare export class MultisigScript {
     n: number,
     multisig_scripts: MultisigScripts
   ): MultisigScript;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+
+  /**
+   * @returns {MsigPubkey | void}
+   */
+  as_multisig_script0(): MsigPubkey | void;
+
+  /**
+   * @returns {MsigAll | void}
+   */
+  as_multisig_script1(): MsigAll | void;
+
+  /**
+   * @returns {MsigAny | void}
+   */
+  as_multisig_script2(): MsigAny | void;
+
+  /**
+   * @returns {MsigNOfK | void}
+   */
+  as_multisig_script3(): MsigNOfK | void;
 }
 declare export class MultisigScripts {
   free(): void;
@@ -995,6 +1154,16 @@ declare export class PoolMetadata {
   static from_bytes(bytes: Uint8Array): PoolMetadata;
 
   /**
+   * @returns {string}
+   */
+  url(): string;
+
+  /**
+   * @returns {MetadataHash}
+   */
+  metadata_hash(): MetadataHash;
+
+  /**
    * @param {string} url
    * @param {MetadataHash} metadata_hash
    * @returns {PoolMetadata}
@@ -1014,6 +1183,51 @@ declare export class PoolParams {
    * @returns {PoolParams}
    */
   static from_bytes(bytes: Uint8Array): PoolParams;
+
+  /**
+   * @returns {PoolKeyHash}
+   */
+  operator(): PoolKeyHash;
+
+  /**
+   * @returns {VRFKeyHash}
+   */
+  vrf_keyhash(): VRFKeyHash;
+
+  /**
+   * @returns {Coin}
+   */
+  pledge(): Coin;
+
+  /**
+   * @returns {Coin}
+   */
+  cost(): Coin;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  margin(): UnitInterval;
+
+  /**
+   * @returns {RewardAddress}
+   */
+  reward_account(): RewardAddress;
+
+  /**
+   * @returns {AddrKeyHashes}
+   */
+  pool_owners(): AddrKeyHashes;
+
+  /**
+   * @returns {Relays}
+   */
+  relays(): Relays;
+
+  /**
+   * @returns {PoolMetadata | void}
+   */
+  pool_metadata(): PoolMetadata | void;
 
   /**
    * @param {PoolKeyHash} operator
@@ -1054,6 +1268,11 @@ declare export class PoolRegistration {
   static from_bytes(bytes: Uint8Array): PoolRegistration;
 
   /**
+   * @returns {PoolParams}
+   */
+  pool_params(): PoolParams;
+
+  /**
    * @param {PoolParams} pool_params
    * @returns {PoolRegistration}
    */
@@ -1072,6 +1291,16 @@ declare export class PoolRetirement {
    * @returns {PoolRetirement}
    */
   static from_bytes(bytes: Uint8Array): PoolRetirement;
+
+  /**
+   * @returns {PoolKeyHash}
+   */
+  pool_keyhash(): PoolKeyHash;
+
+  /**
+   * @returns {number}
+   */
+  epoch(): number;
 
   /**
    * @param {PoolKeyHash} pool_keyhash
@@ -1222,6 +1451,26 @@ declare export class Relay {
    * @returns {Relay}
    */
   static new_multi_host_name(multi_host_name: MultiHostName): Relay;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+
+  /**
+   * @returns {SingleHostAddr | void}
+   */
+  as_single_host_addr(): SingleHostAddr | void;
+
+  /**
+   * @returns {SingleHostName | void}
+   */
+  as_single_host_name(): SingleHostName | void;
+
+  /**
+   * @returns {MultiHostName | void}
+   */
+  as_multi_host_name(): MultiHostName | void;
 }
 declare export class Relays {
   free(): void;
@@ -1307,6 +1556,21 @@ declare export class SingleHostAddr {
   static from_bytes(bytes: Uint8Array): SingleHostAddr;
 
   /**
+   * @returns {number | void}
+   */
+  port(): number | void;
+
+  /**
+   * @returns {Ipv4 | void}
+   */
+  ipv4(): Ipv4 | void;
+
+  /**
+   * @returns {Ipv6 | void}
+   */
+  ipv6(): Ipv6 | void;
+
+  /**
    * @param {number | void} port
    * @param {Ipv4 | void} ipv4
    * @param {Ipv6 | void} ipv6
@@ -1327,6 +1591,16 @@ declare export class SingleHostName {
    * @returns {SingleHostName}
    */
   static from_bytes(bytes: Uint8Array): SingleHostName;
+
+  /**
+   * @returns {number | void}
+   */
+  port(): number | void;
+
+  /**
+   * @returns {string}
+   */
+  dns_name(): string;
 
   /**
    * @param {number | void} port
@@ -1380,6 +1654,16 @@ declare export class StakeDelegation {
   static from_bytes(bytes: Uint8Array): StakeDelegation;
 
   /**
+   * @returns {StakeCredential}
+   */
+  stake_credential(): StakeCredential;
+
+  /**
+   * @returns {PoolKeyHash}
+   */
+  pool_keyhash(): PoolKeyHash;
+
+  /**
    * @param {StakeCredential} stake_credential
    * @param {PoolKeyHash} pool_keyhash
    * @returns {StakeDelegation}
@@ -1404,6 +1688,11 @@ declare export class StakeDeregistration {
   static from_bytes(bytes: Uint8Array): StakeDeregistration;
 
   /**
+   * @returns {StakeCredential}
+   */
+  stake_credential(): StakeCredential;
+
+  /**
    * @param {StakeCredential} stake_credential
    * @returns {StakeDeregistration}
    */
@@ -1424,6 +1713,11 @@ declare export class StakeRegistration {
   static from_bytes(bytes: Uint8Array): StakeRegistration;
 
   /**
+   * @returns {StakeCredential}
+   */
+  stake_credential(): StakeCredential;
+
+  /**
    * @param {StakeCredential} stake_credential
    * @returns {StakeRegistration}
    */
@@ -1442,6 +1736,21 @@ declare export class Transaction {
    * @returns {Transaction}
    */
   static from_bytes(bytes: Uint8Array): Transaction;
+
+  /**
+   * @returns {TransactionBody}
+   */
+  body(): TransactionBody;
+
+  /**
+   * @returns {TransactionWitnessSet}
+   */
+  witness_set(): TransactionWitnessSet;
+
+  /**
+   * @returns {TransactionMetadata | void}
+   */
+  metadata(): TransactionMetadata | void;
 
   /**
    * @param {TransactionBody} body
@@ -1470,9 +1779,34 @@ declare export class TransactionBody {
   static from_bytes(bytes: Uint8Array): TransactionBody;
 
   /**
+   * @returns {TransactionInputs}
+   */
+  inputs(): TransactionInputs;
+
+  /**
+   * @returns {TransactionOutputs}
+   */
+  outputs(): TransactionOutputs;
+
+  /**
+   * @returns {Coin}
+   */
+  fee(): Coin;
+
+  /**
+   * @returns {number}
+   */
+  ttl(): number;
+
+  /**
    * @param {Certificates} certs
    */
   set_certs(certs: Certificates): void;
+
+  /**
+   * @returns {Certificates | void}
+   */
+  certs(): Certificates | void;
 
   /**
    * @param {Withdrawals} withdrawals
@@ -1480,9 +1814,19 @@ declare export class TransactionBody {
   set_withdrawals(withdrawals: Withdrawals): void;
 
   /**
+   * @returns {Withdrawals | void}
+   */
+  withdrawals(): Withdrawals | void;
+
+  /**
    * @param {MetadataHash} metadata_hash
    */
   set_metadata_hash(metadata_hash: MetadataHash): void;
+
+  /**
+   * @returns {MetadataHash | void}
+   */
+  metadata_hash(): MetadataHash | void;
 
   /**
    * @param {TransactionInputs} inputs
@@ -1536,6 +1880,16 @@ declare export class TransactionInput {
    * @returns {TransactionInput}
    */
   static from_bytes(bytes: Uint8Array): TransactionInput;
+
+  /**
+   * @returns {TransactionHash}
+   */
+  transaction_id(): TransactionHash;
+
+  /**
+   * @returns {number}
+   */
+  index(): number;
 
   /**
    * @param {TransactionHash} transaction_id
@@ -1609,6 +1963,12 @@ declare export class TransactionMetadata {
    * @returns {TransactionMetadatum | void}
    */
   insert(key: BigInt, value: TransactionMetadatum): TransactionMetadatum | void;
+
+  /**
+   * @param {BigInt} key
+   * @returns {TransactionMetadatum | void}
+   */
+  get(key: BigInt): TransactionMetadatum | void;
 }
 declare export class TransactionMetadatum {
   free(): void;
@@ -1657,6 +2017,36 @@ declare export class TransactionMetadatum {
    * @returns {TransactionMetadatum}
    */
   static new_text(text: string): TransactionMetadatum;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+
+  /**
+   * @returns {MapTransactionMetadatumToTransactionMetadatum | void}
+   */
+  as_map_transaction_metadatum_to_transaction_metadatum(): MapTransactionMetadatumToTransactionMetadatum | void;
+
+  /**
+   * @returns {TransactionMetadatums | void}
+   */
+  as_arr_transaction_metadatum(): TransactionMetadatums | void;
+
+  /**
+   * @returns {Int | void}
+   */
+  as_int(): Int | void;
+
+  /**
+   * @returns {Uint8Array | void}
+   */
+  as_bytes(): Uint8Array | void;
+
+  /**
+   * @returns {string | void}
+   */
+  as_text(): string | void;
 }
 declare export class TransactionMetadatums {
   free(): void;
@@ -1706,6 +2096,16 @@ declare export class TransactionOutput {
    * @returns {TransactionOutput}
    */
   static from_bytes(bytes: Uint8Array): TransactionOutput;
+
+  /**
+   * @returns {Address}
+   */
+  address(): Address;
+
+  /**
+   * @returns {Coin}
+   */
+  amount(): Coin;
 
   /**
    * @param {Address} address
@@ -1769,14 +2169,29 @@ declare export class TransactionWitnessSet {
   set_vkeys(vkeys: Vkeywitnesses): void;
 
   /**
+   * @returns {Vkeywitnesses | void}
+   */
+  vkeys(): Vkeywitnesses | void;
+
+  /**
    * @param {MultisigScripts} scripts
    */
   set_scripts(scripts: MultisigScripts): void;
 
   /**
+   * @returns {MultisigScripts | void}
+   */
+  scripts(): MultisigScripts | void;
+
+  /**
    * @param {BootstrapWitnesses} bootstraps
    */
   set_bootstraps(bootstraps: BootstrapWitnesses): void;
+
+  /**
+   * @returns {BootstrapWitnesses | void}
+   */
+  bootstraps(): BootstrapWitnesses | void;
 
   /**
    * @returns {TransactionWitnessSet}
@@ -1796,6 +2211,16 @@ declare export class UnitInterval {
    * @returns {UnitInterval}
    */
   static from_bytes(bytes: Uint8Array): UnitInterval;
+
+  /**
+   * @returns {BigInt}
+   */
+  index_0(): BigInt;
+
+  /**
+   * @returns {BigInt}
+   */
+  index_1(): BigInt;
 
   /**
    * @param {BigInt} index_0
@@ -1913,4 +2338,10 @@ declare export class Withdrawals {
    * @returns {Coin | void}
    */
   insert(key: RewardAddress, value: Coin): Coin | void;
+
+  /**
+   * @param {RewardAddress} key
+   * @returns {Coin | void}
+   */
+  get(key: RewardAddress): Coin | void;
 }
