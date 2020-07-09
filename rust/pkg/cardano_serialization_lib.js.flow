@@ -7,9 +7,15 @@
 
 /**
  * @param {Transaction} tx
- * @returns {number}
+ * @param {Coin} coefficient
+ * @param {Coin} constant
+ * @returns {Coin}
  */
-declare export function min_fee(tx: Transaction): number;
+declare export function min_fee(
+  tx: Transaction,
+  coefficient: Coin,
+  constant: Coin
+): Coin;
 
 /**
  */
@@ -441,6 +447,11 @@ declare export class Coin {
   static new(value: BigInt): Coin;
 
   /**
+   * @returns {BigInt}
+   */
+  unwrap(): BigInt;
+
+  /**
    * @param {string} string
    * @returns {Coin}
    */
@@ -450,6 +461,12 @@ declare export class Coin {
    * @returns {string}
    */
   to_str(): string;
+
+  /**
+   * @param {Coin} other
+   * @returns {Coin}
+   */
+  checked_mul(other: Coin): Coin;
 
   /**
    * @param {Coin} other
