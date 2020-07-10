@@ -284,6 +284,10 @@ impl Vkey {
     pub fn new(pk: &PublicKey) -> Self {
         Self(pk.clone())
     }
+
+    pub fn public_key(&self) -> PublicKey {
+        self.0.clone()
+    }
 }
 
 impl cbor_event::se::Serialize for Vkey {
@@ -314,6 +318,14 @@ impl Vkeywitness {
             vkey: vkey.clone(),
             signature: signature.clone()
         }
+    }
+
+    pub fn vkey(&self) -> Vkey {
+        self.vkey.clone()
+    }
+
+    pub fn signature(&self) -> Ed25519Signature {
+        self.signature.clone()
     }
 }
 
@@ -402,28 +414,47 @@ impl Deserialize for Vkeywitnesses {
     }
 }
 
-// TODO: custom-write the 3 byte objects and generally make this useable for more than deserialization
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct BootstrapWitness {
     vkey: Vkey,
     signature: Ed25519Signature,
-    index_2: Vec<u8>,
-    index_3: Vec<u8>,
-    index_4: Vec<u8>,
+    chain_code: Vec<u8>,
+    pad_prefix: Vec<u8>,
+    pad_suffix: Vec<u8>,
 }
 
 to_from_bytes!(BootstrapWitness);
 
 #[wasm_bindgen]
 impl BootstrapWitness {
-    pub fn new(vkey: &Vkey, signature: &Ed25519Signature, index_2: Vec<u8>, index_3: Vec<u8>, index_4: Vec<u8>) -> Self {
+    pub fn vkey(&self) -> Vkey {
+        self.vkey.clone()
+    }
+
+    pub fn signature(&self) -> Ed25519Signature {
+        self.signature.clone()
+    }
+
+    pub fn chain_code(&self) -> Vec<u8> {
+        self.chain_code.clone()
+    }
+
+    pub fn pad_prefix(&self) -> Vec<u8> {
+        self.pad_prefix.clone()
+    }
+
+    pub fn pad_suffix(&self) -> Vec<u8> {
+        self.pad_suffix.clone()
+    }
+
+    pub fn new(vkey: &Vkey, signature: &Ed25519Signature, chain_code: Vec<u8>, pad_prefix: Vec<u8>, pad_suffix: Vec<u8>) -> Self {
         Self {
             vkey: vkey.clone(),
             signature: signature.clone(),
-            index_2: index_2,
-            index_3: index_3,
-            index_4: index_4,
+            chain_code: chain_code,
+            pad_prefix: pad_prefix,
+            pad_suffix: pad_suffix,
         }
     }
 }
@@ -433,9 +464,9 @@ impl cbor_event::se::Serialize for BootstrapWitness {
         serializer.write_array(cbor_event::Len::Len(5))?;
         self.vkey.serialize(serializer)?;
         self.signature.serialize(serializer)?;
-        serializer.write_bytes(&self.index_2)?;
-        serializer.write_bytes(&self.index_3)?;
-        serializer.write_bytes(&self.index_4)?;
+        serializer.write_bytes(&self.chain_code)?;
+        serializer.write_bytes(&self.pad_prefix)?;
+        serializer.write_bytes(&self.pad_suffix)?;
         Ok(serializer)
     }
 }
@@ -448,7 +479,7 @@ impl Deserialize for BootstrapWitness {
             match len {
                 cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    cbor_event::Special::Break => /* it's ok */(),
+                    CBORSpecial::Break => /* it's ok */(),
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             }
@@ -465,21 +496,21 @@ impl DeserializeEmbeddedGroup for BootstrapWitness {
         let signature = (|| -> Result<_, DeserializeError> {
             Ok(Ed25519Signature::deserialize(raw)?)
         })().map_err(|e| e.annotate("signature"))?;
-        let index_2 = (|| -> Result<_, DeserializeError> {
+        let chain_code = (|| -> Result<_, DeserializeError> {
             Ok(raw.bytes()?)
-        })().map_err(|e| e.annotate("index_2"))?;
-        let index_3 = (|| -> Result<_, DeserializeError> {
+        })().map_err(|e| e.annotate("chain_code"))?;
+        let pad_prefix = (|| -> Result<_, DeserializeError> {
             Ok(raw.bytes()?)
-        })().map_err(|e| e.annotate("index_3"))?;
-        let index_4 = (|| -> Result<_, DeserializeError> {
+        })().map_err(|e| e.annotate("pad_prefix"))?;
+        let pad_suffix = (|| -> Result<_, DeserializeError> {
             Ok(raw.bytes()?)
-        })().map_err(|e| e.annotate("index_4"))?;
+        })().map_err(|e| e.annotate("pad_suffix"))?;
         Ok(BootstrapWitness {
             vkey,
             signature,
-            index_2,
-            index_3,
-            index_4,
+            chain_code,
+            pad_prefix,
+            pad_suffix,
         })
     }
 }
