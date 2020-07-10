@@ -30,16 +30,19 @@ declare export function make_icarus_bootstrap_witness(
 ): BootstrapWitness;
 
 /**
+ * @param {TransactionMetadata} metadata
+ * @returns {MetadataHash}
+ */
+declare export function hash_metadata(
+  metadata: TransactionMetadata
+): MetadataHash;
+
+/**
  * @param {Transaction} tx
- * @param {BigNum} coefficient
- * @param {BigNum} constant
+ * @param {LinearFee} linear_fee
  * @returns {BigNum}
  */
-declare export function min_fee(
-  tx: Transaction,
-  coefficient: BigNum,
-  constant: BigNum
-): BigNum;
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -922,6 +925,28 @@ declare export class LegacyDaedalusPrivateKey {
    * @returns {Uint8Array}
    */
   chaincode(): Uint8Array;
+}
+/**
+ */
+declare export class LinearFee {
+  free(): void;
+
+  /**
+   * @returns {BigNum}
+   */
+  constant(): BigNum;
+
+  /**
+   * @returns {BigNum}
+   */
+  coefficient(): BigNum;
+
+  /**
+   * @param {BigNum} constant
+   * @param {BigNum} coefficient
+   * @returns {LinearFee}
+   */
+  static new(constant: BigNum, coefficient: BigNum): LinearFee;
 }
 /**
  */
@@ -2118,6 +2143,111 @@ declare export class TransactionBody {
    * @returns {Vkeywitness}
    */
   sign(sk: PrivateKey): Vkeywitness;
+}
+/**
+ */
+declare export class TransactionBuilder {
+  free(): void;
+
+  /**
+   * @param {AddrKeyHash} hash
+   * @param {TransactionInput} input
+   * @param {BigNum} amount
+   */
+  add_key_input(
+    hash: AddrKeyHash,
+    input: TransactionInput,
+    amount: BigNum
+  ): void;
+
+  /**
+   * @param {ScriptHash} hash
+   * @param {TransactionInput} input
+   * @param {BigNum} amount
+   */
+  add_script_input(
+    hash: ScriptHash,
+    input: TransactionInput,
+    amount: BigNum
+  ): void;
+
+  /**
+   * @param {ByronAddress} hash
+   * @param {TransactionInput} input
+   * @param {BigNum} amount
+   */
+  add_bootstrap_input(
+    hash: ByronAddress,
+    input: TransactionInput,
+    amount: BigNum
+  ): void;
+
+  /**
+   * @param {TransactionOutput} output
+   */
+  add_output(output: TransactionOutput): void;
+
+  /**
+   * @param {BigNum} fee
+   */
+  set_fee(fee: BigNum): void;
+
+  /**
+   * @param {number} ttl
+   */
+  set_ttl(ttl: number): void;
+
+  /**
+   * @param {Certificates} certs
+   */
+  set_certs(certs: Certificates): void;
+
+  /**
+   * @param {Withdrawals} withdrawals
+   */
+  set_withdrawals(withdrawals: Withdrawals): void;
+
+  /**
+   * @param {TransactionMetadata} metadata
+   */
+  set_metadata(metadata: TransactionMetadata): void;
+
+  /**
+   * @param {LinearFee} linear_fee
+   * @returns {TransactionBuilder}
+   */
+  static new(linear_fee: LinearFee): TransactionBuilder;
+
+  /**
+   * @returns {BigNum}
+   */
+  get_input_total(): BigNum;
+
+  /**
+   * @returns {BigNum}
+   */
+  get_feeless_output_total(): BigNum;
+
+  /**
+   * @returns {BigNum}
+   */
+  get_fee_or_calc(): BigNum;
+
+  /**
+   * @param {Address} address
+   * @returns {boolean}
+   */
+  add_change_if_needed(address: Address): boolean;
+
+  /**
+   * @returns {TransactionBody}
+   */
+  build(): TransactionBody;
+
+  /**
+   * @returns {BigNum}
+   */
+  calc_fee(): BigNum;
 }
 /**
  */

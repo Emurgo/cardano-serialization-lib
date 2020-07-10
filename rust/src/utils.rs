@@ -262,3 +262,8 @@ pub fn make_icarus_bootstrap_witness(
         make_byron_pad_suffix(addr),
     )
 }
+
+#[wasm_bindgen]
+pub fn hash_metadata(metadata: &TransactionMetadata) -> MetadataHash {
+  MetadataHash::from(blake2b256(&metadata.to_bytes()))
+}

@@ -13,6 +13,7 @@ pub mod crypto;
 pub mod error;
 pub mod fees;
 pub mod serialization;
+pub mod tx_builder;
 #[macro_use]
 pub mod utils;
 

@@ -18,9 +18,36 @@ fn cbor_uint_length(x: u64) -> usize {
 }
 
 #[wasm_bindgen]
-pub fn min_fee(tx: &Transaction, coefficient: &Coin, constant: &Coin) -> Result<Coin, JsValue> {
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct LinearFee {
+    constant: Coin,
+    coefficient: Coin,
+}
+
+#[wasm_bindgen]
+impl LinearFee {
+    pub fn constant(&self) -> Coin {
+        self.constant
+    }
+
+    pub fn coefficient(&self) -> Coin {
+        self.coefficient
+    }
+
+    pub fn new(constant: &Coin, coefficient: &Coin) -> Self {
+        Self {
+            constant: constant.clone(),
+            coefficient: coefficient.clone(),
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn min_fee(tx: &Transaction, linear_fee: &LinearFee) -> Result<Coin, JsValue> {
     let size = fees::txsize(tx) as u64;
-    Coin::new(size).checked_mul(coefficient)?.checked_add(constant)
+    Coin::new(size)
+        .checked_mul(&linear_fee.coefficient())?
+        .checked_add(&linear_fee.constant())
 }
 
 fn txsize(tx: &Transaction) -> usize {
