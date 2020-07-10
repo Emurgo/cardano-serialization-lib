@@ -1,4 +1,5 @@
 use super::*;
+use utils::*;
 
 // size (including major type tag) in CBOR for a uint
 fn cbor_uint_length(x: u64) -> usize {
@@ -34,7 +35,7 @@ fn txsize(tx: &Transaction) -> usize {
     const OUTPUT_SIZE: usize = SMALL_ARRAY + UINT + ADDRESS;
     let input_bytes = tx.body.inputs.to_bytes().len();
     let output_bytes = tx.body.outputs.to_bytes().len();
-    let fee_bytes = cbor_uint_length(tx.body.fee.0);
+    let fee_bytes = cbor_uint_length(tx.body.fee.unwrap());
     let extra_size = input_bytes + output_bytes + fee_bytes;
     let rest = tx.to_bytes().len() - extra_size;
     tx.body.inputs.len() * INPUT_SIZE + tx.body.outputs.len() * OUTPUT_SIZE + rest
