@@ -91,6 +91,12 @@ impl std::fmt::Display for DeserializeError {
     }
 }
 
+impl From<DeserializeError> for JsValue {
+    fn from(e: DeserializeError) -> JsValue {
+        JsValue::from_str(&e.to_string())
+    }
+}
+
 impl From<DeserializeFailure> for DeserializeError {
     fn from(failure: DeserializeFailure) -> DeserializeError {
         DeserializeError {
@@ -171,7 +177,7 @@ macro_rules! from_bytes {
         #[wasm_bindgen]
         impl $name {
             pub fn from_bytes($data: Vec<u8>) -> Result<$name, JsValue> {
-                $body.map_err(|e| JsValue::from_str(&format!("{}", e)))
+                Ok($body?)
             }
         }
         // non-wasm exposed DeserializeError return
