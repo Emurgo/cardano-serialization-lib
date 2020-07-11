@@ -296,7 +296,7 @@ impl Address {
     pub fn from_bech32(bech_str: &str) -> Result<Address, JsValue> {
         let (_hrp, u5data) = bech32::decode(bech_str).map_err(|e| JsValue::from_str(&e.to_string()))?;
         let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data).unwrap();
-        Self::from_bytes_impl(data.as_ref()).map_err(|e| JsValue::from_str(&e.to_string()))
+        Ok(Self::from_bytes_impl(data.as_ref())?)
     }
 
     pub fn network_id(&self) -> u8 {
