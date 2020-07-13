@@ -1,6 +1,8 @@
 use super::*;
 use address::*;
 use crypto::*;
+use error::*;
+use crate::utils::*;
 use std::io::{Seek, SeekFrom};
 
 // This file was code-generated using an experimental CDDL to rust tool:
@@ -40,10 +42,10 @@ impl Deserialize for UnitInterval {
 impl DeserializeEmbeddedGroup for UnitInterval {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
         let index_0 = (|| -> Result<_, DeserializeError> {
-            Ok(u64::deserialize(raw)?)
+            Ok(BigNum::deserialize(raw)?)
         })().map_err(|e| e.annotate("index_0"))?;
         let index_1 = (|| -> Result<_, DeserializeError> {
-            Ok(u64::deserialize(raw)?)
+            Ok(BigNum::deserialize(raw)?)
         })().map_err(|e| e.annotate("index_1"))?;
         Ok(UnitInterval {
             index_0,

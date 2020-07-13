@@ -10,37 +10,37 @@ use cbor_event::Special as CBORSpecial;
 
 pub mod address;
 pub mod crypto;
+pub mod error;
 pub mod fees;
-pub mod utils;
-#[macro_use]
-pub mod prelude;
 pub mod serialization;
+#[macro_use]
+pub mod utils;
 
 use address::*;
 use crypto::*;
-use prelude::*;
+use error::*;
 use utils::*;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct UnitInterval {
-    index_0: u64,
-    index_1: u64,
+    index_0: BigNum,
+    index_1: BigNum,
 }
 
 to_from_bytes!(UnitInterval);
 
 #[wasm_bindgen]
 impl UnitInterval {
-    pub fn index_0(&self) -> u64 {
+    pub fn index_0(&self) -> BigNum {
         self.index_0.clone()
     }
 
-    pub fn index_1(&self) -> u64 {
+    pub fn index_1(&self) -> BigNum {
         self.index_1.clone()
     }
 
-    pub fn new(index_0: u64, index_1: u64) -> Self {
+    pub fn new(index_0: BigNum, index_1: BigNum) -> Self {
         Self {
             index_0: index_0,
             index_1: index_1,
@@ -49,6 +49,7 @@ impl UnitInterval {
 }
 
 type Epoch = u32;
+type Slot = u32;
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -83,7 +84,10 @@ impl Transaction {
     }
 }
 
+// index of a tx within a block
 type TransactionIndex = u32;
+// index of a cert within a tx
+type CertificateIndex = u32;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -244,7 +248,7 @@ impl TransactionBody {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionInput {
     transaction_id: TransactionHash,
-    index: u32,
+    index: TransactionIndex,
 }
 
 to_from_bytes!(TransactionInput);
@@ -255,11 +259,11 @@ impl TransactionInput {
         self.transaction_id.clone()
     }
 
-    pub fn index(&self) -> u32 {
+    pub fn index(&self) -> TransactionIndex {
         self.index.clone()
     }
 
-    pub fn new(transaction_id: &TransactionHash, index: u32) -> Self {
+    pub fn new(transaction_id: &TransactionHash, index: TransactionIndex) -> Self {
         Self {
             transaction_id: transaction_id.clone(),
             index: index,
@@ -1176,7 +1180,7 @@ impl TransactionMetadatum {
     }
 }
 
-type TransactionMetadadumLabel = u64;
+type TransactionMetadadumLabel = BigNum;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]

@@ -1,5 +1,4 @@
 use super::*;
-use prelude::*;
 use bech32::ToBase32;
 
 // returns (Number represented, bytes read) if valid encoding
@@ -161,9 +160,9 @@ impl Address {
                                | (ptr.network & 0xF);
                 buf.push(header);
                 buf.extend(ptr.payment.to_raw_bytes());
-                buf.extend(variable_nat_encode(ptr.stake.slot));
-                buf.extend(variable_nat_encode(ptr.stake.tx_index));
-                buf.extend(variable_nat_encode(ptr.stake.cert_index));
+                buf.extend(variable_nat_encode(ptr.stake.slot.into()));
+                buf.extend(variable_nat_encode(ptr.stake.tx_index.into()));
+                buf.extend(variable_nat_encode(ptr.stake.cert_index.into()));
             },
             AddrType::Enterprise(enterprise) => {
                 let header: u8 = 0b0110_0000
@@ -252,10 +251,17 @@ impl Address {
                     let (cert_index, cert_bytes) = variable_nat_decode(&data[byte_index..])
                         .ok_or(DeserializeError::new("Address.Pointer.cert_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
                     byte_index += cert_bytes;
-                    if byte_index > data.len() {
+                    if byte_index < data.len() {
                         return Err(cbor_event::Error::TrailingData.into());
                     }
-                    AddrType::Ptr(PointerAddress::new(network, &payment_cred, &Pointer::new(slot, tx_index, cert_index)))
+                    AddrType::Ptr(
+                        PointerAddress::new(
+                            network,
+                            &payment_cred,
+                            &Pointer::new(
+                                slot.try_into().map_err(|_| DeserializeError::new("Address.Pointer.slot", DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32)))?,
+                                tx_index.try_into().map_err(|_| DeserializeError::new("Address.Pointer.tx_index", DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32)))?,
+                                cert_index.try_into().map_err(|_| DeserializeError::new("Address.Pointer.cert_index", DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32)))?)))
                 },
                 // enterprise
                 0b0110 | 0b0111 => {
@@ -425,14 +431,14 @@ impl Deserialize for RewardAddress {
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Pointer {
-    slot: u64,
-    tx_index: u64,
-    cert_index: u64,
+    slot: Slot,
+    tx_index: TransactionIndex,
+    cert_index: CertificateIndex,
 }
 
 #[wasm_bindgen]
 impl Pointer {
-    pub fn new(slot: u64, tx_index: u64, cert_index: u64) -> Self {
+    pub fn new(slot: Slot, tx_index: TransactionIndex, cert_index: CertificateIndex) -> Self {
         Self {
             slot,
             tx_index,
