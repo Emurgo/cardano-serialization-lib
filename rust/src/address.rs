@@ -240,7 +240,7 @@ impl Address {
             const HASH_LEN: usize = AddrKeyHash::BYTE_COUNT;
             // should be static assert but it's maybe not worth importing a whole external crate for it now
             assert_eq!(ScriptHash::BYTE_COUNT, HASH_LEN);
-            // read nth /bit/ at byte position /pos/
+            // checks the /bit/ bit of the header for key vs scripthash then reads the credential starting at byte position /pos/
             let read_addr_cred = |bit: u8, pos: usize| {
                 let hash_bytes: [u8; HASH_LEN] = data[pos..pos+HASH_LEN].try_into().unwrap();
                 let x = if header & (1 << bit)  == 0 {
