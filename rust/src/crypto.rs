@@ -701,6 +701,29 @@ macro_rules! impl_hash_type {
     }
 }
 
+
+#[wasm_bindgen]
+pub struct LegacyDaedalusPrivateKey(pub (crate) crypto::SecretKey<crypto::LegacyDaedalus>);
+
+#[wasm_bindgen]
+impl LegacyDaedalusPrivateKey {
+    pub fn from_bytes(bytes: &[u8]) -> Result<LegacyDaedalusPrivateKey, JsValue> {
+        crypto::SecretKey::<crypto::LegacyDaedalus>::from_binary(bytes)
+            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map(LegacyDaedalusPrivateKey)
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        self.0.as_ref().to_vec()
+    }
+
+    pub fn chaincode(&self) -> Vec<u8> {
+        let ED25519_PRIVATE_KEY_LENGTH = 64;
+        let XPRV_SIZE = 96;
+        self.0.as_ref()[ED25519_PRIVATE_KEY_LENGTH..XPRV_SIZE].to_vec()
+    }
+}
+
 impl_hash_type!(AddrKeyHash, 28);
 impl_hash_type!(ScriptHash, 28);
 impl_hash_type!(TransactionHash, 32);

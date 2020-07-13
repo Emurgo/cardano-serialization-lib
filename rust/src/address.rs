@@ -1,6 +1,7 @@
 use super::*;
 use prelude::*;
 use bech32::ToBase32;
+use cardano_legacy_address::ExtendedAddr;
 
 // returns (Number represented, bytes read) if valid encoding
 // or None if decoding prematurely finished
@@ -129,6 +130,31 @@ enum AddrType {
     Ptr(PointerAddress),
     Enterprise(EnterpriseAddress),
     Reward(RewardAddress),
+    Byron(ByronAddress),
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ByronAddress(pub ExtendedAddr);
+#[wasm_bindgen]
+impl ByronAddress {
+    pub fn to_base58(&self) -> String {
+        format!("{}", self.0)
+    }
+    pub fn from_base58(s: &str) -> Result<ByronAddress, JsValue> {
+        use std::str::FromStr;
+        ExtendedAddr::from_str(s)
+            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
+            .map(ByronAddress)
+    }
+
+    pub fn is_valid(s: &str) -> bool {
+        use std::str::FromStr;
+        match ExtendedAddr::from_str(s) {
+            Ok(v) => true,
+            Err(err) => false,
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -210,6 +236,7 @@ impl Address {
             const HASH_LEN: usize = AddrKeyHash::BYTE_COUNT;
             // should be static assert but it's maybe not worth importing a whole external crate for it now
             assert_eq!(ScriptHash::BYTE_COUNT, HASH_LEN);
+            // read nth /bit/ at byte position /pos/
             let read_addr_cred = |bit: u8, pos: usize| {
                 let hash_bytes: [u8; HASH_LEN] = data[pos..pos+HASH_LEN].try_into().unwrap();
                 let x = if header & (1 << bit)  == 0 {

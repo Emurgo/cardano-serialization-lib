@@ -67,3 +67,35 @@ impl Deserialize for Coin {
       }
   }
 }
+
+pub fn generate_bootstrap_witness(
+    tx_body_hash: &TransactionHash,
+    addr: &ByronAddress,
+    key: &LegacyDaedalusPrivateKey,
+) -> Result<BootstrapWitness, JsValue> {
+    let CHAIN_CODE_SIZE = 32;
+    let ED25519_PRIVATE_KEY_LENGTH = 64;
+    let XPRV_SIZE = 96;
+    let chain_code = key.chaincode();
+
+    let pubkey = Bip32PublicKey::from_bytes(&key.0.to_public().as_ref())?;
+    let vkey = Vkey::new(&pubkey.to_raw_key());
+    let signature = Ed25519Signature::from_bytes(key.0.sign(&tx_body_hash.to_bytes()).as_ref().to_vec())?;
+
+    let pad_prefix = [
+        0x83, // CBOR list-len (3)
+        0x00, // address type = 0
+        0x82, // CBOR list-len (2)
+        0x00,
+        0x52, 0x54 // CBOR bytestring (64)
+    ].to_vec();
+
+    let pad_suffix = addr.0.attributes.serialize().to_vec();
+    Ok(BootstrapWitness {
+        vkey,
+        signature,
+        chain_code,
+        pad_prefix,
+        pad_suffix,
+    })
+}
