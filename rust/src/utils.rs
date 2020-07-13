@@ -90,12 +90,15 @@ pub fn generate_bootstrap_witness(
         0x52, 0x54 // CBOR bytestring (64)
     ].to_vec();
 
-    let pad_suffix = addr.0.attributes.serialize().to_vec();
-    Ok(BootstrapWitness {
-        vkey,
-        signature,
+    let mut attributes_bytes = Serializer::new_vec();
+    addr.0.attributes.serialize(&mut attributes_bytes).unwrap();
+    let pad_suffix = attributes_bytes.finalize();
+
+    Ok(BootstrapWitness::new(
+        &vkey,
+        &signature,
         chain_code,
         pad_prefix,
         pad_suffix,
-    })
+    ))
 }

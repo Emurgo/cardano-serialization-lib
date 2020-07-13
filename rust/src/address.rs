@@ -124,7 +124,7 @@ impl Deserialize for StakeCredential {
     }
 }
 
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone)]
 enum AddrType {
     Base(BaseAddress),
     Ptr(PointerAddress),
@@ -134,8 +134,8 @@ enum AddrType {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct ByronAddress(pub ExtendedAddr);
+#[derive(Clone, Debug)]
+pub struct ByronAddress(pub (crate) ExtendedAddr);
 #[wasm_bindgen]
 impl ByronAddress {
     pub fn to_base58(&self) -> String {
@@ -158,7 +158,7 @@ impl ByronAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone)]
 pub struct Address(AddrType);
 
 from_bytes!(Address, data, {
@@ -204,6 +204,10 @@ impl Address {
                                 | (reward.network & 0xF);
                 buf.push(header);
                 buf.extend(reward.payment.to_raw_bytes());
+            },
+            AddrType::Byron(byron) => {
+                // TODO: implement
+                unimplemented!()
             },
         }
         println!("to_bytes({:?}) = {:?}", self, buf);
@@ -308,6 +312,7 @@ impl Address {
                 }
                 // byron
                 0b1000 => {
+                    // TODO: implement
                     unimplemented!()
                 },
                 _ => return Err(DeserializeFailure::BadAddressType(header).into()),
@@ -326,12 +331,13 @@ impl Address {
         Ok(Self::from_bytes_impl(data.as_ref())?)
     }
 
-    pub fn network_id(&self) -> u8 {
+    pub fn network_id(&self) -> Option<u8> {
         match &self.0 {
-            AddrType::Base(a) => a.network,
-            AddrType::Enterprise(a) => a.network,
-            AddrType::Ptr(a) => a.network,
-            AddrType::Reward(a) => a.network,
+            AddrType::Base(a) => Some(a.network),
+            AddrType::Enterprise(a) => Some(a.network),
+            AddrType::Ptr(a) => Some(a.network),
+            AddrType::Reward(a) => Some(a.network),
+            AddrType::Byron(a) => None,
         }
     }
 }

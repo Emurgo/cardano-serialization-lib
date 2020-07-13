@@ -7,18 +7,15 @@
 
 /**
  * @param {Transaction} tx
- * @param {LinearFee} linear_fee
+ * @param {Coin} coefficient
+ * @param {Coin} constant
  * @returns {Coin}
  */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): Coin;
-
-/**
- * @param {TransactionMetadata} metadata
- * @returns {MetadataHash}
- */
-declare export function hash_metadata(
-  metadata: TransactionMetadata
-): MetadataHash;
+declare export function min_fee(
+  tx: Transaction,
+  coefficient: Coin,
+  constant: Coin
+): Coin;
 
 /**
  */
@@ -70,6 +67,9 @@ declare export var MultisigScriptKind: {|
   +MsigAny: 2, // 2
   +MsigNOfK: 3, // 3
 |};
+
+/**
+ */
 declare export class AddrKeyHash {
   free(): void;
 
@@ -84,6 +84,8 @@ declare export class AddrKeyHash {
    */
   static from_bytes(bytes: Uint8Array): AddrKeyHash;
 }
+/**
+ */
 declare export class AddrKeyHashes {
   free(): void;
 
@@ -119,6 +121,8 @@ declare export class AddrKeyHashes {
    */
   add(elem: AddrKeyHash): void;
 }
+/**
+ */
 declare export class Address {
   free(): void;
 
@@ -145,10 +149,12 @@ declare export class Address {
   static from_bech32(bech_str: string): Address;
 
   /**
-   * @returns {number}
+   * @returns {number | void}
    */
-  network_id(): number;
+  network_id(): number | void;
 }
+/**
+ */
 declare export class BaseAddress {
   free(): void;
 
@@ -179,6 +185,8 @@ declare export class BaseAddress {
    */
   to_address(): Address;
 }
+/**
+ */
 declare export class Bip32PrivateKey {
   free(): void;
 
@@ -253,6 +261,8 @@ declare export class Bip32PrivateKey {
     password: Uint8Array
   ): Bip32PrivateKey;
 }
+/**
+ */
 declare export class Bip32PublicKey {
   free(): void;
 
@@ -317,6 +327,8 @@ declare export class Bip32PublicKey {
    */
   hash(): AddrKeyHash;
 }
+/**
+ */
 declare export class BootstrapWitness {
   free(): void;
 
@@ -332,21 +344,48 @@ declare export class BootstrapWitness {
   static from_bytes(bytes: Uint8Array): BootstrapWitness;
 
   /**
+   * @returns {Vkey}
+   */
+  vkey(): Vkey;
+
+  /**
+   * @returns {Ed25519Signature}
+   */
+  signature(): Ed25519Signature;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  chain_code(): Uint8Array;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  pad_prefix(): Uint8Array;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  pad_suffix(): Uint8Array;
+
+  /**
    * @param {Vkey} vkey
    * @param {Ed25519Signature} signature
-   * @param {Uint8Array} index_2
-   * @param {Uint8Array} index_3
-   * @param {Uint8Array} index_4
+   * @param {Uint8Array} chain_code
+   * @param {Uint8Array} pad_prefix
+   * @param {Uint8Array} pad_suffix
    * @returns {BootstrapWitness}
    */
   static new(
     vkey: Vkey,
     signature: Ed25519Signature,
-    index_2: Uint8Array,
-    index_3: Uint8Array,
-    index_4: Uint8Array
+    chain_code: Uint8Array,
+    pad_prefix: Uint8Array,
+    pad_suffix: Uint8Array
   ): BootstrapWitness;
 }
+/**
+ */
 declare export class BootstrapWitnesses {
   free(): void;
 
@@ -371,6 +410,30 @@ declare export class BootstrapWitnesses {
    */
   add(elem: BootstrapWitness): void;
 }
+/**
+ */
+declare export class ByronAddress {
+  free(): void;
+
+  /**
+   * @returns {string}
+   */
+  to_base58(): string;
+
+  /**
+   * @param {string} s
+   * @returns {ByronAddress}
+   */
+  static from_base58(s: string): ByronAddress;
+
+  /**
+   * @param {string} s
+   * @returns {boolean}
+   */
+  static is_valid(s: string): boolean;
+}
+/**
+ */
 declare export class Certificate {
   free(): void;
 
@@ -477,6 +540,8 @@ declare export class Certificate {
    */
   as_move_instantaneous_rewards_cert(): MoveInstantaneousRewardsCert | void;
 }
+/**
+ */
 declare export class Certificates {
   free(): void;
 
@@ -512,6 +577,8 @@ declare export class Certificates {
    */
   add(elem: Certificate): void;
 }
+/**
+ */
 declare export class Coin {
   free(): void;
 
@@ -566,6 +633,8 @@ declare export class Coin {
    */
   checked_sub(other: Coin): Coin;
 }
+/**
+ */
 declare export class Ed25519Signature {
   free(): void;
 
@@ -602,6 +671,8 @@ declare export class Ed25519Signature {
    */
   static from_bytes(bytes: Uint8Array): Ed25519Signature;
 }
+/**
+ */
 declare export class EnterpriseAddress {
   free(): void;
 
@@ -622,6 +693,8 @@ declare export class EnterpriseAddress {
    */
   to_address(): Address;
 }
+/**
+ */
 declare export class GenesisDelegateHash {
   free(): void;
 
@@ -636,6 +709,8 @@ declare export class GenesisDelegateHash {
    */
   static from_bytes(bytes: Uint8Array): GenesisDelegateHash;
 }
+/**
+ */
 declare export class GenesisHash {
   free(): void;
 
@@ -650,6 +725,8 @@ declare export class GenesisHash {
    */
   static from_bytes(bytes: Uint8Array): GenesisHash;
 }
+/**
+ */
 declare export class GenesisKeyDelegation {
   free(): void;
 
@@ -684,6 +761,8 @@ declare export class GenesisKeyDelegation {
     genesis_delegate_hash: GenesisDelegateHash
   ): GenesisKeyDelegation;
 }
+/**
+ */
 declare export class Int {
   free(): void;
 
@@ -699,6 +778,8 @@ declare export class Int {
    */
   static new_negative(x: BigInt): Int;
 }
+/**
+ */
 declare export class Ipv4 {
   free(): void;
 
@@ -719,6 +800,8 @@ declare export class Ipv4 {
    */
   static new(data: Uint8Array): Ipv4;
 }
+/**
+ */
 declare export class Ipv6 {
   free(): void;
 
@@ -739,26 +822,29 @@ declare export class Ipv6 {
    */
   static new(data: Uint8Array): Ipv6;
 }
-declare export class LinearFee {
+/**
+ */
+declare export class LegacyDaedalusPrivateKey {
   free(): void;
 
   /**
-   * @returns {Coin}
+   * @param {Uint8Array} bytes
+   * @returns {LegacyDaedalusPrivateKey}
    */
-  constant(): Coin;
+  static from_bytes(bytes: Uint8Array): LegacyDaedalusPrivateKey;
 
   /**
-   * @returns {Coin}
+   * @returns {Uint8Array}
    */
-  coefficient(): Coin;
+  as_bytes(): Uint8Array;
 
   /**
-   * @param {Coin} constant
-   * @param {Coin} coefficient
-   * @returns {LinearFee}
+   * @returns {Uint8Array}
    */
-  static new(constant: Coin, coefficient: Coin): LinearFee;
+  chaincode(): Uint8Array;
 }
+/**
+ */
 declare export class MapTransactionMetadatumToTransactionMetadatum {
   free(): void;
 
@@ -801,6 +887,8 @@ declare export class MapTransactionMetadatumToTransactionMetadatum {
    */
   get(key: TransactionMetadatum): TransactionMetadatum | void;
 }
+/**
+ */
 declare export class MetadataHash {
   free(): void;
 
@@ -815,6 +903,8 @@ declare export class MetadataHash {
    */
   static from_bytes(bytes: Uint8Array): MetadataHash;
 }
+/**
+ */
 declare export class MoveInstantaneousReward {
   free(): void;
 
@@ -847,6 +937,8 @@ declare export class MoveInstantaneousReward {
    */
   insert(key: StakeCredential, value: Coin): Coin | void;
 }
+/**
+ */
 declare export class MoveInstantaneousRewardsCert {
   free(): void;
 
@@ -874,6 +966,8 @@ declare export class MoveInstantaneousRewardsCert {
     move_instantaneous_reward: MoveInstantaneousReward
   ): MoveInstantaneousRewardsCert;
 }
+/**
+ */
 declare export class MsigAll {
   free(): void;
 
@@ -899,6 +993,8 @@ declare export class MsigAll {
    */
   static new(multisig_scripts: MultisigScripts): MsigAll;
 }
+/**
+ */
 declare export class MsigAny {
   free(): void;
 
@@ -924,6 +1020,8 @@ declare export class MsigAny {
    */
   static new(multisig_scripts: MultisigScripts): MsigAny;
 }
+/**
+ */
 declare export class MsigNOfK {
   free(): void;
 
@@ -955,6 +1053,8 @@ declare export class MsigNOfK {
    */
   static new(n: number, multisig_scripts: MultisigScripts): MsigNOfK;
 }
+/**
+ */
 declare export class MsigPubkey {
   free(): void;
 
@@ -980,6 +1080,8 @@ declare export class MsigPubkey {
    */
   static new(addr_keyhash: AddrKeyHash): MsigPubkey;
 }
+/**
+ */
 declare export class MultiHostName {
   free(): void;
 
@@ -1005,6 +1107,8 @@ declare export class MultiHostName {
    */
   static new(dns_name: string): MultiHostName;
 }
+/**
+ */
 declare export class MultisigScript {
   free(): void;
 
@@ -1072,6 +1176,8 @@ declare export class MultisigScript {
    */
   as_multisig_script3(): MsigNOfK | void;
 }
+/**
+ */
 declare export class MultisigScripts {
   free(): void;
 
@@ -1107,6 +1213,8 @@ declare export class MultisigScripts {
    */
   add(elem: MultisigScript): void;
 }
+/**
+ */
 declare export class Pointer {
   free(): void;
 
@@ -1118,6 +1226,8 @@ declare export class Pointer {
    */
   static new(slot: BigInt, tx_index: BigInt, cert_index: BigInt): Pointer;
 }
+/**
+ */
 declare export class PointerAddress {
   free(): void;
 
@@ -1148,6 +1258,8 @@ declare export class PointerAddress {
    */
   to_address(): Address;
 }
+/**
+ */
 declare export class PoolKeyHash {
   free(): void;
 
@@ -1162,6 +1274,8 @@ declare export class PoolKeyHash {
    */
   static from_bytes(bytes: Uint8Array): PoolKeyHash;
 }
+/**
+ */
 declare export class PoolMetadata {
   free(): void;
 
@@ -1193,6 +1307,8 @@ declare export class PoolMetadata {
    */
   static new(url: string, metadata_hash: MetadataHash): PoolMetadata;
 }
+/**
+ */
 declare export class PoolParams {
   free(): void;
 
@@ -1276,6 +1392,8 @@ declare export class PoolParams {
     pool_metadata?: PoolMetadata
   ): PoolParams;
 }
+/**
+ */
 declare export class PoolRegistration {
   free(): void;
 
@@ -1301,6 +1419,8 @@ declare export class PoolRegistration {
    */
   static new(pool_params: PoolParams): PoolRegistration;
 }
+/**
+ */
 declare export class PoolRetirement {
   free(): void;
 
@@ -1332,6 +1452,8 @@ declare export class PoolRetirement {
    */
   static new(pool_keyhash: PoolKeyHash, epoch: number): PoolRetirement;
 }
+/**
+ */
 declare export class PrivateKey {
   free(): void;
 
@@ -1378,6 +1500,9 @@ declare export class PrivateKey {
    */
   sign(message: Uint8Array): Ed25519Signature;
 }
+/**
+ * ED25519 key used as public key
+ */
 declare export class PublicKey {
   free(): void;
 
@@ -1420,6 +1545,8 @@ declare export class PublicKey {
    */
   hash(): AddrKeyHash;
 }
+/**
+ */
 declare export class PublicKeys {
   free(): void;
 
@@ -1443,6 +1570,8 @@ declare export class PublicKeys {
    */
   add(key: PublicKey): void;
 }
+/**
+ */
 declare export class Relay {
   free(): void;
 
@@ -1495,6 +1624,8 @@ declare export class Relay {
    */
   as_multi_host_name(): MultiHostName | void;
 }
+/**
+ */
 declare export class Relays {
   free(): void;
 
@@ -1530,6 +1661,8 @@ declare export class Relays {
    */
   add(elem: Relay): void;
 }
+/**
+ */
 declare export class RewardAddress {
   free(): void;
 
@@ -1550,6 +1683,8 @@ declare export class RewardAddress {
    */
   to_address(): Address;
 }
+/**
+ */
 declare export class ScriptHash {
   free(): void;
 
@@ -1564,6 +1699,8 @@ declare export class ScriptHash {
    */
   static from_bytes(bytes: Uint8Array): ScriptHash;
 }
+/**
+ */
 declare export class SingleHostAddr {
   free(): void;
 
@@ -1601,6 +1738,8 @@ declare export class SingleHostAddr {
    */
   static new(port?: number, ipv4?: Ipv4, ipv6?: Ipv6): SingleHostAddr;
 }
+/**
+ */
 declare export class SingleHostName {
   free(): void;
 
@@ -1632,6 +1771,8 @@ declare export class SingleHostName {
    */
   static new(port: number | void, dns_name: string): SingleHostName;
 }
+/**
+ */
 declare export class StakeCredential {
   free(): void;
 
@@ -1662,6 +1803,8 @@ declare export class StakeCredential {
    */
   kind(): number;
 }
+/**
+ */
 declare export class StakeDelegation {
   free(): void;
 
@@ -1696,6 +1839,8 @@ declare export class StakeDelegation {
     pool_keyhash: PoolKeyHash
   ): StakeDelegation;
 }
+/**
+ */
 declare export class StakeDeregistration {
   free(): void;
 
@@ -1721,6 +1866,8 @@ declare export class StakeDeregistration {
    */
   static new(stake_credential: StakeCredential): StakeDeregistration;
 }
+/**
+ */
 declare export class StakeRegistration {
   free(): void;
 
@@ -1746,6 +1893,8 @@ declare export class StakeRegistration {
    */
   static new(stake_credential: StakeCredential): StakeRegistration;
 }
+/**
+ */
 declare export class Transaction {
   free(): void;
 
@@ -1787,6 +1936,8 @@ declare export class Transaction {
     metadata?: TransactionMetadata
   ): Transaction;
 }
+/**
+ */
 declare export class TransactionBody {
   free(): void;
 
@@ -1876,68 +2027,8 @@ declare export class TransactionBody {
    */
   sign(sk: PrivateKey): Vkeywitness;
 }
-declare export class TransactionBuilder {
-  free(): void;
-
-  /**
-   * @param {AddrKeyHash} hash
-   * @param {TransactionInput} input
-   */
-  add_key_input(hash: AddrKeyHash, input: TransactionInput): void;
-
-  /**
-   * @param {ScriptHash} hash
-   * @param {TransactionInput} input
-   */
-  add_script_input(hash: ScriptHash, input: TransactionInput): void;
-
-  /**
-   * @param {string} hash
-   * @param {TransactionInput} input
-   */
-  add_bootstrap_input(hash: string, input: TransactionInput): void;
-
-  /**
-   * @param {TransactionOutput} output
-   */
-  add_output(output: TransactionOutput): void;
-
-  /**
-   * @param {Coin} fee
-   */
-  set_fee(fee: Coin): void;
-
-  /**
-   * @param {Certificates} certs
-   */
-  set_certs(certs: Certificates): void;
-
-  /**
-   * @param {Withdrawals} withdrawals
-   */
-  set_withdrawals(withdrawals: Withdrawals): void;
-
-  /**
-   * @param {TransactionMetadata} metadata
-   */
-  set_metadata(metadata: TransactionMetadata): void;
-
-  /**
-   * @returns {TransactionBuilder}
-   */
-  static new(): TransactionBuilder;
-
-  /**
-   * @returns {TransactionBody}
-   */
-  build(): TransactionBody;
-
-  /**
-   * @param {LinearFee} linear_fee
-   * @returns {Coin}
-   */
-  calc_fee(linear_fee: LinearFee): Coin;
-}
+/**
+ */
 declare export class TransactionHash {
   free(): void;
 
@@ -1952,6 +2043,8 @@ declare export class TransactionHash {
    */
   static from_bytes(bytes: Uint8Array): TransactionHash;
 }
+/**
+ */
 declare export class TransactionInput {
   free(): void;
 
@@ -1983,6 +2076,8 @@ declare export class TransactionInput {
    */
   static new(transaction_id: TransactionHash, index: number): TransactionInput;
 }
+/**
+ */
 declare export class TransactionInputs {
   free(): void;
 
@@ -2018,6 +2113,8 @@ declare export class TransactionInputs {
    */
   add(elem: TransactionInput): void;
 }
+/**
+ */
 declare export class TransactionMetadata {
   free(): void;
 
@@ -2055,6 +2152,8 @@ declare export class TransactionMetadata {
    */
   get(key: BigInt): TransactionMetadatum | void;
 }
+/**
+ */
 declare export class TransactionMetadatum {
   free(): void;
 
@@ -2133,6 +2232,8 @@ declare export class TransactionMetadatum {
    */
   as_text(): string | void;
 }
+/**
+ */
 declare export class TransactionMetadatums {
   free(): void;
 
@@ -2168,6 +2269,8 @@ declare export class TransactionMetadatums {
    */
   add(elem: TransactionMetadatum): void;
 }
+/**
+ */
 declare export class TransactionOutput {
   free(): void;
 
@@ -2199,6 +2302,8 @@ declare export class TransactionOutput {
    */
   static new(address: Address, amount: Coin): TransactionOutput;
 }
+/**
+ */
 declare export class TransactionOutputs {
   free(): void;
 
@@ -2234,6 +2339,8 @@ declare export class TransactionOutputs {
    */
   add(elem: TransactionOutput): void;
 }
+/**
+ */
 declare export class TransactionWitnessSet {
   free(): void;
 
@@ -2283,6 +2390,8 @@ declare export class TransactionWitnessSet {
    */
   static new(): TransactionWitnessSet;
 }
+/**
+ */
 declare export class UnitInterval {
   free(): void;
 
@@ -2314,6 +2423,8 @@ declare export class UnitInterval {
    */
   static new(index_0: BigInt, index_1: BigInt): UnitInterval;
 }
+/**
+ */
 declare export class VRFKeyHash {
   free(): void;
 
@@ -2328,6 +2439,8 @@ declare export class VRFKeyHash {
    */
   static from_bytes(bytes: Uint8Array): VRFKeyHash;
 }
+/**
+ */
 declare export class Vkey {
   free(): void;
 
@@ -2347,7 +2460,14 @@ declare export class Vkey {
    * @returns {Vkey}
    */
   static new(pk: PublicKey): Vkey;
+
+  /**
+   * @returns {PublicKey}
+   */
+  public_key(): PublicKey;
 }
+/**
+ */
 declare export class Vkeywitness {
   free(): void;
 
@@ -2368,7 +2488,19 @@ declare export class Vkeywitness {
    * @returns {Vkeywitness}
    */
   static new(vkey: Vkey, signature: Ed25519Signature): Vkeywitness;
+
+  /**
+   * @returns {Vkey}
+   */
+  vkey(): Vkey;
+
+  /**
+   * @returns {Ed25519Signature}
+   */
+  signature(): Ed25519Signature;
 }
+/**
+ */
 declare export class Vkeywitnesses {
   free(): void;
 
@@ -2393,6 +2525,8 @@ declare export class Vkeywitnesses {
    */
   add(elem: Vkeywitness): void;
 }
+/**
+ */
 declare export class Withdrawals {
   free(): void;
 
