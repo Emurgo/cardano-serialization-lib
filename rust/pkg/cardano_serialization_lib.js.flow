@@ -6,6 +6,30 @@
  */
 
 /**
+ * @param {TransactionHash} tx_body_hash
+ * @param {ByronAddress} addr
+ * @param {LegacyDaedalusPrivateKey} key
+ * @returns {BootstrapWitness}
+ */
+declare export function make_daedalus_bootstrap_witness(
+  tx_body_hash: TransactionHash,
+  addr: ByronAddress,
+  key: LegacyDaedalusPrivateKey
+): BootstrapWitness;
+
+/**
+ * @param {TransactionHash} tx_body_hash
+ * @param {ByronAddress} addr
+ * @param {Bip32PrivateKey} key
+ * @returns {BootstrapWitness}
+ */
+declare export function make_icarus_bootstrap_witness(
+  tx_body_hash: TransactionHash,
+  addr: ByronAddress,
+  key: Bip32PrivateKey
+): BootstrapWitness;
+
+/**
  * @param {Transaction} tx
  * @param {Coin} coefficient
  * @param {Coin} constant
@@ -149,9 +173,9 @@ declare export class Address {
   static from_bech32(bech_str: string): Address;
 
   /**
-   * @returns {number | void}
+   * @returns {number}
    */
-  network_id(): number | void;
+  network_id(): number;
 }
 /**
  */
@@ -184,6 +208,12 @@ declare export class BaseAddress {
    * @returns {Address}
    */
   to_address(): Address;
+
+  /**
+   * @param {Address} addr
+   * @returns {BaseAddress | void}
+   */
+  static from_address(addr: Address): BaseAddress | void;
 }
 /**
  */
@@ -260,6 +290,11 @@ declare export class Bip32PrivateKey {
     entropy: Uint8Array,
     password: Uint8Array
   ): Bip32PrivateKey;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  chaincode(): Uint8Array;
 }
 /**
  */
@@ -326,6 +361,11 @@ declare export class Bip32PublicKey {
    * @returns {AddrKeyHash}
    */
   hash(): AddrKeyHash;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  chaincode(): Uint8Array;
 }
 /**
  */
@@ -421,16 +461,50 @@ declare export class ByronAddress {
   to_base58(): string;
 
   /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ByronAddress}
+   */
+  static from_bytes(bytes: Uint8Array): ByronAddress;
+
+  /**
+   * @returns {number}
+   */
+  network_id(): number;
+
+  /**
    * @param {string} s
    * @returns {ByronAddress}
    */
   static from_base58(s: string): ByronAddress;
 
   /**
+   * @param {Bip32PublicKey} key
+   * @param {number} network
+   * @returns {ByronAddress}
+   */
+  static from_icarus_key(key: Bip32PublicKey, network: number): ByronAddress;
+
+  /**
    * @param {string} s
    * @returns {boolean}
    */
   static is_valid(s: string): boolean;
+
+  /**
+   * @returns {Address}
+   */
+  to_address(): Address;
+
+  /**
+   * @param {Address} addr
+   * @returns {ByronAddress | void}
+   */
+  static from_address(addr: Address): ByronAddress | void;
 }
 /**
  */
@@ -692,6 +766,12 @@ declare export class EnterpriseAddress {
    * @returns {Address}
    */
   to_address(): Address;
+
+  /**
+   * @param {Address} addr
+   * @returns {EnterpriseAddress | void}
+   */
+  static from_address(addr: Address): EnterpriseAddress | void;
 }
 /**
  */
@@ -1257,6 +1337,12 @@ declare export class PointerAddress {
    * @returns {Address}
    */
   to_address(): Address;
+
+  /**
+   * @param {Address} addr
+   * @returns {PointerAddress | void}
+   */
+  static from_address(addr: Address): PointerAddress | void;
 }
 /**
  */
@@ -1682,6 +1768,12 @@ declare export class RewardAddress {
    * @returns {Address}
    */
   to_address(): Address;
+
+  /**
+   * @param {Address} addr
+   * @returns {RewardAddress | void}
+   */
+  static from_address(addr: Address): RewardAddress | void;
 }
 /**
  */

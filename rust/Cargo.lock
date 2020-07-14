@@ -77,6 +77,7 @@ dependencies = [
  "chain-impl-mockchain",
  "clear_on_drop",
  "cryptoxide 0.2.1",
+ "ed25519-bip32",
  "hex 0.4.2",
  "js-sys",
  "rand_os",

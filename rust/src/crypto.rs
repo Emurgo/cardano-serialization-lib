@@ -95,6 +95,12 @@ impl Bip32PrivateKey {
     pub fn from_bip39_entropy(entropy: &[u8], password: &[u8]) -> Bip32PrivateKey {
         Bip32PrivateKey(crypto::derive::from_bip39_entropy(&entropy, &password))
     }
+
+    pub fn chaincode(&self) -> Vec<u8> {
+        let ED25519_PRIVATE_KEY_LENGTH = 64;
+        let XPRV_SIZE = 96;
+        self.0.as_ref()[ED25519_PRIVATE_KEY_LENGTH..XPRV_SIZE].to_vec()
+    }
 }
 
 #[wasm_bindgen]
@@ -158,6 +164,12 @@ impl Bip32PublicKey {
 
     pub fn hash(&self) -> AddrKeyHash {
         AddrKeyHash::from(blake2b224(self.to_raw_key().as_bytes().as_ref()))
+    }
+
+    pub fn chaincode(&self) -> Vec<u8> {
+        let ED25519_PRIVATE_KEY_LENGTH = 64;
+        let XPRV_SIZE = 96;
+        self.0.as_ref()[ED25519_PRIVATE_KEY_LENGTH..XPRV_SIZE].to_vec()
     }
 }
 
