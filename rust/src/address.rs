@@ -1,6 +1,8 @@
 use super::*;
 use prelude::*;
 use bech32::ToBase32;
+use cardano_legacy_address::ExtendedAddr;
+use ed25519_bip32::XPub;
 
 // returns (Number represented, bytes read) if valid encoding
 // or None if decoding prematurely finished
@@ -123,16 +125,90 @@ impl Deserialize for StakeCredential {
     }
 }
 
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone)]
 enum AddrType {
     Base(BaseAddress),
     Ptr(PointerAddress),
     Enterprise(EnterpriseAddress),
     Reward(RewardAddress),
+    Byron(ByronAddress),
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug)]
+pub struct ByronAddress(pub (crate) ExtendedAddr);
+#[wasm_bindgen]
+impl ByronAddress {
+    pub fn to_base58(&self) -> String {
+        format!("{}", self.0)
+    }
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut addr_bytes = Serializer::new_vec();
+        self.0.serialize(&mut addr_bytes).unwrap();
+        addr_bytes.finalize()
+    }
+    pub fn from_bytes(bytes: Vec<u8>) -> Result<ByronAddress, JsValue> {
+        let mut raw = Deserializer::from(std::io::Cursor::new(bytes));
+        let extended_addr = ExtendedAddr::deserialize(&mut raw)?;
+        Ok(ByronAddress(extended_addr))
+    }
+    pub fn network_id(&self) -> u8 {
+        // premise: during the Byron-era, we had one mainnet (764824073) and many many testnets
+        // with each testnet getting a different protocol magic
+        // in Shelley, this changes so that:
+        // 1) all testnets use the same u8 protocol magic
+        // 2) mainnet is re-mapped to a single u8 protocol magic
+
+        // recall: in Byron mainnet, the network_id is omitted from the address to save a few bytes
+        let mainnet_network_id = 764824073;
+        // so here we return the mainnet id if none is found in the address
+        
+        match self.0.attributes.network_magic {
+            // although mainnet should never be explicitly added, we check for it just in case
+            Some(x) => if x == mainnet_network_id { 0b0001 } else { 0b000 },
+            None => 0b0001, // mainnet is implied if omitted
+        }
+    }
+
+    pub fn from_base58(s: &str) -> Result<ByronAddress, JsValue> {
+        use std::str::FromStr;
+        ExtendedAddr::from_str(s)
+            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
+            .map(ByronAddress)
+    }
+
+    // icarus-style address (Ae2)
+    pub fn from_icarus_key(key: &Bip32PublicKey, network: u8) -> ByronAddress {
+        let mut out = [0u8; 64];
+        out.clone_from_slice(&key.as_bytes());
+
+        // need to ensure we use None for mainnet since Byron-era addresses omitted the network id
+        let mapped_network_id = if network == 0b0001 { None } else { Some(0b000 as u32) }; 
+        ByronAddress(ExtendedAddr::new_simple(& XPub::from_bytes(out), mapped_network_id))
+    }
+
+    pub fn is_valid(s: &str) -> bool {
+        use std::str::FromStr;
+        match ExtendedAddr::from_str(s) {
+            Ok(_v) => true,
+            Err(_err) => false,
+        }
+    }
+
+    pub fn to_address(&self) -> Address {
+        Address(AddrType::Byron(self.clone()))
+    }
+
+    pub fn from_address(addr: &Address) -> Option<ByronAddress> {
+        match &addr.0 { 
+            AddrType::Byron(byron) => Some(byron.clone()),
+            _ => None,
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone)]
 pub struct Address(AddrType);
 
 from_bytes!(Address, data, {
@@ -179,6 +255,9 @@ impl Address {
                 buf.push(header);
                 buf.extend(reward.payment.to_raw_bytes());
             },
+            AddrType::Byron(byron) => {
+                buf.extend(byron.to_bytes())
+            },
         }
         println!("to_bytes({:?}) = {:?}", self, buf);
         buf
@@ -210,6 +289,7 @@ impl Address {
             const HASH_LEN: usize = AddrKeyHash::BYTE_COUNT;
             // should be static assert but it's maybe not worth importing a whole external crate for it now
             assert_eq!(ScriptHash::BYTE_COUNT, HASH_LEN);
+            // checks the /bit/ bit of the header for key vs scripthash then reads the credential starting at byte position /pos/
             let read_addr_cred = |bit: u8, pos: usize| {
                 let hash_bytes: [u8; HASH_LEN] = data[pos..pos+HASH_LEN].try_into().unwrap();
                 let x = if header & (1 << bit)  == 0 {
@@ -281,7 +361,12 @@ impl Address {
                 }
                 // byron
                 0b1000 => {
-                    unimplemented!()
+                    // note: 0b1000 was chosen because all existing Byron addresses actually start with 0b1000
+                    // Therefore you can re-use Byron addresses as-is
+                    match ByronAddress::from_bytes(data.to_vec()) {
+                        Ok(addr) => AddrType::Byron(addr),
+                        Err(e) => return Err(cbor_event::Error::CustomError(e.as_string().unwrap_or_default()).into()),
+                    }
                 },
                 _ => return Err(DeserializeFailure::BadAddressType(header).into()),
             };
@@ -305,6 +390,7 @@ impl Address {
             AddrType::Enterprise(a) => a.network,
             AddrType::Ptr(a) => a.network,
             AddrType::Reward(a) => a.network,
+            AddrType::Byron(a) => a.network_id(),
         }
     }
 }
@@ -350,6 +436,13 @@ impl BaseAddress {
     pub fn to_address(&self) -> Address {
         Address(AddrType::Base(self.clone()))
     }
+
+    pub fn from_address(addr: &Address) -> Option<BaseAddress> {
+        match &addr.0 { 
+            AddrType::Base(base) => Some(base.clone()),
+            _ => None,
+        }
+    }
 }
 
 
@@ -376,6 +469,13 @@ impl EnterpriseAddress {
     pub fn to_address(&self) -> Address {
         Address(AddrType::Enterprise(self.clone()))
     }
+
+    pub fn from_address(addr: &Address) -> Option<EnterpriseAddress> {
+        match &addr.0 { 
+            AddrType::Enterprise(enterprise) => Some(enterprise.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -401,6 +501,13 @@ impl RewardAddress {
     pub fn to_address(&self) -> Address {
         Address(AddrType::Reward(self.clone()))
     }
+
+    pub fn from_address(addr: &Address) -> Option<RewardAddress> {
+        match &addr.0 { 
+            AddrType::Reward(reward) => Some(reward.clone()),
+            _ => None,
+        }
+    }
 }
 
 // needed since we treat RewardAccount like RewardAddress
@@ -416,7 +523,7 @@ impl Deserialize for RewardAddress {
             let bytes = raw.bytes()?;
             match Address::from_bytes_impl(bytes.as_ref())?.0 {
                 AddrType::Reward(ra) => Ok(ra),
-                other_address => Err(DeserializeFailure::BadAddressType(bytes[0]).into()),
+                _other_address => Err(DeserializeFailure::BadAddressType(bytes[0]).into()),
             }
         })().map_err(|e| e.annotate("RewardAddress"))
     }
@@ -469,6 +576,13 @@ impl PointerAddress {
 
     pub fn to_address(&self) -> Address {
         Address(AddrType::Ptr(self.clone()))
+    }
+
+    pub fn from_address(addr: &Address) -> Option<PointerAddress> {
+        match &addr.0 { 
+            AddrType::Ptr(ptr) => Some(ptr.clone()),
+            _ => None,
+        }
     }
 }
 
@@ -536,11 +650,13 @@ mod tests {
     }
 
     fn root_key_12() -> Bip32PrivateKey {
+        // test walk nut penalty hip pave soap entry language right filter choice
         let entropy = [0xdf, 0x9e, 0xd2, 0x5e, 0xd1, 0x46, 0xbf, 0x43, 0x33, 0x6a, 0x5d, 0x7c, 0xf7, 0x39, 0x59, 0x94];
         Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
     }
 
     fn root_key_15() -> Bip32PrivateKey {
+        // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
         let entropy = [0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12];
         Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
     }
@@ -664,6 +780,24 @@ mod tests {
         assert_eq!(addr_net_0.to_bech32(), "addr1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsjej5ck");
         let addr_net_3 = PointerAddress::new(3, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
         assert_eq!(addr_net_3.to_bech32(), "addr1gdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5evph3wczvf27l8yfx");
+    }
+
+    #[test]
+    fn bip32_15_byron() {
+        let byron_key = root_key_15()
+            .derive(harden(44))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let byron_addr = ByronAddress::from_icarus_key(&byron_key, 0b0001);
+        assert_eq!(byron_addr.to_base58(), "Ae2tdPwUPEZHtBmjZBF4YpMkK9tMSPTE2ADEZTPN97saNkhG78TvXdp3GDk");
+        assert!(ByronAddress::is_valid("Ae2tdPwUPEZHtBmjZBF4YpMkK9tMSPTE2ADEZTPN97saNkhG78TvXdp3GDk"));
+        assert_eq!(byron_addr.network_id(), 0b0001);
+
+        let byron_addr_2 = ByronAddress::from_address(&Address::from_bytes(byron_addr.to_bytes()).unwrap()).unwrap();
+        assert_eq!(byron_addr.to_base58(), byron_addr_2.to_base58());
     }
 
     #[test]

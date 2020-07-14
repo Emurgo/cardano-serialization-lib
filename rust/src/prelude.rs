@@ -2,6 +2,9 @@ use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 use std::io::{BufRead, Seek, Write};
 use wasm_bindgen::prelude::*;
 
+// This file was code-generated using an experimental CDDL to rust tool:
+// https://github.com/Emurgo/cddl-codegen
+
 #[derive(Debug)]
 pub enum Key {
     Str(String),

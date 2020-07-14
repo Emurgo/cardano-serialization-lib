@@ -67,3 +67,62 @@ impl Deserialize for Coin {
       }
   }
 }
+
+fn make_byron_pad_prefix() -> Vec<u8> {
+    [
+        0x83, // CBOR list-len (3)
+        0x00, // address type = 0
+        0x82, // CBOR list-len (2)
+        0x00,
+        0x52, 0x54 // CBOR bytestring (64)
+    ].to_vec()
+}
+fn make_byron_pad_suffix(
+    addr: &ByronAddress,
+) -> Vec<u8> {
+    let mut attributes_bytes = Serializer::new_vec();
+    addr.0.attributes.serialize(&mut attributes_bytes).unwrap();
+    attributes_bytes.finalize()
+}
+
+#[wasm_bindgen]
+pub fn make_daedalus_bootstrap_witness(
+    tx_body_hash: &TransactionHash,
+    addr: &ByronAddress,
+    key: &LegacyDaedalusPrivateKey,
+) -> BootstrapWitness {
+    let chain_code = key.chaincode();
+
+    let pubkey = Bip32PublicKey::from_bytes(&key.0.to_public().as_ref()).unwrap();
+    let vkey = Vkey::new(&pubkey.to_raw_key());
+    let signature = Ed25519Signature::from_bytes(key.0.sign(&tx_body_hash.to_bytes()).as_ref().to_vec()).unwrap();
+
+    BootstrapWitness::new(
+        &vkey,
+        &signature,
+        chain_code,
+        make_byron_pad_prefix(),
+        make_byron_pad_suffix(addr),
+    )
+}
+
+#[wasm_bindgen]
+pub fn make_icarus_bootstrap_witness(
+    tx_body_hash: &TransactionHash,
+    addr: &ByronAddress,
+    key: &Bip32PrivateKey,
+) -> BootstrapWitness {
+    let chain_code = key.chaincode();
+
+    let raw_key = key.to_raw_key();
+    let vkey = Vkey::new(&raw_key.to_public());
+    let signature = raw_key.sign(&tx_body_hash.to_bytes());
+
+    BootstrapWitness::new(
+        &vkey,
+        &signature,
+        chain_code,
+        make_byron_pad_prefix(),
+        make_byron_pad_suffix(addr),
+    )
+}
