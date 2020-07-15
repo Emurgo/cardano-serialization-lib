@@ -2,6 +2,7 @@ use crate::error::{DeserializeError, DeserializeFailure};
 use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 use std::io::{BufRead, Seek, Write};
 use wasm_bindgen::prelude::*;
+use super::*;
 
 // JsValue can't be used by non-wasm targets so we use this macro to expose
 // either a DeserializeError or a JsValue error depending on if we're on a
