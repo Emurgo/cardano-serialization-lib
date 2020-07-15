@@ -286,7 +286,7 @@ mod tests {
             &VRFKeyHash::from([0u8; VRFKeyHash::BYTE_COUNT]),
             Coin::new(1),
             Coin::new(5),
-            &UnitInterval::new(1, 10),
+            &UnitInterval::new(BigNum::new(1), BigNum::new(10)),
             &RewardAddress::new(0, &alice_stake()),
             &owners,
             &relays,
@@ -339,9 +339,9 @@ mod tests {
         let w = make_mock_witnesses_vkey(&body, vec![&alice_key()]);
         let mut metadata = TransactionMetadata::new();
         let mut md_list = TransactionMetadatums::new();
-        md_list.add(&TransactionMetadatum::new_int(&Int::new(5)));
+        md_list.add(&TransactionMetadatum::new_int(&Int::new(BigNum::new(5))));
         md_list.add(&TransactionMetadatum::new_text(String::from("hello")));
-        metadata.insert(0, &TransactionMetadatum::new_arr_transaction_metadatum(&md_list));
+        metadata.insert(TransactionMetadadumLabel::new(0), &TransactionMetadatum::new_arr_transaction_metadatum(&md_list));
         let tx = Transaction::new(&body, &w, Some(metadata));
         let haskell_crypto_bytes = witness_vkey_bytes_haskell(&w) + HASKELL_HLEN;
         let our_crypto_bytes = witness_vkey_bytes_rust(&w) + MetadataHash::BYTE_COUNT;

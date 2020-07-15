@@ -31,15 +31,15 @@ declare export function make_icarus_bootstrap_witness(
 
 /**
  * @param {Transaction} tx
- * @param {Coin} coefficient
- * @param {Coin} constant
- * @returns {Coin}
+ * @param {BigNum} coefficient
+ * @param {BigNum} constant
+ * @returns {BigNum}
  */
 declare export function min_fee(
   tx: Transaction,
-  coefficient: Coin,
-  constant: Coin
-): Coin;
+  coefficient: BigNum,
+  constant: BigNum
+): BigNum;
 
 /**
  */
@@ -214,6 +214,62 @@ declare export class BaseAddress {
    * @returns {BaseAddress | void}
    */
   static from_address(addr: Address): BaseAddress | void;
+}
+/**
+ */
+declare export class BigNum {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {BigNum}
+   */
+  static from_bytes(bytes: Uint8Array): BigNum;
+
+  /**
+   * @param {BigInt} value
+   * @returns {BigNum}
+   */
+  static new(value: BigInt): BigNum;
+
+  /**
+   * @returns {BigInt}
+   */
+  unwrap(): BigInt;
+
+  /**
+   * @param {string} string
+   * @returns {BigNum}
+   */
+  static from_str(string: string): BigNum;
+
+  /**
+   * @returns {string}
+   */
+  to_str(): string;
+
+  /**
+   * @param {BigNum} other
+   * @returns {BigNum}
+   */
+  checked_mul(other: BigNum): BigNum;
+
+  /**
+   * @param {BigNum} other
+   * @returns {BigNum}
+   */
+  checked_add(other: BigNum): BigNum;
+
+  /**
+   * @param {BigNum} other
+   * @returns {BigNum}
+   */
+  checked_sub(other: BigNum): BigNum;
 }
 /**
  */
@@ -653,62 +709,6 @@ declare export class Certificates {
 }
 /**
  */
-declare export class Coin {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {Coin}
-   */
-  static from_bytes(bytes: Uint8Array): Coin;
-
-  /**
-   * @param {BigInt} value
-   * @returns {Coin}
-   */
-  static new(value: BigInt): Coin;
-
-  /**
-   * @returns {BigInt}
-   */
-  unwrap(): BigInt;
-
-  /**
-   * @param {string} string
-   * @returns {Coin}
-   */
-  static from_str(string: string): Coin;
-
-  /**
-   * @returns {string}
-   */
-  to_str(): string;
-
-  /**
-   * @param {Coin} other
-   * @returns {Coin}
-   */
-  checked_mul(other: Coin): Coin;
-
-  /**
-   * @param {Coin} other
-   * @returns {Coin}
-   */
-  checked_add(other: Coin): Coin;
-
-  /**
-   * @param {Coin} other
-   * @returns {Coin}
-   */
-  checked_sub(other: Coin): Coin;
-}
-/**
- */
 declare export class Ed25519Signature {
   free(): void;
 
@@ -847,16 +847,16 @@ declare export class Int {
   free(): void;
 
   /**
-   * @param {BigInt} x
+   * @param {BigNum} x
    * @returns {Int}
    */
-  static new(x: BigInt): Int;
+  static new(x: BigNum): Int;
 
   /**
-   * @param {BigInt} x
+   * @param {BigNum} x
    * @returns {Int}
    */
-  static new_negative(x: BigInt): Int;
+  static new_negative(x: BigNum): Int;
 }
 /**
  */
@@ -1012,10 +1012,10 @@ declare export class MoveInstantaneousReward {
 
   /**
    * @param {StakeCredential} key
-   * @param {Coin} value
-   * @returns {Coin | void}
+   * @param {BigNum} value
+   * @returns {BigNum | void}
    */
-  insert(key: StakeCredential, value: Coin): Coin | void;
+  insert(key: StakeCredential, value: BigNum): BigNum | void;
 }
 /**
  */
@@ -1299,12 +1299,12 @@ declare export class Pointer {
   free(): void;
 
   /**
-   * @param {BigInt} slot
-   * @param {BigInt} tx_index
-   * @param {BigInt} cert_index
+   * @param {number} slot
+   * @param {number} tx_index
+   * @param {number} cert_index
    * @returns {Pointer}
    */
-  static new(slot: BigInt, tx_index: BigInt, cert_index: BigInt): Pointer;
+  static new(slot: number, tx_index: number, cert_index: number): Pointer;
 }
 /**
  */
@@ -1420,14 +1420,14 @@ declare export class PoolParams {
   vrf_keyhash(): VRFKeyHash;
 
   /**
-   * @returns {Coin}
+   * @returns {BigNum}
    */
-  pledge(): Coin;
+  pledge(): BigNum;
 
   /**
-   * @returns {Coin}
+   * @returns {BigNum}
    */
-  cost(): Coin;
+  cost(): BigNum;
 
   /**
    * @returns {UnitInterval}
@@ -1457,8 +1457,8 @@ declare export class PoolParams {
   /**
    * @param {PoolKeyHash} operator
    * @param {VRFKeyHash} vrf_keyhash
-   * @param {Coin} pledge
-   * @param {Coin} cost
+   * @param {BigNum} pledge
+   * @param {BigNum} cost
    * @param {UnitInterval} margin
    * @param {RewardAddress} reward_account
    * @param {AddrKeyHashes} pool_owners
@@ -1469,8 +1469,8 @@ declare export class PoolParams {
   static new(
     operator: PoolKeyHash,
     vrf_keyhash: VRFKeyHash,
-    pledge: Coin,
-    cost: Coin,
+    pledge: BigNum,
+    cost: BigNum,
     margin: UnitInterval,
     reward_account: RewardAddress,
     pool_owners: AddrKeyHashes,
@@ -2055,9 +2055,9 @@ declare export class TransactionBody {
   outputs(): TransactionOutputs;
 
   /**
-   * @returns {Coin}
+   * @returns {BigNum}
    */
-  fee(): Coin;
+  fee(): BigNum;
 
   /**
    * @returns {number}
@@ -2097,14 +2097,14 @@ declare export class TransactionBody {
   /**
    * @param {TransactionInputs} inputs
    * @param {TransactionOutputs} outputs
-   * @param {Coin} fee
+   * @param {BigNum} fee
    * @param {number} ttl
    * @returns {TransactionBody}
    */
   static new(
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
-    fee: Coin,
+    fee: BigNum,
     ttl: number
   ): TransactionBody;
 
@@ -2232,17 +2232,17 @@ declare export class TransactionMetadata {
   len(): number;
 
   /**
-   * @param {BigInt} key
+   * @param {BigNum} key
    * @param {TransactionMetadatum} value
    * @returns {TransactionMetadatum | void}
    */
-  insert(key: BigInt, value: TransactionMetadatum): TransactionMetadatum | void;
+  insert(key: BigNum, value: TransactionMetadatum): TransactionMetadatum | void;
 
   /**
-   * @param {BigInt} key
+   * @param {BigNum} key
    * @returns {TransactionMetadatum | void}
    */
-  get(key: BigInt): TransactionMetadatum | void;
+  get(key: BigNum): TransactionMetadatum | void;
 }
 /**
  */
@@ -2383,16 +2383,16 @@ declare export class TransactionOutput {
   address(): Address;
 
   /**
-   * @returns {Coin}
+   * @returns {BigNum}
    */
-  amount(): Coin;
+  amount(): BigNum;
 
   /**
    * @param {Address} address
-   * @param {Coin} amount
+   * @param {BigNum} amount
    * @returns {TransactionOutput}
    */
-  static new(address: Address, amount: Coin): TransactionOutput;
+  static new(address: Address, amount: BigNum): TransactionOutput;
 }
 /**
  */
@@ -2499,21 +2499,21 @@ declare export class UnitInterval {
   static from_bytes(bytes: Uint8Array): UnitInterval;
 
   /**
-   * @returns {BigInt}
+   * @returns {BigNum}
    */
-  index_0(): BigInt;
+  index_0(): BigNum;
 
   /**
-   * @returns {BigInt}
+   * @returns {BigNum}
    */
-  index_1(): BigInt;
+  index_1(): BigNum;
 
   /**
-   * @param {BigInt} index_0
-   * @param {BigInt} index_1
+   * @param {BigNum} index_0
+   * @param {BigNum} index_1
    * @returns {UnitInterval}
    */
-  static new(index_0: BigInt, index_1: BigInt): UnitInterval;
+  static new(index_0: BigNum, index_1: BigNum): UnitInterval;
 }
 /**
  */
@@ -2645,14 +2645,14 @@ declare export class Withdrawals {
 
   /**
    * @param {RewardAddress} key
-   * @param {Coin} value
-   * @returns {Coin | void}
+   * @param {BigNum} value
+   * @returns {BigNum | void}
    */
-  insert(key: RewardAddress, value: Coin): Coin | void;
+  insert(key: RewardAddress, value: BigNum): BigNum | void;
 
   /**
    * @param {RewardAddress} key
-   * @returns {Coin | void}
+   * @returns {BigNum | void}
    */
-  get(key: RewardAddress): Coin | void;
+  get(key: RewardAddress): BigNum | void;
 }

@@ -84,15 +84,15 @@ describe('Transactions', () => {
           CardanoWasm.Address.from_bytes(
             Buffer.from('61a6274badf4c9ca583df893a73139625ff4dc73aaa3082e67d6d5d08e', 'hex'),
           ),
-          // we can construct Coin from both BigInt (here) or from a string (below in fee)
-          CardanoWasm.Coin.new(BigInt(1)),
+          // we can construct BigNum (Coin) from both a js BigInt (here) or from a string (below in fee)
+          CardanoWasm.BigNum.new(BigInt(1)),
         )
       );
     }
     const txBody = CardanoWasm.TransactionBody.new(
       txInputs,
       txOutputs,
-      CardanoWasm.Coin.from_str("42"), // fee
+      CardanoWasm.BigNum.from_str("42"), // fee
       10, // ttl
     );
     
