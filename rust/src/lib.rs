@@ -115,7 +115,7 @@ impl TransactionInputs {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug)]
 pub struct TransactionOutputs(Vec<TransactionOutput>);
 
 to_from_bytes!(TransactionOutputs);
@@ -272,7 +272,7 @@ impl TransactionInput {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug)]
 pub struct TransactionOutput {
     address: Address,
     amount: Coin,

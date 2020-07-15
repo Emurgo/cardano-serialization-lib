@@ -78,6 +78,7 @@ mod tests {
         StakeCredential::from_keyhash(&AddrKeyHash::from([2u8;AddrKeyHash::BYTE_COUNT]))
     }
     fn alice_addr() -> Address {
+        // addr1qqqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqm2xxxw
         BaseAddress::new(0, &alice_pay(), &alice_stake()).to_address()
     }
     fn alice_pool() -> PoolKeyHash {
@@ -111,6 +112,25 @@ mod tests {
             ));
         }
         w.set_vkeys(&vkw);
+        w
+    }
+
+    fn make_mock_byron_witnesses_vkey(
+        tx: &TransactionBody,
+        addr: &ByronAddress,
+        pks: Vec<&Bip32PrivateKey>,
+    ) -> TransactionWitnessSet {
+        let mut w = TransactionWitnessSet::new();
+        let mut bootstrap_witnesses = BootstrapWitnesses::new();
+        for pk in pks {
+            let witness = make_icarus_bootstrap_witness(
+                &tx.hash(),
+                addr,
+                &pk
+            );
+            bootstrap_witnesses.add(&witness);
+        }
+        w.set_bootstraps(&bootstrap_witnesses);
         w
     }
 
@@ -154,6 +174,29 @@ mod tests {
         let haskell_crypto_bytes = witness_vkey_bytes_haskell(&w);
         let our_crypto_bytes = witness_vkey_bytes_rust(&w);
         assert!(txsize(&tx) - our_crypto_bytes + haskell_crypto_bytes >= 139);
+    }
+
+    #[test]
+    fn tx_simple_byron_utxo() {
+        let mut inputs = TransactionInputs::new();
+        inputs.add(&TransactionInput::new(&genesis_id(), 0));
+        let mut outputs = TransactionOutputs::new();
+        outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
+        let body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
+
+        // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
+        let entropy = [0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12];
+        let root_key = Bip32PrivateKey::from_bip39_entropy(&entropy, &[]);
+        let byron_addr = ByronAddress::from_icarus_key(&root_key.to_public(), 0b001);
+        let w = make_mock_byron_witnesses_vkey(
+            &body,
+            &byron_addr, // Ae2tdPwUPEZB3mTcbvEYWmxEyn3yRmePa7YV5TKmrtPyU3rcSao4k6J216Q
+            vec![&root_key]
+        );
+        assert_eq!(
+            hex::encode(w.bootstraps.unwrap().get(0).to_bytes()),
+            "855820cf76399a210de8720e9fa894e45e41e29ab525e30bc402801c076250d1585bcd5840dbc0d07297733aa0c71e942e3dddb648eb6cc96a9a35ea686673b534b8cc20e1fab4c736d2cb711b270a912b216ba55167cf3a5d400bc08671cc9335a66aa10d582091e248de509c070d812ab2fda57860ac876bc489192c1ef4ce253c197ee219a44683008200525441a0"
+        );
     }
 
     #[test]
