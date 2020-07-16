@@ -74,7 +74,7 @@ fn calc_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
             for addr in &tx_builder.input_types.bootstraps {
                 // picking icarus over daedalus for fake witness generation shouldn't matter
                 result.add(&make_icarus_bootstrap_witness(
-                    &body.hash(),
+                    &hash_transaction(&body),
                     &ByronAddress::from_bytes(addr.clone()).unwrap(),
                     &fake_key_root
                 ));

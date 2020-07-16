@@ -151,7 +151,7 @@ mod tests {
         let mut bootstrap_witnesses = BootstrapWitnesses::new();
         for pk in pks {
             let witness = make_icarus_bootstrap_witness(
-                &tx.hash(),
+                &hash_transaction(&tx),
                 addr,
                 &pk
             );

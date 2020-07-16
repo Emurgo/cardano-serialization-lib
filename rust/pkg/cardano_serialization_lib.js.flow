@@ -30,12 +30,30 @@ declare export function make_icarus_bootstrap_witness(
 ): BootstrapWitness;
 
 /**
+ * @param {TransactionHash} tx_body_hash
+ * @param {PrivateKey} sk
+ * @returns {Vkeywitness}
+ */
+declare export function make_vkey_witness(
+  tx_body_hash: TransactionHash,
+  sk: PrivateKey
+): Vkeywitness;
+
+/**
  * @param {TransactionMetadata} metadata
  * @returns {MetadataHash}
  */
 declare export function hash_metadata(
   metadata: TransactionMetadata
 ): MetadataHash;
+
+/**
+ * @param {TransactionBody} tx_body
+ * @returns {TransactionHash}
+ */
+declare export function hash_transaction(
+  tx_body: TransactionBody
+): TransactionHash;
 
 /**
  * @param {Transaction} tx
@@ -2132,17 +2150,6 @@ declare export class TransactionBody {
     fee: BigNum,
     ttl: number
   ): TransactionBody;
-
-  /**
-   * @returns {TransactionHash}
-   */
-  hash(): TransactionHash;
-
-  /**
-   * @param {PrivateKey} sk
-   * @returns {Vkeywitness}
-   */
-  sign(sk: PrivateKey): Vkeywitness;
 }
 /**
  */
