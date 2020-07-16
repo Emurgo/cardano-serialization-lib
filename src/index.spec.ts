@@ -95,6 +95,7 @@ describe('Transactions', () => {
       CardanoWasm.BigNum.from_str("42"), // fee
       10, // ttl
     );
+    const txHash = CardanoWasm.hash_transaction(txBody);
     
     const witnesses = CardanoWasm.TransactionWitnessSet.new();
     {
@@ -103,9 +104,10 @@ describe('Transactions', () => {
       const prvKey = CardanoWasm.PrivateKey.from_normal_bytes(
         Buffer.from('f7955ca7a24889e892a74851712975c924d536d503eeb1c900a7431900633fb8', 'hex')
       );
-      vkeyWitnesses.add(
-        txBody.sign(prvKey)
-      );
+      vkeyWitnesses.add(CardanoWasm.make_vkey_witness(
+        txHash,
+        prvKey,
+      ));
       witnesses.set_vkeys(vkeyWitnesses);
     }
     CardanoWasm.Transaction.new(
