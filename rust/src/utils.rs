@@ -262,3 +262,21 @@ pub fn make_icarus_bootstrap_witness(
         make_byron_pad_suffix(addr),
     )
 }
+
+#[wasm_bindgen]
+pub fn make_vkey_witness(
+    tx_body_hash: &TransactionHash,
+    sk: &PrivateKey
+) -> Vkeywitness {
+    let sig = sk.sign(tx_body_hash.0.as_ref());
+    Vkeywitness::new(&Vkey::new(&sk.to_public()), &sig)
+}
+
+#[wasm_bindgen]
+pub fn hash_metadata(metadata: &TransactionMetadata) -> MetadataHash {
+  MetadataHash::from(blake2b256(&metadata.to_bytes()))
+}
+#[wasm_bindgen]
+pub fn hash_transaction(tx_body: &TransactionBody) -> TransactionHash {
+    TransactionHash::from(crypto::blake2b256(tx_body.to_bytes().as_ref()))
+}

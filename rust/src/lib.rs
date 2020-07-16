@@ -13,6 +13,7 @@ pub mod crypto;
 pub mod error;
 pub mod fees;
 pub mod serialization;
+pub mod tx_builder;
 #[macro_use]
 pub mod utils;
 
@@ -231,16 +232,6 @@ impl TransactionBody {
             withdrawals: None,
             metadata_hash: None,
         }
-    }
-
-    pub fn hash(&self) -> TransactionHash {
-        TransactionHash::from(crypto::blake2b256(self.to_bytes().as_ref()))
-    }
-
-    pub fn sign(&self, sk: &PrivateKey) -> Vkeywitness {
-        let tx_sign_data = self.hash();
-        let sig = sk.sign(tx_sign_data.0.as_ref());
-        Vkeywitness::new(&Vkey::new(&sk.to_public()), &sig)
     }
 }
 
