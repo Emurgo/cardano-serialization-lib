@@ -37,7 +37,7 @@ fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<AddrKeyHas
     }
 }
 
-fn calc_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
+fn estimate_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
     let body = tx_builder.build()?;
 
     let fake_key_root = Bip32PrivateKey::from_bip39_entropy(
@@ -220,14 +220,14 @@ impl TransactionBuilder {
     }
     pub fn get_fee_or_calc(&self) -> Result<Coin, JsValue> {
         match &self.fee {
-            None => self.calc_fee(),
+            None => self.estimate_fee(),
             Some(x) => Ok(x.clone()),
         }
     }
 
     pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsValue> {
         let fee = match &self.fee {
-            None => self.calc_fee(),
+            None => self.estimate_fee(),
             // generating the change output involves changing the fee
             Some(_x) => return Err(JsValue::from_str("Cannot calculate change if fee was explicitly specified")),
         }?;
@@ -243,7 +243,7 @@ impl TransactionBuilder {
                     // this may over-estimate the fee by a few bytes but that's okay
                     amount: Coin::new(0x1_00_00_00_00),
                 });
-                let new_fee = copy.calc_fee()?;
+                let new_fee = copy.estimate_fee()?;
                 match input_total > output_total.checked_add(&new_fee)? {
                     false => return Ok(false), // not enough input to covert the extra fee from adding an output
                     true => {
@@ -276,15 +276,15 @@ impl TransactionBuilder {
         })
     }
 
-    pub fn calc_fee(&self) -> Result<Coin, JsValue> {
+    pub fn estimate_fee(&self) -> Result<Coin, JsValue> {
         match self.fee {
             // if user explicitly specified a fee already, use that one
-            Some(_x) => calc_fee(&self),
+            Some(_x) => estimate_fee(&self),
             // otherwise, use the maximum fee possible
             None => {
                 let mut self_copy = self.clone();
                 self_copy.set_fee(&Coin::new(0x1_00_00_00_00));
-                calc_fee(&self_copy)
+                estimate_fee(&self_copy)
             },
         }
   }

@@ -2254,7 +2254,7 @@ declare export class TransactionBuilder {
   /**
    * @returns {BigNum}
    */
-  calc_fee(): BigNum;
+  estimate_fee(): BigNum;
 }
 /**
  */
