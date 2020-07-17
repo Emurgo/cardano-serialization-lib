@@ -54,8 +54,8 @@ describe('Addresses', () => {
 
     const baseAddr = CardanoWasm.BaseAddress.new(
       0,
-      CardanoWasm.StakeCredential.from_keyhash(utxoPubKey.hash()),
-      CardanoWasm.StakeCredential.from_keyhash(stakeKey.hash()),
+      CardanoWasm.StakeCredential.from_keyhash(utxoPubKey.to_raw_key().hash()),
+      CardanoWasm.StakeCredential.from_keyhash(stakeKey.to_raw_key().hash()),
     );
 
     // this commented out test is what you would get with the wrong address hash.
