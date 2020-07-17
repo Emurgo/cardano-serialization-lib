@@ -204,16 +204,7 @@ pub trait DeserializeEmbeddedGroup {
     ) -> Result<Self, DeserializeError> where Self: Sized;
 }
 
-fn make_byron_pad_prefix() -> Vec<u8> {
-    [
-        0x83, // CBOR list-len (3)
-        0x00, // address type = 0
-        0x82, // CBOR list-len (2)
-        0x00,
-        0x52, 0x54 // CBOR bytestring (64)
-    ].to_vec()
-}
-fn make_byron_pad_suffix(
+fn serialize_attributes(
     addr: &ByronAddress,
 ) -> Vec<u8> {
     let mut attributes_bytes = Serializer::new_vec();
@@ -237,8 +228,7 @@ pub fn make_daedalus_bootstrap_witness(
         &vkey,
         &signature,
         chain_code,
-        make_byron_pad_prefix(),
-        make_byron_pad_suffix(addr),
+        serialize_attributes(addr),
     )
 }
 
@@ -258,8 +248,7 @@ pub fn make_icarus_bootstrap_witness(
         &vkey,
         &signature,
         chain_code,
-        make_byron_pad_prefix(),
-        make_byron_pad_suffix(addr),
+        serialize_attributes(addr),
     )
 }
 
