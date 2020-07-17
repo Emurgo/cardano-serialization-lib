@@ -25,26 +25,26 @@ use utils::*;
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct UnitInterval {
-    index_0: BigNum,
-    index_1: BigNum,
+    numerator: BigNum,
+    denominator: BigNum,
 }
 
 to_from_bytes!(UnitInterval);
 
 #[wasm_bindgen]
 impl UnitInterval {
-    pub fn index_0(&self) -> BigNum {
-        self.index_0.clone()
+    pub fn numerator(&self) -> BigNum {
+        self.numerator.clone()
     }
 
-    pub fn index_1(&self) -> BigNum {
-        self.index_1.clone()
+    pub fn denominator(&self) -> BigNum {
+        self.denominator.clone()
     }
 
-    pub fn new(index_0: BigNum, index_1: BigNum) -> Self {
+    pub fn new(numerator: BigNum, denominator: BigNum) -> Self {
         Self {
-            index_0: index_0,
-            index_1: index_1,
+            numerator: numerator,
+            denominator: denominator,
         }
     }
 }
@@ -222,11 +222,11 @@ impl TransactionBody {
     }
 
 
-    pub fn new(inputs: &TransactionInputs, outputs: &TransactionOutputs, fee: Coin, ttl: u32) -> Self {
+    pub fn new(inputs: &TransactionInputs, outputs: &TransactionOutputs, fee: &Coin, ttl: u32) -> Self {
         Self {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
-            fee: fee,
+            fee: fee.clone(),
             ttl: ttl,
             certs: None,
             withdrawals: None,
@@ -281,10 +281,10 @@ impl TransactionOutput {
         self.amount.clone()
     }
 
-    pub fn new(address: &Address, amount: Coin) -> Self {
+    pub fn new(address: &Address, amount: &Coin) -> Self {
         Self {
             address: address.clone(),
-            amount: amount,
+            amount: amount.clone(),
         }
     }
 }
@@ -335,7 +335,7 @@ impl StakeDeregistration {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StakeDelegation {
     stake_credential: StakeCredential,
-    pool_keyhash: PoolKeyHash,
+    pool_keyhash: Ed25519KeyHash,
 }
 
 to_from_bytes!(StakeDelegation);
@@ -346,11 +346,11 @@ impl StakeDelegation {
         self.stake_credential.clone()
     }
 
-    pub fn pool_keyhash(&self) -> PoolKeyHash {
+    pub fn pool_keyhash(&self) -> Ed25519KeyHash {
         self.pool_keyhash.clone()
     }
 
-    pub fn new(stake_credential: &StakeCredential, pool_keyhash: &PoolKeyHash) -> Self {
+    pub fn new(stake_credential: &StakeCredential, pool_keyhash: &Ed25519KeyHash) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
             pool_keyhash: pool_keyhash.clone(),
@@ -360,12 +360,12 @@ impl StakeDelegation {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct AddrKeyHashes(Vec<AddrKeyHash>);
+pub struct Ed25519KeyHashes(Vec<Ed25519KeyHash>);
 
-to_from_bytes!(AddrKeyHashes);
+to_from_bytes!(Ed25519KeyHashes);
 
 #[wasm_bindgen]
-impl AddrKeyHashes {
+impl Ed25519KeyHashes {
     pub fn new() -> Self {
         Self(Vec::new())
     }
@@ -374,11 +374,11 @@ impl AddrKeyHashes {
         self.0.len()
     }
 
-    pub fn get(&self, index: usize) -> AddrKeyHash {
+    pub fn get(&self, index: usize) -> Ed25519KeyHash {
         self.0[index].clone()
     }
 
-    pub fn add(&mut self, elem: &AddrKeyHash) {
+    pub fn add(&mut self, elem: &Ed25519KeyHash) {
         self.0.push(elem.clone());
     }
 }
@@ -411,13 +411,13 @@ impl Relays {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PoolParams {
-    operator: PoolKeyHash,
+    operator: Ed25519KeyHash,
     vrf_keyhash: VRFKeyHash,
     pledge: Coin,
     cost: Coin,
     margin: UnitInterval,
     reward_account: RewardAddress,
-    pool_owners: AddrKeyHashes,
+    pool_owners: Ed25519KeyHashes,
     relays: Relays,
     pool_metadata: Option<PoolMetadata>,
 }
@@ -426,7 +426,7 @@ to_from_bytes!(PoolParams);
 
 #[wasm_bindgen]
 impl PoolParams {
-    pub fn operator(&self) -> PoolKeyHash {
+    pub fn operator(&self) -> Ed25519KeyHash {
         self.operator.clone()
     }
 
@@ -450,7 +450,7 @@ impl PoolParams {
         self.reward_account.clone()
     }
 
-    pub fn pool_owners(&self) -> AddrKeyHashes {
+    pub fn pool_owners(&self) -> Ed25519KeyHashes {
         self.pool_owners.clone()
     }
 
@@ -462,12 +462,12 @@ impl PoolParams {
         self.pool_metadata.clone()
     }
 
-    pub fn new(operator: &PoolKeyHash, vrf_keyhash: &VRFKeyHash, pledge: Coin, cost: Coin, margin: &UnitInterval, reward_account: &RewardAddress, pool_owners: &AddrKeyHashes, relays: &Relays, pool_metadata: Option<PoolMetadata>) -> Self {
+    pub fn new(operator: &Ed25519KeyHash, vrf_keyhash: &VRFKeyHash, pledge: &Coin, cost: &Coin, margin: &UnitInterval, reward_account: &RewardAddress, pool_owners: &Ed25519KeyHashes, relays: &Relays, pool_metadata: Option<PoolMetadata>) -> Self {
         Self {
             operator: operator.clone(),
             vrf_keyhash: vrf_keyhash.clone(),
-            pledge: pledge,
-            cost: cost,
+            pledge: pledge.clone(),
+            cost: cost.clone(),
             margin: margin.clone(),
             reward_account: reward_account.clone(),
             pool_owners: pool_owners.clone(),
@@ -501,7 +501,7 @@ impl PoolRegistration {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PoolRetirement {
-    pool_keyhash: PoolKeyHash,
+    pool_keyhash: Ed25519KeyHash,
     epoch: Epoch,
 }
 
@@ -509,7 +509,7 @@ to_from_bytes!(PoolRetirement);
 
 #[wasm_bindgen]
 impl PoolRetirement {
-    pub fn pool_keyhash(&self) -> PoolKeyHash {
+    pub fn pool_keyhash(&self) -> Ed25519KeyHash {
         self.pool_keyhash.clone()
     }
 
@@ -517,7 +517,7 @@ impl PoolRetirement {
         self.epoch.clone()
     }
 
-    pub fn new(pool_keyhash: &PoolKeyHash, epoch: Epoch) -> Self {
+    pub fn new(pool_keyhash: &Ed25519KeyHash, epoch: Epoch) -> Self {
         Self {
             pool_keyhash: pool_keyhash.clone(),
             epoch: epoch,
@@ -723,8 +723,8 @@ impl MoveInstantaneousReward {
         self.rewards.len()
     }
 
-    pub fn insert(&mut self, key: &StakeCredential, value: Coin) -> Option<Coin> {
-        self.rewards.insert(key.clone(), value)
+    pub fn insert(&mut self, key: &StakeCredential, value: &Coin) -> Option<Coin> {
+        self.rewards.insert(key.clone(), value.clone())
     }
 }
 
@@ -949,8 +949,8 @@ impl Withdrawals {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &RewardAddress, value: Coin) -> Option<Coin> {
-        self.0.insert(key.clone(), value)
+    pub fn insert(&mut self, key: &RewardAddress, value: &Coin) -> Option<Coin> {
+        self.0.insert(key.clone(), value.clone())
     }
 
     pub fn get(&self, key: &RewardAddress) -> Option<Coin> {
@@ -1201,17 +1201,17 @@ impl TransactionMetadata {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MsigPubkey {
-    addr_keyhash: AddrKeyHash,
+    addr_keyhash: Ed25519KeyHash,
 }
 
 to_from_bytes!(MsigPubkey);
 
 #[wasm_bindgen]
 impl MsigPubkey {
-    pub fn addr_keyhash(&self) -> AddrKeyHash {
+    pub fn addr_keyhash(&self) -> Ed25519KeyHash {
         self.addr_keyhash.clone()
     }
-    pub fn new(addr_keyhash: &AddrKeyHash) -> Self {
+    pub fn new(addr_keyhash: &Ed25519KeyHash) -> Self {
         Self {
             addr_keyhash: addr_keyhash.clone(),
         }
@@ -1308,7 +1308,7 @@ to_from_bytes!(MultisigScript);
 
 #[wasm_bindgen]
 impl MultisigScript {
-    pub fn new_msig_pubkey(addr_keyhash: &AddrKeyHash) -> Self {
+    pub fn new_msig_pubkey(addr_keyhash: &Ed25519KeyHash) -> Self {
         Self(MultisigScriptEnum::MsigPubkey(MsigPubkey::new(addr_keyhash)))
     }
 

@@ -12,7 +12,7 @@ use cryptoxide::blake2b::Blake2b;
 
 use super::*;
 
-fn blake2b224(data: &[u8]) -> [u8; 28] {
+pub (crate) fn blake2b224(data: &[u8]) -> [u8; 28] {
     let mut out = [0; 28];
     Blake2b::blake2b(&mut out, data, &[]);
     out
@@ -162,10 +162,6 @@ impl Bip32PublicKey {
         self.0.to_bech32_str()
     }
 
-    pub fn hash(&self) -> AddrKeyHash {
-        AddrKeyHash::from(blake2b224(self.to_raw_key().as_bytes().as_ref()))
-    }
-
     pub fn chaincode(&self) -> Vec<u8> {
         let ED25519_PRIVATE_KEY_LENGTH = 64;
         let XPRV_SIZE = 96;
@@ -280,8 +276,8 @@ impl PublicKey {
         signature.0.verify_slice(&self.0, data) == crypto::Verification::Success
     }
 
-    pub fn hash(&self) -> AddrKeyHash {
-        AddrKeyHash::from(blake2b224(self.as_bytes().as_ref()))
+    pub fn hash(&self) -> Ed25519KeyHash {
+        Ed25519KeyHash::from(blake2b224(self.as_bytes().as_ref()))
     }
 }
 
@@ -432,8 +428,7 @@ pub struct BootstrapWitness {
     vkey: Vkey,
     signature: Ed25519Signature,
     chain_code: Vec<u8>,
-    pad_prefix: Vec<u8>,
-    pad_suffix: Vec<u8>,
+    attributes: Vec<u8>,
 }
 
 to_from_bytes!(BootstrapWitness);
@@ -452,33 +447,27 @@ impl BootstrapWitness {
         self.chain_code.clone()
     }
 
-    pub fn pad_prefix(&self) -> Vec<u8> {
-        self.pad_prefix.clone()
+    pub fn attributes(&self) -> Vec<u8> {
+        self.attributes.clone()
     }
 
-    pub fn pad_suffix(&self) -> Vec<u8> {
-        self.pad_suffix.clone()
-    }
-
-    pub fn new(vkey: &Vkey, signature: &Ed25519Signature, chain_code: Vec<u8>, pad_prefix: Vec<u8>, pad_suffix: Vec<u8>) -> Self {
+    pub fn new(vkey: &Vkey, signature: &Ed25519Signature, chain_code: Vec<u8>, attributes: Vec<u8>) -> Self {
         Self {
             vkey: vkey.clone(),
             signature: signature.clone(),
             chain_code: chain_code,
-            pad_prefix: pad_prefix,
-            pad_suffix: pad_suffix,
+            attributes: attributes,
         }
     }
 }
 
 impl cbor_event::se::Serialize for BootstrapWitness {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(5))?;
+        serializer.write_array(cbor_event::Len::Len(4))?;
         self.vkey.serialize(serializer)?;
         self.signature.serialize(serializer)?;
         serializer.write_bytes(&self.chain_code)?;
-        serializer.write_bytes(&self.pad_prefix)?;
-        serializer.write_bytes(&self.pad_suffix)?;
+        serializer.write_bytes(&self.attributes)?;
         Ok(serializer)
     }
 }
@@ -511,18 +500,14 @@ impl DeserializeEmbeddedGroup for BootstrapWitness {
         let chain_code = (|| -> Result<_, DeserializeError> {
             Ok(raw.bytes()?)
         })().map_err(|e| e.annotate("chain_code"))?;
-        let pad_prefix = (|| -> Result<_, DeserializeError> {
+        let attributes = (|| -> Result<_, DeserializeError> {
             Ok(raw.bytes()?)
-        })().map_err(|e| e.annotate("pad_prefix"))?;
-        let pad_suffix = (|| -> Result<_, DeserializeError> {
-            Ok(raw.bytes()?)
-        })().map_err(|e| e.annotate("pad_suffix"))?;
+        })().map_err(|e| e.annotate("attributes"))?;
         Ok(BootstrapWitness {
             vkey,
             signature,
             chain_code,
-            pad_prefix,
-            pad_suffix,
+            attributes,
         })
     }
 }
@@ -736,11 +721,10 @@ impl LegacyDaedalusPrivateKey {
     }
 }
 
-impl_hash_type!(AddrKeyHash, 28);
+impl_hash_type!(Ed25519KeyHash, 28);
 impl_hash_type!(ScriptHash, 28);
 impl_hash_type!(TransactionHash, 32);
 impl_hash_type!(GenesisDelegateHash, 28);
-impl_hash_type!(PoolKeyHash, 28);
 impl_hash_type!(GenesisHash, 28);
 impl_hash_type!(MetadataHash, 32);
 impl_hash_type!(VRFKeyHash, 28);
