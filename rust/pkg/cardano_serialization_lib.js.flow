@@ -115,59 +115,6 @@ declare export var MultisigScriptKind: {|
 
 /**
  */
-declare export class AddrKeyHash {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {AddrKeyHash}
-   */
-  static from_bytes(bytes: Uint8Array): AddrKeyHash;
-}
-/**
- */
-declare export class AddrKeyHashes {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {AddrKeyHashes}
-   */
-  static from_bytes(bytes: Uint8Array): AddrKeyHashes;
-
-  /**
-   * @returns {AddrKeyHashes}
-   */
-  static new(): AddrKeyHashes;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {number} index
-   * @returns {AddrKeyHash}
-   */
-  get(index: number): AddrKeyHash;
-
-  /**
-   * @param {AddrKeyHash} elem
-   */
-  add(elem: AddrKeyHash): void;
-}
-/**
- */
 declare export class Address {
   free(): void;
 
@@ -435,11 +382,6 @@ declare export class Bip32PublicKey {
   to_bech32(): string;
 
   /**
-   * @returns {AddrKeyHash}
-   */
-  hash(): AddrKeyHash;
-
-  /**
    * @returns {Uint8Array}
    */
   chaincode(): Uint8Array;
@@ -478,27 +420,20 @@ declare export class BootstrapWitness {
   /**
    * @returns {Uint8Array}
    */
-  pad_prefix(): Uint8Array;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  pad_suffix(): Uint8Array;
+  attributes(): Uint8Array;
 
   /**
    * @param {Vkey} vkey
    * @param {Ed25519Signature} signature
    * @param {Uint8Array} chain_code
-   * @param {Uint8Array} pad_prefix
-   * @param {Uint8Array} pad_suffix
+   * @param {Uint8Array} attributes
    * @returns {BootstrapWitness}
    */
   static new(
     vkey: Vkey,
     signature: Ed25519Signature,
     chain_code: Uint8Array,
-    pad_prefix: Uint8Array,
-    pad_suffix: Uint8Array
+    attributes: Uint8Array
   ): BootstrapWitness;
 }
 /**
@@ -727,6 +662,59 @@ declare export class Certificates {
    * @param {Certificate} elem
    */
   add(elem: Certificate): void;
+}
+/**
+ */
+declare export class Ed25519KeyHash {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Ed25519KeyHash}
+   */
+  static from_bytes(bytes: Uint8Array): Ed25519KeyHash;
+}
+/**
+ */
+declare export class Ed25519KeyHashes {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Ed25519KeyHashes}
+   */
+  static from_bytes(bytes: Uint8Array): Ed25519KeyHashes;
+
+  /**
+   * @returns {Ed25519KeyHashes}
+   */
+  static new(): Ed25519KeyHashes;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {Ed25519KeyHash}
+   */
+  get(index: number): Ed25519KeyHash;
+
+  /**
+   * @param {Ed25519KeyHash} elem
+   */
+  add(elem: Ed25519KeyHash): void;
 }
 /**
  */
@@ -960,11 +948,11 @@ declare export class LinearFee {
   coefficient(): BigNum;
 
   /**
-   * @param {BigNum} constant
    * @param {BigNum} coefficient
+   * @param {BigNum} constant
    * @returns {LinearFee}
    */
-  static new(constant: BigNum, coefficient: BigNum): LinearFee;
+  static new(coefficient: BigNum, constant: BigNum): LinearFee;
 }
 /**
  */
@@ -1193,15 +1181,15 @@ declare export class MsigPubkey {
   static from_bytes(bytes: Uint8Array): MsigPubkey;
 
   /**
-   * @returns {AddrKeyHash}
+   * @returns {Ed25519KeyHash}
    */
-  addr_keyhash(): AddrKeyHash;
+  addr_keyhash(): Ed25519KeyHash;
 
   /**
-   * @param {AddrKeyHash} addr_keyhash
+   * @param {Ed25519KeyHash} addr_keyhash
    * @returns {MsigPubkey}
    */
-  static new(addr_keyhash: AddrKeyHash): MsigPubkey;
+  static new(addr_keyhash: Ed25519KeyHash): MsigPubkey;
 }
 /**
  */
@@ -1247,10 +1235,10 @@ declare export class MultisigScript {
   static from_bytes(bytes: Uint8Array): MultisigScript;
 
   /**
-   * @param {AddrKeyHash} addr_keyhash
+   * @param {Ed25519KeyHash} addr_keyhash
    * @returns {MultisigScript}
    */
-  static new_msig_pubkey(addr_keyhash: AddrKeyHash): MultisigScript;
+  static new_msig_pubkey(addr_keyhash: Ed25519KeyHash): MultisigScript;
 
   /**
    * @param {MultisigScripts} multisig_scripts
@@ -1389,22 +1377,6 @@ declare export class PointerAddress {
 }
 /**
  */
-declare export class PoolKeyHash {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {PoolKeyHash}
-   */
-  static from_bytes(bytes: Uint8Array): PoolKeyHash;
-}
-/**
- */
 declare export class PoolMetadata {
   free(): void;
 
@@ -1453,9 +1425,9 @@ declare export class PoolParams {
   static from_bytes(bytes: Uint8Array): PoolParams;
 
   /**
-   * @returns {PoolKeyHash}
+   * @returns {Ed25519KeyHash}
    */
-  operator(): PoolKeyHash;
+  operator(): Ed25519KeyHash;
 
   /**
    * @returns {VRFKeyHash}
@@ -1483,9 +1455,9 @@ declare export class PoolParams {
   reward_account(): RewardAddress;
 
   /**
-   * @returns {AddrKeyHashes}
+   * @returns {Ed25519KeyHashes}
    */
-  pool_owners(): AddrKeyHashes;
+  pool_owners(): Ed25519KeyHashes;
 
   /**
    * @returns {Relays}
@@ -1498,25 +1470,25 @@ declare export class PoolParams {
   pool_metadata(): PoolMetadata | void;
 
   /**
-   * @param {PoolKeyHash} operator
+   * @param {Ed25519KeyHash} operator
    * @param {VRFKeyHash} vrf_keyhash
    * @param {BigNum} pledge
    * @param {BigNum} cost
    * @param {UnitInterval} margin
    * @param {RewardAddress} reward_account
-   * @param {AddrKeyHashes} pool_owners
+   * @param {Ed25519KeyHashes} pool_owners
    * @param {Relays} relays
    * @param {PoolMetadata | void} pool_metadata
    * @returns {PoolParams}
    */
   static new(
-    operator: PoolKeyHash,
+    operator: Ed25519KeyHash,
     vrf_keyhash: VRFKeyHash,
     pledge: BigNum,
     cost: BigNum,
     margin: UnitInterval,
     reward_account: RewardAddress,
-    pool_owners: AddrKeyHashes,
+    pool_owners: Ed25519KeyHashes,
     relays: Relays,
     pool_metadata?: PoolMetadata
   ): PoolParams;
@@ -1565,9 +1537,9 @@ declare export class PoolRetirement {
   static from_bytes(bytes: Uint8Array): PoolRetirement;
 
   /**
-   * @returns {PoolKeyHash}
+   * @returns {Ed25519KeyHash}
    */
-  pool_keyhash(): PoolKeyHash;
+  pool_keyhash(): Ed25519KeyHash;
 
   /**
    * @returns {number}
@@ -1575,11 +1547,11 @@ declare export class PoolRetirement {
   epoch(): number;
 
   /**
-   * @param {PoolKeyHash} pool_keyhash
+   * @param {Ed25519KeyHash} pool_keyhash
    * @param {number} epoch
    * @returns {PoolRetirement}
    */
-  static new(pool_keyhash: PoolKeyHash, epoch: number): PoolRetirement;
+  static new(pool_keyhash: Ed25519KeyHash, epoch: number): PoolRetirement;
 }
 /**
  */
@@ -1670,9 +1642,9 @@ declare export class PublicKey {
   verify(data: Uint8Array, signature: Ed25519Signature): boolean;
 
   /**
-   * @returns {AddrKeyHash}
+   * @returns {Ed25519KeyHash}
    */
-  hash(): AddrKeyHash;
+  hash(): Ed25519KeyHash;
 }
 /**
  */
@@ -1912,10 +1884,10 @@ declare export class StakeCredential {
   free(): void;
 
   /**
-   * @param {AddrKeyHash} hash
+   * @param {Ed25519KeyHash} hash
    * @returns {StakeCredential}
    */
-  static from_keyhash(hash: AddrKeyHash): StakeCredential;
+  static from_keyhash(hash: Ed25519KeyHash): StakeCredential;
 
   /**
    * @param {ScriptHash} hash
@@ -1924,9 +1896,9 @@ declare export class StakeCredential {
   static from_scripthash(hash: ScriptHash): StakeCredential;
 
   /**
-   * @returns {AddrKeyHash | void}
+   * @returns {Ed25519KeyHash | void}
    */
-  to_keyhash(): AddrKeyHash | void;
+  to_keyhash(): Ed25519KeyHash | void;
 
   /**
    * @returns {ScriptHash | void}
@@ -1960,18 +1932,18 @@ declare export class StakeDelegation {
   stake_credential(): StakeCredential;
 
   /**
-   * @returns {PoolKeyHash}
+   * @returns {Ed25519KeyHash}
    */
-  pool_keyhash(): PoolKeyHash;
+  pool_keyhash(): Ed25519KeyHash;
 
   /**
    * @param {StakeCredential} stake_credential
-   * @param {PoolKeyHash} pool_keyhash
+   * @param {Ed25519KeyHash} pool_keyhash
    * @returns {StakeDelegation}
    */
   static new(
     stake_credential: StakeCredential,
-    pool_keyhash: PoolKeyHash
+    pool_keyhash: Ed25519KeyHash
   ): StakeDelegation;
 }
 /**
@@ -2157,12 +2129,12 @@ declare export class TransactionBuilder {
   free(): void;
 
   /**
-   * @param {AddrKeyHash} hash
+   * @param {Ed25519KeyHash} hash
    * @param {TransactionInput} input
    * @param {BigNum} amount
    */
   add_key_input(
-    hash: AddrKeyHash,
+    hash: Ed25519KeyHash,
     input: TransactionInput,
     amount: BigNum
   ): void;
@@ -2638,19 +2610,19 @@ declare export class UnitInterval {
   /**
    * @returns {BigNum}
    */
-  index_0(): BigNum;
+  numerator(): BigNum;
 
   /**
    * @returns {BigNum}
    */
-  index_1(): BigNum;
+  denominator(): BigNum;
 
   /**
-   * @param {BigNum} index_0
-   * @param {BigNum} index_1
+   * @param {BigNum} numerator
+   * @param {BigNum} denominator
    * @returns {UnitInterval}
    */
-  static new(index_0: BigNum, index_1: BigNum): UnitInterval;
+  static new(numerator: BigNum, denominator: BigNum): UnitInterval;
 }
 /**
  */
