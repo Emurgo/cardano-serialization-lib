@@ -19,7 +19,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-push": "npm run js:prepublish && npm run rust:test && npm run js:lint && npm run rust:build-nodejs && npm run js:test"
+      "pre-push": "npm run rust:test && npm run js:lint && npm run rust:build-nodejs && npm run js:test"
     }
   },
   "author": "EMURGO",
