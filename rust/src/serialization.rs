@@ -12,8 +12,8 @@ impl cbor_event::se::Serialize for UnitInterval {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_tag(30u64)?;
         serializer.write_array(cbor_event::Len::Len(2))?;
-        self.index_0.serialize(serializer)?;
-        self.index_1.serialize(serializer)?;
+        self.numerator.serialize(serializer)?;
+        self.denominator.serialize(serializer)?;
         Ok(serializer)
     }
 }
@@ -41,15 +41,15 @@ impl Deserialize for UnitInterval {
 
 impl DeserializeEmbeddedGroup for UnitInterval {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
-        let index_0 = (|| -> Result<_, DeserializeError> {
+        let numerator = (|| -> Result<_, DeserializeError> {
             Ok(BigNum::deserialize(raw)?)
-        })().map_err(|e| e.annotate("index_0"))?;
-        let index_1 = (|| -> Result<_, DeserializeError> {
+        })().map_err(|e| e.annotate("numerator"))?;
+        let denominator = (|| -> Result<_, DeserializeError> {
             Ok(BigNum::deserialize(raw)?)
-        })().map_err(|e| e.annotate("index_1"))?;
+        })().map_err(|e| e.annotate("denominator"))?;
         Ok(UnitInterval {
-            index_0,
-            index_1,
+            numerator,
+            denominator,
         })
     }
 }
@@ -558,7 +558,7 @@ impl DeserializeEmbeddedGroup for StakeDelegation {
             Ok(StakeCredential::deserialize(raw)?)
         })().map_err(|e| e.annotate("stake_credential"))?;
         let pool_keyhash = (|| -> Result<_, DeserializeError> {
-            Ok(PoolKeyHash::deserialize(raw)?)
+            Ok(Ed25519KeyHash::deserialize(raw)?)
         })().map_err(|e| e.annotate("pool_keyhash"))?;
         Ok(StakeDelegation {
             stake_credential,
@@ -567,7 +567,7 @@ impl DeserializeEmbeddedGroup for StakeDelegation {
     }
 }
 
-impl cbor_event::se::Serialize for AddrKeyHashes {
+impl cbor_event::se::Serialize for Ed25519KeyHashes {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
         for element in &self.0 {
@@ -577,7 +577,7 @@ impl cbor_event::se::Serialize for AddrKeyHashes {
     }
 }
 
-impl Deserialize for AddrKeyHashes {
+impl Deserialize for Ed25519KeyHashes {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
@@ -587,10 +587,10 @@ impl Deserialize for AddrKeyHashes {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
                 }
-                arr.push(AddrKeyHash::deserialize(raw)?);
+                arr.push(Ed25519KeyHash::deserialize(raw)?);
             }
             Ok(())
-        })().map_err(|e| e.annotate("AddrKeyHashes"))?;
+        })().map_err(|e| e.annotate("Ed25519KeyHashes"))?;
         Ok(Self(arr))
     }
 }
@@ -670,7 +670,7 @@ impl Deserialize for PoolParams {
 impl DeserializeEmbeddedGroup for PoolParams {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
         let operator = (|| -> Result<_, DeserializeError> {
-            Ok(PoolKeyHash::deserialize(raw)?)
+            Ok(Ed25519KeyHash::deserialize(raw)?)
         })().map_err(|e| e.annotate("operator"))?;
         let vrf_keyhash = (|| -> Result<_, DeserializeError> {
             Ok(VRFKeyHash::deserialize(raw)?)
@@ -688,7 +688,7 @@ impl DeserializeEmbeddedGroup for PoolParams {
             Ok(RewardAddress::deserialize(raw)?)
         })().map_err(|e| e.annotate("reward_account"))?;
         let pool_owners = (|| -> Result<_, DeserializeError> {
-            Ok(AddrKeyHashes::deserialize(raw)?)
+            Ok(Ed25519KeyHashes::deserialize(raw)?)
         })().map_err(|e| e.annotate("pool_owners"))?;
         let relays = (|| -> Result<_, DeserializeError> {
             Ok(Relays::deserialize(raw)?)
@@ -801,7 +801,7 @@ impl DeserializeEmbeddedGroup for PoolRetirement {
             Ok(())
         })().map_err(|e| e.annotate("index_0"))?;
         let pool_keyhash = (|| -> Result<_, DeserializeError> {
-            Ok(PoolKeyHash::deserialize(raw)?)
+            Ok(Ed25519KeyHash::deserialize(raw)?)
         })().map_err(|e| e.annotate("pool_keyhash"))?;
         let epoch = (|| -> Result<_, DeserializeError> {
             Ok(Epoch::deserialize(raw)?)
@@ -1797,7 +1797,7 @@ impl DeserializeEmbeddedGroup for MsigPubkey {
             Ok(())
         })().map_err(|e| e.annotate("index_0"))?;
         let addr_keyhash = (|| -> Result<_, DeserializeError> {
-            Ok(AddrKeyHash::deserialize(raw)?)
+            Ok(Ed25519KeyHash::deserialize(raw)?)
         })().map_err(|e| e.annotate("addr_keyhash"))?;
         Ok(MsigPubkey {
             addr_keyhash,

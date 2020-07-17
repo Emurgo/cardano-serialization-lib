@@ -4,7 +4,7 @@ use super::utils;
 use std::collections::BTreeSet;
 
 // comes from witsVKeyNeeded in the Ledger spec
-fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<AddrKeyHash>) {
+fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
     match &cert_enum.0 {
         CertificateEnum::StakeRegistration(cert) => {
             keys.insert(cert.stake_credential().to_keyhash().unwrap());
@@ -20,17 +20,17 @@ fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<AddrKeyHas
                 keys.insert(owner.clone());
             }
             keys.insert(
-                AddrKeyHash::from_bytes(cert.pool_params().operator().to_bytes()).unwrap()
+                Ed25519KeyHash::from_bytes(cert.pool_params().operator().to_bytes()).unwrap()
             );
         },
         CertificateEnum::PoolRetirement(cert) => {
             keys.insert(
-                AddrKeyHash::from_bytes(cert.pool_keyhash().to_bytes()).unwrap()
+                Ed25519KeyHash::from_bytes(cert.pool_keyhash().to_bytes()).unwrap()
             );
         },
         CertificateEnum::GenesisKeyDelegation(cert) => {
             keys.insert(
-                AddrKeyHash::from_bytes(cert.genesis_delegate_hash().to_bytes()).unwrap()
+                Ed25519KeyHash::from_bytes(cert.genesis_delegate_hash().to_bytes()).unwrap()
             );
         },
         CertificateEnum::MoveInstantaneousRewardsCert(_cert) => {},
@@ -100,7 +100,7 @@ fn estimate_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
 #[derive(Clone, Debug)]
 struct MockWitnessSet {
-    vkeys: BTreeSet<AddrKeyHash>,
+    vkeys: BTreeSet<Ed25519KeyHash>,
     scripts: BTreeSet<ScriptHash>,
     bootstraps: BTreeSet<Vec<u8>>,
 }
@@ -130,7 +130,7 @@ impl TransactionBuilder {
     // We have to know what kind of inputs these are to know what kind of mock witnesses to create since
     // 1) mock witnesses have different lengths depending on the type which changes the expecting fee
     // 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
-    pub fn add_key_input(&mut self, hash: &AddrKeyHash, input: &TransactionInput, amount: &Coin) {
+    pub fn add_key_input(&mut self, hash: &Ed25519KeyHash, input: &TransactionInput, amount: &Coin) {
         self.inputs.push(TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
@@ -335,21 +335,21 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.hash());
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
         tx_builder.add_key_input(
-            &spend.hash(),
+            &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
             &Coin::new(1_000_000)
         );
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
-            Coin::new(10)
+            &Coin::new(10)
         ));
         tx_builder.set_ttl(1000);
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.hash());
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
         let added_change = tx_builder.add_change_if_needed(
             &change_addr

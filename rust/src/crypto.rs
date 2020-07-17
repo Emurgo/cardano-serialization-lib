@@ -12,7 +12,7 @@ use cryptoxide::blake2b::Blake2b;
 
 use super::*;
 
-fn blake2b224(data: &[u8]) -> [u8; 28] {
+pub (crate) fn blake2b224(data: &[u8]) -> [u8; 28] {
     let mut out = [0; 28];
     Blake2b::blake2b(&mut out, data, &[]);
     out
@@ -162,10 +162,6 @@ impl Bip32PublicKey {
         self.0.to_bech32_str()
     }
 
-    pub fn hash(&self) -> AddrKeyHash {
-        AddrKeyHash::from(blake2b224(self.to_raw_key().as_bytes().as_ref()))
-    }
-
     pub fn chaincode(&self) -> Vec<u8> {
         let ED25519_PRIVATE_KEY_LENGTH = 64;
         let XPRV_SIZE = 96;
@@ -280,8 +276,8 @@ impl PublicKey {
         signature.0.verify_slice(&self.0, data) == crypto::Verification::Success
     }
 
-    pub fn hash(&self) -> AddrKeyHash {
-        AddrKeyHash::from(blake2b224(self.as_bytes().as_ref()))
+    pub fn hash(&self) -> Ed25519KeyHash {
+        Ed25519KeyHash::from(blake2b224(self.as_bytes().as_ref()))
     }
 }
 
@@ -736,11 +732,10 @@ impl LegacyDaedalusPrivateKey {
     }
 }
 
-impl_hash_type!(AddrKeyHash, 28);
+impl_hash_type!(Ed25519KeyHash, 28);
 impl_hash_type!(ScriptHash, 28);
 impl_hash_type!(TransactionHash, 32);
 impl_hash_type!(GenesisDelegateHash, 28);
-impl_hash_type!(PoolKeyHash, 28);
 impl_hash_type!(GenesisHash, 28);
 impl_hash_type!(MetadataHash, 32);
 impl_hash_type!(VRFKeyHash, 28);
