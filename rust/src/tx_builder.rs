@@ -114,6 +114,7 @@ struct TxBuilderInput {
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionBuilder {
+    minimum_utxo_val: BigNum,
     fee_algo: fees::LinearFee,
     inputs: Vec<TxBuilderInput>,
     outputs: TransactionOutputs,
@@ -152,8 +153,17 @@ impl TransactionBuilder {
         self.input_types.bootstraps.insert(hash.to_bytes());
     }
 
-    pub fn add_output(&mut self, output: &TransactionOutput) {
-        self.outputs.add(output)
+    pub fn add_output(&mut self, output: &TransactionOutput) -> Result<(), JsValue> {
+        if output.amount().unwrap() < self.minimum_utxo_val.unwrap() {
+            Err(JsValue::from_str(&format!(
+                "Value {} less than the minimum UTXO value {}",
+                output.amount().unwrap(),
+                self.minimum_utxo_val.unwrap()
+            )))
+        } else {
+            self.outputs.add(output);
+            Ok(())
+        }
     }
 
     pub fn set_fee(&mut self, fee: &Coin) {
@@ -182,8 +192,13 @@ impl TransactionBuilder {
         self.metadata = Some(metadata.clone())
     }
 
-    pub fn new(linear_fee: &fees::LinearFee) -> Self {
+    pub fn new(
+        linear_fee: &fees::LinearFee,
+        // Cardano has a protocol parameter that defines the minimum value a newly created UTXO can contain
+        minimum_utxo_val: &Coin,
+    ) -> Self {
         Self {
+            minimum_utxo_val: minimum_utxo_val.clone(),
             fee_algo: linear_fee.clone(),
             inputs: Vec::new(),
             outputs: TransactionOutputs::new(),
@@ -225,6 +240,7 @@ impl TransactionBuilder {
         }
     }
 
+    // Warning: this function will mutate the /fee/ field
     pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsValue> {
         let fee = match &self.fee {
             None => self.estimate_fee(),
@@ -233,8 +249,8 @@ impl TransactionBuilder {
         }?;
         let input_total = self.get_input_total()?;
         let output_total = self.get_feeless_output_total()?;
-        match input_total > output_total.checked_add(&fee)? {
-            false => return Ok(false),
+        match input_total.unwrap() > output_total.checked_add(&fee)?.unwrap() {
+            false => return Err(JsValue::from_str("Insufficient input in transaction")),
             true => {
                 let mut copy = self.clone();
                 copy.add_output(&TransactionOutput {
@@ -242,17 +258,23 @@ impl TransactionBuilder {
                     // maximum possible output to maximize fee from adding this output
                     // this may over-estimate the fee by a few bytes but that's okay
                     amount: Coin::new(0x1_00_00_00_00),
-                });
+                })?;
                 let new_fee = copy.estimate_fee()?;
-                match input_total > output_total.checked_add(&new_fee)? {
-                    false => return Ok(false), // not enough input to covert the extra fee from adding an output
+                // needs to have at least minimum_utxo_val leftover for the change to be a valid UTXO entry 
+                match input_total > output_total.checked_add(&new_fee)?.checked_add(&self.minimum_utxo_val)? {
+                    false => {
+                        // recall: we originally assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
+                        self.set_fee(&input_total.checked_sub(&output_total)?);
+                        return Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
+                    },
                     true => {
+                        // recall: we originally assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
                         self.set_fee(&new_fee);
                         self.add_output(&TransactionOutput {
                             address: address.clone(),
                             amount: input_total.checked_sub(&output_total.checked_add(&new_fee)?)?,
-                        });
-                    }
+                        })?;
+                    },
                 };
             },
         };
@@ -310,9 +332,9 @@ mod tests {
     }
 
     #[test]
-    fn build_tx() {
+    fn build_tx_with_change() {
         let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
-        let mut tx_builder = TransactionBuilder::new(&linear_fee);
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(0));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -346,7 +368,7 @@ mod tests {
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
             &Coin::new(10)
-        ));
+        )).unwrap();
         tx_builder.set_ttl(1000);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
@@ -356,6 +378,60 @@ mod tests {
         );
         assert!(added_change.unwrap());
         assert_eq!(tx_builder.outputs.len(), 2);
+        assert_eq!(
+            tx_builder.get_input_total().unwrap(),
+            tx_builder.get_feeless_output_total().unwrap().checked_add(&tx_builder.get_fee_or_calc().unwrap()).unwrap()
+        );
+        let _final_tx = tx_builder.build(); // just test that it doesn't throw
+    }
+
+    #[test]
+    fn build_tx_without_change() {
+        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(0));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
+        tx_builder.add_key_input(
+            &spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Coin::new(1_000_000)
+        );
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_net_0,
+            &Coin::new(880_000)
+        )).unwrap();
+        tx_builder.set_ttl(1000);
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+        let added_change = tx_builder.add_change_if_needed(
+            &change_addr
+        );
+        assert!(!added_change.unwrap());
+        assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
             tx_builder.get_input_total().unwrap(),
             tx_builder.get_feeless_output_total().unwrap().checked_add(&tx_builder.get_fee_or_calc().unwrap()).unwrap()

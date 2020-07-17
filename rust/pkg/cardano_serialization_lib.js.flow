@@ -2193,9 +2193,13 @@ declare export class TransactionBuilder {
 
   /**
    * @param {LinearFee} linear_fee
+   * @param {BigNum} minimum_utxo_val
    * @returns {TransactionBuilder}
    */
-  static new(linear_fee: LinearFee): TransactionBuilder;
+  static new(
+    linear_fee: LinearFee,
+    minimum_utxo_val: BigNum
+  ): TransactionBuilder;
 
   /**
    * @returns {BigNum}
