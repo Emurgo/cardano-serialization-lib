@@ -433,6 +433,12 @@ impl DeserializeEmbeddedGroup for TransactionOutput {
 impl cbor_event::se::Serialize for StakeRegistration {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
+        self.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for StakeRegistration {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(0u64)?;
         self.stake_credential.serialize(serializer)?;
         Ok(serializer)
@@ -477,6 +483,12 @@ impl DeserializeEmbeddedGroup for StakeRegistration {
 impl cbor_event::se::Serialize for StakeDeregistration {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
+        self.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for StakeDeregistration {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(1u64)?;
         self.stake_credential.serialize(serializer)?;
         Ok(serializer)
@@ -521,6 +533,12 @@ impl DeserializeEmbeddedGroup for StakeDeregistration {
 impl cbor_event::se::Serialize for StakeDelegation {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(3))?;
+        self.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for StakeDelegation {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(2u64)?;
         self.stake_credential.serialize(serializer)?;
         self.pool_keyhash.serialize(serializer)?;
@@ -723,6 +741,12 @@ impl DeserializeEmbeddedGroup for PoolParams {
 impl cbor_event::se::Serialize for PoolRegistration {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(10))?;
+        self.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for PoolRegistration {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(3u64)?;
         self.pool_params.serialize_as_embedded_group(serializer)?;
         Ok(serializer)
@@ -767,6 +791,12 @@ impl DeserializeEmbeddedGroup for PoolRegistration {
 impl cbor_event::se::Serialize for PoolRetirement {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(3))?;
+        self.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for PoolRetirement {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(4u64)?;
         self.pool_keyhash.serialize(serializer)?;
         self.epoch.serialize(serializer)?;
@@ -815,10 +845,17 @@ impl DeserializeEmbeddedGroup for PoolRetirement {
 
 impl cbor_event::se::Serialize for GenesisKeyDelegation {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(3))?;
+        serializer.write_array(cbor_event::Len::Len(4))?;
+        self.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for GenesisKeyDelegation {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(5u64)?;
         self.genesishash.serialize(serializer)?;
         self.genesis_delegate_hash.serialize(serializer)?;
+        self.vrf_keyhash.serialize(serializer)?;
         Ok(serializer)
     }
 }
@@ -855,9 +892,13 @@ impl DeserializeEmbeddedGroup for GenesisKeyDelegation {
         let genesis_delegate_hash = (|| -> Result<_, DeserializeError> {
             Ok(GenesisDelegateHash::deserialize(raw)?)
         })().map_err(|e| e.annotate("genesis_delegate_hash"))?;
+        let vrf_keyhash = (|| -> Result<_, DeserializeError> {
+            Ok(VRFKeyHash::deserialize(raw)?)
+        })().map_err(|e| e.annotate("vrf_keyhash"))?;
         Ok(GenesisKeyDelegation {
             genesishash,
             genesis_delegate_hash,
+            vrf_keyhash,
         })
     }
 }
@@ -865,6 +906,12 @@ impl DeserializeEmbeddedGroup for GenesisKeyDelegation {
 impl cbor_event::se::Serialize for MoveInstantaneousRewardsCert {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
+        self.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for MoveInstantaneousRewardsCert {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(6u64)?;
         self.move_instantaneous_reward.serialize(serializer)?;
         Ok(serializer)
@@ -909,34 +956,13 @@ impl DeserializeEmbeddedGroup for MoveInstantaneousRewardsCert {
 impl cbor_event::se::Serialize for CertificateEnum {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         match self {
-            CertificateEnum::StakeRegistration(x) => {
-                serializer.write_array(cbor_event::Len::Len(1))?;
-                x.serialize(serializer)
-            },
-            CertificateEnum::StakeDeregistration(x) => {
-                serializer.write_array(cbor_event::Len::Len(1))?;
-                x.serialize(serializer)
-            },
-            CertificateEnum::StakeDelegation(x) => {
-                serializer.write_array(cbor_event::Len::Len(1))?;
-                x.serialize(serializer)
-            },
-            CertificateEnum::PoolRegistration(x) => {
-                serializer.write_array(cbor_event::Len::Len(1))?;
-                x.serialize(serializer)
-            },
-            CertificateEnum::PoolRetirement(x) => {
-                serializer.write_array(cbor_event::Len::Len(1))?;
-                x.serialize(serializer)
-            },
-            CertificateEnum::GenesisKeyDelegation(x) => {
-                serializer.write_array(cbor_event::Len::Len(1))?;
-                x.serialize(serializer)
-            },
-            CertificateEnum::MoveInstantaneousRewardsCert(x) => {
-                serializer.write_array(cbor_event::Len::Len(1))?;
-                x.serialize(serializer)
-            },
+            CertificateEnum::StakeRegistration(x) => x.serialize(serializer),
+            CertificateEnum::StakeDeregistration(x) => x.serialize(serializer),
+            CertificateEnum::StakeDelegation(x) => x.serialize(serializer),
+            CertificateEnum::PoolRegistration(x) => x.serialize(serializer),
+            CertificateEnum::PoolRetirement(x) => x.serialize(serializer),
+            CertificateEnum::GenesisKeyDelegation(x) => x.serialize(serializer),
+            CertificateEnum::MoveInstantaneousRewardsCert(x) => x.serialize(serializer),
         }
     }
 }
@@ -962,49 +988,49 @@ impl DeserializeEmbeddedGroup for CertificateEnum {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
         let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
         match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(StakeRegistration::deserialize(raw)?)
+            Ok(StakeRegistration::deserialize_as_embedded_group(raw, len)?)
         })(raw)
         {
             Ok(variant) => return Ok(CertificateEnum::StakeRegistration(variant)),
             Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
         };
         match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(StakeDeregistration::deserialize(raw)?)
+            Ok(StakeDeregistration::deserialize_as_embedded_group(raw, len)?)
         })(raw)
         {
             Ok(variant) => return Ok(CertificateEnum::StakeDeregistration(variant)),
             Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
         };
         match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(StakeDelegation::deserialize(raw)?)
+            Ok(StakeDelegation::deserialize_as_embedded_group(raw, len)?)
         })(raw)
         {
             Ok(variant) => return Ok(CertificateEnum::StakeDelegation(variant)),
             Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
         };
         match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(PoolRegistration::deserialize(raw)?)
+            Ok(PoolRegistration::deserialize_as_embedded_group(raw, len)?)
         })(raw)
         {
             Ok(variant) => return Ok(CertificateEnum::PoolRegistration(variant)),
             Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
         };
         match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(PoolRetirement::deserialize(raw)?)
+            Ok(PoolRetirement::deserialize_as_embedded_group(raw, len)?)
         })(raw)
         {
             Ok(variant) => return Ok(CertificateEnum::PoolRetirement(variant)),
             Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
         };
         match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(GenesisKeyDelegation::deserialize(raw)?)
+            Ok(GenesisKeyDelegation::deserialize_as_embedded_group(raw, len)?)
         })(raw)
         {
             Ok(variant) => return Ok(CertificateEnum::GenesisKeyDelegation(variant)),
             Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
         };
         match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(MoveInstantaneousRewardsCert::deserialize(raw)?)
+            Ok(MoveInstantaneousRewardsCert::deserialize_as_embedded_group(raw, len)?)
         })(raw)
         {
             Ok(variant) => return Ok(CertificateEnum::MoveInstantaneousRewardsCert(variant)),

@@ -530,6 +530,7 @@ impl PoolRetirement {
 pub struct GenesisKeyDelegation {
     genesishash: GenesisHash,
     genesis_delegate_hash: GenesisDelegateHash,
+    vrf_keyhash: VRFKeyHash,
 }
 
 to_from_bytes!(GenesisKeyDelegation);
@@ -544,10 +545,15 @@ impl GenesisKeyDelegation {
         self.genesis_delegate_hash.clone()
     }
 
-    pub fn new(genesishash: &GenesisHash, genesis_delegate_hash: &GenesisDelegateHash) -> Self {
+    pub fn vrf_keyhash(&self) -> VRFKeyHash {
+        self.vrf_keyhash.clone()
+    }
+
+    pub fn new(genesishash: &GenesisHash, genesis_delegate_hash: &GenesisDelegateHash, vrf_keyhash: &VRFKeyHash) -> Self {
         Self {
             genesishash: genesishash.clone(),
             genesis_delegate_hash: genesis_delegate_hash.clone(),
+            vrf_keyhash: vrf_keyhash.clone(),
         }
     }
 }

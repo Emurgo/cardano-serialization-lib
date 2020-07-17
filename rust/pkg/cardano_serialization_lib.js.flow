@@ -841,13 +841,20 @@ declare export class GenesisKeyDelegation {
   genesis_delegate_hash(): GenesisDelegateHash;
 
   /**
+   * @returns {VRFKeyHash}
+   */
+  vrf_keyhash(): VRFKeyHash;
+
+  /**
    * @param {GenesisHash} genesishash
    * @param {GenesisDelegateHash} genesis_delegate_hash
+   * @param {VRFKeyHash} vrf_keyhash
    * @returns {GenesisKeyDelegation}
    */
   static new(
     genesishash: GenesisHash,
-    genesis_delegate_hash: GenesisDelegateHash
+    genesis_delegate_hash: GenesisDelegateHash,
+    vrf_keyhash: VRFKeyHash
   ): GenesisKeyDelegation;
 }
 /**
