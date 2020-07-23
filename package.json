@@ -1,6 +1,6 @@
 {
   "name": "cardano-serialization-lib",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "processing Haskell Shelley testnet",
   "main": "dist/index.js",
   "scripts": {
