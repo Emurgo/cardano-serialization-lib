@@ -1916,6 +1916,17 @@ declare export class StakeCredential {
    * @returns {number}
    */
   kind(): number;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {StakeCredential}
+   */
+  static from_bytes(bytes: Uint8Array): StakeCredential;
 }
 /**
  */

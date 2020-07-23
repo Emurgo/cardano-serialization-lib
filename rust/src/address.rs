@@ -78,7 +78,7 @@ impl StakeCredential {
     }
 }
 
-
+to_from_bytes!(StakeCredential);
 
 impl cbor_event::se::Serialize for StakeCredential {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
