@@ -1769,7 +1769,7 @@ impl Deserialize for TransactionMetadata {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
                 }
-                let key = TransactionMetadadumLabel::deserialize(raw)?;
+                let key = TransactionMetadatumLabel::deserialize(raw)?;
                 let value = TransactionMetadatum::deserialize(raw)?;
                 if table.insert(key.clone(), value).is_some() {
                     return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
