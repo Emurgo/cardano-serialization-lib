@@ -1177,11 +1177,11 @@ impl TransactionMetadatum {
     }
 }
 
-type TransactionMetadadumLabel = BigNum;
+type TransactionMetadatumLabel = BigNum;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct TransactionMetadata(std::collections::BTreeMap<TransactionMetadadumLabel, TransactionMetadatum>);
+pub struct TransactionMetadata(std::collections::BTreeMap<TransactionMetadatumLabel, TransactionMetadatum>);
 
 to_from_bytes!(TransactionMetadata);
 
@@ -1195,11 +1195,11 @@ impl TransactionMetadata {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: TransactionMetadadumLabel, value: &TransactionMetadatum) -> Option<TransactionMetadatum> {
+    pub fn insert(&mut self, key: TransactionMetadatumLabel, value: &TransactionMetadatum) -> Option<TransactionMetadatum> {
         self.0.insert(key, value.clone())
     }
 
-    pub fn get(&self, key: TransactionMetadadumLabel) -> Option<TransactionMetadatum> {
+    pub fn get(&self, key: TransactionMetadatumLabel) -> Option<TransactionMetadatum> {
         self.0.get(&key).map(|v| v.clone())
     }
 }
