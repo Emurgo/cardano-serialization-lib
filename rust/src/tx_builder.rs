@@ -6,9 +6,8 @@ use std::collections::BTreeSet;
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
     match &cert_enum.0 {
-        CertificateEnum::StakeRegistration(cert) => {
-            keys.insert(cert.stake_credential().to_keyhash().unwrap());
-        },
+        // stake key registrations do not require a witness
+        CertificateEnum::StakeRegistration(_cert) => {},
         CertificateEnum::StakeDeregistration(cert) => {
             keys.insert(cert.stake_credential().to_keyhash().unwrap());
         },
@@ -33,6 +32,7 @@ fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519Key
                 Ed25519KeyHash::from_bytes(cert.genesis_delegate_hash().to_bytes()).unwrap()
             );
         },
+        // not witness as there is no single core node or genesis key that posts the certificate
         CertificateEnum::MoveInstantaneousRewardsCert(_cert) => {},
     }
 }
@@ -46,6 +46,7 @@ fn estimate_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
         &[]
     );
 
+    // recall: this includes keys for input, certs and withdrawals
     let vkeys = match tx_builder.input_types.vkeys.len() {
         0 => None,
         x => {
@@ -92,9 +93,40 @@ fn estimate_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
         witness_set,
         metadata: tx_builder.metadata.clone(),
     };
-    let estimated_fee = fees::min_fee(&full_tx, &tx_builder.fee_algo);
-
-    estimated_fee
+    let base_fee = fees::min_fee(&full_tx, &tx_builder.fee_algo);
+    let key_registration_deposit = match &tx_builder.certs {
+        None => Coin::new(0),
+        Some(certs) => certs.0
+            .iter()
+            .filter(|cert| match &cert.0 {
+                CertificateEnum::StakeDelegation(_cert) => true,
+                _ => false,   
+            })
+            .try_fold(
+                Coin::new(0),
+                |acc, ref _cert| acc.checked_add(&tx_builder.key_deposit)
+            )?
+    };
+    let pool_registration_deposit = match &tx_builder.certs {
+        None => Coin::new(0),
+        Some(certs) => certs.0
+            .iter()
+            .filter(|cert| match &cert.0 {
+                CertificateEnum::PoolRegistration(_cert) => true,
+                _ => false,   
+            })
+            .try_fold(
+                Coin::new(0),
+                |acc, ref _cert| acc.checked_add(&tx_builder.pool_deposit)
+            )?
+    };
+    // tx builder doesn't take into account you only have to pay a deposit on pool registration and not for pool updates
+    if pool_registration_deposit.unwrap() > 0 {
+        return Err(JsValue::from_str(&format!("Unimplemented: pool registration")))
+    };
+    base_fee?
+        .checked_add(&key_registration_deposit)?
+        .checked_add(&pool_registration_deposit)
 }
 
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
@@ -115,6 +147,8 @@ struct TxBuilderInput {
 #[derive(Clone, Debug)]
 pub struct TransactionBuilder {
     minimum_utxo_val: BigNum,
+    pool_deposit: BigNum,
+    key_deposit: BigNum,
     fee_algo: fees::LinearFee,
     inputs: Vec<TxBuilderInput>,
     outputs: TransactionOutputs,
@@ -174,11 +208,20 @@ impl TransactionBuilder {
         self.ttl = Some(ttl)
     }
 
-    pub fn set_certs(&mut self, certs: &Certificates) {
+    pub fn set_certs(&mut self, certs: &Certificates) -> Result<(), JsValue> {
         self.certs = Some(certs.clone());
         for cert in &certs.0 {
+            match &cert.0 {
+                // tx builder doesn't take into account refunds on deregistration
+                CertificateEnum::PoolRetirement(_cert) => return Err(JsValue::from_str(&format!("Unimplemented: pool retirement"))),
+                CertificateEnum::StakeDeregistration(_cert) => return Err(JsValue::from_str(&format!("Unimplemented: stake deregistration"))),
+                // tx builder doesn't take into account you only have to pay a deposit on pool registration and not for pool updates
+                CertificateEnum::PoolRegistration(_cert) => return Err(JsValue::from_str(&format!("Unimplemented: pool registration"))),
+                _ => {},
+            };
             witness_keys_for_cert(cert, &mut self.input_types.vkeys);
         };
+        Ok(())
     }
 
     pub fn set_withdrawals(&mut self, withdrawals: &Withdrawals) {
@@ -196,9 +239,13 @@ impl TransactionBuilder {
         linear_fee: &fees::LinearFee,
         // Cardano has a protocol parameter that defines the minimum value a newly created UTXO can contain
         minimum_utxo_val: &Coin,
+        pool_deposit: &BigNum, // protocol parameter
+        key_deposit: &BigNum, // protocol parameter
     ) -> Self {
         Self {
             minimum_utxo_val: minimum_utxo_val.clone(),
+            key_deposit: key_deposit.clone(),
+            pool_deposit: pool_deposit.clone(),
             fee_algo: linear_fee.clone(),
             inputs: Vec::new(),
             outputs: TransactionOutputs::new(),
@@ -215,7 +262,8 @@ impl TransactionBuilder {
         }
     }
 
-    pub fn get_input_total(&self) -> Result<Coin, JsValue> {
+    /// does not include refunds or withdrawals
+    pub fn get_explicit_input(&self) -> Result<Coin, JsValue> {
         self
             .inputs
             .iter()
@@ -224,7 +272,37 @@ impl TransactionBuilder {
                 |acc, ref tx_builder_input| acc.checked_add(&tx_builder_input.amount)
             )
     }
-    pub fn get_feeless_output_total(&self) -> Result<Coin, JsValue> {
+    /// withdrawals and refunds
+    pub fn get_implicit_input(&self) -> Result<Coin, JsValue> {
+        let withdrawal_sum = match &self.withdrawals {
+            None => Coin::new(0),
+            Some(x) => x.0
+                .values()
+                .try_fold(
+                    Coin::new(0),
+                    |acc, ref withdrawal_amt| acc.checked_add(&withdrawal_amt)
+                )?,
+        };
+        // TODO: include refunds
+        let _pool_registration_deposit = match &self.certs {
+            None => Coin::new(0),
+            Some(certs) => certs.0
+                .iter()
+                .try_fold(
+                    Coin::new(0),
+                    |acc, ref cert| match &cert.0 {
+                        // tx builder doesn't take into account refunds on deregistration
+                        CertificateEnum::PoolRetirement(_cert) => return Err(JsValue::from_str(&format!("Unimplemented: pool retirement"))),
+                        CertificateEnum::StakeDeregistration(_cert) => return Err(JsValue::from_str(&format!("Unimplemented: stake deregistration"))),
+                        _ => Ok(acc),
+                    }
+                )?
+        };
+        
+        Ok(withdrawal_sum)
+    }
+    /// does not include fee
+    pub fn get_explicit_output(&self) -> Result<Coin, JsValue> {
         self
             .outputs.0
             .iter()
@@ -240,15 +318,15 @@ impl TransactionBuilder {
         }
     }
 
-    // Warning: this function will mutate the /fee/ field
+    /// Warning: this function will mutate the /fee/ field
     pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsValue> {
         let fee = match &self.fee {
             None => self.estimate_fee(),
             // generating the change output involves changing the fee
             Some(_x) => return Err(JsValue::from_str("Cannot calculate change if fee was explicitly specified")),
         }?;
-        let input_total = self.get_input_total()?;
-        let output_total = self.get_feeless_output_total()?;
+        let input_total = self.get_explicit_input()?.checked_add(&self.get_implicit_input()?)?;
+        let output_total = self.get_explicit_output()?;
         match input_total.unwrap() > output_total.checked_add(&fee)?.unwrap() {
             false => return Err(JsValue::from_str("Insufficient input in transaction")),
             true => {
@@ -299,7 +377,7 @@ impl TransactionBuilder {
     }
 
     pub fn estimate_fee(&self) -> Result<Coin, JsValue> {
-        match self.fee {
+        match &self.fee {
             // if user explicitly specified a fee already, use that one
             Some(_x) => estimate_fee(&self),
             // otherwise, use the maximum fee possible
@@ -334,7 +412,7 @@ mod tests {
     #[test]
     fn build_tx_with_change() {
         let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
-        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(0));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(1), &Coin::new(1));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -379,8 +457,8 @@ mod tests {
         assert!(added_change.unwrap());
         assert_eq!(tx_builder.outputs.len(), 2);
         assert_eq!(
-            tx_builder.get_input_total().unwrap(),
-            tx_builder.get_feeless_output_total().unwrap().checked_add(&tx_builder.get_fee_or_calc().unwrap()).unwrap()
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&tx_builder.get_fee_or_calc().unwrap()).unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -388,7 +466,7 @@ mod tests {
     #[test]
     fn build_tx_without_change() {
         let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
-        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(0));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(1), &Coin::new(1));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -433,8 +511,8 @@ mod tests {
         assert!(!added_change.unwrap());
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
-            tx_builder.get_input_total().unwrap(),
-            tx_builder.get_feeless_output_total().unwrap().checked_add(&tx_builder.get_fee_or_calc().unwrap()).unwrap()
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&tx_builder.get_fee_or_calc().unwrap()).unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
