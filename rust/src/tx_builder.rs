@@ -262,7 +262,6 @@ impl TransactionBuilder {
                 .try_fold(
                     Coin::new(0),
                     |acc, ref cert| match &cert.0 {
-                        // tx builder doesn't take into account refunds on deregistration
                         CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&self.pool_deposit),
                         CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&self.key_deposit),
                         _ => Ok(acc),
