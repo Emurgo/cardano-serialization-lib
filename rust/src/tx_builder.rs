@@ -94,39 +94,20 @@ fn estimate_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
         metadata: tx_builder.metadata.clone(),
     };
     let base_fee = fees::min_fee(&full_tx, &tx_builder.fee_algo);
-    let key_registration_deposit = match &tx_builder.certs {
+    let cert_deposit = match &tx_builder.certs {
         None => Coin::new(0),
         Some(certs) => certs.0
             .iter()
-            .filter(|cert| match &cert.0 {
-                CertificateEnum::StakeDelegation(_cert) => true,
-                _ => false,   
-            })
             .try_fold(
                 Coin::new(0),
-                |acc, ref _cert| acc.checked_add(&tx_builder.key_deposit)
+                |acc, ref cert| match &cert.0 {
+                    CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&tx_builder.pool_deposit),
+                    CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&tx_builder.key_deposit),
+                    _ => Ok(acc),
+                }
             )?
     };
-    let pool_registration_deposit = match &tx_builder.certs {
-        None => Coin::new(0),
-        Some(certs) => certs.0
-            .iter()
-            .filter(|cert| match &cert.0 {
-                CertificateEnum::PoolRegistration(_cert) => true,
-                _ => false,   
-            })
-            .try_fold(
-                Coin::new(0),
-                |acc, ref _cert| acc.checked_add(&tx_builder.pool_deposit)
-            )?
-    };
-    // tx builder doesn't take into account you only have to pay a deposit on pool registration and not for pool updates
-    if pool_registration_deposit.unwrap() > 0 {
-        return Err(JsValue::from_str(&format!("Unimplemented: pool registration")))
-    };
-    base_fee?
-        .checked_add(&key_registration_deposit)?
-        .checked_add(&pool_registration_deposit)
+    base_fee?.checked_add(&cert_deposit)
 }
 
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
@@ -208,20 +189,11 @@ impl TransactionBuilder {
         self.ttl = Some(ttl)
     }
 
-    pub fn set_certs(&mut self, certs: &Certificates) -> Result<(), JsValue> {
+    pub fn set_certs(&mut self, certs: &Certificates) {
         self.certs = Some(certs.clone());
         for cert in &certs.0 {
-            match &cert.0 {
-                // tx builder doesn't take into account refunds on deregistration
-                CertificateEnum::PoolRetirement(_cert) => return Err(JsValue::from_str(&format!("Unimplemented: pool retirement"))),
-                CertificateEnum::StakeDeregistration(_cert) => return Err(JsValue::from_str(&format!("Unimplemented: stake deregistration"))),
-                // tx builder doesn't take into account you only have to pay a deposit on pool registration and not for pool updates
-                CertificateEnum::PoolRegistration(_cert) => return Err(JsValue::from_str(&format!("Unimplemented: pool registration"))),
-                _ => {},
-            };
             witness_keys_for_cert(cert, &mut self.input_types.vkeys);
         };
-        Ok(())
     }
 
     pub fn set_withdrawals(&mut self, withdrawals: &Withdrawals) {
@@ -237,7 +209,7 @@ impl TransactionBuilder {
 
     pub fn new(
         linear_fee: &fees::LinearFee,
-        // Cardano has a protocol parameter that defines the minimum value a newly created UTXO can contain
+        // protocol parameter that defines the minimum value a newly created UTXO can contain
         minimum_utxo_val: &Coin,
         pool_deposit: &BigNum, // protocol parameter
         key_deposit: &BigNum, // protocol parameter
@@ -283,8 +255,7 @@ impl TransactionBuilder {
                     |acc, ref withdrawal_amt| acc.checked_add(&withdrawal_amt)
                 )?,
         };
-        // TODO: include refunds
-        let _pool_registration_deposit = match &self.certs {
+        let certificate_refund = match &self.certs {
             None => Coin::new(0),
             Some(certs) => certs.0
                 .iter()
@@ -292,15 +263,15 @@ impl TransactionBuilder {
                     Coin::new(0),
                     |acc, ref cert| match &cert.0 {
                         // tx builder doesn't take into account refunds on deregistration
-                        CertificateEnum::PoolRetirement(_cert) => return Err(JsValue::from_str(&format!("Unimplemented: pool retirement"))),
-                        CertificateEnum::StakeDeregistration(_cert) => return Err(JsValue::from_str(&format!("Unimplemented: stake deregistration"))),
+                        CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&self.pool_deposit),
+                        CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&self.key_deposit),
                         _ => Ok(acc),
                     }
                 )?
         };
-        
-        Ok(withdrawal_sum)
+        withdrawal_sum.checked_add(&certificate_refund)
     }
+
     /// does not include fee
     pub fn get_explicit_output(&self) -> Result<Coin, JsValue> {
         self
