@@ -66,7 +66,6 @@ mod tests {
         let mut vkw = Vkeywitnesses::new();
         vkw.add(&make_vkey_witness(
             &hash_transaction(&body),
-            // TODO: not actually sure this is the right key to use when signing. Tx vectors is not clear
             &PrivateKey::from_normal_bytes(
                 &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a").unwrap()
             ).unwrap()
@@ -402,20 +401,63 @@ mod tests {
     //     assert!(txsize(&tx) - our_crypto_bytes + haskell_crypto_bytes - haskell_multisig_byte_diff(&script_witnesses) >= 189);
     // }
 
-    // #[test]
-    // fn tx_withdrawal() {
-    //     let mut inputs = TransactionInputs::new();
-    //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
-    //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
-    //     let mut withdrawals = Withdrawals::new();
-    //     withdrawals.insert(&RewardAddress::new(0, &alice_pay()), Coin::new(100));
-    //     body.set_withdrawals(&withdrawals);
-    //     let w = make_mock_witnesses_vkey(&body, vec![&alice_key(), &alice_key()]);
-    //     let tx = Transaction::new(&body, &w, None);
-    //     let haskell_crypto_bytes = witness_vkey_bytes_haskell(&w) + HASKELL_HLEN;
-    //     let our_crypto_bytes = witness_vkey_bytes_rust(&w) + Ed25519KeyHash::BYTE_COUNT;
-    //     assert!(txsize(&tx) - our_crypto_bytes + haskell_crypto_bytes >= 172);
-    // }
+    #[test]
+    fn tx_withdrawal() { // # Vector #8: with reward withdrawal
+        let mut inputs = TransactionInputs::new();
+        inputs.add(&TransactionInput::new(
+            &TransactionHash::from_bytes(hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7").unwrap()).unwrap(),
+            0
+        ));
+        let mut outputs = TransactionOutputs::new();
+
+        outputs.add(&TransactionOutput::new(
+            &Address::from_bytes(
+                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
+            ).unwrap(),
+            &Coin::new(1)
+        ));
+        let mut body = TransactionBody::new(&inputs, &outputs, &Coin::new(162502), 10);
+        let mut withdrawals = Withdrawals::new();
+        withdrawals.insert(
+            &RewardAddress::from_address(&Address::from_bytes(
+                hex::decode("e151df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af70").unwrap()
+            ).unwrap()).unwrap(),
+            &Coin::new(1337)
+        );
+        body.set_withdrawals(&withdrawals);
+
+        let mut w = TransactionWitnessSet::new();
+        let mut vkw = Vkeywitnesses::new();
+        // input key witness
+        vkw.add(&make_vkey_witness(
+            &hash_transaction(&body),
+            &PrivateKey::from_normal_bytes(
+                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a").unwrap()
+            ).unwrap()
+        ));
+        // withdrawal key witness
+        vkw.add(&make_vkey_witness(
+            &hash_transaction(&body),
+            &PrivateKey::from_normal_bytes(
+                &hex::decode("5ada7f4d92bce1ee1707c0a0e211eb7941287356e6ed0e76843806e307b07c8d").unwrap()
+            ).unwrap()
+        ));
+        w.set_vkeys(&vkw);
+
+        let signed_tx = Transaction::new(
+            &body,
+            &w,
+            None,
+        );
+
+        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
+        assert_eq!(
+            hex::encode(signed_tx.to_bytes()),
+            "83a500818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00027ac6030a05a1581de151df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af70190539a10082825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee5840fc0493f7121efe385d72830680e735ccdef99c3a31953fe877b89ad3a97fcdb871cc7f2cdd6a8104e52f6963bd9e10d814d4fabdbcdc8475bc63e872dcc94d0a82582054d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f35840a051ba927582004aedab736b9f1f9330ff867c260f4751135d480074256e83cd23d2a4bb109f955c43afdcdc5d1841b28d5c1ea2148dfbb6252693590692bb00f6"
+        );
+        assert_eq!(
+            min_fee(&signed_tx, &linear_fee).unwrap().to_str(),
+            "162502" // todo: compare to Haskell fee to make sure the diff is not too big
+        );
+    }
 }

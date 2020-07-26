@@ -2212,22 +2212,34 @@ declare export class TransactionBuilder {
   /**
    * @param {LinearFee} linear_fee
    * @param {BigNum} minimum_utxo_val
+   * @param {BigNum} pool_deposit
+   * @param {BigNum} key_deposit
    * @returns {TransactionBuilder}
    */
   static new(
     linear_fee: LinearFee,
-    minimum_utxo_val: BigNum
+    minimum_utxo_val: BigNum,
+    pool_deposit: BigNum,
+    key_deposit: BigNum
   ): TransactionBuilder;
 
   /**
+   * does not include refunds or withdrawals
    * @returns {BigNum}
    */
-  get_input_total(): BigNum;
+  get_explicit_input(): BigNum;
 
   /**
+   * withdrawals and refunds
    * @returns {BigNum}
    */
-  get_feeless_output_total(): BigNum;
+  get_implicit_input(): BigNum;
+
+  /**
+   * does not include fee
+   * @returns {BigNum}
+   */
+  get_explicit_output(): BigNum;
 
   /**
    * @returns {BigNum}
@@ -2235,6 +2247,7 @@ declare export class TransactionBuilder {
   get_fee_or_calc(): BigNum;
 
   /**
+   * Warning: this function will mutate the /fee/ field
    * @param {Address} address
    * @returns {boolean}
    */
