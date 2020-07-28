@@ -2,21 +2,35 @@
 
 This is a library for serialization & deserialization of data structures used in Cardano's Haskell implementation of Shelley along with useful utility functions.
 
-Serialization/deserialization code is generated automatically from the CDDL specification using [cddl-codegen](https://github.com/Emurgo/cddl-codegen).
+## How can I use this library
 
-This code is available in:
+Rust is wonderfully portable! You can easily bind to the native Rust library from any common programming language (even C and WebAssembly)!
 
-- Native Rust (this repository)
+##### NPM packages
+
+- [NodeJS WASM package](https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-nodejs)
+- [Browser (chrome/firefox) WASM package](https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-browser)
+
+##### Mobile bindings
+
 - [React-Native mobile bindings](https://github.com/Emurgo/react-native-haskell-shelley)
-- [nodejs WASM package](https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-nodejs)
-- [browser WASM package](https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-browser)
+
+## Benefits of using this library
+
+Serialization/deserialization code is automatically generated from Cardano's official specification, which guarantees it can easily stay up to date! We do this using an EMURGO-written tool called [cddl-codegen](https://github.com/Emurgo/cddl-codegen) which be re-use to automatically generate a Rust library for Cardano metadata specifications!
+
+It is also very easy to create scripts in Rust or WASM to share with stake pools of embed inside an online tool. No more crazy cardano-cli bash scripts!
+
+Powerful and flexible enough to be used to power wallets and exchanges! (Yes, it's used in production!)
+
+## What about other versions of Cardano?
 
 If you are looking for legacy bindings, you can find them at the following:
 
 - [Byron WASM bindings](https://github.com/input-output-hk/js-cardano-wasm/tree/master/cardano-wallet)
 - [Jormungandr WASM bindings](https://github.com/emurgo/js-chain-libs)
 
-## Original specs
+## Original binary specifications
 
 Here are the location of the original [CDDL](http://cbor.io/tools.html) specifications:
 
