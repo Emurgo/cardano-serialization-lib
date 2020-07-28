@@ -23,6 +23,11 @@ It is also very easy to create scripts in Rust or WASM to share with stake pools
 
 Powerful and flexible enough to be used to power wallets and exchanges! (Yes, it's used in production!)
 
+## Documentation
+
+This library generates both [Typescript](https://www.typescriptlang.org/) and [Flow](https://flow.org/) type definitions, so it's often easiest to see what is possible by just looking at the types!
+You can find the Flow types [here](./rust/pkg/cardano_serialization_lib.js.flow)
+
 ## What about other versions of Cardano?
 
 If you are looking for legacy bindings, you can find them at the following:
