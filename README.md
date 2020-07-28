@@ -17,9 +17,9 @@ Rust is wonderfully portable! You can easily bind to the native Rust library fro
 
 ## Benefits of using this library
 
-Serialization/deserialization code is automatically generated from Cardano's official specification, which guarantees it can easily stay up to date! We do this using an EMURGO-written tool called [cddl-codegen](https://github.com/Emurgo/cddl-codegen) which be re-use to automatically generate a Rust library for Cardano metadata specifications!
+Serialization/deserialization code is automatically generated from Cardano's official specification, which guarantees it can easily stay up to date! We do this using an EMURGO-written tool called [cddl-codegen](https://github.com/Emurgo/cddl-codegen) which can be re-uses for otehr tasks such as automatically generate a Rust library for Cardano metadata specifications!
 
-It is also very easy to create scripts in Rust or WASM to share with stake pools of embed inside an online tool. No more crazy cardano-cli bash scripts!
+It is also very easy to create scripts in Rust or WASM to share with stake pools, or even embed inside an online tool! No more crazy cardano-cli bash scripts!
 
 Powerful and flexible enough to be used to power wallets and exchanges! (Yes, it's used in production!)
 
