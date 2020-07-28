@@ -1,7 +1,5 @@
 # Cardano Serialization Lib
 
-**WARNING** this library is experimental.
-
 This is a library for serialization & deserialization of data structures used in Cardano's Haskell implementation of Shelley along with useful utility functions.
 
 Serialization/deserialization code is generated automatically from the CDDL specification using [cddl-codegen](https://github.com/Emurgo/cddl-codegen).
