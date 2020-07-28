@@ -1,12 +1,12 @@
 module.exports = function () {
   return {
     files: [
-      'src/**/*.ts',
-      '!src/**/*.spec.ts'
+      './**/*.ts',
+      '!./**/*.spec.ts'
     ],
 
     tests: [
-      'src/**/*.spec.ts'
+      './**/*.spec.ts'
     ],
     env: {
       type: 'node'

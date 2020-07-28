@@ -26,7 +26,9 @@ Powerful and flexible enough to be used to power wallets and exchanges! (Yes, it
 ## Documentation
 
 This library generates both [Typescript](https://www.typescriptlang.org/) and [Flow](https://flow.org/) type definitions, so it's often easiest to see what is possible by just looking at the types!
-You can find the Flow types [here](./rust/pkg/cardano_serialization_lib.js.flow)
+You can find the Flow types [here](/rust/pkg/cardano_serialization_lib.js.flow)
+
+You can also look in the [example](/example) folder to see how to use this library from Typescript or just experiment with the library.
 
 ## What about other versions of Cardano?
 
@@ -50,21 +52,21 @@ curl https://sh.rustup.rs -sSf | sh -s -- -y
 echo 'export PATH=$HOME/.cargo/bin/:$PATH' >> $BASH_ENV
 rustup install stable
 rustup target add wasm32-unknown-unknown --toolchain stable
+curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 ```
 
 To build this repository, do the following:
 ```
 git submodule update --init --recursive
-nvm install && nvm use
-npm run rust:build-nodejs
+nvm use
 npm install
+npm run rust:build-nodejs
 ```
 
 ## Testing
 
 ```
 npm run rust:test
-npm run js:test
 ```
 
 ## Publishing
