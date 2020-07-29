@@ -269,3 +269,50 @@ pub fn hash_metadata(metadata: &TransactionMetadata) -> MetadataHash {
 pub fn hash_transaction(tx_body: &TransactionBody) -> TransactionHash {
     TransactionHash::from(crypto::blake2b256(tx_body.to_bytes().as_ref()))
 }
+
+// wasm-bindgen can't accept Option without clearing memory, so we avoid exposing this in WASM
+pub fn internal_get_implicit_input(
+    withdrawals: &Option<Withdrawals>,
+    certs: &Option<Certificates>,
+    pool_deposit: &BigNum, // // protocol parameter
+    key_deposit: &BigNum, // protocol parameter
+) -> Result<Coin, JsValue> {
+    let withdrawal_sum = match &withdrawals {
+        None => Coin::new(0),
+        Some(x) => x.0
+            .values()
+            .try_fold(
+                Coin::new(0),
+                |acc, ref withdrawal_amt| acc.checked_add(&withdrawal_amt)
+            )?,
+    };
+    let certificate_refund = match &certs {
+        None => Coin::new(0),
+        Some(certs) => certs.0
+            .iter()
+            .try_fold(
+                Coin::new(0),
+                |acc, ref cert| match &cert.0 {
+                    CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&pool_deposit),
+                    CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&key_deposit),
+                    _ => Ok(acc),
+                }
+            )?
+    };
+    withdrawal_sum.checked_add(&certificate_refund)
+}
+
+
+#[wasm_bindgen]
+pub fn get_implicit_input(
+    txbody: &TransactionBody,
+    pool_deposit: &BigNum, // // protocol parameter
+    key_deposit: &BigNum, // protocol parameter
+) -> Result<Coin, JsValue> {
+    internal_get_implicit_input(
+        &txbody.withdrawals,
+        &txbody.certs,
+        &pool_deposit,
+        &key_deposit,
+    )
+}
