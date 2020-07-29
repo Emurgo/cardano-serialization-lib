@@ -56,6 +56,18 @@ declare export function hash_transaction(
 ): TransactionHash;
 
 /**
+ * @param {TransactionBody} txbody
+ * @param {BigNum} pool_deposit
+ * @param {BigNum} key_deposit
+ * @returns {BigNum}
+ */
+declare export function get_implicit_input(
+  txbody: TransactionBody,
+  pool_deposit: BigNum,
+  key_deposit: BigNum
+): BigNum;
+
+/**
  * @param {Transaction} tx
  * @param {LinearFee} linear_fee
  * @returns {BigNum}
