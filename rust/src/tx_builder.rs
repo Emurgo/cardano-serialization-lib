@@ -246,29 +246,12 @@ impl TransactionBuilder {
     }
     /// withdrawals and refunds
     pub fn get_implicit_input(&self) -> Result<Coin, JsValue> {
-        let withdrawal_sum = match &self.withdrawals {
-            None => Coin::new(0),
-            Some(x) => x.0
-                .values()
-                .try_fold(
-                    Coin::new(0),
-                    |acc, ref withdrawal_amt| acc.checked_add(&withdrawal_amt)
-                )?,
-        };
-        let certificate_refund = match &self.certs {
-            None => Coin::new(0),
-            Some(certs) => certs.0
-                .iter()
-                .try_fold(
-                    Coin::new(0),
-                    |acc, ref cert| match &cert.0 {
-                        CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&self.pool_deposit),
-                        CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&self.key_deposit),
-                        _ => Ok(acc),
-                    }
-                )?
-        };
-        withdrawal_sum.checked_add(&certificate_refund)
+        internal_get_implicit_input(
+            &self.withdrawals,
+            &self.certs,
+            &self.pool_deposit,
+            &self.key_deposit,
+        )
     }
 
     /// does not include fee
