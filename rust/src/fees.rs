@@ -89,28 +89,50 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn tx_simple_byron_utxo() {
-    //     let mut inputs = TransactionInputs::new();
-    //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
-    //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
-    //     let body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
+    #[test]
+    fn tx_simple_byron_utxo() {
+        let mut inputs = TransactionInputs::new();
+        inputs.add(&TransactionInput::new(
+            &TransactionHash::from_bytes(hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7").unwrap()).unwrap(),
+            0
+        ));
+        let mut outputs = TransactionOutputs::new();
 
-    //     // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
-    //     let entropy = [0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12];
-    //     let root_key = Bip32PrivateKey::from_bip39_entropy(&entropy, &[]);
-    //     let byron_addr = ByronAddress::from_icarus_key(&root_key.to_public(), 0b001);
-    //     let w = make_mock_byron_witnesses_vkey(
-    //         &body,
-    //         &byron_addr, // Ae2tdPwUPEZB3mTcbvEYWmxEyn3yRmePa7YV5TKmrtPyU3rcSao4k6J216Q
-    //         vec![&root_key]
-    //     );
-    //     assert_eq!(
-    //         hex::encode(w.bootstraps.unwrap().get(0).to_bytes()),
-    //         "855820cf76399a210de8720e9fa894e45e41e29ab525e30bc402801c076250d1585bcd5840dbc0d07297733aa0c71e942e3dddb648eb6cc96a9a35ea686673b534b8cc20e1fab4c736d2cb711b270a912b216ba55167cf3a5d400bc08671cc9335a66aa10d582091e248de509c070d812ab2fda57860ac876bc489192c1ef4ce253c197ee219a44683008200525441a0"
-    //     );
-    // }
+        outputs.add(&TransactionOutput::new(
+            &Address::from_bytes(
+                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
+            ).unwrap(),
+            &Coin::new(1)
+        ));
+        let body = TransactionBody::new(&inputs, &outputs, &Coin::new(112002), 10);
+
+        let mut w = TransactionWitnessSet::new();
+        let mut bootstrap_wits = BootstrapWitnesses::new();
+        bootstrap_wits.add(&make_icarus_bootstrap_witness(
+            &hash_transaction(&body),
+            &ByronAddress::from_base58("Ae2tdPwUPEZ6r6zbg4ibhFrNnyKHg7SYuPSfDpjKxgvwFX9LquRep7gj7FQ").unwrap(),
+            &Bip32PrivateKey::from_bytes(
+                &hex::decode("d84c65426109a36edda5375ea67f1b738e1dacf8629f2bb5a2b0b20f3cd5075873bf5cdfa7e533482677219ac7d639e30a38e2e645ea9140855f44ff09e60c52c8b95d0d35fe75a70f9f5633a3e2439b2994b9e2bc851c49e9f91d1a5dcbb1a3").unwrap()
+            ).unwrap()
+        ));
+        w.set_bootstraps(&bootstrap_wits);
+
+        let signed_tx = Transaction::new(
+            &body,
+            &w,
+            None,
+        );
+
+        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
+        assert_eq!(
+            hex::encode(signed_tx.to_bytes()),
+            "83a400818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a0001b582030aa10281845820473811afd4d939b337c9be1a2ceeb2cb2c75108bddf224c5c21c51592a7b204a5840f0b04a852353eb23b9570df80b2aa6a61b723341ab45a2024a05b07cf58be7bdfbf722c09040db6cee61a0d236870d6ad1e1349ac999ec0db28f9471af25fb0c5820c8b95d0d35fe75a70f9f5633a3e2439b2994b9e2bc851c49e9f91d1a5dcbb1a341a0f6"
+        );
+        assert_eq!(
+            min_fee(&signed_tx, &linear_fee).unwrap().to_str(),
+            "112002" // todo: compare to Haskell fee to make sure the diff is not too big
+        );
+    }
 
     #[test]
     fn tx_multi_utxo() { // # Vector #2: multiple outputs and inputs
