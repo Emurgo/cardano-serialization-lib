@@ -41,10 +41,10 @@ impl UnitInterval {
         self.denominator.clone()
     }
 
-    pub fn new(numerator: BigNum, denominator: BigNum) -> Self {
+    pub fn new(numerator: &BigNum, denominator: &BigNum) -> Self {
         Self {
-            numerator: numerator,
-            denominator: denominator,
+            numerator: numerator.clone(),
+            denominator: denominator.clone(),
         }
     }
 }
@@ -1195,12 +1195,12 @@ impl TransactionMetadata {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: TransactionMetadatumLabel, value: &TransactionMetadatum) -> Option<TransactionMetadatum> {
-        self.0.insert(key, value.clone())
+    pub fn insert(&mut self, key: &TransactionMetadatumLabel, value: &TransactionMetadatum) -> Option<TransactionMetadatum> {
+        self.0.insert(key.clone(), value.clone())
     }
 
-    pub fn get(&self, key: TransactionMetadatumLabel) -> Option<TransactionMetadatum> {
-        self.0.get(&key).map(|v| v.clone())
+    pub fn get(&self, key: &TransactionMetadatumLabel) -> Option<TransactionMetadatum> {
+        self.0.get(key).map(|v| v.clone())
     }
 }
 

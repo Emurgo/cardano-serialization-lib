@@ -228,8 +228,8 @@ mod tests {
                 &Coin::new(1000000), // pledge
                 &Coin::new(1000000), // cost
                 &UnitInterval::new(
-                    BigNum::new(3),
-                    BigNum::new(100),
+                    &BigNum::new(3),
+                    &BigNum::new(100),
                 ), // margin
                 &RewardAddress::new(
                     network,
