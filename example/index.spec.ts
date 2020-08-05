@@ -81,7 +81,7 @@ describe('Transactions', () => {
         ),
         0, // index
       ),
-      CardanoWasm.BigNum.from_str('658211')
+      CardanoWasm.BigNum.from_str('3000000')
     );
 
     txBuilder.add_output(
@@ -91,8 +91,11 @@ describe('Transactions', () => {
         CardanoWasm.BigNum.from_str("1000000"),
       ),
     );
-    txBuilder.set_fee(CardanoWasm.BigNum.from_str('170016'));
+
     txBuilder.set_ttl(410021);
+
+    // calculate the min fee required and send any change to an address
+    txBuilder.add_change_if_needed(CardanoWasm.ByronAddress.from_base58("Ae2tdPwUPEYxiWbAt3hUCJsZ9knze88qNhuTQ1MGCKqsVFo5ddNyoTDBymr").to_address())
 
     const txBody = txBuilder.build();
     const txHash = CardanoWasm.hash_transaction(txBody);
