@@ -58,61 +58,56 @@ describe('Addresses', () => {
       CardanoWasm.StakeCredential.from_keyhash(stakeKey.to_raw_key().hash()),
     );
 
-    // this commented out test is what you would get with the wrong address hash.
-    // expect(baseAddr.to_address().to_bech32()).to.eq('addr1qq8hc2lefnn0kuvur9jpnxnghnd9lm3jty0tsptjwvdsyrtpshk7al9e262uud767td297tp6qhqtlhg5q47q26fjcyw53g6a4mqsnj8nl6q9q');
     expect(baseAddr.to_address().to_bech32()).to.eq('addr1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqcyl47r');
   })
 });
 
 describe('Transactions', () => {
   it('create transaction', () => {
-    const txInputs = CardanoWasm.TransactionInputs.new();
-    {
-      txInputs.add(
-        CardanoWasm.TransactionInput.new(
-          CardanoWasm.TransactionHash.from_bytes(
-            Buffer.from('3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7', 'hex'),
-          ),
-          0, // index
-        )
-      );
-    }
-    const txOutputs = CardanoWasm.TransactionOutputs.new();
-    {
-      txOutputs.add(
-        CardanoWasm.TransactionOutput.new(
-          CardanoWasm.Address.from_bytes(
-            Buffer.from('61a6274badf4c9ca583df893a73139625ff4dc73aaa3082e67d6d5d08e', 'hex'),
-          ),
-          // we can construct BigNum (Coin) from both a js BigInt (here) or from a string (below in fee)
-          CardanoWasm.BigNum.new(BigInt(1)),
-        )
-      );
-    }
-    const txBody = CardanoWasm.TransactionBody.new(
-      txInputs,
-      txOutputs,
-      CardanoWasm.BigNum.from_str("42"), // fee
-      10, // ttl
+    const txBuilder = CardanoWasm.TransactionBuilder.new(
+      // all of these are taken from the mainnet genesis settings
+      CardanoWasm.LinearFee.new(CardanoWasm.BigNum.from_str('44'), CardanoWasm.BigNum.from_str('155381')),
+      CardanoWasm.BigNum.from_str('1000000'),
+      CardanoWasm.BigNum.from_str('500000000'),
+      CardanoWasm.BigNum.from_str('2000000')
     );
-    const txHash = CardanoWasm.hash_transaction(txBody);
-    
-    const witnesses = CardanoWasm.TransactionWitnessSet.new();
-    {
-      const vkeyWitnesses = CardanoWasm.Vkeywitnesses.new();
 
-      const prvKey = CardanoWasm.PrivateKey.from_normal_bytes(
-        Buffer.from('f7955ca7a24889e892a74851712975c924d536d503eeb1c900a7431900633fb8', 'hex')
-      );
-      vkeyWitnesses.add(CardanoWasm.make_vkey_witness(
-        txHash,
-        prvKey,
-      ));
-      witnesses.set_vkeys(vkeyWitnesses);
-    }
-    CardanoWasm.Transaction.new(
+    const address = CardanoWasm.ByronAddress.from_base58("Ae2tdPwUPEZLs4HtbuNey7tK4hTKrwNwYtGqp7bDfCy2WdR3P6735W5Yfpe");
+    txBuilder.add_bootstrap_input(
+      address,
+      CardanoWasm.TransactionInput.new(
+        CardanoWasm.TransactionHash.from_bytes(
+          Buffer.from("488afed67b342d41ec08561258e210352fba2ac030c98a8199bc22ec7a27ccf1", "hex"),
+        ),
+        0, // index
+      ),
+      CardanoWasm.BigNum.from_str('658211')
+    );
+
+    txBuilder.add_output(
+      CardanoWasm.TransactionOutput.new(
+        address.to_address(),
+        // we can construct BigNum (Coin) from both a js BigInt (here) or from a string (below in fee)
+        CardanoWasm.BigNum.from_str("1000000"),
+      ),
+    );
+    txBuilder.set_fee(CardanoWasm.BigNum.from_str('170016'));
+    txBuilder.set_ttl(410021);
+
+    const txBody = txBuilder.build();
+    const txHash = CardanoWasm.hash_transaction(txBody);
+    const witnesses = CardanoWasm.TransactionWitnessSet.new();
+    const bootstrapWitnesses = CardanoWasm.BootstrapWitnesses.new();
+    const bootstrapWitness = CardanoWasm.make_icarus_bootstrap_witness(txHash,address,getCip1852Account());
+    bootstrapWitnesses.add(bootstrapWitness);
+    witnesses.set_bootstraps(bootstrapWitnesses);
+    const transaction = CardanoWasm.Transaction.new(
       txBody,
       witnesses,
+      undefined, // transaction metadata
     );
+
+    const txHex = Buffer.from(transaction.to_bytes()).toString("hex");
+    console.log(txHex);
   })
 });

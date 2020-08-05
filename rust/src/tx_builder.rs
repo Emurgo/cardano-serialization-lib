@@ -101,8 +101,8 @@ fn estimate_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
             .try_fold(
                 Coin::new(0),
                 |acc, ref cert| match &cert.0 {
-                    CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&tx_builder.pool_deposit),
-                    CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&tx_builder.key_deposit),
+                    CertificateEnum::PoolRegistration(_cert) => acc.checked_add(&tx_builder.pool_deposit),
+                    CertificateEnum::StakeRegistration(_cert) => acc.checked_add(&tx_builder.key_deposit),
                     _ => Ok(acc),
                 }
             )?
@@ -264,6 +264,8 @@ impl TransactionBuilder {
                 |acc, ref output| acc.checked_add(&output.amount)
             )
     }
+
+    /// DOES include burnt coins if fee is above minimum
     pub fn get_fee_or_calc(&self) -> Result<Coin, JsValue> {
         match &self.fee {
             None => self.estimate_fee(),
@@ -329,6 +331,7 @@ impl TransactionBuilder {
         })
     }
 
+    /// DOES NOT include burnt coins if fee is above minimum
     pub fn estimate_fee(&self) -> Result<Coin, JsValue> {
         match &self.fee {
             // if user explicitly specified a fee already, use that one
@@ -462,6 +465,65 @@ mod tests {
             &change_addr
         );
         assert!(!added_change.unwrap());
+        assert_eq!(tx_builder.outputs.len(), 1);
+        assert_eq!(
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&tx_builder.get_fee_or_calc().unwrap()).unwrap()
+        );
+        let _final_tx = tx_builder.build(); // just test that it doesn't throw
+    }
+
+    #[test]
+    fn build_tx_with_certs() {
+        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(1), &Coin::new(1_000_000));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        tx_builder.add_key_input(
+            &spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Coin::new(5_000_000)
+        );
+        tx_builder.set_ttl(1000);
+
+        let mut certs = Certificates::new();
+        certs.add(&Certificate::new_stake_registration(&StakeRegistration::new(&stake_cred)));
+        certs.add(&Certificate::new_stake_delegation(&StakeDelegation::new(
+            &stake_cred,
+            &stake.to_raw_key().hash(), // in reality, this should be the pool owner's key, not ours
+        )));
+        tx_builder.set_certs(&certs);
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+        tx_builder.add_change_if_needed(
+            &change_addr
+        ).unwrap();
+        assert_eq!(tx_builder.estimate_fee().unwrap().to_str(), "1211502");
+        assert_eq!(tx_builder.get_fee_or_calc().unwrap().to_str(), "1215502");
+        assert_eq!(tx_builder.build().unwrap().fee().to_str(), "1215502");
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),

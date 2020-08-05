@@ -2254,6 +2254,7 @@ declare export class TransactionBuilder {
   get_explicit_output(): BigNum;
 
   /**
+   * DOES include burnt coins if fee is above minimum
    * @returns {BigNum}
    */
   get_fee_or_calc(): BigNum;
@@ -2271,6 +2272,7 @@ declare export class TransactionBuilder {
   build(): TransactionBody;
 
   /**
+   * DOES NOT include burnt coins if fee is above minimum
    * @returns {BigNum}
    */
   estimate_fee(): BigNum;
