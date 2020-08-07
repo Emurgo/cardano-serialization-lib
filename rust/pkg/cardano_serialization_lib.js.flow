@@ -6,6 +6,13 @@
  */
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -66,13 +73,6 @@ declare export function get_implicit_input(
   pool_deposit: BigNum,
   key_deposit: BigNum
 ): BigNum;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -1016,6 +1016,11 @@ declare export class MapTransactionMetadatumToTransactionMetadatum {
    * @returns {TransactionMetadatum | void}
    */
   get(key: TransactionMetadatum): TransactionMetadatum | void;
+
+  /**
+   * @returns {TransactionMetadatums}
+   */
+  keys(): TransactionMetadatums;
 }
 /**
  */
@@ -1066,6 +1071,17 @@ declare export class MoveInstantaneousReward {
    * @returns {BigNum | void}
    */
   insert(key: StakeCredential, value: BigNum): BigNum | void;
+
+  /**
+   * @param {StakeCredential} key
+   * @returns {BigNum | void}
+   */
+  get(key: StakeCredential): BigNum | void;
+
+  /**
+   * @returns {StakeCredentials}
+   */
+  keys(): StakeCredentials;
 }
 /**
  */
@@ -1826,6 +1842,43 @@ declare export class RewardAddress {
 }
 /**
  */
+declare export class RewardAddresses {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {RewardAddresses}
+   */
+  static from_bytes(bytes: Uint8Array): RewardAddresses;
+
+  /**
+   * @returns {RewardAddresses}
+   */
+  static new(): RewardAddresses;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {RewardAddress}
+   */
+  get(index: number): RewardAddress;
+
+  /**
+   * @param {RewardAddress} elem
+   */
+  add(elem: RewardAddress): void;
+}
+/**
+ */
 declare export class ScriptHash {
   free(): void;
 
@@ -1954,6 +2007,43 @@ declare export class StakeCredential {
    * @returns {StakeCredential}
    */
   static from_bytes(bytes: Uint8Array): StakeCredential;
+}
+/**
+ */
+declare export class StakeCredentials {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {StakeCredentials}
+   */
+  static from_bytes(bytes: Uint8Array): StakeCredentials;
+
+  /**
+   * @returns {StakeCredentials}
+   */
+  static new(): StakeCredentials;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {StakeCredential}
+   */
+  get(index: number): StakeCredential;
+
+  /**
+   * @param {StakeCredential} elem
+   */
+  add(elem: StakeCredential): void;
 }
 /**
  */
@@ -2416,6 +2506,11 @@ declare export class TransactionMetadata {
    * @returns {TransactionMetadatum | void}
    */
   get(key: BigNum): TransactionMetadatum | void;
+
+  /**
+   * @returns {TransactionMetadatumLabels}
+   */
+  keys(): TransactionMetadatumLabels;
 }
 /**
  */
@@ -2496,6 +2591,43 @@ declare export class TransactionMetadatum {
    * @returns {string | void}
    */
   as_text(): string | void;
+}
+/**
+ */
+declare export class TransactionMetadatumLabels {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {TransactionMetadatumLabels}
+   */
+  static from_bytes(bytes: Uint8Array): TransactionMetadatumLabels;
+
+  /**
+   * @returns {TransactionMetadatumLabels}
+   */
+  static new(): TransactionMetadatumLabels;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {BigNum}
+   */
+  get(index: number): BigNum;
+
+  /**
+   * @param {BigNum} elem
+   */
+  add(elem: BigNum): void;
 }
 /**
  */
@@ -2828,4 +2960,9 @@ declare export class Withdrawals {
    * @returns {BigNum | void}
    */
   get(key: RewardAddress): BigNum | void;
+
+  /**
+   * @returns {RewardAddresses}
+   */
+  keys(): RewardAddresses;
 }

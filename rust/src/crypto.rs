@@ -97,8 +97,8 @@ impl Bip32PrivateKey {
     }
 
     pub fn chaincode(&self) -> Vec<u8> {
-        let ED25519_PRIVATE_KEY_LENGTH = 64;
-        let XPRV_SIZE = 96;
+        const ED25519_PRIVATE_KEY_LENGTH: usize = 64;
+        const XPRV_SIZE: usize = 96;
         self.0.as_ref()[ED25519_PRIVATE_KEY_LENGTH..XPRV_SIZE].to_vec()
     }
 }
@@ -163,8 +163,8 @@ impl Bip32PublicKey {
     }
 
     pub fn chaincode(&self) -> Vec<u8> {
-        let ED25519_PRIVATE_KEY_LENGTH = 64;
-        let XPRV_SIZE = 96;
+        const ED25519_PRIVATE_KEY_LENGTH: usize = 64;
+        const XPRV_SIZE: usize = 96;
         self.0.as_ref()[ED25519_PRIVATE_KEY_LENGTH..XPRV_SIZE].to_vec()
     }
 }
@@ -359,7 +359,7 @@ impl Deserialize for Vkeywitness {
             match len {
                 cbor_event::Len::Len(n) => match n {
                     2 => (),
-                    m => return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(2, len, "")).into()),
+                    _ => return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(2, len, "")).into()),
                 },
                 cbor_event::Len::Indefinite => match raw.special()? {
                     cbor_event::Special::Break => /* it's ok */(),
@@ -715,8 +715,8 @@ impl LegacyDaedalusPrivateKey {
     }
 
     pub fn chaincode(&self) -> Vec<u8> {
-        let ED25519_PRIVATE_KEY_LENGTH = 64;
-        let XPRV_SIZE = 96;
+        const ED25519_PRIVATE_KEY_LENGTH: usize = 64;
+        const XPRV_SIZE: usize = 96;
         self.0.as_ref()[ED25519_PRIVATE_KEY_LENGTH..XPRV_SIZE].to_vec()
     }
 }
