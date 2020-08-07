@@ -1396,7 +1396,7 @@ declare export class PointerAddress {
   /**
    * @returns {Pointer}
    */
-  stake_ponter(): Pointer;
+  stake_pointer(): Pointer;
 
   /**
    * @returns {Address}

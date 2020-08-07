@@ -588,7 +588,7 @@ impl PointerAddress {
         self.payment.clone()
     }
 
-    pub fn stake_ponter(&self) -> Pointer {
+    pub fn stake_pointer(&self) -> Pointer {
         self.stake.clone()
     }
 
