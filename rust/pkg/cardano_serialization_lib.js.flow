@@ -1355,6 +1355,21 @@ declare export class Pointer {
    * @returns {Pointer}
    */
   static new(slot: number, tx_index: number, cert_index: number): Pointer;
+
+  /**
+   * @returns {number}
+   */
+  slot(): number;
+
+  /**
+   * @returns {number}
+   */
+  tx_index(): number;
+
+  /**
+   * @returns {number}
+   */
+  cert_index(): number;
 }
 /**
  */

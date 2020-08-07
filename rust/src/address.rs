@@ -552,6 +552,18 @@ impl Pointer {
             cert_index,
         }
     }
+
+    pub fn slot(&self) -> Slot {
+        self.slot.clone()
+    }
+
+    pub fn tx_index(&self) -> TransactionIndex {
+        self.tx_index.clone()
+    }
+
+    pub fn cert_index(&self) -> CertificateIndex {
+        self.cert_index.clone()
+    }
 }
 
 #[wasm_bindgen]
