@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "cardano-serialization-lib"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "bech32 0.7.2",
  "cardano-legacy-address",
