@@ -1052,6 +1052,34 @@ impl Deserialize for Certificate {
     }
 }
 
+impl cbor_event::se::Serialize for StakeCredentials {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for StakeCredentials {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                arr.push(StakeCredential::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("StakeCredentials"))?;
+        Ok(Self(arr))
+    }
+}
+
 impl cbor_event::se::Serialize for MoveInstantaneousReward {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_map(cbor_event::Len::Len(2))?;
@@ -1465,6 +1493,35 @@ impl DeserializeEmbeddedGroup for PoolMetadata {
     }
 }
 
+
+impl cbor_event::se::Serialize for RewardAddresses {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for RewardAddresses {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                arr.push(RewardAddress::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("RewardAddresses"))?;
+        Ok(Self(arr))
+    }
+}
+
 impl cbor_event::se::Serialize for Withdrawals {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
@@ -1745,6 +1802,34 @@ impl cbor_event::se::Serialize for TransactionMetadatum {
 impl Deserialize for TransactionMetadatum {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         Ok(Self(TransactionMetadatumEnum::deserialize(raw)?))
+    }
+}
+
+impl cbor_event::se::Serialize for TransactionMetadatumLabels {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for TransactionMetadatumLabels {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                arr.push(TransactionMetadatumLabel::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("TransactionMetadatumLabels"))?;
+        Ok(Self(arr))
     }
 }
 

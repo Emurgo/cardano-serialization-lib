@@ -732,6 +732,14 @@ impl MoveInstantaneousReward {
     pub fn insert(&mut self, key: &StakeCredential, value: &Coin) -> Option<Coin> {
         self.rewards.insert(key.clone(), value.clone())
     }
+
+    pub fn get(&self, key: &StakeCredential) -> Option<Coin> {
+        self.rewards.get(key).map(|v| v.clone())
+    }
+
+    pub fn keys(&self) -> StakeCredentials {
+        StakeCredentials(self.rewards.iter().map(|(k, _v)| k.clone()).collect::<Vec<StakeCredential>>())
+    }
 }
 
 type Port = u16;
@@ -941,6 +949,57 @@ type Url = String;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct StakeCredentials(Vec<StakeCredential>);
+
+to_from_bytes!(StakeCredentials);
+
+#[wasm_bindgen]
+impl StakeCredentials {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> StakeCredential {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &StakeCredential) {
+        self.0.push(elem.clone());
+    }
+}
+
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct RewardAddresses(Vec<RewardAddress>);
+
+to_from_bytes!(RewardAddresses);
+
+#[wasm_bindgen]
+impl RewardAddresses {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> RewardAddress {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &RewardAddress) {
+        self.0.push(elem.clone());
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Withdrawals(std::collections::BTreeMap<RewardAddress, Coin>);
 
 to_from_bytes!(Withdrawals);
@@ -961,6 +1020,10 @@ impl Withdrawals {
 
     pub fn get(&self, key: &RewardAddress) -> Option<Coin> {
         self.0.get(key).map(|v| v.clone())
+    }
+
+    pub fn keys(&self) -> RewardAddresses {
+        RewardAddresses(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<RewardAddress>>())
     }
 }
 
@@ -1056,6 +1119,10 @@ impl MapTransactionMetadatumToTransactionMetadatum {
 
     pub fn get(&self, key: &TransactionMetadatum) -> Option<TransactionMetadatum> {
         self.0.get(key).map(|v| v.clone())
+    }
+
+    pub fn keys(&self) -> TransactionMetadatums {
+        TransactionMetadatums(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<TransactionMetadatum>>())
     }
 }
 
@@ -1181,6 +1248,31 @@ type TransactionMetadatumLabel = BigNum;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct TransactionMetadatumLabels(Vec<TransactionMetadatumLabel>);
+
+to_from_bytes!(TransactionMetadatumLabels);
+
+#[wasm_bindgen]
+impl TransactionMetadatumLabels {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> TransactionMetadatumLabel {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &TransactionMetadatumLabel) {
+        self.0.push(elem.clone());
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionMetadata(std::collections::BTreeMap<TransactionMetadatumLabel, TransactionMetadatum>);
 
 to_from_bytes!(TransactionMetadata);
@@ -1201,6 +1293,10 @@ impl TransactionMetadata {
 
     pub fn get(&self, key: &TransactionMetadatumLabel) -> Option<TransactionMetadatum> {
         self.0.get(key).map(|v| v.clone())
+    }
+
+    pub fn keys(&self) -> TransactionMetadatumLabels {
+        TransactionMetadatumLabels(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<TransactionMetadatumLabel>>())
     }
 }
 
