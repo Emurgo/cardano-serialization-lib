@@ -154,9 +154,10 @@ declare export class Address {
   to_bytes(): Uint8Array;
 
   /**
+   * @param {string | void} prefix
    * @returns {string}
    */
-  to_bech32(): string;
+  to_bech32(prefix?: string): string;
 
   /**
    * @param {string} bech_str
