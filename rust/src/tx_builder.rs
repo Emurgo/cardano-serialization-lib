@@ -37,7 +37,7 @@ fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519Key
     }
 }
 
-fn estimate_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
+fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
     let body = tx_builder.build()?;
 
     let fake_key_root = Bip32PrivateKey::from_bip39_entropy(
@@ -93,22 +93,9 @@ fn estimate_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
         witness_set,
         metadata: tx_builder.metadata.clone(),
     };
-    let base_fee = fees::min_fee(&full_tx, &tx_builder.fee_algo);
-    let cert_deposit = match &tx_builder.certs {
-        None => Coin::new(0),
-        Some(certs) => certs.0
-            .iter()
-            .try_fold(
-                Coin::new(0),
-                |acc, ref cert| match &cert.0 {
-                    CertificateEnum::PoolRegistration(_cert) => acc.checked_add(&tx_builder.pool_deposit),
-                    CertificateEnum::StakeRegistration(_cert) => acc.checked_add(&tx_builder.key_deposit),
-                    _ => Ok(acc),
-                }
-            )?
-    };
-    base_fee?.checked_add(&cert_deposit)
+    fees::min_fee(&full_tx, &tx_builder.fee_algo)
 }
+
 
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
 #[derive(Clone, Debug)]
@@ -265,23 +252,28 @@ impl TransactionBuilder {
             )
     }
 
-    /// DOES include burnt coins if fee is above minimum
-    pub fn get_fee_or_calc(&self) -> Result<Coin, JsValue> {
-        match &self.fee {
-            None => self.estimate_fee(),
-            Some(x) => Ok(x.clone()),
-        }
+    pub fn get_deposit(&self) -> Result<Coin, JsValue> {
+        internal_get_deposit(
+            &self.certs,
+            &self.pool_deposit,
+            &self.key_deposit,
+        )
+    }
+
+    pub fn get_fee_if_set(&self) -> Option<Coin> {
+        self.fee.clone()
     }
 
     /// Warning: this function will mutate the /fee/ field
     pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsValue> {
         let fee = match &self.fee {
-            None => self.estimate_fee(),
+            None => self.min_fee(),
             // generating the change output involves changing the fee
             Some(_x) => return Err(JsValue::from_str("Cannot calculate change if fee was explicitly specified")),
         }?;
         let input_total = self.get_explicit_input()?.checked_add(&self.get_implicit_input()?)?;
         let output_total = self.get_explicit_output()?;
+        let deposit = self.get_deposit()?;
         match input_total.unwrap() > output_total.checked_add(&fee)?.unwrap() {
             false => return Err(JsValue::from_str("Insufficient input in transaction")),
             true => {
@@ -292,12 +284,12 @@ impl TransactionBuilder {
                     // this may over-estimate the fee by a few bytes but that's okay
                     amount: Coin::new(0x1_00_00_00_00),
                 })?;
-                let new_fee = copy.estimate_fee()?;
+                let new_fee = copy.min_fee()?;
                 // needs to have at least minimum_utxo_val leftover for the change to be a valid UTXO entry 
-                match input_total > output_total.checked_add(&new_fee)?.checked_add(&self.minimum_utxo_val)? {
+                match input_total > output_total.checked_add(&deposit)?.checked_add(&new_fee)?.checked_add(&self.minimum_utxo_val)? {
                     false => {
                         // recall: we originally assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
-                        self.set_fee(&input_total.checked_sub(&output_total)?);
+                        self.set_fee(&input_total.checked_sub(&output_total)?.checked_sub(&deposit)?);
                         return Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
                     },
                     true => {
@@ -305,7 +297,7 @@ impl TransactionBuilder {
                         self.set_fee(&new_fee);
                         self.add_output(&TransactionOutput {
                             address: address.clone(),
-                            amount: input_total.checked_sub(&output_total.checked_add(&new_fee)?)?,
+                            amount: input_total.checked_sub(&output_total)?.checked_sub(&new_fee)?.checked_sub(&deposit)?,
                         })?;
                     },
                 };
@@ -331,19 +323,14 @@ impl TransactionBuilder {
         })
     }
 
-    /// DOES NOT include burnt coins if fee is above minimum
-    pub fn estimate_fee(&self) -> Result<Coin, JsValue> {
-        match &self.fee {
-            // if user explicitly specified a fee already, use that one
-            Some(_x) => estimate_fee(&self),
-            // otherwise, use the maximum fee possible
-            None => {
-                let mut self_copy = self.clone();
-                self_copy.set_fee(&Coin::new(0x1_00_00_00_00));
-                estimate_fee(&self_copy)
-            },
-        }
-  }
+    /// warning: sum of all parts of a transaction must equal 0. You cannot just set the fee to the min value and forget about it
+    /// warning: min_fee may be slightly larger than the actual minimum fee (ex: a few lovelaces)
+    /// this is done to simplify the library code, but can be fixed later
+    pub fn min_fee(&self) -> Result<Coin, JsValue> {
+        let mut self_copy = self.clone();
+        self_copy.set_fee(&Coin::new(0x1_00_00_00_00));
+        min_fee(&self_copy)
+    }
 }
 
 #[cfg(test)]
@@ -414,7 +401,7 @@ mod tests {
         assert_eq!(tx_builder.outputs.len(), 2);
         assert_eq!(
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&tx_builder.get_fee_or_calc().unwrap()).unwrap()
+            tx_builder.get_explicit_output().unwrap().checked_add(&tx_builder.get_fee_if_set().unwrap()).unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -468,7 +455,7 @@ mod tests {
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&tx_builder.get_fee_or_calc().unwrap()).unwrap()
+            tx_builder.get_explicit_output().unwrap().checked_add(&tx_builder.get_fee_if_set().unwrap()).unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -521,13 +508,16 @@ mod tests {
         tx_builder.add_change_if_needed(
             &change_addr
         ).unwrap();
-        assert_eq!(tx_builder.estimate_fee().unwrap().to_str(), "1211502");
-        assert_eq!(tx_builder.get_fee_or_calc().unwrap().to_str(), "1215502");
-        assert_eq!(tx_builder.build().unwrap().fee().to_str(), "1215502");
+        assert_eq!(tx_builder.min_fee().unwrap().to_str(), "213502");
+        assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "215502");
+        assert_eq!(tx_builder.get_deposit().unwrap().to_str(), "1000000");
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&tx_builder.get_fee_or_calc().unwrap()).unwrap()
+            tx_builder
+                .get_explicit_output().unwrap()
+                .checked_add(&tx_builder.get_fee_if_set().unwrap()).unwrap()
+                .checked_add(&tx_builder.get_deposit().unwrap()).unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }

@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "js:build": "rm -rf dist && tsc",
-    "js:dev": "rimraf ./dist && node ./index.ts",
+    "js:dev": "rimraf ./dist && ts-node ./index.ts",
     "js:lint": "eslint \"./**/*.ts\"",
     "js:test:watch": "mocha -w",
     "js:test": "mocha"
@@ -19,6 +19,7 @@
   "bugs": {
     "url": "https://github.com/Emurgo/cardano-serialization-lib/issues"
   },
+  "type": "module",
   "homepage": "https://github.com/Emurgo/cardano-serialization-lib#readme",
   "dependencies": {},
   "devDependencies": {

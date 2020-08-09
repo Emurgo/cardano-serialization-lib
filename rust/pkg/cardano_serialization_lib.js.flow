@@ -6,6 +6,13 @@
  */
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -68,11 +75,16 @@ declare export function get_implicit_input(
 ): BigNum;
 
 /**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
+ * @param {TransactionBody} txbody
+ * @param {BigNum} pool_deposit
+ * @param {BigNum} key_deposit
  * @returns {BigNum}
  */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+declare export function get_deposit(
+  txbody: TransactionBody,
+  pool_deposit: BigNum,
+  key_deposit: BigNum
+): BigNum;
 
 /**
  */
@@ -2359,10 +2371,14 @@ declare export class TransactionBuilder {
   get_explicit_output(): BigNum;
 
   /**
-   * DOES include burnt coins if fee is above minimum
    * @returns {BigNum}
    */
-  get_fee_or_calc(): BigNum;
+  get_deposit(): BigNum;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  get_fee_if_set(): BigNum | void;
 
   /**
    * Warning: this function will mutate the /fee/ field
@@ -2377,10 +2393,12 @@ declare export class TransactionBuilder {
   build(): TransactionBody;
 
   /**
-   * DOES NOT include burnt coins if fee is above minimum
+   * warning: sum of all parts of a transaction must equal 0. You cannot just set the fee to the min value and forget about it
+   * warning: min_fee may be slightly larger than the actual minimum fee (ex: a few lovelaces)
+   * this is done to simplify the library code, but can be fixed later
    * @returns {BigNum}
    */
-  estimate_fee(): BigNum;
+  min_fee(): BigNum;
 }
 /**
  */
