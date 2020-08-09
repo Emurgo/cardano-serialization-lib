@@ -301,6 +301,26 @@ pub fn internal_get_implicit_input(
     };
     withdrawal_sum.checked_add(&certificate_refund)
 }
+pub fn internal_get_deposit(
+    certs: &Option<Certificates>,
+    pool_deposit: &BigNum, // // protocol parameter
+    key_deposit: &BigNum, // protocol parameter
+) -> Result<Coin, JsValue> {
+    let certificate_refund = match &certs {
+        None => Coin::new(0),
+        Some(certs) => certs.0
+            .iter()
+            .try_fold(
+                Coin::new(0),
+                |acc, ref cert| match &cert.0 {
+                    CertificateEnum::PoolRegistration(_cert) => acc.checked_add(&pool_deposit),
+                    CertificateEnum::StakeRegistration(_cert) => acc.checked_add(&key_deposit),
+                    _ => Ok(acc),
+                }
+            )?
+    };
+    Ok(certificate_refund)
+}
 
 
 #[wasm_bindgen]
@@ -311,6 +331,19 @@ pub fn get_implicit_input(
 ) -> Result<Coin, JsValue> {
     internal_get_implicit_input(
         &txbody.withdrawals,
+        &txbody.certs,
+        &pool_deposit,
+        &key_deposit,
+    )
+}
+
+#[wasm_bindgen]
+pub fn get_deposit(
+    txbody: &TransactionBody,
+    pool_deposit: &BigNum, // // protocol parameter
+    key_deposit: &BigNum, // protocol parameter
+) -> Result<Coin, JsValue> {
+    internal_get_deposit(
         &txbody.certs,
         &pool_deposit,
         &key_deposit,
