@@ -841,6 +841,43 @@ declare export class GenesisHash {
 }
 /**
  */
+declare export class GenesisHashes {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {GenesisHashes}
+   */
+  static from_bytes(bytes: Uint8Array): GenesisHashes;
+
+  /**
+   * @returns {GenesisHashes}
+   */
+  static new(): GenesisHashes;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {GenesisHash}
+   */
+  get(index: number): GenesisHash;
+
+  /**
+   * @param {GenesisHash} elem
+   */
+  add(elem: GenesisHash): void;
+}
+/**
+ */
 declare export class GenesisKeyDelegation {
   free(): void;
 
@@ -1374,6 +1411,38 @@ declare export class MultisigScripts {
 }
 /**
  */
+declare export class Nonce {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Nonce}
+   */
+  static from_bytes(bytes: Uint8Array): Nonce;
+
+  /**
+   * @returns {Nonce}
+   */
+  static new_identity(): Nonce;
+
+  /**
+   * @param {Uint8Array} hash
+   * @returns {Nonce}
+   */
+  static new_from_hash(hash: Uint8Array): Nonce;
+
+  /**
+   * @returns {Uint8Array | void}
+   */
+  get_hash(): Uint8Array | void;
+}
+/**
+ */
 declare export class Pointer {
   free(): void;
 
@@ -1663,6 +1732,304 @@ declare export class PrivateKey {
    * @returns {Ed25519Signature}
    */
   sign(message: Uint8Array): Ed25519Signature;
+}
+/**
+ */
+declare export class ProposedProtocolParameterUpdates {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ProposedProtocolParameterUpdates}
+   */
+  static from_bytes(bytes: Uint8Array): ProposedProtocolParameterUpdates;
+
+  /**
+   * @returns {ProposedProtocolParameterUpdates}
+   */
+  static new(): ProposedProtocolParameterUpdates;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {GenesisHash} key
+   * @param {ProtocolParamUpdate} value
+   * @returns {ProtocolParamUpdate | void}
+   */
+  insert(
+    key: GenesisHash,
+    value: ProtocolParamUpdate
+  ): ProtocolParamUpdate | void;
+
+  /**
+   * @param {GenesisHash} key
+   * @returns {ProtocolParamUpdate | void}
+   */
+  get(key: GenesisHash): ProtocolParamUpdate | void;
+
+  /**
+   * @returns {GenesisHashes}
+   */
+  keys(): GenesisHashes;
+}
+/**
+ */
+declare export class ProtocolParamUpdate {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ProtocolParamUpdate}
+   */
+  static from_bytes(bytes: Uint8Array): ProtocolParamUpdate;
+
+  /**
+   * @param {BigNum} minfee_a
+   */
+  set_minfee_a(minfee_a: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  minfee_a(): BigNum | void;
+
+  /**
+   * @param {BigNum} minfee_b
+   */
+  set_minfee_b(minfee_b: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  minfee_b(): BigNum | void;
+
+  /**
+   * @param {number} max_block_body_size
+   */
+  set_max_block_body_size(max_block_body_size: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  max_block_body_size(): number | void;
+
+  /**
+   * @param {number} max_tx_size
+   */
+  set_max_tx_size(max_tx_size: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  max_tx_size(): number | void;
+
+  /**
+   * @param {number} max_block_header_size
+   */
+  set_max_block_header_size(max_block_header_size: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  max_block_header_size(): number | void;
+
+  /**
+   * @param {BigNum} key_deposit
+   */
+  set_key_deposit(key_deposit: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  key_deposit(): BigNum | void;
+
+  /**
+   * @param {BigNum} pool_deposit
+   */
+  set_pool_deposit(pool_deposit: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  pool_deposit(): BigNum | void;
+
+  /**
+   * @param {number} max_epoch
+   */
+  set_max_epoch(max_epoch: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  max_epoch(): number | void;
+
+  /**
+   * @param {number} n_opt
+   */
+  set_n_opt(n_opt: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  n_opt(): number | void;
+
+  /**
+   * @param {UnitInterval} pool_pledge_influence
+   */
+  set_pool_pledge_influence(pool_pledge_influence: UnitInterval): void;
+
+  /**
+   * @returns {UnitInterval | void}
+   */
+  pool_pledge_influence(): UnitInterval | void;
+
+  /**
+   * @param {UnitInterval} expansion_rate
+   */
+  set_expansion_rate(expansion_rate: UnitInterval): void;
+
+  /**
+   * @returns {UnitInterval | void}
+   */
+  expansion_rate(): UnitInterval | void;
+
+  /**
+   * @param {UnitInterval} treasury_growth_rate
+   */
+  set_treasury_growth_rate(treasury_growth_rate: UnitInterval): void;
+
+  /**
+   * @returns {UnitInterval | void}
+   */
+  treasury_growth_rate(): UnitInterval | void;
+
+  /**
+   * @param {UnitInterval} d
+   */
+  set_d(d: UnitInterval): void;
+
+  /**
+   * @returns {UnitInterval | void}
+   */
+  d(): UnitInterval | void;
+
+  /**
+   * @param {Nonce} extra_entropy
+   */
+  set_extra_entropy(extra_entropy: Nonce): void;
+
+  /**
+   * @returns {Nonce | void}
+   */
+  extra_entropy(): Nonce | void;
+
+  /**
+   * @param {ProtocolVersions} protocol_version
+   */
+  set_protocol_version(protocol_version: ProtocolVersions): void;
+
+  /**
+   * @returns {ProtocolVersions | void}
+   */
+  protocol_version(): ProtocolVersions | void;
+
+  /**
+   * @param {BigNum} min_utxo_value
+   */
+  set_min_utxo_value(min_utxo_value: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  min_utxo_value(): BigNum | void;
+
+  /**
+   * @returns {ProtocolParamUpdate}
+   */
+  static new(): ProtocolParamUpdate;
+}
+/**
+ */
+declare export class ProtocolVersion {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ProtocolVersion}
+   */
+  static from_bytes(bytes: Uint8Array): ProtocolVersion;
+
+  /**
+   * @returns {number}
+   */
+  major(): number;
+
+  /**
+   * @returns {number}
+   */
+  minor(): number;
+
+  /**
+   * @param {number} major
+   * @param {number} minor
+   * @returns {ProtocolVersion}
+   */
+  static new(major: number, minor: number): ProtocolVersion;
+}
+/**
+ */
+declare export class ProtocolVersions {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ProtocolVersions}
+   */
+  static from_bytes(bytes: Uint8Array): ProtocolVersions;
+
+  /**
+   * @returns {ProtocolVersions}
+   */
+  static new(): ProtocolVersions;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {ProtocolVersion}
+   */
+  get(index: number): ProtocolVersion;
+
+  /**
+   * @param {ProtocolVersion} elem
+   */
+  add(elem: ProtocolVersion): void;
 }
 /**
  * ED25519 key used as public key
@@ -2246,6 +2613,16 @@ declare export class TransactionBody {
    * @returns {Withdrawals | void}
    */
   withdrawals(): Withdrawals | void;
+
+  /**
+   * @param {Update} update
+   */
+  set_update(update: Update): void;
+
+  /**
+   * @returns {Update | void}
+   */
+  update(): Update | void;
 
   /**
    * @param {MetadataHash} metadata_hash
@@ -2838,6 +3215,42 @@ declare export class UnitInterval {
    * @returns {UnitInterval}
    */
   static new(numerator: BigNum, denominator: BigNum): UnitInterval;
+}
+/**
+ */
+declare export class Update {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Update}
+   */
+  static from_bytes(bytes: Uint8Array): Update;
+
+  /**
+   * @returns {ProposedProtocolParameterUpdates}
+   */
+  proposed_protocol_parameter_updates(): ProposedProtocolParameterUpdates;
+
+  /**
+   * @returns {number}
+   */
+  epoch(): number;
+
+  /**
+   * @param {ProposedProtocolParameterUpdates} proposed_protocol_parameter_updates
+   * @param {number} epoch
+   * @returns {Update}
+   */
+  static new(
+    proposed_protocol_parameter_updates: ProposedProtocolParameterUpdates,
+    epoch: number
+  ): Update;
 }
 /**
  */
