@@ -1082,7 +1082,7 @@ impl Deserialize for StakeCredentials {
 
 impl cbor_event::se::Serialize for MoveInstantaneousReward {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(2))?;
+        serializer.write_array(cbor_event::Len::Len(2))?;
         match self.pot {
             MIRPot::Reserves => serializer.write_unsigned_integer(0u64),
             MIRPot::Treasury => serializer.write_unsigned_integer(1u64),
