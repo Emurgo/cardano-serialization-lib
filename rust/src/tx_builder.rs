@@ -316,6 +316,7 @@ impl TransactionBuilder {
             ttl: ttl,
             certs: self.certs.clone(),
             withdrawals: self.withdrawals.clone(),
+            update: None,
             metadata_hash: match &self.metadata {
                 None => None,
                 Some(x) => Some(utils::hash_metadata(x)),

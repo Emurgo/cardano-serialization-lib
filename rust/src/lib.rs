@@ -49,6 +49,7 @@ impl UnitInterval {
     }
 }
 
+type Rational = UnitInterval;
 type Epoch = u32;
 type Slot = u32;
 
@@ -174,6 +175,7 @@ pub struct TransactionBody {
     ttl: u32,
     certs: Option<Certificates>,
     withdrawals: Option<Withdrawals>,
+    update: Option<Update>,
     metadata_hash: Option<MetadataHash>,
 }
 
@@ -213,6 +215,13 @@ impl TransactionBody {
         self.withdrawals.clone()
     }
 
+    pub fn set_update(&mut self, update: &Update) {
+        self.update = Some(update.clone())
+    }
+
+    pub fn update(&self) -> Option<Update> {
+        self.update.clone()
+    }
     pub fn set_metadata_hash(&mut self, metadata_hash: &MetadataHash) {
         self.metadata_hash = Some(metadata_hash.clone())
     }
@@ -230,6 +239,7 @@ impl TransactionBody {
             ttl: ttl,
             certs: None,
             withdrawals: None,
+            update: None,
             metadata_hash: None,
         }
     }
@@ -1460,6 +1470,316 @@ impl MultisigScript {
         match &self.0 {
             MultisigScriptEnum::MsigNOfK(x) => Some(x.clone()),
             _ => None,
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Update {
+    proposed_protocol_parameter_updates: ProposedProtocolParameterUpdates,
+    epoch: Epoch,
+}
+
+to_from_bytes!(Update);
+
+#[wasm_bindgen]
+impl Update {
+    pub fn proposed_protocol_parameter_updates(&self) -> ProposedProtocolParameterUpdates {
+        self.proposed_protocol_parameter_updates.clone()
+    }
+
+    pub fn epoch(&self) -> Epoch {
+        self.epoch.clone()
+    }
+
+    pub fn new(proposed_protocol_parameter_updates: &ProposedProtocolParameterUpdates, epoch: Epoch) -> Self {
+        Self {
+            proposed_protocol_parameter_updates: proposed_protocol_parameter_updates.clone(),
+            epoch: epoch.clone(),
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct GenesisHashes(Vec<GenesisHash>);
+
+to_from_bytes!(GenesisHashes);
+
+#[wasm_bindgen]
+impl GenesisHashes {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> GenesisHash {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &GenesisHash) {
+        self.0.push(elem.clone());
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ProposedProtocolParameterUpdates(std::collections::BTreeMap<GenesisHash, ProtocolParamUpdate>);
+
+to_from_bytes!(ProposedProtocolParameterUpdates);
+
+#[wasm_bindgen]
+impl ProposedProtocolParameterUpdates {
+    pub fn new() -> Self {
+        Self(std::collections::BTreeMap::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn insert(&mut self, key: &GenesisHash, value: &ProtocolParamUpdate) -> Option<ProtocolParamUpdate> {
+        self.0.insert(key.clone(), value.clone())
+    }
+
+    pub fn get(&self, key: &GenesisHash) -> Option<ProtocolParamUpdate> {
+        self.0.get(key).map(|v| v.clone())
+    }
+
+    pub fn keys(&self) -> GenesisHashes {
+        GenesisHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<GenesisHash>>())
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ProtocolVersion {
+    major: u32,
+    minor: u32,
+}
+
+to_from_bytes!(ProtocolVersion);
+
+#[wasm_bindgen]
+impl ProtocolVersion {
+    pub fn major(&self) -> u32 {
+        self.major
+    }
+
+    pub fn minor(&self) -> u32 {
+        self.minor
+    }
+
+    pub fn new(major: u32, minor: u32) -> Self {
+        Self {
+            major,
+            minor,
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ProtocolVersions(Vec<ProtocolVersion>);
+
+to_from_bytes!(ProtocolVersions);
+
+#[wasm_bindgen]
+impl ProtocolVersions {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> ProtocolVersion {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &ProtocolVersion) {
+        self.0.push(elem.clone());
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ProtocolParamUpdate {
+    minfee_a: Option<Coin>,
+    minfee_b: Option<Coin>,
+    max_block_body_size: Option<u32>,
+    max_tx_size: Option<u32>,
+    max_block_header_size: Option<u32>,
+    key_deposit: Option<Coin>,
+    pool_deposit: Option<Coin>,
+    max_epoch: Option<Epoch>,
+    // desired number of stake pools
+    n_opt: Option<u32>,
+    pool_pledge_influence: Option<Rational>,
+    expansion_rate: Option<UnitInterval>,
+    treasury_growth_rate: Option<UnitInterval>,
+    // decentralization constant
+    d: Option<UnitInterval>,
+    extra_entropy: Option<Nonce>,
+    protocol_version: Option<ProtocolVersions>,
+    min_utxo_value: Option<Coin>,
+}
+
+to_from_bytes!(ProtocolParamUpdate);
+
+#[wasm_bindgen]
+impl ProtocolParamUpdate {
+    pub fn set_minfee_a(&mut self, minfee_a: &Coin) {
+        self.minfee_a = Some(minfee_a.clone())
+    }
+
+    pub fn minfee_a(&self) -> Option<Coin> {
+        self.minfee_a.clone()
+    }
+
+    pub fn set_minfee_b(&mut self, minfee_b: &Coin) {
+        self.minfee_b = Some(minfee_b.clone())
+    }
+
+    pub fn minfee_b(&self) -> Option<Coin> {
+        self.minfee_b.clone()
+    }
+
+    pub fn set_max_block_body_size(&mut self, max_block_body_size: u32) {
+        self.max_block_body_size = Some(max_block_body_size)
+    }
+
+    pub fn max_block_body_size(&self) -> Option<u32> {
+        self.max_block_body_size.clone()
+    }
+
+    pub fn set_max_tx_size(&mut self, max_tx_size: u32) {
+        self.max_tx_size = Some(max_tx_size)
+    }
+
+    pub fn max_tx_size(&self) -> Option<u32> {
+        self.max_tx_size.clone()
+    }
+
+    pub fn set_max_block_header_size(&mut self, max_block_header_size: u32) {
+        self.max_block_header_size = Some(max_block_header_size)
+    }
+
+    pub fn max_block_header_size(&self) -> Option<u32> {
+        self.max_block_header_size.clone()
+    }
+
+    pub fn set_key_deposit(&mut self, key_deposit: &Coin) {
+        self.key_deposit = Some(key_deposit.clone())
+    }
+
+    pub fn key_deposit(&self) -> Option<Coin> {
+        self.key_deposit.clone()
+    }
+
+    pub fn set_pool_deposit(&mut self, pool_deposit: &Coin) {
+        self.pool_deposit = Some(pool_deposit.clone())
+    }
+
+    pub fn pool_deposit(&self) -> Option<Coin> {
+        self.pool_deposit.clone()
+    }
+
+    pub fn set_max_epoch(&mut self, max_epoch: Epoch) {
+        self.max_epoch = Some(max_epoch.clone())
+    }
+
+    pub fn max_epoch(&self) -> Option<Epoch> {
+        self.max_epoch.clone()
+    }
+
+    pub fn set_n_opt(&mut self, n_opt: u32) {
+        self.n_opt = Some(n_opt)
+    }
+
+    pub fn n_opt(&self) -> Option<u32> {
+        self.n_opt.clone()
+    }
+
+    pub fn set_pool_pledge_influence(&mut self, pool_pledge_influence: &Rational) {
+        self.pool_pledge_influence = Some(pool_pledge_influence.clone())
+    }
+
+    pub fn pool_pledge_influence(&self) -> Option<Rational> {
+        self.pool_pledge_influence.clone()
+    }
+
+    pub fn set_expansion_rate(&mut self, expansion_rate: &UnitInterval) {
+        self.expansion_rate = Some(expansion_rate.clone())
+    }
+
+    pub fn expansion_rate(&self) -> Option<UnitInterval> {
+        self.expansion_rate.clone()
+    }
+
+    pub fn set_treasury_growth_rate(&mut self, treasury_growth_rate: &UnitInterval) {
+        self.treasury_growth_rate = Some(treasury_growth_rate.clone())
+    }
+
+    pub fn treasury_growth_rate(&self) -> Option<UnitInterval> {
+        self.treasury_growth_rate.clone()
+    }
+
+    pub fn set_d(&mut self, d: &UnitInterval) {
+        self.d = Some(d.clone())
+    }
+
+    pub fn d(&self) -> Option<UnitInterval> {
+        self.d.clone()
+    }
+
+    pub fn set_extra_entropy(&mut self, extra_entropy: &Nonce) {
+        self.extra_entropy = Some(extra_entropy.clone())
+    }
+
+    pub fn extra_entropy(&self) -> Option<Nonce> {
+        self.extra_entropy.clone()
+    }
+
+    pub fn set_protocol_version(&mut self, protocol_version: &ProtocolVersions) {
+        self.protocol_version = Some(protocol_version.clone())
+    }
+
+    pub fn protocol_version(&self) -> Option<ProtocolVersions> {
+        self.protocol_version.clone()
+    }
+
+    pub fn set_min_utxo_value(&mut self, min_utxo_value: &Coin) {
+        self.min_utxo_value = Some(min_utxo_value.clone())
+    }
+
+    pub fn min_utxo_value(&self) -> Option<Coin> {
+        self.min_utxo_value.clone()
+    }
+
+    pub fn new() -> Self {
+        Self {
+            minfee_a: None,
+            minfee_b: None,
+            max_block_body_size: None,
+            max_tx_size: None,
+            max_block_header_size: None,
+            key_deposit: None,
+            pool_deposit: None,
+            max_epoch: None,
+            n_opt: None,
+            pool_pledge_influence: None,
+            expansion_rate: None,
+            treasury_growth_rate: None,
+            d: None,
+            extra_entropy: None,
+            protocol_version: None,
+            min_utxo_value: None,
         }
     }
 }
