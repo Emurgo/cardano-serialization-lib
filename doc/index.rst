@@ -1,7 +1,3 @@
-############
-cardano-node
-############
-
 .. include:: ../README.rst
 
 .. toctree::
@@ -16,8 +12,4 @@ cardano-node
    :titlesonly:
    :hidden:
 
-   getting-started/install
-   getting-started/building-the-node-using-nix
-   getting-started/understanding-config-files
-   getting-started/AWS
-   getting-started/cli
+   getting-started/prerequisite-knowledge
