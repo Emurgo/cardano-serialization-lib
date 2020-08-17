@@ -1,5 +1,4 @@
-use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
-use std::io::{BufRead, Seek, Write};
+use cbor_event;
 use wasm_bindgen::prelude::*;
 
 // This file was code-generated using an experimental CDDL to rust tool:
@@ -28,18 +27,12 @@ pub enum DeserializeFailure {
     DuplicateKey(Key),
     EndingBreakMissing,
     ExpectedNull,
-    FixedValueMismatch{
-        found: Key,
-        expected: Key,
-    },
+    FixedValueMismatch { found: Key, expected: Key },
     MandatoryFieldMissing(Key),
     NoVariantMatched,
     PublicKeyError(chain_crypto::PublicKeyError),
     SignatureError(chain_crypto::SignatureError),
-    TagMismatch{
-        found: u64,
-        expected: u64,
-    },
+    TagMismatch { found: u64, expected: u64 },
     UnknownKey(Key),
     UnexpectedKeyType(cbor_event::Type),
     VariableLenNatDecodeFailed,
@@ -75,21 +68,36 @@ impl std::fmt::Display for DeserializeError {
             None => write!(f, "Deserialization: "),
         }?;
         match &self.failure {
-            DeserializeFailure::BadAddressType(header) => write!(f, "Encountered unknown address header {:#08b}", header),
-            DeserializeFailure::BreakInDefiniteLen => write!(f, "Encountered CBOR Break while reading definite length sequence"),
+            DeserializeFailure::BadAddressType(header) => {
+                write!(f, "Encountered unknown address header {:#08b}", header)
+            }
+            DeserializeFailure::BreakInDefiniteLen => write!(
+                f,
+                "Encountered CBOR Break while reading definite length sequence"
+            ),
             DeserializeFailure::CBOR(e) => e.fmt(f),
             DeserializeFailure::DuplicateKey(key) => write!(f, "Duplicate key: {}", key),
             DeserializeFailure::EndingBreakMissing => write!(f, "Missing ending CBOR Break"),
             DeserializeFailure::ExpectedNull => write!(f, "Expected null, found other type"),
-            DeserializeFailure::FixedValueMismatch{ found, expected } => write!(f, "Expected fixed value {} found {}", expected, found),
-            DeserializeFailure::MandatoryFieldMissing(key) => write!(f, "Mandatory field {} not found", key),
+            DeserializeFailure::FixedValueMismatch { found, expected } => {
+                write!(f, "Expected fixed value {} found {}", expected, found)
+            }
+            DeserializeFailure::MandatoryFieldMissing(key) => {
+                write!(f, "Mandatory field {} not found", key)
+            }
             DeserializeFailure::NoVariantMatched => write!(f, "No variant matched"),
             DeserializeFailure::PublicKeyError(e) => write!(f, "PublicKeyError error: {}", e),
             DeserializeFailure::SignatureError(e) => write!(f, "Signature error: {}", e),
-            DeserializeFailure::TagMismatch{ found, expected } => write!(f, "Expected tag {}, found {}", expected, found),
+            DeserializeFailure::TagMismatch { found, expected } => {
+                write!(f, "Expected tag {}, found {}", expected, found)
+            }
             DeserializeFailure::UnknownKey(key) => write!(f, "Found unexpected key {}", key),
-            DeserializeFailure::UnexpectedKeyType(ty) => write!(f, "Found unexpected key of CBOR type {:?}", ty),
-            DeserializeFailure::VariableLenNatDecodeFailed => write!(f, "Variable length natural number decode failed"),
+            DeserializeFailure::UnexpectedKeyType(ty) => {
+                write!(f, "Found unexpected key of CBOR type {:?}", ty)
+            }
+            DeserializeFailure::VariableLenNatDecodeFailed => {
+                write!(f, "Variable length natural number decode failed")
+            }
         }
     }
 }
