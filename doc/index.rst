@@ -13,3 +13,5 @@
    :hidden:
 
    getting-started/prerequisite-knowledge
+   getting-started/generating-keys
+   getting-started/generating-transactions
