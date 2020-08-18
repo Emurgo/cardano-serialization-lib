@@ -2,3 +2,4 @@ node_modules/
 publish/
 rust/target
 .idea
+.vscode/
