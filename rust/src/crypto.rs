@@ -730,10 +730,10 @@ impl_hash_type!(MetadataHash, 32);
 impl_hash_type!(VRFKeyHash, 28);
 impl_hash_type!(BlockHash, 32);
 // We might want to make these two vkeys normal classes later but for now it's just arbitrary bytes for us (used in block parsing)
-impl_hash_type!(VRFVKey, 8);
-impl_hash_type!(KESVKey, 8);
+impl_hash_type!(VRFVKey, 32);
+impl_hash_type!(KESVKey, 32);
 // same for this signature
-impl_hash_type!(KESSignature, 32);
+impl_hash_type!(KESSignature, 448);
 
 // Evolving nonce type (used for Update's crypto)
 #[wasm_bindgen]
@@ -836,7 +836,7 @@ pub struct VRFCert {
 }
 
 impl VRFCert {
-    pub const PROOF_LEN: usize = 10;
+    pub const PROOF_LEN: usize = 80;
 }
 
 to_from_bytes!(VRFCert);
