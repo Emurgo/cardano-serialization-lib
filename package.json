@@ -3,8 +3,8 @@
   "version": "2.0.0",
   "description": "processing Haskell Shelley testnet",
   "scripts": {
-    "rust:build-nodejs": "rimraf ./rust/pkg && cd rust; wasm-pack build --target=nodejs; wasm-pack pack; cd .. && npm run js:flowgen",
-    "rust:build-browser": "rimraf ./rust/pkg && cd rust; wasm-pack build --target=browser; wasm-pack pack; cd .. && npm run js:flowgen",
+    "rust:build-nodejs": "rimraf ./rust/pkg && cd rust; wasm-pack build --target=nodejs; wasm-opt pkg/cardano_serialization_lib_bg.wasm -o pkg/cardano_serialization_lib_bg.wasm -O --enable-mutable-globals; wasm-pack pack; cd .. && npm run js:flowgen",
+    "rust:build-browser": "rimraf ./rust/pkg && cd rust; wasm-pack build --target=browser; wasm-opt pkg/cardano_serialization_lib_bg.wasm -o pkg/cardano_serialization_lib_bg.wasm -O --enable-mutable-globals; wasm-pack pack; cd .. && npm run js:flowgen",
     "rust:test": "cd rust; cargo test; cd ..",
     "js:flowgen": "flowgen ./rust/pkg/cardano_serialization_lib.d.ts -o ./rust/pkg/cardano_serialization_lib.js.flow --add-flow-header",
     "js:prepublish": "npm run rust:test && rimraf ./publish && cp -r ./rust/pkg ./publish && cp README.md publish/ && cp LICENSE publish/",
@@ -22,10 +22,13 @@
     "type": "git",
     "url": "git+https://github.com/Emurgo/cardano-serialization-lib.git"
   },
-  "dependencies": {},
   "devDependencies": {
     "flowgen": "1.11.0",
     "husky": "4.2.5",
-    "rimraf": "3.0.2"
+    "rimraf": "3.0.2",
+    "wasm-opt": "^1.1.1"
+  },
+  "dependencies": {
+    "help": "^3.0.2"
   }
 }
