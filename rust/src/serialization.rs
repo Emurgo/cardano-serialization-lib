@@ -3580,7 +3580,7 @@ impl Deserialize for Block {
 }
 
 impl DeserializeEmbeddedGroup for Block {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, _len: cbor_event::Len) -> Result<Self, DeserializeError> {
         let header = (|| -> Result<_, DeserializeError> {
             Ok(Header::deserialize(raw)?)
         })().map_err(|e| e.annotate("header"))?;
@@ -3629,7 +3629,7 @@ impl Deserialize for Header {
 }
 
 impl DeserializeEmbeddedGroup for Header {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, _len: cbor_event::Len) -> Result<Self, DeserializeError> {
         let header_body = (|| -> Result<_, DeserializeError> {
             Ok(HeaderBody::deserialize(raw)?)
         })().map_err(|e| e.annotate("header_body"))?;
@@ -3678,7 +3678,7 @@ impl Deserialize for OperationalCert {
 }
 
 impl DeserializeEmbeddedGroup for OperationalCert {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, _len: cbor_event::Len) -> Result<Self, DeserializeError> {
         let hot_vkey = (|| -> Result<_, DeserializeError> {
             Ok(KESVKey::deserialize(raw)?)
         })().map_err(|e| e.annotate("hot_vkey"))?;
