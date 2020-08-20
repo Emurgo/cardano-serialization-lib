@@ -36,8 +36,8 @@ pub fn min_fee(tx: &Transaction, linear_fee: &LinearFee) -> Result<Coin, JsValue
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crypto::*;
     use address::*;
+    use crypto::*;
 
     // based off tx test vectors (https://gist.github.com/KtorZ/5a2089df0915f21aca368d12545ab230)
 
@@ -46,19 +46,25 @@ mod tests {
     // It's possible they're still off by a byte or two somewhere.
 
     #[test]
-    fn tx_simple_utxo() { // # Vector #1: simple transaction
+    fn tx_simple_utxo() {
+        // # Vector #1: simple transaction
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(
-            &TransactionHash::from_bytes(hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7").unwrap()).unwrap(),
-            0
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+            .unwrap(),
+            0,
         ));
         let mut outputs = TransactionOutputs::new();
 
         outputs.add(&TransactionOutput::new(
             &Address::from_bytes(
-                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
-            ).unwrap(),
-            &Coin::new(1)
+                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
+            )
+            .unwrap(),
+            &Coin::new(1),
         ));
         let body = TransactionBody::new(&inputs, &outputs, &Coin::new(94002), 10);
 
@@ -67,16 +73,14 @@ mod tests {
         vkw.add(&make_vkey_witness(
             &hash_transaction(&body),
             &PrivateKey::from_normal_bytes(
-                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a").unwrap()
-            ).unwrap()
+                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a")
+                    .unwrap(),
+            )
+            .unwrap(),
         ));
         w.set_vkeys(&vkw);
 
-        let signed_tx = Transaction::new(
-            &body,
-            &w,
-            None,
-        );
+        let signed_tx = Transaction::new(&body, &w, None);
 
         let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
         assert_eq!(
@@ -93,16 +97,21 @@ mod tests {
     fn tx_simple_byron_utxo() {
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(
-            &TransactionHash::from_bytes(hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7").unwrap()).unwrap(),
-            0
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+            .unwrap(),
+            0,
         ));
         let mut outputs = TransactionOutputs::new();
 
         outputs.add(&TransactionOutput::new(
             &Address::from_bytes(
-                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
-            ).unwrap(),
-            &Coin::new(1)
+                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
+            )
+            .unwrap(),
+            &Coin::new(1),
         ));
         let body = TransactionBody::new(&inputs, &outputs, &Coin::new(112002), 10);
 
@@ -117,11 +126,7 @@ mod tests {
         ));
         w.set_bootstraps(&bootstrap_wits);
 
-        let signed_tx = Transaction::new(
-            &body,
-            &w,
-            None,
-        );
+        let signed_tx = Transaction::new(&body, &w, None);
 
         let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
         assert_eq!(
@@ -135,28 +140,39 @@ mod tests {
     }
 
     #[test]
-    fn tx_multi_utxo() { // # Vector #2: multiple outputs and inputs
+    fn tx_multi_utxo() {
+        // # Vector #2: multiple outputs and inputs
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(
-            &TransactionHash::from_bytes(hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7").unwrap()).unwrap(),
-            42
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+            .unwrap(),
+            42,
         ));
         inputs.add(&TransactionInput::new(
-            &TransactionHash::from_bytes(hex::decode("82839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32").unwrap()).unwrap(),
-            7
+            &TransactionHash::from_bytes(
+                hex::decode("82839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace32")
+                    .unwrap(),
+            )
+            .unwrap(),
+            7,
         ));
         let mut outputs = TransactionOutputs::new();
         outputs.add(&TransactionOutput::new(
             &Address::from_bytes(
-                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
-            ).unwrap(),
-            &Coin::new(289)
+                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
+            )
+            .unwrap(),
+            &Coin::new(289),
         ));
         outputs.add(&TransactionOutput::new(
             &Address::from_bytes(
-                hex::decode("61bcd18fcffa797c16c007014e2b8553b8b9b1e94c507688726243d611").unwrap()
-            ).unwrap(),
-            &Coin::new(874551452)
+                hex::decode("61bcd18fcffa797c16c007014e2b8553b8b9b1e94c507688726243d611").unwrap(),
+            )
+            .unwrap(),
+            &Coin::new(874551452),
         ));
         let body = TransactionBody::new(&inputs, &outputs, &Coin::new(183502), 999);
 
@@ -165,22 +181,22 @@ mod tests {
         vkw.add(&make_vkey_witness(
             &hash_transaction(&body),
             &PrivateKey::from_normal_bytes(
-                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a").unwrap()
-            ).unwrap()
+                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a")
+                    .unwrap(),
+            )
+            .unwrap(),
         ));
         vkw.add(&make_vkey_witness(
             &hash_transaction(&body),
             &PrivateKey::from_normal_bytes(
-                &hex::decode("13fe79205e16c09536acb6f0524d04069f380329d13949698c5f22c65c989eb4").unwrap()
-            ).unwrap()
+                &hex::decode("13fe79205e16c09536acb6f0524d04069f380329d13949698c5f22c65c989eb4")
+                    .unwrap(),
+            )
+            .unwrap(),
         ));
         w.set_vkeys(&vkw);
 
-        let signed_tx = Transaction::new(
-            &body,
-            &w,
-            None,
-        );
+        let signed_tx = Transaction::new(&body, &w, None);
 
         let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
         assert_eq!(
@@ -194,56 +210,71 @@ mod tests {
     }
 
     #[test]
-    fn tx_register_stake() { // # Vector #3: with stake pool registration certificate
+    fn tx_register_stake() {
+        // # Vector #3: with stake pool registration certificate
         let network = 1;
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(
-            &TransactionHash::from_bytes(hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7").unwrap()).unwrap(),
-            0
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+            .unwrap(),
+            0,
         ));
         let mut outputs = TransactionOutputs::new();
 
         outputs.add(&TransactionOutput::new(
             &Address::from_bytes(
-                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
-            ).unwrap(),
-            &Coin::new(1)
+                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
+            )
+            .unwrap(),
+            &Coin::new(1),
         ));
         let mut body = TransactionBody::new(&inputs, &outputs, &Coin::new(266002), 10);
 
         let mut certs = Certificates::new();
 
         let mut pool_owners = Ed25519KeyHashes::new();
-        pool_owners.add(&PublicKey::from_bytes(
-            &hex::decode("54d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f3").unwrap()
-        ).unwrap().hash());
-        let registration_cert = PoolRegistration::new(
-            &PoolParams::new(
-                &PublicKey::from_bytes(
-                    &hex::decode("b24c040e65994bd5b0621a060166d32d356ef4be3cc1f848426a4cf386887089").unwrap()
-                ).unwrap().hash(), // operator
-                &VRFKeyHash::from(
-                    blake2b224(&hex::decode("fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096").unwrap())
-                ), // vrf_keyhash
-                &Coin::new(1000000), // pledge
-                &Coin::new(1000000), // cost
-                &UnitInterval::new(
-                    &BigNum::new(3),
-                    &BigNum::new(100),
-                ), // margin
-                &RewardAddress::new(
-                    network,
-                    &StakeCredential::from_keyhash(
-                        &PublicKey::from_bytes(
-                            &hex::decode("54d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f3").unwrap()
-                        ).unwrap().hash()
-                    ),
-                ), // reward_address
-                &pool_owners, // pool_owners
-                &Relays::new(), // relays
-                None, // metadata
+        pool_owners.add(
+            &PublicKey::from_bytes(
+                &hex::decode("54d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f3")
+                    .unwrap(),
             )
+            .unwrap()
+            .hash(),
         );
+        let registration_cert = PoolRegistration::new(&PoolParams::new(
+            &PublicKey::from_bytes(
+                &hex::decode("b24c040e65994bd5b0621a060166d32d356ef4be3cc1f848426a4cf386887089")
+                    .unwrap(),
+            )
+            .unwrap()
+            .hash(), // operator
+            &VRFKeyHash::from(blake2b224(
+                &hex::decode("fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096")
+                    .unwrap(),
+            )), // vrf_keyhash
+            &Coin::new(1000000),                                    // pledge
+            &Coin::new(1000000),                                    // cost
+            &UnitInterval::new(&BigNum::new(3), &BigNum::new(100)), // margin
+            &RewardAddress::new(
+                network,
+                &StakeCredential::from_keyhash(
+                    &PublicKey::from_bytes(
+                        &hex::decode(
+                            "54d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f3",
+                        )
+                        .unwrap(),
+                    )
+                    .unwrap()
+                    .hash(),
+                ),
+            ), // reward_address
+            &pool_owners,                                           // pool_owners
+            &Relays::new(),                                         // relays
+            None,                                                   // metadata
+        ));
         certs.add(&Certificate::new_pool_registration(&registration_cert));
         body.set_certs(&certs);
 
@@ -253,30 +284,32 @@ mod tests {
         vkw.add(&make_vkey_witness(
             &hash_transaction(&body),
             &PrivateKey::from_normal_bytes(
-                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a").unwrap()
-            ).unwrap()
+                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a")
+                    .unwrap(),
+            )
+            .unwrap(),
         ));
         // operator key witness
         vkw.add(&make_vkey_witness(
             &hash_transaction(&body),
             &PrivateKey::from_normal_bytes(
-                &hex::decode("2363f3660b9f3b41685665bf10632272e2d03c258e8a5323436f0f3406293505").unwrap()
-            ).unwrap()
+                &hex::decode("2363f3660b9f3b41685665bf10632272e2d03c258e8a5323436f0f3406293505")
+                    .unwrap(),
+            )
+            .unwrap(),
         ));
         // owner key witness
         vkw.add(&make_vkey_witness(
             &hash_transaction(&body),
             &PrivateKey::from_normal_bytes(
-                &hex::decode("5ada7f4d92bce1ee1707c0a0e211eb7941287356e6ed0e76843806e307b07c8d").unwrap()
-            ).unwrap()
+                &hex::decode("5ada7f4d92bce1ee1707c0a0e211eb7941287356e6ed0e76843806e307b07c8d")
+                    .unwrap(),
+            )
+            .unwrap(),
         ));
         w.set_vkeys(&vkw);
 
-        let signed_tx = Transaction::new(
-            &body,
-            &w,
-            None,
-        );
+        let signed_tx = Transaction::new(&body, &w, None);
 
         let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
         assert_eq!(
@@ -424,27 +457,38 @@ mod tests {
     // }
 
     #[test]
-    fn tx_withdrawal() { // # Vector #8: with reward withdrawal
+    fn tx_withdrawal() {
+        // # Vector #8: with reward withdrawal
         let mut inputs = TransactionInputs::new();
         inputs.add(&TransactionInput::new(
-            &TransactionHash::from_bytes(hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7").unwrap()).unwrap(),
-            0
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+            .unwrap(),
+            0,
         ));
         let mut outputs = TransactionOutputs::new();
 
         outputs.add(&TransactionOutput::new(
             &Address::from_bytes(
-                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
-            ).unwrap(),
-            &Coin::new(1)
+                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
+            )
+            .unwrap(),
+            &Coin::new(1),
         ));
         let mut body = TransactionBody::new(&inputs, &outputs, &Coin::new(162502), 10);
         let mut withdrawals = Withdrawals::new();
         withdrawals.insert(
-            &RewardAddress::from_address(&Address::from_bytes(
-                hex::decode("e151df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af70").unwrap()
-            ).unwrap()).unwrap(),
-            &Coin::new(1337)
+            &RewardAddress::from_address(
+                &Address::from_bytes(
+                    hex::decode("e151df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af70")
+                        .unwrap(),
+                )
+                .unwrap(),
+            )
+            .unwrap(),
+            &Coin::new(1337),
         );
         body.set_withdrawals(&withdrawals);
 
@@ -454,23 +498,23 @@ mod tests {
         vkw.add(&make_vkey_witness(
             &hash_transaction(&body),
             &PrivateKey::from_normal_bytes(
-                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a").unwrap()
-            ).unwrap()
+                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a")
+                    .unwrap(),
+            )
+            .unwrap(),
         ));
         // withdrawal key witness
         vkw.add(&make_vkey_witness(
             &hash_transaction(&body),
             &PrivateKey::from_normal_bytes(
-                &hex::decode("5ada7f4d92bce1ee1707c0a0e211eb7941287356e6ed0e76843806e307b07c8d").unwrap()
-            ).unwrap()
+                &hex::decode("5ada7f4d92bce1ee1707c0a0e211eb7941287356e6ed0e76843806e307b07c8d")
+                    .unwrap(),
+            )
+            .unwrap(),
         ));
         w.set_vkeys(&vkw);
 
-        let signed_tx = Transaction::new(
-            &body,
-            &w,
-            None,
-        );
+        let signed_tx = Transaction::new(&body, &w, None);
 
         let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
         assert_eq!(

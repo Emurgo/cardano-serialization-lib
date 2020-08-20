@@ -1958,7 +1958,9 @@ pub type TransactionIndexes = Vec<TransactionIndex>;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MapTransactionIndexToTransactionMetadata(std::collections::BTreeMap<TransactionIndex, TransactionMetadata>);
+pub struct MapTransactionIndexToTransactionMetadata(
+    std::collections::BTreeMap<TransactionIndex, TransactionMetadata>,
+);
 
 #[wasm_bindgen]
 impl MapTransactionIndexToTransactionMetadata {
@@ -1970,7 +1972,11 @@ impl MapTransactionIndexToTransactionMetadata {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: TransactionIndex, value: &TransactionMetadata) -> Option<TransactionMetadata> {
+    pub fn insert(
+        &mut self,
+        key: TransactionIndex,
+        value: &TransactionMetadata,
+    ) -> Option<TransactionMetadata> {
         self.0.insert(key, value.clone())
     }
 
@@ -1979,7 +1985,10 @@ impl MapTransactionIndexToTransactionMetadata {
     }
 
     pub fn keys(&self) -> TransactionIndexes {
-        self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<TransactionIndex>>()
+        self.0
+            .iter()
+            .map(|(k, _v)| k.clone())
+            .collect::<Vec<TransactionIndex>>()
     }
 }
 
@@ -2012,7 +2021,12 @@ impl Block {
         self.transaction_metadata_set.clone()
     }
 
-    pub fn new(header: &Header, transaction_bodies: &TransactionBodies, transaction_witness_sets: &TransactionWitnessSets, transaction_metadata_set: &MapTransactionIndexToTransactionMetadata) -> Self {
+    pub fn new(
+        header: &Header,
+        transaction_bodies: &TransactionBodies,
+        transaction_witness_sets: &TransactionWitnessSets,
+        transaction_metadata_set: &MapTransactionIndexToTransactionMetadata,
+    ) -> Self {
         Self {
             header: header.clone(),
             transaction_bodies: transaction_bodies.clone(),
@@ -2078,7 +2092,12 @@ impl OperationalCert {
         self.sigma.clone()
     }
 
-    pub fn new(hot_vkey: &KESVKey, sequence_number: u32, kes_period: u32, sigma: &Ed25519Signature) -> Self {
+    pub fn new(
+        hot_vkey: &KESVKey,
+        sequence_number: u32,
+        kes_period: u32,
+        sigma: &Ed25519Signature,
+    ) -> Self {
         Self {
             hot_vkey: hot_vkey.clone(),
             sequence_number: sequence_number,
@@ -2152,7 +2171,19 @@ impl HeaderBody {
         self.protocol_version.clone()
     }
 
-    pub fn new(block_number: u32, slot: Slot, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+    pub fn new(
+        block_number: u32,
+        slot: Slot,
+        prev_hash: Option<BlockHash>,
+        issuer_vkey: &Vkey,
+        vrf_vkey: &VRFVKey,
+        nonce_vrf: &VRFCert,
+        leader_vrf: &VRFCert,
+        block_body_size: u32,
+        block_body_hash: &BlockHash,
+        operational_cert: &OperationalCert,
+        protocol_version: &ProtocolVersion,
+    ) -> Self {
         Self {
             block_number: block_number,
             slot: slot,

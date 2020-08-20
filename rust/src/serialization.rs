@@ -3463,7 +3463,10 @@ impl DeserializeEmbeddedGroup for ProtocolParamUpdate {
 }
 
 impl cbor_event::se::Serialize for TransactionBodies {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
         for element in &self.0 {
             element.serialize(serializer)?;
@@ -3477,7 +3480,10 @@ impl Deserialize for TransactionBodies {
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
-            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+            while match len {
+                cbor_event::Len::Len(n) => arr.len() < n as usize,
+                cbor_event::Len::Indefinite => true,
+            } {
                 if raw.cbor_type()? == CBORType::Special {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
@@ -3485,13 +3491,17 @@ impl Deserialize for TransactionBodies {
                 arr.push(TransactionBody::deserialize(raw)?);
             }
             Ok(())
-        })().map_err(|e| e.annotate("TransactionBodies"))?;
+        })()
+        .map_err(|e| e.annotate("TransactionBodies"))?;
         Ok(Self(arr))
     }
 }
 
 impl cbor_event::se::Serialize for TransactionWitnessSets {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
         for element in &self.0 {
             element.serialize(serializer)?;
@@ -3505,7 +3515,10 @@ impl Deserialize for TransactionWitnessSets {
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
-            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+            while match len {
+                cbor_event::Len::Len(n) => arr.len() < n as usize,
+                cbor_event::Len::Indefinite => true,
+            } {
                 if raw.cbor_type()? == CBORType::Special {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
@@ -3513,13 +3526,17 @@ impl Deserialize for TransactionWitnessSets {
                 arr.push(TransactionWitnessSet::deserialize(raw)?);
             }
             Ok(())
-        })().map_err(|e| e.annotate("TransactionWitnessSets"))?;
+        })()
+        .map_err(|e| e.annotate("TransactionWitnessSets"))?;
         Ok(Self(arr))
     }
 }
 
 impl cbor_event::se::Serialize for MapTransactionIndexToTransactionMetadata {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
         for (key, value) in &self.0 {
             key.serialize(serializer)?;
@@ -3534,7 +3551,10 @@ impl Deserialize for MapTransactionIndexToTransactionMetadata {
         let mut table = std::collections::BTreeMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
-            while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+            while match len {
+                cbor_event::Len::Len(n) => table.len() < n as usize,
+                cbor_event::Len::Indefinite => true,
+            } {
                 if raw.cbor_type()? == CBORType::Special {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
@@ -3542,17 +3562,24 @@ impl Deserialize for MapTransactionIndexToTransactionMetadata {
                 let key = TransactionIndex::deserialize(raw)?;
                 let value = TransactionMetadata::deserialize(raw)?;
                 if table.insert(key.clone(), value).is_some() {
-                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
+                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from(
+                        "some complicated/unsupported type",
+                    )))
+                    .into());
                 }
             }
             Ok(())
-        })().map_err(|e| e.annotate("MapTransactionIndexToTransactionMetadata"))?;
+        })()
+        .map_err(|e| e.annotate("MapTransactionIndexToTransactionMetadata"))?;
         Ok(Self(table))
     }
 }
 
 impl cbor_event::se::Serialize for Block {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(4))?;
         self.header.serialize(serializer)?;
         self.transaction_bodies.serialize(serializer)?;
@@ -3568,31 +3595,43 @@ impl Deserialize for Block {
             let len = raw.array()?;
             let ret = Self::deserialize_as_embedded_group(raw, len);
             match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Len(_) =>
+                /* TODO: check finite len somewhere */
+                {
+                    ()
+                }
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
+                    CBORSpecial::Break =>
+                    /* it's ok */
+                    {
+                        ()
+                    }
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             }
             ret
-        })().map_err(|e| e.annotate("Block"))
+        })()
+        .map_err(|e| e.annotate("Block"))
     }
 }
 
 impl DeserializeEmbeddedGroup for Block {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, _len: cbor_event::Len) -> Result<Self, DeserializeError> {
-        let header = (|| -> Result<_, DeserializeError> {
-            Ok(Header::deserialize(raw)?)
-        })().map_err(|e| e.annotate("header"))?;
-        let transaction_bodies = (|| -> Result<_, DeserializeError> {
-            Ok(TransactionBodies::deserialize(raw)?)
-        })().map_err(|e| e.annotate("transaction_bodies"))?;
-        let transaction_witness_sets = (|| -> Result<_, DeserializeError> {
-            Ok(TransactionWitnessSets::deserialize(raw)?)
-        })().map_err(|e| e.annotate("transaction_witness_sets"))?;
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(
+        raw: &mut Deserializer<R>,
+        _len: cbor_event::Len,
+    ) -> Result<Self, DeserializeError> {
+        let header = (|| -> Result<_, DeserializeError> { Ok(Header::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("header"))?;
+        let transaction_bodies =
+            (|| -> Result<_, DeserializeError> { Ok(TransactionBodies::deserialize(raw)?) })()
+                .map_err(|e| e.annotate("transaction_bodies"))?;
+        let transaction_witness_sets =
+            (|| -> Result<_, DeserializeError> { Ok(TransactionWitnessSets::deserialize(raw)?) })()
+                .map_err(|e| e.annotate("transaction_witness_sets"))?;
         let transaction_metadata_set = (|| -> Result<_, DeserializeError> {
             Ok(MapTransactionIndexToTransactionMetadata::deserialize(raw)?)
-        })().map_err(|e| e.annotate("transaction_metadata_set"))?;
+        })()
+        .map_err(|e| e.annotate("transaction_metadata_set"))?;
         Ok(Block {
             header,
             transaction_bodies,
@@ -3603,7 +3642,10 @@ impl DeserializeEmbeddedGroup for Block {
 }
 
 impl cbor_event::se::Serialize for Header {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
         self.header_body.serialize(serializer)?;
         self.body_signature.serialize(serializer)?;
@@ -3617,25 +3659,37 @@ impl Deserialize for Header {
             let len = raw.array()?;
             let ret = Self::deserialize_as_embedded_group(raw, len);
             match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Len(_) =>
+                /* TODO: check finite len somewhere */
+                {
+                    ()
+                }
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
+                    CBORSpecial::Break =>
+                    /* it's ok */
+                    {
+                        ()
+                    }
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             }
             ret
-        })().map_err(|e| e.annotate("Header"))
+        })()
+        .map_err(|e| e.annotate("Header"))
     }
 }
 
 impl DeserializeEmbeddedGroup for Header {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, _len: cbor_event::Len) -> Result<Self, DeserializeError> {
-        let header_body = (|| -> Result<_, DeserializeError> {
-            Ok(HeaderBody::deserialize(raw)?)
-        })().map_err(|e| e.annotate("header_body"))?;
-        let body_signature = (|| -> Result<_, DeserializeError> {
-            Ok(KESSignature::deserialize(raw)?)
-        })().map_err(|e| e.annotate("body_signature"))?;
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(
+        raw: &mut Deserializer<R>,
+        _len: cbor_event::Len,
+    ) -> Result<Self, DeserializeError> {
+        let header_body =
+            (|| -> Result<_, DeserializeError> { Ok(HeaderBody::deserialize(raw)?) })()
+                .map_err(|e| e.annotate("header_body"))?;
+        let body_signature =
+            (|| -> Result<_, DeserializeError> { Ok(KESSignature::deserialize(raw)?) })()
+                .map_err(|e| e.annotate("body_signature"))?;
         Ok(Header {
             header_body,
             body_signature,
@@ -3644,14 +3698,20 @@ impl DeserializeEmbeddedGroup for Header {
 }
 
 impl cbor_event::se::Serialize for OperationalCert {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(4))?;
         self.serialize_as_embedded_group(serializer)
     }
 }
 
 impl SerializeEmbeddedGroup for OperationalCert {
-    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize_as_embedded_group<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         self.hot_vkey.serialize(serializer)?;
         self.sequence_number.serialize(serializer)?;
         self.kes_period.serialize(serializer)?;
@@ -3666,31 +3726,40 @@ impl Deserialize for OperationalCert {
             let len = raw.array()?;
             let ret = Self::deserialize_as_embedded_group(raw, len);
             match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Len(_) =>
+                /* TODO: check finite len somewhere */
+                {
+                    ()
+                }
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
+                    CBORSpecial::Break =>
+                    /* it's ok */
+                    {
+                        ()
+                    }
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             }
             ret
-        })().map_err(|e| e.annotate("OperationalCert"))
+        })()
+        .map_err(|e| e.annotate("OperationalCert"))
     }
 }
 
 impl DeserializeEmbeddedGroup for OperationalCert {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, _len: cbor_event::Len) -> Result<Self, DeserializeError> {
-        let hot_vkey = (|| -> Result<_, DeserializeError> {
-            Ok(KESVKey::deserialize(raw)?)
-        })().map_err(|e| e.annotate("hot_vkey"))?;
-        let sequence_number = (|| -> Result<_, DeserializeError> {
-            Ok(u32::deserialize(raw)?)
-        })().map_err(|e| e.annotate("sequence_number"))?;
-        let kes_period = (|| -> Result<_, DeserializeError> {
-            Ok(u32::deserialize(raw)?)
-        })().map_err(|e| e.annotate("kes_period"))?;
-        let sigma = (|| -> Result<_, DeserializeError> {
-            Ok(Ed25519Signature::deserialize(raw)?)
-        })().map_err(|e| e.annotate("sigma"))?;
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(
+        raw: &mut Deserializer<R>,
+        _len: cbor_event::Len,
+    ) -> Result<Self, DeserializeError> {
+        let hot_vkey = (|| -> Result<_, DeserializeError> { Ok(KESVKey::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("hot_vkey"))?;
+        let sequence_number = (|| -> Result<_, DeserializeError> { Ok(u32::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("sequence_number"))?;
+        let kes_period = (|| -> Result<_, DeserializeError> { Ok(u32::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("kes_period"))?;
+        let sigma =
+            (|| -> Result<_, DeserializeError> { Ok(Ed25519Signature::deserialize(raw)?) })()
+                .map_err(|e| e.annotate("sigma"))?;
         Ok(OperationalCert {
             hot_vkey,
             sequence_number,
@@ -3701,14 +3770,15 @@ impl DeserializeEmbeddedGroup for OperationalCert {
 }
 
 impl cbor_event::se::Serialize for HeaderBody {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(15))?;
         self.block_number.serialize(serializer)?;
         self.slot.serialize(serializer)?;
         match &self.prev_hash {
-            Some(x) => {
-                x.serialize(serializer)
-            },
+            Some(x) => x.serialize(serializer),
             None => serializer.write_special(CBORSpecial::Null),
         }?;
         self.issuer_vkey.serialize(serializer)?;
@@ -3717,8 +3787,10 @@ impl cbor_event::se::Serialize for HeaderBody {
         self.leader_vrf.serialize(serializer)?;
         self.block_body_size.serialize(serializer)?;
         self.block_body_hash.serialize(serializer)?;
-        self.operational_cert.serialize_as_embedded_group(serializer)?;
-        self.protocol_version.serialize_as_embedded_group(serializer)?;
+        self.operational_cert
+            .serialize_as_embedded_group(serializer)?;
+        self.protocol_version
+            .serialize_as_embedded_group(serializer)?;
         Ok(serializer)
     }
 }
@@ -3729,30 +3801,38 @@ impl Deserialize for HeaderBody {
             let len = raw.array()?;
             let ret = Self::deserialize_as_embedded_group(raw, len);
             match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Len(_) =>
+                /* TODO: check finite len somewhere */
+                {
+                    ()
+                }
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
+                    CBORSpecial::Break =>
+                    /* it's ok */
+                    {
+                        ()
+                    }
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             }
             ret
-        })().map_err(|e| e.annotate("HeaderBody"))
+        })()
+        .map_err(|e| e.annotate("HeaderBody"))
     }
 }
 
 impl DeserializeEmbeddedGroup for HeaderBody {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
-        let block_number = (|| -> Result<_, DeserializeError> {
-            Ok(u32::deserialize(raw)?)
-        })().map_err(|e| e.annotate("block_number"))?;
-        let slot = (|| -> Result<_, DeserializeError> {
-            Ok(u32::deserialize(raw)?)
-        })().map_err(|e| e.annotate("slot"))?;
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(
+        raw: &mut Deserializer<R>,
+        len: cbor_event::Len,
+    ) -> Result<Self, DeserializeError> {
+        let block_number = (|| -> Result<_, DeserializeError> { Ok(u32::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("block_number"))?;
+        let slot = (|| -> Result<_, DeserializeError> { Ok(u32::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("slot"))?;
         let prev_hash = (|| -> Result<_, DeserializeError> {
             Ok(match raw.cbor_type()? != CBORType::Special {
-                true => {
-                    Some(BlockHash::deserialize(raw)?)
-                },
+                true => Some(BlockHash::deserialize(raw)?),
                 false => {
                     if raw.special()? != CBORSpecial::Null {
                         return Err(DeserializeFailure::ExpectedNull.into());
@@ -3760,31 +3840,29 @@ impl DeserializeEmbeddedGroup for HeaderBody {
                     None
                 }
             })
-        })().map_err(|e| e.annotate("prev_hash"))?;
-        let issuer_vkey = (|| -> Result<_, DeserializeError> {
-            Ok(Vkey::deserialize(raw)?)
-        })().map_err(|e| e.annotate("issuer_vkey"))?;
-        let vrf_vkey = (|| -> Result<_, DeserializeError> {
-            Ok(VRFVKey::deserialize(raw)?)
-        })().map_err(|e| e.annotate("vrf_vkey"))?;
-        let nonce_vrf = (|| -> Result<_, DeserializeError> {
-            Ok(VRFCert::deserialize(raw)?)
-        })().map_err(|e| e.annotate("nonce_vrf"))?;
-        let leader_vrf = (|| -> Result<_, DeserializeError> {
-            Ok(VRFCert::deserialize(raw)?)
-        })().map_err(|e| e.annotate("leader_vrf"))?;
-        let block_body_size = (|| -> Result<_, DeserializeError> {
-            Ok(u32::deserialize(raw)?)
-        })().map_err(|e| e.annotate("block_body_size"))?;
-        let block_body_hash = (|| -> Result<_, DeserializeError> {
-            Ok(BlockHash::deserialize(raw)?)
-        })().map_err(|e| e.annotate("block_body_hash"))?;
+        })()
+        .map_err(|e| e.annotate("prev_hash"))?;
+        let issuer_vkey = (|| -> Result<_, DeserializeError> { Ok(Vkey::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("issuer_vkey"))?;
+        let vrf_vkey = (|| -> Result<_, DeserializeError> { Ok(VRFVKey::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("vrf_vkey"))?;
+        let nonce_vrf = (|| -> Result<_, DeserializeError> { Ok(VRFCert::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("nonce_vrf"))?;
+        let leader_vrf = (|| -> Result<_, DeserializeError> { Ok(VRFCert::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("leader_vrf"))?;
+        let block_body_size = (|| -> Result<_, DeserializeError> { Ok(u32::deserialize(raw)?) })()
+            .map_err(|e| e.annotate("block_body_size"))?;
+        let block_body_hash =
+            (|| -> Result<_, DeserializeError> { Ok(BlockHash::deserialize(raw)?) })()
+                .map_err(|e| e.annotate("block_body_hash"))?;
         let operational_cert = (|| -> Result<_, DeserializeError> {
             Ok(OperationalCert::deserialize_as_embedded_group(raw, len)?)
-        })().map_err(|e| e.annotate("operational_cert"))?;
+        })()
+        .map_err(|e| e.annotate("operational_cert"))?;
         let protocol_version = (|| -> Result<_, DeserializeError> {
             Ok(ProtocolVersion::deserialize_as_embedded_group(raw, len)?)
-        })().map_err(|e| e.annotate("protocol_version"))?;
+        })()
+        .map_err(|e| e.annotate("protocol_version"))?;
         Ok(HeaderBody {
             block_number,
             slot,
