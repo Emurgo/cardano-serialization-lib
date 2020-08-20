@@ -1,7 +1,6 @@
+use crate::chain_crypto as crypto;
+use crate::impl_mockchain::key;
 use cbor_event::{de::Deserializer, se::Serializer};
-use chain::key;
-use chain_crypto as crypto;
-use chain_impl_mockchain as chain;
 use crypto::bech32::Bech32 as _;
 use rand_os::OsRng;
 use std::io::{BufRead, Seek, Write};

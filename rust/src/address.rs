@@ -1,6 +1,6 @@
 use super::*;
-use bech32::ToBase32;
-use cardano_legacy_address::ExtendedAddr;
+use crate::legacy_address::ExtendedAddr;
+use bech32::{FromBase32, ToBase32};
 use ed25519_bip32::XPub;
 
 // returns (Number represented, bytes read) if valid encoding
@@ -81,17 +81,20 @@ impl StakeCredential {
 to_from_bytes!(StakeCredential);
 
 impl cbor_event::se::Serialize for StakeCredential {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
         match &self.0 {
             StakeCredType::Key(keyhash) => {
                 serializer.write_unsigned_integer(0u64)?;
                 serializer.write_bytes(keyhash.to_bytes())
-            },
+            }
             StakeCredType::Script(scripthash) => {
                 serializer.write_unsigned_integer(1u64)?;
                 serializer.write_bytes(scripthash.to_bytes())
-            },
+            }
         }
     }
 }
@@ -102,25 +105,34 @@ impl Deserialize for StakeCredential {
             let len = raw.array()?;
             if let cbor_event::Len::Len(n) = len {
                 if n != 2 {
-                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(2, len, "[id, hash]")).into())
+                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
+                        2,
+                        len,
+                        "[id, hash]",
+                    ))
+                    .into());
                 }
             }
             let cred_type = match raw.unsigned_integer()? {
                 0 => StakeCredType::Key(Ed25519KeyHash::deserialize(raw)?),
                 1 => StakeCredType::Script(ScriptHash::deserialize(raw)?),
-                n => return Err(DeserializeFailure::FixedValueMismatch{
-                    found: Key::Uint(n),
-                    // TODO: change codegen to make FixedValueMismatch support Vec<Key> or ranges or something
-                    expected: Key::Uint(0),
-                }.into()),
+                n => {
+                    return Err(DeserializeFailure::FixedValueMismatch {
+                        found: Key::Uint(n),
+                        // TODO: change codegen to make FixedValueMismatch support Vec<Key> or ranges or something
+                        expected: Key::Uint(0),
+                    }
+                    .into());
+                }
             };
             if let cbor_event::Len::Indefinite = len {
-                 if raw.special()? != CBORSpecial::Break {
+                if raw.special()? != CBORSpecial::Break {
                     return Err(DeserializeFailure::EndingBreakMissing.into());
                 }
             }
             Ok(StakeCredential(cred_type))
-        })().map_err(|e| e.annotate("StakeCredential"))
+        })()
+        .map_err(|e| e.annotate("StakeCredential"))
     }
 }
 
@@ -135,7 +147,7 @@ enum AddrType {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
-pub struct ByronAddress(pub (crate) ExtendedAddr);
+pub struct ByronAddress(pub(crate) ExtendedAddr);
 #[wasm_bindgen]
 impl ByronAddress {
     pub fn to_base58(&self) -> String {
@@ -161,16 +173,22 @@ impl ByronAddress {
         // recall: in Byron mainnet, the network_id is omitted from the address to save a few bytes
         let mainnet_network_id = 764824073;
         // so here we return the mainnet id if none is found in the address
-        
+
         match self.0.attributes.network_magic {
             // although mainnet should never be explicitly added, we check for it just in case
-            Some(x) => if x == mainnet_network_id { 0b0001 } else { 0b000 },
+            Some(x) => {
+                if x == mainnet_network_id {
+                    0b0001
+                } else {
+                    0b000
+                }
+            }
             None => 0b0001, // mainnet is implied if omitted
         }
     }
 
     pub fn from_base58(s: &str) -> Result<ByronAddress, JsValue> {
-        use std::str::FromStr;
+        //use std::str::FromStr;
         ExtendedAddr::from_str(s)
             .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
             .map(ByronAddress)
@@ -182,12 +200,19 @@ impl ByronAddress {
         out.clone_from_slice(&key.as_bytes());
 
         // need to ensure we use None for mainnet since Byron-era addresses omitted the network id
-        let mapped_network_id = if network == 0b0001 { None } else { Some(0b000 as u32) }; 
-        ByronAddress(ExtendedAddr::new_simple(& XPub::from_bytes(out), mapped_network_id))
+        let mapped_network_id = if network == 0b0001 {
+            None
+        } else {
+            Some(0b000 as u32)
+        };
+        ByronAddress(ExtendedAddr::new_simple(
+            &XPub::from_bytes(out),
+            mapped_network_id,
+        ))
     }
 
     pub fn is_valid(s: &str) -> bool {
-        use std::str::FromStr;
+        //use std::str::FromStr
         match ExtendedAddr::from_str(s) {
             Ok(_v) => true,
             Err(_err) => false,
@@ -199,7 +224,7 @@ impl ByronAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<ByronAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Byron(byron) => Some(byron.clone()),
             _ => None,
         }
@@ -210,9 +235,7 @@ impl ByronAddress {
 #[derive(Debug, Clone)]
 pub struct Address(AddrType);
 
-from_bytes!(Address, data, {
-    Self::from_bytes_impl(data.as_ref())
-});
+from_bytes!(Address, data, { Self::from_bytes_impl(data.as_ref()) });
 
 // to/from_bytes() are the raw encoding without a wrapping CBOR Bytes tag
 // while Serialize and Deserialize traits include that for inclusion with
@@ -223,40 +246,33 @@ impl Address {
         let mut buf = Vec::new();
         match &self.0 {
             AddrType::Base(base) => {
-                let header: u8 = (base.payment.kind() << 4)
-                           | (base.stake.kind() << 5)
-                           | (base.network & 0xF);
+                let header: u8 =
+                    (base.payment.kind() << 4) | (base.stake.kind() << 5) | (base.network & 0xF);
                 buf.push(header);
                 buf.extend(base.payment.to_raw_bytes());
                 buf.extend(base.stake.to_raw_bytes());
-            },
+            }
             AddrType::Ptr(ptr) => {
-                let header: u8 = 0b0100_0000
-                               | (ptr.payment.kind() << 4)
-                               | (ptr.network & 0xF);
+                let header: u8 = 0b0100_0000 | (ptr.payment.kind() << 4) | (ptr.network & 0xF);
                 buf.push(header);
                 buf.extend(ptr.payment.to_raw_bytes());
                 buf.extend(variable_nat_encode(ptr.stake.slot.into()));
                 buf.extend(variable_nat_encode(ptr.stake.tx_index.into()));
                 buf.extend(variable_nat_encode(ptr.stake.cert_index.into()));
-            },
+            }
             AddrType::Enterprise(enterprise) => {
-                let header: u8 = 0b0110_0000
-                               | (enterprise.payment.kind() << 4)
-                               | (enterprise.network & 0xF);
+                let header: u8 =
+                    0b0110_0000 | (enterprise.payment.kind() << 4) | (enterprise.network & 0xF);
                 buf.push(header);
                 buf.extend(enterprise.payment.to_raw_bytes());
-            },
+            }
             AddrType::Reward(reward) => {
-                let header: u8 = 0b1110_0000
-                                | (reward.payment.kind() << 4)
-                                | (reward.network & 0xF);
+                let header: u8 =
+                    0b1110_0000 | (reward.payment.kind() << 4) | (reward.network & 0xF);
                 buf.push(header);
                 buf.extend(reward.payment.to_raw_bytes());
-            },
-            AddrType::Byron(byron) => {
-                buf.extend(byron.to_bytes())
-            },
+            }
+            AddrType::Byron(byron) => buf.extend(byron.to_bytes()),
         }
         println!("to_bytes({:?}) = {:?}", self, buf);
         buf
@@ -290,8 +306,8 @@ impl Address {
             assert_eq!(ScriptHash::BYTE_COUNT, HASH_LEN);
             // checks the /bit/ bit of the header for key vs scripthash then reads the credential starting at byte position /pos/
             let read_addr_cred = |bit: u8, pos: usize| {
-                let hash_bytes: [u8; HASH_LEN] = data[pos..pos+HASH_LEN].try_into().unwrap();
-                let x = if header & (1 << bit)  == 0 {
+                let hash_bytes: [u8; HASH_LEN] = data[pos..pos + HASH_LEN].try_into().unwrap();
+                let x = if header & (1 << bit) == 0 {
                     StakeCredential::from_keyhash(&Ed25519KeyHash::from(hash_bytes))
                 } else {
                     StakeCredential::from_scripthash(&ScriptHash::from(hash_bytes))
@@ -309,56 +325,91 @@ impl Address {
                     if data.len() > BASE_ADDR_SIZE {
                         return Err(cbor_event::Error::TrailingData.into());
                     }
-                    AddrType::Base(BaseAddress::new(network, &read_addr_cred(4, 1), &read_addr_cred(5, 1 + HASH_LEN)))
-                },
+                    AddrType::Base(BaseAddress::new(
+                        network,
+                        &read_addr_cred(4, 1),
+                        &read_addr_cred(5, 1 + HASH_LEN),
+                    ))
+                }
                 // pointer
                 0b0100 | 0b0101 => {
                     // header + keyhash + 3 natural numbers (min 1 byte each)
                     const PTR_ADDR_MIN_SIZE: usize = 1 + HASH_LEN + 1 + 1 + 1;
                     if data.len() < PTR_ADDR_MIN_SIZE {
                         // possibly more, but depends on how many bytes the natural numbers are for the pointer
-                        return Err(cbor_event::Error::NotEnough(data.len(), PTR_ADDR_MIN_SIZE).into());
+                        return Err(
+                            cbor_event::Error::NotEnough(data.len(), PTR_ADDR_MIN_SIZE).into()
+                        );
                     }
                     let mut byte_index = 1;
                     let payment_cred = read_addr_cred(4, 1);
                     byte_index += HASH_LEN;
-                    let (slot, slot_bytes) = variable_nat_decode(&data[byte_index..])
-                        .ok_or(DeserializeError::new("Address.Pointer.slot", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                    let (slot, slot_bytes) =
+                        variable_nat_decode(&data[byte_index..]).ok_or(DeserializeError::new(
+                            "Address.Pointer.slot",
+                            DeserializeFailure::VariableLenNatDecodeFailed,
+                        ))?;
                     byte_index += slot_bytes;
-                    let (tx_index, tx_bytes) = variable_nat_decode(&data[byte_index..])
-                        .ok_or(DeserializeError::new("Address.Pointer.tx_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                    let (tx_index, tx_bytes) =
+                        variable_nat_decode(&data[byte_index..]).ok_or(DeserializeError::new(
+                            "Address.Pointer.tx_index",
+                            DeserializeFailure::VariableLenNatDecodeFailed,
+                        ))?;
                     byte_index += tx_bytes;
-                    let (cert_index, cert_bytes) = variable_nat_decode(&data[byte_index..])
-                        .ok_or(DeserializeError::new("Address.Pointer.cert_index", DeserializeFailure::VariableLenNatDecodeFailed))?;
+                    let (cert_index, cert_bytes) =
+                        variable_nat_decode(&data[byte_index..]).ok_or(DeserializeError::new(
+                            "Address.Pointer.cert_index",
+                            DeserializeFailure::VariableLenNatDecodeFailed,
+                        ))?;
                     byte_index += cert_bytes;
                     if byte_index < data.len() {
                         return Err(cbor_event::Error::TrailingData.into());
                     }
-                    AddrType::Ptr(
-                        PointerAddress::new(
-                            network,
-                            &payment_cred,
-                            &Pointer::new(
-                                slot.try_into().map_err(|_| DeserializeError::new("Address.Pointer.slot", DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32)))?,
-                                tx_index.try_into().map_err(|_| DeserializeError::new("Address.Pointer.tx_index", DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32)))?,
-                                cert_index.try_into().map_err(|_| DeserializeError::new("Address.Pointer.cert_index", DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32)))?)))
-                },
+                    AddrType::Ptr(PointerAddress::new(
+                        network,
+                        &payment_cred,
+                        &Pointer::new(
+                            slot.try_into().map_err(|_| {
+                                DeserializeError::new(
+                                    "Address.Pointer.slot",
+                                    DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32),
+                                )
+                            })?,
+                            tx_index.try_into().map_err(|_| {
+                                DeserializeError::new(
+                                    "Address.Pointer.tx_index",
+                                    DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32),
+                                )
+                            })?,
+                            cert_index.try_into().map_err(|_| {
+                                DeserializeError::new(
+                                    "Address.Pointer.cert_index",
+                                    DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32),
+                                )
+                            })?,
+                        ),
+                    ))
+                }
                 // enterprise
                 0b0110 | 0b0111 => {
                     const ENTERPRISE_ADDR_SIZE: usize = 1 + HASH_LEN;
                     if data.len() < ENTERPRISE_ADDR_SIZE {
-                        return Err(cbor_event::Error::NotEnough(data.len(), ENTERPRISE_ADDR_SIZE).into());
+                        return Err(
+                            cbor_event::Error::NotEnough(data.len(), ENTERPRISE_ADDR_SIZE).into(),
+                        );
                     }
                     if data.len() > ENTERPRISE_ADDR_SIZE {
                         return Err(cbor_event::Error::TrailingData.into());
                     }
                     AddrType::Enterprise(EnterpriseAddress::new(network, &read_addr_cred(4, 1)))
-                },
+                }
                 // reward
                 0b1110 | 0b1111 => {
                     const REWARD_ADDR_SIZE: usize = 1 + HASH_LEN;
                     if data.len() < REWARD_ADDR_SIZE {
-                        return Err(cbor_event::Error::NotEnough(data.len(), REWARD_ADDR_SIZE).into());
+                        return Err(
+                            cbor_event::Error::NotEnough(data.len(), REWARD_ADDR_SIZE).into()
+                        );
                     }
                     if data.len() > REWARD_ADDR_SIZE {
                         return Err(cbor_event::Error::TrailingData.into());
@@ -371,22 +422,33 @@ impl Address {
                     // Therefore you can re-use Byron addresses as-is
                     match ByronAddress::from_bytes(data.to_vec()) {
                         Ok(addr) => AddrType::Byron(addr),
-                        Err(e) => return Err(cbor_event::Error::CustomError(e.as_string().unwrap_or_default()).into()),
+                        Err(e) => {
+                            return Err(cbor_event::Error::CustomError(
+                                e.as_string().unwrap_or_default(),
+                            )
+                            .into())
+                        }
                     }
-                },
+                }
                 _ => return Err(DeserializeFailure::BadAddressType(header).into()),
             };
             Ok(Address(addr))
-        })().map_err(|e| e.annotate("Address"))
+        })()
+        .map_err(|e| e.annotate("Address"))
     }
 
     pub fn to_bech32(&self, prefix: Option<String>) -> String {
-        bech32::encode(&prefix.unwrap_or("addr".to_string()), self.to_bytes().to_base32()).unwrap()
+        bech32::encode(
+            &prefix.unwrap_or("addr".to_string()),
+            self.to_bytes().to_base32(),
+        )
+        .unwrap()
     }
 
     pub fn from_bech32(bech_str: &str) -> Result<Address, JsValue> {
-        let (_hrp, u5data) = bech32::decode(bech_str).map_err(|e| JsValue::from_str(&e.to_string()))?;
-        let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data).unwrap();
+        let (_hrp, u5data) =
+            bech32::decode(bech_str).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        let data: Vec<u8> = FromBase32::from_base32(&u5data).unwrap();
         Ok(Self::from_bytes_impl(data.as_ref())?)
     }
 
@@ -402,7 +464,10 @@ impl Address {
 }
 
 impl cbor_event::se::Serialize for Address {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_bytes(self.to_bytes())
     }
 }
@@ -444,13 +509,12 @@ impl BaseAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<BaseAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Base(base) => Some(base.clone()),
             _ => None,
         }
     }
 }
-
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
@@ -477,7 +541,7 @@ impl EnterpriseAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<EnterpriseAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Enterprise(enterprise) => Some(enterprise.clone()),
             _ => None,
         }
@@ -509,7 +573,7 @@ impl RewardAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<RewardAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Reward(reward) => Some(reward.clone()),
             _ => None,
         }
@@ -518,7 +582,10 @@ impl RewardAddress {
 
 // needed since we treat RewardAccount like RewardAddress
 impl cbor_event::se::Serialize for RewardAddress {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         self.to_address().serialize(serializer)
     }
 }
@@ -531,7 +598,8 @@ impl Deserialize for RewardAddress {
                 AddrType::Reward(ra) => Ok(ra),
                 _other_address => Err(DeserializeFailure::BadAddressType(bytes[0]).into()),
             }
-        })().map_err(|e| e.annotate("RewardAddress"))
+        })()
+        .map_err(|e| e.annotate("RewardAddress"))
     }
 }
 
@@ -597,7 +665,7 @@ impl PointerAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<PointerAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Ptr(ptr) => Some(ptr.clone()),
             _ => None,
         }
@@ -611,13 +679,7 @@ mod tests {
 
     #[test]
     fn variable_nat_encoding() {
-        let cases = [
-            0u64,
-            127u64,
-            128u64,
-            255u64,
-            256275757658493284u64
-        ];
+        let cases = [0u64, 127u64, 128u64, 255u64, 256275757658493284u64];
         for case in cases.iter() {
             let encoded = variable_nat_encode(*case);
             let decoded = variable_nat_decode(&encoded).unwrap().0;
@@ -630,7 +692,8 @@ mod tests {
         let base = BaseAddress::new(
             5,
             &StakeCredential::from_keyhash(&Ed25519KeyHash::from([23; Ed25519KeyHash::BYTE_COUNT])),
-            &StakeCredential::from_scripthash(&ScriptHash::from([42; ScriptHash::BYTE_COUNT])));
+            &StakeCredential::from_scripthash(&ScriptHash::from([42; ScriptHash::BYTE_COUNT])),
+        );
         let addr = base.to_address();
         let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -641,7 +704,8 @@ mod tests {
         let ptr = PointerAddress::new(
             25,
             &StakeCredential::from_keyhash(&Ed25519KeyHash::from([23; Ed25519KeyHash::BYTE_COUNT])),
-            &Pointer::new(2354556573, 127, 0));
+            &Pointer::new(2354556573, 127, 0),
+        );
         let addr = ptr.to_address();
         let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -651,7 +715,8 @@ mod tests {
     fn enterprise_serialize_consistency() {
         let enterprise = EnterpriseAddress::new(
             64,
-            &StakeCredential::from_keyhash(&Ed25519KeyHash::from([23; Ed25519KeyHash::BYTE_COUNT])));
+            &StakeCredential::from_keyhash(&Ed25519KeyHash::from([23; Ed25519KeyHash::BYTE_COUNT])),
+        );
         let addr = enterprise.to_address();
         let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -661,7 +726,8 @@ mod tests {
     fn reward_serialize_consistency() {
         let reward = RewardAddress::new(
             9,
-            &StakeCredential::from_scripthash(&ScriptHash::from([127; Ed25519KeyHash::BYTE_COUNT])));
+            &StakeCredential::from_scripthash(&ScriptHash::from([127; Ed25519KeyHash::BYTE_COUNT])),
+        );
         let addr = reward.to_address();
         let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -669,18 +735,28 @@ mod tests {
 
     fn root_key_12() -> Bip32PrivateKey {
         // test walk nut penalty hip pave soap entry language right filter choice
-        let entropy = [0xdf, 0x9e, 0xd2, 0x5e, 0xd1, 0x46, 0xbf, 0x43, 0x33, 0x6a, 0x5d, 0x7c, 0xf7, 0x39, 0x59, 0x94];
+        let entropy = [
+            0xdf, 0x9e, 0xd2, 0x5e, 0xd1, 0x46, 0xbf, 0x43, 0x33, 0x6a, 0x5d, 0x7c, 0xf7, 0x39,
+            0x59, 0x94,
+        ];
         Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
     }
 
     fn root_key_15() -> Bip32PrivateKey {
         // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
-        let entropy = [0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12];
+        let entropy = [
+            0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22,
+            0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12,
+        ];
         Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
     }
 
     fn root_key_24() -> Bip32PrivateKey {
-        let entropy = [0x4e, 0x82, 0x8f, 0x9a, 0x67, 0xdd, 0xcf, 0xf0, 0xe6, 0x39, 0x1a, 0xd4, 0xf2, 0x6d, 0xdb, 0x75, 0x79, 0xf5, 0x9b, 0xa1, 0x4b, 0x6d, 0xd4, 0xba, 0xf6, 0x3d, 0xcf, 0xdb, 0x9d, 0x24, 0x20, 0xda];
+        let entropy = [
+            0x4e, 0x82, 0x8f, 0x9a, 0x67, 0xdd, 0xcf, 0xf0, 0xe6, 0x39, 0x1a, 0xd4, 0xf2, 0x6d,
+            0xdb, 0x75, 0x79, 0xf5, 0x9b, 0xa1, 0x4b, 0x6d, 0xd4, 0xba, 0xf6, 0x3d, 0xcf, 0xdb,
+            0x9d, 0x24, 0x20, 0xda,
+        ];
         Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
     }
 
@@ -723,9 +799,15 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = EnterpriseAddress::new(0, &spend_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers6g8jlq");
+        assert_eq!(
+            addr_net_0.to_bech32(None),
+            "addr1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers6g8jlq"
+        );
         let addr_net_3 = EnterpriseAddress::new(3, &spend_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1vw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers6h7glf");
+        assert_eq!(
+            addr_net_3.to_bech32(None),
+            "addr1vw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers6h7glf"
+        );
     }
 
     #[test]
@@ -739,9 +821,16 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = PointerAddress::new(0, &spend_cred, &Pointer::new(1, 2, 3)).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspqgpslhplej");
-        let addr_net_3 = PointerAddress::new(3, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1gw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2x4v58t");
+        assert_eq!(
+            addr_net_0.to_bech32(None),
+            "addr1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspqgpslhplej"
+        );
+        let addr_net_3 =
+            PointerAddress::new(3, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(
+            addr_net_3.to_bech32(None),
+            "addr1gw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2x4v58t"
+        );
     }
 
     #[test]
@@ -779,9 +868,15 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = EnterpriseAddress::new(0, &spend_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0yu80w");
+        assert_eq!(
+            addr_net_0.to_bech32(None),
+            "addr1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0yu80w"
+        );
         let addr_net_3 = EnterpriseAddress::new(3, &spend_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1vdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0m9a08");
+        assert_eq!(
+            addr_net_3.to_bech32(None),
+            "addr1vdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0m9a08"
+        );
     }
 
     #[test]
@@ -795,9 +890,16 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = PointerAddress::new(0, &spend_cred, &Pointer::new(1, 2, 3)).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsjej5ck");
-        let addr_net_3 = PointerAddress::new(3, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1gdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5evph3wczvf27l8yfx");
+        assert_eq!(
+            addr_net_0.to_bech32(None),
+            "addr1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsjej5ck"
+        );
+        let addr_net_3 =
+            PointerAddress::new(3, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(
+            addr_net_3.to_bech32(None),
+            "addr1gdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5evph3wczvf27l8yfx"
+        );
     }
 
     #[test]
@@ -810,11 +912,18 @@ mod tests {
             .derive(0)
             .to_public();
         let byron_addr = ByronAddress::from_icarus_key(&byron_key, 0b0001);
-        assert_eq!(byron_addr.to_base58(), "Ae2tdPwUPEZHtBmjZBF4YpMkK9tMSPTE2ADEZTPN97saNkhG78TvXdp3GDk");
-        assert!(ByronAddress::is_valid("Ae2tdPwUPEZHtBmjZBF4YpMkK9tMSPTE2ADEZTPN97saNkhG78TvXdp3GDk"));
+        assert_eq!(
+            byron_addr.to_base58(),
+            "Ae2tdPwUPEZHtBmjZBF4YpMkK9tMSPTE2ADEZTPN97saNkhG78TvXdp3GDk"
+        );
+        assert!(ByronAddress::is_valid(
+            "Ae2tdPwUPEZHtBmjZBF4YpMkK9tMSPTE2ADEZTPN97saNkhG78TvXdp3GDk"
+        ));
         assert_eq!(byron_addr.network_id(), 0b0001);
 
-        let byron_addr_2 = ByronAddress::from_address(&Address::from_bytes(byron_addr.to_bytes()).unwrap()).unwrap();
+        let byron_addr_2 =
+            ByronAddress::from_address(&Address::from_bytes(byron_addr.to_bytes()).unwrap())
+                .unwrap();
         assert_eq!(byron_addr.to_base58(), byron_addr_2.to_base58());
     }
 
@@ -853,9 +962,15 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = EnterpriseAddress::new(0, &spend_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqsg0y49");
+        assert_eq!(
+            addr_net_0.to_bech32(None),
+            "addr1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqsg0y49"
+        );
         let addr_net_3 = EnterpriseAddress::new(3, &spend_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1vvy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqshk74v");
+        assert_eq!(
+            addr_net_3.to_bech32(None),
+            "addr1vvy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqshk74v"
+        );
     }
 
     #[test]
@@ -869,8 +984,15 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = PointerAddress::new(0, &spend_cred, &Pointer::new(1, 2, 3)).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgpst4xf0c");
-        let addr_net_3 = PointerAddress::new(3, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1gvy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnyph3wczvf29j6huk");
+        assert_eq!(
+            addr_net_0.to_bech32(None),
+            "addr1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgpst4xf0c"
+        );
+        let addr_net_3 =
+            PointerAddress::new(3, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(
+            addr_net_3.to_bech32(None),
+            "addr1gvy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnyph3wczvf29j6huk"
+        );
     }
 }

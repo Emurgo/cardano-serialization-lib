@@ -1,6 +1,6 @@
+use crate::chain_crypto;
 use cbor_event;
 use wasm_bindgen::prelude::*;
-
 // This file was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
 

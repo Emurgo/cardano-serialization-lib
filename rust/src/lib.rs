@@ -1,19 +1,43 @@
+#![cfg_attr(feature = "with-bench", feature(test))]
+
+#[macro_use]
+extern crate cfg_if;
+
+#[cfg(test)]
+#[cfg(feature = "with-bench")]
+extern crate test;
+
+#[cfg(test)]
+extern crate quickcheck;
+#[cfg(test)]
+#[macro_use(quickcheck)]
+extern crate quickcheck_macros;
+extern crate hex;
+extern crate rand_core;
+
 use std::io::{BufRead, Seek, Write};
+use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 
-// This file was code-generated using an experimental CDDL to rust tool:
-// https://github.com/Emurgo/cddl-codegen
-
-use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
-use cbor_event::Type as CBORType;
 use cbor_event::Special as CBORSpecial;
+use cbor_event::Type as CBORType;
+use cbor_event::{
+    self,
+    de::Deserializer,
+    se::{Serialize, Serializer},
+};
 
 pub mod address;
+pub mod chain_core;
+pub mod chain_crypto;
 pub mod crypto;
 pub mod error;
 pub mod fees;
+pub mod impl_mockchain;
+pub mod legacy_address;
 pub mod serialization;
 pub mod tx_builder;
+pub mod typed_bytes;
 #[macro_use]
 pub mod utils;
 
@@ -77,7 +101,11 @@ impl Transaction {
         self.metadata.clone()
     }
 
-    pub fn new(body: &TransactionBody, witness_set: &TransactionWitnessSet, metadata: Option<TransactionMetadata>) -> Self {
+    pub fn new(
+        body: &TransactionBody,
+        witness_set: &TransactionWitnessSet,
+        metadata: Option<TransactionMetadata>,
+    ) -> Self {
         Self {
             body: body.clone(),
             witness_set: witness_set.clone(),
@@ -230,8 +258,12 @@ impl TransactionBody {
         self.metadata_hash.clone()
     }
 
-
-    pub fn new(inputs: &TransactionInputs, outputs: &TransactionOutputs, fee: &Coin, ttl: u32) -> Self {
+    pub fn new(
+        inputs: &TransactionInputs,
+        outputs: &TransactionOutputs,
+        fee: &Coin,
+        ttl: u32,
+    ) -> Self {
         Self {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
@@ -472,7 +504,17 @@ impl PoolParams {
         self.pool_metadata.clone()
     }
 
-    pub fn new(operator: &Ed25519KeyHash, vrf_keyhash: &VRFKeyHash, pledge: &Coin, cost: &Coin, margin: &UnitInterval, reward_account: &RewardAddress, pool_owners: &Ed25519KeyHashes, relays: &Relays, pool_metadata: Option<PoolMetadata>) -> Self {
+    pub fn new(
+        operator: &Ed25519KeyHash,
+        vrf_keyhash: &VRFKeyHash,
+        pledge: &Coin,
+        cost: &Coin,
+        margin: &UnitInterval,
+        reward_account: &RewardAddress,
+        pool_owners: &Ed25519KeyHashes,
+        relays: &Relays,
+        pool_metadata: Option<PoolMetadata>,
+    ) -> Self {
         Self {
             operator: operator.clone(),
             vrf_keyhash: vrf_keyhash.clone(),
@@ -559,7 +601,11 @@ impl GenesisKeyDelegation {
         self.vrf_keyhash.clone()
     }
 
-    pub fn new(genesishash: &GenesisHash, genesis_delegate_hash: &GenesisDelegateHash, vrf_keyhash: &VRFKeyHash) -> Self {
+    pub fn new(
+        genesishash: &GenesisHash,
+        genesis_delegate_hash: &GenesisDelegateHash,
+        vrf_keyhash: &VRFKeyHash,
+    ) -> Self {
         Self {
             genesishash: genesishash.clone(),
             genesis_delegate_hash: genesis_delegate_hash.clone(),
@@ -621,11 +667,15 @@ to_from_bytes!(Certificate);
 #[wasm_bindgen]
 impl Certificate {
     pub fn new_stake_registration(stake_registration: &StakeRegistration) -> Self {
-        Self(CertificateEnum::StakeRegistration(stake_registration.clone()))
+        Self(CertificateEnum::StakeRegistration(
+            stake_registration.clone(),
+        ))
     }
 
     pub fn new_stake_deregistration(stake_deregistration: &StakeDeregistration) -> Self {
-        Self(CertificateEnum::StakeDeregistration(stake_deregistration.clone()))
+        Self(CertificateEnum::StakeDeregistration(
+            stake_deregistration.clone(),
+        ))
     }
 
     pub fn new_stake_delegation(stake_delegation: &StakeDelegation) -> Self {
@@ -641,11 +691,17 @@ impl Certificate {
     }
 
     pub fn new_genesis_key_delegation(genesis_key_delegation: &GenesisKeyDelegation) -> Self {
-        Self(CertificateEnum::GenesisKeyDelegation(genesis_key_delegation.clone()))
+        Self(CertificateEnum::GenesisKeyDelegation(
+            genesis_key_delegation.clone(),
+        ))
     }
 
-    pub fn new_move_instantaneous_rewards_cert(move_instantaneous_rewards_cert: &MoveInstantaneousRewardsCert) -> Self {
-        Self(CertificateEnum::MoveInstantaneousRewardsCert(move_instantaneous_rewards_cert.clone()))
+    pub fn new_move_instantaneous_rewards_cert(
+        move_instantaneous_rewards_cert: &MoveInstantaneousRewardsCert,
+    ) -> Self {
+        Self(CertificateEnum::MoveInstantaneousRewardsCert(
+            move_instantaneous_rewards_cert.clone(),
+        ))
     }
 
     pub fn kind(&self) -> CertificateKind {
@@ -656,7 +712,9 @@ impl Certificate {
             CertificateEnum::PoolRegistration(_) => CertificateKind::PoolRegistration,
             CertificateEnum::PoolRetirement(_) => CertificateKind::PoolRetirement,
             CertificateEnum::GenesisKeyDelegation(_) => CertificateKind::GenesisKeyDelegation,
-            CertificateEnum::MoveInstantaneousRewardsCert(_) => CertificateKind::MoveInstantaneousRewardsCert,
+            CertificateEnum::MoveInstantaneousRewardsCert(_) => {
+                CertificateKind::MoveInstantaneousRewardsCert
+            }
         }
     }
 
@@ -731,7 +789,7 @@ impl MoveInstantaneousReward {
     pub fn new(pot: MIRPot) -> Self {
         Self {
             pot,
-            rewards: std::collections::BTreeMap::new()
+            rewards: std::collections::BTreeMap::new(),
         }
     }
 
@@ -748,7 +806,12 @@ impl MoveInstantaneousReward {
     }
 
     pub fn keys(&self) -> StakeCredentials {
-        StakeCredentials(self.rewards.iter().map(|(k, _v)| k.clone()).collect::<Vec<StakeCredential>>())
+        StakeCredentials(
+            self.rewards
+                .iter()
+                .map(|(k, _v)| k.clone())
+                .collect::<Vec<StakeCredential>>(),
+        )
     }
 }
 
@@ -857,9 +920,7 @@ impl MultiHostName {
     }
 
     pub fn new(dns_name: DnsName) -> Self {
-        Self {
-            dns_name: dns_name,
-        }
+        Self { dns_name: dns_name }
     }
 }
 
@@ -982,7 +1043,6 @@ impl StakeCredentials {
     }
 }
 
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct RewardAddresses(Vec<RewardAddress>);
@@ -1033,7 +1093,12 @@ impl Withdrawals {
     }
 
     pub fn keys(&self) -> RewardAddresses {
-        RewardAddresses(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<RewardAddress>>())
+        RewardAddresses(
+            self.0
+                .iter()
+                .map(|(k, _v)| k.clone())
+                .collect::<Vec<RewardAddress>>(),
+        )
     }
 }
 
@@ -1109,7 +1174,9 @@ impl TransactionWitnessSet {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MapTransactionMetadatumToTransactionMetadatum(std::collections::BTreeMap<TransactionMetadatum, TransactionMetadatum>);
+pub struct MapTransactionMetadatumToTransactionMetadatum(
+    std::collections::BTreeMap<TransactionMetadatum, TransactionMetadatum>,
+);
 
 to_from_bytes!(MapTransactionMetadatumToTransactionMetadatum);
 
@@ -1123,7 +1190,11 @@ impl MapTransactionMetadatumToTransactionMetadatum {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &TransactionMetadatum, value: &TransactionMetadatum) -> Option<TransactionMetadatum> {
+    pub fn insert(
+        &mut self,
+        key: &TransactionMetadatum,
+        value: &TransactionMetadatum,
+    ) -> Option<TransactionMetadatum> {
         self.0.insert(key.clone(), value.clone())
     }
 
@@ -1132,7 +1203,12 @@ impl MapTransactionMetadatumToTransactionMetadatum {
     }
 
     pub fn keys(&self) -> TransactionMetadatums {
-        TransactionMetadatums(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<TransactionMetadatum>>())
+        TransactionMetadatums(
+            self.0
+                .iter()
+                .map(|(k, _v)| k.clone())
+                .collect::<Vec<TransactionMetadatum>>(),
+        )
     }
 }
 
@@ -1188,12 +1264,22 @@ to_from_bytes!(TransactionMetadatum);
 
 #[wasm_bindgen]
 impl TransactionMetadatum {
-    pub fn new_map_transaction_metadatum_to_transaction_metadatum(map_transaction_metadatum_to_transaction_metadatum: &MapTransactionMetadatumToTransactionMetadatum) -> Self {
-        Self(TransactionMetadatumEnum::MapTransactionMetadatumToTransactionMetadatum(map_transaction_metadatum_to_transaction_metadatum.clone()))
+    pub fn new_map_transaction_metadatum_to_transaction_metadatum(
+        map_transaction_metadatum_to_transaction_metadatum: &MapTransactionMetadatumToTransactionMetadatum,
+    ) -> Self {
+        Self(
+            TransactionMetadatumEnum::MapTransactionMetadatumToTransactionMetadatum(
+                map_transaction_metadatum_to_transaction_metadatum.clone(),
+            ),
+        )
     }
 
-    pub fn new_arr_transaction_metadatum(arr_transaction_metadatum: &TransactionMetadatums) -> Self {
-        Self(TransactionMetadatumEnum::ArrTransactionMetadatum(arr_transaction_metadatum.clone()))
+    pub fn new_arr_transaction_metadatum(
+        arr_transaction_metadatum: &TransactionMetadatums,
+    ) -> Self {
+        Self(TransactionMetadatumEnum::ArrTransactionMetadatum(
+            arr_transaction_metadatum.clone(),
+        ))
     }
 
     pub fn new_int(int: &Int) -> Self {
@@ -1210,17 +1296,25 @@ impl TransactionMetadatum {
 
     pub fn kind(&self) -> TransactionMetadatumKind {
         match &self.0 {
-            TransactionMetadatumEnum::MapTransactionMetadatumToTransactionMetadatum(_) => TransactionMetadatumKind::MapTransactionMetadatumToTransactionMetadatum,
-            TransactionMetadatumEnum::ArrTransactionMetadatum(_) => TransactionMetadatumKind::ArrTransactionMetadatum,
+            TransactionMetadatumEnum::MapTransactionMetadatumToTransactionMetadatum(_) => {
+                TransactionMetadatumKind::MapTransactionMetadatumToTransactionMetadatum
+            }
+            TransactionMetadatumEnum::ArrTransactionMetadatum(_) => {
+                TransactionMetadatumKind::ArrTransactionMetadatum
+            }
             TransactionMetadatumEnum::Int(_) => TransactionMetadatumKind::Int,
             TransactionMetadatumEnum::Bytes(_) => TransactionMetadatumKind::Bytes,
             TransactionMetadatumEnum::Text(_) => TransactionMetadatumKind::Text,
         }
     }
 
-    pub fn as_map_transaction_metadatum_to_transaction_metadatum(&self) -> Option<MapTransactionMetadatumToTransactionMetadatum> {
+    pub fn as_map_transaction_metadatum_to_transaction_metadatum(
+        &self,
+    ) -> Option<MapTransactionMetadatumToTransactionMetadatum> {
         match &self.0 {
-            TransactionMetadatumEnum::MapTransactionMetadatumToTransactionMetadatum(x) => Some(x.clone()),
+            TransactionMetadatumEnum::MapTransactionMetadatumToTransactionMetadatum(x) => {
+                Some(x.clone())
+            }
             _ => None,
         }
     }
@@ -1283,7 +1377,9 @@ impl TransactionMetadatumLabels {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct TransactionMetadata(std::collections::BTreeMap<TransactionMetadatumLabel, TransactionMetadatum>);
+pub struct TransactionMetadata(
+    std::collections::BTreeMap<TransactionMetadatumLabel, TransactionMetadatum>,
+);
 
 to_from_bytes!(TransactionMetadata);
 
@@ -1297,7 +1393,11 @@ impl TransactionMetadata {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &TransactionMetadatumLabel, value: &TransactionMetadatum) -> Option<TransactionMetadatum> {
+    pub fn insert(
+        &mut self,
+        key: &TransactionMetadatumLabel,
+        value: &TransactionMetadatum,
+    ) -> Option<TransactionMetadatum> {
         self.0.insert(key.clone(), value.clone())
     }
 
@@ -1306,7 +1406,12 @@ impl TransactionMetadata {
     }
 
     pub fn keys(&self) -> TransactionMetadatumLabels {
-        TransactionMetadatumLabels(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<TransactionMetadatumLabel>>())
+        TransactionMetadatumLabels(
+            self.0
+                .iter()
+                .map(|(k, _v)| k.clone())
+                .collect::<Vec<TransactionMetadatumLabel>>(),
+        )
     }
 }
 
@@ -1421,7 +1526,9 @@ to_from_bytes!(MultisigScript);
 #[wasm_bindgen]
 impl MultisigScript {
     pub fn new_msig_pubkey(addr_keyhash: &Ed25519KeyHash) -> Self {
-        Self(MultisigScriptEnum::MsigPubkey(MsigPubkey::new(addr_keyhash)))
+        Self(MultisigScriptEnum::MsigPubkey(MsigPubkey::new(
+            addr_keyhash,
+        )))
     }
 
     pub fn new_msig_all(multisig_scripts: &MultisigScripts) -> Self {
@@ -1433,7 +1540,10 @@ impl MultisigScript {
     }
 
     pub fn new_msig_n_of_k(n: u32, multisig_scripts: &MultisigScripts) -> Self {
-        Self(MultisigScriptEnum::MsigNOfK(MsigNOfK::new(n, multisig_scripts)))
+        Self(MultisigScriptEnum::MsigNOfK(MsigNOfK::new(
+            n,
+            multisig_scripts,
+        )))
     }
 
     pub fn kind(&self) -> MultisigScriptKind {
@@ -1493,7 +1603,10 @@ impl Update {
         self.epoch.clone()
     }
 
-    pub fn new(proposed_protocol_parameter_updates: &ProposedProtocolParameterUpdates, epoch: Epoch) -> Self {
+    pub fn new(
+        proposed_protocol_parameter_updates: &ProposedProtocolParameterUpdates,
+        epoch: Epoch,
+    ) -> Self {
         Self {
             proposed_protocol_parameter_updates: proposed_protocol_parameter_updates.clone(),
             epoch: epoch.clone(),
@@ -1528,7 +1641,9 @@ impl GenesisHashes {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct ProposedProtocolParameterUpdates(std::collections::BTreeMap<GenesisHash, ProtocolParamUpdate>);
+pub struct ProposedProtocolParameterUpdates(
+    std::collections::BTreeMap<GenesisHash, ProtocolParamUpdate>,
+);
 
 to_from_bytes!(ProposedProtocolParameterUpdates);
 
@@ -1542,7 +1657,11 @@ impl ProposedProtocolParameterUpdates {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &GenesisHash, value: &ProtocolParamUpdate) -> Option<ProtocolParamUpdate> {
+    pub fn insert(
+        &mut self,
+        key: &GenesisHash,
+        value: &ProtocolParamUpdate,
+    ) -> Option<ProtocolParamUpdate> {
         self.0.insert(key.clone(), value.clone())
     }
 
@@ -1551,7 +1670,12 @@ impl ProposedProtocolParameterUpdates {
     }
 
     pub fn keys(&self) -> GenesisHashes {
-        GenesisHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<GenesisHash>>())
+        GenesisHashes(
+            self.0
+                .iter()
+                .map(|(k, _v)| k.clone())
+                .collect::<Vec<GenesisHash>>(),
+        )
     }
 }
 
@@ -1575,10 +1699,7 @@ impl ProtocolVersion {
     }
 
     pub fn new(major: u32, minor: u32) -> Self {
-        Self {
-            major,
-            minor,
-        }
+        Self { major, minor }
     }
 }
 

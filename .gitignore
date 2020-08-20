@@ -3,3 +3,4 @@ publish/
 rust/target
 .idea
 .vscode/
+doc/build
