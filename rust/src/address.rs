@@ -1,6 +1,6 @@
 use super::*;
 use bech32::ToBase32;
-use cardano_legacy_address::ExtendedAddr;
+use crate::legacy_address::ExtendedAddr;
 use ed25519_bip32::XPub;
 
 // returns (Number represented, bytes read) if valid encoding
@@ -161,7 +161,7 @@ impl ByronAddress {
         // recall: in Byron mainnet, the network_id is omitted from the address to save a few bytes
         let mainnet_network_id = 764824073;
         // so here we return the mainnet id if none is found in the address
-        
+
         match self.0.attributes.network_magic {
             // although mainnet should never be explicitly added, we check for it just in case
             Some(x) => if x == mainnet_network_id { 0b0001 } else { 0b000 },
@@ -182,7 +182,7 @@ impl ByronAddress {
         out.clone_from_slice(&key.as_bytes());
 
         // need to ensure we use None for mainnet since Byron-era addresses omitted the network id
-        let mapped_network_id = if network == 0b0001 { None } else { Some(0b000 as u32) }; 
+        let mapped_network_id = if network == 0b0001 { None } else { Some(0b000 as u32) };
         ByronAddress(ExtendedAddr::new_simple(& XPub::from_bytes(out), mapped_network_id))
     }
 
@@ -199,7 +199,7 @@ impl ByronAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<ByronAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Byron(byron) => Some(byron.clone()),
             _ => None,
         }
@@ -444,7 +444,7 @@ impl BaseAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<BaseAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Base(base) => Some(base.clone()),
             _ => None,
         }
@@ -477,7 +477,7 @@ impl EnterpriseAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<EnterpriseAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Enterprise(enterprise) => Some(enterprise.clone()),
             _ => None,
         }
@@ -509,7 +509,7 @@ impl RewardAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<RewardAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Reward(reward) => Some(reward.clone()),
             _ => None,
         }
@@ -597,7 +597,7 @@ impl PointerAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<PointerAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Ptr(ptr) => Some(ptr.clone()),
             _ => None,
         }

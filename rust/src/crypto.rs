@@ -1,6 +1,6 @@
 use cbor_event::{de::Deserializer, se::Serializer};
-use chain_impl_mockchain as chain;
-use chain_crypto as crypto;
+use crate::impl_mockchain as chain;
+use crate::chain_crypto as crypto;
 use chain::{key};
 use crypto::bech32::Bech32 as _;
 use rand_os::OsRng;
@@ -631,7 +631,7 @@ macro_rules! impl_signature {
                 serializer.write_bytes(self.0.as_ref())
             }
         }
-        
+
         impl Deserialize for $name {
             fn deserialize<R: std::io::BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
                 Ok(Self(crypto::Signature::from_binary(raw.bytes()?.as_ref())?))
@@ -682,7 +682,7 @@ macro_rules! impl_hash_type {
                 serializer.write_bytes(self.0)
             }
         }
-        
+
         impl Deserialize for $name {
             fn deserialize<R: std::io::BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
                 use std::convert::TryInto;
