@@ -151,6 +151,15 @@ impl ByronAddress {
         let extended_addr = ExtendedAddr::deserialize(&mut raw)?;
         Ok(ByronAddress(extended_addr))
     }
+    /// returns the byron protocol magic embedded in the address, or mainnet id if none is present
+    /// note: for bech32 addresses, you need to use network_id instead
+    pub fn byron_protocol_magic(&self) -> u32 {
+        let mainnet_network_id = 764824073;
+        match self.0.attributes.network_magic {
+            Some(x) => x,
+            None => mainnet_network_id, // mainnet is implied if omitted
+        }
+    }
     pub fn network_id(&self) -> u8 {
         // premise: during the Byron-era, we had one mainnet (764824073) and many many testnets
         // with each testnet getting a different protocol magic
@@ -686,6 +695,23 @@ mod tests {
 
     fn harden(index: u32) -> u32 {
         index | 0x80_00_00_00
+    }
+
+    #[test]
+    fn bech32_parsing() {
+        let addr = Address::from_bech32("addr1u8pcjgmx7962w6hey5hhsd502araxp26kdtgagakhaqtq8sxy9w7g").unwrap();
+        assert_eq!(addr.to_bech32(Some("stake".to_string())), "stake1u8pcjgmx7962w6hey5hhsd502araxp26kdtgagakhaqtq8squng76");
+    }
+
+    #[test]
+    fn byron_magic_parsing() {
+        // mainnet address w/ protocol magic omitted
+        let addr = ByronAddress::from_base58("Ae2tdPwUPEZ4YjgvykNpoFeYUxoyhNj2kg8KfKWN2FizsSpLUPv68MpTVDo").unwrap();
+        assert_eq!(addr.byron_protocol_magic(), 764824073);
+
+        // original Byron testnet address
+        let addr = ByronAddress::from_base58("2cWKMJemoBakg8XXW1XNFNZ8VFHVrBPfcoEc9amhL3BBMxJXdMiHmSyk3zRp2SDXHJcZr").unwrap();
+        assert_eq!(addr.byron_protocol_magic(), 1097911063);
     }
 
     #[test]
