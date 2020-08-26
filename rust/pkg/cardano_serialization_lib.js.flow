@@ -575,6 +575,13 @@ declare export class ByronAddress {
   static from_bytes(bytes: Uint8Array): ByronAddress;
 
   /**
+   * returns the byron protocol magic embedded in the address, or mainnet id if none is present
+   * note: for bech32 addresses, you need to use network_id instead
+   * @returns {number}
+   */
+  byron_protocol_magic(): number;
+
+  /**
    * @returns {number}
    */
   network_id(): number;
@@ -3040,6 +3047,13 @@ declare export class TransactionBuilder {
    * @param {TransactionOutput} output
    */
   add_output(output: TransactionOutput): void;
+
+  /**
+   * calculates how much the fee would increase if you added a given output
+   * @param {TransactionOutput} output
+   * @returns {BigNum}
+   */
+  fee_for_output(output: TransactionOutput): BigNum;
 
   /**
    * @param {BigNum} fee
