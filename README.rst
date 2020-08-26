@@ -75,8 +75,9 @@ If you need to install Rust, do the following:
 
    curl https://sh.rustup.rs -sSf | sh -s -- -y
    echo 'export PATH=$HOME/.cargo/bin/:$PATH' >> $BASH_ENV
-   rustup install stable
-   rustup target add wasm32-unknown-unknown --toolchain stable
+   rustup default nightly
+   rustup update
+   rustup target add wasm32-unknown-unknown --toolchain nightly
    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
 To build this repository, do the following:
