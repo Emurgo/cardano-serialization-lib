@@ -168,6 +168,23 @@ impl TransactionBuilder {
         }
     }
 
+    /// calculates how much the fee would increase if you added a given output
+    pub fn fee_for_output(&mut self, output: &TransactionOutput) -> Result<Coin, JsValue> {
+        let mut self_copy = self.clone();
+
+        // we need some value for these for it to be a a valid transaction
+        // but since we're only calculating the different between the fee of two transactions
+        // it doesn't matter what these are set as, since it cancels out
+        self_copy.set_ttl(0);
+        self_copy.set_fee(&Coin::new(0));
+
+        let fee_before = min_fee(&self_copy)?;
+
+        self_copy.add_output(&output)?;
+        let fee_after = min_fee(&self_copy)?;
+        fee_after.checked_sub(&fee_before)
+    }
+
     pub fn set_fee(&mut self, fee: &Coin) {
         self.fee = Some(fee.clone())
     }
@@ -272,24 +289,23 @@ impl TransactionBuilder {
             Some(_x) => return Err(JsValue::from_str("Cannot calculate change if fee was explicitly specified")),
         }?;
         let input_total = self.get_explicit_input()?.checked_add(&self.get_implicit_input()?)?;
-        let output_total = self.get_explicit_output()?;
-        let deposit = self.get_deposit()?;
-        match input_total.unwrap() > output_total.checked_add(&fee)?.unwrap() {
+        let output_total = self.get_explicit_output()?.checked_add(&self.get_deposit()?)?;
+        match input_total.unwrap() >= output_total.checked_add(&fee)?.unwrap() {
             false => return Err(JsValue::from_str("Insufficient input in transaction")),
             true => {
-                let mut copy = self.clone();
-                copy.add_output(&TransactionOutput {
+                // check how much the fee would increase if we added a change output
+                let fee_for_change = self.fee_for_output(&TransactionOutput {
                     address: address.clone(),
                     // maximum possible output to maximize fee from adding this output
                     // this may over-estimate the fee by a few bytes but that's okay
                     amount: Coin::new(0x1_00_00_00_00),
                 })?;
-                let new_fee = copy.min_fee()?;
+                let new_fee = fee.checked_add(&fee_for_change)?;
                 // needs to have at least minimum_utxo_val leftover for the change to be a valid UTXO entry 
-                match input_total > output_total.checked_add(&deposit)?.checked_add(&new_fee)?.checked_add(&self.minimum_utxo_val)? {
+                match input_total >= output_total.checked_add(&new_fee)?.checked_add(&self.minimum_utxo_val)? {
                     false => {
                         // recall: we originally assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
-                        self.set_fee(&input_total.checked_sub(&output_total)?.checked_sub(&deposit)?);
+                        self.set_fee(&input_total.checked_sub(&output_total)?);
                         return Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
                     },
                     true => {
@@ -297,7 +313,7 @@ impl TransactionBuilder {
                         self.set_fee(&new_fee);
                         self.add_output(&TransactionOutput {
                             address: address.clone(),
-                            amount: input_total.checked_sub(&output_total)?.checked_sub(&new_fee)?.checked_sub(&deposit)?,
+                            amount: input_total.checked_sub(&output_total)?.checked_sub(&new_fee)?,
                         })?;
                     },
                 };
@@ -487,7 +503,6 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
@@ -521,5 +536,160 @@ mod tests {
                 .checked_add(&tx_builder.get_deposit().unwrap()).unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
+    }
+
+    #[test]
+    fn build_tx_exact_amount() {
+        // transactions where sum(input) == sum(output) exact should pass
+        let linear_fee = LinearFee::new(&Coin::new(0), &Coin::new(0));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(0), &Coin::new(0));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+        tx_builder.add_key_input(
+            &&spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Coin::new(5)
+        );
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_net_0,
+            &Coin::new(5)
+        )).unwrap();
+        tx_builder.set_ttl(0);
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+        let added_change = tx_builder.add_change_if_needed(
+            &change_addr
+        ).unwrap();
+        assert_eq!(added_change, false);
+        let final_tx = tx_builder.build().unwrap();
+        assert_eq!(final_tx.outputs().len(), 1);
+    }
+
+    #[test]
+    fn build_tx_exact_change() {
+        // transactions where we have exactly enough ADA to add change should pass
+        let linear_fee = LinearFee::new(&Coin::new(0), &Coin::new(0));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(0), &Coin::new(0));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+        tx_builder.add_key_input(
+            &&spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Coin::new(6)
+        );
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_net_0,
+            &Coin::new(5)
+        )).unwrap();
+        tx_builder.set_ttl(0);
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+        let added_change = tx_builder.add_change_if_needed(
+            &change_addr
+        ).unwrap();
+        assert_eq!(added_change, true);
+        let final_tx = tx_builder.build().unwrap();
+        assert_eq!(final_tx.outputs().len(), 2);
+        assert_eq!(final_tx.outputs().get(1).amount().to_str(), "1");
+    }
+
+    #[test]
+    #[should_panic]
+    fn build_tx_insufficient_deposit() {
+        // transactions should fail with insufficient fees if a deposit is required
+        let linear_fee = LinearFee::new(&Coin::new(0), &Coin::new(0));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(0), &Coin::new(5));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+        tx_builder.add_key_input(
+            &&spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Coin::new(5)
+        );
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_net_0,
+            &Coin::new(5)
+        )).unwrap();
+        tx_builder.set_ttl(0);
+
+        // add a cert which requires a deposit
+        let mut certs = Certificates::new();
+        certs.add(&Certificate::new_stake_registration(&StakeRegistration::new(&stake_cred)));
+        tx_builder.set_certs(&certs);
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+
+        tx_builder.add_change_if_needed(
+            &change_addr
+        ).unwrap();
     }
 }

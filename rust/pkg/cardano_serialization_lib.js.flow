@@ -413,6 +413,72 @@ declare export class Bip32PublicKey {
 }
 /**
  */
+declare export class Block {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Block}
+   */
+  static from_bytes(bytes: Uint8Array): Block;
+
+  /**
+   * @returns {Header}
+   */
+  header(): Header;
+
+  /**
+   * @returns {TransactionBodies}
+   */
+  transaction_bodies(): TransactionBodies;
+
+  /**
+   * @returns {TransactionWitnessSets}
+   */
+  transaction_witness_sets(): TransactionWitnessSets;
+
+  /**
+   * @returns {MapTransactionIndexToTransactionMetadata}
+   */
+  transaction_metadata_set(): MapTransactionIndexToTransactionMetadata;
+
+  /**
+   * @param {Header} header
+   * @param {TransactionBodies} transaction_bodies
+   * @param {TransactionWitnessSets} transaction_witness_sets
+   * @param {MapTransactionIndexToTransactionMetadata} transaction_metadata_set
+   * @returns {Block}
+   */
+  static new(
+    header: Header,
+    transaction_bodies: TransactionBodies,
+    transaction_witness_sets: TransactionWitnessSets,
+    transaction_metadata_set: MapTransactionIndexToTransactionMetadata
+  ): Block;
+}
+/**
+ */
+declare export class BlockHash {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {BlockHash}
+   */
+  static from_bytes(bytes: Uint8Array): BlockHash;
+}
+/**
+ */
 declare export class BootstrapWitness {
   free(): void;
 
@@ -507,6 +573,13 @@ declare export class ByronAddress {
    * @returns {ByronAddress}
    */
   static from_bytes(bytes: Uint8Array): ByronAddress;
+
+  /**
+   * returns the byron protocol magic embedded in the address, or mainnet id if none is present
+   * note: for bech32 addresses, you need to use network_id instead
+   * @returns {number}
+   */
+  byron_protocol_magic(): number;
 
   /**
    * @returns {number}
@@ -921,6 +994,138 @@ declare export class GenesisKeyDelegation {
 }
 /**
  */
+declare export class Header {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Header}
+   */
+  static from_bytes(bytes: Uint8Array): Header;
+
+  /**
+   * @returns {HeaderBody}
+   */
+  header_body(): HeaderBody;
+
+  /**
+   * @returns {KESSignature}
+   */
+  body_signature(): KESSignature;
+
+  /**
+   * @param {HeaderBody} header_body
+   * @param {KESSignature} body_signature
+   * @returns {Header}
+   */
+  static new(header_body: HeaderBody, body_signature: KESSignature): Header;
+}
+/**
+ */
+declare export class HeaderBody {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {HeaderBody}
+   */
+  static from_bytes(bytes: Uint8Array): HeaderBody;
+
+  /**
+   * @returns {number}
+   */
+  block_number(): number;
+
+  /**
+   * @returns {number}
+   */
+  slot(): number;
+
+  /**
+   * @returns {BlockHash | void}
+   */
+  prev_hash(): BlockHash | void;
+
+  /**
+   * @returns {Vkey}
+   */
+  issuer_vkey(): Vkey;
+
+  /**
+   * @returns {VRFVKey}
+   */
+  vrf_vkey(): VRFVKey;
+
+  /**
+   * @returns {VRFCert}
+   */
+  nonce_vrf(): VRFCert;
+
+  /**
+   * @returns {VRFCert}
+   */
+  leader_vrf(): VRFCert;
+
+  /**
+   * @returns {number}
+   */
+  block_body_size(): number;
+
+  /**
+   * @returns {BlockHash}
+   */
+  block_body_hash(): BlockHash;
+
+  /**
+   * @returns {OperationalCert}
+   */
+  operational_cert(): OperationalCert;
+
+  /**
+   * @returns {ProtocolVersion}
+   */
+  protocol_version(): ProtocolVersion;
+
+  /**
+   * @param {number} block_number
+   * @param {number} slot
+   * @param {BlockHash | void} prev_hash
+   * @param {Vkey} issuer_vkey
+   * @param {VRFVKey} vrf_vkey
+   * @param {VRFCert} nonce_vrf
+   * @param {VRFCert} leader_vrf
+   * @param {number} block_body_size
+   * @param {BlockHash} block_body_hash
+   * @param {OperationalCert} operational_cert
+   * @param {ProtocolVersion} protocol_version
+   * @returns {HeaderBody}
+   */
+  static new(
+    block_number: number,
+    slot: number,
+    prev_hash: BlockHash | void,
+    issuer_vkey: Vkey,
+    vrf_vkey: VRFVKey,
+    nonce_vrf: VRFCert,
+    leader_vrf: VRFCert,
+    block_body_size: number,
+    block_body_hash: BlockHash,
+    operational_cert: OperationalCert,
+    protocol_version: ProtocolVersion
+  ): HeaderBody;
+}
+/**
+ */
 declare export class Int {
   free(): void;
 
@@ -982,6 +1187,38 @@ declare export class Ipv6 {
 }
 /**
  */
+declare export class KESSignature {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {KESSignature}
+   */
+  static from_bytes(bytes: Uint8Array): KESSignature;
+}
+/**
+ */
+declare export class KESVKey {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {KESVKey}
+   */
+  static from_bytes(bytes: Uint8Array): KESVKey;
+}
+/**
+ */
 declare export class LegacyDaedalusPrivateKey {
   free(): void;
 
@@ -1022,6 +1259,39 @@ declare export class LinearFee {
    * @returns {LinearFee}
    */
   static new(coefficient: BigNum, constant: BigNum): LinearFee;
+}
+/**
+ */
+declare export class MapTransactionIndexToTransactionMetadata {
+  free(): void;
+
+  /**
+   * @returns {MapTransactionIndexToTransactionMetadata}
+   */
+  static new(): MapTransactionIndexToTransactionMetadata;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} key
+   * @param {TransactionMetadata} value
+   * @returns {TransactionMetadata | void}
+   */
+  insert(key: number, value: TransactionMetadata): TransactionMetadata | void;
+
+  /**
+   * @param {number} key
+   * @returns {TransactionMetadata | void}
+   */
+  get(key: number): TransactionMetadata | void;
+
+  /**
+   * @returns {Uint32Array}
+   */
+  keys(): Uint32Array;
 }
 /**
  */
@@ -1440,6 +1710,56 @@ declare export class Nonce {
    * @returns {Uint8Array | void}
    */
   get_hash(): Uint8Array | void;
+}
+/**
+ */
+declare export class OperationalCert {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {OperationalCert}
+   */
+  static from_bytes(bytes: Uint8Array): OperationalCert;
+
+  /**
+   * @returns {KESVKey}
+   */
+  hot_vkey(): KESVKey;
+
+  /**
+   * @returns {number}
+   */
+  sequence_number(): number;
+
+  /**
+   * @returns {number}
+   */
+  kes_period(): number;
+
+  /**
+   * @returns {Ed25519Signature}
+   */
+  sigma(): Ed25519Signature;
+
+  /**
+   * @param {KESVKey} hot_vkey
+   * @param {number} sequence_number
+   * @param {number} kes_period
+   * @param {Ed25519Signature} sigma
+   * @returns {OperationalCert}
+   */
+  static new(
+    hot_vkey: KESVKey,
+    sequence_number: number,
+    kes_period: number,
+    sigma: Ed25519Signature
+  ): OperationalCert;
 }
 /**
  */
@@ -2560,6 +2880,43 @@ declare export class Transaction {
 }
 /**
  */
+declare export class TransactionBodies {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {TransactionBodies}
+   */
+  static from_bytes(bytes: Uint8Array): TransactionBodies;
+
+  /**
+   * @returns {TransactionBodies}
+   */
+  static new(): TransactionBodies;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {TransactionBody}
+   */
+  get(index: number): TransactionBody;
+
+  /**
+   * @param {TransactionBody} elem
+   */
+  add(elem: TransactionBody): void;
+}
+/**
+ */
 declare export class TransactionBody {
   free(): void;
 
@@ -2690,6 +3047,13 @@ declare export class TransactionBuilder {
    * @param {TransactionOutput} output
    */
   add_output(output: TransactionOutput): void;
+
+  /**
+   * calculates how much the fee would increase if you added a given output
+   * @param {TransactionOutput} output
+   * @returns {BigNum}
+   */
+  fee_for_output(output: TransactionOutput): BigNum;
 
   /**
    * @param {BigNum} fee
@@ -3185,6 +3549,43 @@ declare export class TransactionWitnessSet {
 }
 /**
  */
+declare export class TransactionWitnessSets {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {TransactionWitnessSets}
+   */
+  static from_bytes(bytes: Uint8Array): TransactionWitnessSets;
+
+  /**
+   * @returns {TransactionWitnessSets}
+   */
+  static new(): TransactionWitnessSets;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {TransactionWitnessSet}
+   */
+  get(index: number): TransactionWitnessSet;
+
+  /**
+   * @param {TransactionWitnessSet} elem
+   */
+  add(elem: TransactionWitnessSet): void;
+}
+/**
+ */
 declare export class UnitInterval {
   free(): void;
 
@@ -3254,6 +3655,39 @@ declare export class Update {
 }
 /**
  */
+declare export class VRFCert {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {VRFCert}
+   */
+  static from_bytes(bytes: Uint8Array): VRFCert;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  output(): Uint8Array;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  proof(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} output
+   * @param {Uint8Array} proof
+   * @returns {VRFCert}
+   */
+  static new(output: Uint8Array, proof: Uint8Array): VRFCert;
+}
+/**
+ */
 declare export class VRFKeyHash {
   free(): void;
 
@@ -3267,6 +3701,22 @@ declare export class VRFKeyHash {
    * @returns {VRFKeyHash}
    */
   static from_bytes(bytes: Uint8Array): VRFKeyHash;
+}
+/**
+ */
+declare export class VRFVKey {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {VRFVKey}
+   */
+  static from_bytes(bytes: Uint8Array): VRFVKey;
 }
 /**
  */

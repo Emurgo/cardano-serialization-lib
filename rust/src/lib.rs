@@ -1906,3 +1906,267 @@ impl ProtocolParamUpdate {
         }
     }
 }
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct TransactionBodies(Vec<TransactionBody>);
+
+to_from_bytes!(TransactionBodies);
+
+#[wasm_bindgen]
+impl TransactionBodies {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> TransactionBody {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &TransactionBody) {
+        self.0.push(elem.clone());
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct TransactionWitnessSets(Vec<TransactionWitnessSet>);
+
+to_from_bytes!(TransactionWitnessSets);
+#[wasm_bindgen]
+impl TransactionWitnessSets {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> TransactionWitnessSet {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &TransactionWitnessSet) {
+        self.0.push(elem.clone());
+    }
+}
+
+pub type TransactionIndexes = Vec<TransactionIndex>;
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MapTransactionIndexToTransactionMetadata(std::collections::BTreeMap<TransactionIndex, TransactionMetadata>);
+
+#[wasm_bindgen]
+impl MapTransactionIndexToTransactionMetadata {
+    pub fn new() -> Self {
+        Self(std::collections::BTreeMap::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn insert(&mut self, key: TransactionIndex, value: &TransactionMetadata) -> Option<TransactionMetadata> {
+        self.0.insert(key, value.clone())
+    }
+
+    pub fn get(&self, key: TransactionIndex) -> Option<TransactionMetadata> {
+        self.0.get(&key).map(|v| v.clone())
+    }
+
+    pub fn keys(&self) -> TransactionIndexes {
+        self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<TransactionIndex>>()
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct Block {
+    header: Header,
+    transaction_bodies: TransactionBodies,
+    transaction_witness_sets: TransactionWitnessSets,
+    transaction_metadata_set: MapTransactionIndexToTransactionMetadata,
+}
+
+to_from_bytes!(Block);
+
+#[wasm_bindgen]
+impl Block {
+    pub fn header(&self) -> Header {
+        self.header.clone()
+    }
+
+    pub fn transaction_bodies(&self) -> TransactionBodies {
+        self.transaction_bodies.clone()
+    }
+
+    pub fn transaction_witness_sets(&self) -> TransactionWitnessSets {
+        self.transaction_witness_sets.clone()
+    }
+
+    pub fn transaction_metadata_set(&self) -> MapTransactionIndexToTransactionMetadata {
+        self.transaction_metadata_set.clone()
+    }
+
+    pub fn new(header: &Header, transaction_bodies: &TransactionBodies, transaction_witness_sets: &TransactionWitnessSets, transaction_metadata_set: &MapTransactionIndexToTransactionMetadata) -> Self {
+        Self {
+            header: header.clone(),
+            transaction_bodies: transaction_bodies.clone(),
+            transaction_witness_sets: transaction_witness_sets.clone(),
+            transaction_metadata_set: transaction_metadata_set.clone(),
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct Header {
+    header_body: HeaderBody,
+    body_signature: KESSignature,
+}
+
+to_from_bytes!(Header);
+
+#[wasm_bindgen]
+impl Header {
+    pub fn header_body(&self) -> HeaderBody {
+        self.header_body.clone()
+    }
+
+    pub fn body_signature(&self) -> KESSignature {
+        self.body_signature.clone()
+    }
+
+    pub fn new(header_body: &HeaderBody, body_signature: &KESSignature) -> Self {
+        Self {
+            header_body: header_body.clone(),
+            body_signature: body_signature.clone(),
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct OperationalCert {
+    hot_vkey: KESVKey,
+    sequence_number: u32,
+    kes_period: u32,
+    sigma: Ed25519Signature,
+}
+
+to_from_bytes!(OperationalCert);
+
+#[wasm_bindgen]
+impl OperationalCert {
+    pub fn hot_vkey(&self) -> KESVKey {
+        self.hot_vkey.clone()
+    }
+
+    pub fn sequence_number(&self) -> u32 {
+        self.sequence_number.clone()
+    }
+
+    pub fn kes_period(&self) -> u32 {
+        self.kes_period.clone()
+    }
+
+    pub fn sigma(&self) -> Ed25519Signature {
+        self.sigma.clone()
+    }
+
+    pub fn new(hot_vkey: &KESVKey, sequence_number: u32, kes_period: u32, sigma: &Ed25519Signature) -> Self {
+        Self {
+            hot_vkey: hot_vkey.clone(),
+            sequence_number: sequence_number,
+            kes_period: kes_period,
+            sigma: sigma.clone(),
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct HeaderBody {
+    block_number: u32,
+    slot: Slot,
+    prev_hash: Option<BlockHash>,
+    issuer_vkey: Vkey,
+    vrf_vkey: VRFVKey,
+    nonce_vrf: VRFCert,
+    leader_vrf: VRFCert,
+    block_body_size: u32,
+    block_body_hash: BlockHash,
+    operational_cert: OperationalCert,
+    protocol_version: ProtocolVersion,
+}
+
+to_from_bytes!(HeaderBody);
+
+#[wasm_bindgen]
+impl HeaderBody {
+    pub fn block_number(&self) -> u32 {
+        self.block_number.clone()
+    }
+
+    pub fn slot(&self) -> Slot {
+        self.slot.clone()
+    }
+
+    pub fn prev_hash(&self) -> Option<BlockHash> {
+        self.prev_hash.clone()
+    }
+
+    pub fn issuer_vkey(&self) -> Vkey {
+        self.issuer_vkey.clone()
+    }
+
+    pub fn vrf_vkey(&self) -> VRFVKey {
+        self.vrf_vkey.clone()
+    }
+
+    pub fn nonce_vrf(&self) -> VRFCert {
+        self.nonce_vrf.clone()
+    }
+
+    pub fn leader_vrf(&self) -> VRFCert {
+        self.leader_vrf.clone()
+    }
+
+    pub fn block_body_size(&self) -> u32 {
+        self.block_body_size.clone()
+    }
+
+    pub fn block_body_hash(&self) -> BlockHash {
+        self.block_body_hash.clone()
+    }
+
+    pub fn operational_cert(&self) -> OperationalCert {
+        self.operational_cert.clone()
+    }
+
+    pub fn protocol_version(&self) -> ProtocolVersion {
+        self.protocol_version.clone()
+    }
+
+    pub fn new(block_number: u32, slot: Slot, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+        Self {
+            block_number: block_number,
+            slot: slot,
+            prev_hash: prev_hash.clone(),
+            issuer_vkey: issuer_vkey.clone(),
+            vrf_vkey: vrf_vkey.clone(),
+            nonce_vrf: nonce_vrf.clone(),
+            leader_vrf: leader_vrf.clone(),
+            block_body_size: block_body_size,
+            block_body_hash: block_body_hash.clone(),
+            operational_cert: operational_cert.clone(),
+            protocol_version: protocol_version.clone(),
+        }
+    }
+}
