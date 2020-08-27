@@ -74,14 +74,6 @@ to_from_bytes!(BigNum);
 
 #[wasm_bindgen]
 impl BigNum {
-    // May not be supported in all environments as it maps to BigInt with wasm_bindgen
-    pub fn new(value: u64) -> BigNum {
-        Self(value)
-    }
-    pub fn unwrap(&self) -> u64 {
-        self.0
-    }
-
     // Create a BigNum from a standard rust string representation
     pub fn from_str(string: &str) -> Result<BigNum, JsValue> {
         string.parse::<u64>()
@@ -129,6 +121,13 @@ impl Deserialize for BigNum {
           Err(e) => Err(DeserializeError::new("BigNum", DeserializeFailure::CBOR(e))),
       }
   }
+}
+
+pub fn to_bignum(val: u64) -> BigNum {
+    BigNum(val)
+}
+pub fn from_bignum(val: &BigNum) -> u64 {
+    val.0
 }
 
 // Specifies an amount of ADA in terms of lovelace
@@ -278,20 +277,20 @@ pub fn internal_get_implicit_input(
     key_deposit: &BigNum, // protocol parameter
 ) -> Result<Coin, JsValue> {
     let withdrawal_sum = match &withdrawals {
-        None => Coin::new(0),
+        None => to_bignum(0),
         Some(x) => x.0
             .values()
             .try_fold(
-                Coin::new(0),
+                to_bignum(0),
                 |acc, ref withdrawal_amt| acc.checked_add(&withdrawal_amt)
             )?,
     };
     let certificate_refund = match &certs {
-        None => Coin::new(0),
+        None => to_bignum(0),
         Some(certs) => certs.0
             .iter()
             .try_fold(
-                Coin::new(0),
+                to_bignum(0),
                 |acc, ref cert| match &cert.0 {
                     CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&pool_deposit),
                     CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&key_deposit),
@@ -307,11 +306,11 @@ pub fn internal_get_deposit(
     key_deposit: &BigNum, // protocol parameter
 ) -> Result<Coin, JsValue> {
     let certificate_refund = match &certs {
-        None => Coin::new(0),
+        None => to_bignum(0),
         Some(certs) => certs.0
             .iter()
             .try_fold(
-                Coin::new(0),
+                to_bignum(0),
                 |acc, ref cert| match &cert.0 {
                     CertificateEnum::PoolRegistration(_cert) => acc.checked_add(&pool_deposit),
                     CertificateEnum::StakeRegistration(_cert) => acc.checked_add(&key_deposit),

@@ -28,7 +28,7 @@ impl LinearFee {
 
 #[wasm_bindgen]
 pub fn min_fee(tx: &Transaction, linear_fee: &LinearFee) -> Result<Coin, JsValue> {
-    Coin::new(tx.to_bytes().len() as u64)
+    to_bignum(tx.to_bytes().len() as u64)
         .checked_mul(&linear_fee.coefficient())?
         .checked_add(&linear_fee.constant())
 }
@@ -58,9 +58,9 @@ mod tests {
             &Address::from_bytes(
                 hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
             ).unwrap(),
-            &Coin::new(1)
+            &to_bignum(1)
         ));
-        let body = TransactionBody::new(&inputs, &outputs, &Coin::new(94002), 10);
+        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(94002), 10);
 
         let mut w = TransactionWitnessSet::new();
         let mut vkw = Vkeywitnesses::new();
@@ -78,7 +78,7 @@ mod tests {
             None,
         );
 
-        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
+        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
         assert_eq!(
             hex::encode(signed_tx.to_bytes()),
             "83a400818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00016f32030aa10081825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee5840fae5de40c94d759ce13bf9886262159c4f26a289fd192e165995b785259e503f6887bf39dfa23a47cf163784c6eee23f61440e749bc1df3c73975f5231aeda0ff6"
@@ -102,9 +102,9 @@ mod tests {
             &Address::from_bytes(
                 hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
             ).unwrap(),
-            &Coin::new(1)
+            &to_bignum(1)
         ));
-        let body = TransactionBody::new(&inputs, &outputs, &Coin::new(112002), 10);
+        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(112002), 10);
 
         let mut w = TransactionWitnessSet::new();
         let mut bootstrap_wits = BootstrapWitnesses::new();
@@ -123,7 +123,7 @@ mod tests {
             None,
         );
 
-        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
+        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
         assert_eq!(
             hex::encode(signed_tx.to_bytes()),
             "83a400818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a0001b582030aa10281845820473811afd4d939b337c9be1a2ceeb2cb2c75108bddf224c5c21c51592a7b204a5840f0b04a852353eb23b9570df80b2aa6a61b723341ab45a2024a05b07cf58be7bdfbf722c09040db6cee61a0d236870d6ad1e1349ac999ec0db28f9471af25fb0c5820c8b95d0d35fe75a70f9f5633a3e2439b2994b9e2bc851c49e9f91d1a5dcbb1a341a0f6"
@@ -150,15 +150,15 @@ mod tests {
             &Address::from_bytes(
                 hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
             ).unwrap(),
-            &Coin::new(289)
+            &to_bignum(289)
         ));
         outputs.add(&TransactionOutput::new(
             &Address::from_bytes(
                 hex::decode("61bcd18fcffa797c16c007014e2b8553b8b9b1e94c507688726243d611").unwrap()
             ).unwrap(),
-            &Coin::new(874551452)
+            &to_bignum(874551452)
         ));
-        let body = TransactionBody::new(&inputs, &outputs, &Coin::new(183502), 999);
+        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(183502), 999);
 
         let mut w = TransactionWitnessSet::new();
         let mut vkw = Vkeywitnesses::new();
@@ -182,7 +182,7 @@ mod tests {
             None,
         );
 
-        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
+        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
         assert_eq!(
             hex::encode(signed_tx.to_bytes()),
             "83a400828258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7182a82582082839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace3207018282581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c19012182581d61bcd18fcffa797c16c007014e2b8553b8b9b1e94c507688726243d6111a3420989c021a0002ccce031903e7a10082825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee58401ec3e56008650282ba2e1f8a20e81707810b2d0973c4d42a1b4df65b732bda81567c7824904840b2554d2f33861da5d70588a29d33b2b61042e3c3445301d8008258206872b0a874acfe1cace12b20ea348559a7ecc912f2fc7f674f43481df973d92c5840a0718fb5b37d89ddf926c08e456d3f4c7f749e91f78bb3e370751d5b632cbd20d38d385805291b1ef2541b02543728a235e01911f4b400bfb50e5fce589de907f6"
@@ -207,9 +207,9 @@ mod tests {
             &Address::from_bytes(
                 hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
             ).unwrap(),
-            &Coin::new(1)
+            &to_bignum(1)
         ));
-        let mut body = TransactionBody::new(&inputs, &outputs, &Coin::new(266002), 10);
+        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(266002), 10);
 
         let mut certs = Certificates::new();
 
@@ -225,11 +225,11 @@ mod tests {
                 &VRFKeyHash::from(
                     blake2b224(&hex::decode("fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096").unwrap())
                 ), // vrf_keyhash
-                &Coin::new(1000000), // pledge
-                &Coin::new(1000000), // cost
+                &to_bignum(1000000), // pledge
+                &to_bignum(1000000), // cost
                 &UnitInterval::new(
-                    &BigNum::new(3),
-                    &BigNum::new(100),
+                    &to_bignum(3),
+                    &to_bignum(100),
                 ), // margin
                 &RewardAddress::new(
                     network,
@@ -278,7 +278,7 @@ mod tests {
             None,
         );
 
-        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
+        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
         assert_eq!(
             hex::encode(signed_tx.to_bytes()),
             "83a500818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00040f12030a04818a03581c1c13374874c68016df54b1339b6cacdd801098431e7659b24928efc1581ca3fd9f5904987ec1ea8001002833ea5013395ff62021c3e3fbb283aa1a000f42401a000f4240d81e82031864581de151df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af7081581c51df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af7080f6a10083825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee584042bf0438546b7e1489120c1a53372c383b5717a2d0f4811e30bbef648321efff4695cc5723361d55f7d9681cd2362023c74f964b3d947938f852910ec7649209825820b24c040e65994bd5b0621a060166d32d356ef4be3cc1f848426a4cf38688708958405a074e990bcdef2c181ece8050d40593f5666effed3180fa8cb84539e0a944ab1dfc13c3a257bb77e9183362955695483af8982bde3100f44b95299020d75b0682582054d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f358402ea853c2cd8628db5217afe27bbdd88944c73287c988b3b7c5f6123e2ee3e8ba3d7c437b4f16d6ac613a87258d99dfa49aae623a08b6da29a51ec18047d3a30af6"
@@ -294,8 +294,8 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
+    //     let mut body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
     //     let mut certs = Certificates::new();
     //     certs.add(&Certificate::new_stake_delegation(&StakeDelegation::new(&bob_stake(), &alice_pool())));
     //     body.set_certs(&certs);
@@ -311,8 +311,8 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
+    //     let mut body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
     //     let mut certs = Certificates::new();
     //     certs.add(&Certificate::new_stake_deregistration(&StakeDeregistration::new(&alice_pay())));
     //     body.set_certs(&certs);
@@ -328,8 +328,8 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
+    //     let mut body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
     //     let mut certs = Certificates::new();
     //     let mut owners = Ed25519KeyHashes::new();
     //     owners.add(&(alice_stake().to_keyhash().unwrap()));
@@ -338,9 +338,9 @@ mod tests {
     //     let params = PoolParams::new(
     //         &alice_pool(),
     //         &VRFKeyHash::from([0u8; VRFKeyHash::BYTE_COUNT]),
-    //         Coin::new(1),
-    //         Coin::new(5),
-    //         &UnitInterval::new(BigNum::new(1), BigNum::new(10)),
+    //         to_bignum(1),
+    //         to_bignum(5),
+    //         &UnitInterval::new(to_bignum(1), to_bignum(10)),
     //         &RewardAddress::new(0, &alice_stake()),
     //         &owners,
     //         &relays,
@@ -370,8 +370,8 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
+    //     let mut body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
     //     let mut certs = Certificates::new();
     //     certs.add(&Certificate::new_pool_retirement(&PoolRetirement::new(&alice_pool(), 5)));
     //     body.set_certs(&certs);
@@ -387,13 +387,13 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
+    //     let mut body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
     //     body.set_metadata_hash(&MetadataHash::from([37; MetadataHash::BYTE_COUNT]));
     //     let w = make_mock_witnesses_vkey(&body, vec![&alice_key()]);
     //     let mut metadata = TransactionMetadata::new();
     //     let mut md_list = TransactionMetadatums::new();
-    //     md_list.add(&TransactionMetadatum::new_int(&Int::new(BigNum::new(5))));
+    //     md_list.add(&TransactionMetadatum::new_int(&Int::new(to_bignum(5))));
     //     md_list.add(&TransactionMetadatum::new_text(String::from("hello")));
     //     metadata.insert(TransactionMetadatumLabel::new(0), &TransactionMetadatum::new_arr_transaction_metadatum(&md_list));
     //     let tx = Transaction::new(&body, &w, Some(metadata));
@@ -407,8 +407,8 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), Coin::new(10)));
-    //     let body = TransactionBody::new(&inputs, &outputs, Coin::new(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
+    //     let body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
     //     let mut w = make_mock_witnesses_vkey(&body, vec![&alice_key(), &bob_key()]);
     //     let mut script_witnesses = MultisigScripts::new();
     //     let mut inner_scripts = MultisigScripts::new();
@@ -436,15 +436,15 @@ mod tests {
             &Address::from_bytes(
                 hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
             ).unwrap(),
-            &Coin::new(1)
+            &to_bignum(1)
         ));
-        let mut body = TransactionBody::new(&inputs, &outputs, &Coin::new(162502), 10);
+        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(162502), 10);
         let mut withdrawals = Withdrawals::new();
         withdrawals.insert(
             &RewardAddress::from_address(&Address::from_bytes(
                 hex::decode("e151df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af70").unwrap()
             ).unwrap()).unwrap(),
-            &Coin::new(1337)
+            &to_bignum(1337)
         );
         body.set_withdrawals(&withdrawals);
 
@@ -472,7 +472,7 @@ mod tests {
             None,
         );
 
-        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
+        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
         assert_eq!(
             hex::encode(signed_tx.to_bytes()),
             "83a500818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00027ac6030a05a1581de151df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af70190539a10082825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee5840fc0493f7121efe385d72830680e735ccdef99c3a31953fe877b89ad3a97fcdb871cc7f2cdd6a8104e52f6963bd9e10d814d4fabdbcdc8475bc63e872dcc94d0a82582054d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f35840a051ba927582004aedab736b9f1f9330ff867c260f4751135d480074256e83cd23d2a4bb109f955c43afdcdc5d1841b28d5c1ea2148dfbb6252693590692bb00f6"

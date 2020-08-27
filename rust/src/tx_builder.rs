@@ -156,11 +156,11 @@ impl TransactionBuilder {
     }
 
     pub fn add_output(&mut self, output: &TransactionOutput) -> Result<(), JsValue> {
-        if output.amount().unwrap() < self.minimum_utxo_val.unwrap() {
+        if output.amount() < self.minimum_utxo_val {
             Err(JsValue::from_str(&format!(
                 "Value {} less than the minimum UTXO value {}",
-                output.amount().unwrap(),
-                self.minimum_utxo_val.unwrap()
+                from_bignum(&output.amount()),
+                from_bignum(&self.minimum_utxo_val)
             )))
         } else {
             self.outputs.add(output);
@@ -176,7 +176,7 @@ impl TransactionBuilder {
         // but since we're only calculating the different between the fee of two transactions
         // it doesn't matter what these are set as, since it cancels out
         self_copy.set_ttl(0);
-        self_copy.set_fee(&Coin::new(0));
+        self_copy.set_fee(&to_bignum(0));
 
         let fee_before = min_fee(&self_copy)?;
 
@@ -244,7 +244,7 @@ impl TransactionBuilder {
             .inputs
             .iter()
             .try_fold(
-                Coin::new(0),
+                to_bignum(0),
                 |acc, ref tx_builder_input| acc.checked_add(&tx_builder_input.amount)
             )
     }
@@ -264,7 +264,7 @@ impl TransactionBuilder {
             .outputs.0
             .iter()
             .try_fold(
-                Coin::new(0),
+                to_bignum(0),
                 |acc, ref output| acc.checked_add(&output.amount)
             )
     }
@@ -290,7 +290,7 @@ impl TransactionBuilder {
         }?;
         let input_total = self.get_explicit_input()?.checked_add(&self.get_implicit_input()?)?;
         let output_total = self.get_explicit_output()?.checked_add(&self.get_deposit()?)?;
-        match input_total.unwrap() >= output_total.checked_add(&fee)?.unwrap() {
+        match &input_total >= &output_total.checked_add(&fee)? {
             false => return Err(JsValue::from_str("Insufficient input in transaction")),
             true => {
                 // check how much the fee would increase if we added a change output
@@ -298,7 +298,7 @@ impl TransactionBuilder {
                     address: address.clone(),
                     // maximum possible output to maximize fee from adding this output
                     // this may over-estimate the fee by a few bytes but that's okay
-                    amount: Coin::new(0x1_00_00_00_00),
+                    amount: to_bignum(0x1_00_00_00_00),
                 })?;
                 let new_fee = fee.checked_add(&fee_for_change)?;
                 // needs to have at least minimum_utxo_val leftover for the change to be a valid UTXO entry 
@@ -345,7 +345,7 @@ impl TransactionBuilder {
     /// this is done to simplify the library code, but can be fixed later
     pub fn min_fee(&self) -> Result<Coin, JsValue> {
         let mut self_copy = self.clone();
-        self_copy.set_fee(&Coin::new(0x1_00_00_00_00));
+        self_copy.set_fee(&to_bignum(0x1_00_00_00_00));
         min_fee(&self_copy)
     }
 }
@@ -371,8 +371,8 @@ mod tests {
 
     #[test]
     fn build_tx_with_change() {
-        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
-        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(1), &Coin::new(1));
+        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -401,11 +401,11 @@ mod tests {
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Coin::new(1_000_000)
+            &to_bignum(1_000_000)
         );
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
-            &Coin::new(10)
+            &to_bignum(10)
         )).unwrap();
         tx_builder.set_ttl(1000);
 
@@ -425,8 +425,8 @@ mod tests {
 
     #[test]
     fn build_tx_without_change() {
-        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
-        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(1), &Coin::new(1));
+        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -455,11 +455,11 @@ mod tests {
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Coin::new(1_000_000)
+            &to_bignum(1_000_000)
         );
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
-            &Coin::new(880_000)
+            &to_bignum(880_000)
         )).unwrap();
         tx_builder.set_ttl(1000);
 
@@ -479,8 +479,8 @@ mod tests {
 
     #[test]
     fn build_tx_with_certs() {
-        let linear_fee = LinearFee::new(&Coin::new(500), &Coin::new(2));
-        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(1), &Coin::new(1_000_000));
+        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1_000_000));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -507,7 +507,7 @@ mod tests {
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Coin::new(5_000_000)
+            &to_bignum(5_000_000)
         );
         tx_builder.set_ttl(1000);
 
@@ -541,8 +541,8 @@ mod tests {
     #[test]
     fn build_tx_exact_amount() {
         // transactions where sum(input) == sum(output) exact should pass
-        let linear_fee = LinearFee::new(&Coin::new(0), &Coin::new(0));
-        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(0), &Coin::new(0));
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(0), &to_bignum(0));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -567,14 +567,14 @@ mod tests {
         tx_builder.add_key_input(
             &&spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Coin::new(5)
+            &to_bignum(5)
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
-            &Coin::new(5)
+            &to_bignum(5)
         )).unwrap();
         tx_builder.set_ttl(0);
 
@@ -591,8 +591,8 @@ mod tests {
     #[test]
     fn build_tx_exact_change() {
         // transactions where we have exactly enough ADA to add change should pass
-        let linear_fee = LinearFee::new(&Coin::new(0), &Coin::new(0));
-        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(0), &Coin::new(0));
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(0), &to_bignum(0));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -617,14 +617,14 @@ mod tests {
         tx_builder.add_key_input(
             &&spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Coin::new(6)
+            &to_bignum(6)
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
-            &Coin::new(5)
+            &to_bignum(5)
         )).unwrap();
         tx_builder.set_ttl(0);
 
@@ -643,8 +643,8 @@ mod tests {
     #[should_panic]
     fn build_tx_insufficient_deposit() {
         // transactions should fail with insufficient fees if a deposit is required
-        let linear_fee = LinearFee::new(&Coin::new(0), &Coin::new(0));
-        let mut tx_builder = TransactionBuilder::new(&linear_fee, &Coin::new(1), &Coin::new(0), &Coin::new(5));
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(0), &to_bignum(5));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -669,14 +669,14 @@ mod tests {
         tx_builder.add_key_input(
             &&spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Coin::new(5)
+            &to_bignum(5)
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
-            &Coin::new(5)
+            &to_bignum(5)
         )).unwrap();
         tx_builder.set_ttl(0);
 
