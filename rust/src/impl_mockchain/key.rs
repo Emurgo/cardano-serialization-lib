@@ -9,8 +9,6 @@ use crate::chain_crypto::{
 };
 use rand_os::rand_core::{CryptoRng, RngCore};
 
-use std::str::FromStr;
-
 #[derive(Clone)]
 pub enum EitherEd25519SecretKey {
     Extended(crypto::SecretKey<crypto::Ed25519Extended>),
@@ -47,10 +45,8 @@ impl EitherEd25519SecretKey {
 pub type SpendingPublicKey = crypto::PublicKey<crypto::Ed25519>;
 pub type SpendingSignature<T> = crypto::Signature<T, crypto::Ed25519>;
 
-pub type AccountPublicKey = crypto::PublicKey<crypto::Ed25519>;
-pub type AccountSignature<T> = crypto::Signature<T, crypto::Ed25519>;
-
 pub type Ed25519Signature<T> = crypto::Signature<T, crypto::Ed25519>;
+
 
 fn chain_crypto_pub_err(e: crypto::PublicKeyError) -> ReadError {
     match e {
@@ -136,20 +132,6 @@ where
     signature.clone().coerce().verify(public_key, &bytes)
 }
 
-pub fn verify_multi_signature<T, A>(
-    signature: &crypto::Signature<T, A>,
-    public_key: &[crypto::PublicKey<A>],
-    data: &T,
-) -> crypto::Verification
-where
-    A: VerificationAlgorithm,
-    T: property::Serialize,
-{
-    assert!(public_key.len() > 0);
-    let bytes = data.serialize_as_vec().unwrap();
-    signature.clone().coerce().verify(&public_key[0], &bytes)
-}
-
 /// A serializable type T with a signature.
 pub struct Signed<T, A: VerificationAlgorithm> {
     pub data: T,
@@ -213,109 +195,6 @@ impl<T: Clone, A: VerificationAlgorithm> Clone for Signed<T, A> {
         Signed {
             data: self.data.clone(),
             sig: self.sig.clone(),
-        }
-    }
-}
-
-/// Hash that is used as an address of the various components.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Hash(crypto::Blake2b256);
-impl Hash {
-    /// All 0 hash used as a special hash
-    pub fn zero_hash() -> Self {
-        Hash(crypto::Blake2b256::from([0; crypto::Blake2b256::HASH_SIZE]))
-    }
-    pub fn hash_bytes(bytes: &[u8]) -> Self {
-        Hash(crypto::Blake2b256::new(bytes))
-    }
-    pub fn from_bytes(bytes: [u8; 32]) -> Self {
-        Hash(crypto::Blake2b256::from(bytes))
-    }
-}
-
-impl From<[u8; 32]> for Hash {
-    fn from(a: [u8; 32]) -> Self {
-        Hash::from_bytes(a)
-    }
-}
-
-impl From<Hash> for [u8; 32] {
-    fn from(h: Hash) -> Self {
-        h.0.into()
-    }
-}
-
-impl<'a> From<&'a Hash> for &'a [u8; 32] {
-    fn from(h: &'a Hash) -> Self {
-        (&h.0).into()
-    }
-}
-
-impl property::Serialize for Hash {
-    type Error = std::io::Error;
-    fn serialize<W: std::io::Write>(&self, mut writer: W) -> Result<(), Self::Error> {
-        writer.write_all(self.0.as_hash_bytes())?;
-        Ok(())
-    }
-}
-
-impl property::Deserialize for Hash {
-    type Error = std::io::Error;
-    fn deserialize<R: std::io::BufRead>(mut reader: R) -> Result<Self, Self::Error> {
-        let mut buffer = [0; crypto::Blake2b256::HASH_SIZE];
-        reader.read_exact(&mut buffer)?;
-        Ok(Hash(crypto::Blake2b256::from(buffer)))
-    }
-}
-
-impl Readable for Hash {
-    fn read<'a>(buf: &mut ReadBuf<'a>) -> Result<Self, ReadError> {
-        let bytes = <[u8; crypto::Blake2b256::HASH_SIZE]>::read(buf)?;
-        Ok(Hash(crypto::Blake2b256::from(bytes)))
-    }
-}
-
-impl property::BlockId for Hash {
-    fn zero() -> Hash {
-        Hash(crypto::Blake2b256::from([0; crypto::Blake2b256::HASH_SIZE]))
-    }
-}
-
-impl property::FragmentId for Hash {}
-
-impl AsRef<[u8]> for Hash {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
-
-impl From<crypto::Blake2b256> for Hash {
-    fn from(hash: crypto::Blake2b256) -> Self {
-        Hash(hash)
-    }
-}
-
-impl std::fmt::Display for Hash {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl FromStr for Hash {
-    type Err = crypto::hash::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Hash(crypto::Blake2b256::from_str(s)?))
-    }
-}
-
-#[cfg(any(test, feature = "property-test-api"))]
-pub mod test {
-    use super::*;
-    use quickcheck::{Arbitrary, Gen};
-
-    impl Arbitrary for Hash {
-        fn arbitrary<G: Gen>(g: &mut G) -> Self {
-            Hash(Arbitrary::arbitrary(g))
         }
     }
 }
