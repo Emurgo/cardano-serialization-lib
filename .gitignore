@@ -3,3 +3,5 @@ publish/
 binaryen/
 rust/target
 .vscode/
+.idea
+rust/.idea

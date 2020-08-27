@@ -1,6 +1,6 @@
 use super::*;
 use bech32::ToBase32;
-use cardano_legacy_address::ExtendedAddr;
+use crate::legacy_address::ExtendedAddr;
 use ed25519_bip32::XPub;
 
 // returns (Number represented, bytes read) if valid encoding
@@ -151,6 +151,15 @@ impl ByronAddress {
         let extended_addr = ExtendedAddr::deserialize(&mut raw)?;
         Ok(ByronAddress(extended_addr))
     }
+    /// returns the byron protocol magic embedded in the address, or mainnet id if none is present
+    /// note: for bech32 addresses, you need to use network_id instead
+    pub fn byron_protocol_magic(&self) -> u32 {
+        let mainnet_network_id = 764824073;
+        match self.0.attributes.network_magic {
+            Some(x) => x,
+            None => mainnet_network_id, // mainnet is implied if omitted
+        }
+    }
     pub fn network_id(&self) -> u8 {
         // premise: during the Byron-era, we had one mainnet (764824073) and many many testnets
         // with each testnet getting a different protocol magic
@@ -161,7 +170,7 @@ impl ByronAddress {
         // recall: in Byron mainnet, the network_id is omitted from the address to save a few bytes
         let mainnet_network_id = 764824073;
         // so here we return the mainnet id if none is found in the address
-        
+
         match self.0.attributes.network_magic {
             // although mainnet should never be explicitly added, we check for it just in case
             Some(x) => if x == mainnet_network_id { 0b0001 } else { 0b000 },
@@ -182,7 +191,7 @@ impl ByronAddress {
         out.clone_from_slice(&key.as_bytes());
 
         // need to ensure we use None for mainnet since Byron-era addresses omitted the network id
-        let mapped_network_id = if network == 0b0001 { None } else { Some(0b000 as u32) }; 
+        let mapped_network_id = if network == 0b0001 { None } else { Some(0b000 as u32) };
         ByronAddress(ExtendedAddr::new_simple(& XPub::from_bytes(out), mapped_network_id))
     }
 
@@ -199,7 +208,7 @@ impl ByronAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<ByronAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Byron(byron) => Some(byron.clone()),
             _ => None,
         }
@@ -444,7 +453,7 @@ impl BaseAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<BaseAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Base(base) => Some(base.clone()),
             _ => None,
         }
@@ -477,7 +486,7 @@ impl EnterpriseAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<EnterpriseAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Enterprise(enterprise) => Some(enterprise.clone()),
             _ => None,
         }
@@ -509,7 +518,7 @@ impl RewardAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<RewardAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Reward(reward) => Some(reward.clone()),
             _ => None,
         }
@@ -597,7 +606,7 @@ impl PointerAddress {
     }
 
     pub fn from_address(addr: &Address) -> Option<PointerAddress> {
-        match &addr.0 { 
+        match &addr.0 {
             AddrType::Ptr(ptr) => Some(ptr.clone()),
             _ => None,
         }
@@ -686,6 +695,23 @@ mod tests {
 
     fn harden(index: u32) -> u32 {
         index | 0x80_00_00_00
+    }
+
+    #[test]
+    fn bech32_parsing() {
+        let addr = Address::from_bech32("addr1u8pcjgmx7962w6hey5hhsd502araxp26kdtgagakhaqtq8sxy9w7g").unwrap();
+        assert_eq!(addr.to_bech32(Some("stake".to_string())), "stake1u8pcjgmx7962w6hey5hhsd502araxp26kdtgagakhaqtq8squng76");
+    }
+
+    #[test]
+    fn byron_magic_parsing() {
+        // mainnet address w/ protocol magic omitted
+        let addr = ByronAddress::from_base58("Ae2tdPwUPEZ4YjgvykNpoFeYUxoyhNj2kg8KfKWN2FizsSpLUPv68MpTVDo").unwrap();
+        assert_eq!(addr.byron_protocol_magic(), 764824073);
+
+        // original Byron testnet address
+        let addr = ByronAddress::from_base58("2cWKMJemoBakg8XXW1XNFNZ8VFHVrBPfcoEc9amhL3BBMxJXdMiHmSyk3zRp2SDXHJcZr").unwrap();
+        assert_eq!(addr.byron_protocol_magic(), 1097911063);
     }
 
     #[test]

@@ -1,6 +1,3 @@
-[submodule "rust/chain-libs"]
-	path = rust/chain-libs
-	url = https://github.com/Emurgo/chain-libs
 [submodule "binaryen"]
 	path = binaryen
 	url = git@github.com:WebAssembly/binaryen.git
