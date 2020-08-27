@@ -1,4 +1,5 @@
 node_modules/
 publish/
+binaryen/
 rust/target
 .vscode/
