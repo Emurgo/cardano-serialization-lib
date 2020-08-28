@@ -16,6 +16,7 @@ NPM packages
 
 -  `NodeJS WASM package`_
 -  `Browser (chrome/firefox) WASM package`_
+-  `Browser (pure JS - no WASM) ASM.js package`_
 
 Mobile bindings
 '''''''''''''''
@@ -107,6 +108,7 @@ To publish new versions to NPM (only needed if you are an admin of this project)
 
 .. _NodeJS WASM package: https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-nodejs
 .. _Browser (chrome/firefox) WASM package: https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-browser
+.. _Browser (pure JS - no WASM) ASM.js package: https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-asmjs
 .. _React-Native mobile bindings: https://github.com/Emurgo/react-native-haskell-shelley
 .. _cddl-codegen: https://github.com/Emurgo/cddl-codegen
 .. _Typescript: https://www.typescriptlang.org/
