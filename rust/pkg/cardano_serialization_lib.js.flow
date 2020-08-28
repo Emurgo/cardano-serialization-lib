@@ -225,17 +225,6 @@ declare export class BigNum {
   static from_bytes(bytes: Uint8Array): BigNum;
 
   /**
-   * @param {BigInt} value
-   * @returns {BigNum}
-   */
-  static new(value: BigInt): BigNum;
-
-  /**
-   * @returns {BigInt}
-   */
-  unwrap(): BigInt;
-
-  /**
    * @param {string} string
    * @returns {BigNum}
    */
@@ -292,6 +281,26 @@ declare export class Bip32PrivateKey {
    * @returns {Bip32PrivateKey}
    */
   derive(index: number): Bip32PrivateKey;
+
+  /**
+   * 128-byte xprv a key format in Cardano that some software still uses or requires
+   * the traditional 96-byte xprv is simply encoded as
+   * prv | chaincode
+   * however, because some software may not know how to compute a public key from a private key,
+   * the 128-byte inlines the public key in the following format
+   * prv | pub | chaincode
+   * so be careful if you see the term "xprv" as it could refer to either one
+   * our library does not require the pub (instead we compute the pub key when needed)
+   * @param {Uint8Array} bytes
+   * @returns {Bip32PrivateKey}
+   */
+  static from_128_xprv(bytes: Uint8Array): Bip32PrivateKey;
+
+  /**
+   * see from_128_xprv
+   * @returns {Uint8Array}
+   */
+  to_128_xprv(): Uint8Array;
 
   /**
    * @returns {Bip32PrivateKey}
