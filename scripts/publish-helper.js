@@ -15,6 +15,14 @@ if (process.argv.slice(2)[0] === '-browser') {
     oldPkg.files.push(missingFile);
   }
 }
+if (process.argv.slice(2)[0] === '-asmjs') {
+  // need to replace WASM with ASM package 
+  const missingFile = 'cardano_serialization_lib_bg.wasm';
+  oldPkg.files = [
+    'cardano_serialization_lib.asm.js',
+    ...oldPkg.files.filter(file => file !== 'cardano_serialization_lib_bg.wasm')
+  ];
+}
 
 oldPkg.repository = {
   type: "git",

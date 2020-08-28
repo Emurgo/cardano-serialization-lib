@@ -18,3 +18,5 @@ paths.forEach((path) => {
     });
   });
 })
+
+fs.unlinkSync('./rust/pkg/cardano_serialization_lib_bg.wasm')
