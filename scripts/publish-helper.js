@@ -8,7 +8,7 @@ if (oldPkg.files.find(entry => entry === flowFile) == null) {
 if (oldPkg.name === 'cardano-serialization-lib') {
   oldPkg.name = '@emurgo/' + oldPkg.name + process.argv.slice(2)[0];
 }
-if (process.argv.slice(2)[0] === '-browser') {
+if (process.argv.slice(2)[0] === '-browser' || process.argv.slice(2)[0] === '-asmjs') {
   // due to a bug in wasm-pack, this file is missing from browser builds
   const missingFile = 'cardano_serialization_lib_bg.js';
   if (oldPkg.files.find(entry => entry === missingFile) == null) {
