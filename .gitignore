@@ -4,3 +4,4 @@ rust/target
 .vscode/
 .idea
 rust/.idea
+binaryen/

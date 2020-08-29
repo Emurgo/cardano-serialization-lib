@@ -591,6 +591,11 @@ declare export class ByronAddress {
   byron_protocol_magic(): number;
 
   /**
+   * @returns {Uint8Array}
+   */
+  attributes(): Uint8Array;
+
+  /**
    * @returns {number}
    */
   network_id(): number;
