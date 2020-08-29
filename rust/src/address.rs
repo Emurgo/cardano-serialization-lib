@@ -160,6 +160,11 @@ impl ByronAddress {
             None => mainnet_network_id, // mainnet is implied if omitted
         }
     }
+    pub fn attributes(&self) -> Vec<u8> {
+        let mut attributes_bytes = Serializer::new_vec();
+        self.0.attributes.serialize(&mut attributes_bytes).unwrap();
+        attributes_bytes.finalize()
+    }
     pub fn network_id(&self) -> u8 {
         // premise: during the Byron-era, we had one mainnet (764824073) and many many testnets
         // with each testnet getting a different protocol magic

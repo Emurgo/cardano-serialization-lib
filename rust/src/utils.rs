@@ -203,14 +203,6 @@ pub trait DeserializeEmbeddedGroup {
     ) -> Result<Self, DeserializeError> where Self: Sized;
 }
 
-fn serialize_attributes(
-    addr: &ByronAddress,
-) -> Vec<u8> {
-    let mut attributes_bytes = Serializer::new_vec();
-    addr.0.attributes.serialize(&mut attributes_bytes).unwrap();
-    attributes_bytes.finalize()
-}
-
 #[wasm_bindgen]
 pub fn make_daedalus_bootstrap_witness(
     tx_body_hash: &TransactionHash,
@@ -227,7 +219,7 @@ pub fn make_daedalus_bootstrap_witness(
         &vkey,
         &signature,
         chain_code,
-        serialize_attributes(addr),
+        addr.attributes(),
     )
 }
 
@@ -247,7 +239,7 @@ pub fn make_icarus_bootstrap_witness(
         &vkey,
         &signature,
         chain_code,
-        serialize_attributes(addr),
+        addr.attributes(),
     )
 }
 
