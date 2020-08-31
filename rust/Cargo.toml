@@ -18,7 +18,7 @@ sha2 = "^0.8"
 digest = "^0.8"
 bech32 = "0.7.2"
 hex = "0.4.0"
-js-sys = "0.3.24"
+js-sys = "0.3.44"
 rand_os = { version = "0.1", features = ["wasm-bindgen"] }
 cfg-if = "0.1"
 
