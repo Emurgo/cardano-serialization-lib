@@ -755,7 +755,7 @@ impl_hash_type!(TransactionHash, 32);
 impl_hash_type!(GenesisDelegateHash, 28);
 impl_hash_type!(GenesisHash, 28);
 impl_hash_type!(MetadataHash, 32);
-impl_hash_type!(VRFKeyHash, 28);
+impl_hash_type!(VRFKeyHash, 32);
 impl_hash_type!(BlockHash, 32);
 // We might want to make these two vkeys normal classes later but for now it's just arbitrary bytes for us (used in block parsing)
 impl_hash_type!(VRFVKey, 32);
