@@ -1,6 +1,6 @@
 {
   "name": "cardano-serialization-lib",
-  "version": "2.3.1",
+  "version": "3.0.0",
   "description": "processing Haskell Shelley testnet",
   "scripts": {
     "rust:build-nodejs": "rimraf ./rust/pkg && cd rust; wasm-pack build --target=nodejs; wasm-pack pack; cd .. && npm run js:flowgen",
