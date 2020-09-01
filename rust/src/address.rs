@@ -395,7 +395,17 @@ impl Address {
     }
 
     pub fn to_bech32(&self, prefix: Option<String>) -> String {
-        bech32::encode(&prefix.unwrap_or("addr".to_string()), self.to_bytes().to_base32()).unwrap()
+        // see CIP5 for bech32 prefix rules
+        let prefix_header = match &self.0 {
+            AddrType::Reward(a) => "stake",
+            _ => "addr",
+        };
+        let prefix_tail = match &self.network_id() {
+            0b0001 => "",
+            _ => "_test",
+        };
+        let full_prefix = format!("{}{}", prefix_header, prefix_tail);
+        bech32::encode(&prefix.unwrap_or(full_prefix.to_string()), self.to_bytes().to_base32()).unwrap()
     }
 
     pub fn from_bech32(bech_str: &str) -> Result<Address, JsValue> {
@@ -705,7 +715,7 @@ mod tests {
     #[test]
     fn bech32_parsing() {
         let addr = Address::from_bech32("addr1u8pcjgmx7962w6hey5hhsd502araxp26kdtgagakhaqtq8sxy9w7g").unwrap();
-        assert_eq!(addr.to_bech32(Some("stake".to_string())), "stake1u8pcjgmx7962w6hey5hhsd502araxp26kdtgagakhaqtq8squng76");
+        assert_eq!(addr.to_bech32(Some("foobar".to_string())), "foobar1u8pcjgmx7962w6hey5hhsd502araxp26kdtgagakhaqtq8s92n4tm");
     }
 
     #[test]
@@ -738,9 +748,9 @@ mod tests {
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqcyl47r");
-        let addr_net_3 = BaseAddress::new(3, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1qw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqzhyupd");
+        assert_eq!(addr_net_0.to_bech32(None), "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp");
+        let addr_net_3 = BaseAddress::new(1, &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None), "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7");
     }
 
     #[test]
@@ -754,9 +764,9 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = EnterpriseAddress::new(0, &spend_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers6g8jlq");
-        let addr_net_3 = EnterpriseAddress::new(3, &spend_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1vw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers6h7glf");
+        assert_eq!(addr_net_0.to_bech32(None), "addr_test1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspjrlsz");
+        let addr_net_3 = EnterpriseAddress::new(1, &spend_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None), "addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8");
     }
 
     #[test]
@@ -770,9 +780,9 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = PointerAddress::new(0, &spend_cred, &Pointer::new(1, 2, 3)).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspqgpslhplej");
-        let addr_net_3 = PointerAddress::new(3, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1gw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2x4v58t");
+        assert_eq!(addr_net_0.to_bech32(None), "addr_test1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspqgpsqe70et");
+        let addr_net_3 = PointerAddress::new(1, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(addr_net_3.to_bech32(None), "addr1gx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2w8lunk");
     }
 
     #[test]
@@ -794,9 +804,9 @@ mod tests {
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qwmnp2v");
-        let addr_net_3 = BaseAddress::new(3, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1qdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2q5ggg4z");
+        assert_eq!(addr_net_0.to_bech32(None), "addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w");
+        let addr_net_3 = BaseAddress::new(1, &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None), "addr1q9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qld6xc3");
     }
 
     #[test]
@@ -810,9 +820,9 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = EnterpriseAddress::new(0, &spend_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0yu80w");
-        let addr_net_3 = EnterpriseAddress::new(3, &spend_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1vdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0m9a08");
+        assert_eq!(addr_net_0.to_bech32(None), "addr_test1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg57c2qv");
+        let addr_net_3 = EnterpriseAddress::new(1, &spend_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None), "addr1v9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0kvk0f");
     }
 
     #[test]
@@ -826,9 +836,9 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = PointerAddress::new(0, &spend_cred, &Pointer::new(1, 2, 3)).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsjej5ck");
-        let addr_net_3 = PointerAddress::new(3, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1gdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5evph3wczvf27l8yfx");
+        assert_eq!(addr_net_0.to_bech32(None), "addr_test1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsdhdyc0");
+        let addr_net_3 = PointerAddress::new(1, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(addr_net_3.to_bech32(None), "addr1g9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5evph3wczvf2kd5vam");
     }
 
     #[test]
@@ -868,9 +878,9 @@ mod tests {
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1qqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33su9wxrs");
-        let addr_net_3 = BaseAddress::new(3, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1qvy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sxk40u7");
+        assert_eq!(addr_net_0.to_bech32(None), "addr_test1qqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sw96paj");
+        let addr_net_3 = BaseAddress::new(1, &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None), "addr1qyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sdn8p3d");
     }
 
     #[test]
@@ -884,9 +894,9 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = EnterpriseAddress::new(0, &spend_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqsg0y49");
-        let addr_net_3 = EnterpriseAddress::new(3, &spend_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1vvy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqshk74v");
+        assert_eq!(addr_net_0.to_bech32(None), "addr_test1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqtjtf68");
+        let addr_net_3 = EnterpriseAddress::new(1, &spend_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None), "addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z");
     }
 
     #[test]
@@ -900,8 +910,24 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let addr_net_0 = PointerAddress::new(0, &spend_cred, &Pointer::new(1, 2, 3)).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgpst4xf0c");
-        let addr_net_3 = PointerAddress::new(3, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1gvy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnyph3wczvf29j6huk");
+        assert_eq!(addr_net_0.to_bech32(None), "addr_test1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgps5mee0p");
+        let addr_net_3 = PointerAddress::new(1, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(addr_net_3.to_bech32(None), "addr1gyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnyph3wczvf2dqflgt");
+    }
+
+    #[test]
+    fn bip32_12_reward() {
+        let staking_key = root_key_12()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+        let staking_cred = StakeCredential::from_keyhash(&staking_key.to_raw_key().hash());
+        let addr_net_0 = RewardAddress::new(0, &staking_cred).to_address();
+        assert_eq!(addr_net_0.to_bech32(None), "stake_test1uqevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqp8n5xl");
+        let addr_net_3 = RewardAddress::new(1, &staking_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None), "stake1uyevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqxdekzz");
     }
 }
