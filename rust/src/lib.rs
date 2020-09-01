@@ -781,7 +781,7 @@ pub enum MIRPot {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MoveInstantaneousReward {
     pot: MIRPot,
-    rewards: std::collections::BTreeMap<StakeCredential, Coin>,
+    rewards: linked_hash_map::LinkedHashMap<StakeCredential, Coin>,
 }
 
 to_from_bytes!(MoveInstantaneousReward);
@@ -791,7 +791,7 @@ impl MoveInstantaneousReward {
     pub fn new(pot: MIRPot) -> Self {
         Self {
             pot,
-            rewards: std::collections::BTreeMap::new(),
+            rewards: linked_hash_map::LinkedHashMap::new(),
         }
     }
 
@@ -1072,14 +1072,14 @@ impl RewardAddresses {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Withdrawals(std::collections::BTreeMap<RewardAddress, Coin>);
+pub struct Withdrawals(linked_hash_map::LinkedHashMap<RewardAddress, Coin>);
 
 to_from_bytes!(Withdrawals);
 
 #[wasm_bindgen]
 impl Withdrawals {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        Self(linked_hash_map::LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -1175,9 +1175,9 @@ impl TransactionWitnessSet {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct MapTransactionMetadatumToTransactionMetadatum(
-    std::collections::BTreeMap<TransactionMetadatum, TransactionMetadatum>,
+    linked_hash_map::LinkedHashMap<TransactionMetadatum, TransactionMetadatum>,
 );
 
 to_from_bytes!(MapTransactionMetadatumToTransactionMetadatum);
@@ -1185,7 +1185,7 @@ to_from_bytes!(MapTransactionMetadatumToTransactionMetadatum);
 #[wasm_bindgen]
 impl MapTransactionMetadatumToTransactionMetadatum {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        Self(linked_hash_map::LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -1215,7 +1215,7 @@ impl MapTransactionMetadatumToTransactionMetadatum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct TransactionMetadatums(Vec<TransactionMetadatum>);
 
 to_from_bytes!(TransactionMetadatums);
@@ -1249,7 +1249,7 @@ pub enum TransactionMetadatumKind {
     Text,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum TransactionMetadatumEnum {
     MapTransactionMetadatumToTransactionMetadatum(MapTransactionMetadatumToTransactionMetadatum),
     ArrTransactionMetadatum(TransactionMetadatums),
@@ -1259,7 +1259,7 @@ enum TransactionMetadatumEnum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct TransactionMetadatum(TransactionMetadatumEnum);
 
 to_from_bytes!(TransactionMetadatum);
@@ -1380,7 +1380,7 @@ impl TransactionMetadatumLabels {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionMetadata(
-    std::collections::BTreeMap<TransactionMetadatumLabel, TransactionMetadatum>,
+    linked_hash_map::LinkedHashMap<TransactionMetadatumLabel, TransactionMetadatum>,
 );
 
 to_from_bytes!(TransactionMetadata);
@@ -1388,7 +1388,7 @@ to_from_bytes!(TransactionMetadata);
 #[wasm_bindgen]
 impl TransactionMetadata {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        Self(linked_hash_map::LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -1644,7 +1644,7 @@ impl GenesisHashes {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ProposedProtocolParameterUpdates(
-    std::collections::BTreeMap<GenesisHash, ProtocolParamUpdate>,
+    linked_hash_map::LinkedHashMap<GenesisHash, ProtocolParamUpdate>,
 );
 
 to_from_bytes!(ProposedProtocolParameterUpdates);
@@ -1652,7 +1652,7 @@ to_from_bytes!(ProposedProtocolParameterUpdates);
 #[wasm_bindgen]
 impl ProposedProtocolParameterUpdates {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        Self(linked_hash_map::LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -1960,12 +1960,12 @@ pub type TransactionIndexes = Vec<TransactionIndex>;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MapTransactionIndexToTransactionMetadata(std::collections::BTreeMap<TransactionIndex, TransactionMetadata>);
+pub struct MapTransactionIndexToTransactionMetadata(linked_hash_map::LinkedHashMap<TransactionIndex, TransactionMetadata>);
 
 #[wasm_bindgen]
 impl MapTransactionIndexToTransactionMetadata {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        Self(linked_hash_map::LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {

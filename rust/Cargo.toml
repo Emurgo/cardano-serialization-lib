@@ -21,6 +21,7 @@ hex = "0.4.0"
 js-sys = "0.3.24"
 rand_os = { version = "0.1", features = ["wasm-bindgen"] }
 cfg-if = "0.1"
+linked-hash-map = "0.5.3"
 
 # The default can't be compiled to wasm, so it's necessary to use either the 'nightly'
 # feature or this one
