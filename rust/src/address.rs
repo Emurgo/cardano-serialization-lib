@@ -29,14 +29,14 @@ fn variable_nat_encode(mut num: u64) -> Vec<u8> {
     output
 }
 
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Hash, Eq, Ord, PartialEq, PartialOrd)]
 enum StakeCredType {
     Key(Ed25519KeyHash),
     Script(ScriptHash),
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct StakeCredential(StakeCredType);
 
 #[wasm_bindgen]
@@ -499,7 +499,7 @@ impl EnterpriseAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RewardAddress {
     network: u8,
     payment: StakeCredential,

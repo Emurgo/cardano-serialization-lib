@@ -90,6 +90,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "js-sys",
+ "linked-hash-map",
  "quickcheck",
  "quickcheck_macros",
  "rand_chacha 0.1.1",
@@ -306,6 +307,12 @@ name = "libc"
 version = "0.2.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9f8082297d534141b30c8d39e9b1773713ab50fdbe4ff30f750d063b3bfd701"
+
+[[package]]
+name = "linked-hash-map"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8dd5a6d5999d9907cda8ed67bbd137d3af8085216c2ac62de5be860bd41f304a"
 
 [[package]]
 name = "log"

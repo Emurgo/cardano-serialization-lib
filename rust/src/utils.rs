@@ -67,7 +67,7 @@ macro_rules! to_from_bytes {
 // This is an unsigned type - no negative numbers.
 // Can be converted to/from plain rust 
 #[wasm_bindgen]
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BigNum(u64);
 
 to_from_bytes!(BigNum);
@@ -135,7 +135,7 @@ pub type Coin = BigNum;
 
 // CBOR has int = uint / nint
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Int(i128);
 
 #[wasm_bindgen]

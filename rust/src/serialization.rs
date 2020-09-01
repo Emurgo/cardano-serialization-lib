@@ -1112,7 +1112,7 @@ impl cbor_event::se::Serialize for MoveInstantaneousReward {
 
 impl Deserialize for MoveInstantaneousReward {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = std::collections::BTreeMap::new();
+        let mut table = linked_hash_map::LinkedHashMap::new();
         let pot = (|| -> Result<_, DeserializeError> {
             let outer_len = raw.array()?;
             let pot = match raw.unsigned_integer()? {
@@ -1549,7 +1549,7 @@ impl cbor_event::se::Serialize for Withdrawals {
 
 impl Deserialize for Withdrawals {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = std::collections::BTreeMap::new();
+        let mut table = linked_hash_map::LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
@@ -1695,7 +1695,7 @@ impl cbor_event::se::Serialize for MapTransactionMetadatumToTransactionMetadatum
 
 impl Deserialize for MapTransactionMetadatumToTransactionMetadatum {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = std::collections::BTreeMap::new();
+        let mut table = linked_hash_map::LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
@@ -1860,7 +1860,7 @@ impl cbor_event::se::Serialize for TransactionMetadata {
 
 impl Deserialize for TransactionMetadata {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = std::collections::BTreeMap::new();
+        let mut table = linked_hash_map::LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
@@ -2242,7 +2242,7 @@ impl cbor_event::se::Serialize for ProposedProtocolParameterUpdates {
 
 impl Deserialize for ProposedProtocolParameterUpdates {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = std::collections::BTreeMap::new();
+        let mut table = linked_hash_map::LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
@@ -2673,7 +2673,7 @@ impl cbor_event::se::Serialize for MapTransactionIndexToTransactionMetadata {
 
 impl Deserialize for MapTransactionIndexToTransactionMetadata {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = std::collections::BTreeMap::new();
+        let mut table = linked_hash_map::LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
