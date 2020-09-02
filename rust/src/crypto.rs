@@ -761,7 +761,53 @@ impl_hash_type!(BlockHash, 32);
 impl_hash_type!(VRFVKey, 32);
 impl_hash_type!(KESVKey, 32);
 // same for this signature
-impl_hash_type!(KESSignature, 448);
+//impl_hash_type!(KESSignature, 448);
+// TODO: when >32 size trait implementations are out of nightly and into stable
+// remove the following manual struct definition and use the above macro again if we
+// don't have proper crypto implementations for it.
+#[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct KESSignature(pub (crate) Vec<u8>);
+
+#[wasm_bindgen]
+impl KESSignature {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+}
+
+// associated consts are not supported in wasm_bindgen
+impl KESSignature {
+    pub const BYTE_COUNT: usize = 448;
+}
+
+from_bytes!(KESSignature, bytes, {
+    match bytes.len() {
+        Self::BYTE_COUNT => Ok(KESSignature(bytes)),
+        other_len => {
+            let cbor_error = cbor_event::Error::WrongLen(Self::BYTE_COUNT as u64, cbor_event::Len::Len(other_len as u64), "hash length");
+            Err(DeserializeError::new("KESSignature", DeserializeFailure::CBOR(cbor_error)))
+        },
+    }
+});
+
+impl cbor_event::se::Serialize for KESSignature {
+    fn serialize<'se, W: std::io::Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_bytes(&self.0)
+    }
+}
+
+impl Deserialize for KESSignature {
+    fn deserialize<R: std::io::BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<Self, DeserializeError> {
+            let bytes = raw.bytes()?;
+            if bytes.len() != Self::BYTE_COUNT {
+                return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(Self::BYTE_COUNT as u64, cbor_event::Len::Len(bytes.len() as u64), "hash length")).into());
+            }
+            Ok(KESSignature(bytes))
+        })().map_err(|e| e.annotate(stringify!($name)))
+    }
+}
 
 // Evolving nonce type (used for Update's crypto)
 #[wasm_bindgen]
