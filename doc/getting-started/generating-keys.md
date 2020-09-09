@@ -1,4 +1,4 @@
-# Generating Keys
+# Generating Keys and Addresses
 
 ## BIP32 Keys
 
@@ -47,11 +47,11 @@ const rootKey = CardanoWasm.Bip32PrivateKey.from_bip39_entropy(
 
 ## Use in Addresses
 
-Once we have reached the desired derivation path, we must convert the `BIP32PrivateKey` or `BIP32PublicKey` to a `PrivateKey` or `PublicKey` by calling `.to_raw_key()` on them.
+Once we have reached the desired derivation path, we must convert the `BIP32PrivateKey` or `BIP32PublicKey` to a `PrivateKey` or `PublicKey` by calling `.to_raw_key()` on them with the exception of Byron addresses.
 For example, to create an address using the `utxoPubKey` and `stakeKey` in the first example, we can do:
 ```javascript
-// network id - 0? for mainnet, 1? for testnet
-const networkId = 0;
+// network id - 1 for mainnet, 0 for testnet
+const networkId = 1;
 
 // base address with staking key
 const baseAddr = CardanoWasm.BaseAddress.new(
@@ -76,14 +76,34 @@ const ptrAddr = CardanoWasm.PointerAddress.new(
     0    // cert indiex in tx
   )
 );
+
+// reward address - used for withdrawing accumulated staking rewards
+const rewardAddr = CardanoWasm.RewardAddress.new(
+  networkId,
+  CardanoWasm.StakeCredential.from_keyhash(stakeKey.to_raw_key().hash())
+);
+
+// bootstrap address - byron-era addresses with no staking rights
+const byronAddr = CardanoWasm.ByronAddress.from_icarus_key(
+  utxoPubKey, // Ae2* style icarus address
+  networkId
+);
 ```
 
-These are all address variant types with information specific to its address type. To be used with the library we must conver them to a generic `Address` like such:
+Note that the byron-era address can only be created in this library from icarus-style addresses that start in `Ae2` and that Daedalus-style addresses starting in `Dd` are not directly supported.
+
+These are all address variant types with information specific to its address type. There is also an `Address` type which represents any of those variants, which is the type use in most parts of the library. For example to create a `TransactionOutut` manually we would have to first convert from one of the address variants by doing:
 ```javascript
 const address = baseAddress.to_address();
 
 const output = CardanoWasm.TransactionOutput(address, BigNum.from_str("365"));
 ```
+If the address is already a Shelley address in raw bytes or a bech32 string we can create it directly via:
+```javascript
+const addr = CardanoWasm.Address.from_bech32("addr1vyt3w9chzut3w9chzut3w9chzut3w9chzut3w9chzut3w9cj43ltf");
+
+```
+
 
 ## Other Key Types
 
@@ -93,5 +113,6 @@ const bip32PrivateKey = CardanoWasm.BIP32PrivateKey.from_128_xprv(xprvBytes);
 assert(xprvBytes == CardanoWasm.BIP32PrivateKey.to_128_xprv());
 ```
 96-byte `XPrv` keys are identical to `BIP32PrivateKey`s byte-wise and no conversion is needed.
+For more details see [this document](https://docs.cardano.org/projects/cardano-node/en/latest/stake-pool-operations/keys_and_addresses.html) regarding legacy keys.
 
-
+There is also `LegacyDaedalusPrivateKey` which is used for creating witnesses for legacy Daedalus `Dd`-type addresses.
