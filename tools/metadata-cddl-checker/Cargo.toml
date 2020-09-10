@@ -1,0 +1,7 @@
+[package]
+name = "metadata-cddl-checker"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+cddl = "0.5.2"
