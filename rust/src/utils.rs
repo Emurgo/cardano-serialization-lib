@@ -136,7 +136,7 @@ pub type Coin = BigNum;
 // CBOR has int = uint / nint
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Int(i128);
+pub struct Int(pub (crate) i128);
 
 #[wasm_bindgen]
 impl Int {
@@ -146,6 +146,26 @@ impl Int {
 
     pub fn new_negative(x: BigNum) -> Self {
         Self(-(x.0 as i128))
+    }
+
+    pub fn is_positive(&self) -> bool {
+        return self.0 >= 0
+    }
+
+    pub fn as_positive(&self) -> Option<BigNum> {
+        if self.is_positive() {
+            Some(to_bignum(self.0 as u64))
+        } else {
+            None
+        }
+    }
+
+    pub fn as_negative(&self) -> Option<BigNum> {
+        if !self.is_positive() {
+            Some(to_bignum((-self.0) as u64))
+        } else {
+            None
+        }
     }
 }
 

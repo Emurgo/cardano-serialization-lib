@@ -244,6 +244,104 @@ impl TransactionMetadata {
     }
 }
 
+// encodes arbitrary bytes into chunks of 64 bytes (the limit for bytes) as a list to be valid Metadata
+#[wasm_bindgen]
+pub fn encode_arbitrary_bytes_as_metadatum(bytes: &[u8]) -> TransactionMetadatum {
+    let mut list = MetadataList::new();
+    for chunk in bytes.chunks(64) {
+        list.add(&TransactionMetadatum::new_bytes(chunk.to_vec()));
+    }
+    TransactionMetadatum::new_list(&list)
+}
+
+// decodes from chunks of bytes in a list to a byte vector if that is the metadata format, otherwise returns None
+#[wasm_bindgen]
+pub fn decode_arbitrary_bytes_from_metadatum(metadata: &TransactionMetadatum) -> Option<Vec<u8>>{
+    let mut bytes = Vec::new();
+    for elem in metadata.as_list()?.0 {
+        bytes.append(&mut elem.as_bytes()?);
+    }
+    Some(bytes)
+}
+
+// encodes a JSON object represented as a string into metadatum if possible.
+// Bytes are not supported due to ambiguity of representation in pure JSON
+// as representing as a byte array could be confused with a list, and using
+// a hex/b58etc string could be confused with a regular string
+#[wasm_bindgen]
+pub fn encode_json_str_to_metadatum(json: String) -> Option<TransactionMetadatum> {
+    encode_json_value_to_metadatum(serde_json::from_str(&json).ok()?)
+}
+
+pub fn encode_json_value_to_metadatum(value: serde_json::Value) -> Option<TransactionMetadatum> {
+    use serde_json::Value;
+    match value {
+        Value::Null => None,
+        Value::Bool(_) => None,
+        Value::Number(x) => {
+            if let Some(x) = x.as_u64() {
+                Some(TransactionMetadatum::new_int(&Int::new(utils::to_bignum(x))))
+            } else if let Some(x) = x.as_i64() {
+                Some(TransactionMetadatum::new_int(&Int::new_negative(utils::to_bignum(-x as u64))))
+            } else {
+                // floats not supported in metadata
+                None
+            }
+        },
+        Value::String(s) => Some(TransactionMetadatum::new_text(s)),
+        Value::Array(json_arr) => {
+            let mut arr = MetadataList::new();
+            for value in json_arr {
+                arr.add(&encode_json_value_to_metadatum(value)?);
+            }
+            Some(TransactionMetadatum::new_list(&arr))
+        },
+        Value::Object(json_obj) => {
+            let mut map = MetadataMap::new();
+            for (key, value) in json_obj {
+                map.insert(
+                    &TransactionMetadatum::new_text(key),
+                    &encode_json_value_to_metadatum(value)?);
+            }
+            Some(TransactionMetadatum::new_map(&map))
+        },
+    }
+}
+
+// decodes a metadatum into a JSON object string if possible
+// Bytes are not supported, see encoding comment.
+#[wasm_bindgen]
+pub fn decode_metadatum_to_json_str(metadatum: &TransactionMetadatum) -> Option<String> {
+    let value = decode_metadatum_to_json_value(metadatum)?;
+    serde_json::to_string(&value).ok()
+}
+
+pub fn decode_metadatum_to_json_value(metadatum: &TransactionMetadatum) -> Option<serde_json::Value> {
+    use serde_json::Value;
+    use std::convert::TryFrom;
+    match &metadatum.0 {
+        TransactionMetadatumEnum::MetadataMap(map) => {
+            let mut json_map = serde_json::map::Map::with_capacity(map.len());
+            for (key, value) in map.0.iter() {
+                json_map.insert(
+                    match &key.0 {
+                        TransactionMetadatumEnum::Text(s) => s.clone(),
+                        _ => return None,
+                    },
+                    decode_metadatum_to_json_value(value)?
+                );
+            }
+            Some(Value::from(json_map))
+        },
+        TransactionMetadatumEnum::MetadataList(arr) => {
+            Some(Value::from(arr.0.iter().map(decode_metadatum_to_json_value).collect::<Option<Vec<_>>>()?))
+        },
+        TransactionMetadatumEnum::Int(x) => Some(Value::from(i64::try_from(x.0).ok()?)),
+        TransactionMetadatumEnum::Bytes(_) => None,
+        TransactionMetadatumEnum::Text(s) => Some(Value::from(s.clone())),
+    }
+}
+
 // serialization
 impl cbor_event::se::Serialize for MetadataMap {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
@@ -440,5 +538,28 @@ impl Deserialize for TransactionMetadata {
             Ok(())
         })().map_err(|e| e.annotate("TransactionMetadata"))?;
         Ok(Self(table))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn binary_encoding() {
+        let input_bytes = (0..1000).map(|x| x as u8).collect::<Vec<u8>>();
+        let metadata = encode_arbitrary_bytes_as_metadatum(input_bytes.as_ref());
+        let output_bytes = decode_arbitrary_bytes_from_metadatum(&metadata).expect("decode failed");
+        assert_eq!(input_bytes, output_bytes);
+    }
+
+    #[test]
+    fn json_encoding() {
+        let input_str = String::from("{\"receiver_id\": \"SJKdj34k3jjKFDKfjFUDfdjkfd\",\"sender_id\": \"jkfdsufjdk34h3Sdfjdhfduf873\",\"comment\": \"happy birthday\",\"tags\": [0, 264, -1024, 32]}");
+        let metadata = encode_json_str_to_metadatum(input_str.clone()).expect("encode failed");
+        let output_str = decode_metadatum_to_json_str(&metadata).expect("decode failed");
+        let input_json: serde_json::Value = serde_json::from_str(&input_str).unwrap();
+        let output_json: serde_json::Value= serde_json::from_str(&output_str).unwrap();
+        assert_eq!(input_json, output_json);
     }
 }

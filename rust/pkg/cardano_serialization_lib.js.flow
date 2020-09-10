@@ -6,11 +6,36 @@
  */
 
 /**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
  */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array | void}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array | void;
+
+/**
+ * @param {string} json
+ * @returns {TransactionMetadatum | void}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string
+): TransactionMetadatum | void;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @returns {string | void}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum
+): string | void;
 
 /**
  * @param {TransactionHash} tx_body_hash
@@ -85,6 +110,13 @@ declare export function get_deposit(
   pool_deposit: BigNum,
   key_deposit: BigNum
 ): BigNum;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
