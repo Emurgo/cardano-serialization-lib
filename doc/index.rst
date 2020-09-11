@@ -15,3 +15,4 @@
    getting-started/prerequisite-knowledge
    getting-started/generating-keys
    getting-started/generating-transactions
+   getting-started/metadata
