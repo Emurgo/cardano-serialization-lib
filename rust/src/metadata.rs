@@ -27,8 +27,12 @@ impl MetadataMap {
         self.0.insert(key.clone(), value.clone())
     }
 
-    pub fn get(&self, key: &TransactionMetadatum) -> Option<TransactionMetadatum> {
-        self.0.get(key).map(|v| v.clone())
+    pub fn get(&self, key: &TransactionMetadatum) -> Result<TransactionMetadatum, JsValue> {
+        self.0.get(key).map(|v| v.clone()).ok_or_else(|| JsValue::from_str(&format!("key {:?} not found", key)))
+    }
+
+    pub fn has(&self, key: &TransactionMetadatum) -> bool {
+        self.0.contains_key(key)
     }
 
     pub fn keys(&self) -> MetadataList {
@@ -139,40 +143,40 @@ impl TransactionMetadatum {
 
     pub fn as_map(
         &self,
-    ) -> Option<MetadataMap> {
+    ) -> Result<MetadataMap, JsValue> {
         match &self.0 {
             TransactionMetadatumEnum::MetadataMap(x) => {
-                Some(x.clone())
+                Ok(x.clone())
             }
-            _ => None,
+            _ => Err(JsValue::from_str("not a map")),
         }
     }
 
-    pub fn as_list(&self) -> Option<MetadataList> {
+    pub fn as_list(&self) -> Result<MetadataList, JsValue> {
         match &self.0 {
-            TransactionMetadatumEnum::MetadataList(x) => Some(x.clone()),
-            _ => None,
+            TransactionMetadatumEnum::MetadataList(x) => Ok(x.clone()),
+            _ => Err(JsValue::from_str("not a list")),
         }
     }
 
-    pub fn as_int(&self) -> Option<Int> {
+    pub fn as_int(&self) -> Result<Int, JsValue> {
         match &self.0 {
-            TransactionMetadatumEnum::Int(x) => Some(x.clone()),
-            _ => None,
+            TransactionMetadatumEnum::Int(x) => Ok(x.clone()),
+            _ => Err(JsValue::from_str("not an int")),
         }
     }
 
-    pub fn as_bytes(&self) -> Option<Vec<u8>> {
+    pub fn as_bytes(&self) -> Result<Vec<u8>, JsValue> {
         match &self.0 {
-            TransactionMetadatumEnum::Bytes(x) => Some(x.clone()),
-            _ => None,
+            TransactionMetadatumEnum::Bytes(x) => Ok(x.clone()),
+            _ => Err(JsValue::from_str("not bytes")),
         }
     }
 
-    pub fn as_text(&self) -> Option<String> {
+    pub fn as_text(&self) -> Result<String, JsValue> {
         match &self.0 {
-            TransactionMetadatumEnum::Text(x) => Some(x.clone()),
-            _ => None,
+            TransactionMetadatumEnum::Text(x) => Ok(x.clone()),
+            _ => Err(JsValue::from_str("not text")),
         }
     }
 }
@@ -256,12 +260,12 @@ pub fn encode_arbitrary_bytes_as_metadatum(bytes: &[u8]) -> TransactionMetadatum
 
 // decodes from chunks of bytes in a list to a byte vector if that is the metadata format, otherwise returns None
 #[wasm_bindgen]
-pub fn decode_arbitrary_bytes_from_metadatum(metadata: &TransactionMetadatum) -> Option<Vec<u8>>{
+pub fn decode_arbitrary_bytes_from_metadatum(metadata: &TransactionMetadatum) -> Result<Vec<u8>, JsValue> {
     let mut bytes = Vec::new();
     for elem in metadata.as_list()?.0 {
         bytes.append(&mut elem.as_bytes()?);
     }
-    Some(bytes)
+    Ok(bytes)
 }
 
 // encodes a JSON object represented as a string into metadatum if possible.
@@ -269,32 +273,31 @@ pub fn decode_arbitrary_bytes_from_metadatum(metadata: &TransactionMetadatum) ->
 // as representing as a byte array could be confused with a list, and using
 // a hex/b58etc string could be confused with a regular string
 #[wasm_bindgen]
-pub fn encode_json_str_to_metadatum(json: String) -> Option<TransactionMetadatum> {
-    encode_json_value_to_metadatum(serde_json::from_str(&json).ok()?)
+pub fn encode_json_str_to_metadatum(json: String) -> Result<TransactionMetadatum, JsValue> {
+    encode_json_value_to_metadatum(serde_json::from_str(&json).map_err(|e| JsValue::from_str(&e.to_string()))?)
 }
 
-pub fn encode_json_value_to_metadatum(value: serde_json::Value) -> Option<TransactionMetadatum> {
+pub fn encode_json_value_to_metadatum(value: serde_json::Value) -> Result<TransactionMetadatum, JsValue> {
     use serde_json::Value;
     match value {
-        Value::Null => None,
-        Value::Bool(_) => None,
+        Value::Null => Err(JsValue::from_str("null not allowed in metadata")),
+        Value::Bool(_) => Err(JsValue::from_str("bools not allowed in metadata")),
         Value::Number(x) => {
             if let Some(x) = x.as_u64() {
-                Some(TransactionMetadatum::new_int(&Int::new(utils::to_bignum(x))))
+                Ok(TransactionMetadatum::new_int(&Int::new(utils::to_bignum(x))))
             } else if let Some(x) = x.as_i64() {
-                Some(TransactionMetadatum::new_int(&Int::new_negative(utils::to_bignum(-x as u64))))
+                Ok(TransactionMetadatum::new_int(&Int::new_negative(utils::to_bignum(-x as u64))))
             } else {
-                // floats not supported in metadata
-                None
+                Err(JsValue::from_str("floats not allowed in metadata"))
             }
         },
-        Value::String(s) => Some(TransactionMetadatum::new_text(s)),
+        Value::String(s) => Ok(TransactionMetadatum::new_text(s)),
         Value::Array(json_arr) => {
             let mut arr = MetadataList::new();
             for value in json_arr {
                 arr.add(&encode_json_value_to_metadatum(value)?);
             }
-            Some(TransactionMetadatum::new_list(&arr))
+            Ok(TransactionMetadatum::new_list(&arr))
         },
         Value::Object(json_obj) => {
             let mut map = MetadataMap::new();
@@ -303,7 +306,7 @@ pub fn encode_json_value_to_metadatum(value: serde_json::Value) -> Option<Transa
                     &TransactionMetadatum::new_text(key),
                     &encode_json_value_to_metadatum(value)?);
             }
-            Some(TransactionMetadatum::new_map(&map))
+            Ok(TransactionMetadatum::new_map(&map))
         },
     }
 }
@@ -311,12 +314,12 @@ pub fn encode_json_value_to_metadatum(value: serde_json::Value) -> Option<Transa
 // decodes a metadatum into a JSON object string if possible
 // Bytes are not supported, see encoding comment.
 #[wasm_bindgen]
-pub fn decode_metadatum_to_json_str(metadatum: &TransactionMetadatum) -> Option<String> {
+pub fn decode_metadatum_to_json_str(metadatum: &TransactionMetadatum) -> Result<String, JsValue> {
     let value = decode_metadatum_to_json_value(metadatum)?;
-    serde_json::to_string(&value).ok()
+    serde_json::to_string(&value).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-pub fn decode_metadatum_to_json_value(metadatum: &TransactionMetadatum) -> Option<serde_json::Value> {
+pub fn decode_metadatum_to_json_value(metadatum: &TransactionMetadatum) -> Result<serde_json::Value, JsValue> {
     use serde_json::Value;
     use std::convert::TryFrom;
     match &metadatum.0 {
@@ -326,19 +329,19 @@ pub fn decode_metadatum_to_json_value(metadatum: &TransactionMetadatum) -> Optio
                 json_map.insert(
                     match &key.0 {
                         TransactionMetadatumEnum::Text(s) => s.clone(),
-                        _ => return None,
+                        _ => return Err(JsValue::from_str("non-string keys not allowed in JSON")),
                     },
                     decode_metadatum_to_json_value(value)?
                 );
             }
-            Some(Value::from(json_map))
+            Ok(Value::from(json_map))
         },
         TransactionMetadatumEnum::MetadataList(arr) => {
-            Some(Value::from(arr.0.iter().map(decode_metadatum_to_json_value).collect::<Option<Vec<_>>>()?))
+            Ok(Value::from(arr.0.iter().map(decode_metadatum_to_json_value).collect::<Result<Vec<_>, JsValue>>()?))
         },
-        TransactionMetadatumEnum::Int(x) => Some(Value::from(i64::try_from(x.0).ok()?)),
-        TransactionMetadatumEnum::Bytes(_) => None,
-        TransactionMetadatumEnum::Text(s) => Some(Value::from(s.clone())),
+        TransactionMetadatumEnum::Int(x) => Ok(Value::from(i64::try_from(x.0).map_err(|e| JsValue::from_str(&e.to_string()))?)),
+        TransactionMetadatumEnum::Bytes(_) => Err(JsValue::from_str("bytes not allowed in JSON")),
+        TransactionMetadatumEnum::Text(s) => Ok(Value::from(s.clone())),
     }
 }
 

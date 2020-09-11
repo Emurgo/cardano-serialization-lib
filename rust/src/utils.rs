@@ -167,6 +167,11 @@ impl Int {
             None
         }
     }
+
+    pub fn as_i32(&self) -> Option<i32> {
+        use std::convert::TryFrom;
+        i32::try_from(self.0).ok()
+    }
 }
 
 impl cbor_event::se::Serialize for Int {

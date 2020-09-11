@@ -15,27 +15,27 @@ declare export function encode_arbitrary_bytes_as_metadatum(
 
 /**
  * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array | void}
+ * @returns {Uint8Array}
  */
 declare export function decode_arbitrary_bytes_from_metadatum(
   metadata: TransactionMetadatum
-): Uint8Array | void;
+): Uint8Array;
 
 /**
  * @param {string} json
- * @returns {TransactionMetadatum | void}
+ * @returns {TransactionMetadatum}
  */
 declare export function encode_json_str_to_metadatum(
   json: string
-): TransactionMetadatum | void;
+): TransactionMetadatum;
 
 /**
  * @param {TransactionMetadatum} metadatum
- * @returns {string | void}
+ * @returns {string}
  */
 declare export function decode_metadatum_to_json_str(
   metadatum: TransactionMetadatum
-): string | void;
+): string;
 
 /**
  * @param {TransactionHash} tx_body_hash
@@ -1201,6 +1201,11 @@ declare export class Int {
    * @returns {BigNum | void}
    */
   as_negative(): BigNum | void;
+
+  /**
+   * @returns {number | void}
+   */
+  as_i32(): number | void;
 }
 /**
  */
@@ -1445,9 +1450,15 @@ declare export class MetadataMap {
 
   /**
    * @param {TransactionMetadatum} key
-   * @returns {TransactionMetadatum | void}
+   * @returns {TransactionMetadatum}
    */
-  get(key: TransactionMetadatum): TransactionMetadatum | void;
+  get(key: TransactionMetadatum): TransactionMetadatum;
+
+  /**
+   * @param {TransactionMetadatum} key
+   * @returns {boolean}
+   */
+  has(key: TransactionMetadatum): boolean;
 
   /**
    * @returns {MetadataList}
@@ -3420,29 +3431,29 @@ declare export class TransactionMetadatum {
   kind(): number;
 
   /**
-   * @returns {MetadataMap | void}
+   * @returns {MetadataMap}
    */
-  as_map(): MetadataMap | void;
+  as_map(): MetadataMap;
 
   /**
-   * @returns {MetadataList | void}
+   * @returns {MetadataList}
    */
-  as_list(): MetadataList | void;
+  as_list(): MetadataList;
 
   /**
-   * @returns {Int | void}
+   * @returns {Int}
    */
-  as_int(): Int | void;
+  as_int(): Int;
 
   /**
-   * @returns {Uint8Array | void}
+   * @returns {Uint8Array}
    */
-  as_bytes(): Uint8Array | void;
+  as_bytes(): Uint8Array;
 
   /**
-   * @returns {string | void}
+   * @returns {string}
    */
-  as_text(): string | void;
+  as_text(): string;
 }
 /**
  */
