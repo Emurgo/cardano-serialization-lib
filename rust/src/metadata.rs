@@ -339,7 +339,11 @@ pub fn decode_metadatum_to_json_value(metadatum: &TransactionMetadatum) -> Resul
         TransactionMetadatumEnum::MetadataList(arr) => {
             Ok(Value::from(arr.0.iter().map(decode_metadatum_to_json_value).collect::<Result<Vec<_>, JsValue>>()?))
         },
-        TransactionMetadatumEnum::Int(x) => Ok(Value::from(i64::try_from(x.0).map_err(|e| JsValue::from_str(&e.to_string()))?)),
+        TransactionMetadatumEnum::Int(x) => if x.0 >= 0 {
+            Ok(Value::from(u64::try_from(x.0).map_err(|e| JsValue::from_str(&e.to_string()))?))
+        } else {
+            Ok(Value::from(i64::try_from(x.0).map_err(|e| JsValue::from_str(&e.to_string()))?))
+        },
         TransactionMetadatumEnum::Bytes(_) => Err(JsValue::from_str("bytes not allowed in JSON")),
         TransactionMetadatumEnum::Text(s) => Ok(Value::from(s.clone())),
     }

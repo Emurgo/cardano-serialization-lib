@@ -19,6 +19,11 @@ fn verify_ident(ident: &Identifier, is_key: bool) -> Result<(), String> {
         "tstr"       |
         "bytes"      |
         "bstr"       => Ok(()),
+        // these are non-standard types referring to the cddl-codgen tool
+        "u32"        |
+        "i32"        |
+        "u64"        |
+        "i64"        => Ok(()),
         // or invalid standard prelude types
         "bool"       |
         "float"      |

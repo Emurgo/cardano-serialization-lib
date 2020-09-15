@@ -136,7 +136,7 @@ Upsides:
 
 Downsides:
 * Does not support bytes (metdata side), or null/true/false (JSON side) to ensure unambiguous conversions
-* Does not support integers beyond signed 32-bits
+* Does not support negative integers between `-2^64 + 1` and `-2^63` (serde_json library restriction)
 * Structural validation must be done by hand
 * Can use more space as string keyed maps are likely to be used more than arrays would be in the CDDL solutions
 * Does not support non-string map keys
@@ -211,10 +211,13 @@ which should give you the library as a package in the `/pkg/` directory.
 Once we have imported the library we can then use it as such:
 ```javascript
 const tags = OurMetadataLib.Ints.new();
-tags.add(OurMetadataLib.Int.new(0));
-tags.add(OurMetadataLib.Int.new(264));
-tags.add(OurMetadataLib.Int.new_negative(1024));
-tags.add(OurMetadataLib.Int.new(32));
+// if we have smaller (32-bit signed) numbers we can construct easier
+tags.add(OurMetadataLib.Int.new_i32(0));
+// but for bigger numbers we must use BigNum and specify the sign ourselves
+tags.add(OurMetadataLib.Int.new(CardanoWasm.Int.from_str("264")));
+// and for negative large numbers (here we construct -1024)
+tags.add(OurMetadataLib.Int.new_negative(CardanoWasm.Int.from_str("1024")));
+tags.add(OurMetadataLib.Int.new_i32(32));
 const map = OurMetadataLib.Foo.new("SJKdj34k3jjKFDKfjFUDfdjkfd", "jkfdsufjdk34h3Sdfjdhfduf873", "happy birthday", tags)
 let metadata;
 try {
@@ -224,7 +227,7 @@ try {
 }
 ```
 
-likewise you parse the metadat back very simply as:
+likewise you can parse the metadata back very simply with:
 ```javascript
 let cddlMetadata;
 try {
@@ -234,6 +237,20 @@ try {
 }
 // we can now directly access the fields with cddlMetadata.receiver_id(), etc
 ```
+
+If we take advantage of the additional primitives not defined in CDDL but defined for `cddl-codegen`, then we can specify precisions of `u32`, `u64`, `i64`, `i32` for specifying 32 or 64 bits instead of just a general purpose `uint`/`nint`/`int`.
+If you know your metadata will always be within one of these ranges it can be much more convenient to work with, and if you have signed data this will also make it easier to work with instead of the `Int` class that CDDL `int` might generate, since that is either an up to 64-bit positive or an up to 64 negative numbers.
+This is particularly useful here as lists of CDDL primitives can be exposed directly as `Vec<T>` to wasm from rust, but when we have `int` (converts to `Int` struct) or `uint` (converts to `BigNum` struct) a separate structure like that `Ints` one used above is used. Using the 32-bit versions allows direct js `number` conversions to/from wasm.
+
+If we simply change the `tags` field to `tags: [+i32]` our code becomes:
+```javascript
+// notice how we can directly work with js numbers here now!
+// but remember they must fit into a 32-bit number now - no 64-bit numbers like are allowed in the metadata
+const tags = [0, 264, -1024, 32];
+const map = OurMetadataLib.Foo.new("SJKdj34k3jjKFDKfjFUDfdjkfd", "jkfdsufjdk34h3Sdfjdhfduf873", "happy birthday", tags)
+```
+
+and deserializaing likewise is much simpler as `metadata.tags()` will return a JS array or numbers rather than a rust-wasm struct that must be accessed via the wasm boundary.
 
 ## Raw Bytes Encoding
 
