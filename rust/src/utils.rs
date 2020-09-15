@@ -149,7 +149,7 @@ impl Int {
     }
 
     pub fn new_i32(x: i32) -> Self {
-        Self(x.0 as i128)
+        Self(x as i128)
     }
 
     pub fn is_positive(&self) -> bool {
