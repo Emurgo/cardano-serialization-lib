@@ -23,23 +23,53 @@ use std::{
     io::{BufRead, Write},
 };
 
-// public key tag only for encoding/decoding purpose
-struct PubKeyTag();
-
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[cfg_attr(feature = "generic-serialization", derive(Serialize, Deserialize))]
+pub enum AddrType {
+    ATPubKey,
+    ATScript,
+    ATRedeem,
+}
+impl fmt::Display for AddrType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AddrType::ATPubKey => write!(f, "Public Key"),
+            AddrType::ATScript => write!(f, "Script"),
+            AddrType::ATRedeem => write!(f, "Redeem"),
+        }
+    }
+}
 // [TkListLen 1, TkInt (fromEnum t)]
-impl cbor_event::se::Serialize for PubKeyTag {
+impl AddrType {
+    fn from_u64(v: u64) -> Option<Self> {
+        match v {
+            0 => Some(AddrType::ATPubKey),
+            1 => Some(AddrType::ATScript),
+            2 => Some(AddrType::ATRedeem),
+            _ => None,
+        }
+    }
+    fn to_byte(self) -> u8 {
+        match self {
+            AddrType::ATPubKey => 0,
+            AddrType::ATScript => 1,
+            AddrType::ATRedeem => 2,
+        }
+    }
+}
+impl cbor_event::se::Serialize for AddrType {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(0)
+        serializer.write_unsigned_integer(self.to_byte() as u64)
     }
 }
-impl cbor_event::de::Deserialize for PubKeyTag {
+impl cbor_event::de::Deserialize for AddrType {
     fn deserialize<R: BufRead>(reader: &mut Deserializer<R>) -> cbor_event::Result<Self> {
-        match reader.unsigned_integer()? {
-            0 => Ok(PubKeyTag()),
-            _ => Err(cbor_event::Error::CustomError(format!("Invalid AddrType"))),
+        match AddrType::from_u64(reader.unsigned_integer()?) {
+            Some(addr_type) => Ok(addr_type),
+            None => Err(cbor_event::Error::CustomError(format!("Invalid AddrType"))),
         }
     }
 }
@@ -145,8 +175,8 @@ fn sha3_then_blake2b224(data: &[u8]) -> [u8; 28] {
     out
 }
 
-fn hash_spending_data(xpub: &XPub, attrs: &Attributes) -> [u8; 28] {
-    let buf = cbor!(&(&PubKeyTag(), &SpendingData(xpub), attrs))
+fn hash_spending_data(addr_type: AddrType, xpub: &XPub, attrs: &Attributes) -> [u8; 28] {
+    let buf = cbor!(&(&addr_type, &SpendingData(xpub), attrs))
         .expect("serialize the HashedSpendingData's digest data");
     sha3_then_blake2b224(&buf)
 }
@@ -251,12 +281,14 @@ const EXTENDED_ADDR_LEN: usize = 28;
 pub struct ExtendedAddr {
     pub addr: [u8; EXTENDED_ADDR_LEN],
     pub attributes: Attributes,
+    pub addr_type: AddrType,
 }
 impl ExtendedAddr {
     pub fn new(xpub: &XPub, attrs: Attributes) -> Self {
         ExtendedAddr {
-            addr: hash_spending_data(xpub, &attrs),
+            addr: hash_spending_data(AddrType::ATPubKey, xpub, &attrs),
             attributes: attrs,
+            addr_type: AddrType::ATPubKey,
         }
     }
 
@@ -317,7 +349,7 @@ impl cbor_event::se::Serialize for ExtendedAddr {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         let addr_bytes = cbor_event::Value::Bytes(self.addr.to_vec());
-        cbor::util::encode_with_crc32_(&(&addr_bytes, &self.attributes, &PubKeyTag()), serializer)?;
+        cbor::util::encode_with_crc32_(&(&addr_bytes, &self.attributes, &self.addr_type), serializer)?;
         Ok(serializer)
     }
 }
@@ -335,9 +367,8 @@ impl cbor_event::de::Deserialize for ExtendedAddr {
             )
         })?;
         let attributes = cbor_event::de::Deserialize::deserialize(&mut raw)?;
-        let _addr_type: PubKeyTag = cbor_event::de::Deserialize::deserialize(&mut raw)?;
-
-        Ok(ExtendedAddr { addr, attributes })
+        let addr_type = cbor_event::de::Deserialize::deserialize(&mut raw)?;
+        Ok(ExtendedAddr { addr, addr_type, attributes })
     }
 }
 impl fmt::Display for ExtendedAddr {
