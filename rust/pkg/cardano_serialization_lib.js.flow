@@ -6,6 +6,38 @@
  */
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum
+): string;
+
+/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -119,22 +151,22 @@ declare export var RelayKind: {|
 /**
  */
 
-declare export var TransactionMetadatumKind: {|
-  +MapTransactionMetadatumToTransactionMetadatum: 0, // 0
-  +ArrTransactionMetadatum: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
 declare export var MultisigScriptKind: {|
   +MsigPubkey: 0, // 0
   +MsigAll: 1, // 1
   +MsigAny: 2, // 2
   +MsigNOfK: 3, // 3
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
 |};
 
 /**
@@ -1154,6 +1186,26 @@ declare export class Int {
    * @returns {Int}
    */
   static new_negative(x: BigNum): Int;
+
+  /**
+   * @returns {boolean}
+   */
+  is_positive(): boolean;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  as_positive(): BigNum | void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  as_negative(): BigNum | void;
+
+  /**
+   * @returns {number | void}
+   */
+  as_i32(): number | void;
 }
 /**
  */
@@ -1309,7 +1361,7 @@ declare export class MapTransactionIndexToTransactionMetadata {
 }
 /**
  */
-declare export class MapTransactionMetadatumToTransactionMetadatum {
+declare export class MetadataHash {
   free(): void;
 
   /**
@@ -1319,16 +1371,67 @@ declare export class MapTransactionMetadatumToTransactionMetadatum {
 
   /**
    * @param {Uint8Array} bytes
-   * @returns {MapTransactionMetadatumToTransactionMetadatum}
+   * @returns {MetadataHash}
    */
-  static from_bytes(
-    bytes: Uint8Array
-  ): MapTransactionMetadatumToTransactionMetadatum;
+  static from_bytes(bytes: Uint8Array): MetadataHash;
+}
+/**
+ */
+declare export class MetadataList {
+  free(): void;
 
   /**
-   * @returns {MapTransactionMetadatumToTransactionMetadatum}
+   * @returns {Uint8Array}
    */
-  static new(): MapTransactionMetadatumToTransactionMetadatum;
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {MetadataList}
+   */
+  static from_bytes(bytes: Uint8Array): MetadataList;
+
+  /**
+   * @returns {MetadataList}
+   */
+  static new(): MetadataList;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {TransactionMetadatum}
+   */
+  get(index: number): TransactionMetadatum;
+
+  /**
+   * @param {TransactionMetadatum} elem
+   */
+  add(elem: TransactionMetadatum): void;
+}
+/**
+ */
+declare export class MetadataMap {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {MetadataMap}
+   */
+  static from_bytes(bytes: Uint8Array): MetadataMap;
+
+  /**
+   * @returns {MetadataMap}
+   */
+  static new(): MetadataMap;
 
   /**
    * @returns {number}
@@ -1347,30 +1450,20 @@ declare export class MapTransactionMetadatumToTransactionMetadatum {
 
   /**
    * @param {TransactionMetadatum} key
-   * @returns {TransactionMetadatum | void}
+   * @returns {TransactionMetadatum}
    */
-  get(key: TransactionMetadatum): TransactionMetadatum | void;
+  get(key: TransactionMetadatum): TransactionMetadatum;
 
   /**
-   * @returns {TransactionMetadatums}
+   * @param {TransactionMetadatum} key
+   * @returns {boolean}
    */
-  keys(): TransactionMetadatums;
-}
-/**
- */
-declare export class MetadataHash {
-  free(): void;
+  has(key: TransactionMetadatum): boolean;
 
   /**
-   * @returns {Uint8Array}
+   * @returns {MetadataList}
    */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {MetadataHash}
-   */
-  static from_bytes(bytes: Uint8Array): MetadataHash;
+  keys(): MetadataList;
 }
 /**
  */
@@ -3303,20 +3396,16 @@ declare export class TransactionMetadatum {
   static from_bytes(bytes: Uint8Array): TransactionMetadatum;
 
   /**
-   * @param {MapTransactionMetadatumToTransactionMetadatum} map_transaction_metadatum_to_transaction_metadatum
+   * @param {MetadataMap} map
    * @returns {TransactionMetadatum}
    */
-  static new_map_transaction_metadatum_to_transaction_metadatum(
-    map_transaction_metadatum_to_transaction_metadatum: MapTransactionMetadatumToTransactionMetadatum
-  ): TransactionMetadatum;
+  static new_map(map: MetadataMap): TransactionMetadatum;
 
   /**
-   * @param {TransactionMetadatums} arr_transaction_metadatum
+   * @param {MetadataList} list
    * @returns {TransactionMetadatum}
    */
-  static new_arr_transaction_metadatum(
-    arr_transaction_metadatum: TransactionMetadatums
-  ): TransactionMetadatum;
+  static new_list(list: MetadataList): TransactionMetadatum;
 
   /**
    * @param {Int} int
@@ -3342,29 +3431,29 @@ declare export class TransactionMetadatum {
   kind(): number;
 
   /**
-   * @returns {MapTransactionMetadatumToTransactionMetadatum | void}
+   * @returns {MetadataMap}
    */
-  as_map_transaction_metadatum_to_transaction_metadatum(): MapTransactionMetadatumToTransactionMetadatum | void;
+  as_map(): MetadataMap;
 
   /**
-   * @returns {TransactionMetadatums | void}
+   * @returns {MetadataList}
    */
-  as_arr_transaction_metadatum(): TransactionMetadatums | void;
+  as_list(): MetadataList;
 
   /**
-   * @returns {Int | void}
+   * @returns {Int}
    */
-  as_int(): Int | void;
+  as_int(): Int;
 
   /**
-   * @returns {Uint8Array | void}
+   * @returns {Uint8Array}
    */
-  as_bytes(): Uint8Array | void;
+  as_bytes(): Uint8Array;
 
   /**
-   * @returns {string | void}
+   * @returns {string}
    */
-  as_text(): string | void;
+  as_text(): string;
 }
 /**
  */
@@ -3402,43 +3491,6 @@ declare export class TransactionMetadatumLabels {
    * @param {BigNum} elem
    */
   add(elem: BigNum): void;
-}
-/**
- */
-declare export class TransactionMetadatums {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {TransactionMetadatums}
-   */
-  static from_bytes(bytes: Uint8Array): TransactionMetadatums;
-
-  /**
-   * @returns {TransactionMetadatums}
-   */
-  static new(): TransactionMetadatums;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {number} index
-   * @returns {TransactionMetadatum}
-   */
-  get(index: number): TransactionMetadatum;
-
-  /**
-   * @param {TransactionMetadatum} elem
-   */
-  add(elem: TransactionMetadatum): void;
 }
 /**
  */
