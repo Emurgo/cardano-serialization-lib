@@ -842,6 +842,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_redeem_address() {
+        assert!(ByronAddress::is_valid("Ae2tdPwUPEZ3MHKkpT5Bpj549vrRH7nBqYjNXnCV8G2Bc2YxNcGHEa8ykDp"));
+        let byron_addr = ByronAddress::from_base58("Ae2tdPwUPEZ3MHKkpT5Bpj549vrRH7nBqYjNXnCV8G2Bc2YxNcGHEa8ykDp").unwrap();
+        assert_eq!(byron_addr.to_base58(), "Ae2tdPwUPEZ3MHKkpT5Bpj549vrRH7nBqYjNXnCV8G2Bc2YxNcGHEa8ykDp");
+        let byron_addr2 = ByronAddress::from_bytes(byron_addr.to_bytes()).unwrap();
+        assert_eq!(byron_addr2.to_base58(), "Ae2tdPwUPEZ3MHKkpT5Bpj549vrRH7nBqYjNXnCV8G2Bc2YxNcGHEa8ykDp");
+    }
+
+    #[test]
     fn bip32_15_byron() {
         let byron_key = root_key_15()
             .derive(harden(44))
