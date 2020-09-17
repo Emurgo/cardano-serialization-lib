@@ -397,7 +397,7 @@ mod tests {
 
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
@@ -410,7 +410,7 @@ mod tests {
         tx_builder.set_ttl(1000);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
         let added_change = tx_builder.add_change_if_needed(
             &change_addr
         );
@@ -451,7 +451,7 @@ mod tests {
 
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
@@ -464,7 +464,7 @@ mod tests {
         tx_builder.set_ttl(1000);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
         let added_change = tx_builder.add_change_if_needed(
             &change_addr
         );
@@ -520,7 +520,7 @@ mod tests {
         tx_builder.set_certs(&certs);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
         tx_builder.add_change_if_needed(
             &change_addr
         ).unwrap();
@@ -571,7 +571,7 @@ mod tests {
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
             &to_bignum(5)
@@ -579,7 +579,7 @@ mod tests {
         tx_builder.set_ttl(0);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
         let added_change = tx_builder.add_change_if_needed(
             &change_addr
         ).unwrap();
@@ -621,7 +621,7 @@ mod tests {
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
             &to_bignum(5)
@@ -629,7 +629,7 @@ mod tests {
         tx_builder.set_ttl(0);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
         let added_change = tx_builder.add_change_if_needed(
             &change_addr
         ).unwrap();
@@ -673,7 +673,7 @@ mod tests {
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
             &to_bignum(5)
@@ -686,7 +686,7 @@ mod tests {
         tx_builder.set_certs(&certs);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(0, &change_cred, &stake_cred).to_address();
+        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
 
         tx_builder.add_change_if_needed(
             &change_addr

@@ -341,7 +341,7 @@ mod tests {
     //         to_bignum(1),
     //         to_bignum(5),
     //         &UnitInterval::new(to_bignum(1), to_bignum(10)),
-    //         &RewardAddress::new(0, &alice_stake()),
+    //         &RewardAddress::new(NetworkInfo::testnet().network_id(), &alice_stake()),
     //         &owners,
     //         &relays,
     //         Some(PoolMetadata::new(String::from("alice.pool"), &MetadataHash::from([0u8; MetadataHash::BYTE_COUNT])))

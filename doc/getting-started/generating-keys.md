@@ -50,25 +50,22 @@ const rootKey = CardanoWasm.Bip32PrivateKey.from_bip39_entropy(
 Once we have reached the desired derivation path, we must convert the `BIP32PrivateKey` or `BIP32PublicKey` to a `PrivateKey` or `PublicKey` by calling `.to_raw_key()` on them with the exception of Byron addresses.
 For example, to create an address using the `utxoPubKey` and `stakeKey` in the first example, we can do:
 ```javascript
-// network id - 1 for mainnet, 0 for testnet
-const networkId = 1;
-
 // base address with staking key
 const baseAddr = CardanoWasm.BaseAddress.new(
-  networkId,
+  CardanoWasm.NetworkInfo.mainnet().network_id(),
   CardanoWasm.StakeCredential.from_keyhash(utxoPubKey.to_raw_key().hash()),
   CardanoWasm.StakeCredential.from_keyhash(stakeKey.to_raw_key().hash()),
 );
 
 // enterprise address without staking ability, for use by exchanges/etc
 const enterpriseAddr = CardanoWasm.EnterpriseAddress.new(
-  networkId,
+  CardanoWasm.NetworkInfo.mainnet().network_id(),
   CardanoWasm.StakeCredential.from_keyhash(utxoPubKey.to_raw_key().hash())
 );
 
 // pointer address - similar to Base address but can be shorter, see formal spec for explanation
 const ptrAddr = CardanoWasm.PointerAddress.new(
-  networkId,
+  CardanoWasm.NetworkInfo.mainnet().network_id(),
   CardanoWasm.StakeCredential.from_keyhash(utxoPubKey.to_raw_key().hash()),
   CardanoWasm.Pointer.new(
     100, // slot
@@ -79,20 +76,20 @@ const ptrAddr = CardanoWasm.PointerAddress.new(
 
 // reward address - used for withdrawing accumulated staking rewards
 const rewardAddr = CardanoWasm.RewardAddress.new(
-  networkId,
+  CardanoWasm.NetworkInfo.mainnet().network_id(),
   CardanoWasm.StakeCredential.from_keyhash(stakeKey.to_raw_key().hash())
 );
 
 // bootstrap address - byron-era addresses with no staking rights
-const byronAddr = CardanoWasm.ByronAddress.from_icarus_key(
+const byronAddr = CardanoWasm.ByronAddress.icarus_from_key(
   utxoPubKey, // Ae2* style icarus address
-  networkId
+  CardanoWasm.NetworkInfo.mainnet().protocol_magic()
 );
 ```
 
 Note that the byron-era address can only be created in this library from icarus-style addresses that start in `Ae2` and that Daedalus-style addresses starting in `Dd` are not directly supported.
 
-These are all address variant types with information specific to its address type. There is also an `Address` type which represents any of those variants, which is the type use in most parts of the library. For example to create a `TransactionOutut` manually we would have to first convert from one of the address variants by doing:
+These are all address variant types with information specific to its address type. There is also an `Address` type which represents any of those variants, which is the type use in most parts of the library. For example to create a `TransactionOutput` manually we would have to first convert from one of the address variants by doing:
 ```javascript
 const address = baseAddress.to_address();
 
