@@ -189,7 +189,7 @@ impl ByronAddress {
     /// returns the byron protocol magic embedded in the address, or mainnet id if none is present
     /// note: for bech32 addresses, you need to use network_id instead
     pub fn byron_protocol_magic(&self) -> u32 {
-        match self.0.attributes.network_magic {
+        match self.0.attributes.protocol_magic {
             Some(x) => x,
             None => NetworkInfo::mainnet().protocol_magic(), // mainnet is implied if omitted
         }
@@ -226,12 +226,12 @@ impl ByronAddress {
     }
 
     // icarus-style address (Ae2)
-    pub fn icarus_from_key(key: &Bip32PublicKey, protocolMagic: u32) -> ByronAddress {
+    pub fn icarus_from_key(key: &Bip32PublicKey, protocol_magic: u32) -> ByronAddress {
         let mut out = [0u8; 64];
         out.clone_from_slice(&key.as_bytes());
 
         // need to ensure we use None for mainnet since Byron-era addresses omitted the network id
-        let filtered_protocol_magic = if protocolMagic == NetworkInfo::mainnet().protocol_magic() { None } else { Some(protocolMagic) };
+        let filtered_protocol_magic = if protocol_magic == NetworkInfo::mainnet().protocol_magic() { None } else { Some(protocol_magic) };
         ByronAddress(ExtendedAddr::new_simple(& XPub::from_bytes(out), filtered_protocol_magic))
     }
 

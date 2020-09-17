@@ -79,19 +79,19 @@ type HDAddressPayload = Vec<u8>;
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Attributes {
     pub derivation_path: Option<HDAddressPayload>,
-    pub network_magic: Option<u32>,
+    pub protocol_magic: Option<u32>,
 }
 impl Attributes {
-    pub fn new_bootstrap_era(hdap: Option<HDAddressPayload>, network_magic: Option<u32>) -> Self {
+    pub fn new_bootstrap_era(hdap: Option<HDAddressPayload>, protocol_magic: Option<u32>) -> Self {
         Attributes {
             derivation_path: hdap,
-            network_magic,
+            protocol_magic,
         }
     }
 }
 
 const ATTRIBUTE_NAME_TAG_DERIVATION: u64 = 1;
-const ATTRIBUTE_NAME_TAG_NETWORK_MAGIC: u64 = 2;
+const ATTRIBUTE_NAME_TAG_PROTOCOL_MAGIC: u64 = 2;
 
 impl cbor_event::se::Serialize for Attributes {
     fn serialize<'se, W: Write>(
@@ -102,7 +102,7 @@ impl cbor_event::se::Serialize for Attributes {
         if let Some(_) = &self.derivation_path {
             len += 1
         };
-        if let Some(_) = &self.network_magic {
+        if let Some(_) = &self.protocol_magic {
             len += 1
         };
         let serializer = serializer.write_map(cbor_event::Len::Len(len))?;
@@ -112,11 +112,11 @@ impl cbor_event::se::Serialize for Attributes {
                 .write_unsigned_integer(ATTRIBUTE_NAME_TAG_DERIVATION)?
                 .write_bytes(&dp)?,
         };
-        let serializer = match &self.network_magic {
+        let serializer = match &self.protocol_magic {
             &None => serializer,
-            &Some(network_magic) => serializer
-                .write_unsigned_integer(ATTRIBUTE_NAME_TAG_NETWORK_MAGIC)?
-                .write_bytes(cbor!(&network_magic)?)?,
+            &Some(protocol_magic) => serializer
+                .write_unsigned_integer(ATTRIBUTE_NAME_TAG_PROTOCOL_MAGIC)?
+                .write_bytes(cbor!(&protocol_magic)?)?,
         };
         Ok(serializer)
     }
@@ -134,16 +134,16 @@ impl cbor_event::de::Deserialize for Attributes {
             cbor_event::Len::Len(len) => len,
         };
         let mut derivation_path = None;
-        let mut network_magic = None;
+        let mut protocol_magic = None;
         while len > 0 {
             let key = reader.unsigned_integer()?;
             match key {
                 ATTRIBUTE_NAME_TAG_DERIVATION => derivation_path = Some(reader.bytes()?),
-                ATTRIBUTE_NAME_TAG_NETWORK_MAGIC => {
+                ATTRIBUTE_NAME_TAG_PROTOCOL_MAGIC => {
                     // Yes, this is an integer encoded as CBOR encoded as Bytes in CBOR.
                     let bytes = reader.bytes()?;
                     let n = Deserializer::from(std::io::Cursor::new(bytes)).deserialize::<u32>()?;
-                    network_magic = Some(n);
+                    protocol_magic = Some(n);
                 }
                 _ => {
                     return Err(cbor_event::Error::CustomError(format!(
@@ -156,7 +156,7 @@ impl cbor_event::de::Deserialize for Attributes {
         }
         Ok(Attributes {
             derivation_path,
-            network_magic,
+            protocol_magic,
         })
     }
 }
@@ -293,8 +293,8 @@ impl ExtendedAddr {
     }
 
     // bootstrap era + no hdpayload address
-    pub fn new_simple(xpub: &XPub, network_magic: Option<u32>) -> Self {
-        ExtendedAddr::new(xpub, Attributes::new_bootstrap_era(None, network_magic))
+    pub fn new_simple(xpub: &XPub, protocol_magic: Option<u32>) -> Self {
+        ExtendedAddr::new(xpub, Attributes::new_bootstrap_era(None, protocol_magic))
     }
 
     pub fn to_address(&self) -> Addr {
