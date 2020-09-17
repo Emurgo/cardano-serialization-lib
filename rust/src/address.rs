@@ -189,10 +189,9 @@ impl ByronAddress {
     /// returns the byron protocol magic embedded in the address, or mainnet id if none is present
     /// note: for bech32 addresses, you need to use network_id instead
     pub fn byron_protocol_magic(&self) -> u32 {
-        let mainnet_network_id = NetworkInfo::mainnet().protocol_magic();
         match self.0.attributes.network_magic {
             Some(x) => x,
-            None => mainnet_network_id, // mainnet is implied if omitted
+            None => NetworkInfo::mainnet().protocol_magic(), // mainnet is implied if omitted
         }
     }
     pub fn attributes(&self) -> Vec<u8> {
@@ -211,7 +210,7 @@ impl ByronAddress {
         // so here we return the mainnet id if none is found in the address
 
         // mainnet is implied if omitted
-        let protocol_magic = self.0.attributes.network_magic.unwrap_or(NetworkInfo::mainnet().protocol_magic());
+        let protocol_magic = self.byron_protocol_magic();
         match protocol_magic {
             magic if magic == NetworkInfo::mainnet().protocol_magic() => Ok(NetworkInfo::mainnet().network_id()),
             magic if magic == NetworkInfo::testnet().protocol_magic() => Ok(NetworkInfo::testnet().network_id()),

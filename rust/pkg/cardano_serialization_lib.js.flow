@@ -1826,16 +1826,6 @@ declare export class NetworkInfo {
    * @returns {NetworkInfo}
    */
   static mainnet(): NetworkInfo;
-
-  /**
-   * @returns {number}
-   */
-  network_id: number;
-
-  /**
-   * @returns {number}
-   */
-  protocol_magic: number;
 }
 /**
  */
