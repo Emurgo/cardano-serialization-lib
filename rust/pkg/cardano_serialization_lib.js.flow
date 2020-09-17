@@ -640,12 +640,12 @@ declare export class ByronAddress {
 
   /**
    * @param {Bip32PublicKey} key
-   * @param {number} protocolMagic
+   * @param {number} protocol_magic
    * @returns {ByronAddress}
    */
   static icarus_from_key(
     key: Bip32PublicKey,
-    protocolMagic: number
+    protocol_magic: number
   ): ByronAddress;
 
   /**
