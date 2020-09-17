@@ -640,10 +640,13 @@ declare export class ByronAddress {
 
   /**
    * @param {Bip32PublicKey} key
-   * @param {number} network
+   * @param {number} protocolMagic
    * @returns {ByronAddress}
    */
-  static from_icarus_key(key: Bip32PublicKey, network: number): ByronAddress;
+  static icarus_from_key(
+    key: Bip32PublicKey,
+    protocolMagic: number
+  ): ByronAddress;
 
   /**
    * @param {string} s
@@ -1186,6 +1189,12 @@ declare export class Int {
    * @returns {Int}
    */
   static new_negative(x: BigNum): Int;
+
+  /**
+   * @param {number} x
+   * @returns {Int}
+   */
+  static new_i32(x: number): Int;
 
   /**
    * @returns {boolean}
@@ -1785,6 +1794,38 @@ declare export class MultisigScripts {
    * @param {MultisigScript} elem
    */
   add(elem: MultisigScript): void;
+}
+/**
+ */
+declare export class NetworkInfo {
+  free(): void;
+
+  /**
+   * @param {number} network_id
+   * @param {number} protocol_magic
+   * @returns {NetworkInfo}
+   */
+  static new(network_id: number, protocol_magic: number): NetworkInfo;
+
+  /**
+   * @returns {number}
+   */
+  network_id(): number;
+
+  /**
+   * @returns {number}
+   */
+  protocol_magic(): number;
+
+  /**
+   * @returns {NetworkInfo}
+   */
+  static testnet(): NetworkInfo;
+
+  /**
+   * @returns {NetworkInfo}
+   */
+  static mainnet(): NetworkInfo;
 }
 /**
  */

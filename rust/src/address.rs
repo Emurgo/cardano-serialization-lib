@@ -29,6 +29,41 @@ fn variable_nat_encode(mut num: u64) -> Vec<u8> {
     output
 }
 
+#[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct NetworkInfo {
+    network_id: u8,
+    protocol_magic: u32,
+}
+#[wasm_bindgen]
+impl NetworkInfo {
+    pub fn new(network_id: u8, protocol_magic: u32) -> Self {
+        Self {
+            network_id,
+            protocol_magic,
+        }
+    }
+    pub fn network_id(&self) -> u8 {
+        self.network_id
+    } 
+    pub fn protocol_magic(&self) -> u32 {
+        self.protocol_magic
+    }
+
+    pub fn testnet() -> NetworkInfo {
+        NetworkInfo {
+            network_id: 0b0000,
+            protocol_magic: 1097911063
+        }
+    }
+    pub fn mainnet() -> NetworkInfo {
+        NetworkInfo {
+            network_id: 0b0001,
+            protocol_magic: 764824073
+        }
+    }
+}
+
 #[derive(Debug, Clone, Hash, Eq, Ord, PartialEq, PartialOrd)]
 enum StakeCredType {
     Key(Ed25519KeyHash),
@@ -154,10 +189,9 @@ impl ByronAddress {
     /// returns the byron protocol magic embedded in the address, or mainnet id if none is present
     /// note: for bech32 addresses, you need to use network_id instead
     pub fn byron_protocol_magic(&self) -> u32 {
-        let mainnet_network_id = 764824073;
-        match self.0.attributes.network_magic {
+        match self.0.attributes.protocol_magic {
             Some(x) => x,
-            None => mainnet_network_id, // mainnet is implied if omitted
+            None => NetworkInfo::mainnet().protocol_magic(), // mainnet is implied if omitted
         }
     }
     pub fn attributes(&self) -> Vec<u8> {
@@ -165,7 +199,7 @@ impl ByronAddress {
         self.0.attributes.serialize(&mut attributes_bytes).unwrap();
         attributes_bytes.finalize()
     }
-    pub fn network_id(&self) -> u8 {
+    pub fn network_id(&self) -> Result<u8, JsValue> {
         // premise: during the Byron-era, we had one mainnet (764824073) and many many testnets
         // with each testnet getting a different protocol magic
         // in Shelley, this changes so that:
@@ -173,13 +207,14 @@ impl ByronAddress {
         // 2) mainnet is re-mapped to a single u8 protocol magic
 
         // recall: in Byron mainnet, the network_id is omitted from the address to save a few bytes
-        let mainnet_network_id = 764824073;
         // so here we return the mainnet id if none is found in the address
 
-        match self.0.attributes.network_magic {
-            // although mainnet should never be explicitly added, we check for it just in case
-            Some(x) => if x == mainnet_network_id { 0b0001 } else { 0b000 },
-            None => 0b0001, // mainnet is implied if omitted
+        // mainnet is implied if omitted
+        let protocol_magic = self.byron_protocol_magic();
+        match protocol_magic {
+            magic if magic == NetworkInfo::mainnet().protocol_magic() => Ok(NetworkInfo::mainnet().network_id()),
+            magic if magic == NetworkInfo::testnet().protocol_magic() => Ok(NetworkInfo::testnet().network_id()),
+            _ => Err(JsValue::from_str(&format! {"Unknown network {}", protocol_magic}))
         }
     }
 
@@ -191,13 +226,13 @@ impl ByronAddress {
     }
 
     // icarus-style address (Ae2)
-    pub fn from_icarus_key(key: &Bip32PublicKey, network: u8) -> ByronAddress {
+    pub fn icarus_from_key(key: &Bip32PublicKey, protocol_magic: u32) -> ByronAddress {
         let mut out = [0u8; 64];
         out.clone_from_slice(&key.as_bytes());
 
         // need to ensure we use None for mainnet since Byron-era addresses omitted the network id
-        let mapped_network_id = if network == 0b0001 { None } else { Some(0b000 as u32) };
-        ByronAddress(ExtendedAddr::new_simple(& XPub::from_bytes(out), mapped_network_id))
+        let filtered_protocol_magic = if protocol_magic == NetworkInfo::mainnet().protocol_magic() { None } else { Some(protocol_magic) };
+        ByronAddress(ExtendedAddr::new_simple(& XPub::from_bytes(out), filtered_protocol_magic))
     }
 
     pub fn is_valid(s: &str) -> bool {
@@ -394,18 +429,24 @@ impl Address {
         })().map_err(|e| e.annotate("Address"))
     }
 
-    pub fn to_bech32(&self, prefix: Option<String>) -> String {
-        // see CIP5 for bech32 prefix rules
-        let prefix_header = match &self.0 {
-            AddrType::Reward(a) => "stake",
-            _ => "addr",
+    pub fn to_bech32(&self, prefix: Option<String>) -> Result<String, JsValue> {
+        let final_prefix = match prefix {
+            Some(prefix) => prefix,
+            None => {
+                // see CIP5 for bech32 prefix rules
+                let prefix_header = match &self.0 {
+                    AddrType::Reward(a) => "stake",
+                    _ => "addr",
+                };
+                let prefix_tail = match self.network_id()? {
+                    id if id == NetworkInfo::testnet().network_id() => "_test",
+                    _ => "",
+                };
+                format!("{}{}", prefix_header, prefix_tail)
+            }
         };
-        let prefix_tail = match &self.network_id() {
-            0b0001 => "",
-            _ => "_test",
-        };
-        let full_prefix = format!("{}{}", prefix_header, prefix_tail);
-        bech32::encode(&prefix.unwrap_or(full_prefix.to_string()), self.to_bytes().to_base32()).unwrap()
+        bech32::encode(&final_prefix, self.to_bytes().to_base32())
+            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
     }
 
     pub fn from_bech32(bech_str: &str) -> Result<Address, JsValue> {
@@ -414,12 +455,12 @@ impl Address {
         Ok(Self::from_bytes_impl(data.as_ref())?)
     }
 
-    pub fn network_id(&self) -> u8 {
+    pub fn network_id(&self) -> Result<u8, JsValue> {
         match &self.0 {
-            AddrType::Base(a) => a.network,
-            AddrType::Enterprise(a) => a.network,
-            AddrType::Ptr(a) => a.network,
-            AddrType::Reward(a) => a.network,
+            AddrType::Base(a) => Ok(a.network),
+            AddrType::Enterprise(a) => Ok(a.network),
+            AddrType::Ptr(a) => Ok(a.network),
+            AddrType::Reward(a) => Ok(a.network),
             AddrType::Byron(a) => a.network_id(),
         }
     }
@@ -715,18 +756,20 @@ mod tests {
     #[test]
     fn bech32_parsing() {
         let addr = Address::from_bech32("addr1u8pcjgmx7962w6hey5hhsd502araxp26kdtgagakhaqtq8sxy9w7g").unwrap();
-        assert_eq!(addr.to_bech32(Some("foobar".to_string())), "foobar1u8pcjgmx7962w6hey5hhsd502araxp26kdtgagakhaqtq8s92n4tm");
+        assert_eq!(addr.to_bech32(Some("foobar".to_string())).unwrap(), "foobar1u8pcjgmx7962w6hey5hhsd502araxp26kdtgagakhaqtq8s92n4tm");
     }
 
     #[test]
     fn byron_magic_parsing() {
         // mainnet address w/ protocol magic omitted
         let addr = ByronAddress::from_base58("Ae2tdPwUPEZ4YjgvykNpoFeYUxoyhNj2kg8KfKWN2FizsSpLUPv68MpTVDo").unwrap();
-        assert_eq!(addr.byron_protocol_magic(), 764824073);
+        assert_eq!(addr.byron_protocol_magic(), NetworkInfo::mainnet().protocol_magic());
+        assert_eq!(addr.network_id().unwrap(), NetworkInfo::mainnet().network_id());
 
         // original Byron testnet address
-        let addr = ByronAddress::from_base58("2cWKMJemoBakg8XXW1XNFNZ8VFHVrBPfcoEc9amhL3BBMxJXdMiHmSyk3zRp2SDXHJcZr").unwrap();
-        assert_eq!(addr.byron_protocol_magic(), 1097911063);
+        let addr = ByronAddress::from_base58("2cWKMJemoBaipzQe9BArYdo2iPUfJQdZAjm4iCzDA1AfNxJSTgm9FZQTmFCYhKkeYrede").unwrap();
+        assert_eq!(addr.byron_protocol_magic(), NetworkInfo::testnet().protocol_magic());
+        assert_eq!(addr.network_id().unwrap(), NetworkInfo::testnet().network_id());
     }
 
     #[test]
@@ -747,10 +790,10 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp");
-        let addr_net_3 = BaseAddress::new(1, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7");
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwq2ytjqp");
+        let addr_net_3 = BaseAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3jcu5d8ps7zex2k2xt3uqxgjqnnj83ws8lhrn648jjxtwqfjkjv7");
     }
 
     #[test]
@@ -763,10 +806,10 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = EnterpriseAddress::new(0, &spend_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr_test1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspjrlsz");
-        let addr_net_3 = EnterpriseAddress::new(1, &spend_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8");
+        let addr_net_0 = EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspjrlsz");
+        let addr_net_3 = EnterpriseAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8");
     }
 
     #[test]
@@ -779,10 +822,10 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = PointerAddress::new(0, &spend_cred, &Pointer::new(1, 2, 3)).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr_test1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspqgpsqe70et");
-        let addr_net_3 = PointerAddress::new(1, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1gx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2w8lunk");
+        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new(1, 2, 3)).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspqgpsqe70et");
+        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1gx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2w8lunk");
     }
 
     #[test]
@@ -803,10 +846,10 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w");
-        let addr_net_3 = BaseAddress::new(1, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1q9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qld6xc3");
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w");
+        let addr_net_3 = BaseAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1q9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qld6xc3");
     }
 
     #[test]
@@ -819,10 +862,10 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = EnterpriseAddress::new(0, &spend_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr_test1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg57c2qv");
-        let addr_net_3 = EnterpriseAddress::new(1, &spend_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1v9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0kvk0f");
+        let addr_net_0 = EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg57c2qv");
+        let addr_net_3 = EnterpriseAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1v9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0kvk0f");
     }
 
     #[test]
@@ -835,10 +878,10 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = PointerAddress::new(0, &spend_cred, &Pointer::new(1, 2, 3)).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr_test1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsdhdyc0");
-        let addr_net_3 = PointerAddress::new(1, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1g9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5evph3wczvf2kd5vam");
+        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new(1, 2, 3)).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsdhdyc0");
+        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1g9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5evph3wczvf2kd5vam");
     }
 
     #[test]
@@ -859,10 +902,10 @@ mod tests {
             .derive(0)
             .derive(0)
             .to_public();
-        let byron_addr = ByronAddress::from_icarus_key(&byron_key, 0b0001);
+        let byron_addr = ByronAddress::icarus_from_key(&byron_key, NetworkInfo::mainnet().protocol_magic());
         assert_eq!(byron_addr.to_base58(), "Ae2tdPwUPEZHtBmjZBF4YpMkK9tMSPTE2ADEZTPN97saNkhG78TvXdp3GDk");
         assert!(ByronAddress::is_valid("Ae2tdPwUPEZHtBmjZBF4YpMkK9tMSPTE2ADEZTPN97saNkhG78TvXdp3GDk"));
-        assert_eq!(byron_addr.network_id(), 0b0001);
+        assert_eq!(byron_addr.network_id().unwrap(), 0b0001);
 
         let byron_addr_2 = ByronAddress::from_address(&Address::from_bytes(byron_addr.to_bytes()).unwrap()).unwrap();
         assert_eq!(byron_addr.to_base58(), byron_addr_2.to_base58());
@@ -886,10 +929,10 @@ mod tests {
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(0, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr_test1qqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sw96paj");
-        let addr_net_3 = BaseAddress::new(1, &spend_cred, &stake_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1qyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sdn8p3d");
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1qqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sw96paj");
+        let addr_net_3 = BaseAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1qyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmn8k8ttq8f3gag0h89aepvx3xf69g0l9pf80tqv7cve0l33sdn8p3d");
     }
 
     #[test]
@@ -902,10 +945,10 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = EnterpriseAddress::new(0, &spend_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr_test1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqtjtf68");
-        let addr_net_3 = EnterpriseAddress::new(1, &spend_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z");
+        let addr_net_0 = EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqtjtf68");
+        let addr_net_3 = EnterpriseAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z");
     }
 
     #[test]
@@ -918,10 +961,10 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = PointerAddress::new(0, &spend_cred, &Pointer::new(1, 2, 3)).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "addr_test1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgps5mee0p");
-        let addr_net_3 = PointerAddress::new(1, &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "addr1gyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnyph3wczvf2dqflgt");
+        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new(1, 2, 3)).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgps5mee0p");
+        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1gyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnyph3wczvf2dqflgt");
     }
 
     #[test]
@@ -934,9 +977,9 @@ mod tests {
             .derive(0)
             .to_public();
         let staking_cred = StakeCredential::from_keyhash(&staking_key.to_raw_key().hash());
-        let addr_net_0 = RewardAddress::new(0, &staking_cred).to_address();
-        assert_eq!(addr_net_0.to_bech32(None), "stake_test1uqevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqp8n5xl");
-        let addr_net_3 = RewardAddress::new(1, &staking_cred).to_address();
-        assert_eq!(addr_net_3.to_bech32(None), "stake1uyevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqxdekzz");
+        let addr_net_0 = RewardAddress::new(NetworkInfo::testnet().network_id(), &staking_cred).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "stake_test1uqevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqp8n5xl");
+        let addr_net_3 = RewardAddress::new(NetworkInfo::mainnet().network_id(), &staking_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "stake1uyevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqxdekzz");
     }
 }
