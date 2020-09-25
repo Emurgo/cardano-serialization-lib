@@ -777,7 +777,6 @@ mod tests {
         let input_json: serde_json::Value = serde_json::from_str(&input_str).unwrap();
         let output_json: serde_json::Value= serde_json::from_str(&output_str).unwrap();
         assert_eq!(input_json, output_json);
-        panic!(decode_metadatum_to_json_str(&metadata, MetadataJsonSchema::DetailedSchema).unwrap());
     }
 
     #[test]
