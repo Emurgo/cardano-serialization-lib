@@ -14,8 +14,12 @@ extern crate quickcheck;
 extern crate quickcheck_macros;
 extern crate hex;
 
-
 use std::io::{BufRead, Seek, Write};
+
+#[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+use noop_proc_macro::wasm_bindgen;
+
+#[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
 use wasm_bindgen::prelude::*;
 
 // This file was code-generated using an experimental CDDL to rust tool:

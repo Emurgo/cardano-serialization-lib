@@ -181,7 +181,7 @@ impl ByronAddress {
         self.0.serialize(&mut addr_bytes).unwrap();
         addr_bytes.finalize()
     }
-    pub fn from_bytes(bytes: Vec<u8>) -> Result<ByronAddress, JsValue> {
+    pub fn from_bytes(bytes: Vec<u8>) -> Result<ByronAddress, JsError> {
         let mut raw = Deserializer::from(std::io::Cursor::new(bytes));
         let extended_addr = ExtendedAddr::deserialize(&mut raw)?;
         Ok(ByronAddress(extended_addr))
@@ -199,7 +199,7 @@ impl ByronAddress {
         self.0.attributes.serialize(&mut attributes_bytes).unwrap();
         attributes_bytes.finalize()
     }
-    pub fn network_id(&self) -> Result<u8, JsValue> {
+    pub fn network_id(&self) -> Result<u8, JsError> {
         // premise: during the Byron-era, we had one mainnet (764824073) and many many testnets
         // with each testnet getting a different protocol magic
         // in Shelley, this changes so that:
@@ -214,14 +214,14 @@ impl ByronAddress {
         match protocol_magic {
             magic if magic == NetworkInfo::mainnet().protocol_magic() => Ok(NetworkInfo::mainnet().network_id()),
             magic if magic == NetworkInfo::testnet().protocol_magic() => Ok(NetworkInfo::testnet().network_id()),
-            _ => Err(JsValue::from_str(&format! {"Unknown network {}", protocol_magic}))
+            _ => Err(JsError::from_str(&format! {"Unknown network {}", protocol_magic}))
         }
     }
 
-    pub fn from_base58(s: &str) -> Result<ByronAddress, JsValue> {
+    pub fn from_base58(s: &str) -> Result<ByronAddress, JsError> {
         use std::str::FromStr;
         ExtendedAddr::from_str(s)
-            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
+            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
             .map(ByronAddress)
     }
 
@@ -429,7 +429,7 @@ impl Address {
         })().map_err(|e| e.annotate("Address"))
     }
 
-    pub fn to_bech32(&self, prefix: Option<String>) -> Result<String, JsValue> {
+    pub fn to_bech32(&self, prefix: Option<String>) -> Result<String, JsError> {
         let final_prefix = match prefix {
             Some(prefix) => prefix,
             None => {
@@ -446,16 +446,16 @@ impl Address {
             }
         };
         bech32::encode(&final_prefix, self.to_bytes().to_base32())
-            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
+            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
     }
 
-    pub fn from_bech32(bech_str: &str) -> Result<Address, JsValue> {
-        let (_hrp, u5data) = bech32::decode(bech_str).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    pub fn from_bech32(bech_str: &str) -> Result<Address, JsError> {
+        let (_hrp, u5data) = bech32::decode(bech_str).map_err(|e| JsError::from_str(&e.to_string()))?;
         let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data).unwrap();
         Ok(Self::from_bytes_impl(data.as_ref())?)
     }
 
-    pub fn network_id(&self) -> Result<u8, JsValue> {
+    pub fn network_id(&self) -> Result<u8, JsError> {
         match &self.0 {
             AddrType::Base(a) => Ok(a.network),
             AddrType::Enterprise(a) => Ok(a.network),

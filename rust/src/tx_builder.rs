@@ -37,7 +37,7 @@ fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519Key
     }
 }
 
-fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
+fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     let body = tx_builder.build()?;
 
     let fake_key_root = Bip32PrivateKey::from_bip39_entropy(
@@ -65,7 +65,7 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsValue> {
         0 => None,
         _x => {
             // TODO: figure out how to populate fake witnesses for these
-            return Err(JsValue::from_str("Script inputs not supported yet"))
+            return Err(JsError::from_str("Script inputs not supported yet"))
         },
     };
     let bootstrap_keys = match tx_builder.input_types.bootstraps.len() {
@@ -155,9 +155,9 @@ impl TransactionBuilder {
         self.input_types.bootstraps.insert(hash.to_bytes());
     }
 
-    pub fn add_output(&mut self, output: &TransactionOutput) -> Result<(), JsValue> {
+    pub fn add_output(&mut self, output: &TransactionOutput) -> Result<(), JsError> {
         if output.amount() < self.minimum_utxo_val {
-            Err(JsValue::from_str(&format!(
+            Err(JsError::from_str(&format!(
                 "Value {} less than the minimum UTXO value {}",
                 from_bignum(&output.amount()),
                 from_bignum(&self.minimum_utxo_val)
@@ -169,7 +169,7 @@ impl TransactionBuilder {
     }
 
     /// calculates how much the fee would increase if you added a given output
-    pub fn fee_for_output(&mut self, output: &TransactionOutput) -> Result<Coin, JsValue> {
+    pub fn fee_for_output(&mut self, output: &TransactionOutput) -> Result<Coin, JsError> {
         let mut self_copy = self.clone();
 
         // we need some value for these for it to be a a valid transaction
@@ -239,7 +239,7 @@ impl TransactionBuilder {
     }
 
     /// does not include refunds or withdrawals
-    pub fn get_explicit_input(&self) -> Result<Coin, JsValue> {
+    pub fn get_explicit_input(&self) -> Result<Coin, JsError> {
         self
             .inputs
             .iter()
@@ -249,7 +249,7 @@ impl TransactionBuilder {
             )
     }
     /// withdrawals and refunds
-    pub fn get_implicit_input(&self) -> Result<Coin, JsValue> {
+    pub fn get_implicit_input(&self) -> Result<Coin, JsError> {
         internal_get_implicit_input(
             &self.withdrawals,
             &self.certs,
@@ -259,7 +259,7 @@ impl TransactionBuilder {
     }
 
     /// does not include fee
-    pub fn get_explicit_output(&self) -> Result<Coin, JsValue> {
+    pub fn get_explicit_output(&self) -> Result<Coin, JsError> {
         self
             .outputs.0
             .iter()
@@ -269,7 +269,7 @@ impl TransactionBuilder {
             )
     }
 
-    pub fn get_deposit(&self) -> Result<Coin, JsValue> {
+    pub fn get_deposit(&self) -> Result<Coin, JsError> {
         internal_get_deposit(
             &self.certs,
             &self.pool_deposit,
@@ -282,16 +282,16 @@ impl TransactionBuilder {
     }
 
     /// Warning: this function will mutate the /fee/ field
-    pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsValue> {
+    pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsError> {
         let fee = match &self.fee {
             None => self.min_fee(),
             // generating the change output involves changing the fee
-            Some(_x) => return Err(JsValue::from_str("Cannot calculate change if fee was explicitly specified")),
+            Some(_x) => return Err(JsError::from_str("Cannot calculate change if fee was explicitly specified")),
         }?;
         let input_total = self.get_explicit_input()?.checked_add(&self.get_implicit_input()?)?;
         let output_total = self.get_explicit_output()?.checked_add(&self.get_deposit()?)?;
         match &input_total >= &output_total.checked_add(&fee)? {
-            false => return Err(JsValue::from_str("Insufficient input in transaction")),
+            false => return Err(JsError::from_str("Insufficient input in transaction")),
             true => {
                 // check how much the fee would increase if we added a change output
                 let fee_for_change = self.fee_for_output(&TransactionOutput {
@@ -322,9 +322,9 @@ impl TransactionBuilder {
         Ok(true)
     }
 
-    pub fn build(&self) -> Result<TransactionBody, JsValue> {
-        let fee = self.fee.ok_or_else(|| JsValue::from_str("Fee not specified"))?;
-        let ttl = self.ttl.ok_or_else(|| JsValue::from_str("ttl not specified"))?;
+    pub fn build(&self) -> Result<TransactionBody, JsError> {
+        let fee = self.fee.ok_or_else(|| JsError::from_str("Fee not specified"))?;
+        let ttl = self.ttl.ok_or_else(|| JsError::from_str("ttl not specified"))?;
         Ok(TransactionBody {
             inputs: TransactionInputs(self.inputs.iter().map(|ref tx_builder_input| tx_builder_input.input.clone()).collect()),
             outputs: self.outputs.clone(),
@@ -343,7 +343,7 @@ impl TransactionBuilder {
     /// warning: sum of all parts of a transaction must equal 0. You cannot just set the fee to the min value and forget about it
     /// warning: min_fee may be slightly larger than the actual minimum fee (ex: a few lovelaces)
     /// this is done to simplify the library code, but can be fixed later
-    pub fn min_fee(&self) -> Result<Coin, JsValue> {
+    pub fn min_fee(&self) -> Result<Coin, JsError> {
         let mut self_copy = self.clone();
         self_copy.set_fee(&to_bignum(0x1_00_00_00_00));
         min_fee(&self_copy)
