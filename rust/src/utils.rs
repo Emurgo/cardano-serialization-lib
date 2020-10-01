@@ -1,12 +1,11 @@
 use crate::error::{DeserializeError, DeserializeFailure};
 use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 use std::io::{BufRead, Seek, Write};
-use wasm_bindgen::prelude::*;
 use super::*;
 
-// JsValue can't be used by non-wasm targets so we use this macro to expose
-// either a DeserializeError or a JsValue error depending on if we're on a
-// wasm or a non-wasm target where JsValue is not available (it panics!).
+// JsError can't be used by non-wasm targets so we use this macro to expose
+// either a DeserializeError or a JsError error depending on if we're on a
+// wasm or a non-wasm target where JsError is not available (it panics!).
 // Note: wasm-bindgen doesn't support macros inside impls, so we have to wrap these
 //       in their own impl and invoke the invoke the macro from global scope.
 // TODO: possibly write s generic version of this for other usages (e.g. PrivateKey, etc)
@@ -14,11 +13,11 @@ use super::*;
 macro_rules! from_bytes {
     // Custom from_bytes() code
     ($name:ident, $data: ident, $body:block) => {
-        // wasm-exposed JsValue return - JsValue panics when used outside wasm
+        // wasm-exposed JsError return - JsError panics when used outside wasm
         #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
         #[wasm_bindgen]
         impl $name {
-            pub fn from_bytes($data: Vec<u8>) -> Result<$name, JsValue> {
+            pub fn from_bytes($data: Vec<u8>) -> Result<$name, JsError> {
                 Ok($body?)
             }
         }
@@ -75,9 +74,9 @@ to_from_bytes!(BigNum);
 #[wasm_bindgen]
 impl BigNum {
     // Create a BigNum from a standard rust string representation
-    pub fn from_str(string: &str) -> Result<BigNum, JsValue> {
+    pub fn from_str(string: &str) -> Result<BigNum, JsError> {
         string.parse::<u64>()
-            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
+            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
             .map(BigNum)
     }
 
@@ -86,24 +85,24 @@ impl BigNum {
         format!("{}", self.0)
     }
 
-    pub fn checked_mul(&self, other: &BigNum) -> Result<BigNum, JsValue> {
+    pub fn checked_mul(&self, other: &BigNum) -> Result<BigNum, JsError> {
         match self.0.checked_mul(other.0) {
             Some(value) => Ok(BigNum(value)),
-            None => Err(JsValue::from_str("overflow")),
+            None => Err(JsError::from_str("overflow")),
         }
     }
 
-    pub fn checked_add(&self, other: &BigNum) -> Result<BigNum, JsValue> {
+    pub fn checked_add(&self, other: &BigNum) -> Result<BigNum, JsError> {
         match self.0.checked_add(other.0) {
             Some(value) => Ok(BigNum(value)),
-            None => Err(JsValue::from_str("overflow")),
+            None => Err(JsError::from_str("overflow")),
         }
     }
 
-    pub fn checked_sub(&self, other: &BigNum) -> Result<BigNum, JsValue> {
+    pub fn checked_sub(&self, other: &BigNum) -> Result<BigNum, JsError> {
         match self.0.checked_sub(other.0) {
             Some(value) => Ok(BigNum(value)),
-            None => Err(JsValue::from_str("underflow")),
+            None => Err(JsError::from_str("underflow")),
         }
     }
 }
@@ -296,7 +295,7 @@ pub fn internal_get_implicit_input(
     certs: &Option<Certificates>,
     pool_deposit: &BigNum, // // protocol parameter
     key_deposit: &BigNum, // protocol parameter
-) -> Result<Coin, JsValue> {
+) -> Result<Coin, JsError> {
     let withdrawal_sum = match &withdrawals {
         None => to_bignum(0),
         Some(x) => x.0
@@ -325,7 +324,7 @@ pub fn internal_get_deposit(
     certs: &Option<Certificates>,
     pool_deposit: &BigNum, // // protocol parameter
     key_deposit: &BigNum, // protocol parameter
-) -> Result<Coin, JsValue> {
+) -> Result<Coin, JsError> {
     let certificate_refund = match &certs {
         None => to_bignum(0),
         Some(certs) => certs.0
@@ -348,7 +347,7 @@ pub fn get_implicit_input(
     txbody: &TransactionBody,
     pool_deposit: &BigNum, // // protocol parameter
     key_deposit: &BigNum, // protocol parameter
-) -> Result<Coin, JsValue> {
+) -> Result<Coin, JsError> {
     internal_get_implicit_input(
         &txbody.withdrawals,
         &txbody.certs,
@@ -362,7 +361,7 @@ pub fn get_deposit(
     txbody: &TransactionBody,
     pool_deposit: &BigNum, // // protocol parameter
     key_deposit: &BigNum, // protocol parameter
-) -> Result<Coin, JsValue> {
+) -> Result<Coin, JsError> {
     internal_get_deposit(
         &txbody.certs,
         &pool_deposit,

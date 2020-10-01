@@ -31,6 +31,11 @@ For each use we use a metadatum label specific to our use into the `TransactionM
 
 There are 4 ways we can achieve this with different trade-offs: Directly using the Metadata-related structures used in the library, conversion to/from JSON using our utility functions, writing a CDDL spec of this structure that is representable by that recursive metadatum CDDL, or encoding raw-bytes using our utility functions. Each section will give examples of how to encode a similar structure. Understanding CDDL is only necessary for the last 2 options, but it is fairly simple to understand.
 
+If your metadata schema is fixed and will be used frequently you should consider the CDDL spec option.
+If your schema is not often used or used from many languages, the JSON option can be good as it is low set-up and fairly tech agnostic.
+If your schema is very dynamic or non-existent, the direct use or JSON options are likely best.
+The raw bytes option is only recommended if your data does not conform to the metadata format.
+
 ## Direct use
 
 Upsides:
@@ -135,11 +140,9 @@ Upsides:
 * Lowest set-up work involved
 
 Downsides:
-* Does not support bytes (metdata side), or null/true/false (JSON side) to ensure unambiguous conversions
 * Does not support negative integers between `-2^64 + 1` and `-2^63` (serde_json library restriction)
 * Structural validation must be done by hand
 * Can use more space as string keyed maps are likely to be used more than arrays would be in the CDDL solutions
-* Does not support non-string map keys
 
 ```javascript
 const obj = {
@@ -148,9 +151,109 @@ const obj = {
   comment: "happy birthday",
   tags: [0, 264, -1024, 32]
 };
-const metadata = CardanoWasm.encode_json_str_to_metadatum(JSON.stringify(obj));
-const metadataString = CardanoWasm.decode_metadatum_to_json_str(metadata);
+const metadata = CardanoWasm.encode_json_str_to_metadatum(JSON.stringify(obj), CardanoWasm.MetadataJsonSchema.NoConversions);
+const metadataString = CardanoWasm.decode_metadatum_to_json_str(metadata, CardanoWasm.MetadataJsonSchema.NoConversions);
 ```
+
+To support an extended set of metadata we also support 2 additional modes for JSON conversion following IOHK's [cardano-node JSON schemas](https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/MetaData.hs).
+
+The three modes are:
+* `NoConversions` - Faithfully converts between the minimal shared feature set between JSON and Metadata
+* `BasicConversions` - Adds additional support for byte(as hex strings)/integers (as strings) keys / byte (as hex strings) values.
+* `DetailedSchema` - Can convert almost all metadata into a specific JSON schema but is very verbose on the JSON side.
+
+Details on the formats can be found in our library's metadata module or in the `cardano-node` file linked above. `DetailedSchema` is likely most useful if you need to parse any possible kind of metadata into JSON specifically, possibly to display or for debugging.
+For most reasonable schemas `NoConversions` should suffice, or `BasicConversions` if byte/string keys and byte values are needed.
+If you are in charge of your own schema and you do not need arbitrary keys, it is recommended not to use `DetailedSchema` as it is significantly more complicated to use.
+
+The additions of `BasicConversions` are demonstrated below
+```json
+{
+  "0x8badf00d": "0xdeadbeef",
+  "9": 5,
+  "obj": {
+    "a":[
+      {
+        "5": 2
+      },
+      {
+      }
+    ]
+  }
+}
+```
+which creates a map with 3 elements:
+* 4 byte bytestring (0x8badf00d) => 4 byte bytestring (0xdeadbeef)
+* int (9) => int (5)
+* string ("obj") => object (string ("a") => list [ object (int (5) => int (2)), object (empty) ])
+
+All bytestrings must be prefixed with "0x" or they will be treated as regular strings.
+All strings that parse as an integer such as "125" will be treated as a metadata integer.
+
+The `DetailedSchema` is here:
+```json
+{"map":[
+  {
+    "k":{"bytes":"8badf00d"},
+    "v":{"bytes":"deadbeef"}
+  },
+  {
+    "k":{"int":9},
+    "v":{"int":5}
+  },
+  {
+    "k":{"string":"obj"},
+    "v":{"map":[
+      {
+        "k":{"string":"a"},
+        "v":{"list":[
+          {"map":[
+            {
+              "k":{"int":5},
+              "v":{"int":2}
+            }
+          ]},
+          {"map":[
+          ]}
+        ]}
+      }
+    ]}
+  }
+]}
+```
+
+All values are represented as an object with 1 field with the key tagging the type and the value being the value itself.
+This is the exact same metadata as the `BasicConversions` example which should illustrate that it is much more verbose to use this format,
+but it can represent every kind of metadata possible, including non-string/byte/int keys.
+Do note that byte strings do not start with "0x", unlike with `BasicConversions`.
+
+This additional freedom in keys can be seen here:
+```json
+{"map":[
+  {
+    "k":{"list":[
+      {"map": [
+        {
+          "k": {"int": 5},
+          "v": {"int": 7}
+        },
+        {
+          "k": {"string": "hello"},
+          "v": {"string": "world"}
+        }
+      ]},
+      {"bytes": "ff00ff00"}
+    ]},
+    "v":{"int":5}
+  }
+]}
+```
+has a 1-element map with a value of just 5, but with a very complicated key consisting of a list with 2 elements:
+* a 2-element map (5 => 7, "hello" => "world")
+* a bytestring (0xFF00FF00)
+
+Most reasonable metadata formats, however, likely do not use map/key/compound keys and thus this is more of a fringe use or when all possible metadata must be examined from JSON (almost) without exception.
+Due to library implementation details it can still fail to decode if there is a very negative number between `-2^64 + 1` and `-2^63`.
 
 ## Using a CDDL Subset
 
@@ -162,7 +265,7 @@ Upsides:
 Downsides:
 * Requires additional set-up
 
-For static or relatively static types this is probably the best choice, especially if you care about structural validation or need the binary types or more complex keys that JSON doesn't allow.
+For static or relatively static types this is probably the best choice, especially if you care about structural validation or need the binary types or more complex keys.
 
 As we saw in the other examples, most reasonable structures can be encoded using the standard metadata CDDL as it is almost a superset of JSON outside of true/false/null. Not only this, but if we represent a struct using an array in CDDL such as:
 ```
@@ -213,9 +316,9 @@ Once we have imported the library we can then use it as such:
 const tags = OurMetadataLib.Ints.new();
 // if we have smaller (32-bit signed) numbers we can construct easier
 tags.add(OurMetadataLib.Int.new_i32(0));
-// but for bigger numbers we must use BigNum and specify the sign ourselves
+// but for bigger (>= 2^32) numbers we must use BigNum and specify the sign ourselves
 tags.add(OurMetadataLib.Int.new(CardanoWasm.Int.from_str("264")));
-// and for negative large numbers (here we construct -1024)
+// and for negative large (< -2^32) numbers (here we construct -1024)
 tags.add(OurMetadataLib.Int.new_negative(CardanoWasm.Int.from_str("1024")));
 tags.add(OurMetadataLib.Int.new_i32(32));
 const map = OurMetadataLib.Foo.new("SJKdj34k3jjKFDKfjFUDfdjkfd", "jkfdsufjdk34h3Sdfjdhfduf873", "happy birthday", tags)

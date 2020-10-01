@@ -6,7 +6,6 @@ use crypto::bech32::Bech32 as _;
 use rand_os::OsRng;
 use std::io::{BufRead, Seek, Write};
 use std::str::FromStr;
-use wasm_bindgen::prelude::*;
 
 use cryptoxide::blake2b::Blake2b;
 
@@ -63,7 +62,7 @@ impl Bip32PrivateKey {
     /// prv | pub | chaincode
     /// so be careful if you see the term "xprv" as it could refer to either one
     /// our library does not require the pub (instead we compute the pub key when needed)
-    pub fn from_128_xprv(bytes: &[u8]) -> Result<Bip32PrivateKey, JsValue> {
+    pub fn from_128_xprv(bytes: &[u8]) -> Result<Bip32PrivateKey, JsError> {
         let mut buf = [0; 96];
         buf[0..64].clone_from_slice(&bytes[0..64]);
         buf[64..96].clone_from_slice(&bytes[96..128]);
@@ -83,11 +82,11 @@ impl Bip32PrivateKey {
         buf.to_vec()
     }
 
-    pub fn generate_ed25519_bip32() -> Result<Bip32PrivateKey, JsValue> {
+    pub fn generate_ed25519_bip32() -> Result<Bip32PrivateKey, JsError> {
         OsRng::new()
             .map(crypto::SecretKey::<crypto::Ed25519Bip32>::generate)
             .map(Bip32PrivateKey)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
     }
 
     pub fn to_raw_key(&self) -> PrivateKey {
@@ -100,9 +99,9 @@ impl Bip32PrivateKey {
         Bip32PublicKey(self.0.to_public().into())
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Bip32PrivateKey, JsValue> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Bip32PrivateKey, JsError> {
         crypto::SecretKey::<crypto::Ed25519Bip32>::from_binary(bytes)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
             .map(Bip32PrivateKey)
     }
 
@@ -110,10 +109,10 @@ impl Bip32PrivateKey {
         self.0.as_ref().to_vec()
     }
 
-    pub fn from_bech32(bech32_str: &str) -> Result<Bip32PrivateKey, JsValue> {
+    pub fn from_bech32(bech32_str: &str) -> Result<Bip32PrivateKey, JsError> {
         crypto::SecretKey::try_from_bech32_str(&bech32_str)
             .map(Bip32PrivateKey)
-            .map_err(|_| JsValue::from_str("Invalid secret key"))
+            .map_err(|_| JsError::from_str("Invalid secret key"))
     }
 
     pub fn to_bech32(&self) -> String {
@@ -160,19 +159,19 @@ impl Bip32PublicKey {
     /// This is why deriving the private key should not fail while deriving
     /// the public key may fail (if the derivation index is invalid).
     ///
-    pub fn derive(&self, index: u32) -> Result<Bip32PublicKey, JsValue> {
+    pub fn derive(&self, index: u32) -> Result<Bip32PublicKey, JsError> {
         crypto::derive::derive_pk_ed25519(&self.0, index)
             .map(Bip32PublicKey)
-            .map_err(|e| JsValue::from_str(&format! {"{:?}", e}))
+            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
     }
 
     pub fn to_raw_key(&self) -> PublicKey {
         PublicKey(crypto::derive::to_raw_pk(&self.0))
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Bip32PublicKey, JsValue> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Bip32PublicKey, JsError> {
         crypto::PublicKey::<crypto::Ed25519Bip32>::from_binary(bytes)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
             .map(Bip32PublicKey)
     }
 
@@ -180,10 +179,10 @@ impl Bip32PublicKey {
         self.0.as_ref().to_vec()
     }
 
-    pub fn from_bech32(bech32_str: &str) -> Result<Bip32PublicKey, JsValue> {
+    pub fn from_bech32(bech32_str: &str) -> Result<Bip32PublicKey, JsError> {
         crypto::PublicKey::try_from_bech32_str(&bech32_str)
             .map(Bip32PublicKey)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
     }
 
     pub fn to_bech32(&self) -> String {
@@ -213,20 +212,20 @@ impl PrivateKey {
         self.0.to_public().into()
     }
 
-    pub fn generate_ed25519() -> Result<PrivateKey, JsValue> {
+    pub fn generate_ed25519() -> Result<PrivateKey, JsError> {
         OsRng::new()
             .map(crypto::SecretKey::<crypto::Ed25519>::generate)
             .map(key::EitherEd25519SecretKey::Normal)
             .map(PrivateKey)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
     }
 
-    pub fn generate_ed25519extended() -> Result<PrivateKey, JsValue> {
+    pub fn generate_ed25519extended() -> Result<PrivateKey, JsError> {
         OsRng::new()
             .map(crypto::SecretKey::<crypto::Ed25519Extended>::generate)
             .map(key::EitherEd25519SecretKey::Extended)
             .map(PrivateKey)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
     }
 
     pub fn to_bech32(&self) -> String {
@@ -243,18 +242,18 @@ impl PrivateKey {
         }
     }
 
-    pub fn from_extended_bytes(bytes: &[u8]) -> Result<PrivateKey, JsValue> {
+    pub fn from_extended_bytes(bytes: &[u8]) -> Result<PrivateKey, JsError> {
         crypto::SecretKey::from_binary(bytes)
             .map(key::EitherEd25519SecretKey::Extended)
             .map(PrivateKey)
-            .map_err(|_| JsValue::from_str("Invalid extended secret key"))
+            .map_err(|_| JsError::from_str("Invalid extended secret key"))
     }
 
-    pub fn from_normal_bytes(bytes: &[u8]) -> Result<PrivateKey, JsValue> {
+    pub fn from_normal_bytes(bytes: &[u8]) -> Result<PrivateKey, JsError> {
         crypto::SecretKey::from_binary(bytes)
             .map(key::EitherEd25519SecretKey::Normal)
             .map(PrivateKey)
-            .map_err(|_| JsValue::from_str("Invalid normal secret key"))
+            .map_err(|_| JsError::from_str("Invalid normal secret key"))
     }
 
     pub fn sign(&self, message: &[u8]) -> Ed25519Signature {
@@ -280,10 +279,10 @@ impl PublicKey {
     /// ```javascript
     /// const pkey = PublicKey.from_bech32(&#39;ed25519_pk1dgaagyh470y66p899txcl3r0jaeaxu6yd7z2dxyk55qcycdml8gszkxze2&#39;);
     /// ```
-    pub fn from_bech32(bech32_str: &str) -> Result<PublicKey, JsValue> {
+    pub fn from_bech32(bech32_str: &str) -> Result<PublicKey, JsError> {
         crypto::PublicKey::try_from_bech32_str(&bech32_str)
             .map(PublicKey)
-            .map_err(|_| JsValue::from_str("Malformed public key"))
+            .map_err(|_| JsError::from_str("Malformed public key"))
     }
 
     pub fn to_bech32(&self) -> String {
@@ -294,9 +293,9 @@ impl PublicKey {
         self.0.as_ref().to_vec()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, JsValue> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, JsError> {
         crypto::PublicKey::from_binary(bytes)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
             .map(PublicKey)
     }
 
@@ -635,15 +634,15 @@ macro_rules! impl_signature {
                 hex::encode(&self.0.as_ref())
             }
 
-            pub fn from_bech32(bech32_str: &str) -> Result<$name, JsValue> {
+            pub fn from_bech32(bech32_str: &str) -> Result<$name, JsError> {
                 crypto::Signature::try_from_bech32_str(&bech32_str)
                     .map($name)
-                    .map_err(|e| JsValue::from_str(&format!("{}", e)))
+                    .map_err(|e| JsError::from_str(&format!("{}", e)))
             }
 
-            pub fn from_hex(input: &str) -> Result<$name, JsValue> {
+            pub fn from_hex(input: &str) -> Result<$name, JsError> {
                 crypto::Signature::from_str(input)
-                    .map_err(|e| JsValue::from_str(&format!("{:?}", e)))
+                    .map_err(|e| JsError::from_str(&format!("{:?}", e)))
                     .map($name)
             }
         }
@@ -732,9 +731,9 @@ pub struct LegacyDaedalusPrivateKey(pub (crate) crypto::SecretKey<crypto::Legacy
 
 #[wasm_bindgen]
 impl LegacyDaedalusPrivateKey {
-    pub fn from_bytes(bytes: &[u8]) -> Result<LegacyDaedalusPrivateKey, JsValue> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<LegacyDaedalusPrivateKey, JsError> {
         crypto::SecretKey::<crypto::LegacyDaedalus>::from_binary(bytes)
-            .map_err(|e| JsValue::from_str(&format!("{}", e)))
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
             .map(LegacyDaedalusPrivateKey)
     }
 
@@ -831,13 +830,13 @@ impl Nonce {
         }
     }
 
-    pub fn new_from_hash(hash: Vec<u8>) -> Result<Nonce, JsValue> {
+    pub fn new_from_hash(hash: Vec<u8>) -> Result<Nonce, JsError> {
         use std::convert::TryInto;
         match hash[..Self::HASH_LEN].try_into() {
             Ok(bytes_correct_size) => Ok(Self {
                 hash: Some(bytes_correct_size),
             }),
-            Err(e) => Err(JsValue::from_str(&e.to_string())),
+            Err(e) => Err(JsError::from_str(&e.to_string())),
         }
     }
 
@@ -925,9 +924,9 @@ impl VRFCert {
         self.proof.clone()
     }
 
-    pub fn new(output: Vec<u8>, proof: Vec<u8>) -> Result<VRFCert, JsValue> {
+    pub fn new(output: Vec<u8>, proof: Vec<u8>) -> Result<VRFCert, JsError> {
         if proof.len() != Self::PROOF_LEN {
-            return Err(JsValue::from_str(&format!("proof len must be {} - found {}", Self::PROOF_LEN, proof.len())));
+            return Err(JsError::from_str(&format!("proof len must be {} - found {}", Self::PROOF_LEN, proof.len())));
         }
         Ok(Self {
             output: output,
