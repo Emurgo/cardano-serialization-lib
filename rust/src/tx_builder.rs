@@ -155,6 +155,71 @@ impl TransactionBuilder {
         self.input_types.bootstraps.insert(hash.to_bytes());
     }
 
+    pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Coin) {
+        match &BaseAddress::from_address(address) {
+            Some(addr) => {
+                match &addr.payment_cred().to_keyhash() {
+                    Some(hash) => return self.add_key_input(hash, input, amount),
+                    None => (),
+                }
+                match &addr.payment_cred().to_scripthash() {
+                    Some(hash) => return self.add_script_input(hash, input, amount),
+                    None => (),
+                }
+            },
+            None => (),
+        }
+        match &EnterpriseAddress::from_address(address) {
+            Some(addr) => {
+                match &addr.payment_cred().to_keyhash() {
+                    Some(hash) => return self.add_key_input(hash, input, amount),
+                    None => (),
+                }
+                match &addr.payment_cred().to_scripthash() {
+                    Some(hash) => return self.add_script_input(hash, input, amount),
+                    None => (),
+                }
+            },
+            None => (),
+        }
+        match &PointerAddress::from_address(address) {
+            Some(addr) => {
+                match &addr.payment_cred().to_keyhash() {
+                    Some(hash) => return self.add_key_input(hash, input, amount),
+                    None => (),
+                }
+                match &addr.payment_cred().to_scripthash() {
+                    Some(hash) => return self.add_script_input(hash, input, amount),
+                    None => (),
+                }
+            },
+            None => (),
+        }
+        match &ByronAddress::from_address(address) {
+            Some(addr) => {
+                return self.add_bootstrap_input(addr, input, amount);
+            },
+            None => (),
+        }
+    }
+
+    /// calculates how much the fee would increase if you added a given output
+    pub fn fee_for_input(&mut self, address: &Address, input: &TransactionInput, amount: &Coin) -> Result<Coin, JsError> {
+        let mut self_copy = self.clone();
+
+        // we need some value for these for it to be a a valid transaction
+        // but since we're only calculating the different between the fee of two transactions
+        // it doesn't matter what these are set as, since it cancels out
+        self_copy.set_ttl(0);
+        self_copy.set_fee(&to_bignum(0));
+
+        let fee_before = min_fee(&self_copy)?;
+
+        self_copy.add_input(&address, &input, &amount);
+        let fee_after = min_fee(&self_copy)?;
+        fee_after.checked_sub(&fee_before)
+    }
+
     pub fn add_output(&mut self, output: &TransactionOutput) -> Result<(), JsError> {
         if output.amount() < self.minimum_utxo_val {
             Err(JsError::from_str(&format!(
@@ -691,5 +756,78 @@ mod tests {
         tx_builder.add_change_if_needed(
             &change_addr
         ).unwrap();
+    }
+
+    #[test]
+    fn build_tx_with_inputs() {
+        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
+        let mut tx_builder = TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+
+        {
+            assert_eq!(tx_builder.fee_for_input(
+                &EnterpriseAddress::new(
+                    NetworkInfo::testnet().network_id(),
+                    &spend_cred
+                ).to_address(),
+                &TransactionInput::new(&genesis_id(), 0),
+                &to_bignum(1_000_000)
+            ).unwrap().to_str(), "69500");
+            tx_builder.add_input(
+                &EnterpriseAddress::new(
+                    NetworkInfo::testnet().network_id(),
+                    &spend_cred
+                ).to_address(),
+                &TransactionInput::new(&genesis_id(), 0),
+                &to_bignum(1_000_000)
+            );
+        }
+        tx_builder.add_input(
+            &BaseAddress::new(
+                NetworkInfo::testnet().network_id(),
+                &spend_cred,
+                &stake_cred
+            ).to_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &to_bignum(1_000_000)
+        );
+        tx_builder.add_input(
+            &PointerAddress::new(
+                NetworkInfo::testnet().network_id(),
+                &spend_cred,
+                &Pointer::new(
+                    0,
+                    0,
+                    0
+                )
+            ).to_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &to_bignum(1_000_000)
+        );
+        tx_builder.add_input(
+            &ByronAddress::icarus_from_key(
+                &spend, NetworkInfo::testnet().protocol_magic()
+            ).to_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &to_bignum(1_000_000)
+        );
+
+        assert_eq!(tx_builder.inputs.len(), 4);
     }
 }
