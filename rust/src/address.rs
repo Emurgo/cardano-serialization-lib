@@ -45,7 +45,7 @@ impl NetworkInfo {
     }
     pub fn network_id(&self) -> u8 {
         self.network_id
-    } 
+    }
     pub fn protocol_magic(&self) -> u32 {
         self.protocol_magic
     }
@@ -307,13 +307,11 @@ impl Address {
                 buf.extend(byron.to_bytes())
             },
         }
-        println!("to_bytes({:?}) = {:?}", self, buf);
         buf
     }
 
     fn from_bytes_impl(data: &[u8]) -> Result<Address, DeserializeError> {
         use std::convert::TryInto;
-        println!("reading from: {:?}", data);
         // header has 4 bits addr type discrim then 4 bits network discrim.
         // Copied from shelley.cddl:
         //
@@ -345,7 +343,6 @@ impl Address {
                 } else {
                     StakeCredential::from_scripthash(&ScriptHash::from(hash_bytes))
                 };
-                println!("read cred: {:?}", x);
                 x
             };
             let addr = match (header & 0xF0) >> 4 {
