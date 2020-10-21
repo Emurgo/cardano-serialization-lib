@@ -3192,6 +3192,26 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
+   * @param {Address} address
+   * @param {TransactionInput} input
+   * @param {BigNum} amount
+   */
+  add_input(address: Address, input: TransactionInput, amount: BigNum): void;
+
+  /**
+   * calculates how much the fee would increase if you added a given output
+   * @param {Address} address
+   * @param {TransactionInput} input
+   * @param {BigNum} amount
+   * @returns {BigNum}
+   */
+  fee_for_input(
+    address: Address,
+    input: TransactionInput,
+    amount: BigNum
+  ): BigNum;
+
+  /**
    * @param {TransactionOutput} output
    */
   add_output(output: TransactionOutput): void;
