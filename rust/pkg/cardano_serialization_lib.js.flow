@@ -6,38 +6,6 @@
  */
 
 /**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum
-): string;
-
-/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -119,6 +87,42 @@ declare export function get_deposit(
 declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
  */
 
 declare export var CertificateKind: {|
@@ -167,6 +171,15 @@ declare export var TransactionMetadatumKind: {|
   +Int: 2, // 2
   +Bytes: 3, // 3
   +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
 |};
 
 /**
@@ -1458,10 +1471,42 @@ declare export class MetadataMap {
   ): TransactionMetadatum | void;
 
   /**
+   * @param {string} key
+   * @param {TransactionMetadatum} value
+   * @returns {TransactionMetadatum | void}
+   */
+  insert_str(
+    key: string,
+    value: TransactionMetadatum
+  ): TransactionMetadatum | void;
+
+  /**
+   * @param {number} key
+   * @param {TransactionMetadatum} value
+   * @returns {TransactionMetadatum | void}
+   */
+  insert_i32(
+    key: number,
+    value: TransactionMetadatum
+  ): TransactionMetadatum | void;
+
+  /**
    * @param {TransactionMetadatum} key
    * @returns {TransactionMetadatum}
    */
   get(key: TransactionMetadatum): TransactionMetadatum;
+
+  /**
+   * @param {string} key
+   * @returns {TransactionMetadatum}
+   */
+  get_str(key: string): TransactionMetadatum;
+
+  /**
+   * @param {number} key
+   * @returns {TransactionMetadatum}
+   */
+  get_i32(key: number): TransactionMetadatum;
 
   /**
    * @param {TransactionMetadatum} key
