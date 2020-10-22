@@ -3,6 +3,7 @@ use crate::impl_mockchain as chain;
 use crate::chain_crypto as crypto;
 use chain::{key};
 use crypto::bech32::Bech32 as _;
+use bech32::ToBase32;
 use rand_os::OsRng;
 use std::io::{BufRead, Seek, Write};
 use std::str::FromStr;
@@ -678,6 +679,17 @@ macro_rules! impl_hash_type {
         impl $name {
             pub fn to_bytes(&self) -> Vec<u8> {
                 self.0.to_vec()
+            }
+
+            pub fn to_bech32(&self, prefix: &str) -> Result<String, JsError> {
+                bech32::encode(&prefix, self.to_bytes().to_base32())
+                    .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
+            }
+        
+            pub fn from_bech32(bech_str: &str) -> Result<$name, JsError> {
+                let (_hrp, u5data) = bech32::decode(bech_str).map_err(|e| JsError::from_str(&e.to_string()))?;
+                let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data).unwrap();
+                Ok(Self::from_bytes(data)?)
             }
         }
 

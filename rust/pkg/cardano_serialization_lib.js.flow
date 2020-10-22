@@ -526,6 +526,18 @@ declare export class BlockHash {
   to_bytes(): Uint8Array;
 
   /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {BlockHash}
+   */
+  static from_bech32(bech_str: string): BlockHash;
+
+  /**
    * @param {Uint8Array} bytes
    * @returns {BlockHash}
    */
@@ -834,6 +846,18 @@ declare export class Ed25519KeyHash {
   to_bytes(): Uint8Array;
 
   /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {Ed25519KeyHash}
+   */
+  static from_bech32(bech_str: string): Ed25519KeyHash;
+
+  /**
    * @param {Uint8Array} bytes
    * @returns {Ed25519KeyHash}
    */
@@ -953,6 +977,18 @@ declare export class GenesisDelegateHash {
   to_bytes(): Uint8Array;
 
   /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {GenesisDelegateHash}
+   */
+  static from_bech32(bech_str: string): GenesisDelegateHash;
+
+  /**
    * @param {Uint8Array} bytes
    * @returns {GenesisDelegateHash}
    */
@@ -967,6 +1003,18 @@ declare export class GenesisHash {
    * @returns {Uint8Array}
    */
   to_bytes(): Uint8Array;
+
+  /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {GenesisHash}
+   */
+  static from_bech32(bech_str: string): GenesisHash;
 
   /**
    * @param {Uint8Array} bytes
@@ -1300,6 +1348,18 @@ declare export class KESVKey {
   to_bytes(): Uint8Array;
 
   /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {KESVKey}
+   */
+  static from_bech32(bech_str: string): KESVKey;
+
+  /**
    * @param {Uint8Array} bytes
    * @returns {KESVKey}
    */
@@ -1390,6 +1450,18 @@ declare export class MetadataHash {
    * @returns {Uint8Array}
    */
   to_bytes(): Uint8Array;
+
+  /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {MetadataHash}
+   */
+  static from_bech32(bech_str: string): MetadataHash;
 
   /**
    * @param {Uint8Array} bytes
@@ -2781,6 +2853,18 @@ declare export class ScriptHash {
   to_bytes(): Uint8Array;
 
   /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {ScriptHash}
+   */
+  static from_bech32(bech_str: string): ScriptHash;
+
+  /**
    * @param {Uint8Array} bytes
    * @returns {ScriptHash}
    */
@@ -3366,6 +3450,18 @@ declare export class TransactionHash {
   to_bytes(): Uint8Array;
 
   /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {TransactionHash}
+   */
+  static from_bech32(bech_str: string): TransactionHash;
+
+  /**
    * @param {Uint8Array} bytes
    * @returns {TransactionHash}
    */
@@ -3869,6 +3965,18 @@ declare export class VRFKeyHash {
   to_bytes(): Uint8Array;
 
   /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {VRFKeyHash}
+   */
+  static from_bech32(bech_str: string): VRFKeyHash;
+
+  /**
    * @param {Uint8Array} bytes
    * @returns {VRFKeyHash}
    */
@@ -3883,6 +3991,18 @@ declare export class VRFVKey {
    * @returns {Uint8Array}
    */
   to_bytes(): Uint8Array;
+
+  /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {VRFVKey}
+   */
+  static from_bech32(bech_str: string): VRFVKey;
 
   /**
    * @param {Uint8Array} bytes
