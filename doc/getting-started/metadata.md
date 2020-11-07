@@ -171,7 +171,7 @@ const metadata = CardanoWasm.encode_json_str_to_metadatum(JSON.stringify(obj), C
 const metadataString = CardanoWasm.decode_metadatum_to_json_str(metadata, CardanoWasm.MetadataJsonSchema.NoConversions);
 ```
 
-To support an extended set of metadata we also support 2 additional modes for JSON conversion following IOHK's [cardano-node JSON schemas](https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/MetaData.hs).
+To support an extended set of metadata we also support 3 additional modes for JSON conversion following IOHK's [cardano-node JSON schemas](https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/MetaData.hs).
 
 The three modes are:
 * `NoConversions` - Faithfully converts between the minimal shared feature set between JSON and Metadata
@@ -384,6 +384,8 @@ Downsides:
 While most data would likely conform to the metadata CDDL subset (or JSON), if your data does not fit there then this encoding style will be necessary.
 
 If you still want to take advantage of CDDL type-checking it is possible to create a library just as in the CDDL subset section but without running the checker tool. This could be useful if you are using CDDL outside of the metadata CDDL structure. Otherwise, you can store whatever bytes you want.
+
+*Note*: To conform with the 64-byte limitation on metadata binary values, this method will split the bytes into 64-byte chunks
 
 ```javascript
 const bytes = /* whatever method you want - you can use the CDDL solution in the 3rd option here */
