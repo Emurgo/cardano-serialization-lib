@@ -1,8 +1,10 @@
 # Metadata
 
-## Shelley Metadata format
+## Transaction Metadata format
 
-Shelley metadata takes the form of a map of metadatums, which are recursive JSON-like structures.
+Transaction after the Shelley hardfork can contain arbitrary transaction meta (**note:** this is NOT the same as pool metadata)
+
+Transaction metadata takes the form of a map of metadatums, which are recursive JSON-like structures.
 
 It is defined in [CDDL](https://tools.ietf.org/html/rfc8610), a schema grammar for representing [CBOR](https://tools.ietf.org/html/rfc7049) binary encoding as:
 ```
@@ -29,12 +31,26 @@ For each use we use a metadatum label specific to our use into the `TransactionM
 }
 ```
 
-There are 4 ways we can achieve this with different trade-offs: Directly using the Metadata-related structures used in the library, conversion to/from JSON using our utility functions, writing a CDDL spec of this structure that is representable by that recursive metadatum CDDL, or encoding raw-bytes using our utility functions. Each section will give examples of how to encode a similar structure. Understanding CDDL is only necessary for the last 2 options, but it is fairly simple to understand.
+There are 4 ways we can achieve this with different trade-offs:
+
+1) Directly use: using the Metadata-related structures used in the library
+2) JSON conversion: conversion to/from JSON using our utility functions
+3) CDDL subset: writing a CDDL spec of this structure that is representable by that recursive metadatum CDDL
+4) Raw bytes: encoding raw-bytes using our utility functions.
+
+Each section will give examples of how to encode a similar structure. Understanding CDDL is only necessary for the last 2 options, but it is fairly simple to understand.
 
 If your metadata schema is fixed and will be used frequently you should consider the CDDL spec option.
 If your schema is not often used or used from many languages, the JSON option can be good as it is low set-up and fairly tech agnostic.
 If your schema is very dynamic or non-existent, the direct use or JSON options are likely best.
 The raw bytes option is only recommended if your data does not conform to the metadata format.
+
+## Metadata limitations
+
+These limitations are mentioned in the CDDL definition, but are worth also mentioning in prose:
+
+- Strings must be at most 64 bytes when UTF-8 encoded.
+- Bytestrings are hex-encoded, with a maximum length of 64 bytes.
 
 ## Direct use
 
