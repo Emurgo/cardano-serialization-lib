@@ -289,7 +289,7 @@ impl TransactionMetadata {
 #[wasm_bindgen]
 pub fn encode_arbitrary_bytes_as_metadatum(bytes: &[u8]) -> TransactionMetadatum {
     let mut list = MetadataList::new();
-    for chunk in bytes.chunks(64) {
+    for chunk in bytes.chunks(MD_MAX_LEN) {
         // this should never fail as we are already chunking it
         list.add(&TransactionMetadatum::new_bytes(chunk.to_vec()).unwrap());
     }
