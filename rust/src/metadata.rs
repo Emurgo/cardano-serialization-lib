@@ -1,5 +1,6 @@
 use super::*;
-use std::io::{Seek, SeekFrom};
+
+const MD_MAX_LEN: usize = 64;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -32,8 +33,8 @@ impl MetadataMap {
         &mut self,
         key: &str,
         value: &TransactionMetadatum,
-    ) -> Option<TransactionMetadatum> {
-        self.insert(&TransactionMetadatum::new_text(key.to_owned()), value)
+    ) -> Result<Option<TransactionMetadatum>, JsError> {
+        Ok(self.insert(&TransactionMetadatum::new_text(key.to_owned())?, value))
     }
 
     // convenience function for inserting 32-bit integers - for higher-precision integers use insert() with an Int struct
@@ -51,7 +52,7 @@ impl MetadataMap {
 
     // convenience function for retrieving a string key
     pub fn get_str(&self, key: &str) -> Result<TransactionMetadatum, JsError> {
-        self.get(&TransactionMetadatum::new_text(key.to_owned()))
+        self.get(&TransactionMetadatum::new_text(key.to_owned())?)
     }
 
     // convenience function for retrieving 32-bit integer keys - for higher-precision integers use get() with an Int struct
@@ -147,12 +148,20 @@ impl TransactionMetadatum {
         Self(TransactionMetadatumEnum::Int(int.clone()))
     }
 
-    pub fn new_bytes(bytes: Vec<u8>) -> Self {
-        Self(TransactionMetadatumEnum::Bytes(bytes))
+    pub fn new_bytes(bytes: Vec<u8>) -> Result<TransactionMetadatum, JsError> {
+        if bytes.len() > MD_MAX_LEN {
+            Err(JsError::from_str(&format!("Max metadata bytes too long: {}, max = {}", bytes.len(), MD_MAX_LEN)))
+        } else {
+            Ok(Self(TransactionMetadatumEnum::Bytes(bytes)))
+        }
     }
 
-    pub fn new_text(text: String) -> Self {
-        Self(TransactionMetadatumEnum::Text(text))
+    pub fn new_text(text: String) -> Result<TransactionMetadatum, JsError> {
+        if text.len() > MD_MAX_LEN {
+            Err(JsError::from_str(&format!("Max metadata string too long: {}, max = {}", text.len(), MD_MAX_LEN)))
+        } else {
+            Ok(Self(TransactionMetadatumEnum::Text(text)))
+        }
     }
 
     pub fn kind(&self) -> TransactionMetadatumKind {
@@ -280,8 +289,9 @@ impl TransactionMetadata {
 #[wasm_bindgen]
 pub fn encode_arbitrary_bytes_as_metadatum(bytes: &[u8]) -> TransactionMetadatum {
     let mut list = MetadataList::new();
-    for chunk in bytes.chunks(64) {
-        list.add(&TransactionMetadatum::new_bytes(chunk.to_vec()));
+    for chunk in bytes.chunks(MD_MAX_LEN) {
+        // this should never fail as we are already chunking it
+        list.add(&TransactionMetadatum::new_bytes(chunk.to_vec()).unwrap());
     }
     TransactionMetadatum::new_list(&list)
 }
@@ -301,7 +311,8 @@ pub fn decode_arbitrary_bytes_from_metadatum(metadata: &TransactionMetadatum) ->
 // Different schema methods for mapping between JSON and the metadata CBOR.
 // This conversion should match TxMetadataJsonSchema in cardano-node defined (at time of writing) here:
 // https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/MetaData.hs
-// but has 2 additional schemas for more or less conversions
+// but has 2 additional schemas for more or less conversionse
+// Note: Byte/Strings (including keys) in any schema must be at most 64 bytes in length
 pub enum MetadataJsonSchema {
     // Does zero implicit conversions.
     // Round-trip conversions are 100% consistent
@@ -375,7 +386,7 @@ pub fn encode_json_value_to_metadatum(value: serde_json::Value, schema: Metadata
             Err(JsError::from_str("floats not allowed in metadata"))
         }
     }
-    fn encode_string(s: String, schema: MetadataJsonSchema) -> TransactionMetadatum {
+    fn encode_string(s: String, schema: MetadataJsonSchema) -> Result<TransactionMetadatum, JsError> {
         if schema == MetadataJsonSchema::BasicConversions {
             match hex_string_to_bytes(&s) {
                 Some(bytes) => TransactionMetadatum::new_bytes(bytes),
@@ -398,7 +409,7 @@ pub fn encode_json_value_to_metadatum(value: serde_json::Value, schema: Metadata
             Value::Null => Err(JsError::from_str("null not allowed in metadata")),
             Value::Bool(_) => Err(JsError::from_str("bools not allowed in metadata")),
             Value::Number(x) => encode_number(x),
-            Value::String(s) => Ok(encode_string(s, schema)),
+            Value::String(s) => encode_string(s, schema),
             Value::Array(json_arr) => encode_array(json_arr, schema),
             Value::Object(json_obj) => {
                 let mut map = MetadataMap::new();
@@ -406,10 +417,10 @@ pub fn encode_json_value_to_metadatum(value: serde_json::Value, schema: Metadata
                     let key = if schema == MetadataJsonSchema::BasicConversions {
                         match raw_key.parse::<i128>() {
                             Ok(x) => TransactionMetadatum::new_int(&Int(x)),
-                            Err(_) => encode_string(raw_key, schema),
+                            Err(_) => encode_string(raw_key, schema)?,
                         }
                     } else {
-                        TransactionMetadatum::new_text(raw_key)
+                        TransactionMetadatum::new_text(raw_key)?
                     };
                     map.insert(&key, &encode_json_value_to_metadatum(value, schema)?);
                 }
@@ -428,9 +439,9 @@ pub fn encode_json_value_to_metadatum(value: serde_json::Value, schema: Metadata
                         Value::Number(x) => encode_number(x),
                         _ => Err(tag_mismatch()),
                     },
-                    "string" => Ok(encode_string(v.as_str().ok_or_else(tag_mismatch)?.to_owned(), schema)),
+                    "string" => encode_string(v.as_str().ok_or_else(tag_mismatch)?.to_owned(), schema),
                     "bytes" => match hex::decode(v.as_str().ok_or_else(tag_mismatch)?) {
-                        Ok(bytes) => Ok(TransactionMetadatum::new_bytes(bytes)),
+                        Ok(bytes) => TransactionMetadatum::new_bytes(bytes),
                         Err(_) => Err(JsError::from_str("invalid hex string in tagged byte-object")),
                     },
                     "list" => encode_array(v.as_array().ok_or_else(tag_mismatch)?.clone(), schema),
@@ -626,43 +637,15 @@ impl cbor_event::se::Serialize for TransactionMetadatumEnum {
 
 impl Deserialize for TransactionMetadatumEnum {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(MetadataMap::deserialize(raw)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(TransactionMetadatumEnum::MetadataMap(variant)),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(MetadataList::deserialize(raw)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(TransactionMetadatumEnum::MetadataList(variant)),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(Int::deserialize(raw)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(TransactionMetadatumEnum::Int(variant)),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(raw.bytes()?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(TransactionMetadatumEnum::Bytes(variant)),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(String::deserialize(raw)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(TransactionMetadatumEnum::Text(variant)),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        Err(DeserializeError::new("TransactionMetadatumEnum", DeserializeFailure::NoVariantMatched.into()))
+        match raw.cbor_type()? {
+            CBORType::Array => MetadataList::deserialize(raw).map(TransactionMetadatumEnum::MetadataList),
+            CBORType::Map => MetadataMap::deserialize(raw).map(TransactionMetadatumEnum::MetadataMap),
+            CBORType::Bytes => TransactionMetadatum::new_bytes(raw.bytes()?).map(|m| m.0).map_err(|e| DeserializeFailure::Metadata(e).into()),
+            CBORType::Text => TransactionMetadatum::new_text(raw.text()?).map(|m| m.0).map_err(|e| DeserializeFailure::Metadata(e).into()),
+            CBORType::UnsignedInteger |
+            CBORType::NegativeInteger => Int::deserialize(raw).map(TransactionMetadatumEnum::Int),
+            _ => Err(DeserializeError::new("TransactionMetadatumEnum", DeserializeFailure::NoVariantMatched.into()))
+        }
     }
 }
 
@@ -820,7 +803,7 @@ mod tests {
 
     fn json_encoding_check_example_metadatum(metadata: &TransactionMetadatum) {
         let map = metadata.as_map().unwrap();
-        assert_eq!(map.get(&TransactionMetadatum::new_bytes(hex::decode("8badf00d").unwrap())).unwrap().as_bytes().unwrap(), hex::decode("deadbeef").unwrap());
+        assert_eq!(map.get(&TransactionMetadatum::new_bytes(hex::decode("8badf00d").unwrap()).unwrap()).unwrap().as_bytes().unwrap(), hex::decode("deadbeef").unwrap());
         assert_eq!(map.get_i32(9).unwrap().as_int().unwrap().as_i32().unwrap(), 5);
         let inner_map = map.get_str("obj").unwrap().as_map().unwrap();
         let a = inner_map.get_str("a").unwrap().as_list().unwrap();
