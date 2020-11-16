@@ -822,7 +822,7 @@ mod tests {
                 {\"map\": [
                     {
                         \"k\": {\"int\": 5},
-                        \"v\": {\"int\": 7}
+                        \"v\": {\"int\": -7}
                     },
                     {
                         \"k\": {\"string\": \"hello\"},
@@ -842,7 +842,7 @@ mod tests {
         let key_list = key.as_list().unwrap();
         assert_eq!(key_list.len(), 2);
         let key_map = key_list.get(0).as_map().unwrap();
-        assert_eq!(key_map.get_i32(5).unwrap().as_int().unwrap().as_i32().unwrap(), 7);
+        assert_eq!(key_map.get_i32(5).unwrap().as_int().unwrap().as_i32().unwrap(), -7);
         assert_eq!(key_map.get_str("hello").unwrap().as_text().unwrap(), "world");
         let key_bytes = key_list.get(1).as_bytes().unwrap();
         assert_eq!(key_bytes, hex::decode("ff00ff00").unwrap());
