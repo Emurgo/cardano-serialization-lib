@@ -80,13 +80,6 @@ declare export function get_deposit(
 ): BigNum;
 
 /**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -121,6 +114,13 @@ declare export function decode_metadatum_to_json_str(
   metadatum: TransactionMetadatum,
   schema: number
 ): string;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -834,6 +834,50 @@ declare export class Certificates {
    * @param {Certificate} elem
    */
   add(elem: Certificate): void;
+}
+/**
+ */
+declare export class DNSRecordAorAAAA {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DNSRecordAorAAAA}
+   */
+  static from_bytes(bytes: Uint8Array): DNSRecordAorAAAA;
+
+  /**
+   * @param {string} dns_name
+   * @returns {DNSRecordAorAAAA}
+   */
+  static new(dns_name: string): DNSRecordAorAAAA;
+}
+/**
+ */
+declare export class DNSRecordSRV {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DNSRecordSRV}
+   */
+  static from_bytes(bytes: Uint8Array): DNSRecordSRV;
+
+  /**
+   * @param {string} dns_name
+   * @returns {DNSRecordSRV}
+   */
+  static new(dns_name: string): DNSRecordSRV;
 }
 /**
  */
@@ -1796,15 +1840,15 @@ declare export class MultiHostName {
   static from_bytes(bytes: Uint8Array): MultiHostName;
 
   /**
-   * @returns {string}
+   * @returns {DNSRecordSRV}
    */
-  dns_name(): string;
+  dns_name(): DNSRecordSRV;
 
   /**
-   * @param {string} dns_name
+   * @param {DNSRecordSRV} dns_name
    * @returns {MultiHostName}
    */
-  static new(dns_name: string): MultiHostName;
+  static new(dns_name: DNSRecordSRV): MultiHostName;
 }
 /**
  */
@@ -2109,9 +2153,9 @@ declare export class PoolMetadata {
   static from_bytes(bytes: Uint8Array): PoolMetadata;
 
   /**
-   * @returns {string}
+   * @returns {URL}
    */
-  url(): string;
+  url(): URL;
 
   /**
    * @returns {MetadataHash}
@@ -2119,11 +2163,11 @@ declare export class PoolMetadata {
   metadata_hash(): MetadataHash;
 
   /**
-   * @param {string} url
+   * @param {URL} url
    * @param {MetadataHash} metadata_hash
    * @returns {PoolMetadata}
    */
-  static new(url: string, metadata_hash: MetadataHash): PoolMetadata;
+  static new(url: URL, metadata_hash: MetadataHash): PoolMetadata;
 }
 /**
  */
@@ -2931,16 +2975,16 @@ declare export class SingleHostName {
   port(): number | void;
 
   /**
-   * @returns {string}
+   * @returns {DNSRecordAorAAAA}
    */
-  dns_name(): string;
+  dns_name(): DNSRecordAorAAAA;
 
   /**
    * @param {number | void} port
-   * @param {string} dns_name
+   * @param {DNSRecordAorAAAA} dns_name
    * @returns {SingleHostName}
    */
-  static new(port: number | void, dns_name: string): SingleHostName;
+  static new(port: number | void, dns_name: DNSRecordAorAAAA): SingleHostName;
 }
 /**
  */
@@ -3851,6 +3895,28 @@ declare export class TransactionWitnessSets {
    * @param {TransactionWitnessSet} elem
    */
   add(elem: TransactionWitnessSet): void;
+}
+/**
+ */
+declare export class URL {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {URL}
+   */
+  static from_bytes(bytes: Uint8Array): URL;
+
+  /**
+   * @param {string} url
+   * @returns {URL}
+   */
+  static new(url: string): URL;
 }
 /**
  */

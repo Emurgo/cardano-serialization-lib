@@ -36,6 +36,11 @@ pub enum DeserializeFailure {
     MandatoryFieldMissing(Key),
     Metadata(JsError),
     NoVariantMatched,
+    OutOfRange{
+        min: usize,
+        max: usize,
+        found: usize
+    },
     PublicKeyError(chain_crypto::PublicKeyError),
     SignatureError(chain_crypto::SignatureError),
     TagMismatch{
@@ -86,6 +91,7 @@ impl std::fmt::Display for DeserializeError {
             DeserializeFailure::MandatoryFieldMissing(key) => write!(f, "Mandatory field {} not found", key),
             DeserializeFailure::Metadata(e) => write!(f, "Metadata error: {:?}", e),
             DeserializeFailure::NoVariantMatched => write!(f, "No variant matched"),
+            DeserializeFailure::OutOfRange{ min, max, found } => write!(f, "Out of range: {} - must be in range {} - {}", found, min, max),
             DeserializeFailure::PublicKeyError(e) => write!(f, "PublicKeyError error: {}", e),
             DeserializeFailure::SignatureError(e) => write!(f, "Signature error: {}", e),
             DeserializeFailure::TagMismatch{ found, expected } => write!(f, "Expected tag {}, found {}", expected, found),

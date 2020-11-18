@@ -1158,7 +1158,7 @@ impl cbor_event::se::Serialize for Ipv4 {
 
 impl Deserialize for Ipv4 {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(raw.bytes()?))
+        Self::new_impl(raw.bytes()?)
     }
 }
 
@@ -1170,7 +1170,43 @@ impl cbor_event::se::Serialize for Ipv6 {
 
 impl Deserialize for Ipv6 {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(raw.bytes()?))
+        Self::new_impl(raw.bytes()?)
+    }
+}
+
+impl cbor_event::se::Serialize for DNSRecordAorAAAA {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_text(&self.0)
+    }
+}
+
+impl Deserialize for DNSRecordAorAAAA {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        Self::new_impl(raw.text()?)
+    }
+}
+
+impl cbor_event::se::Serialize for DNSRecordSRV {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_text(&self.0)
+    }
+}
+
+impl Deserialize for DNSRecordSRV {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        Self::new_impl(raw.text()?)
+    }
+}
+
+impl cbor_event::se::Serialize for URL {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_text(&self.0)
+    }
+}
+
+impl Deserialize for URL {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        Self::new_impl(raw.text()?)
     }
 }
 
@@ -1295,7 +1331,7 @@ impl SerializeEmbeddedGroup for SingleHostName {
             },
             None => serializer.write_special(CBORSpecial::Null),
         }?;
-        serializer.write_text(&self.dns_name)?;
+        self.dns_name.serialize(serializer)?;
         Ok(serializer)
     }
 }
@@ -1340,7 +1376,7 @@ impl DeserializeEmbeddedGroup for SingleHostName {
             })
         })().map_err(|e| e.annotate("port"))?;
         let dns_name = (|| -> Result<_, DeserializeError> {
-            Ok(String::deserialize(raw)?)
+            Ok(DNSRecordAorAAAA::deserialize(raw)?)
         })().map_err(|e| e.annotate("dns_name"))?;
         Ok(SingleHostName {
             port,
@@ -1359,7 +1395,7 @@ impl cbor_event::se::Serialize for MultiHostName {
 impl SerializeEmbeddedGroup for MultiHostName {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(2u64)?;
-        serializer.write_text(&self.dns_name)?;
+        self.dns_name.serialize(serializer)?;
         Ok(serializer)
     }
 }
@@ -1391,7 +1427,7 @@ impl DeserializeEmbeddedGroup for MultiHostName {
             Ok(())
         })().map_err(|e| e.annotate("index_0"))?;
         let dns_name = (|| -> Result<_, DeserializeError> {
-            Ok(String::deserialize(raw)?)
+            Ok(DNSRecordSRV::deserialize(raw)?)
         })().map_err(|e| e.annotate("dns_name"))?;
         Ok(MultiHostName {
             dns_name,
@@ -1469,7 +1505,7 @@ impl Deserialize for Relay {
 impl cbor_event::se::Serialize for PoolMetadata {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
-        serializer.write_text(&self.url)?;
+        self.url.serialize(serializer)?;
         self.metadata_hash.serialize(serializer)?;
         Ok(serializer)
     }
@@ -1495,7 +1531,7 @@ impl Deserialize for PoolMetadata {
 impl DeserializeEmbeddedGroup for PoolMetadata {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
         let url = (|| -> Result<_, DeserializeError> {
-            Ok(String::deserialize(raw)?)
+            Ok(URL::deserialize(raw)?)
         })().map_err(|e| e.annotate("url"))?;
         let metadata_hash = (|| -> Result<_, DeserializeError> {
             Ok(MetadataHash::deserialize(raw)?)
