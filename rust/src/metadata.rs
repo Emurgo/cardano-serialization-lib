@@ -931,4 +931,20 @@ mod tests {
         let output_json: serde_json::Value= serde_json::from_str(&output_str).unwrap();
         assert_eq!(input_json, output_json);
     }
+
+    #[test]
+    fn allegra_metadata() {
+        let mut gmd = GeneralTransactionMetadata::new();
+        let mdatum = TransactionMetadatum::new_text(String::from("string md")).unwrap();
+        gmd.insert(&to_bignum(100), &mdatum);
+        let md1 = TransactionMetadata::new(&gmd);
+        let md1_deser = TransactionMetadata::from_bytes(md1.to_bytes()).unwrap();
+        assert_eq!(md1.to_bytes(), md1_deser.to_bytes());
+        let mut md2 = TransactionMetadata::new(&gmd);
+        let mut scripts = NativeScripts::new();
+        scripts.add(&NativeScript::new_timelock_start(&TimelockStart::new(20)));
+        md2.set_native_scripts(&scripts);
+        let md2_deser = TransactionMetadata::from_bytes(md2.to_bytes()).unwrap();
+        assert_eq!(md2.to_bytes(), md2_deser.to_bytes());
+    }
 }
