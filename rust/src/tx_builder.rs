@@ -121,10 +121,11 @@ pub struct TransactionBuilder {
     inputs: Vec<TxBuilderInput>,
     outputs: TransactionOutputs,
     fee: Option<Coin>,
-    ttl: Option<u32>, // absolute slot number
+    ttl: Option<Slot>, // absolute slot number
     certs: Option<Certificates>,
     withdrawals: Option<Withdrawals>,
     metadata: Option<TransactionMetadata>,
+    validity_start_interval: Option<Slot>,
     input_types: MockWitnessSet,
 }
 
@@ -210,7 +211,6 @@ impl TransactionBuilder {
         // we need some value for these for it to be a a valid transaction
         // but since we're only calculating the different between the fee of two transactions
         // it doesn't matter what these are set as, since it cancels out
-        self_copy.set_ttl(0);
         self_copy.set_fee(&to_bignum(0));
 
         let fee_before = min_fee(&self_copy)?;
@@ -240,7 +240,6 @@ impl TransactionBuilder {
         // we need some value for these for it to be a a valid transaction
         // but since we're only calculating the different between the fee of two transactions
         // it doesn't matter what these are set as, since it cancels out
-        self_copy.set_ttl(0);
         self_copy.set_fee(&to_bignum(0));
 
         let fee_before = min_fee(&self_copy)?;
@@ -254,8 +253,12 @@ impl TransactionBuilder {
         self.fee = Some(fee.clone())
     }
 
-    pub fn set_ttl(&mut self, ttl: u32) {
+    pub fn set_ttl(&mut self, ttl: Slot) {
         self.ttl = Some(ttl)
+    }
+
+    pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot) {
+        self.validity_start_interval = Some(validity_start_interval)
     }
 
     pub fn set_certs(&mut self, certs: &Certificates) {
@@ -300,6 +303,7 @@ impl TransactionBuilder {
                 scripts: BTreeSet::new(),
                 bootstraps: BTreeSet::new(),
             },
+            validity_start_interval: None,
         }
     }
 
@@ -389,12 +393,11 @@ impl TransactionBuilder {
 
     pub fn build(&self) -> Result<TransactionBody, JsError> {
         let fee = self.fee.ok_or_else(|| JsError::from_str("Fee not specified"))?;
-        let ttl = self.ttl.ok_or_else(|| JsError::from_str("ttl not specified"))?;
         Ok(TransactionBody {
             inputs: TransactionInputs(self.inputs.iter().map(|ref tx_builder_input| tx_builder_input.input.clone()).collect()),
             outputs: self.outputs.clone(),
             fee: fee,
-            ttl: ttl,
+            ttl: self.ttl,
             certs: self.certs.clone(),
             withdrawals: self.withdrawals.clone(),
             update: None,
@@ -402,6 +405,7 @@ impl TransactionBuilder {
                 None => None,
                 Some(x) => Some(utils::hash_metadata(x)),
             },
+            validity_start_interval: self.validity_start_interval,
         })
     }
 

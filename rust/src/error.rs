@@ -26,6 +26,7 @@ pub enum DeserializeFailure {
     BadAddressType(u8),
     BreakInDefiniteLen,
     CBOR(cbor_event::Error),
+    DefiniteLenMismatch(u64, Option<u64>),
     DuplicateKey(Key),
     EndingBreakMissing,
     ExpectedNull,
@@ -79,6 +80,13 @@ impl std::fmt::Display for DeserializeError {
             DeserializeFailure::BadAddressType(header) => write!(f, "Encountered unknown address header {:#08b}", header),
             DeserializeFailure::BreakInDefiniteLen => write!(f, "Encountered CBOR Break while reading definite length sequence"),
             DeserializeFailure::CBOR(e) => e.fmt(f),
+            DeserializeFailure::DefiniteLenMismatch(found, expected) => {
+                write!(f, "Definite length mismatch: found {}", found)?;
+                if let Some(expected_elems) = expected {
+                    write!(f, ", expected: {}", expected_elems)?;
+                }
+                Ok(())
+            },
             DeserializeFailure::DuplicateKey(key) => write!(f, "Duplicate key: {}", key),
             DeserializeFailure::EndingBreakMissing => write!(f, "Missing ending CBOR Break"),
             DeserializeFailure::ExpectedNull => write!(f, "Expected null, found other type"),

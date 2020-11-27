@@ -201,15 +201,17 @@ impl Deserialize for Certificates {
 
 impl cbor_event::se::Serialize for TransactionBody {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(4 + match &self.certs { Some(x) => 1, None => 0 } + match &self.withdrawals { Some(x) => 1, None => 0 } + match &self.metadata_hash { Some(x) => 1, None => 0 }))?;
+        serializer.write_map(cbor_event::Len::Len(3 + match &self.ttl { Some(x) => 1, None => 0 } + match &self.certs { Some(x) => 1, None => 0 } + match &self.withdrawals { Some(x) => 1, None => 0 } + match &self.update { Some(x) => 1, None => 0 } + match &self.metadata_hash { Some(x) => 1, None => 0 } + match &self.validity_start_interval { Some(x) => 1, None => 0 }))?;
         serializer.write_unsigned_integer(0)?;
         self.inputs.serialize(serializer)?;
         serializer.write_unsigned_integer(1)?;
         self.outputs.serialize(serializer)?;
         serializer.write_unsigned_integer(2)?;
         self.fee.serialize(serializer)?;
-        serializer.write_unsigned_integer(3)?;
-        self.ttl.serialize(serializer)?;
+        if let Some(field) = &self.ttl {
+            serializer.write_unsigned_integer(3)?;
+            field.serialize(serializer)?;
+        }
         if let Some(field) = &self.certs {
             serializer.write_unsigned_integer(4)?;
             field.serialize(serializer)?;
@@ -226,6 +228,10 @@ impl cbor_event::se::Serialize for TransactionBody {
             serializer.write_unsigned_integer(7)?;
             field.serialize(serializer)?;
         }
+        if let Some(field) = &self.validity_start_interval {
+            serializer.write_unsigned_integer(8)?;
+            field.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
@@ -234,131 +240,140 @@ impl Deserialize for TransactionBody {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
-            Self::deserialize_as_embedded_group(raw, len)
-        })().map_err(|e| e.annotate("TransactionBody"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for TransactionBody {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
-        let mut inputs = None;
-        let mut outputs = None;
-        let mut fee = None;
-        let mut ttl = None;
-        let mut certs = None;
-        let mut withdrawals = None;
-        let mut update = None;
-        let mut metadata_hash = None;
-        let mut read = 0;
-        while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
-            match raw.cbor_type()? {
-                CBORType::UnsignedInteger => match raw.unsigned_integer()? {
-                    0 =>  {
-                        if inputs.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(0)).into());
-                        }
-                        inputs = Some((|| -> Result<_, DeserializeError> {
-                            Ok(TransactionInputs::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("inputs"))?);
+            //let mut read_len = CBORReadLen::new(len);
+            //read_len.read_elems(3)?;
+            let mut inputs = None;
+            let mut outputs = None;
+            let mut fee = None;
+            let mut ttl = None;
+            let mut certs = None;
+            let mut withdrawals = None;
+            let mut update = None;
+            let mut metadata_hash = None;
+            let mut validity_start_interval = None;
+            let mut read = 0;
+            while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
+                match raw.cbor_type()? {
+                    CBORType::UnsignedInteger => match raw.unsigned_integer()? {
+                        0 =>  {
+                            if inputs.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(0)).into());
+                            }
+                            inputs = Some((|| -> Result<_, DeserializeError> {
+                                Ok(TransactionInputs::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("inputs"))?);
+                        },
+                        1 =>  {
+                            if outputs.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(1)).into());
+                            }
+                            outputs = Some((|| -> Result<_, DeserializeError> {
+                                Ok(TransactionOutputs::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("outputs"))?);
+                        },
+                        2 =>  {
+                            if fee.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
+                            }
+                            fee = Some((|| -> Result<_, DeserializeError> {
+                                Ok(Coin::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("fee"))?);
+                        },
+                        3 =>  {
+                            if ttl.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
+                            }
+                            ttl = Some((|| -> Result<_, DeserializeError> {
+                                //read_len.read_elems(1)?;
+                                Ok(Slot::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("ttl"))?);
+                        },
+                        4 =>  {
+                            if certs.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(4)).into());
+                            }
+                            certs = Some((|| -> Result<_, DeserializeError> {
+                                //read_len.read_elems(1)?;
+                                Ok(Certificates::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("certs"))?);
+                        },
+                        5 =>  {
+                            if withdrawals.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(5)).into());
+                            }
+                            withdrawals = Some((|| -> Result<_, DeserializeError> {
+                                //read_len.read_elems(1)?;
+                                Ok(Withdrawals::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("withdrawals"))?);
+                        },
+                        6 =>  {
+                            if update.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(6)).into());
+                            }
+                            update = Some((|| -> Result<_, DeserializeError> {
+                                //read_len.read_elems(1)?;
+                                Ok(Update::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("update"))?);
+                        },
+                        7 =>  {
+                            if metadata_hash.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(7)).into());
+                            }
+                            metadata_hash = Some((|| -> Result<_, DeserializeError> {
+                                //read_len.read_elems(1)?;
+                                Ok(MetadataHash::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("metadata_hash"))?);
+                        },
+                        8 =>  {
+                            if validity_start_interval.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(8)).into());
+                            }
+                            validity_start_interval = Some((|| -> Result<_, DeserializeError> {
+                                //read_len.read_elems(1)?;
+                                Ok(Slot::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("validity_start_interval"))?);
+                        },
+                        unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                     },
-                    1 =>  {
-                        if outputs.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(1)).into());
-                        }
-                        outputs = Some((|| -> Result<_, DeserializeError> {
-                            Ok(TransactionOutputs::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("outputs"))?);
+                    CBORType::Text => match raw.text()?.as_str() {
+                        unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Str(unknown_key.to_owned())).into()),
                     },
-                    2 =>  {
-                        if fee.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
-                        }
-                        fee = Some((|| -> Result<_, DeserializeError> {
-                            Ok(Coin::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("fee"))?);
+                    CBORType::Special => match len {
+                        cbor_event::Len::Len(_) => return Err(DeserializeFailure::BreakInDefiniteLen.into()),
+                        cbor_event::Len::Indefinite => match raw.special()? {
+                            CBORSpecial::Break => break,
+                            _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                        },
                     },
-                    3 =>  {
-                        if ttl.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
-                        }
-                        ttl = Some((|| -> Result<_, DeserializeError> {
-                            Ok(u32::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("ttl"))?);
-                    },
-                    4 =>  {
-                        if certs.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(4)).into());
-                        }
-                        certs = Some((|| -> Result<_, DeserializeError> {
-                            Ok(Certificates::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("certs"))?);
-                    },
-                    5 =>  {
-                        if withdrawals.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(5)).into());
-                        }
-                        withdrawals = Some((|| -> Result<_, DeserializeError> {
-                            Ok(Withdrawals::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("withdrawals"))?);
-                    },
-                    6 =>  {
-                        if update.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(6)).into());
-                        }
-                        update = Some((|| -> Result<_, DeserializeError> {
-                            Ok(Update::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("update"))?);
-                    },
-                    7 =>  {
-                        if metadata_hash.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(7)).into());
-                        }
-                        metadata_hash = Some((|| -> Result<_, DeserializeError> {
-                            Ok(MetadataHash::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("metadata_hash"))?);
-                    },
-                    unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
-                },
-                CBORType::Text => match raw.text()?.as_str() {
-                    unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Str(unknown_key.to_owned())).into()),
-                },
-                CBORType::Special => match len {
-                    cbor_event::Len::Len(_) => return Err(DeserializeFailure::BreakInDefiniteLen.into()),
-                    cbor_event::Len::Indefinite => match raw.special()? {
-                        CBORSpecial::Break => break,
-                        _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                    },
-                },
-                other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
+                    other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
+                }
+                read += 1;
             }
-            read += 1;
-        }
-        let inputs = match inputs {
-            Some(x) => x,
-            None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(0)).into()),
-        };
-        let outputs = match outputs {
-            Some(x) => x,
-            None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(1)).into()),
-        };
-        let fee = match fee {
-            Some(x) => x,
-            None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(2)).into()),
-        };
-        let ttl = match ttl {
-            Some(x) => x,
-            None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(3)).into()),
-        };
-        Ok(Self {
-            inputs,
-            outputs,
-            fee,
-            ttl,
-            certs,
-            withdrawals,
-            update,
-            metadata_hash,
-        })
+            let inputs = match inputs {
+                Some(x) => x,
+                None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(0)).into()),
+            };
+            let outputs = match outputs {
+                Some(x) => x,
+                None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(1)).into()),
+            };
+            let fee = match fee {
+                Some(x) => x,
+                None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(2)).into()),
+            };
+            //read_len.finish()?;
+            Ok(Self {
+                inputs,
+                outputs,
+                fee,
+                ttl,
+                certs,
+                withdrawals,
+                update,
+                metadata_hash,
+                validity_start_interval,
+            })
+        })().map_err(|e| e.annotate("TransactionBody"))
     }
 }
 
@@ -1569,34 +1584,6 @@ impl Deserialize for Withdrawals {
     }
 }
 
-impl cbor_event::se::Serialize for MultisigScripts {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in &self.0 {
-            element.serialize(serializer)?;
-        }
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for MultisigScripts {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut arr = Vec::new();
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
-                    break;
-                }
-                arr.push(MultisigScript::deserialize(raw)?);
-            }
-            Ok(())
-        })().map_err(|e| e.annotate("MultisigScripts"))?;
-        Ok(Self(arr))
-    }
-}
-
 impl cbor_event::se::Serialize for TransactionWitnessSet {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_map(cbor_event::Len::Len(match &self.vkeys { Some(x) => 1, None => 0 } + match &self.scripts { Some(x) => 1, None => 0 } + match &self.bootstraps { Some(x) => 1, None => 0 }))?;
@@ -1647,7 +1634,7 @@ impl DeserializeEmbeddedGroup for TransactionWitnessSet {
                             return Err(DeserializeFailure::DuplicateKey(Key::Uint(1)).into());
                         }
                         scripts = Some((|| -> Result<_, DeserializeError> {
-                            Ok(MultisigScripts::deserialize(raw)?)
+                            Ok(NativeScripts::deserialize(raw)?)
                         })().map_err(|e| e.annotate("scripts"))?);
                     },
                     2 =>  {
@@ -1682,14 +1669,14 @@ impl DeserializeEmbeddedGroup for TransactionWitnessSet {
     }
 }
 
-impl cbor_event::se::Serialize for MsigPubkey {
+impl cbor_event::se::Serialize for ScriptPubkey {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
         self.serialize_as_embedded_group(serializer)
     }
 }
 
-impl SerializeEmbeddedGroup for MsigPubkey {
+impl SerializeEmbeddedGroup for ScriptPubkey {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(0u64)?;
         self.addr_keyhash.serialize(serializer)?;
@@ -1697,25 +1684,27 @@ impl SerializeEmbeddedGroup for MsigPubkey {
     }
 }
 
-impl Deserialize for MsigPubkey {
+impl Deserialize for ScriptPubkey {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
+            let mut read_len = CBORReadLen::new(len);
+            read_len.read_elems(2)?;
+            let ret = Self::deserialize_as_embedded_group(raw, /*mut read_len, */len);
             match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Len(_) => read_len.finish()?,
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
+                    CBORSpecial::Break => (),
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             }
             ret
-        })().map_err(|e| e.annotate("MsigPubkey"))
+        })().map_err(|e| e.annotate("ScriptPubkey"))
     }
 }
 
-impl DeserializeEmbeddedGroup for MsigPubkey {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+impl DeserializeEmbeddedGroup for ScriptPubkey {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, /*read_len: &mut CBORReadLen, */len: cbor_event::Len) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let index_0_value = raw.unsigned_integer()?;
             if index_0_value != 0 {
@@ -1726,46 +1715,48 @@ impl DeserializeEmbeddedGroup for MsigPubkey {
         let addr_keyhash = (|| -> Result<_, DeserializeError> {
             Ok(Ed25519KeyHash::deserialize(raw)?)
         })().map_err(|e| e.annotate("addr_keyhash"))?;
-        Ok(MsigPubkey {
+        Ok(ScriptPubkey {
             addr_keyhash,
         })
     }
 }
 
-impl cbor_event::se::Serialize for MsigAll {
+impl cbor_event::se::Serialize for ScriptAll {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
         self.serialize_as_embedded_group(serializer)
     }
 }
 
-impl SerializeEmbeddedGroup for MsigAll {
+impl SerializeEmbeddedGroup for ScriptAll {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(1u64)?;
-        self.multisig_scripts.serialize(serializer)?;
+        self.native_scripts.serialize(serializer)?;
         Ok(serializer)
     }
 }
 
-impl Deserialize for MsigAll {
+impl Deserialize for ScriptAll {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
+            let mut read_len = CBORReadLen::new(len);
+            read_len.read_elems(2)?;
+            let ret = Self::deserialize_as_embedded_group(raw, /*mut read_len, */len);
             match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Len(_) => read_len.finish()?,
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
+                    CBORSpecial::Break => (),
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             }
             ret
-        })().map_err(|e| e.annotate("MsigAll"))
+        })().map_err(|e| e.annotate("ScriptAll"))
     }
 }
 
-impl DeserializeEmbeddedGroup for MsigAll {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+impl DeserializeEmbeddedGroup for ScriptAll {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, /*read_len: &mut CBORReadLen, */len: cbor_event::Len) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let index_0_value = raw.unsigned_integer()?;
             if index_0_value != 1 {
@@ -1773,49 +1764,51 @@ impl DeserializeEmbeddedGroup for MsigAll {
             }
             Ok(())
         })().map_err(|e| e.annotate("index_0"))?;
-        let multisig_scripts = (|| -> Result<_, DeserializeError> {
-            Ok(MultisigScripts::deserialize(raw)?)
-        })().map_err(|e| e.annotate("multisig_scripts"))?;
-        Ok(MsigAll {
-            multisig_scripts,
+        let native_scripts = (|| -> Result<_, DeserializeError> {
+            Ok(NativeScripts::deserialize(raw)?)
+        })().map_err(|e| e.annotate("native_scripts"))?;
+        Ok(ScriptAll {
+            native_scripts,
         })
     }
 }
 
-impl cbor_event::se::Serialize for MsigAny {
+impl cbor_event::se::Serialize for ScriptAny {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
         self.serialize_as_embedded_group(serializer)
     }
 }
 
-impl SerializeEmbeddedGroup for MsigAny {
+impl SerializeEmbeddedGroup for ScriptAny {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(2u64)?;
-        self.multisig_scripts.serialize(serializer)?;
+        self.native_scripts.serialize(serializer)?;
         Ok(serializer)
     }
 }
 
-impl Deserialize for MsigAny {
+impl Deserialize for ScriptAny {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
+            let mut read_len = CBORReadLen::new(len);
+            read_len.read_elems(2)?;
+            let ret = Self::deserialize_as_embedded_group(raw, /*mut read_len, */len);
             match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Len(_) => read_len.finish()?,
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
+                    CBORSpecial::Break => (),
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             }
             ret
-        })().map_err(|e| e.annotate("MsigAny"))
+        })().map_err(|e| e.annotate("ScriptAny"))
     }
 }
 
-impl DeserializeEmbeddedGroup for MsigAny {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+impl DeserializeEmbeddedGroup for ScriptAny {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, /*/*read_len: &mut CBORReadLen, */*/len: cbor_event::Len) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let index_0_value = raw.unsigned_integer()?;
             if index_0_value != 2 {
@@ -1823,50 +1816,52 @@ impl DeserializeEmbeddedGroup for MsigAny {
             }
             Ok(())
         })().map_err(|e| e.annotate("index_0"))?;
-        let multisig_scripts = (|| -> Result<_, DeserializeError> {
-            Ok(MultisigScripts::deserialize(raw)?)
-        })().map_err(|e| e.annotate("multisig_scripts"))?;
-        Ok(MsigAny {
-            multisig_scripts,
+        let native_scripts = (|| -> Result<_, DeserializeError> {
+            Ok(NativeScripts::deserialize(raw)?)
+        })().map_err(|e| e.annotate("native_scripts"))?;
+        Ok(ScriptAny {
+            native_scripts,
         })
     }
 }
 
-impl cbor_event::se::Serialize for MsigNOfK {
+impl cbor_event::se::Serialize for ScriptNOfK {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(3))?;
         self.serialize_as_embedded_group(serializer)
     }
 }
 
-impl SerializeEmbeddedGroup for MsigNOfK {
+impl SerializeEmbeddedGroup for ScriptNOfK {
     fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(3u64)?;
         self.n.serialize(serializer)?;
-        self.multisig_scripts.serialize(serializer)?;
+        self.native_scripts.serialize(serializer)?;
         Ok(serializer)
     }
 }
 
-impl Deserialize for MsigNOfK {
+impl Deserialize for ScriptNOfK {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
+            let mut read_len = CBORReadLen::new(len);
+            read_len.read_elems(3)?;
+            let ret = Self::deserialize_as_embedded_group(raw, /*mut read_len, */len);
             match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Len(_) => read_len.finish()?,
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
+                    CBORSpecial::Break => (),
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             }
             ret
-        })().map_err(|e| e.annotate("MsigNOfK"))
+        })().map_err(|e| e.annotate("ScriptNOfK"))
     }
 }
 
-impl DeserializeEmbeddedGroup for MsigNOfK {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+impl DeserializeEmbeddedGroup for ScriptNOfK {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, /*read_len: &mut CBORReadLen, */len: cbor_event::Len) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let index_0_value = raw.unsigned_integer()?;
             if index_0_value != 3 {
@@ -1877,88 +1872,230 @@ impl DeserializeEmbeddedGroup for MsigNOfK {
         let n = (|| -> Result<_, DeserializeError> {
             Ok(u32::deserialize(raw)?)
         })().map_err(|e| e.annotate("n"))?;
-        let multisig_scripts = (|| -> Result<_, DeserializeError> {
-            Ok(MultisigScripts::deserialize(raw)?)
-        })().map_err(|e| e.annotate("multisig_scripts"))?;
-        Ok(MsigNOfK {
+        let native_scripts = (|| -> Result<_, DeserializeError> {
+            Ok(NativeScripts::deserialize(raw)?)
+        })().map_err(|e| e.annotate("native_scripts"))?;
+        Ok(ScriptNOfK {
             n,
-            multisig_scripts,
+            native_scripts,
         })
     }
 }
 
-impl cbor_event::se::Serialize for MultisigScriptEnum {
+impl cbor_event::se::Serialize for TimelockStart {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self {
-            MultisigScriptEnum::MsigPubkey(x) => x.serialize(serializer),
-            MultisigScriptEnum::MsigAll(x) => x.serialize(serializer),
-            MultisigScriptEnum::MsigAny(x) => x.serialize(serializer),
-            MultisigScriptEnum::MsigNOfK(x) => x.serialize(serializer),
-        }
+        serializer.write_array(cbor_event::Len::Len(2))?;
+        self.serialize_as_embedded_group(serializer)
     }
 }
 
-impl Deserialize for MultisigScriptEnum {
+impl SerializeEmbeddedGroup for TimelockStart {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_unsigned_integer(4u64)?;
+        self.slot.serialize(serializer)?;
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for TimelockStart {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
+            let mut read_len = CBORReadLen::new(len);
+            read_len.read_elems(2)?;
+            let ret = Self::deserialize_as_embedded_group(raw, /*mut read_len, */len);
             match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                cbor_event::Len::Len(_) => read_len.finish()?,
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
+                    CBORSpecial::Break => (),
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             }
             ret
-        })().map_err(|e| e.annotate("MultisigScriptEnum"))
+        })().map_err(|e| e.annotate("TimelockStart"))
     }
 }
 
-impl DeserializeEmbeddedGroup for MultisigScriptEnum {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
-        let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(MsigPubkey::deserialize_as_embedded_group(raw, len)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(MultisigScriptEnum::MsigPubkey(variant)),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(MsigAll::deserialize_as_embedded_group(raw, len)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(MultisigScriptEnum::MsigAll(variant)),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(MsigAny::deserialize_as_embedded_group(raw, len)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(MultisigScriptEnum::MsigAny(variant)),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(MsigNOfK::deserialize_as_embedded_group(raw, len)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(MultisigScriptEnum::MsigNOfK(variant)),
-            Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-        };
-        Err(DeserializeError::new("MultisigScriptEnum", DeserializeFailure::NoVariantMatched.into()))
+impl DeserializeEmbeddedGroup for TimelockStart {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, /*read_len: &mut CBORReadLen, */len: cbor_event::Len) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let index_0_value = raw.unsigned_integer()?;
+            if index_0_value != 4 {
+                return Err(DeserializeFailure::FixedValueMismatch{ found: Key::Uint(index_0_value), expected: Key::Uint(4) }.into());
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("index_0"))?;
+        let slot = (|| -> Result<_, DeserializeError> {
+            Ok(Slot::deserialize(raw)?)
+        })().map_err(|e| e.annotate("slot"))?;
+        Ok(TimelockStart {
+            slot,
+        })
     }
 }
 
-impl cbor_event::se::Serialize for MultisigScript {
+impl cbor_event::se::Serialize for TimelockExpiry {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(2))?;
+        self.serialize_as_embedded_group(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for TimelockExpiry {
+    fn serialize_as_embedded_group<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_unsigned_integer(5u64)?;
+        self.slot.serialize(serializer)?;
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for TimelockExpiry {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            let mut read_len = CBORReadLen::new(len);
+            read_len.read_elems(2)?;
+            let ret = Self::deserialize_as_embedded_group(raw, /*&mut read_len, */len);
+            match len {
+                cbor_event::Len::Len(_) => read_len.finish()?,
+                cbor_event::Len::Indefinite => match raw.special()? {
+                    CBORSpecial::Break => (),
+                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                },
+            }
+            ret
+        })().map_err(|e| e.annotate("TimelockExpiry"))
+    }
+}
+
+impl DeserializeEmbeddedGroup for TimelockExpiry {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, /*read_len: &mut CBORReadLen, */len: cbor_event::Len) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let index_0_value = raw.unsigned_integer()?;
+            if index_0_value != 5 {
+                return Err(DeserializeFailure::FixedValueMismatch{ found: Key::Uint(index_0_value), expected: Key::Uint(5) }.into());
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("index_0"))?;
+        let slot = (|| -> Result<_, DeserializeError> {
+            Ok(Slot::deserialize(raw)?)
+        })().map_err(|e| e.annotate("slot"))?;
+        Ok(TimelockExpiry {
+            slot,
+        })
+    }
+}
+
+impl cbor_event::se::Serialize for NativeScriptEnum {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        match self {
+            NativeScriptEnum::ScriptPubkey(x) => x.serialize(serializer),
+            NativeScriptEnum::ScriptAll(x) => x.serialize(serializer),
+            NativeScriptEnum::ScriptAny(x) => x.serialize(serializer),
+            NativeScriptEnum::ScriptNOfK(x) => x.serialize(serializer),
+            NativeScriptEnum::TimelockStart(x) => x.serialize(serializer),
+            NativeScriptEnum::TimelockExpiry(x) => x.serialize(serializer),
+        }
+    }
+}
+
+impl Deserialize for NativeScriptEnum {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            //let mut read_len = CBORReadLen::new(len);
+            let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
+            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+                Ok(ScriptPubkey::deserialize_as_embedded_group(raw, /*&mut read_len, */len)?)
+            })(raw)
+            {
+                Ok(variant) => return Ok(NativeScriptEnum::ScriptPubkey(variant)),
+                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+            };
+            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+                Ok(ScriptAll::deserialize_as_embedded_group(raw, /*mut read_len, */len)?)
+            })(raw)
+            {
+                Ok(variant) => return Ok(NativeScriptEnum::ScriptAll(variant)),
+                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+            };
+            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+                Ok(ScriptAny::deserialize_as_embedded_group(raw, /*mut read_len, */len)?)
+            })(raw)
+            {
+                Ok(variant) => return Ok(NativeScriptEnum::ScriptAny(variant)),
+                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+            };
+            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+                Ok(ScriptNOfK::deserialize_as_embedded_group(raw, /*mut read_len, */len)?)
+            })(raw)
+            {
+                Ok(variant) => return Ok(NativeScriptEnum::ScriptNOfK(variant)),
+                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+            };
+            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+                Ok(TimelockStart::deserialize_as_embedded_group(raw, /*mut read_len, */len)?)
+            })(raw)
+            {
+                Ok(variant) => return Ok(NativeScriptEnum::TimelockStart(variant)),
+                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+            };
+            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
+                Ok(TimelockExpiry::deserialize_as_embedded_group(raw, /*mut read_len, */len)?)
+            })(raw)
+            {
+                Ok(variant) => return Ok(NativeScriptEnum::TimelockExpiry(variant)),
+                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
+            };
+            match len {
+                cbor_event::Len::Len(_) => () /*read_len.finish()?*/,
+                cbor_event::Len::Indefinite => match raw.special()? {
+                    CBORSpecial::Break => () /*read_len.finish()?*/,
+                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                },
+            }
+            Err(DeserializeError::new("NativeScriptEnum", DeserializeFailure::NoVariantMatched.into()))
+        })().map_err(|e| e.annotate("NativeScriptEnum"))
+    }
+}
+
+impl cbor_event::se::Serialize for NativeScript {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         self.0.serialize(serializer)
     }
 }
 
-impl Deserialize for MultisigScript {
+impl Deserialize for NativeScript {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(MultisigScriptEnum::deserialize(raw)?))
+        Ok(Self(NativeScriptEnum::deserialize(raw)?))
+    }
+}
+
+impl cbor_event::se::Serialize for NativeScripts {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for NativeScripts {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                arr.push(NativeScript::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("NativeScripts"))?;
+        Ok(Self(arr))
     }
 }
 
@@ -2690,7 +2827,7 @@ impl DeserializeEmbeddedGroup for HeaderBody {
             Ok(u32::deserialize(raw)?)
         })().map_err(|e| e.annotate("block_number"))?;
         let slot = (|| -> Result<_, DeserializeError> {
-            Ok(u32::deserialize(raw)?)
+            Ok(Slot::deserialize(raw)?)
         })().map_err(|e| e.annotate("slot"))?;
         let prev_hash = (|| -> Result<_, DeserializeError> {
             Ok(match raw.cbor_type()? != CBORType::Special {
