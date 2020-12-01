@@ -85,7 +85,7 @@ dependencies = [
  "clear_on_drop",
  "cryptoxide",
  "curve25519-dalek 1.2.4",
- "digest 0.8.1",
+ "digest 0.9.0",
  "ed25519-bip32",
  "ed25519-dalek",
  "hex",
