@@ -81,7 +81,7 @@ version = "4.3.0"
 dependencies = [
  "bech32",
  "cbor_event",
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
  "clear_on_drop",
  "cryptoxide",
  "curve25519-dalek 1.2.4",
