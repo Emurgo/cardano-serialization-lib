@@ -1,11 +1,12 @@
 use super::*;
+use linked_hash_map::LinkedHashMap;
 
 const MD_MAX_LEN: usize = 64;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct MetadataMap(
-    linked_hash_map::LinkedHashMap<TransactionMetadatum, TransactionMetadatum>,
+    LinkedHashMap<TransactionMetadatum, TransactionMetadatum>,
 );
 
 to_from_bytes!(MetadataMap);
@@ -13,7 +14,7 @@ to_from_bytes!(MetadataMap);
 #[wasm_bindgen]
 impl MetadataMap {
     pub fn new() -> Self {
-        Self(linked_hash_map::LinkedHashMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -247,16 +248,14 @@ impl TransactionMetadatumLabels {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct TransactionMetadata(
-    linked_hash_map::LinkedHashMap<TransactionMetadatumLabel, TransactionMetadatum>,
-);
+pub struct GeneralTransactionMetadata(LinkedHashMap<TransactionMetadatumLabel, TransactionMetadatum>);
 
-to_from_bytes!(TransactionMetadata);
+to_from_bytes!(GeneralTransactionMetadata);
 
 #[wasm_bindgen]
-impl TransactionMetadata {
+impl GeneralTransactionMetadata {
     pub fn new() -> Self {
-        Self(linked_hash_map::LinkedHashMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -282,6 +281,37 @@ impl TransactionMetadata {
                 .map(|(k, _v)| k.clone())
                 .collect::<Vec<TransactionMetadatumLabel>>(),
         )
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct TransactionMetadata {
+    general: GeneralTransactionMetadata,
+    native_scripts: Option<NativeScripts>,
+}
+
+to_from_bytes!(TransactionMetadata);
+
+#[wasm_bindgen]
+impl TransactionMetadata {
+    pub fn general(&self) -> GeneralTransactionMetadata {
+        self.general.clone()
+    }
+
+    pub fn native_scripts(&self) -> Option<NativeScripts> {
+        self.native_scripts.clone()
+    }
+
+    pub fn set_native_scripts(&mut self, native_scripts: &NativeScripts) {
+        self.native_scripts = Some(native_scripts.clone())
+    }
+
+    pub fn new(general: &GeneralTransactionMetadata) -> Self {
+        Self {
+            general: general.clone(),
+            native_scripts: None,
+        }
     }
 }
 
@@ -565,7 +595,7 @@ impl cbor_event::se::Serialize for MetadataMap {
 
 impl Deserialize for MetadataMap {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = linked_hash_map::LinkedHashMap::new();
+        let mut table = LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
@@ -689,7 +719,7 @@ impl Deserialize for TransactionMetadatumLabels {
     }
 }
 
-impl cbor_event::se::Serialize for TransactionMetadata {
+impl cbor_event::se::Serialize for GeneralTransactionMetadata {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
         for (key, value) in &self.0 {
@@ -700,9 +730,9 @@ impl cbor_event::se::Serialize for TransactionMetadata {
     }
 }
 
-impl Deserialize for TransactionMetadata {
+impl Deserialize for GeneralTransactionMetadata {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = linked_hash_map::LinkedHashMap::new();
+        let mut table = LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
@@ -717,8 +747,57 @@ impl Deserialize for TransactionMetadata {
                 }
             }
             Ok(())
-        })().map_err(|e| e.annotate("TransactionMetadata"))?;
+        })().map_err(|e| e.annotate("GeneralTransactionMetadata"))?;
         Ok(Self(table))
+    }
+}
+
+impl cbor_event::se::Serialize for TransactionMetadata {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        match &self.native_scripts() {
+            Some(native_scripts) => {
+                serializer.write_array(cbor_event::Len::Len(2))?;
+                self.general.serialize(serializer)?;
+                native_scripts.serialize(serializer)
+            },
+            None => self.general.serialize(serializer)
+        }
+    }
+}
+
+impl Deserialize for TransactionMetadata {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            match raw.cbor_type()? {
+                CBORType::Array => {
+                    let len = raw.array()?;
+                    let mut read_len = CBORReadLen::new(len);
+                    read_len.read_elems(2)?;
+                    let general = (|| -> Result<_, DeserializeError> {
+                        Ok(GeneralTransactionMetadata::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("general"))?;
+                    let native_scripts = (|| -> Result<_, DeserializeError> {
+                        Ok(NativeScripts::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("native_scripts"))?;
+                    match len {
+                        cbor_event::Len::Len(_) => (),
+                        cbor_event::Len::Indefinite => match raw.special()? {
+                            CBORSpecial::Break => (),
+                            _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                        },
+                    }
+                    Ok(TransactionMetadata {
+                        general,
+                        native_scripts: Some(native_scripts),
+                    })
+                },
+                CBORType::Map => Ok(TransactionMetadata {
+                    general: GeneralTransactionMetadata::deserialize(raw).map_err(|e| e.annotate("general"))?,
+                    native_scripts: None,
+                }),
+                _ => return Err(DeserializeFailure::NoVariantMatched)?
+            }
+        })().map_err(|e| e.annotate("TransactionMetadata"))
     }
 }
 
@@ -851,5 +930,21 @@ mod tests {
         let input_json: serde_json::Value = serde_json::from_str(&input_str).unwrap();
         let output_json: serde_json::Value= serde_json::from_str(&output_str).unwrap();
         assert_eq!(input_json, output_json);
+    }
+
+    #[test]
+    fn allegra_metadata() {
+        let mut gmd = GeneralTransactionMetadata::new();
+        let mdatum = TransactionMetadatum::new_text(String::from("string md")).unwrap();
+        gmd.insert(&to_bignum(100), &mdatum);
+        let md1 = TransactionMetadata::new(&gmd);
+        let md1_deser = TransactionMetadata::from_bytes(md1.to_bytes()).unwrap();
+        assert_eq!(md1.to_bytes(), md1_deser.to_bytes());
+        let mut md2 = TransactionMetadata::new(&gmd);
+        let mut scripts = NativeScripts::new();
+        scripts.add(&NativeScript::new_timelock_start(&TimelockStart::new(20)));
+        md2.set_native_scripts(&scripts);
+        let md2_deser = TransactionMetadata::from_bytes(md2.to_bytes()).unwrap();
+        assert_eq!(md2.to_bytes(), md2_deser.to_bytes());
     }
 }

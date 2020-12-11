@@ -208,11 +208,12 @@ pub struct TransactionBody {
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
     fee: Coin,
-    ttl: u32,
+    ttl: Option<Slot>,
     certs: Option<Certificates>,
     withdrawals: Option<Withdrawals>,
     update: Option<Update>,
     metadata_hash: Option<MetadataHash>,
+    validity_start_interval: Option<Slot>,
 }
 
 to_from_bytes!(TransactionBody);
@@ -231,8 +232,8 @@ impl TransactionBody {
         self.fee.clone()
     }
 
-    pub fn ttl(&self) -> u32 {
-        self.ttl.clone()
+    pub fn ttl(&self) -> Option<Slot> {
+        self.ttl
     }
 
     pub fn set_certs(&mut self, certs: &Certificates) {
@@ -266,21 +267,30 @@ impl TransactionBody {
         self.metadata_hash.clone()
     }
 
+    pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot) {
+        self.validity_start_interval = Some(validity_start_interval)
+    }
+
+    pub fn validity_start_interval(&self) -> Option<Slot> {
+        self.validity_start_interval
+    }
+
     pub fn new(
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
         fee: &Coin,
-        ttl: u32,
+        ttl: Slot,
     ) -> Self {
         Self {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
             fee: fee.clone(),
-            ttl: ttl,
+            ttl: Some(ttl),
             certs: None,
             withdrawals: None,
             update: None,
             metadata_hash: None,
+            validity_start_interval: None,
         }
     }
 }
@@ -1111,35 +1121,10 @@ impl Withdrawals {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MultisigScripts(Vec<MultisigScript>);
-
-to_from_bytes!(MultisigScripts);
-
-#[wasm_bindgen]
-impl MultisigScripts {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> MultisigScript {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &MultisigScript) {
-        self.0.push(elem.clone());
-    }
-}
-
-#[wasm_bindgen]
 #[derive(Clone)]
 pub struct TransactionWitnessSet {
     vkeys: Option<Vkeywitnesses>,
-    scripts: Option<MultisigScripts>,
+    scripts: Option<NativeScripts>,
     bootstraps: Option<BootstrapWitnesses>,
 }
 
@@ -1155,11 +1140,11 @@ impl TransactionWitnessSet {
         self.vkeys.clone()
     }
 
-    pub fn set_scripts(&mut self, scripts: &MultisigScripts) {
+    pub fn set_scripts(&mut self, scripts: &NativeScripts) {
         self.scripts = Some(scripts.clone())
     }
 
-    pub fn scripts(&self) -> Option<MultisigScripts> {
+    pub fn scripts(&self) -> Option<NativeScripts> {
         self.scripts.clone()
     }
 
@@ -1182,17 +1167,18 @@ impl TransactionWitnessSet {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MsigPubkey {
+pub struct ScriptPubkey {
     addr_keyhash: Ed25519KeyHash,
 }
 
-to_from_bytes!(MsigPubkey);
+to_from_bytes!(ScriptPubkey);
 
 #[wasm_bindgen]
-impl MsigPubkey {
+impl ScriptPubkey {
     pub fn addr_keyhash(&self) -> Ed25519KeyHash {
         self.addr_keyhash.clone()
     }
+
     pub fn new(addr_keyhash: &Ed25519KeyHash) -> Self {
         Self {
             addr_keyhash: addr_keyhash.clone(),
@@ -1202,150 +1188,242 @@ impl MsigPubkey {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MsigAll {
-    multisig_scripts: MultisigScripts,
+pub struct ScriptAll {
+    native_scripts: NativeScripts,
 }
 
-to_from_bytes!(MsigAll);
+to_from_bytes!(ScriptAll);
 
 #[wasm_bindgen]
-impl MsigAll {
-    pub fn multisig_scripts(&self) -> MultisigScripts {
-        self.multisig_scripts.clone()
+impl ScriptAll {
+    pub fn native_scripts(&self) -> NativeScripts {
+        self.native_scripts.clone()
     }
-    pub fn new(multisig_scripts: &MultisigScripts) -> Self {
+
+    pub fn new(native_scripts: &NativeScripts) -> Self {
         Self {
-            multisig_scripts: multisig_scripts.clone(),
+            native_scripts: native_scripts.clone(),
         }
     }
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MsigAny {
-    multisig_scripts: MultisigScripts,
+pub struct ScriptAny {
+    native_scripts: NativeScripts,
 }
 
-to_from_bytes!(MsigAny);
+to_from_bytes!(ScriptAny);
 
 #[wasm_bindgen]
-impl MsigAny {
-    pub fn multisig_scripts(&self) -> MultisigScripts {
-        self.multisig_scripts.clone()
+impl ScriptAny {
+    pub fn native_scripts(&self) -> NativeScripts {
+        self.native_scripts.clone()
     }
-    pub fn new(multisig_scripts: &MultisigScripts) -> Self {
+
+    pub fn new(native_scripts: &NativeScripts) -> Self {
         Self {
-            multisig_scripts: multisig_scripts.clone(),
+            native_scripts: native_scripts.clone(),
         }
     }
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MsigNOfK {
+pub struct ScriptNOfK {
     n: u32,
-    multisig_scripts: MultisigScripts,
+    native_scripts: NativeScripts,
 }
 
-to_from_bytes!(MsigNOfK);
+to_from_bytes!(ScriptNOfK);
 
 #[wasm_bindgen]
-impl MsigNOfK {
+impl ScriptNOfK {
     pub fn n(&self) -> u32 {
         self.n
     }
-    pub fn multisig_scripts(&self) -> MultisigScripts {
-        self.multisig_scripts.clone()
+
+    pub fn native_scripts(&self) -> NativeScripts {
+        self.native_scripts.clone()
     }
-    pub fn new(n: u32, multisig_scripts: &MultisigScripts) -> Self {
+
+    pub fn new(n: u32, native_scripts: &NativeScripts) -> Self {
         Self {
             n: n,
-            multisig_scripts: multisig_scripts.clone(),
+            native_scripts: native_scripts.clone(),
         }
     }
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum MultisigScriptKind {
-    MsigPubkey,
-    MsigAll,
-    MsigAny,
-    MsigNOfK,
+pub struct TimelockStart {
+    slot: Slot,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum MultisigScriptEnum {
-    MsigPubkey(MsigPubkey),
-    MsigAll(MsigAll),
-    MsigAny(MsigAny),
-    MsigNOfK(MsigNOfK),
+to_from_bytes!(TimelockStart);
+
+#[wasm_bindgen]
+impl TimelockStart {
+    pub fn slot(&self) -> Slot {
+        self.slot
+    }
+
+    pub fn new(slot: Slot) -> Self {
+        Self {
+            slot,
+        }
+    }
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MultisigScript(MultisigScriptEnum);
+pub struct TimelockExpiry {
+    slot: Slot,
+}
 
-to_from_bytes!(MultisigScript);
+to_from_bytes!(TimelockExpiry);
 
 #[wasm_bindgen]
-impl MultisigScript {
-    pub fn new_msig_pubkey(addr_keyhash: &Ed25519KeyHash) -> Self {
-        Self(MultisigScriptEnum::MsigPubkey(MsigPubkey::new(
-            addr_keyhash,
-        )))
+impl TimelockExpiry {
+    pub fn slot(&self) -> Slot {
+        self.slot
     }
 
-    pub fn new_msig_all(multisig_scripts: &MultisigScripts) -> Self {
-        Self(MultisigScriptEnum::MsigAll(MsigAll::new(multisig_scripts)))
+    pub fn new(slot: Slot) -> Self {
+        Self {
+            slot,
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum NativeScriptKind {
+    ScriptPubkey,
+    ScriptAll,
+    ScriptAny,
+    ScriptNOfK,
+    TimelockStart,
+    TimelockExpiry,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum NativeScriptEnum {
+    ScriptPubkey(ScriptPubkey),
+    ScriptAll(ScriptAll),
+    ScriptAny(ScriptAny),
+    ScriptNOfK(ScriptNOfK),
+    TimelockStart(TimelockStart),
+    TimelockExpiry(TimelockExpiry),
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct NativeScript(NativeScriptEnum);
+
+to_from_bytes!(NativeScript);
+
+#[wasm_bindgen]
+impl NativeScript {
+    pub fn new_script_pubkey(script_pubkey: &ScriptPubkey) -> Self {
+        Self(NativeScriptEnum::ScriptPubkey(script_pubkey.clone()))
     }
 
-    pub fn new_msig_any(multisig_scripts: &MultisigScripts) -> Self {
-        Self(MultisigScriptEnum::MsigAny(MsigAny::new(multisig_scripts)))
+    pub fn new_script_all(script_all: &ScriptAll) -> Self {
+        Self(NativeScriptEnum::ScriptAll(script_all.clone()))
     }
 
-    pub fn new_msig_n_of_k(n: u32, multisig_scripts: &MultisigScripts) -> Self {
-        Self(MultisigScriptEnum::MsigNOfK(MsigNOfK::new(
-            n,
-            multisig_scripts,
-        )))
+    pub fn new_script_any(script_any: &ScriptAny) -> Self {
+        Self(NativeScriptEnum::ScriptAny(script_any.clone()))
     }
 
-    pub fn kind(&self) -> MultisigScriptKind {
+    pub fn new_script_n_of_k(script_n_of_k: &ScriptNOfK) -> Self {
+        Self(NativeScriptEnum::ScriptNOfK(script_n_of_k.clone()))
+    }
+
+    pub fn new_timelock_start(timelock_start: &TimelockStart) -> Self {
+        Self(NativeScriptEnum::TimelockStart(timelock_start.clone()))
+    }
+
+    pub fn new_timelock_expiry(timelock_expiry: &TimelockExpiry) -> Self {
+        Self(NativeScriptEnum::TimelockExpiry(timelock_expiry.clone()))
+    }
+
+    pub fn kind(&self) -> NativeScriptKind {
         match &self.0 {
-            MultisigScriptEnum::MsigPubkey(_) => MultisigScriptKind::MsigPubkey,
-            MultisigScriptEnum::MsigAll(_) => MultisigScriptKind::MsigAll,
-            MultisigScriptEnum::MsigAny(_) => MultisigScriptKind::MsigAny,
-            MultisigScriptEnum::MsigNOfK(_) => MultisigScriptKind::MsigNOfK,
+            NativeScriptEnum::ScriptPubkey(_) => NativeScriptKind::ScriptPubkey,
+            NativeScriptEnum::ScriptAll(_) => NativeScriptKind::ScriptAll,
+            NativeScriptEnum::ScriptAny(_) => NativeScriptKind::ScriptAny,
+            NativeScriptEnum::ScriptNOfK(_) => NativeScriptKind::ScriptNOfK,
+            NativeScriptEnum::TimelockStart(_) => NativeScriptKind::TimelockStart,
+            NativeScriptEnum::TimelockExpiry(_) => NativeScriptKind::TimelockExpiry,
         }
     }
 
-    pub fn as_multisig_script0(&self) -> Option<MsigPubkey> {
+    pub fn as_script_pubkey(&self) -> Option<ScriptPubkey> {
         match &self.0 {
-            MultisigScriptEnum::MsigPubkey(x) => Some(x.clone()),
+            NativeScriptEnum::ScriptPubkey(x) => Some(x.clone()),
             _ => None,
         }
     }
 
-    pub fn as_multisig_script1(&self) -> Option<MsigAll> {
+    pub fn as_script_all(&self) -> Option<ScriptAll> {
         match &self.0 {
-            MultisigScriptEnum::MsigAll(x) => Some(x.clone()),
+            NativeScriptEnum::ScriptAll(x) => Some(x.clone()),
             _ => None,
         }
     }
 
-    pub fn as_multisig_script2(&self) -> Option<MsigAny> {
+    pub fn as_script_any(&self) -> Option<ScriptAny> {
         match &self.0 {
-            MultisigScriptEnum::MsigAny(x) => Some(x.clone()),
+            NativeScriptEnum::ScriptAny(x) => Some(x.clone()),
             _ => None,
         }
     }
 
-    pub fn as_multisig_script3(&self) -> Option<MsigNOfK> {
+    pub fn as_script_n_of_k(&self) -> Option<ScriptNOfK> {
         match &self.0 {
-            MultisigScriptEnum::MsigNOfK(x) => Some(x.clone()),
+            NativeScriptEnum::ScriptNOfK(x) => Some(x.clone()),
             _ => None,
         }
+    }
+
+    pub fn as_timelock_start(&self) -> Option<TimelockStart> {
+        match &self.0 {
+            NativeScriptEnum::TimelockStart(x) => Some(x.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_timelock_expiry(&self) -> Option<TimelockExpiry> {
+        match &self.0 {
+            NativeScriptEnum::TimelockExpiry(x) => Some(x.clone()),
+            _ => None,
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct NativeScripts(Vec<NativeScript>);
+
+#[wasm_bindgen]
+impl NativeScripts {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> NativeScript {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &NativeScript) {
+        self.0.push(elem.clone());
     }
 }
 
