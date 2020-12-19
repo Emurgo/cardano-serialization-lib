@@ -1,6 +1,7 @@
 use cbor_event::{de::Deserializer, se::Serializer};
 use crate::impl_mockchain as chain;
 use crate::chain_crypto as crypto;
+use crate::legacy_address::{HDKey, Path};
 use chain::{key};
 use crypto::bech32::Bech32 as _;
 use bech32::ToBase32;
@@ -737,6 +738,47 @@ macro_rules! impl_hash_type {
     }
 }
 
+#[wasm_bindgen]
+pub struct RootLegacyDaedalusPrivateKey(pub (crate) crypto::SecretKey<crypto::LegacyDaedalus>);
+
+#[wasm_bindgen]
+impl RootLegacyDaedalusPrivateKey {
+    pub fn from_bytes(bytes: &[u8]) -> Result<RootLegacyDaedalusPrivateKey, JsError> {
+        crypto::SecretKey::<crypto::LegacyDaedalus>::from_binary(bytes)
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
+            .map(RootLegacyDaedalusPrivateKey)
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        self.0.as_ref().to_vec()
+    }
+
+    pub fn from_bip39_entropy(entropy: &[u8]) -> Result<RootLegacyDaedalusPrivateKey, JsError> {
+        crypto::derive::legacy_daedalus_from_bip39_entropy(&entropy)
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
+            .map(RootLegacyDaedalusPrivateKey)
+    }
+
+    pub fn derive_key(&self, account: u32, index: u32) -> Result<LegacyDaedalusPrivateKey, JsError> {
+        let account_key = crate::legacy_address::derive_sk_legacy_daedalus(&self.0, account);
+        let address_key = crate::legacy_address::derive_sk_legacy_daedalus(&account_key, index);
+
+        Ok(LegacyDaedalusPrivateKey(address_key))
+    }
+
+    pub fn generate_child_addr(&self, protocol_magic: u32, account: u32, index: u32) -> Result<ByronAddress, JsError> {
+        // note: HDKey comes from the root key and not the child key
+        let hdkey = HDKey::new(&self.0.to_public());
+        let path = Path::new(vec![account, index]);
+        let out = hdkey.encrypt_path(&path);
+
+        let child_key = self
+            .derive_key(account, index)?
+            .to_public();
+
+        Ok(ByronAddress::legacy_daedalus_from_key(&child_key, &out, protocol_magic))
+    }
+}
 
 #[wasm_bindgen]
 pub struct LegacyDaedalusPrivateKey(pub (crate) crypto::SecretKey<crypto::LegacyDaedalus>);
@@ -757,6 +799,26 @@ impl LegacyDaedalusPrivateKey {
         const ED25519_PRIVATE_KEY_LENGTH: usize = 64;
         const XPRV_SIZE: usize = 96;
         self.0.as_ref()[ED25519_PRIVATE_KEY_LENGTH..XPRV_SIZE].to_vec()
+    }
+
+    pub fn to_public(&self) -> LegacyDaedalusPublicKey {
+        LegacyDaedalusPublicKey(self.0.to_public())
+    }
+}
+
+#[wasm_bindgen]
+pub struct LegacyDaedalusPublicKey(pub (crate) crypto::PublicKey<crypto::LegacyDaedalus>);
+
+#[wasm_bindgen]
+impl LegacyDaedalusPublicKey {
+    pub fn from_bytes(bytes: &[u8]) -> Result<LegacyDaedalusPublicKey, JsError> {
+        crypto::PublicKey::<crypto::LegacyDaedalus>::from_binary(bytes)
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
+            .map(LegacyDaedalusPublicKey)
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        self.0.as_ref().to_vec()
     }
 }
 
@@ -1029,5 +1091,19 @@ mod tests {
 
         let pub_chaincode = root_key.to_public().chaincode();
         assert_eq!(hex::encode(&pub_chaincode), "91e248de509c070d812ab2fda57860ac876bc489192c1ef4ce253c197ee219a4");
+    }
+
+    #[test]
+    fn legacy_daedalus_gen() {
+        // abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art
+        let entropy = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x62];
+        let root_key = RootLegacyDaedalusPrivateKey::from_bip39_entropy(&entropy).unwrap();
+        // assert_eq!(hex::encode(&root_key.as_bytes()), "");
+
+        let child_key = root_key.derive_key(0x80000000, 0x80000000).unwrap();
+        // assert_eq!(hex::encode(&child_key.as_bytes()), "");
+
+        let child_address = root_key.generate_child_addr(NetworkInfo::mainnet().protocol_magic(), 0x80000000, 0x80000000).unwrap();
+        assert_eq!(child_address.to_base58(), "");
     }
 }
