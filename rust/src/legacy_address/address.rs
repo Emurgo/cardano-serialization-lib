@@ -297,7 +297,7 @@ impl ExtendedAddr {
         ExtendedAddr::new(xpub, Attributes::new_bootstrap_era(None, protocol_magic))
     }
 
-    // bootstrap era + no hdpayload address
+    // bootstrap era
     pub fn new_legacy_daedalus(xpub: &XPub, payload: &HDAddressPayload, protocol_magic: Option<u32>) -> Self {
         ExtendedAddr::new(xpub, Attributes::new_bootstrap_era(Some(payload.clone()), protocol_magic))
     }
