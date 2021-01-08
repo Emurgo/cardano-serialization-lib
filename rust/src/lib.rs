@@ -214,6 +214,7 @@ pub struct TransactionBody {
     update: Option<Update>,
     metadata_hash: Option<MetadataHash>,
     validity_start_interval: Option<Slot>,
+    mint: Option<Mint>,
 }
 
 to_from_bytes!(TransactionBody);
@@ -275,6 +276,14 @@ impl TransactionBody {
         self.validity_start_interval
     }
 
+    pub fn set_mint(&mut self, mint: &Mint) {
+        self.mint = Some(mint.clone())
+    }
+
+    pub fn multiassets(&self) -> Option<Mint> {
+        self.mint.clone()
+    }
+
     pub fn new(
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
@@ -291,6 +300,7 @@ impl TransactionBody {
             update: None,
             metadata_hash: None,
             validity_start_interval: None,
+            mint: None,
         }
     }
 }
@@ -326,7 +336,7 @@ impl TransactionInput {
 #[derive(Clone, Debug)]
 pub struct TransactionOutput {
     address: Address,
-    amount: Coin,
+    amount: Value,
 }
 
 to_from_bytes!(TransactionOutput);
@@ -337,11 +347,11 @@ impl TransactionOutput {
         self.address.clone()
     }
 
-    pub fn amount(&self) -> Coin {
+    pub fn amount(&self) -> Value {
         self.amount.clone()
     }
 
-    pub fn new(address: &Address, amount: &Coin) -> Self {
+    pub fn new(address: &Address, amount: &Value) -> Self {
         Self {
             address: address.clone(),
             amount: amount.clone(),
@@ -1484,6 +1494,31 @@ impl GenesisHashes {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ScriptHashes(pub (crate) Vec<ScriptHash>);
+
+to_from_bytes!(ScriptHashes);
+
+#[wasm_bindgen]
+impl ScriptHashes {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> ScriptHash {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &ScriptHash) {
+        self.0.push(elem.clone());
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ProposedProtocolParameterUpdates(
     linked_hash_map::LinkedHashMap<GenesisHash, ProtocolParamUpdate>,
 );
@@ -2009,5 +2044,172 @@ impl HeaderBody {
             operational_cert: operational_cert.clone(),
             protocol_version: protocol_version.clone(),
         }
+    }
+}
+
+
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct AssetName(Vec<u8>);
+
+to_from_bytes!(AssetName);
+
+#[wasm_bindgen]
+impl AssetName {
+    pub fn new(name: Vec<u8>) -> Result<AssetName, JsError> {
+        Self::new_impl(name).map_err(|e| JsError::from_str(&e.to_string()))
+    }
+
+    pub (crate) fn new_impl(name: Vec<u8>) -> Result<AssetName, DeserializeError> {
+        if name.len() <= 64 {
+            Ok(Self(name))
+        } else {
+            Err(DeserializeError::new("AssetName", DeserializeFailure::OutOfRange{
+                min: 0,
+                max: 32,
+                found: name.len(),
+            }))
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct AssetNames(Vec<AssetName>);
+
+to_from_bytes!(AssetNames);
+
+#[wasm_bindgen]
+impl AssetNames {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> AssetName {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &AssetName) {
+        self.0.push(elem.clone());
+    }
+}
+
+pub type PolicyID = ScriptHash;
+pub type PolicyIDs = ScriptHashes;
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Assets(std::collections::BTreeMap<AssetName, BigNum>);
+
+#[wasm_bindgen]
+impl Assets {
+    pub fn new() -> Self {
+        Self(std::collections::BTreeMap::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn insert(&mut self, key: &AssetName, value: BigNum) -> Option<BigNum> {
+        self.0.insert(key.clone(), value)
+    }
+
+    pub fn get(&self, key: &AssetName) -> Option<BigNum> {
+        self.0.get(key).map(|v| v.clone())
+    }
+
+    pub fn keys(&self) -> AssetNames {
+        AssetNames(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<AssetName>>())
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MultiAsset(std::collections::BTreeMap<PolicyID, Assets>);
+
+to_from_bytes!(MultiAsset);
+
+#[wasm_bindgen]
+impl MultiAsset {
+    pub fn new() -> Self {
+        Self(std::collections::BTreeMap::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn insert(&mut self, key: &PolicyID, value: &Assets) -> Option<Assets> {
+        self.0.insert(key.clone(), value.clone())
+    }
+
+    pub fn get(&self, key: &PolicyID) -> Option<Assets> {
+        self.0.get(key).map(|v| v.clone())
+    }
+
+    pub fn keys(&self) -> PolicyIDs {
+        ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<PolicyID>>())
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MintAssets(std::collections::BTreeMap<AssetName, Int>);
+
+#[wasm_bindgen]
+impl MintAssets {
+    pub fn new() -> Self {
+        Self(std::collections::BTreeMap::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn insert(&mut self, key: &AssetName, value: Int) -> Option<Int> {
+        self.0.insert(key.clone(), value)
+    }
+
+    pub fn get(&self, key: &AssetName) -> Option<Int> {
+        self.0.get(key).map(|v| v.clone())
+    }
+
+    pub fn keys(&self) -> AssetNames {
+        AssetNames(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<AssetName>>())
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Mint(std::collections::BTreeMap<PolicyID, MintAssets>);
+
+to_from_bytes!(Mint);
+
+#[wasm_bindgen]
+impl Mint {
+    pub fn new() -> Self {
+        Self(std::collections::BTreeMap::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn insert(&mut self, key: &PolicyID, value: &MintAssets) -> Option<MintAssets> {
+        self.0.insert(key.clone(), value.clone())
+    }
+
+    pub fn get(&self, key: &PolicyID) -> Option<MintAssets> {
+        self.0.get(key).map(|v| v.clone())
+    }
+
+    pub fn keys(&self) -> PolicyIDs {
+        ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<ScriptHash>>())
     }
 }

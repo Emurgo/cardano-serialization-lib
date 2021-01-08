@@ -132,6 +132,87 @@ pub fn from_bignum(val: &BigNum) -> u64 {
 // Specifies an amount of ADA in terms of lovelace
 pub type Coin = BigNum;
 
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, /*Hash,*/ Ord, PartialEq, PartialOrd)]
+pub struct Value {
+    coin: Coin,
+    multiasset: Option<MultiAsset>,
+}
+
+#[wasm_bindgen]
+impl Value {
+    pub fn new(coin: Coin) -> Value {
+        Self {
+            coin,
+            multiasset: None,
+        }
+    }
+
+    pub fn coin(&self) -> Coin {
+        self.coin
+    }
+
+    pub fn set_coin(&mut self, coin: Coin) {
+        self.coin = coin;
+    }
+
+    pub fn multiasset(&self) -> Option<MultiAsset> {
+        self.multiasset.clone()
+    }
+
+    pub fn set_multiasset(&mut self, multiasset: &MultiAsset) {
+        self.multiasset = Some(multiasset.clone());
+    }
+}
+
+impl cbor_event::se::Serialize for Value {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        match self.multiasset {
+            Some(multiasset) => {
+                serializer.write_array(cbor_event::Len::Len(2))?;
+                self.coin.serialize(serializer)?;
+                self.multiasset.serialize(serializer)
+            },
+            None => self.coin.serialize(serializer)
+        }
+    }
+}
+
+impl Deserialize for Value {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            match raw.cbor_type()? {
+                cbor_event::Type::UnsignedInteger => Ok(Value::new(Coin::deserialize(raw)?)),
+                cbor_event::Type::Array => {
+                    let len = raw.array()?;
+                    let coin = (|| -> Result<_, DeserializeError> {
+                        Ok(Coin::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("coin"))?;
+                    let multiasset = (|| -> Result<_, DeserializeError> {
+                        Ok(MultiAsset::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("multiasset"))?;
+                    let ret = Ok(Self {
+                        coin,
+                        multiasset: Some(multiasset),
+                    });
+                    match len {
+                        cbor_event::Len::Len(n) => match n {
+                            2 => /* it's ok */(),
+                            n => return Err(DeserializeFailure::DefiniteLenMismatch(n, Some(2)).into()),
+                        },
+                        cbor_event::Len::Indefinite => match raw.special()? {
+                            CBORSpecial::Break => /* it's ok */(),
+                            _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                        },
+                    }
+                    ret
+                },
+                _ => Err(DeserializeFailure::NoVariantMatched.into()),
+            }
+        })().map_err(|e| e.annotate("Value"))
+    }
+}
+
 // CBOR has int = uint / nint
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

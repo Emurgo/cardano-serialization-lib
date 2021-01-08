@@ -201,7 +201,7 @@ impl Deserialize for Certificates {
 
 impl cbor_event::se::Serialize for TransactionBody {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(3 + match &self.ttl { Some(x) => 1, None => 0 } + match &self.certs { Some(x) => 1, None => 0 } + match &self.withdrawals { Some(x) => 1, None => 0 } + match &self.update { Some(x) => 1, None => 0 } + match &self.metadata_hash { Some(x) => 1, None => 0 } + match &self.validity_start_interval { Some(x) => 1, None => 0 }))?;
+        serializer.write_map(cbor_event::Len::Len(3 + match &self.ttl { Some(x) => 1, None => 0 } + match &self.certs { Some(x) => 1, None => 0 } + match &self.withdrawals { Some(x) => 1, None => 0 } + match &self.update { Some(x) => 1, None => 0 } + match &self.metadata_hash { Some(x) => 1, None => 0 } + match &self.validity_start_interval { Some(x) => 1, None => 0 } + match &self.mint { Some(x) => 1, None => 0 }))?;
         serializer.write_unsigned_integer(0)?;
         self.inputs.serialize(serializer)?;
         serializer.write_unsigned_integer(1)?;
@@ -232,6 +232,10 @@ impl cbor_event::se::Serialize for TransactionBody {
             serializer.write_unsigned_integer(8)?;
             field.serialize(serializer)?;
         }
+        if let Some(field) = &self.mint {
+            serializer.write_unsigned_integer(9)?;
+            field.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
@@ -251,6 +255,7 @@ impl Deserialize for TransactionBody {
             let mut update = None;
             let mut metadata_hash = None;
             let mut validity_start_interval = None;
+            let mut mint = None;
             let mut read = 0;
             while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
                 match raw.cbor_type()? {
@@ -333,6 +338,15 @@ impl Deserialize for TransactionBody {
                                 Ok(Slot::deserialize(raw)?)
                             })().map_err(|e| e.annotate("validity_start_interval"))?);
                         },
+                        9 =>  {
+                            if mint.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(9)).into());
+                            }
+                            mint = Some((|| -> Result<_, DeserializeError> {
+                                //read_len.read_elems(1)?;
+                                Ok(Mint::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("mint"))?);
+                        },
                         unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                     },
                     CBORType::Text => match raw.text()?.as_str() {
@@ -372,6 +386,7 @@ impl Deserialize for TransactionBody {
                 update,
                 metadata_hash,
                 validity_start_interval,
+                mint,
             })
         })().map_err(|e| e.annotate("TransactionBody"))
     }
@@ -450,7 +465,7 @@ impl DeserializeEmbeddedGroup for TransactionOutput {
             Ok(Address::deserialize(raw)?)
         })().map_err(|e| e.annotate("address"))?;
         let amount = (|| -> Result<_, DeserializeError> {
-            Ok(Coin::deserialize(raw)?)
+            Ok(Value::deserialize(raw)?)
         })().map_err(|e| e.annotate("amount"))?;
         Ok(TransactionOutput {
             address,
@@ -2168,6 +2183,34 @@ impl Deserialize for GenesisHashes {
     }
 }
 
+impl cbor_event::se::Serialize for ScriptHashes {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for ScriptHashes {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                arr.push(ScriptHash::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("ScriptHashes"))?;
+        Ok(Self(arr))
+    }
+}
+
 impl cbor_event::se::Serialize for ProposedProtocolParameterUpdates {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
@@ -2881,3 +2924,176 @@ impl DeserializeEmbeddedGroup for HeaderBody {
         })
     }
 }
+
+impl cbor_event::se::Serialize for AssetName {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_bytes(&self.0)
+    }
+}
+
+impl Deserialize for AssetName {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        Self::new_impl(raw.bytes()?)
+    }
+}
+
+impl cbor_event::se::Serialize for AssetNames {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for AssetNames {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                arr.push(AssetName::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("AssetNames"))?;
+        Ok(Self(arr))
+    }
+}
+
+impl cbor_event::se::Serialize for Assets {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
+        for (key, value) in &self.0 {
+            key.serialize(serializer)?;
+            value.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for Assets {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut table = std::collections::BTreeMap::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.map()?;
+            while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                let key = AssetName::deserialize(raw)?;
+                let value = BigNum::deserialize(raw)?;
+                if table.insert(key.clone(), value).is_some() {
+                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
+                }
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("Assets"))?;
+        Ok(Self(table))
+    }
+}
+
+impl cbor_event::se::Serialize for MultiAsset {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
+        for (key, value) in &self.0 {
+            key.serialize(serializer)?;
+            value.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for MultiAsset {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut table = std::collections::BTreeMap::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.map()?;
+            while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                let key = PolicyID::deserialize(raw)?;
+                let value = Assets::deserialize(raw)?;
+                if table.insert(key.clone(), value).is_some() {
+                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
+                }
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("MultiAsset"))?;
+        Ok(Self(table))
+    }
+}
+
+impl cbor_event::se::Serialize for MintAssets {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
+        for (key, value) in &self.0 {
+            key.serialize(serializer)?;
+            value.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for MintAssets {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut table = std::collections::BTreeMap::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.map()?;
+            while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                let key = AssetName::deserialize(raw)?;
+                let value = Int::deserialize(raw)?;
+                if table.insert(key.clone(), value).is_some() {
+                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
+                }
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("MintAssets"))?;
+        Ok(Self(table))
+    }
+}
+
+impl cbor_event::se::Serialize for Mint {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
+        for (key, value) in &self.0 {
+            key.serialize(serializer)?;
+            value.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for Mint {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut table = std::collections::BTreeMap::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.map()?;
+            while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                let key = PolicyID::deserialize(raw)?;
+                let value = MintAssets::deserialize(raw)?;
+                if table.insert(key.clone(), value).is_some() {
+                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
+                }
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("Mint"))?;
+        Ok(Self(table))
+    }
+}
+
