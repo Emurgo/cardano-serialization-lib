@@ -99,6 +99,13 @@ Testing
 Publishing
 ----------
 
+To publish a new version to [crates.io](https://crates.io)
+::
+
+   cargo publish
+
+.. _Crates package: https://crates.io/crates/cardano-serialization-lib
+
 To publish new versions to NPM (only needed if you are an admin of this project)
 ::
 

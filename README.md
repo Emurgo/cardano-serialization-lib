@@ -8,6 +8,10 @@ This is a library for serialization & deserialization of data structures used in
 - [Browser (chrome/firefox) WASM package](https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-browser)
 - [Browser (pure JS - no WASM) ASM.js package](https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-asmjs)
 
+##### Rust crates
+
+- [cardano-serialization-lib](https://crates.io/crates/cardano-serialization-lib)
+
 ##### Mobile bindings
 
 - [React-Native mobile bindings](https://github.com/Emurgo/react-native-haskell-shelley)
