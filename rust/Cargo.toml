@@ -1,7 +1,15 @@
 [package]
 name = "cardano-serialization-lib"
-version = "5.0.0-rc.0"
+version = "5.0.0"
 edition = "2018"
+authors = ["EMURGO"]
+license = "MIT"
+description = "(De)serialization functions for the Cardano blockchain along with related utility functions"
+documentation = "https://docs.cardano.org/projects/cardano-serialization-lib/en/latest/"
+repository = "https://github.com/Emurgo/cardano-serialization-lib"
+exclude = [
+    "pkg/*",
+]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
