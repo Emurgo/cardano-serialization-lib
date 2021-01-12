@@ -127,7 +127,7 @@ pub struct TransactionBuilder {
     validity_start_interval: Option<Slot>,
     input_types: MockWitnessSet,
     mint: Option<Mint>,
-    constant_min_utxo_value: BigNum,
+    ada_per_unit_size: BigNum,
 }
 
 #[wasm_bindgen]
@@ -283,12 +283,12 @@ impl TransactionBuilder {
 
     pub fn new(
         linear_fee: &fees::LinearFee,
-        constant_min_utxo_value: &BigNum,
+        ada_per_unit_size: &BigNum,
         pool_deposit: &BigNum, // protocol parameter
         key_deposit: &BigNum,  // protocol parameter
     ) -> Self {
         Self {
-            constant_min_utxo_value: constant_min_utxo_value.clone(),
+            ada_per_unit_size: ada_per_unit_size.clone(),
             key_deposit: key_deposit.clone(),
             pool_deposit: pool_deposit.clone(),
             fee_algo: linear_fee.clone(),
@@ -456,7 +456,7 @@ impl TransactionBuilder {
                 "Transaction with non-ada outputs is not implemented",
             ))
         } else {
-            Ok(self.constant_min_utxo_value)
+            Ok(self.ada_per_unit_size)
         }
     }
 
