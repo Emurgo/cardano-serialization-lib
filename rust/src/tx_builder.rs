@@ -348,73 +348,75 @@ impl TransactionBuilder {
     pub fn get_fee_if_set(&self) -> Option<Coin> {
         self.fee.clone()
     }
+
     /// Warning: this function will mutate the /fee/ field
     pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsError> {
         let fee = match &self.fee {
             None => self.min_fee(),
             // generating the change output involves changing the fee
-            Some(_x) => return Err(JsError::from_str("Cannot calculate change if fee was explicitly specified")),
+            Some(_x) => {
+                return Err(JsError::from_str(
+                    "Cannot calculate change if fee was explicitly specified",
+                ))
+            }
         }?;
-        let input_total = self.get_explicit_input()?.checked_add(&self.get_implicit_input()?)?;
-        let output_total = self.get_explicit_output()?.checked_add(&self.get_deposit()?)?;
 
-        // the change for multiasset inputs doesn't affect the fee (because it's
-        // paid in ada), so we can just compute it right away unlike the ada
-        // change
-        let ma_change = self.multiasset_change()?;
+        let input_total = self
+            .get_explicit_input()?
+            .checked_add(&self.get_implicit_input()?)?;
 
-        match &input_total >= &output_total.checked_add(&fee)? || ma_change.is_some() {
-            false => return Err(JsError::from_str("Insufficient input in transaction")),
-            true => {
+        let output_total = self
+            .get_explicit_output()?
+            .checked_add(&Value::new(self.get_deposit()?))?;
+
+        use std::cmp::Ordering;
+        match &input_total.partial_cmp(&output_total.checked_add(&Value::new(fee))?) {
+            Some(Ordering::Equal) => {
+                self.set_fee(&input_total.checked_sub(&output_total)?.coin());
+                Ok(false)
+            },
+            Some(Ordering::Less) => Err(JsError::from_str("Insufficient input in transaction")),
+            Some(Ordering::Greater) => {
+                let change_estimator = input_total.checked_sub(&output_total)?;
+
                 // check how much the fee would increase if we added a change output
-
-                // maximum possible output to maximize fee from adding this output
-                // this may over-estimate the fee by a few bytes but that's okay
-                let mut estimation_output = Value::new(to_bignum(0x1_00_00_00_00));
-
-                if let Some(ma) = ma_change.as_ref() {
-                    estimation_output.set_multiasset(ma);
-                }
-
                 let fee_for_change = self.fee_for_output(&TransactionOutput {
                     address: address.clone(),
-                    amount: estimation_output,
+                    amount: change_estimator,
                 })?;
+
                 let new_fee = fee.checked_add(&fee_for_change)?;
+
                 // needs to have at least minimum_utxo_val leftover for the change to be a valid UTXO entry
                 match input_total
                     >= output_total
-                        .checked_add(&new_fee)?
-                        .checked_add(&self.minimum_utxo_val()?)?
+                        .checked_add(&Value::new(new_fee))?
+                        .checked_add(&Value::new(self.minimum_utxo_val()?))?
                 {
                     false => {
                         // recall: we originally assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
-                        self.set_fee(&input_total.checked_sub(&output_total)?);
-                        return Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
-                    },
+                        self.set_fee(&input_total.checked_sub(&output_total)?.coin());
+                        Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
+                    }
                     true => {
                         // recall: we originally assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
                         self.set_fee(&new_fee);
 
-                        let mut amount = Value::new(
-                            input_total
-                                .checked_sub(&output_total)?
-                                .checked_sub(&new_fee)?,
-                        );
-
-                        if let Some(ma) = ma_change {
-                            amount.set_multiasset(&ma);
-                        }
+                        let amount = input_total
+                            .checked_sub(&output_total)?
+                            .checked_sub(&Value::new(new_fee))?;
 
                         self.add_output(&TransactionOutput {
                             address: address.clone(),
                             amount,
                         })?;
-                    },
-                };
-            },
-        };
-        Ok(true)
+
+                        Ok(true)
+                    }
+                }
+            }
+            None => Err(JsError::from_str("missing input for some native asset")),
+        }
     }
 
     pub fn build(&self) -> Result<TransactionBody, JsError> {
@@ -459,83 +461,6 @@ impl TransactionBuilder {
             Ok(self.ada_per_unit_size)
         }
     }
-
-    fn multiasset_change(&self) -> Result<Option<MultiAsset>, JsError> {
-        fn merge(items: impl Iterator<Item = MultiAsset>) -> Result<MultiAsset, JsError> {
-            use std::collections::btree_map::Entry;
-            let mut multiasset = MultiAsset::new();
-
-            for item in items {
-                for (policy, assets) in item.0 {
-                    for (asset_name, amount) in assets.0 {
-                        match multiasset.0.entry(policy.clone()) {
-                            Entry::Occupied(mut assets) => {
-                                match assets.get_mut().0.entry(asset_name) {
-                                    Entry::Occupied(mut assets) => {
-                                        let current = assets.get_mut();
-                                        *current = current.checked_add(&amount)?;
-                                    }
-                                    Entry::Vacant(vacant_entry) => {
-                                        vacant_entry.insert(amount);
-                                    }
-                                }
-                            }
-                            Entry::Vacant(empty_assets) => {
-                                let mut a = Assets::new();
-                                a.0.insert(asset_name, amount);
-                                empty_assets.insert(a);
-                            }
-                        }
-                    }
-                }
-            }
-
-            Ok(multiasset)
-        }
-
-        fn substract(mut first: MultiAsset, second: &MultiAsset) -> Result<MultiAsset, JsError> {
-            for (policy, assets) in &second.0 {
-                for (asset_name, amount) in &assets.0 {
-                    match first.0.get_mut(policy) {
-                        Some(assets) => match assets.0.get_mut(asset_name) {
-                            Some(current) => match current.checked_sub(&amount) {
-                                Ok(new) => *current = new,
-                                Err(_) => {
-                                    assets.0.remove(asset_name);
-                                }
-                            },
-                            None => {
-                                return Err(JsError::from_str("missing input for asset"));
-                            }
-                        },
-                        None => {
-                            return Err(JsError::from_str("missing input for policy"));
-                        }
-                    }
-                }
-            }
-
-            Ok(first)
-        }
-
-        let merged_input = merge(
-            self.inputs
-                .iter()
-                .filter_map(|input| input.amount.multiasset()),
-        )?;
-
-        let merged_output = merge(
-            self.outputs
-                .0
-                .iter()
-                .filter_map(|input| input.amount.multiasset()),
-        )?;
-
-        let output = substract(merged_input, &merged_output)?;
-
-        Ok(Some(output).filter(|output| !output.0.is_empty()))
-    }
-
 }
 
 #[cfg(test)]
