@@ -133,7 +133,7 @@ pub fn from_bignum(val: &BigNum) -> u64 {
 pub type Coin = BigNum;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, /*Hash,*/ Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, /*Hash,*/ Ord, PartialEq)]
 pub struct Value {
     coin: Coin,
     multiasset: Option<MultiAsset>,
@@ -162,6 +162,142 @@ impl Value {
 
     pub fn set_multiasset(&mut self, multiasset: &MultiAsset) {
         self.multiasset = Some(multiasset.clone());
+    }
+
+    pub fn checked_add(&self, rhs: &Value) -> Result<Value, JsError> {
+        use std::collections::btree_map::Entry;
+        let coin = self.coin.checked_add(&rhs.coin)?;
+
+        let multiasset = match (&self.multiasset, &rhs.multiasset) {
+            (Some(lhs_multiasset), Some(rhs_multiasset)) => {
+                let mut multiasset = MultiAsset::new();
+
+                for ma in &[lhs_multiasset, rhs_multiasset] {
+                    for (policy, assets) in &ma.0 {
+                        for (asset_name, amount) in &assets.0 {
+                            match multiasset.0.entry(policy.clone()) {
+                                Entry::Occupied(mut assets) => {
+                                    match assets.get_mut().0.entry(asset_name.clone()) {
+                                        Entry::Occupied(mut assets) => {
+                                            let current = assets.get_mut();
+                                            *current = current.checked_add(&amount)?;
+                                        }
+                                        Entry::Vacant(vacant_entry) => {
+                                            vacant_entry.insert(amount.clone());
+                                        }
+                                    }
+                                }
+                                Entry::Vacant(entry) => {
+                                    let mut assets = Assets::new();
+                                    assets.0.insert(asset_name.clone(), amount.clone());
+                                    entry.insert(assets);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Some(multiasset)
+            },
+            (None, None) => None, 
+            (Some(ma), None) => Some(ma.clone()),
+            (None, Some(ma)) => Some(ma.clone()),
+        };
+
+        Ok(Value {
+            coin, 
+            multiasset
+        })
+    }
+
+    pub fn checked_sub(&self, rhs_value: &Value) -> Result<Value, JsError> {
+        let coin = self.coin.checked_sub(&rhs_value.coin)?;
+        let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
+            (Some(lhs_ma), Some(rhs_ma)) => {
+                let mut lhs_ma = lhs_ma.clone();
+                for (policy, assets) in &rhs_ma.0 {
+                    for (asset_name, amount) in &assets.0 {
+                        match lhs_ma.0.get_mut(policy) {
+                            Some(assets) => match assets.0.get_mut(asset_name) {
+                                Some(current) => match current.checked_sub(&amount) {
+                                    Ok(new) => *current = new,
+                                    Err(_) => {
+                                        assets.0.remove(asset_name);
+                                    }
+                                },
+                                None => {
+                                    return Err(JsError::from_str("underflow when substracting native asset amount"));
+                                }
+                            },
+                            None => {
+                                return Err(JsError::from_str("policy id missing from left hand side"));
+                            }
+                        }
+                    }
+                }
+
+                Some(lhs_ma)
+        },
+            (Some(lhs_ma), None) => Some(lhs_ma.clone()),
+            (None, Some(rhs_ma)) => Some(rhs_ma.clone()),
+            (None, None) => None
+        };
+
+        Ok(Value { coin, multiasset })
+    }
+}
+
+// deriving PartialOrd doesn't work in a way that's useful , as the
+// implementation of PartialOrd for BTreeMap compares keys by their order,
+// i.e, is equivalent to comparing the iterators of (pid, Assets).
+// that would mean that: v1 < v2 if the min_pid(v1) < min_pid(v2)
+// this function instead compares amounts, assuming that if a pair (pid, aname)
+// is not in the Value then it has an amount of 0
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        use std::cmp::Ordering::*;
+
+        fn for_all(ma: &MultiAsset, f: impl Fn(&PolicyID, &AssetName, &Coin) -> bool) -> bool {
+            ma.0.iter()
+                .all(|(pid, assets)| assets.0.iter().all(|(aname, amount)| f(pid, aname, amount)))
+        }
+
+        fn rhs_amount(rhs_ma: &Option<MultiAsset>, pid: &PolicyID, aname: &AssetName) -> Coin {
+            rhs_ma
+                .as_ref()
+                .and_then(|rhs_ma| rhs_ma.get(&pid).and_then(|assets| assets.get(aname)))
+                .unwrap_or(to_bignum(0u64))
+        }
+
+        match self.coin.cmp(&other.coin) {
+            Less => {
+                let le = self.multiasset.iter().all(|ma| {
+                    for_all(&ma, |pid, aname, amount| {
+                        amount < &rhs_amount(&other.multiasset, pid, aname)
+                    })
+                });
+
+                Some(Less).filter(|_| le)
+            }
+            Equal => {
+                let eq = self.multiasset.iter().all(|ma| {
+                    for_all(&ma, |pid, aname, amount| {
+                        amount == &rhs_amount(&other.multiasset, pid, aname)
+                    })
+                });
+
+                Some(Equal).filter(|_| eq)
+            }
+            Greater => {
+                let ge = self.multiasset.iter().all(|ma| {
+                    for_all(&ma, |pid, aname, amount| {
+                        amount > &rhs_amount(&other.multiasset, pid, aname)
+                    })
+                });
+
+                Some(Greater).filter(|_| ge)
+            }
+        }
     }
 }
 
