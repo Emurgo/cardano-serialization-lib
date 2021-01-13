@@ -555,7 +555,7 @@ pub fn internal_get_implicit_input(
     certs: &Option<Certificates>,
     pool_deposit: &BigNum, // // protocol parameter
     key_deposit: &BigNum, // protocol parameter
-) -> Result<Coin, JsError> {
+) -> Result<Value, JsError> {
     let withdrawal_sum = match &withdrawals {
         None => to_bignum(0),
         Some(x) => x.0
@@ -578,7 +578,10 @@ pub fn internal_get_implicit_input(
                 }
             )?
     };
-    withdrawal_sum.checked_add(&certificate_refund)
+
+    withdrawal_sum
+        .checked_add(&certificate_refund)
+        .map(Value::new)
 }
 pub fn internal_get_deposit(
     certs: &Option<Certificates>,
@@ -607,7 +610,7 @@ pub fn get_implicit_input(
     txbody: &TransactionBody,
     pool_deposit: &BigNum, // // protocol parameter
     key_deposit: &BigNum, // protocol parameter
-) -> Result<Coin, JsError> {
+) -> Result<Value, JsError> {
     internal_get_implicit_input(
         &txbody.withdrawals,
         &txbody.certs,

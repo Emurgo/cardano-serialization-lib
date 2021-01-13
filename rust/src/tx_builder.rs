@@ -310,15 +310,15 @@ impl TransactionBuilder {
     }
 
     /// does not include refunds or withdrawals
-    pub fn get_explicit_input(&self) -> Result<Coin, JsError> {
+    pub fn get_explicit_input(&self) -> Result<Value, JsError> {
         self.inputs
             .iter()
-            .try_fold(to_bignum(0), |acc, ref tx_builder_input| {
-                acc.checked_add(&tx_builder_input.amount.coin())
+            .try_fold(Value::new(to_bignum(0)), |acc, ref tx_builder_input| {
+                acc.checked_add(&tx_builder_input.amount)
             })
     }
     /// withdrawals and refunds
-    pub fn get_implicit_input(&self) -> Result<Coin, JsError> {
+    pub fn get_implicit_input(&self) -> Result<Value, JsError> {
         internal_get_implicit_input(
             &self.withdrawals,
             &self.certs,
@@ -328,12 +328,12 @@ impl TransactionBuilder {
     }
 
     /// does not include fee
-    pub fn get_explicit_output(&self) -> Result<Coin, JsError> {
+    pub fn get_explicit_output(&self) -> Result<Value, JsError> {
         self.outputs
             .0
             .iter()
-            .try_fold(to_bignum(0), |acc, ref output| {
-                acc.checked_add(&output.amount().coin())
+            .try_fold(Value::new(to_bignum(0)), |acc, ref output| {
+                acc.checked_add(&output.amount())
             })
     }
 
@@ -607,7 +607,7 @@ mod tests {
         assert_eq!(tx_builder.outputs.len(), 2);
         assert_eq!(
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&tx_builder.get_fee_if_set().unwrap()).unwrap()
+            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(tx_builder.get_fee_if_set().unwrap())).unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -662,7 +662,7 @@ mod tests {
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&tx_builder.get_fee_if_set().unwrap()).unwrap()
+            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(tx_builder.get_fee_if_set().unwrap())).unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -720,15 +720,15 @@ mod tests {
             &change_addr
         ).unwrap();
         assert_eq!(tx_builder.min_fee().unwrap().to_str(), "213502");
-        assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "215502");
+        assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "213502");
         assert_eq!(tx_builder.get_deposit().unwrap().to_str(), "1000000");
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
             tx_builder
                 .get_explicit_output().unwrap()
-                .checked_add(&tx_builder.get_fee_if_set().unwrap()).unwrap()
-                .checked_add(&tx_builder.get_deposit().unwrap()).unwrap()
+                .checked_add(&Value::new(tx_builder.get_fee_if_set().unwrap())).unwrap()
+                .checked_add(&Value::new(tx_builder.get_deposit().unwrap())).unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
