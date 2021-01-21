@@ -2062,7 +2062,7 @@ impl AssetName {
     }
 
     pub (crate) fn new_impl(name: Vec<u8>) -> Result<AssetName, DeserializeError> {
-        if name.len() <= 64 {
+        if name.len() <= 32 {
             Ok(Self(name))
         } else {
             Err(DeserializeError::new("AssetName", DeserializeFailure::OutOfRange{
