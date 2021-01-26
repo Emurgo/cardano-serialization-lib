@@ -132,6 +132,223 @@ pub fn from_bignum(val: &BigNum) -> u64 {
 // Specifies an amount of ADA in terms of lovelace
 pub type Coin = BigNum;
 
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, /*Hash,*/ Ord, PartialEq)]
+pub struct Value {
+    coin: Coin,
+    multiasset: Option<MultiAsset>,
+}
+
+#[wasm_bindgen]
+impl Value {
+    pub fn new(coin: Coin) -> Value {
+        Self {
+            coin,
+            multiasset: None,
+        }
+    }
+
+    pub fn coin(&self) -> Coin {
+        self.coin
+    }
+
+    pub fn set_coin(&mut self, coin: Coin) {
+        self.coin = coin;
+    }
+
+    pub fn multiasset(&self) -> Option<MultiAsset> {
+        self.multiasset.clone()
+    }
+
+    pub fn set_multiasset(&mut self, multiasset: &MultiAsset) {
+        self.multiasset = Some(multiasset.clone());
+    }
+
+    pub fn checked_add(&self, rhs: &Value) -> Result<Value, JsError> {
+        use std::collections::btree_map::Entry;
+        let coin = self.coin.checked_add(&rhs.coin)?;
+
+        let multiasset = match (&self.multiasset, &rhs.multiasset) {
+            (Some(lhs_multiasset), Some(rhs_multiasset)) => {
+                let mut multiasset = MultiAsset::new();
+
+                for ma in &[lhs_multiasset, rhs_multiasset] {
+                    for (policy, assets) in &ma.0 {
+                        for (asset_name, amount) in &assets.0 {
+                            match multiasset.0.entry(policy.clone()) {
+                                Entry::Occupied(mut assets) => {
+                                    match assets.get_mut().0.entry(asset_name.clone()) {
+                                        Entry::Occupied(mut assets) => {
+                                            let current = assets.get_mut();
+                                            *current = current.checked_add(&amount)?;
+                                        }
+                                        Entry::Vacant(vacant_entry) => {
+                                            vacant_entry.insert(amount.clone());
+                                        }
+                                    }
+                                }
+                                Entry::Vacant(entry) => {
+                                    let mut assets = Assets::new();
+                                    assets.0.insert(asset_name.clone(), amount.clone());
+                                    entry.insert(assets);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Some(multiasset)
+            },
+            (None, None) => None, 
+            (Some(ma), None) => Some(ma.clone()),
+            (None, Some(ma)) => Some(ma.clone()),
+        };
+
+        Ok(Value {
+            coin, 
+            multiasset
+        })
+    }
+
+    pub fn checked_sub(&self, rhs_value: &Value) -> Result<Value, JsError> {
+        let coin = self.coin.checked_sub(&rhs_value.coin)?;
+        let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
+            (Some(lhs_ma), Some(rhs_ma)) => {
+                let mut lhs_ma = lhs_ma.clone();
+                for (policy, assets) in &rhs_ma.0 {
+                    for (asset_name, amount) in &assets.0 {
+                        match lhs_ma.0.get_mut(policy) {
+                            Some(assets) => match assets.0.get_mut(asset_name) {
+                                Some(current) => match current.checked_sub(&amount) {
+                                    Ok(new) => *current = new,
+                                    Err(_) => {
+                                        assets.0.remove(asset_name);
+                                    }
+                                },
+                                None => {
+                                    return Err(JsError::from_str("underflow when substracting native asset amount"));
+                                }
+                            },
+                            None => {
+                                return Err(JsError::from_str("policy id missing from left hand side"));
+                            }
+                        }
+                    }
+                }
+
+                Some(lhs_ma)
+        },
+            (Some(lhs_ma), None) => Some(lhs_ma.clone()),
+            (None, Some(rhs_ma)) => Some(rhs_ma.clone()),
+            (None, None) => None
+        };
+
+        Ok(Value { coin, multiasset })
+    }
+}
+
+// deriving PartialOrd doesn't work in a way that's useful , as the
+// implementation of PartialOrd for BTreeMap compares keys by their order,
+// i.e, is equivalent to comparing the iterators of (pid, Assets).
+// that would mean that: v1 < v2 if the min_pid(v1) < min_pid(v2)
+// this function instead compares amounts, assuming that if a pair (pid, aname)
+// is not in the Value then it has an amount of 0
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        use std::cmp::Ordering::*;
+
+        fn for_all(ma: &MultiAsset, f: impl Fn(&PolicyID, &AssetName, &Coin) -> bool) -> bool {
+            ma.0.iter()
+                .all(|(pid, assets)| assets.0.iter().all(|(aname, amount)| f(pid, aname, amount)))
+        }
+
+        fn rhs_amount(rhs_ma: &Option<MultiAsset>, pid: &PolicyID, aname: &AssetName) -> Coin {
+            rhs_ma
+                .as_ref()
+                .and_then(|rhs_ma| rhs_ma.get(&pid).and_then(|assets| assets.get(aname)))
+                .unwrap_or(to_bignum(0u64))
+        }
+
+        match self.coin.cmp(&other.coin) {
+            Less => {
+                let le = self.multiasset.iter().all(|ma| {
+                    for_all(&ma, |pid, aname, amount| {
+                        amount < &rhs_amount(&other.multiasset, pid, aname)
+                    })
+                });
+
+                Some(Less).filter(|_| le)
+            }
+            Equal => {
+                let eq = self.multiasset.iter().all(|ma| {
+                    for_all(&ma, |pid, aname, amount| {
+                        amount == &rhs_amount(&other.multiasset, pid, aname)
+                    })
+                });
+
+                Some(Equal).filter(|_| eq)
+            }
+            Greater => {
+                let ge = self.multiasset.iter().all(|ma| {
+                    for_all(&ma, |pid, aname, amount| {
+                        amount > &rhs_amount(&other.multiasset, pid, aname)
+                    })
+                });
+
+                Some(Greater).filter(|_| ge)
+            }
+        }
+    }
+}
+
+impl cbor_event::se::Serialize for Value {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        match &self.multiasset {
+            Some(multiasset) => {
+                serializer.write_array(cbor_event::Len::Len(2))?;
+                self.coin.serialize(serializer)?;
+                multiasset.serialize(serializer)
+            },
+            None => self.coin.serialize(serializer)
+        }
+    }
+}
+
+impl Deserialize for Value {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            match raw.cbor_type()? {
+                cbor_event::Type::UnsignedInteger => Ok(Value::new(Coin::deserialize(raw)?)),
+                cbor_event::Type::Array => {
+                    let len = raw.array()?;
+                    let coin = (|| -> Result<_, DeserializeError> {
+                        Ok(Coin::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("coin"))?;
+                    let multiasset = (|| -> Result<_, DeserializeError> {
+                        Ok(MultiAsset::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("multiasset"))?;
+                    let ret = Ok(Self {
+                        coin,
+                        multiasset: Some(multiasset),
+                    });
+                    match len {
+                        cbor_event::Len::Len(n) => match n {
+                            2 => /* it's ok */(),
+                            n => return Err(DeserializeFailure::DefiniteLenMismatch(n, Some(2)).into()),
+                        },
+                        cbor_event::Len::Indefinite => match raw.special()? {
+                            CBORSpecial::Break => /* it's ok */(),
+                            _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                        },
+                    }
+                    ret
+                },
+                _ => Err(DeserializeFailure::NoVariantMatched.into()),
+            }
+        })().map_err(|e| e.annotate("Value"))
+    }
+}
+
 // CBOR has int = uint / nint
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -338,7 +555,7 @@ pub fn internal_get_implicit_input(
     certs: &Option<Certificates>,
     pool_deposit: &BigNum, // // protocol parameter
     key_deposit: &BigNum, // protocol parameter
-) -> Result<Coin, JsError> {
+) -> Result<Value, JsError> {
     let withdrawal_sum = match &withdrawals {
         None => to_bignum(0),
         Some(x) => x.0
@@ -361,7 +578,10 @@ pub fn internal_get_implicit_input(
                 }
             )?
     };
-    withdrawal_sum.checked_add(&certificate_refund)
+
+    withdrawal_sum
+        .checked_add(&certificate_refund)
+        .map(Value::new)
 }
 pub fn internal_get_deposit(
     certs: &Option<Certificates>,
@@ -390,7 +610,7 @@ pub fn get_implicit_input(
     txbody: &TransactionBody,
     pool_deposit: &BigNum, // // protocol parameter
     key_deposit: &BigNum, // protocol parameter
-) -> Result<Coin, JsError> {
+) -> Result<Value, JsError> {
     internal_get_implicit_input(
         &txbody.withdrawals,
         &txbody.certs,
