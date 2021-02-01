@@ -6,6 +6,49 @@
  */
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -59,13 +102,13 @@ declare export function hash_transaction(
  * @param {TransactionBody} txbody
  * @param {BigNum} pool_deposit
  * @param {BigNum} key_deposit
- * @returns {BigNum}
+ * @returns {Value}
  */
 declare export function get_implicit_input(
   txbody: TransactionBody,
   pool_deposit: BigNum,
   key_deposit: BigNum
-): BigNum;
+): Value;
 
 /**
  * @param {TransactionBody} txbody
@@ -80,47 +123,14 @@ declare export function get_deposit(
 ): BigNum;
 
 /**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
+ * @param {Value} assets
+ * @param {BigNum} minimum_utxo_val
  * @returns {BigNum}
  */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
-): string;
+declare export function min_ada_required(
+  assets: Value,
+  minimum_utxo_val: BigNum
+): BigNum;
 
 /**
  */
@@ -155,11 +165,13 @@ declare export var RelayKind: {|
 /**
  */
 
-declare export var MultisigScriptKind: {|
-  +MsigPubkey: 0, // 0
-  +MsigAll: 1, // 1
-  +MsigAny: 2, // 2
-  +MsigNOfK: 3, // 3
+declare export var NativeScriptKind: {|
+  +ScriptPubkey: 0, // 0
+  +ScriptAll: 1, // 1
+  +ScriptAny: 2, // 2
+  +ScriptNOfK: 3, // 3
+  +TimelockStart: 4, // 4
+  +TimelockExpiry: 5, // 5
 |};
 
 /**
@@ -214,6 +226,98 @@ declare export class Address {
    * @returns {number}
    */
   network_id(): number;
+}
+/**
+ */
+declare export class AssetName {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {AssetName}
+   */
+  static from_bytes(bytes: Uint8Array): AssetName;
+
+  /**
+   * @param {Uint8Array} name
+   * @returns {AssetName}
+   */
+  static new(name: Uint8Array): AssetName;
+}
+/**
+ */
+declare export class AssetNames {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {AssetNames}
+   */
+  static from_bytes(bytes: Uint8Array): AssetNames;
+
+  /**
+   * @returns {AssetNames}
+   */
+  static new(): AssetNames;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {AssetName}
+   */
+  get(index: number): AssetName;
+
+  /**
+   * @param {AssetName} elem
+   */
+  add(elem: AssetName): void;
+}
+/**
+ */
+declare export class Assets {
+  free(): void;
+
+  /**
+   * @returns {Assets}
+   */
+  static new(): Assets;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {AssetName} key
+   * @param {BigNum} value
+   * @returns {BigNum | void}
+   */
+  insert(key: AssetName, value: BigNum): BigNum | void;
+
+  /**
+   * @param {AssetName} key
+   * @returns {BigNum | void}
+   */
+  get(key: AssetName): BigNum | void;
+
+  /**
+   * @returns {AssetNames}
+   */
+  keys(): AssetNames;
 }
 /**
  */
@@ -968,6 +1072,50 @@ declare export class EnterpriseAddress {
 }
 /**
  */
+declare export class GeneralTransactionMetadata {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {GeneralTransactionMetadata}
+   */
+  static from_bytes(bytes: Uint8Array): GeneralTransactionMetadata;
+
+  /**
+   * @returns {GeneralTransactionMetadata}
+   */
+  static new(): GeneralTransactionMetadata;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {BigNum} key
+   * @param {TransactionMetadatum} value
+   * @returns {TransactionMetadatum | void}
+   */
+  insert(key: BigNum, value: TransactionMetadatum): TransactionMetadatum | void;
+
+  /**
+   * @param {BigNum} key
+   * @returns {TransactionMetadatum | void}
+   */
+  get(key: BigNum): TransactionMetadatum | void;
+
+  /**
+   * @returns {TransactionMetadatumLabels}
+   */
+  keys(): TransactionMetadatumLabels;
+}
+/**
+ */
 declare export class GenesisDelegateHash {
   free(): void;
 
@@ -1593,6 +1741,83 @@ declare export class MetadataMap {
 }
 /**
  */
+declare export class Mint {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Mint}
+   */
+  static from_bytes(bytes: Uint8Array): Mint;
+
+  /**
+   * @returns {Mint}
+   */
+  static new(): Mint;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {ScriptHash} key
+   * @param {MintAssets} value
+   * @returns {MintAssets | void}
+   */
+  insert(key: ScriptHash, value: MintAssets): MintAssets | void;
+
+  /**
+   * @param {ScriptHash} key
+   * @returns {MintAssets | void}
+   */
+  get(key: ScriptHash): MintAssets | void;
+
+  /**
+   * @returns {ScriptHashes}
+   */
+  keys(): ScriptHashes;
+}
+/**
+ */
+declare export class MintAssets {
+  free(): void;
+
+  /**
+   * @returns {MintAssets}
+   */
+  static new(): MintAssets;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {AssetName} key
+   * @param {Int} value
+   * @returns {Int | void}
+   */
+  insert(key: AssetName, value: Int): Int | void;
+
+  /**
+   * @param {AssetName} key
+   * @returns {Int | void}
+   */
+  get(key: AssetName): Int | void;
+
+  /**
+   * @returns {AssetNames}
+   */
+  keys(): AssetNames;
+}
+/**
+ */
 declare export class MoveInstantaneousReward {
   free(): void;
 
@@ -1667,7 +1892,7 @@ declare export class MoveInstantaneousRewardsCert {
 }
 /**
  */
-declare export class MsigAll {
+declare export class MultiAsset {
   free(): void;
 
   /**
@@ -1677,107 +1902,37 @@ declare export class MsigAll {
 
   /**
    * @param {Uint8Array} bytes
-   * @returns {MsigAll}
+   * @returns {MultiAsset}
    */
-  static from_bytes(bytes: Uint8Array): MsigAll;
+  static from_bytes(bytes: Uint8Array): MultiAsset;
 
   /**
-   * @returns {MultisigScripts}
+   * @returns {MultiAsset}
    */
-  multisig_scripts(): MultisigScripts;
-
-  /**
-   * @param {MultisigScripts} multisig_scripts
-   * @returns {MsigAll}
-   */
-  static new(multisig_scripts: MultisigScripts): MsigAll;
-}
-/**
- */
-declare export class MsigAny {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {MsigAny}
-   */
-  static from_bytes(bytes: Uint8Array): MsigAny;
-
-  /**
-   * @returns {MultisigScripts}
-   */
-  multisig_scripts(): MultisigScripts;
-
-  /**
-   * @param {MultisigScripts} multisig_scripts
-   * @returns {MsigAny}
-   */
-  static new(multisig_scripts: MultisigScripts): MsigAny;
-}
-/**
- */
-declare export class MsigNOfK {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {MsigNOfK}
-   */
-  static from_bytes(bytes: Uint8Array): MsigNOfK;
+  static new(): MultiAsset;
 
   /**
    * @returns {number}
    */
-  n(): number;
+  len(): number;
 
   /**
-   * @returns {MultisigScripts}
+   * @param {ScriptHash} key
+   * @param {Assets} value
+   * @returns {Assets | void}
    */
-  multisig_scripts(): MultisigScripts;
+  insert(key: ScriptHash, value: Assets): Assets | void;
 
   /**
-   * @param {number} n
-   * @param {MultisigScripts} multisig_scripts
-   * @returns {MsigNOfK}
+   * @param {ScriptHash} key
+   * @returns {Assets | void}
    */
-  static new(n: number, multisig_scripts: MultisigScripts): MsigNOfK;
-}
-/**
- */
-declare export class MsigPubkey {
-  free(): void;
+  get(key: ScriptHash): Assets | void;
 
   /**
-   * @returns {Uint8Array}
+   * @returns {ScriptHashes}
    */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {MsigPubkey}
-   */
-  static from_bytes(bytes: Uint8Array): MsigPubkey;
-
-  /**
-   * @returns {Ed25519KeyHash}
-   */
-  addr_keyhash(): Ed25519KeyHash;
-
-  /**
-   * @param {Ed25519KeyHash} addr_keyhash
-   * @returns {MsigPubkey}
-   */
-  static new(addr_keyhash: Ed25519KeyHash): MsigPubkey;
+  keys(): ScriptHashes;
 }
 /**
  */
@@ -1808,7 +1963,7 @@ declare export class MultiHostName {
 }
 /**
  */
-declare export class MultisigScript {
+declare export class NativeScript {
   free(): void;
 
   /**
@@ -1818,37 +1973,45 @@ declare export class MultisigScript {
 
   /**
    * @param {Uint8Array} bytes
-   * @returns {MultisigScript}
+   * @returns {NativeScript}
    */
-  static from_bytes(bytes: Uint8Array): MultisigScript;
+  static from_bytes(bytes: Uint8Array): NativeScript;
 
   /**
-   * @param {Ed25519KeyHash} addr_keyhash
-   * @returns {MultisigScript}
+   * @param {ScriptPubkey} script_pubkey
+   * @returns {NativeScript}
    */
-  static new_msig_pubkey(addr_keyhash: Ed25519KeyHash): MultisigScript;
+  static new_script_pubkey(script_pubkey: ScriptPubkey): NativeScript;
 
   /**
-   * @param {MultisigScripts} multisig_scripts
-   * @returns {MultisigScript}
+   * @param {ScriptAll} script_all
+   * @returns {NativeScript}
    */
-  static new_msig_all(multisig_scripts: MultisigScripts): MultisigScript;
+  static new_script_all(script_all: ScriptAll): NativeScript;
 
   /**
-   * @param {MultisigScripts} multisig_scripts
-   * @returns {MultisigScript}
+   * @param {ScriptAny} script_any
+   * @returns {NativeScript}
    */
-  static new_msig_any(multisig_scripts: MultisigScripts): MultisigScript;
+  static new_script_any(script_any: ScriptAny): NativeScript;
 
   /**
-   * @param {number} n
-   * @param {MultisigScripts} multisig_scripts
-   * @returns {MultisigScript}
+   * @param {ScriptNOfK} script_n_of_k
+   * @returns {NativeScript}
    */
-  static new_msig_n_of_k(
-    n: number,
-    multisig_scripts: MultisigScripts
-  ): MultisigScript;
+  static new_script_n_of_k(script_n_of_k: ScriptNOfK): NativeScript;
+
+  /**
+   * @param {TimelockStart} timelock_start
+   * @returns {NativeScript}
+   */
+  static new_timelock_start(timelock_start: TimelockStart): NativeScript;
+
+  /**
+   * @param {TimelockExpiry} timelock_expiry
+   * @returns {NativeScript}
+   */
+  static new_timelock_expiry(timelock_expiry: TimelockExpiry): NativeScript;
 
   /**
    * @returns {number}
@@ -1856,45 +2019,44 @@ declare export class MultisigScript {
   kind(): number;
 
   /**
-   * @returns {MsigPubkey | void}
+   * @returns {ScriptPubkey | void}
    */
-  as_multisig_script0(): MsigPubkey | void;
+  as_script_pubkey(): ScriptPubkey | void;
 
   /**
-   * @returns {MsigAll | void}
+   * @returns {ScriptAll | void}
    */
-  as_multisig_script1(): MsigAll | void;
+  as_script_all(): ScriptAll | void;
 
   /**
-   * @returns {MsigAny | void}
+   * @returns {ScriptAny | void}
    */
-  as_multisig_script2(): MsigAny | void;
+  as_script_any(): ScriptAny | void;
 
   /**
-   * @returns {MsigNOfK | void}
+   * @returns {ScriptNOfK | void}
    */
-  as_multisig_script3(): MsigNOfK | void;
+  as_script_n_of_k(): ScriptNOfK | void;
+
+  /**
+   * @returns {TimelockStart | void}
+   */
+  as_timelock_start(): TimelockStart | void;
+
+  /**
+   * @returns {TimelockExpiry | void}
+   */
+  as_timelock_expiry(): TimelockExpiry | void;
 }
 /**
  */
-declare export class MultisigScripts {
+declare export class NativeScripts {
   free(): void;
 
   /**
-   * @returns {Uint8Array}
+   * @returns {NativeScripts}
    */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {MultisigScripts}
-   */
-  static from_bytes(bytes: Uint8Array): MultisigScripts;
-
-  /**
-   * @returns {MultisigScripts}
-   */
-  static new(): MultisigScripts;
+  static new(): NativeScripts;
 
   /**
    * @returns {number}
@@ -1903,14 +2065,14 @@ declare export class MultisigScripts {
 
   /**
    * @param {number} index
-   * @returns {MultisigScript}
+   * @returns {NativeScript}
    */
-  get(index: number): MultisigScript;
+  get(index: number): NativeScript;
 
   /**
-   * @param {MultisigScript} elem
+   * @param {NativeScript} elem
    */
-  add(elem: MultisigScript): void;
+  add(elem: NativeScript): void;
 }
 /**
  */
@@ -2844,6 +3006,60 @@ declare export class RewardAddresses {
 }
 /**
  */
+declare export class ScriptAll {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ScriptAll}
+   */
+  static from_bytes(bytes: Uint8Array): ScriptAll;
+
+  /**
+   * @returns {NativeScripts}
+   */
+  native_scripts(): NativeScripts;
+
+  /**
+   * @param {NativeScripts} native_scripts
+   * @returns {ScriptAll}
+   */
+  static new(native_scripts: NativeScripts): ScriptAll;
+}
+/**
+ */
+declare export class ScriptAny {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ScriptAny}
+   */
+  static from_bytes(bytes: Uint8Array): ScriptAny;
+
+  /**
+   * @returns {NativeScripts}
+   */
+  native_scripts(): NativeScripts;
+
+  /**
+   * @param {NativeScripts} native_scripts
+   * @returns {ScriptAny}
+   */
+  static new(native_scripts: NativeScripts): ScriptAny;
+}
+/**
+ */
 declare export class ScriptHash {
   free(): void;
 
@@ -2869,6 +3085,103 @@ declare export class ScriptHash {
    * @returns {ScriptHash}
    */
   static from_bytes(bytes: Uint8Array): ScriptHash;
+}
+/**
+ */
+declare export class ScriptHashes {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ScriptHashes}
+   */
+  static from_bytes(bytes: Uint8Array): ScriptHashes;
+
+  /**
+   * @returns {ScriptHashes}
+   */
+  static new(): ScriptHashes;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {ScriptHash}
+   */
+  get(index: number): ScriptHash;
+
+  /**
+   * @param {ScriptHash} elem
+   */
+  add(elem: ScriptHash): void;
+}
+/**
+ */
+declare export class ScriptNOfK {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ScriptNOfK}
+   */
+  static from_bytes(bytes: Uint8Array): ScriptNOfK;
+
+  /**
+   * @returns {number}
+   */
+  n(): number;
+
+  /**
+   * @returns {NativeScripts}
+   */
+  native_scripts(): NativeScripts;
+
+  /**
+   * @param {number} n
+   * @param {NativeScripts} native_scripts
+   * @returns {ScriptNOfK}
+   */
+  static new(n: number, native_scripts: NativeScripts): ScriptNOfK;
+}
+/**
+ */
+declare export class ScriptPubkey {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ScriptPubkey}
+   */
+  static from_bytes(bytes: Uint8Array): ScriptPubkey;
+
+  /**
+   * @returns {Ed25519KeyHash}
+   */
+  addr_keyhash(): Ed25519KeyHash;
+
+  /**
+   * @param {Ed25519KeyHash} addr_keyhash
+   * @returns {ScriptPubkey}
+   */
+  static new(addr_keyhash: Ed25519KeyHash): ScriptPubkey;
 }
 /**
  */
@@ -3114,6 +3427,60 @@ declare export class StakeRegistration {
 }
 /**
  */
+declare export class TimelockExpiry {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {TimelockExpiry}
+   */
+  static from_bytes(bytes: Uint8Array): TimelockExpiry;
+
+  /**
+   * @returns {number}
+   */
+  slot(): number;
+
+  /**
+   * @param {number} slot
+   * @returns {TimelockExpiry}
+   */
+  static new(slot: number): TimelockExpiry;
+}
+/**
+ */
+declare export class TimelockStart {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {TimelockStart}
+   */
+  static from_bytes(bytes: Uint8Array): TimelockStart;
+
+  /**
+   * @returns {number}
+   */
+  slot(): number;
+
+  /**
+   * @param {number} slot
+   * @returns {TimelockStart}
+   */
+  static new(slot: number): TimelockStart;
+}
+/**
+ */
 declare export class Transaction {
   free(): void;
 
@@ -3224,9 +3591,9 @@ declare export class TransactionBody {
   fee(): BigNum;
 
   /**
-   * @returns {number}
+   * @returns {number | void}
    */
-  ttl(): number;
+  ttl(): number | void;
 
   /**
    * @param {Certificates} certs
@@ -3269,6 +3636,26 @@ declare export class TransactionBody {
   metadata_hash(): MetadataHash | void;
 
   /**
+   * @param {number} validity_start_interval
+   */
+  set_validity_start_interval(validity_start_interval: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  validity_start_interval(): number | void;
+
+  /**
+   * @param {Mint} mint
+   */
+  set_mint(mint: Mint): void;
+
+  /**
+   * @returns {Mint | void}
+   */
+  multiassets(): Mint | void;
+
+  /**
    * @param {TransactionInputs} inputs
    * @param {TransactionOutputs} outputs
    * @param {BigNum} fee
@@ -3290,54 +3677,54 @@ declare export class TransactionBuilder {
   /**
    * @param {Ed25519KeyHash} hash
    * @param {TransactionInput} input
-   * @param {BigNum} amount
+   * @param {Value} amount
    */
   add_key_input(
     hash: Ed25519KeyHash,
     input: TransactionInput,
-    amount: BigNum
+    amount: Value
   ): void;
 
   /**
    * @param {ScriptHash} hash
    * @param {TransactionInput} input
-   * @param {BigNum} amount
+   * @param {Value} amount
    */
   add_script_input(
     hash: ScriptHash,
     input: TransactionInput,
-    amount: BigNum
+    amount: Value
   ): void;
 
   /**
    * @param {ByronAddress} hash
    * @param {TransactionInput} input
-   * @param {BigNum} amount
+   * @param {Value} amount
    */
   add_bootstrap_input(
     hash: ByronAddress,
     input: TransactionInput,
-    amount: BigNum
+    amount: Value
   ): void;
 
   /**
    * @param {Address} address
    * @param {TransactionInput} input
-   * @param {BigNum} amount
+   * @param {Value} amount
    */
-  add_input(address: Address, input: TransactionInput, amount: BigNum): void;
+  add_input(address: Address, input: TransactionInput, amount: Value): void;
 
   /**
    * calculates how much the fee would increase if you added a given output
    * @param {Address} address
    * @param {TransactionInput} input
-   * @param {BigNum} amount
+   * @param {Value} amount
    * @returns {BigNum}
    */
   fee_for_input(
     address: Address,
     input: TransactionInput,
-    amount: BigNum
+    amount: Value
   ): BigNum;
 
   /**
@@ -3361,6 +3748,11 @@ declare export class TransactionBuilder {
    * @param {number} ttl
    */
   set_ttl(ttl: number): void;
+
+  /**
+   * @param {number} validity_start_interval
+   */
+  set_validity_start_interval(validity_start_interval: number): void;
 
   /**
    * @param {Certificates} certs
@@ -3393,21 +3785,21 @@ declare export class TransactionBuilder {
 
   /**
    * does not include refunds or withdrawals
-   * @returns {BigNum}
+   * @returns {Value}
    */
-  get_explicit_input(): BigNum;
+  get_explicit_input(): Value;
 
   /**
    * withdrawals and refunds
-   * @returns {BigNum}
+   * @returns {Value}
    */
-  get_implicit_input(): BigNum;
+  get_implicit_input(): Value;
 
   /**
    * does not include fee
-   * @returns {BigNum}
+   * @returns {Value}
    */
-  get_explicit_output(): BigNum;
+  get_explicit_output(): Value;
 
   /**
    * @returns {BigNum}
@@ -3554,32 +3946,25 @@ declare export class TransactionMetadata {
   static from_bytes(bytes: Uint8Array): TransactionMetadata;
 
   /**
+   * @returns {GeneralTransactionMetadata}
+   */
+  general(): GeneralTransactionMetadata;
+
+  /**
+   * @returns {NativeScripts | void}
+   */
+  native_scripts(): NativeScripts | void;
+
+  /**
+   * @param {NativeScripts} native_scripts
+   */
+  set_native_scripts(native_scripts: NativeScripts): void;
+
+  /**
+   * @param {GeneralTransactionMetadata} general
    * @returns {TransactionMetadata}
    */
-  static new(): TransactionMetadata;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {BigNum} key
-   * @param {TransactionMetadatum} value
-   * @returns {TransactionMetadatum | void}
-   */
-  insert(key: BigNum, value: TransactionMetadatum): TransactionMetadatum | void;
-
-  /**
-   * @param {BigNum} key
-   * @returns {TransactionMetadatum | void}
-   */
-  get(key: BigNum): TransactionMetadatum | void;
-
-  /**
-   * @returns {TransactionMetadatumLabels}
-   */
-  keys(): TransactionMetadatumLabels;
+  static new(general: GeneralTransactionMetadata): TransactionMetadata;
 }
 /**
  */
@@ -3716,16 +4101,16 @@ declare export class TransactionOutput {
   address(): Address;
 
   /**
-   * @returns {BigNum}
+   * @returns {Value}
    */
-  amount(): BigNum;
+  amount(): Value;
 
   /**
    * @param {Address} address
-   * @param {BigNum} amount
+   * @param {Value} amount
    * @returns {TransactionOutput}
    */
-  static new(address: Address, amount: BigNum): TransactionOutput;
+  static new(address: Address, amount: Value): TransactionOutput;
 }
 /**
  */
@@ -3791,14 +4176,14 @@ declare export class TransactionWitnessSet {
   vkeys(): Vkeywitnesses | void;
 
   /**
-   * @param {MultisigScripts} scripts
+   * @param {NativeScripts} scripts
    */
-  set_scripts(scripts: MultisigScripts): void;
+  set_scripts(scripts: NativeScripts): void;
 
   /**
-   * @returns {MultisigScripts | void}
+   * @returns {NativeScripts | void}
    */
-  scripts(): MultisigScripts | void;
+  scripts(): NativeScripts | void;
 
   /**
    * @param {BootstrapWitnesses} bootstraps
@@ -4009,6 +4394,49 @@ declare export class VRFVKey {
    * @returns {VRFVKey}
    */
   static from_bytes(bytes: Uint8Array): VRFVKey;
+}
+/**
+ */
+declare export class Value {
+  free(): void;
+
+  /**
+   * @param {BigNum} coin
+   * @returns {Value}
+   */
+  static new(coin: BigNum): Value;
+
+  /**
+   * @returns {BigNum}
+   */
+  coin(): BigNum;
+
+  /**
+   * @param {BigNum} coin
+   */
+  set_coin(coin: BigNum): void;
+
+  /**
+   * @returns {MultiAsset | void}
+   */
+  multiasset(): MultiAsset | void;
+
+  /**
+   * @param {MultiAsset} multiasset
+   */
+  set_multiasset(multiasset: MultiAsset): void;
+
+  /**
+   * @param {Value} rhs
+   * @returns {Value}
+   */
+  checked_add(rhs: Value): Value;
+
+  /**
+   * @param {Value} rhs_value
+   * @returns {Value}
+   */
+  checked_sub(rhs_value: Value): Value;
 }
 /**
  */

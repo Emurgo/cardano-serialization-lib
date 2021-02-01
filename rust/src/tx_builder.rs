@@ -114,6 +114,7 @@ struct TxBuilderInput {
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionBuilder {
+    minimum_utxo_val: BigNum,
     pool_deposit: BigNum,
     key_deposit: BigNum,
     fee_algo: fees::LinearFee,
@@ -127,7 +128,6 @@ pub struct TransactionBuilder {
     validity_start_interval: Option<Slot>,
     input_types: MockWitnessSet,
     mint: Option<Mint>,
-    ada_per_unit_size: BigNum,
 }
 
 #[wasm_bindgen]
@@ -222,12 +222,12 @@ impl TransactionBuilder {
     }
 
     pub fn add_output(&mut self, output: &TransactionOutput) -> Result<(), JsError> {
-        let minimum_utxo_val = self.minimum_utxo_val()?;
-        if output.amount().coin() < minimum_utxo_val {
+        let min_ada = min_ada_required(&output.amount(), &self.minimum_utxo_val);
+        if output.amount().coin() < min_ada {
             Err(JsError::from_str(&format!(
                 "Value {} less than the minimum UTXO value {}",
                 from_bignum(&output.amount().coin()),
-                from_bignum(&minimum_utxo_val)
+                from_bignum(&min_ada)
             )))
         } else {
             self.outputs.add(output);
@@ -283,12 +283,13 @@ impl TransactionBuilder {
 
     pub fn new(
         linear_fee: &fees::LinearFee,
-        ada_per_unit_size: &BigNum,
+        // protocol parameter that defines the minimum value a newly created UTXO can contain
+        minimum_utxo_val: &Coin,
         pool_deposit: &BigNum, // protocol parameter
         key_deposit: &BigNum,  // protocol parameter
     ) -> Self {
         Self {
-            ada_per_unit_size: ada_per_unit_size.clone(),
+            minimum_utxo_val: minimum_utxo_val.clone(),
             key_deposit: key_deposit.clone(),
             pool_deposit: pool_deposit.clone(),
             fee_algo: linear_fee.clone(),
@@ -382,33 +383,34 @@ impl TransactionBuilder {
                 // check how much the fee would increase if we added a change output
                 let fee_for_change = self.fee_for_output(&TransactionOutput {
                     address: address.clone(),
-                    amount: change_estimator,
+                    amount: change_estimator.clone(),
                 })?;
 
                 let new_fee = fee.checked_add(&fee_for_change)?;
 
-                // needs to have at least minimum_utxo_val leftover for the change to be a valid UTXO entry
-                match input_total
-                    >= output_total
-                        .checked_add(&Value::new(new_fee))?
-                        .checked_add(&Value::new(self.minimum_utxo_val()?))?
+                // needs to cover the minimum utxo entry for the change to be a valid UTXO entry
+                match change_estimator.coin()
+                    >= min_ada_required(&change_estimator.clone(), &self.minimum_utxo_val)
+                    .checked_add(&Value::new(new_fee).coin())?
                 {
                     false => {
-                        // recall: we originally assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
-                        self.set_fee(&input_total.checked_sub(&output_total)?.coin());
-                        Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
+                        match &change_estimator.multiasset() {
+                            None => {
+                                // recall: we originally assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
+                                self.set_fee(&input_total.checked_sub(&output_total)?.coin());
+                                Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
+                            },
+                            Some(_assets) => Err(JsError::from_str("Not enough ADA leftover to include non-ADA assets in a change address")),
+                        }
+                        
                     }
                     true => {
                         // recall: we originally assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
                         self.set_fee(&new_fee);
 
-                        let amount = input_total
-                            .checked_sub(&output_total)?
-                            .checked_sub(&Value::new(new_fee))?;
-
                         self.add_output(&TransactionOutput {
                             address: address.clone(),
-                            amount,
+                            amount: change_estimator.checked_sub(&Value::new(new_fee))?,
                         })?;
 
                         Ok(true)
@@ -445,21 +447,6 @@ impl TransactionBuilder {
         let mut self_copy = self.clone();
         self_copy.set_fee(&to_bignum(0x1_00_00_00_00));
         min_fee(&self_copy)
-    }
-
-    fn minimum_utxo_val(&self) -> Result<Coin, JsError> {
-        if self
-            .outputs
-            .0
-            .iter()
-            .any(|output| output.amount().multiasset().is_some())
-        {
-            Err(JsError::from_str(
-                "Transaction with non-ada outputs is not implemented",
-            ))
-        } else {
-            Ok(self.ada_per_unit_size)
-        }
     }
 }
 
@@ -954,7 +941,7 @@ mod tests {
                 let mut multiasset = MultiAsset::new();
                 multiasset.insert(policy_id, &{
                     let mut assets = Assets::new();
-                    assets.insert(&name, to_bignum(*input));
+                    assets.insert(&name, &to_bignum(*input));
                     assets
                 });
                 multiasset
@@ -1021,5 +1008,74 @@ mod tests {
                 .unwrap(),
             to_bignum(ma_input1 + ma_input2 - ma_output1)
         );
+    }
+
+    #[test]
+    #[should_panic]
+    fn build_tx_leftover_assets() {
+        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
+        let mut tx_builder =
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+
+        // add an input that contains an asset not present in the output
+        let policy_id = &PolicyID::from([0u8; 28]);
+        let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+        let mut input_amount = Value::new(to_bignum(1_000_000));
+        let mut input_multiasset = MultiAsset::new();
+        input_multiasset.insert(policy_id, &{
+            let mut assets = Assets::new();
+            assets.insert(&name, &to_bignum(100));
+            assets
+        });
+        input_amount.set_multiasset(&input_multiasset);
+        tx_builder.add_key_input(
+            &spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &input_amount
+        );
+
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_net_0,
+            &Value::new(to_bignum(880_000))
+        )).unwrap();
+        tx_builder.set_ttl(1000);
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
+        let added_change = tx_builder.add_change_if_needed(
+            &change_addr
+        );
+        assert!(!added_change.unwrap());
+        assert_eq!(tx_builder.outputs.len(), 1);
+        assert_eq!(
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(tx_builder.get_fee_if_set().unwrap())).unwrap()
+        );
+        let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
 }
