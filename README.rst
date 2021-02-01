@@ -65,7 +65,9 @@ Here are the location of the original `CDDL`_ specifications:
 
 -  Byron: `link`_
 -  Shelley:
-   `link <https://github.com/input-output-hk/cardano-ledger-specs/tree/master/shelley/chain-and-ledger/executable-spec/cddl-files>`__
+   `link <https://github.com/input-output-hk/cardano-ledger-specs/tree/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files>`__
+-  Mary:
+   `link <https://github.com/input-output-hk/cardano-ledger-specs/tree/master/shelley-ma/shelley-ma-test/cddl-files>`__
 
 Building
 --------
