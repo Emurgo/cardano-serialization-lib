@@ -16,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wasm-bindgen = "=0.2.65"
-cryptoxide = "0.2.0"
+cryptoxide = "0.3.0"
 cbor_event = "2.1.3"
 curve25519-dalek = "1"
 ed25519-dalek = "1.0.0-pre.1"
