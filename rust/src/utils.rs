@@ -1,6 +1,8 @@
 use crate::error::{DeserializeError, DeserializeFailure};
 use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 use std::io::{BufRead, Seek, Write};
+use std::cmp;
+use std::ops::{Rem, Div, Sub};
 use super::*;
 
 // JsError can't be used by non-wasm targets so we use this macro to expose
@@ -356,11 +358,11 @@ pub struct Int(pub (crate) i128);
 
 #[wasm_bindgen]
 impl Int {
-    pub fn new(x: BigNum) -> Self {
+    pub fn new(x: &BigNum) -> Self {
         Self(x.0 as i128)
     }
 
-    pub fn new_negative(x: BigNum) -> Self {
+    pub fn new_negative(x: &BigNum) -> Self {
         Self(-(x.0 as i128))
     }
 
@@ -630,4 +632,338 @@ pub fn get_deposit(
         &pool_deposit,
         &key_deposit,
     )
+}
+
+struct OutputSizeConstants {
+    k0: usize,
+    k1: usize,
+    k2: usize,
+}
+
+fn quot<T>(a: T, b: T) -> T
+where T: Sub<Output=T> + Rem<Output=T> + Div<Output=T> + Copy + Clone + std::fmt::Display {
+    (a - (a % b)) / b
+}
+
+fn bundle_size(
+    assets: &Value,
+    constants: &OutputSizeConstants,
+) -> usize {
+    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo.rst
+    match &assets.multiasset {
+        None => 1, // Haskell codebase considers these size 1
+        Some (assets) => {
+            let num_assets = assets.0
+                .values()
+                .fold(
+                    0,
+                    | acc, next| acc + next.len()
+                );
+            let sum_asset_name_lengths = assets.0
+                .values()
+                .flat_map(|assets| assets.0.keys())
+                .fold(
+                    0,
+                    | acc, next| acc + next.0.len()
+                );
+            let sum_policy_id_lengths = assets.0
+                .keys()
+                .fold(
+                    0,
+                    | acc, next| acc + next.0.len()
+                );
+            // converts bytes to 8-byte long words, rounding up
+            fn roundup_bytes_to_words(b: usize) -> usize {
+                quot(b + 7, 8)
+            };
+            constants.k0 + roundup_bytes_to_words(
+                (num_assets * constants.k1) + sum_asset_name_lengths +
+                (constants.k2 * sum_policy_id_lengths)
+            )
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn min_ada_required(
+    assets: &Value,
+    minimum_utxo_val: &BigNum, // protocol parameter
+) -> BigNum {
+    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo.rst
+    match &assets.multiasset {
+        None => minimum_utxo_val.clone(),
+        Some(_assets) => {
+            // NOTE: should be 2, but a bug in Haskell set this to 0
+            let coin_size: u64 = 0;
+            let tx_out_len_no_val = 14;
+            let tx_in_len = 7;
+            let utxo_entry_size_without_val: u64 = 6 + tx_out_len_no_val + tx_in_len; // 27
+
+            // NOTE: should be 29 but a bug in Haskell set this to 27
+            let ada_only_utxo_size: u64 = utxo_entry_size_without_val + coin_size;
+
+            let size = bundle_size(
+                &assets,
+                &OutputSizeConstants {
+                    k0: 6,
+                    k1: 12,
+                    k2: 1,
+                },
+            );
+            BigNum(cmp::max(
+                minimum_utxo_val.0,
+                quot(minimum_utxo_val.0, ada_only_utxo_size) * (utxo_entry_size_without_val + (size as u64))
+            ))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // this is what is used in mainnet
+    static MINIMUM_UTXO_VAL: u64 = 1_000_000;
+
+    #[test]
+    fn no_token_minimum() {
+        
+        let assets = Value {
+            coin: BigNum(0),
+            multiasset: None,
+        };
+        
+        assert_eq!(
+            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+            MINIMUM_UTXO_VAL
+        );
+    }
+
+    #[test]
+    fn one_policy_one_smallest_name() {
+        
+        let mut token_bundle = MultiAsset::new();
+        let mut asset_list = Assets::new();
+        asset_list.insert(
+            &AssetName(vec![]),
+            &BigNum(1)
+        );
+        token_bundle.insert(
+            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        let assets = Value {
+            coin: BigNum(1407406),
+            multiasset: Some(token_bundle),
+        };
+        
+        assert_eq!(
+            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+            1407406
+        );
+    }
+
+    #[test]
+    fn one_policy_one_small_name() {
+        
+        let mut token_bundle = MultiAsset::new();
+        let mut asset_list = Assets::new();
+        asset_list.insert(
+            &AssetName(vec![1]),
+            &BigNum(1)
+        );
+        token_bundle.insert(
+            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        let assets = Value {
+            coin: BigNum(1444443),
+            multiasset: Some(token_bundle),
+        };
+        
+        assert_eq!(
+            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+            1444443
+        );
+    }
+
+    #[test]
+    fn one_policy_one_largest_name() {
+        
+        let mut token_bundle = MultiAsset::new();
+        let mut asset_list = Assets::new();
+        asset_list.insert(
+            // The largest asset names have length thirty-two
+            &AssetName([1; 32].to_vec()),
+            &BigNum(1)
+        );
+        token_bundle.insert(
+            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        let assets = Value {
+            coin: BigNum(1555554),
+            multiasset: Some(token_bundle),
+        };
+        
+        assert_eq!(
+            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+            1555554
+        );
+    }
+
+    #[test]
+    fn one_policy_three_small_names() {
+        
+        let mut token_bundle = MultiAsset::new();
+        let mut asset_list = Assets::new();
+        asset_list.insert(
+            &AssetName(vec![1]),
+            &BigNum(1)
+        );
+        asset_list.insert(
+            &AssetName(vec![2]),
+            &BigNum(1)
+        );
+        asset_list.insert(
+            &AssetName(vec![3]),
+            &BigNum(1)
+        );
+        token_bundle.insert(
+            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        let assets = Value {
+            coin: BigNum(1555554),
+            multiasset: Some(token_bundle),
+        };
+        
+        assert_eq!(
+            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+            1555554
+        );
+    }
+
+    #[test]
+    fn one_policy_three_largest_names() {
+        
+        let mut token_bundle = MultiAsset::new();
+        let mut asset_list = Assets::new();
+        asset_list.insert(
+            // The largest asset names have length thirty-two
+            &AssetName([1; 32].to_vec()),
+            &BigNum(1)
+        );
+        asset_list.insert(
+            // The largest asset names have length thirty-two
+            &AssetName([2; 32].to_vec()),
+            &BigNum(1)
+        );
+        asset_list.insert(
+            // The largest asset names have length thirty-two
+            &AssetName([3; 32].to_vec()),
+            &BigNum(1)
+        );
+        token_bundle.insert(
+            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        let assets = Value {
+            coin: BigNum(1962961),
+            multiasset: Some(token_bundle),
+        };
+        
+        assert_eq!(
+            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+            1962961
+        );
+    }
+
+    #[test]
+    fn two_policies_one_smallest_name() {
+        
+        let mut token_bundle = MultiAsset::new();
+        let mut asset_list = Assets::new();
+        asset_list.insert(
+            &AssetName(vec![]),
+            &BigNum(1)
+        );
+        token_bundle.insert(
+            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        token_bundle.insert(
+            &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        let assets = Value {
+            coin: BigNum(1592591),
+            multiasset: Some(token_bundle),
+        };
+        
+        assert_eq!(
+            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+            1592591
+        );
+    }
+
+    #[test]
+    fn two_policies_two_small_names() {
+        
+        let mut token_bundle = MultiAsset::new();
+        let mut asset_list = Assets::new();
+        asset_list.insert(
+            &AssetName(vec![]),
+            &BigNum(1)
+        );
+        token_bundle.insert(
+            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        token_bundle.insert(
+            &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        let assets = Value {
+            coin: BigNum(1592591),
+            multiasset: Some(token_bundle),
+        };
+        
+        assert_eq!(
+            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+            1592591
+        );
+    }
+
+    #[test]
+    fn three_policies_99_small_names() {
+        
+        let mut token_bundle = MultiAsset::new();
+        fn add_policy(token_bundle: &mut MultiAsset, index: u8) -> () {
+            let mut asset_list = Assets::new();
+
+            for i in 0..33 {
+                asset_list.insert(
+                    &AssetName(vec![i]),
+                    &BigNum(1)
+                );
+            }
+            token_bundle.insert(
+                &PolicyID::from([index; ScriptHash::BYTE_COUNT]),
+                &asset_list
+            );
+        }
+        add_policy(&mut token_bundle, 1);
+        add_policy(&mut token_bundle, 2);
+        add_policy(&mut token_bundle, 3);
+        let assets = Value {
+            coin: BigNum(7592585),
+            multiasset: Some(token_bundle),
+        };
+        
+        assert_eq!(
+            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+            7592585
+        );
+    }
 }

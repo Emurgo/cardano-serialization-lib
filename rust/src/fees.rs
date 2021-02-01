@@ -406,7 +406,7 @@ mod tests {
     //     let w = make_mock_witnesses_vkey(&body, vec![&alice_key()]);
     //     let mut metadata = TransactionMetadata::new();
     //     let mut md_list = TransactionMetadatums::new();
-    //     md_list.add(&TransactionMetadatum::new_int(&Int::new(to_bignum(5))));
+    //     md_list.add(&TransactionMetadatum::new_int(&Int::new(&to_bignum(5))));
     //     md_list.add(&TransactionMetadatum::new_text(String::from("hello")));
     //     metadata.insert(TransactionMetadatumLabel::new(0), &TransactionMetadatum::new_arr_transaction_metadatum(&md_list));
     //     let tx = Transaction::new(&body, &w, Some(metadata));

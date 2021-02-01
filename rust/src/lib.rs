@@ -2116,8 +2116,8 @@ impl Assets {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &AssetName, value: BigNum) -> Option<BigNum> {
-        self.0.insert(key.clone(), value)
+    pub fn insert(&mut self, key: &AssetName, value: &BigNum) -> Option<BigNum> {
+        self.0.insert(key.clone(), value.clone())
     }
 
     pub fn get(&self, key: &AssetName) -> Option<BigNum> {
