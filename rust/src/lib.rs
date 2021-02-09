@@ -867,6 +867,10 @@ impl Ipv4 {
                 DeserializeError::new("Ipv4", DeserializeFailure::CBOR(cbor_error))
             })
     }
+
+    pub fn ip(&self) -> Vec<u8> {
+        self.0.clone()
+    }
 }
 
 #[wasm_bindgen]
@@ -890,6 +894,10 @@ impl Ipv6 {
                 let cbor_error = cbor_event::Error::WrongLen(16, cbor_event::Len::Len(data.len() as u64), "Ipv6 address length");
                 DeserializeError::new("Ipv6", DeserializeFailure::CBOR(cbor_error))
             })
+    }
+
+    pub fn ip(&self) -> Vec<u8> {
+        self.0.clone()
     }
 }
 
@@ -918,6 +926,10 @@ impl URL {
             }))
         }
     }
+
+    pub fn url(&self) -> String {
+        self.0.clone()
+    }
 }
 
 static DNS_NAME_MAX_LEN: usize = 64;
@@ -945,6 +957,10 @@ impl DNSRecordAorAAAA {
             }))
         }
     }
+
+    pub fn record(&self) -> String {
+        self.0.clone()
+    }
 }
 
 #[wasm_bindgen]
@@ -969,6 +985,10 @@ impl DNSRecordSRV {
                 found: dns_name.len(),
             }))
         }
+    }
+
+    pub fn record(&self) -> String {
+        self.0.clone()
     }
 }
 
@@ -2168,6 +2188,10 @@ impl AssetName {
                 found: name.len(),
             }))
         }
+    }
+
+    pub fn name(&self) -> Vec<u8> {
+        self.0.clone()
     }
 }
 

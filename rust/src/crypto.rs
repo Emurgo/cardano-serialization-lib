@@ -677,6 +677,8 @@ macro_rules! impl_hash_type {
 
         #[wasm_bindgen]
         impl $name {
+            // hash types are the only types in this library to not give the entire CBOR structure.
+            // There is no CBOR binary tag here just the raw hash bytes.
             pub fn to_bytes(&self) -> Vec<u8> {
                 self.0.to_vec()
             }
@@ -693,6 +695,8 @@ macro_rules! impl_hash_type {
             }
         }
 
+        // hash types are the only types in this library to not expect the entire CBOR structure.
+        // There is no CBOR binary tag here just the raw hash bytes.
         from_bytes!($name, bytes, {
             use std::convert::TryInto;
             match bytes.len() {
