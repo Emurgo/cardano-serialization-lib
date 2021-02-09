@@ -6,49 +6,6 @@
  */
 
 /**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
-): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -131,6 +88,49 @@ declare export function min_ada_required(
   assets: Value,
   minimum_utxo_val: BigNum
 ): BigNum;
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -401,6 +401,12 @@ declare export class BigNum {
    * @returns {BigNum}
    */
   checked_sub(other: BigNum): BigNum;
+
+  /**
+   * @param {BigNum} rhs_value
+   * @returns {number}
+   */
+  compare(rhs_value: BigNum): number;
 }
 /**
  */
@@ -3659,14 +3665,14 @@ declare export class TransactionBody {
    * @param {TransactionInputs} inputs
    * @param {TransactionOutputs} outputs
    * @param {BigNum} fee
-   * @param {number} ttl
+   * @param {number | void} ttl
    * @returns {TransactionBody}
    */
   static new(
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
     fee: BigNum,
-    ttl: number
+    ttl?: number
   ): TransactionBody;
 }
 /**
@@ -4437,6 +4443,13 @@ declare export class Value {
    * @returns {Value}
    */
   checked_sub(rhs_value: Value): Value;
+
+  /**
+   * note: values are only partially comparable
+   * @param {Value} rhs_value
+   * @returns {number | void}
+   */
+  compare(rhs_value: Value): number | void;
 }
 /**
  */
