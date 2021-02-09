@@ -288,13 +288,13 @@ impl TransactionBody {
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
         fee: &Coin,
-        ttl: Slot,
+        ttl: Option<Slot>,
     ) -> Self {
         Self {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
             fee: fee.clone(),
-            ttl: Some(ttl),
+            ttl: ttl,
             certs: None,
             withdrawals: None,
             update: None,

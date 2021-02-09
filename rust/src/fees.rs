@@ -61,7 +61,7 @@ mod tests {
             .unwrap(),
             &Value::new(to_bignum(1)),
         ));
-        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(94002), 10);
+        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(94002), Some(10));
 
         let mut w = TransactionWitnessSet::new();
         let mut vkw = Vkeywitnesses::new();
@@ -106,7 +106,7 @@ mod tests {
             .unwrap(),
             &Value::new(to_bignum(1)),
         ));
-        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(112002), 10);
+        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(112002), Some(10));
 
         let mut w = TransactionWitnessSet::new();
         let mut bootstrap_wits = BootstrapWitnesses::new();
@@ -171,7 +171,7 @@ mod tests {
             .unwrap(),
             &Value::new(to_bignum(874551452)),
         ));
-        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(183502), 999);
+        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(183502), Some(999));
 
         let mut w = TransactionWitnessSet::new();
         let mut vkw = Vkeywitnesses::new();
@@ -222,7 +222,7 @@ mod tests {
             ).unwrap(),
             &Value::new(to_bignum(1))
         ));
-        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(266002), 10);
+        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(266002), Some(10));
 
         let mut certs = Certificates::new();
 
@@ -451,7 +451,7 @@ mod tests {
             ).unwrap(),
             &Value::new(to_bignum(1))
         ));
-        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(162502), 10);
+        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(162502), Some(10));
         let mut withdrawals = Withdrawals::new();
         withdrawals.insert(
             &RewardAddress::from_address(&Address::from_bytes(
