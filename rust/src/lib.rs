@@ -847,31 +847,130 @@ type Port = u16;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Ipv4(Vec<u8>);
+pub struct Ipv4([u8; 4]);
 
 to_from_bytes!(Ipv4);
 
 #[wasm_bindgen]
 impl Ipv4 {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self(data)
+    pub fn new(data: Vec<u8>) -> Result<Ipv4, JsError> {
+        Self::new_impl(data).map_err(|e| JsError::from_str(&e.to_string()))
+    }
+
+    pub (crate) fn new_impl(data: Vec<u8>) -> Result<Ipv4, DeserializeError> {
+        use std::convert::TryInto;
+        data[..4]
+            .try_into()
+            .map(Self)
+            .map_err(|_e| {
+                let cbor_error = cbor_event::Error::WrongLen(4, cbor_event::Len::Len(data.len() as u64), "Ipv4 address length");
+                DeserializeError::new("Ipv4", DeserializeFailure::CBOR(cbor_error))
+            })
     }
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Ipv6(Vec<u8>);
+pub struct Ipv6([u8; 16]);
 
 to_from_bytes!(Ipv6);
 
 #[wasm_bindgen]
 impl Ipv6 {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self(data)
+    pub fn new(data: Vec<u8>) -> Result<Ipv6, JsError> {
+        Self::new_impl(data).map_err(|e| JsError::from_str(&e.to_string()))
+    }
+
+    pub (crate) fn new_impl(data: Vec<u8>) -> Result<Ipv6, DeserializeError> {
+        use std::convert::TryInto;
+        data[..16]
+            .try_into()
+            .map(Self)
+            .map_err(|_e| {
+                let cbor_error = cbor_event::Error::WrongLen(16, cbor_event::Len::Len(data.len() as u64), "Ipv6 address length");
+                DeserializeError::new("Ipv6", DeserializeFailure::CBOR(cbor_error))
+            })
     }
 }
 
-type DnsName = String;
+static URL_MAX_LEN: usize = 64;
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct URL(String);
+
+to_from_bytes!(URL);
+
+#[wasm_bindgen]
+impl URL {
+    pub fn new(url: String) -> Result<URL, JsError> {
+        Self::new_impl(url).map_err(|e| JsError::from_str(&e.to_string()))
+    }
+
+    pub (crate) fn new_impl(url: String) -> Result<URL, DeserializeError> {
+        if url.len() <= URL_MAX_LEN {
+            Ok(Self(url))
+        } else {
+            Err(DeserializeError::new("URL", DeserializeFailure::OutOfRange{
+                min: 0,
+                max: URL_MAX_LEN,
+                found: url.len(),
+            }))
+        }
+    }
+}
+
+static DNS_NAME_MAX_LEN: usize = 64;
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct DNSRecordAorAAAA(String);
+
+to_from_bytes!(DNSRecordAorAAAA);
+
+#[wasm_bindgen]
+impl DNSRecordAorAAAA {
+    pub fn new(dns_name: String) -> Result<DNSRecordAorAAAA, JsError> {
+        Self::new_impl(dns_name).map_err(|e| JsError::from_str(&e.to_string()))
+    }
+
+    pub (crate) fn new_impl(dns_name: String) -> Result<DNSRecordAorAAAA, DeserializeError> {
+        if dns_name.len() <= DNS_NAME_MAX_LEN {
+            Ok(Self(dns_name))
+        } else {
+            Err(DeserializeError::new("DNSRecordAorAAAA", DeserializeFailure::OutOfRange{
+                min: 0,
+                max: DNS_NAME_MAX_LEN,
+                found: dns_name.len(),
+            }))
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct DNSRecordSRV(String);
+
+to_from_bytes!(DNSRecordSRV);
+
+#[wasm_bindgen]
+impl DNSRecordSRV {
+    pub fn new(dns_name: String) -> Result<DNSRecordSRV, JsError> {
+        Self::new_impl(dns_name).map_err(|e| JsError::from_str(&e.to_string()))
+    }
+
+    pub (crate) fn new_impl(dns_name: String) -> Result<DNSRecordSRV, DeserializeError> {
+        if dns_name.len() <= DNS_NAME_MAX_LEN {
+            Ok(Self(dns_name))
+        } else {
+            Err(DeserializeError::new("DNSRecordSRV", DeserializeFailure::OutOfRange{
+                min: 0,
+                max: DNS_NAME_MAX_LEN,
+                found: dns_name.len(),
+            }))
+        }
+    }
+}
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -910,7 +1009,7 @@ impl SingleHostAddr {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct SingleHostName {
     port: Option<Port>,
-    dns_name: DnsName,
+    dns_name: DNSRecordAorAAAA,
 }
 
 to_from_bytes!(SingleHostName);
@@ -921,14 +1020,14 @@ impl SingleHostName {
         self.port.clone()
     }
 
-    pub fn dns_name(&self) -> DnsName {
+    pub fn dns_name(&self) -> DNSRecordAorAAAA {
         self.dns_name.clone()
     }
 
-    pub fn new(port: Option<Port>, dns_name: DnsName) -> Self {
+    pub fn new(port: Option<Port>, dns_name: &DNSRecordAorAAAA) -> Self {
         Self {
             port: port,
-            dns_name: dns_name,
+            dns_name: dns_name.clone(),
         }
     }
 }
@@ -936,19 +1035,19 @@ impl SingleHostName {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MultiHostName {
-    dns_name: DnsName,
+    dns_name: DNSRecordSRV,
 }
 
 to_from_bytes!(MultiHostName);
 
 #[wasm_bindgen]
 impl MultiHostName {
-    pub fn dns_name(&self) -> DnsName {
+    pub fn dns_name(&self) -> DNSRecordSRV {
         self.dns_name.clone()
     }
 
-    pub fn new(dns_name: DnsName) -> Self {
-        Self { dns_name: dns_name }
+    pub fn new(dns_name: &DNSRecordSRV) -> Self {
+        Self { dns_name: dns_name.clone() }
     }
 }
 
@@ -1020,7 +1119,7 @@ impl Relay {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PoolMetadata {
-    url: Url,
+    url: URL,
     metadata_hash: MetadataHash,
 }
 
@@ -1028,7 +1127,7 @@ to_from_bytes!(PoolMetadata);
 
 #[wasm_bindgen]
 impl PoolMetadata {
-    pub fn url(&self) -> Url {
+    pub fn url(&self) -> URL {
         self.url.clone()
     }
 
@@ -1036,15 +1135,13 @@ impl PoolMetadata {
         self.metadata_hash.clone()
     }
 
-    pub fn new(url: Url, metadata_hash: &MetadataHash) -> Self {
+    pub fn new(url: &URL, metadata_hash: &MetadataHash) -> Self {
         Self {
-            url: url,
+            url: url.clone(),
             metadata_hash: metadata_hash.clone(),
         }
     }
 }
-
-type Url = String;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
