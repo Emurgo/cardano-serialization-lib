@@ -6,49 +6,6 @@
  */
 
 /**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
-): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -131,6 +88,49 @@ declare export function min_ada_required(
   assets: Value,
   minimum_utxo_val: BigNum
 ): BigNum;
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -248,6 +248,11 @@ declare export class AssetName {
    * @returns {AssetName}
    */
   static new(name: Uint8Array): AssetName;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  name(): Uint8Array;
 }
 /**
  */
@@ -401,6 +406,12 @@ declare export class BigNum {
    * @returns {BigNum}
    */
   checked_sub(other: BigNum): BigNum;
+
+  /**
+   * @param {BigNum} rhs_value
+   * @returns {number}
+   */
+  compare(rhs_value: BigNum): number;
 }
 /**
  */
@@ -941,6 +952,60 @@ declare export class Certificates {
 }
 /**
  */
+declare export class DNSRecordAorAAAA {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DNSRecordAorAAAA}
+   */
+  static from_bytes(bytes: Uint8Array): DNSRecordAorAAAA;
+
+  /**
+   * @param {string} dns_name
+   * @returns {DNSRecordAorAAAA}
+   */
+  static new(dns_name: string): DNSRecordAorAAAA;
+
+  /**
+   * @returns {string}
+   */
+  record(): string;
+}
+/**
+ */
+declare export class DNSRecordSRV {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DNSRecordSRV}
+   */
+  static from_bytes(bytes: Uint8Array): DNSRecordSRV;
+
+  /**
+   * @param {string} dns_name
+   * @returns {DNSRecordSRV}
+   */
+  static new(dns_name: string): DNSRecordSRV;
+
+  /**
+   * @returns {string}
+   */
+  record(): string;
+}
+/**
+ */
 declare export class Ed25519KeyHash {
   free(): void;
 
@@ -1446,6 +1511,11 @@ declare export class Ipv4 {
    * @returns {Ipv4}
    */
   static new(data: Uint8Array): Ipv4;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  ip(): Uint8Array;
 }
 /**
  */
@@ -1468,6 +1538,11 @@ declare export class Ipv6 {
    * @returns {Ipv6}
    */
   static new(data: Uint8Array): Ipv6;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  ip(): Uint8Array;
 }
 /**
  */
@@ -1951,15 +2026,15 @@ declare export class MultiHostName {
   static from_bytes(bytes: Uint8Array): MultiHostName;
 
   /**
-   * @returns {string}
+   * @returns {DNSRecordSRV}
    */
-  dns_name(): string;
+  dns_name(): DNSRecordSRV;
 
   /**
-   * @param {string} dns_name
+   * @param {DNSRecordSRV} dns_name
    * @returns {MultiHostName}
    */
-  static new(dns_name: string): MultiHostName;
+  static new(dns_name: DNSRecordSRV): MultiHostName;
 }
 /**
  */
@@ -2271,9 +2346,9 @@ declare export class PoolMetadata {
   static from_bytes(bytes: Uint8Array): PoolMetadata;
 
   /**
-   * @returns {string}
+   * @returns {URL}
    */
-  url(): string;
+  url(): URL;
 
   /**
    * @returns {MetadataHash}
@@ -2281,11 +2356,11 @@ declare export class PoolMetadata {
   metadata_hash(): MetadataHash;
 
   /**
-   * @param {string} url
+   * @param {URL} url
    * @param {MetadataHash} metadata_hash
    * @returns {PoolMetadata}
    */
-  static new(url: string, metadata_hash: MetadataHash): PoolMetadata;
+  static new(url: URL, metadata_hash: MetadataHash): PoolMetadata;
 }
 /**
  */
@@ -3244,16 +3319,16 @@ declare export class SingleHostName {
   port(): number | void;
 
   /**
-   * @returns {string}
+   * @returns {DNSRecordAorAAAA}
    */
-  dns_name(): string;
+  dns_name(): DNSRecordAorAAAA;
 
   /**
    * @param {number | void} port
-   * @param {string} dns_name
+   * @param {DNSRecordAorAAAA} dns_name
    * @returns {SingleHostName}
    */
-  static new(port: number | void, dns_name: string): SingleHostName;
+  static new(port: number | void, dns_name: DNSRecordAorAAAA): SingleHostName;
 }
 /**
  */
@@ -3659,14 +3734,14 @@ declare export class TransactionBody {
    * @param {TransactionInputs} inputs
    * @param {TransactionOutputs} outputs
    * @param {BigNum} fee
-   * @param {number} ttl
+   * @param {number | void} ttl
    * @returns {TransactionBody}
    */
   static new(
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
     fee: BigNum,
-    ttl: number
+    ttl?: number
   ): TransactionBody;
 }
 /**
@@ -4239,6 +4314,33 @@ declare export class TransactionWitnessSets {
 }
 /**
  */
+declare export class URL {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {URL}
+   */
+  static from_bytes(bytes: Uint8Array): URL;
+
+  /**
+   * @param {string} url
+   * @returns {URL}
+   */
+  static new(url: string): URL;
+
+  /**
+   * @returns {string}
+   */
+  url(): string;
+}
+/**
+ */
 declare export class UnitInterval {
   free(): void;
 
@@ -4437,6 +4539,13 @@ declare export class Value {
    * @returns {Value}
    */
   checked_sub(rhs_value: Value): Value;
+
+  /**
+   * note: values are only partially comparable
+   * @param {Value} rhs_value
+   * @returns {number | void}
+   */
+  compare(rhs_value: Value): number | void;
 }
 /**
  */

@@ -288,13 +288,13 @@ impl TransactionBody {
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
         fee: &Coin,
-        ttl: Slot,
+        ttl: Option<Slot>,
     ) -> Self {
         Self {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
             fee: fee.clone(),
-            ttl: Some(ttl),
+            ttl: ttl,
             certs: None,
             withdrawals: None,
             update: None,
@@ -869,7 +869,7 @@ impl Ipv4 {
     }
 
     pub fn ip(&self) -> Vec<u8> {
-        self.0.clone()
+        self.0.to_vec()
     }
 }
 
@@ -897,7 +897,7 @@ impl Ipv6 {
     }
 
     pub fn ip(&self) -> Vec<u8> {
-        self.0.clone()
+        self.0.to_vec()
     }
 }
 

@@ -107,6 +107,14 @@ impl BigNum {
             None => Err(JsError::from_str("underflow")),
         }
     }
+
+    pub fn compare(&self, rhs_value: &BigNum) -> i8 {
+        match self.cmp(&rhs_value) {
+            std::cmp::Ordering::Equal => 0,
+            std::cmp::Ordering::Less => -1,
+            std::cmp::Ordering::Greater => 1,
+        }
+    }
 }
 
 impl cbor_event::se::Serialize for BigNum {
@@ -246,6 +254,16 @@ impl Value {
         };
 
         Ok(Value { coin, multiasset })
+    }
+
+    /// note: values are only partially comparable
+    pub fn compare(&self, rhs_value: &Value) -> Option<i8> {
+        match self.partial_cmp(&rhs_value) {
+            None => None,
+            Some(std::cmp::Ordering::Equal) => Some(0),
+            Some(std::cmp::Ordering::Less) => Some(-1),
+            Some(std::cmp::Ordering::Greater) => Some(1),
+        }
     }
 }
 
