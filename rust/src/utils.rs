@@ -108,6 +108,14 @@ impl BigNum {
         }
     }
 
+    /// returns 0 if it would otherwise underflow
+    pub fn clamped_sub(&self, other: &BigNum) -> Result<BigNum, JsError> {
+        match self.0.checked_sub(other.0) {
+            Some(value) => Ok(BigNum(value)),
+            None => Ok(BigNum(0)),
+        }
+    }
+
     pub fn compare(&self, rhs_value: &BigNum) -> i8 {
         match self.cmp(&rhs_value) {
             std::cmp::Ordering::Equal => 0,
@@ -224,32 +232,24 @@ impl Value {
         let coin = self.coin.checked_sub(&rhs_value.coin)?;
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                let mut lhs_ma = lhs_ma.clone();
-                for (policy, assets) in &rhs_ma.0 {
-                    for (asset_name, amount) in &assets.0 {
-                        match lhs_ma.0.get_mut(policy) {
-                            Some(assets) => match assets.0.get_mut(asset_name) {
-                                Some(current) => match current.checked_sub(&amount) {
-                                    Ok(new) => *current = new,
-                                    Err(_) => {
-                                        assets.0.remove(asset_name);
-                                    }
-                                },
-                                None => {
-                                    return Err(JsError::from_str("underflow when substracting native asset amount"));
-                                }
-                            },
-                            None => {
-                                return Err(JsError::from_str("policy id missing from left hand side"));
-                            }
-                        }
-                    }
-                }
-
-                Some(lhs_ma)
-        },
+                Some(lhs_ma.sub(rhs_ma)?)
+            },
             (Some(lhs_ma), None) => Some(lhs_ma.clone()),
-            (None, Some(rhs_ma)) => Some(rhs_ma.clone()),
+            (None, Some(_rhs_ma)) => None,
+            (None, None) => None
+        };
+
+        Ok(Value { coin, multiasset })
+    }
+
+    pub fn clamped_sub(&self, rhs_value: &Value) -> Result<Value, JsError> {
+        let coin = self.coin.clamped_sub(&rhs_value.coin)?;
+        let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
+            (Some(lhs_ma), Some(rhs_ma)) => {
+                Some(lhs_ma.sub(rhs_ma)?)
+            },
+            (Some(lhs_ma), None) => Some(lhs_ma.clone()),
+            (None, Some(_rhs_ma)) => None,
             (None, None) => None
         };
 
@@ -982,6 +982,120 @@ mod tests {
         assert_eq!(
             min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
             7592585
+        );
+    }
+
+    #[test]
+    fn subtract_values() {
+        let policy1 = PolicyID::from([0; ScriptHash::BYTE_COUNT]);
+        let policy2 = PolicyID::from([1; ScriptHash::BYTE_COUNT]);
+
+        let asset1 = AssetName(vec![1]);
+        let asset2 = AssetName(vec![2]);
+        let asset3 = AssetName(vec![3]);
+        let asset4 = AssetName(vec![4]);
+
+        let mut token_bundle1 = MultiAsset::new();
+        {
+            let mut asset_list1 = Assets::new();
+            asset_list1.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            asset_list1.insert(
+                &asset2,
+                &BigNum(1)
+            );
+            asset_list1.insert(
+                &asset3,
+                &BigNum(1)
+            );
+            asset_list1.insert(
+                &asset4,
+                &BigNum(2)
+            );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+
+            let mut asset_list2 = Assets::new();
+            asset_list2.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle1.insert(
+                &policy2,
+                &asset_list2
+            );
+        }
+        let assets1 = Value {
+            coin: BigNum(1555554),
+            multiasset: Some(token_bundle1),
+        };
+
+        let mut token_bundle2 = MultiAsset::new();
+        {
+            let mut asset_list2 = Assets::new();
+            // more than asset1 bundle
+            asset_list2.insert(
+                &asset1,
+                &BigNum(2)
+            );
+            // exactly equal to asset1 bundle
+            asset_list2.insert(
+                &asset2,
+                &BigNum(1)
+            );
+            // skip asset 3
+            // less than in asset1 bundle
+            asset_list2.insert(
+                &asset4,
+                &BigNum(1)
+            );
+            token_bundle2.insert(
+                &policy1,
+                &asset_list2
+            );
+
+            // this policy should be removed entirely
+            let mut asset_list2 = Assets::new();
+            asset_list2.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle2.insert(
+                &policy2,
+                &asset_list2
+            );
+        }
+
+        let assets2 = Value {
+            coin: BigNum(2555554),
+            multiasset: Some(token_bundle2),
+        };
+
+        let result = assets1.clamped_sub(&assets2).unwrap();
+        assert_eq!(
+            result.coin().to_str(),
+            "0"
+        );
+        assert_eq!(
+            result.multiasset().unwrap().len(),
+            1 // policy 2 was deleted successfully
+        );
+        let policy1_content = result.multiasset().unwrap().get(&policy1).unwrap();
+        assert_eq!(
+            policy1_content.len(),
+            2
+        );
+        assert_eq!(
+            policy1_content.get(&asset3).unwrap().to_str(),
+            "1"
+        );
+        assert_eq!(
+            policy1_content.get(&asset4).unwrap().to_str(),
+            "1"
         );
     }
 }

@@ -408,6 +408,13 @@ declare export class BigNum {
   checked_sub(other: BigNum): BigNum;
 
   /**
+   * returns 0 if it would otherwise underflow
+   * @param {BigNum} other
+   * @returns {BigNum}
+   */
+  clamped_sub(other: BigNum): BigNum;
+
+  /**
    * @param {BigNum} rhs_value
    * @returns {number}
    */
@@ -2008,6 +2015,13 @@ declare export class MultiAsset {
    * @returns {ScriptHashes}
    */
   keys(): ScriptHashes;
+
+  /**
+   * removes an asset from the list if the result is 0 or less
+   * @param {MultiAsset} rhs_ma
+   * @returns {MultiAsset}
+   */
+  sub(rhs_ma: MultiAsset): MultiAsset;
 }
 /**
  */
@@ -4539,6 +4553,12 @@ declare export class Value {
    * @returns {Value}
    */
   checked_sub(rhs_value: Value): Value;
+
+  /**
+   * @param {Value} rhs_value
+   * @returns {Value}
+   */
+  clamped_sub(rhs_value: Value): Value;
 
   /**
    * note: values are only partially comparable

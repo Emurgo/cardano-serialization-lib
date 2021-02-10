@@ -2277,6 +2277,47 @@ impl MultiAsset {
     pub fn keys(&self) -> PolicyIDs {
         ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<PolicyID>>())
     }
+
+    /// removes an asset from the list if the result is 0 or less
+    pub fn sub(&self, rhs_ma: &MultiAsset) -> Result<MultiAsset, JsError> {
+        let mut lhs_ma = self.clone();
+        for (policy, assets) in &rhs_ma.0 {
+            for (asset_name, amount) in &assets.0 {
+                match lhs_ma.0.get_mut(policy) {
+                    Some(assets) => match assets.0.get_mut(asset_name) {
+                        Some(current) => match current.checked_sub(&amount) {
+                            Ok(new) => {
+                                match new.compare(&BigNum::from_str("0")?) {
+                                    0 => {
+                                        assets.0.remove(asset_name);
+                                        match assets.0.len() {
+                                            0 => { lhs_ma.0.remove(policy); },
+                                            _ => {},
+                                        }
+                                    },
+                                    _ => *current = new
+                                }
+                            },
+                            Err(_) => {
+                                assets.0.remove(asset_name);
+                                match assets.0.len() {
+                                    0 => { lhs_ma.0.remove(policy); },
+                                    _ => {},
+                                }
+                            }
+                        },
+                        None => {
+                            // asset name is missing from left hand side
+                        }
+                    },
+                    None => {
+                        // policy id missing from left hand side
+                    }
+                }
+            }
+        }
+        Ok(lhs_ma)
+    }
 }
 
 #[wasm_bindgen]
