@@ -869,7 +869,7 @@ impl Ipv4 {
     }
 
     pub fn ip(&self) -> Vec<u8> {
-        self.0.clone()
+        self.0.to_vec()
     }
 }
 
@@ -897,7 +897,7 @@ impl Ipv6 {
     }
 
     pub fn ip(&self) -> Vec<u8> {
-        self.0.clone()
+        self.0.to_vec()
     }
 }
 
