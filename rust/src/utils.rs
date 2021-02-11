@@ -109,10 +109,10 @@ impl BigNum {
     }
 
     /// returns 0 if it would otherwise underflow
-    pub fn clamped_sub(&self, other: &BigNum) -> Result<BigNum, JsError> {
+    pub fn clamped_sub(&self, other: &BigNum) -> BigNum {
         match self.0.checked_sub(other.0) {
-            Some(value) => Ok(BigNum(value)),
-            None => Ok(BigNum(0)),
+            Some(value) => BigNum(value),
+            None => BigNum(0),
         }
     }
 
@@ -159,9 +159,9 @@ pub struct Value {
 
 #[wasm_bindgen]
 impl Value {
-    pub fn new(coin: Coin) -> Value {
+    pub fn new(coin: &Coin) -> Value {
         Self {
-            coin,
+            coin: coin.clone(),
             multiasset: None,
         }
     }
@@ -170,8 +170,8 @@ impl Value {
         self.coin
     }
 
-    pub fn set_coin(&mut self, coin: Coin) {
-        self.coin = coin;
+    pub fn set_coin(&mut self, coin: &Coin) {
+        self.coin = coin.clone();
     }
 
     pub fn multiasset(&self) -> Option<MultiAsset> {
@@ -232,7 +232,7 @@ impl Value {
         let coin = self.coin.checked_sub(&rhs_value.coin)?;
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                Some(lhs_ma.sub(rhs_ma)?)
+                Some(lhs_ma.sub(rhs_ma))
             },
             (Some(lhs_ma), None) => Some(lhs_ma.clone()),
             (None, Some(_rhs_ma)) => None,
@@ -242,18 +242,18 @@ impl Value {
         Ok(Value { coin, multiasset })
     }
 
-    pub fn clamped_sub(&self, rhs_value: &Value) -> Result<Value, JsError> {
-        let coin = self.coin.clamped_sub(&rhs_value.coin)?;
+    pub fn clamped_sub(&self, rhs_value: &Value) -> Value {
+        let coin = self.coin.clamped_sub(&rhs_value.coin);
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                Some(lhs_ma.sub(rhs_ma)?)
+                Some(lhs_ma.sub(rhs_ma))
             },
             (Some(lhs_ma), None) => Some(lhs_ma.clone()),
             (None, Some(_rhs_ma)) => None,
             (None, None) => None
         };
 
-        Ok(Value { coin, multiasset })
+        Value { coin, multiasset }
     }
 
     /// note: values are only partially comparable
@@ -338,7 +338,7 @@ impl Deserialize for Value {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             match raw.cbor_type()? {
-                cbor_event::Type::UnsignedInteger => Ok(Value::new(Coin::deserialize(raw)?)),
+                cbor_event::Type::UnsignedInteger => Ok(Value::new(&Coin::deserialize(raw)?)),
                 cbor_event::Type::Array => {
                     let len = raw.array()?;
                     let coin = (|| -> Result<_, DeserializeError> {
@@ -599,9 +599,7 @@ pub fn internal_get_implicit_input(
             )?
     };
 
-    withdrawal_sum
-        .checked_add(&certificate_refund)
-        .map(Value::new)
+    Ok(Value::new(&withdrawal_sum.checked_add(&certificate_refund)?))
 }
 pub fn internal_get_deposit(
     certs: &Option<Certificates>,
@@ -1075,7 +1073,7 @@ mod tests {
             multiasset: Some(token_bundle2),
         };
 
-        let result = assets1.clamped_sub(&assets2).unwrap();
+        let result = assets1.clamped_sub(&assets2);
         assert_eq!(
             result.coin().to_str(),
             "0"

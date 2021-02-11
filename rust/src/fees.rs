@@ -59,7 +59,7 @@ mod tests {
                 hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
             )
             .unwrap(),
-            &Value::new(to_bignum(1)),
+            &Value::new(&to_bignum(1)),
         ));
         let body = TransactionBody::new(&inputs, &outputs, &to_bignum(94002), Some(10));
 
@@ -104,7 +104,7 @@ mod tests {
                 hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
             )
             .unwrap(),
-            &Value::new(to_bignum(1)),
+            &Value::new(&to_bignum(1)),
         ));
         let body = TransactionBody::new(&inputs, &outputs, &to_bignum(112002), Some(10));
 
@@ -162,14 +162,14 @@ mod tests {
                 hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
             )
             .unwrap(),
-            &Value::new(to_bignum(289)),
+            &Value::new(&to_bignum(289)),
         ));
         outputs.add(&TransactionOutput::new(
             &Address::from_bytes(
                 hex::decode("61bcd18fcffa797c16c007014e2b8553b8b9b1e94c507688726243d611").unwrap(),
             )
             .unwrap(),
-            &Value::new(to_bignum(874551452)),
+            &Value::new(&to_bignum(874551452)),
         ));
         let body = TransactionBody::new(&inputs, &outputs, &to_bignum(183502), Some(999));
 
@@ -220,7 +220,7 @@ mod tests {
             &Address::from_bytes(
                 hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
             ).unwrap(),
-            &Value::new(to_bignum(1))
+            &Value::new(&to_bignum(1))
         ));
         let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(266002), Some(10));
 
@@ -449,7 +449,7 @@ mod tests {
             &Address::from_bytes(
                 hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
             ).unwrap(),
-            &Value::new(to_bignum(1))
+            &Value::new(&to_bignum(1))
         ));
         let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(162502), Some(10));
         let mut withdrawals = Withdrawals::new();
