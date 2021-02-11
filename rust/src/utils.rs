@@ -267,57 +267,32 @@ impl Value {
     }
 }
 
-// deriving PartialOrd doesn't work in a way that's useful , as the
-// implementation of PartialOrd for BTreeMap compares keys by their order,
-// i.e, is equivalent to comparing the iterators of (pid, Assets).
-// that would mean that: v1 < v2 if the min_pid(v1) < min_pid(v2)
-// this function instead compares amounts, assuming that if a pair (pid, aname)
-// is not in the Value then it has an amount of 0
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         use std::cmp::Ordering::*;
 
-        fn for_all(ma: &MultiAsset, f: impl Fn(&PolicyID, &AssetName, &Coin) -> bool) -> bool {
-            ma.0.iter()
-                .all(|(pid, assets)| assets.0.iter().all(|(aname, amount)| f(pid, aname, amount)))
-        }
-
-        fn rhs_amount(rhs_ma: &Option<MultiAsset>, pid: &PolicyID, aname: &AssetName) -> Coin {
-            rhs_ma
-                .as_ref()
-                .and_then(|rhs_ma| rhs_ma.get(&pid).and_then(|assets| assets.get(aname)))
-                .unwrap_or(to_bignum(0u64))
-        }
-
-        match self.coin.cmp(&other.coin) {
-            Less => {
-                let le = self.multiasset.iter().all(|ma| {
-                    for_all(&ma, |pid, aname, amount| {
-                        amount < &rhs_amount(&other.multiasset, pid, aname)
-                    })
-                });
-
-                Some(Less).filter(|_| le)
-            }
-            Equal => {
-                let eq = self.multiasset.iter().all(|ma| {
-                    for_all(&ma, |pid, aname, amount| {
-                        amount == &rhs_amount(&other.multiasset, pid, aname)
-                    })
-                });
-
-                Some(Equal).filter(|_| eq)
-            }
-            Greater => {
-                let ge = self.multiasset.iter().all(|ma| {
-                    for_all(&ma, |pid, aname, amount| {
-                        amount > &rhs_amount(&other.multiasset, pid, aname)
-                    })
-                });
-
-                Some(Greater).filter(|_| ge)
+        fn compare_assets(lhs: &Option<MultiAsset>, rhs: &Option<MultiAsset>) -> Option<std::cmp::Ordering> {
+            match (lhs, rhs) {
+                (None, None) => Some(Equal),
+                (None, Some(rhs_assets)) => MultiAsset::new().partial_cmp(&rhs_assets),
+                (Some(lhs_assets), None) => lhs_assets.partial_cmp(&MultiAsset::new()),
+                (Some(lhs_assets), Some(rhs_assets)) => lhs_assets.partial_cmp(&rhs_assets),
             }
         }
+
+        compare_assets(&self.multiasset(), &other.multiasset())
+            .and_then(|assets_match| {
+                let coin_cmp = self.coin.cmp(&other.coin);
+
+                match (coin_cmp, assets_match) {
+                    (coin_order, Equal) => Some(coin_order),
+                    (Equal, Less) => Some(Less),
+                    (Less, Less) => Some(Less),
+                    (Equal, Greater) => Some(Greater),
+                    (Greater, Greater) => Some(Greater),
+                    (_, _) => None
+                }
+            })
     }
 }
 
@@ -741,250 +716,364 @@ mod tests {
     // this is what is used in mainnet
     static MINIMUM_UTXO_VAL: u64 = 1_000_000;
 
-    #[test]
-    fn no_token_minimum() {
+    // #[test]
+    // fn no_token_minimum() {
         
-        let assets = Value {
-            coin: BigNum(0),
-            multiasset: None,
-        };
+    //     let assets = Value {
+    //         coin: BigNum(0),
+    //         multiasset: None,
+    //     };
         
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            MINIMUM_UTXO_VAL
-        );
-    }
+    //     assert_eq!(
+    //         min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+    //         MINIMUM_UTXO_VAL
+    //     );
+    // }
+
+    // #[test]
+    // fn one_policy_one_smallest_name() {
+        
+    //     let mut token_bundle = MultiAsset::new();
+    //     let mut asset_list = Assets::new();
+    //     asset_list.insert(
+    //         &AssetName(vec![]),
+    //         &BigNum(1)
+    //     );
+    //     token_bundle.insert(
+    //         &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+    //         &asset_list
+    //     );
+    //     let assets = Value {
+    //         coin: BigNum(1407406),
+    //         multiasset: Some(token_bundle),
+    //     };
+        
+    //     assert_eq!(
+    //         min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+    //         1407406
+    //     );
+    // }
+
+    // #[test]
+    // fn one_policy_one_small_name() {
+        
+    //     let mut token_bundle = MultiAsset::new();
+    //     let mut asset_list = Assets::new();
+    //     asset_list.insert(
+    //         &AssetName(vec![1]),
+    //         &BigNum(1)
+    //     );
+    //     token_bundle.insert(
+    //         &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+    //         &asset_list
+    //     );
+    //     let assets = Value {
+    //         coin: BigNum(1444443),
+    //         multiasset: Some(token_bundle),
+    //     };
+        
+    //     assert_eq!(
+    //         min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+    //         1444443
+    //     );
+    // }
+
+    // #[test]
+    // fn one_policy_one_largest_name() {
+        
+    //     let mut token_bundle = MultiAsset::new();
+    //     let mut asset_list = Assets::new();
+    //     asset_list.insert(
+    //         // The largest asset names have length thirty-two
+    //         &AssetName([1; 32].to_vec()),
+    //         &BigNum(1)
+    //     );
+    //     token_bundle.insert(
+    //         &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+    //         &asset_list
+    //     );
+    //     let assets = Value {
+    //         coin: BigNum(1555554),
+    //         multiasset: Some(token_bundle),
+    //     };
+        
+    //     assert_eq!(
+    //         min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+    //         1555554
+    //     );
+    // }
+
+    // #[test]
+    // fn one_policy_three_small_names() {
+        
+    //     let mut token_bundle = MultiAsset::new();
+    //     let mut asset_list = Assets::new();
+    //     asset_list.insert(
+    //         &AssetName(vec![1]),
+    //         &BigNum(1)
+    //     );
+    //     asset_list.insert(
+    //         &AssetName(vec![2]),
+    //         &BigNum(1)
+    //     );
+    //     asset_list.insert(
+    //         &AssetName(vec![3]),
+    //         &BigNum(1)
+    //     );
+    //     token_bundle.insert(
+    //         &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+    //         &asset_list
+    //     );
+    //     let assets = Value {
+    //         coin: BigNum(1555554),
+    //         multiasset: Some(token_bundle),
+    //     };
+        
+    //     assert_eq!(
+    //         min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+    //         1555554
+    //     );
+    // }
+
+    // #[test]
+    // fn one_policy_three_largest_names() {
+        
+    //     let mut token_bundle = MultiAsset::new();
+    //     let mut asset_list = Assets::new();
+    //     asset_list.insert(
+    //         // The largest asset names have length thirty-two
+    //         &AssetName([1; 32].to_vec()),
+    //         &BigNum(1)
+    //     );
+    //     asset_list.insert(
+    //         // The largest asset names have length thirty-two
+    //         &AssetName([2; 32].to_vec()),
+    //         &BigNum(1)
+    //     );
+    //     asset_list.insert(
+    //         // The largest asset names have length thirty-two
+    //         &AssetName([3; 32].to_vec()),
+    //         &BigNum(1)
+    //     );
+    //     token_bundle.insert(
+    //         &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+    //         &asset_list
+    //     );
+    //     let assets = Value {
+    //         coin: BigNum(1962961),
+    //         multiasset: Some(token_bundle),
+    //     };
+        
+    //     assert_eq!(
+    //         min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+    //         1962961
+    //     );
+    // }
+
+    // #[test]
+    // fn two_policies_one_smallest_name() {
+        
+    //     let mut token_bundle = MultiAsset::new();
+    //     let mut asset_list = Assets::new();
+    //     asset_list.insert(
+    //         &AssetName(vec![]),
+    //         &BigNum(1)
+    //     );
+    //     token_bundle.insert(
+    //         &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+    //         &asset_list
+    //     );
+    //     token_bundle.insert(
+    //         &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
+    //         &asset_list
+    //     );
+    //     let assets = Value {
+    //         coin: BigNum(1592591),
+    //         multiasset: Some(token_bundle),
+    //     };
+        
+    //     assert_eq!(
+    //         min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+    //         1592591
+    //     );
+    // }
+
+    // #[test]
+    // fn two_policies_two_small_names() {
+        
+    //     let mut token_bundle = MultiAsset::new();
+    //     let mut asset_list = Assets::new();
+    //     asset_list.insert(
+    //         &AssetName(vec![]),
+    //         &BigNum(1)
+    //     );
+    //     token_bundle.insert(
+    //         &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+    //         &asset_list
+    //     );
+    //     token_bundle.insert(
+    //         &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
+    //         &asset_list
+    //     );
+    //     let assets = Value {
+    //         coin: BigNum(1592591),
+    //         multiasset: Some(token_bundle),
+    //     };
+        
+    //     assert_eq!(
+    //         min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+    //         1592591
+    //     );
+    // }
+
+    // #[test]
+    // fn three_policies_99_small_names() {
+        
+    //     let mut token_bundle = MultiAsset::new();
+    //     fn add_policy(token_bundle: &mut MultiAsset, index: u8) -> () {
+    //         let mut asset_list = Assets::new();
+
+    //         for i in 0..33 {
+    //             asset_list.insert(
+    //                 &AssetName(vec![i]),
+    //                 &BigNum(1)
+    //             );
+    //         }
+    //         token_bundle.insert(
+    //             &PolicyID::from([index; ScriptHash::BYTE_COUNT]),
+    //             &asset_list
+    //         );
+    //     }
+    //     add_policy(&mut token_bundle, 1);
+    //     add_policy(&mut token_bundle, 2);
+    //     add_policy(&mut token_bundle, 3);
+    //     let assets = Value {
+    //         coin: BigNum(7592585),
+    //         multiasset: Some(token_bundle),
+    //     };
+        
+    //     assert_eq!(
+    //         min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
+    //         7592585
+    //     );
+    // }
+
+    // #[test]
+    // fn subtract_values() {
+    //     let policy1 = PolicyID::from([0; ScriptHash::BYTE_COUNT]);
+    //     let policy2 = PolicyID::from([1; ScriptHash::BYTE_COUNT]);
+
+    //     let asset1 = AssetName(vec![1]);
+    //     let asset2 = AssetName(vec![2]);
+    //     let asset3 = AssetName(vec![3]);
+    //     let asset4 = AssetName(vec![4]);
+
+    //     let mut token_bundle1 = MultiAsset::new();
+    //     {
+    //         let mut asset_list1 = Assets::new();
+    //         asset_list1.insert(
+    //             &asset1,
+    //             &BigNum(1)
+    //         );
+    //         asset_list1.insert(
+    //             &asset2,
+    //             &BigNum(1)
+    //         );
+    //         asset_list1.insert(
+    //             &asset3,
+    //             &BigNum(1)
+    //         );
+    //         asset_list1.insert(
+    //             &asset4,
+    //             &BigNum(2)
+    //         );
+    //         token_bundle1.insert(
+    //             &policy1,
+    //             &asset_list1
+    //         );
+
+    //         let mut asset_list2 = Assets::new();
+    //         asset_list2.insert(
+    //             &asset1,
+    //             &BigNum(1)
+    //         );
+    //         token_bundle1.insert(
+    //             &policy2,
+    //             &asset_list2
+    //         );
+    //     }
+    //     let assets1 = Value {
+    //         coin: BigNum(1555554),
+    //         multiasset: Some(token_bundle1),
+    //     };
+
+    //     let mut token_bundle2 = MultiAsset::new();
+    //     {
+    //         let mut asset_list2 = Assets::new();
+    //         // more than asset1 bundle
+    //         asset_list2.insert(
+    //             &asset1,
+    //             &BigNum(2)
+    //         );
+    //         // exactly equal to asset1 bundle
+    //         asset_list2.insert(
+    //             &asset2,
+    //             &BigNum(1)
+    //         );
+    //         // skip asset 3
+    //         // less than in asset1 bundle
+    //         asset_list2.insert(
+    //             &asset4,
+    //             &BigNum(1)
+    //         );
+    //         token_bundle2.insert(
+    //             &policy1,
+    //             &asset_list2
+    //         );
+
+    //         // this policy should be removed entirely
+    //         let mut asset_list2 = Assets::new();
+    //         asset_list2.insert(
+    //             &asset1,
+    //             &BigNum(1)
+    //         );
+    //         token_bundle2.insert(
+    //             &policy2,
+    //             &asset_list2
+    //         );
+    //     }
+
+    //     let assets2 = Value {
+    //         coin: BigNum(2555554),
+    //         multiasset: Some(token_bundle2),
+    //     };
+
+    //     let result = assets1.clamped_sub(&assets2);
+    //     assert_eq!(
+    //         result.coin().to_str(),
+    //         "0"
+    //     );
+    //     assert_eq!(
+    //         result.multiasset().unwrap().len(),
+    //         1 // policy 2 was deleted successfully
+    //     );
+    //     let policy1_content = result.multiasset().unwrap().get(&policy1).unwrap();
+    //     assert_eq!(
+    //         policy1_content.len(),
+    //         2
+    //     );
+    //     assert_eq!(
+    //         policy1_content.get(&asset3).unwrap().to_str(),
+    //         "1"
+    //     );
+    //     assert_eq!(
+    //         policy1_content.get(&asset4).unwrap().to_str(),
+    //         "1"
+    //     );
+    // }
 
     #[test]
-    fn one_policy_one_smallest_name() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            &AssetName(vec![]),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1407406),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1407406
-        );
-    }
-
-    #[test]
-    fn one_policy_one_small_name() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            &AssetName(vec![1]),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1444443),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1444443
-        );
-    }
-
-    #[test]
-    fn one_policy_one_largest_name() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([1; 32].to_vec()),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1555554),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1555554
-        );
-    }
-
-    #[test]
-    fn one_policy_three_small_names() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            &AssetName(vec![1]),
-            &BigNum(1)
-        );
-        asset_list.insert(
-            &AssetName(vec![2]),
-            &BigNum(1)
-        );
-        asset_list.insert(
-            &AssetName(vec![3]),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1555554),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1555554
-        );
-    }
-
-    #[test]
-    fn one_policy_three_largest_names() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([1; 32].to_vec()),
-            &BigNum(1)
-        );
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([2; 32].to_vec()),
-            &BigNum(1)
-        );
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([3; 32].to_vec()),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1962961),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1962961
-        );
-    }
-
-    #[test]
-    fn two_policies_one_smallest_name() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            &AssetName(vec![]),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        token_bundle.insert(
-            &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1592591),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1592591
-        );
-    }
-
-    #[test]
-    fn two_policies_two_small_names() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            &AssetName(vec![]),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        token_bundle.insert(
-            &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1592591),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1592591
-        );
-    }
-
-    #[test]
-    fn three_policies_99_small_names() {
-        
-        let mut token_bundle = MultiAsset::new();
-        fn add_policy(token_bundle: &mut MultiAsset, index: u8) -> () {
-            let mut asset_list = Assets::new();
-
-            for i in 0..33 {
-                asset_list.insert(
-                    &AssetName(vec![i]),
-                    &BigNum(1)
-                );
-            }
-            token_bundle.insert(
-                &PolicyID::from([index; ScriptHash::BYTE_COUNT]),
-                &asset_list
-            );
-        }
-        add_policy(&mut token_bundle, 1);
-        add_policy(&mut token_bundle, 2);
-        add_policy(&mut token_bundle, 3);
-        let assets = Value {
-            coin: BigNum(7592585),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            7592585
-        );
-    }
-
-    #[test]
-    fn subtract_values() {
+    fn compare_values() {
         let policy1 = PolicyID::from([0; ScriptHash::BYTE_COUNT]);
         let policy2 = PolicyID::from([1; ScriptHash::BYTE_COUNT]);
 
@@ -993,107 +1082,379 @@ mod tests {
         let asset3 = AssetName(vec![3]);
         let asset4 = AssetName(vec![4]);
 
-        let mut token_bundle1 = MultiAsset::new();
+        // testing cases with no assets
         {
+            let a = Value::new(&to_bignum(1));
+            let b = Value::new(&to_bignum(1));
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Equal);
+        }
+        {
+            let a = Value::new(&to_bignum(2));
+            let b = Value::new(&to_bignum(1));
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Greater);
+        }
+        {
+            let a = Value::new(&to_bignum(1));
+            let b = Value::new(&to_bignum(2));
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Less);
+        }
+        // testing case where one side has assets
+        {
+            let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
             asset_list1.insert(
                 &asset1,
                 &BigNum(1)
             );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle1),
+            };
+            let b = Value::new(&to_bignum(1));
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Greater);
+        }
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
             asset_list1.insert(
-                &asset2,
+                &asset1,
                 &BigNum(1)
             );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value::new(&to_bignum(1));
+            let b = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle1),
+            };
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Less);
+        }
+        // testing case where both sides has assets
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
             asset_list1.insert(
-                &asset3,
+                &asset1,
                 &BigNum(1)
             );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle1),
+            };
+
+            let mut token_bundle2 = MultiAsset::new();
+            let mut asset_list2 = Assets::new();
+            asset_list2.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle2.insert(
+                &policy1,
+                &asset_list2
+            );
+            let b = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle2),
+            };
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Equal);
+        }
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
             asset_list1.insert(
-                &asset4,
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value {
+                coin: BigNum(2),
+                multiasset: Some(token_bundle1),
+            };
+
+            let mut token_bundle2 = MultiAsset::new();
+            let mut asset_list2 = Assets::new();
+            asset_list2.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle2.insert(
+                &policy1,
+                &asset_list2
+            );
+            let b = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle2),
+            };
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Greater);
+        }
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
+            asset_list1.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle1),
+            };
+
+            let mut token_bundle2 = MultiAsset::new();
+            let mut asset_list2 = Assets::new();
+            asset_list2.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle2.insert(
+                &policy1,
+                &asset_list2
+            );
+            let b = Value {
+                coin: BigNum(2),
+                multiasset: Some(token_bundle2),
+            };
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Less);
+        }
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
+            asset_list1.insert(
+                &asset1,
                 &BigNum(2)
             );
             token_bundle1.insert(
                 &policy1,
                 &asset_list1
             );
+            let a = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle1),
+            };
 
+            let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
             asset_list2.insert(
                 &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy2,
-                &asset_list2
-            );
-        }
-        let assets1 = Value {
-            coin: BigNum(1555554),
-            multiasset: Some(token_bundle1),
-        };
-
-        let mut token_bundle2 = MultiAsset::new();
-        {
-            let mut asset_list2 = Assets::new();
-            // more than asset1 bundle
-            asset_list2.insert(
-                &asset1,
-                &BigNum(2)
-            );
-            // exactly equal to asset1 bundle
-            asset_list2.insert(
-                &asset2,
-                &BigNum(1)
-            );
-            // skip asset 3
-            // less than in asset1 bundle
-            asset_list2.insert(
-                &asset4,
                 &BigNum(1)
             );
             token_bundle2.insert(
                 &policy1,
                 &asset_list2
             );
+            let b = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle2),
+            };
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Greater);
+        }
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
+            asset_list1.insert(
+                &asset1,
+                &BigNum(2)
+            );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value {
+                coin: BigNum(2),
+                multiasset: Some(token_bundle1),
+            };
 
-            // this policy should be removed entirely
+            let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
             asset_list2.insert(
                 &asset1,
                 &BigNum(1)
             );
             token_bundle2.insert(
-                &policy2,
+                &policy1,
                 &asset_list2
             );
+            let b = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle2),
+            };
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Greater);
         }
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
+            asset_list1.insert(
+                &asset1,
+                &BigNum(2)
+            );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle1),
+            };
 
-        let assets2 = Value {
-            coin: BigNum(2555554),
-            multiasset: Some(token_bundle2),
-        };
+            let mut token_bundle2 = MultiAsset::new();
+            let mut asset_list2 = Assets::new();
+            asset_list2.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle2.insert(
+                &policy1,
+                &asset_list2
+            );
+            let b = Value {
+                coin: BigNum(2),
+                multiasset: Some(token_bundle2),
+            };
+            assert_eq!(a.partial_cmp(&b), None);
+        }
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
+            asset_list1.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle1),
+            };
 
-        let result = assets1.clamped_sub(&assets2);
-        assert_eq!(
-            result.coin().to_str(),
-            "0"
-        );
-        assert_eq!(
-            result.multiasset().unwrap().len(),
-            1 // policy 2 was deleted successfully
-        );
-        let policy1_content = result.multiasset().unwrap().get(&policy1).unwrap();
-        assert_eq!(
-            policy1_content.len(),
-            2
-        );
-        assert_eq!(
-            policy1_content.get(&asset3).unwrap().to_str(),
-            "1"
-        );
-        assert_eq!(
-            policy1_content.get(&asset4).unwrap().to_str(),
-            "1"
-        );
+            let mut token_bundle2 = MultiAsset::new();
+            let mut asset_list2 = Assets::new();
+            asset_list2.insert(
+                &asset1,
+                &BigNum(2)
+            );
+            token_bundle2.insert(
+                &policy1,
+                &asset_list2
+            );
+            let b = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle2),
+            };
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Less);
+        }
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
+            asset_list1.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle1),
+            };
+
+            let mut token_bundle2 = MultiAsset::new();
+            let mut asset_list2 = Assets::new();
+            asset_list2.insert(
+                &asset1,
+                &BigNum(2)
+            );
+            token_bundle2.insert(
+                &policy1,
+                &asset_list2
+            );
+            let b = Value {
+                coin: BigNum(2),
+                multiasset: Some(token_bundle2),
+            };
+            assert_eq!(a.partial_cmp(&b).unwrap(), std::cmp::Ordering::Less);
+        }
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
+            asset_list1.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value {
+                coin: BigNum(2),
+                multiasset: Some(token_bundle1),
+            };
+
+            let mut token_bundle2 = MultiAsset::new();
+            let mut asset_list2 = Assets::new();
+            asset_list2.insert(
+                &asset1,
+                &BigNum(2)
+            );
+            token_bundle2.insert(
+                &policy1,
+                &asset_list2
+            );
+            let b = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle2),
+            };
+            assert_eq!(a.partial_cmp(&b), None);
+        }
+        {
+            let mut token_bundle1 = MultiAsset::new();
+            let mut asset_list1 = Assets::new();
+            asset_list1.insert(
+                &asset1,
+                &BigNum(1)
+            );
+            token_bundle1.insert(
+                &policy1,
+                &asset_list1
+            );
+            let a = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle1),
+            };
+
+            let mut token_bundle2 = MultiAsset::new();
+            let mut asset_list2 = Assets::new();
+            asset_list2.insert(
+                &asset2,
+                &BigNum(1)
+            );
+            token_bundle2.insert(
+                &policy1,
+                &asset_list2
+            );
+            let b = Value {
+                coin: BigNum(1),
+                multiasset: Some(token_bundle2),
+            };
+            assert_eq!(a.partial_cmp(&b), None);
+        }
     }
 }

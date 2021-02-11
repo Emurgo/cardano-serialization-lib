@@ -2251,7 +2251,7 @@ impl Assets {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq)]
 pub struct MultiAsset(std::collections::BTreeMap<PolicyID, Assets>);
 
 to_from_bytes!(MultiAsset);
@@ -2279,7 +2279,7 @@ impl MultiAsset {
     }
 
     /// removes an asset from the list if the result is 0 or less
-    pub fn sub(&self, rhs_ma: &MultiAsset) -> Result<MultiAsset, JsError> {
+    pub fn sub(&self, rhs_ma: &MultiAsset) -> MultiAsset {
         let mut lhs_ma = self.clone();
         for (policy, assets) in &rhs_ma.0 {
             for (asset_name, amount) in &assets.0 {
@@ -2287,7 +2287,7 @@ impl MultiAsset {
                     Some(assets) => match assets.0.get_mut(asset_name) {
                         Some(current) => match current.checked_sub(&amount) {
                             Ok(new) => {
-                                match new.compare(&BigNum::from_str("0")?) {
+                                match new.compare(&to_bignum(0)) {
                                     0 => {
                                         assets.0.remove(asset_name);
                                         match assets.0.len() {
@@ -2316,7 +2316,45 @@ impl MultiAsset {
                 }
             }
         }
-        Ok(lhs_ma)
+        lhs_ma
+    }
+}
+
+// deriving PartialOrd doesn't work in a way that's useful , as the
+// implementation of PartialOrd for BTreeMap compares keys by their order,
+// i.e, is equivalent to comparing the iterators of (pid, Assets).
+// that would mean that: v1 < v2 if the min_pid(v1) < min_pid(v2)
+// this function instead compares amounts, assuming that if a pair (pid, aname)
+// is not in the MultiAsset then it has an amount of 0
+impl PartialOrd for MultiAsset {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        fn amount_or_zero(ma: &MultiAsset, pid: &PolicyID, aname: &AssetName) -> Coin {
+            ma.get(&pid).and_then(|assets| assets.get(aname))
+                .unwrap_or(to_bignum(0u64)) // assume 0 if asset not present
+        }
+
+        // idea: if (a-b) > 0 for some asset, then a > b for at least some asset
+        fn is_all_zeros(lhs: &MultiAsset, rhs: &MultiAsset) -> bool {
+            for (pid, assets) in lhs.0.iter() {
+                for (aname, amount) in assets.0.iter() {
+                    match amount
+                            .clamped_sub(&amount_or_zero(&rhs, pid, aname))
+                            .cmp(&to_bignum(0))
+                    {
+                        std::cmp::Ordering::Equal => (),
+                        _ => return false
+                    }
+                }
+            }
+            true
+        }
+
+        match (is_all_zeros(self, other), is_all_zeros(other, self)) {
+            (true, true) => Some(std::cmp::Ordering::Equal),
+            (true, false) => Some(std::cmp::Ordering::Less),
+            (false, true) => Some(std::cmp::Ordering::Greater),
+            (false, false) => None,
+        }
     }
 }
 
