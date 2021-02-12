@@ -409,13 +409,14 @@ impl TransactionBuilder {
                     builder: &mut TransactionBuilder,
                     burn_amount: &BigNum
                 | {
-                    match &change_estimator.multiasset() {
-                        None => {
+                    let has_assets = change_estimator.multiasset().map(|assets| assets.len() > 0).unwrap_or(false);
+                    match has_assets {
+                        false => {
                             // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
                             builder.set_fee(burn_amount);
                             Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
                         },
-                        Some(_assets) => Err(JsError::from_str("Not enough ADA leftover to include non-ADA assets in a change address")),
+                        true => Err(JsError::from_str("Not enough ADA leftover to include non-ADA assets in a change address")),
                     }
                 };
 
@@ -1134,6 +1135,44 @@ mod tests {
         assert_eq!(
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
             tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+        );
+        let _final_tx = tx_builder.build(); // just test that it doesn't throw
+    }
+
+    #[test]
+    fn build_tx_burn_empty_assets() {
+        let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+        let mut tx_builder =
+            TransactionBuilder::new(&linear_fee, &to_bignum(1000000), &to_bignum(500000000), &to_bignum(2000000));
+
+        let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap();
+        tx_builder.add_output(&TransactionOutput::new(
+            &output_addr.to_address(),
+            &Value::new(&to_bignum(2_000_000))
+        )).unwrap();
+
+        let mut input_value = Value::new(&to_bignum(2_400_000));
+        input_value.set_multiasset(&MultiAsset::new());
+        tx_builder.add_input(
+            &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3").unwrap().to_address(),
+            &TransactionInput::new(
+                &genesis_id(),
+                0
+            ),
+            &input_value
+        );
+        
+        tx_builder.set_ttl(1);
+
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
+        let added_change = tx_builder.add_change_if_needed(
+            &change_addr.to_address()
+        );
+        assert!(!added_change.unwrap());
+        assert_eq!(tx_builder.outputs.len(), 1);
+        assert_eq!(
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap().coin(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap().coin()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
