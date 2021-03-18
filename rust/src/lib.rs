@@ -1453,6 +1453,10 @@ to_from_bytes!(NativeScript);
 
 #[wasm_bindgen]
 impl NativeScript {
+    pub fn hash(&self) -> Ed25519KeyHash {
+        Ed25519KeyHash::from(blake2b224(self.to_bytes().as_ref()))
+    }
+
     pub fn new_script_pubkey(script_pubkey: &ScriptPubkey) -> Self {
         Self(NativeScriptEnum::ScriptPubkey(script_pubkey.clone()))
     }
