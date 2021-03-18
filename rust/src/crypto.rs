@@ -275,7 +275,7 @@ impl From<crypto::PublicKey<crypto::Ed25519>> for PublicKey {
 
 #[wasm_bindgen]
 impl PublicKey {
-    /// Get private key from its bech32 representation
+    /// Get public key from its bech32 representation
     /// Example:
     /// ```javascript
     /// const pkey = PublicKey.from_bech32(&#39;ed25519_pk1dgaagyh470y66p899txcl3r0jaeaxu6yd7z2dxyk55qcycdml8gszkxze2&#39;);
