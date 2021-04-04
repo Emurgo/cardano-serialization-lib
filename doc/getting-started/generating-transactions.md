@@ -41,10 +41,13 @@ const txBuilder = CardanoWasm.TransactionBuilder.new(
 const prvKey = CardanoWasm.PrivateKey.from_bech32("ed25519e_sk16rl5fqqf4mg27syjzjrq8h3vq44jnnv52mvyzdttldszjj7a64xtmjwgjtfy25lu0xmv40306lj9pcqpa6slry9eh3mtlqvfjz93vuq0grl80");
 txBuilder.add_key_input(
     prvKey.to_public().hash(),
-    CardanoWasm.TransactionHash.from_bytes(
-    Buffer.from("8561258e210352fba2ac0488afed67b3427a27ccf1d41ec030c98a8199bc22ec", "hex"),
-    ), // tx hash
-    3, // index
+    CardanoWasm.TransactionInput.new(
+        CardanoWasm.TransactionHash.from_bytes(
+            Buffer.from("8561258e210352fba2ac0488afed67b3427a27ccf1d41ec030c98a8199bc22ec", "hex")
+        ), // tx hash
+        0, // index
+    ),
+    CardanoWasm.Value.new(CardanoWasm.BigNum.from_str('3000000'))
 );
 
 // add a bootstrap input - for ADA held in a Byron-era address
@@ -57,7 +60,7 @@ txBuilder.add_bootstrap_input(
     ), // tx hash
     0, // index
     ),
-    CardanoWasm.BigNum.from_str('3000000')
+    CardanoWasm.Value.new(CardanoWasm.BigNum.from_str('3000000'))
 );
 
 // base address
