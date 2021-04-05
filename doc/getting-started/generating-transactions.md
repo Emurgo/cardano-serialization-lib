@@ -72,7 +72,7 @@ const shelleyChangeAddress = CardanoWasm.Address.from_bech32("addr_test1gz2fxv2u
 txBuilder.add_output(
     CardanoWasm.TransactionOutput.new(
     shelleyOutputAddress,
-    CardanoWasm.BigNum.from_str("1000000"),
+    CardanoWasm.Value.new(CardanoWasm.BigNum.from_str('1000000'))    
     ),
 );
 
