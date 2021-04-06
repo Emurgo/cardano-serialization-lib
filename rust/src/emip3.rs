@@ -44,6 +44,16 @@ pub fn encrypt_with_password(
     let nonce = hex::decode(nonce).map_err(|e| JsError::from_str(&e.to_string()))?;
     let data = hex::decode(data).map_err(|e| JsError::from_str(&e.to_string()))?;
 
+    if salt.len() != SALT_SIZE {
+        return Err(JsError::from_str(&format!("salt len must be {}, found {} bytes", SALT_SIZE, salt.len())));
+    }
+    if nonce.len() != NONCE_SIZE {
+        return Err(JsError::from_str(&format!("nonce len must be {}, found {} bytes", NONCE_SIZE, nonce.len())));
+    }
+    if password.len() == 0 {
+      return Err(JsError::from_str("Password len cannot be 0"));
+    }
+
     let key = {
         let mut mac = Hmac::new(Sha512::new(), &password);
         let mut key: Vec<u8> = repeat(0).take(KEY_SIZE).collect();
