@@ -1457,7 +1457,7 @@ impl NativeScript {
         Ed25519KeyHash::from(blake2b224(self.to_bytes().as_ref()))
     }
 
-    pub fn hash_mod(&self) -> Ed25519KeyHash {
+    pub fn script_hash(&self) -> Ed25519KeyHash {
         let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
         bytes.extend_from_slice(&vec![00]);
         bytes.extend_from_slice(&self.to_bytes());
@@ -2436,7 +2436,7 @@ mod tests {
 
         let script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&hash));
 
-        let script_hash = ScriptHash::from_bytes(script.hash_mod().to_bytes()).unwrap();
+        let script_hash = ScriptHash::from_bytes(script.script_hash().to_bytes()).unwrap();
 
         assert_eq!(hex::encode(&script_hash.to_bytes()), "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f");
     }
