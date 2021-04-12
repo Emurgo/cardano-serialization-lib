@@ -1457,8 +1457,8 @@ impl NativeScript {
         Ed25519KeyHash::from(blake2b224(self.to_bytes().as_ref()))
     }
 
-    // like hash(), but prefixes 0x00 in the pre-image bytes, to match the specs
-    // followed by cardano-cli. See https://github.com/input-output-hk/cardano-node/issues/2593
+    /// like hash(), but prefixes 0x00 in the pre-image bytes, to match the specs
+    /// followed by cardano-cli. See https://github.com/input-output-hk/cardano-node/issues/2593
     pub fn script_hash(&self) -> Ed25519KeyHash {
         let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
         bytes.extend_from_slice(&vec![00]);

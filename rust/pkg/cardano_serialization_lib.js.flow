@@ -2072,6 +2072,8 @@ declare export class NativeScript {
   hash(): Ed25519KeyHash;
 
   /**
+   * like hash(), but prefixes 0x00 in the pre-image bytes, to match the specs
+   * followed by cardano-cli. See https://github.com/input-output-hk/cardano-node/issues/2593
    * @returns {Ed25519KeyHash}
    */
   script_hash(): Ed25519KeyHash;
