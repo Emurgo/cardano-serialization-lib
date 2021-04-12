@@ -6,6 +6,13 @@
  */
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -124,13 +131,6 @@ declare export function decode_metadatum_to_json_str(
   metadatum: TransactionMetadatum,
   schema: number
 ): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -2067,6 +2067,16 @@ declare export class NativeScript {
   static from_bytes(bytes: Uint8Array): NativeScript;
 
   /**
+   * @returns {Ed25519KeyHash}
+   */
+  hash(): Ed25519KeyHash;
+
+  /**
+   * @returns {Ed25519KeyHash}
+   */
+  script_hash(): Ed25519KeyHash;
+
+  /**
    * @param {ScriptPubkey} script_pubkey
    * @returns {NativeScript}
    */
@@ -2874,7 +2884,7 @@ declare export class PublicKey {
   free(): void;
 
   /**
-   * Get private key from its bech32 representation
+   * Get public key from its bech32 representation
    * Example:
    * ```javascript
    * const pkey = PublicKey.from_bech32(&#39;ed25519_pk1dgaagyh470y66p899txcl3r0jaeaxu6yd7z2dxyk55qcycdml8gszkxze2&#39;);
