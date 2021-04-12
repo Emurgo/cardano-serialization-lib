@@ -1457,6 +1457,13 @@ impl NativeScript {
         Ed25519KeyHash::from(blake2b224(self.to_bytes().as_ref()))
     }
 
+    pub fn hash_mod(&self) -> Ed25519KeyHash {
+        let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
+        bytes.extend_from_slice(&vec![00]);
+        bytes.extend_from_slice(&self.to_bytes());
+        Ed25519KeyHash::from(blake2b224(bytes.as_ref()))
+    }
+
     pub fn new_script_pubkey(script_pubkey: &ScriptPubkey) -> Self {
         Self(NativeScriptEnum::ScriptPubkey(script_pubkey.clone()))
     }
@@ -2415,5 +2422,22 @@ impl Mint {
 
     pub fn keys(&self) -> PolicyIDs {
         ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<ScriptHash>>())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn native_script_hash() {
+        let hash = Ed25519KeyHash::from_bytes(vec![143, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244, 98, 246, 13, 33, 212, 128, 168, 136, 40]).unwrap();
+        assert_eq!(hex::encode(&hash.to_bytes()), "8fb4ba5ddf2af3075162567d61456e3482f3f462f60d21d480a88828");
+
+        let script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&hash));
+
+        let script_hash = ScriptHash::from_bytes(script.hash_mod().to_bytes()).unwrap();
+
+        assert_eq!(hex::encode(&script_hash.to_bytes()), "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f");
     }
 }
