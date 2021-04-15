@@ -83,7 +83,7 @@ dependencies = [
  "cbor_event",
  "cfg-if 0.1.10",
  "clear_on_drop",
- "cryptoxide",
+ "cryptoxide 0.3.2",
  "curve25519-dalek 1.2.4",
  "digest 0.8.1",
  "ed25519-bip32",
@@ -156,6 +156,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da24927b5b899890bcb29205436c957b7892ec3a3fbffce81d710b9611e77778"
 
 [[package]]
+name = "cryptoxide"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46212f5d1792f89c3e866fb10636139464060110c568edd7f73ab5e9f736c26d"
+
+[[package]]
 name = "curve25519-dalek"
 version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -214,7 +220,7 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4727ce16fc016d8047462988ced12496aad2bb29b2b55ecf60d29eb5706fc6f"
 dependencies = [
- "cryptoxide",
+ "cryptoxide 0.2.1",
 ]
 
 [[package]]
