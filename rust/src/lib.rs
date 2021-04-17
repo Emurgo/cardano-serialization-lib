@@ -1452,17 +1452,21 @@ pub struct NativeScript(NativeScriptEnum);
 
 to_from_bytes!(NativeScript);
 
+/// Each new language uses a different namespace for hashing its script
+/// This is because you could have a language where the same bytes have different semantics
+/// So this avoids scripts in different languages mapping to the same hash
+/// Note that the enum value here is different than the enum value for deciding the cost model of a script
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ScriptHashNamespace {
+    NativeScript,
+}
+
 #[wasm_bindgen]
 impl NativeScript {
-    pub fn hash(&self) -> Ed25519KeyHash {
-        Ed25519KeyHash::from(blake2b224(self.to_bytes().as_ref()))
-    }
-
-    /// like hash(), but prefixes 0x00 in the pre-image bytes, to match the specs
-    /// followed by cardano-cli. See https://github.com/input-output-hk/cardano-node/issues/2593
-    pub fn script_hash(&self) -> Ed25519KeyHash {
+    pub fn hash(&self, namespace: ScriptHashNamespace) -> Ed25519KeyHash {
         let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
-        bytes.extend_from_slice(&vec![00]);
+        bytes.extend_from_slice(&vec![namespace as u8]);
         bytes.extend_from_slice(&self.to_bytes());
         Ed25519KeyHash::from(blake2b224(bytes.as_ref()))
     }
@@ -2439,7 +2443,9 @@ mod tests {
 
         let script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&hash));
 
-        let script_hash = ScriptHash::from_bytes(script.script_hash().to_bytes()).unwrap();
+        let script_hash = ScriptHash::from_bytes(
+            script.hash(ScriptHashNamespace::NativeScript).to_bytes()
+        ).unwrap();
 
         assert_eq!(hex::encode(&script_hash.to_bytes()), "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f");
     }
