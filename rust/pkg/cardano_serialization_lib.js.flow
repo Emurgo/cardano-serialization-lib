@@ -199,6 +199,17 @@ declare export var NativeScriptKind: {|
 |};
 
 /**
+ * Each new language uses a different namespace for hashing its script
+ * This is because you could have a language where the same bytes have different semantics
+ * So this avoids scripts in different languages mapping to the same hash
+ * Note that the enum value here is different than the enum value for deciding the cost model of a script
+ */
+
+declare export var ScriptHashNamespace: {|
+  +NativeScript: 0, // 0
+|};
+
+/**
  */
 
 declare export var TransactionMetadatumKind: {|
@@ -2091,16 +2102,10 @@ declare export class NativeScript {
   static from_bytes(bytes: Uint8Array): NativeScript;
 
   /**
+   * @param {number} namespace
    * @returns {Ed25519KeyHash}
    */
-  hash(): Ed25519KeyHash;
-
-  /**
-   * like hash(), but prefixes 0x00 in the pre-image bytes, to match the specs
-   * followed by cardano-cli. See https://github.com/input-output-hk/cardano-node/issues/2593
-   * @returns {Ed25519KeyHash}
-   */
-  script_hash(): Ed25519KeyHash;
+  hash(namespace: number): Ed25519KeyHash;
 
   /**
    * @param {ScriptPubkey} script_pubkey
