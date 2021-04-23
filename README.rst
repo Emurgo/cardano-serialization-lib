@@ -104,7 +104,7 @@ Publishing
 To publish a new version to [crates.io](https://crates.io)
 ::
 
-   cargo publish
+   npm run rust:publish
 
 .. _Crates package: https://crates.io/crates/cardano-serialization-lib
 
@@ -113,6 +113,7 @@ To publish new versions to NPM (only needed if you are an admin of this project)
 
    npm run js:publish-nodejs
    npm run js:publish-browser
+   npm run js:publish-asm
 
 .. _NodeJS WASM package: https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-nodejs
 .. _Browser (chrome/firefox) WASM package: https://www.npmjs.com/package/@emurgo/cardano-serialization-lib-browser
