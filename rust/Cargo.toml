@@ -15,16 +15,16 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-cryptoxide = "0.2.0"
+cryptoxide = "0.3.2"
 cbor_event = "2.1.3"
-curve25519-dalek = "1"
-ed25519-dalek = "1.0.0-pre.1"
-ed25519-bip32 = "0.3.1"
-sha2 = "^0.8"
-digest = "^0.8"
+curve25519-dalek = "3.1.0"
+ed25519-dalek = "1.0.1"
+ed25519-bip32 = "0.3.2"
+sha2 = "^0.9"
+digest = "^0.9"
 bech32 = "0.7.2"
 hex = "0.4.0"
-cfg-if = "0.1"
+cfg-if = "1"
 linked-hash-map = "0.5.3"
 serde_json = "1.0.57"
 # The default can't be compiled to wasm, so it's necessary to use either the 'nightly'
@@ -38,9 +38,9 @@ noop_proc_macro = "0.3.0"
 
 # wasm
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
-wasm-bindgen = "=0.2.65"
+wasm-bindgen = "=0.2.74"
 rand_os = { version = "0.1", features = ["wasm-bindgen"] }
-js-sys = "=0.3.24"
+js-sys = "=0.3.51"
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
