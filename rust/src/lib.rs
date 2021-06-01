@@ -14,6 +14,7 @@ extern crate quickcheck;
 extern crate quickcheck_macros;
 extern crate hex;
 
+use std::convert::TryInto;
 use std::io::{BufRead, Seek, Write};
 
 #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
@@ -858,15 +859,15 @@ impl Ipv4 {
         Self::new_impl(data).map_err(|e| JsError::from_str(&e.to_string()))
     }
 
-    pub (crate) fn new_impl(data: Vec<u8>) -> Result<Ipv4, DeserializeError> {
-        use std::convert::TryInto;
-        data[..4]
-            .try_into()
-            .map(Self)
-            .map_err(|_e| {
-                let cbor_error = cbor_event::Error::WrongLen(4, cbor_event::Len::Len(data.len() as u64), "Ipv4 address length");
-                DeserializeError::new("Ipv4", DeserializeFailure::CBOR(cbor_error))
-            })
+    pub(crate) fn new_impl(data: Vec<u8>) -> Result<Ipv4, DeserializeError> {
+        data.as_slice().try_into().map(Self).map_err(|_e| {
+            let cbor_error = cbor_event::Error::WrongLen(
+                4,
+                cbor_event::Len::Len(data.len() as u64),
+                "Ipv4 address length",
+            );
+            DeserializeError::new("Ipv4", DeserializeFailure::CBOR(cbor_error))
+        })
     }
 
     pub fn ip(&self) -> Vec<u8> {
@@ -886,15 +887,15 @@ impl Ipv6 {
         Self::new_impl(data).map_err(|e| JsError::from_str(&e.to_string()))
     }
 
-    pub (crate) fn new_impl(data: Vec<u8>) -> Result<Ipv6, DeserializeError> {
-        use std::convert::TryInto;
-        data[..16]
-            .try_into()
-            .map(Self)
-            .map_err(|_e| {
-                let cbor_error = cbor_event::Error::WrongLen(16, cbor_event::Len::Len(data.len() as u64), "Ipv6 address length");
-                DeserializeError::new("Ipv6", DeserializeFailure::CBOR(cbor_error))
-            })
+    pub(crate) fn new_impl(data: Vec<u8>) -> Result<Ipv6, DeserializeError> {
+        data.as_slice().try_into().map(Self).map_err(|_e| {
+            let cbor_error = cbor_event::Error::WrongLen(
+                16,
+                cbor_event::Len::Len(data.len() as u64),
+                "Ipv6 address length",
+            );
+            DeserializeError::new("Ipv6", DeserializeFailure::CBOR(cbor_error))
+        })
     }
 
     pub fn ip(&self) -> Vec<u8> {
