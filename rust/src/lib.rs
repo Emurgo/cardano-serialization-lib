@@ -42,6 +42,7 @@ pub mod fees;
 pub mod impl_mockchain;
 pub mod legacy_address;
 pub mod metadata;
+pub mod plutus;
 pub mod serialization;
 pub mod tx_builder;
 pub mod typed_bytes;
@@ -52,6 +53,7 @@ pub mod utils;
 use address::*;
 use crypto::*;
 use error::*;
+use plutus::*;
 use metadata::*;
 use utils::*;
 
