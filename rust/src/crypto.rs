@@ -340,6 +340,57 @@ impl Deserialize for Vkey {
 
 #[wasm_bindgen]
 #[derive(Clone)]
+pub struct Vkeys(Vec<Vkey>);
+
+#[wasm_bindgen]
+impl Vkeys {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> Vkey {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &Vkey) {
+        self.0.push(elem.clone());
+    }
+}
+
+impl cbor_event::se::Serialize for Vkeys {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for Vkeys {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                arr.push(Vkey::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("Vkeys"))?;
+        Ok(Self(arr))
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone)]
 pub struct Vkeywitness {
     vkey: Vkey,
     signature: Ed25519Signature,
@@ -769,9 +820,12 @@ impl_hash_type!(ScriptHash, 28);
 impl_hash_type!(TransactionHash, 32);
 impl_hash_type!(GenesisDelegateHash, 28);
 impl_hash_type!(GenesisHash, 28);
-impl_hash_type!(MetadataHash, 32);
+impl_hash_type!(AuxiliaryDataHash, 32);
+impl_hash_type!(PoolMetadataHash, 32);
 impl_hash_type!(VRFKeyHash, 32);
 impl_hash_type!(BlockHash, 32);
+impl_hash_type!(DataHash, 32);
+impl_hash_type!(ScriptDataHash, 32);
 // We might want to make these two vkeys normal classes later but for now it's just arbitrary bytes for us (used in block parsing)
 impl_hash_type!(VRFVKey, 32);
 impl_hash_type!(KESVKey, 32);

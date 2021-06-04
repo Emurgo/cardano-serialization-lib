@@ -91,7 +91,7 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     let full_tx = Transaction {
         body,
         witness_set,
-        metadata: tx_builder.metadata.clone(),
+        auxiliary_data: tx_builder.auxiliary_data.clone(),
     };
     fees::min_fee(&full_tx, &tx_builder.fee_algo)
 }
@@ -124,7 +124,7 @@ pub struct TransactionBuilder {
     ttl: Option<Slot>, // absolute slot number
     certs: Option<Certificates>,
     withdrawals: Option<Withdrawals>,
-    metadata: Option<TransactionMetadata>,
+    auxiliary_data: Option<AuxiliaryData>,
     validity_start_interval: Option<Slot>,
     input_types: MockWitnessSet,
     mint: Option<Mint>,
@@ -277,8 +277,8 @@ impl TransactionBuilder {
         };
     }
 
-    pub fn set_metadata(&mut self, metadata: &TransactionMetadata) {
-        self.metadata = Some(metadata.clone())
+    pub fn set_auxiliary_data(&mut self, auxiliary_data: &AuxiliaryData) {
+        self.auxiliary_data = Some(auxiliary_data.clone())
     }
 
     pub fn new(
@@ -299,7 +299,7 @@ impl TransactionBuilder {
             ttl: None,
             certs: None,
             withdrawals: None,
-            metadata: None,
+            auxiliary_data: None,
             input_types: MockWitnessSet {
                 vkeys: BTreeSet::new(),
                 scripts: BTreeSet::new(),
@@ -394,6 +394,8 @@ impl TransactionBuilder {
                             let fee_for_change = builder.fee_for_output(&TransactionOutput {
                                 address: address.clone(),
                                 amount: change_estimator.clone(),
+                                // TODO: data hash?
+                                data_hash: None,
                             })?;
 
                             let new_fee = fee.checked_add(&fee_for_change)?;
@@ -430,6 +432,7 @@ impl TransactionBuilder {
                     builder.add_output(&TransactionOutput {
                         address: address.clone(),
                         amount: change_estimator.checked_sub(&Value::new(&new_fee.clone()))?,
+                        data_hash: None, // TODO: How do we get DataHash?
                     })?;
 
                     Ok(true)
@@ -455,12 +458,17 @@ impl TransactionBuilder {
             certs: self.certs.clone(),
             withdrawals: self.withdrawals.clone(),
             update: None,
-            metadata_hash: match &self.metadata {
+            auxiliary_data_hash: match &self.auxiliary_data {
                 None => None,
-                Some(x) => Some(utils::hash_metadata(x)),
+                Some(x) => Some(utils::hash_auxiliary_data(x)),
             },
             validity_start_interval: self.validity_start_interval,
             mint: self.mint.clone(),
+            // TODO: update for use with Alonzo
+            script_data_hash: None,
+            collateral: None,
+            required_signers: None,
+            network_id: None,
         })
     }
 

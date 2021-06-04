@@ -284,6 +284,9 @@ impl GeneralTransactionMetadata {
     }
 }
 
+// TODO: hand-write this as AuxiliaryData
+pub type AuxiliaryData = TransactionMetadata;
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionMetadata {

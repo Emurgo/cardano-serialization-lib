@@ -133,26 +133,27 @@ impl ExUnitPrices {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ExUnits {
-    mem: u64,
-    steps: u64,
+    // TODO: should these be u32 or BigNum?
+    mem: BigNum,
+    steps: BigNum,
 }
 
 to_from_bytes!(ExUnits);
 
 #[wasm_bindgen]
 impl ExUnits {
-    pub fn mem(&self) -> u64 {
+    pub fn mem(&self) -> BigNum {
         self.mem.clone()
     }
 
-    pub fn steps(&self) -> u64 {
+    pub fn steps(&self) -> BigNum {
         self.steps.clone()
     }
 
-    pub fn new(mem: u64, steps: u64) -> Self {
+    pub fn new(mem: &BigNum, steps: &BigNum) -> Self {
         Self {
-            mem: mem,
-            steps: steps,
+            mem: mem.clone(),
+            steps: steps.clone(),
         }
     }
 }
@@ -483,7 +484,7 @@ impl PreludeInteger {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Redeemer {
     tag: RedeemerTag,
-    index: u64,
+    index: BigNum,
     data: PlutusData,
     ex_units: ExUnits,
 }
@@ -496,7 +497,7 @@ impl Redeemer {
         self.tag.clone()
     }
 
-    pub fn index(&self) -> u64 {
+    pub fn index(&self) -> BigNum {
         self.index.clone()
     }
 
@@ -508,10 +509,10 @@ impl Redeemer {
         self.ex_units.clone()
     }
 
-    pub fn new(tag: &RedeemerTag, index: u64, data: &PlutusData, ex_units: &ExUnits) -> Self {
+    pub fn new(tag: &RedeemerTag, index: &BigNum, data: &PlutusData, ex_units: &ExUnits) -> Self {
         Self {
             tag: tag.clone(),
-            index: index,
+            index: index.clone(),
             data: data.clone(),
             ex_units: ex_units.clone(),
         }
@@ -777,10 +778,10 @@ impl Deserialize for ExUnits {
             let mut read_len = CBORReadLen::new(len);
             read_len.read_elems(2)?;
             let mem = (|| -> Result<_, DeserializeError> {
-                Ok(u64::deserialize(raw)?)
+                Ok(BigNum::deserialize(raw)?)
             })().map_err(|e| e.annotate("mem"))?;
             let steps = (|| -> Result<_, DeserializeError> {
-                Ok(u64::deserialize(raw)?)
+                Ok(BigNum::deserialize(raw)?)
             })().map_err(|e| e.annotate("steps"))?;
             match len {
                 cbor_event::Len::Len(_) => (),
@@ -1144,7 +1145,7 @@ impl Deserialize for Redeemer {
                 Ok(RedeemerTag::deserialize(raw)?)
             })().map_err(|e| e.annotate("tag"))?;
             let index = (|| -> Result<_, DeserializeError> {
-                Ok(u64::deserialize(raw)?)
+                Ok(BigNum::deserialize(raw)?)
             })().map_err(|e| e.annotate("index"))?;
             let data = (|| -> Result<_, DeserializeError> {
                 Ok(PlutusData::deserialize(raw)?)
