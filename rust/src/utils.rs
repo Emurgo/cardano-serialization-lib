@@ -157,6 +157,8 @@ pub struct Value {
     multiasset: Option<MultiAsset>,
 }
 
+to_from_bytes!(Value);
+
 #[wasm_bindgen]
 impl Value {
     pub fn new(coin: &Coin) -> Value {
