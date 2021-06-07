@@ -64,6 +64,86 @@ macro_rules! to_from_bytes {
     }
 }
 
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
+pub struct TransactionUnspentOutput {
+    input: TransactionInput,
+    value: Value,
+    address: Address
+}
+
+to_from_bytes!(TransactionUnspentOutput);
+
+#[wasm_bindgen]
+impl TransactionUnspentOutput {
+    pub fn new(input: &TransactionInput, value: &Value, address: &Address) -> TransactionUnspentOutput {
+        Self {
+            input: input.clone(),
+            value: value.clone(),
+            address: address.clone()
+        }
+    }
+
+    pub fn input(&self) -> TransactionInput {
+        self.input.clone()
+    }
+
+    pub fn value(&self) -> Value {
+        self.value.clone()
+    }
+
+    pub fn address(&self) -> Address {
+        self.address.clone()
+    }
+}
+
+impl cbor_event::se::Serialize for TransactionUnspentOutput {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(3))?;
+        self.input.serialize(serializer)?;
+        self.value.serialize(serializer)?;
+        self.address.serialize(serializer)
+    }
+}
+
+impl Deserialize for TransactionUnspentOutput {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            match raw.cbor_type()? {
+                cbor_event::Type::Array => {
+                    let len = raw.array()?;
+                    let input = (|| -> Result<_, DeserializeError> {
+                        Ok(TransactionInput::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("input"))?;
+                    let value = (|| -> Result<_, DeserializeError> {
+                        Ok(Value::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("value"))?;
+                    let address = (|| -> Result<_, DeserializeError> {
+                        Ok(Address::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("address"))?;
+                    let ret = Ok(Self {
+                        input,
+                        value,
+                        address
+                    });
+                    match len {
+                        cbor_event::Len::Len(n) => match n {
+                            3 => /* it's ok */(),
+                            n => return Err(DeserializeFailure::DefiniteLenMismatch(n, Some(3)).into()),
+                        },
+                        cbor_event::Len::Indefinite => match raw.special()? {
+                            CBORSpecial::Break => /* it's ok */(),
+                            _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                        },
+                    }
+                    ret
+                },
+                _ => Err(DeserializeFailure::NoVariantMatched.into()),
+            }
+        })().map_err(|e| e.annotate("TransactionUnspentOutput"))
+    }
+}
+
 // Generic u64 wrapper for platforms that don't support u64 or BigInt/etc
 // This is an unsigned type - no negative numbers.
 // Can be converted to/from plain rust 
