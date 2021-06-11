@@ -90,6 +90,30 @@ declare export function min_ada_required(
 ): BigNum;
 
 /**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -131,30 +155,6 @@ declare export function decode_metadatum_to_json_str(
  * @returns {BigNum}
  */
 declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
- */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
 
 /**
  */
@@ -4281,6 +4281,42 @@ declare export class TransactionOutputs {
 }
 /**
  */
+declare export class TransactionUnspentOutput {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {TransactionUnspentOutput}
+   */
+  static from_bytes(bytes: Uint8Array): TransactionUnspentOutput;
+
+  /**
+   * @param {TransactionInput} input
+   * @param {TransactionOutput} output
+   * @returns {TransactionUnspentOutput}
+   */
+  static new(
+    input: TransactionInput,
+    output: TransactionOutput
+  ): TransactionUnspentOutput;
+
+  /**
+   * @returns {TransactionInput}
+   */
+  input(): TransactionInput;
+
+  /**
+   * @returns {TransactionOutput}
+   */
+  output(): TransactionOutput;
+}
+/**
+ */
 declare export class TransactionWitnessSet {
   free(): void;
 
@@ -4556,6 +4592,17 @@ declare export class VRFVKey {
  */
 declare export class Value {
   free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Value}
+   */
+  static from_bytes(bytes: Uint8Array): Value;
 
   /**
    * @param {BigNum} coin
