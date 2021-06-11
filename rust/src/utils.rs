@@ -68,19 +68,17 @@ macro_rules! to_from_bytes {
 #[derive(Clone, Debug)]
 pub struct TransactionUnspentOutput {
     input: TransactionInput,
-    value: Value,
-    address: Address
+    output: TransactionOutput
 }
 
 to_from_bytes!(TransactionUnspentOutput);
 
 #[wasm_bindgen]
 impl TransactionUnspentOutput {
-    pub fn new(input: &TransactionInput, value: &Value, address: &Address) -> TransactionUnspentOutput {
+    pub fn new(input: &TransactionInput, output: &TransactionOutput) -> TransactionUnspentOutput {
         Self {
             input: input.clone(),
-            value: value.clone(),
-            address: address.clone()
+            output: output.clone()
         }
     }
 
@@ -88,21 +86,16 @@ impl TransactionUnspentOutput {
         self.input.clone()
     }
 
-    pub fn value(&self) -> Value {
-        self.value.clone()
-    }
-
-    pub fn address(&self) -> Address {
-        self.address.clone()
+    pub fn output(&self) -> TransactionOutput {
+        self.output.clone()
     }
 }
 
 impl cbor_event::se::Serialize for TransactionUnspentOutput {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(3))?;
+        serializer.write_array(cbor_event::Len::Len(2))?;
         self.input.serialize(serializer)?;
-        self.value.serialize(serializer)?;
-        self.address.serialize(serializer)
+        self.output.serialize(serializer)
     }
 }
 
@@ -115,21 +108,17 @@ impl Deserialize for TransactionUnspentOutput {
                     let input = (|| -> Result<_, DeserializeError> {
                         Ok(TransactionInput::deserialize(raw)?)
                     })().map_err(|e| e.annotate("input"))?;
-                    let value = (|| -> Result<_, DeserializeError> {
-                        Ok(Value::deserialize(raw)?)
-                    })().map_err(|e| e.annotate("value"))?;
-                    let address = (|| -> Result<_, DeserializeError> {
-                        Ok(Address::deserialize(raw)?)
-                    })().map_err(|e| e.annotate("address"))?;
+                    let output = (|| -> Result<_, DeserializeError> {
+                        Ok(TransactionOutput::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("output"))?;
                     let ret = Ok(Self {
                         input,
-                        value,
-                        address
+                        output
                     });
                     match len {
                         cbor_event::Len::Len(n) => match n {
-                            3 => /* it's ok */(),
-                            n => return Err(DeserializeFailure::DefiniteLenMismatch(n, Some(3)).into()),
+                            2 => /* it's ok */(),
+                            n => return Err(DeserializeFailure::DefiniteLenMismatch(n, Some(2)).into()),
                         },
                         cbor_event::Len::Indefinite => match raw.special()? {
                             CBORSpecial::Break => /* it's ok */(),
