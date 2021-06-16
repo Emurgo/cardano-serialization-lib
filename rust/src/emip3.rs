@@ -1,14 +1,13 @@
-use super::*;
 use super::error::JsError;
+use super::*;
 
 use cryptoxide::chacha20poly1305::ChaCha20Poly1305;
 use cryptoxide::hmac::Hmac;
 use cryptoxide::pbkdf2::pbkdf2;
-use cryptoxide::sha2::{Sha512};
-use hex::{ToHex};
+use cryptoxide::sha2::Sha512;
+use hex::ToHex;
 
 use std::iter::repeat;
-
 
 // taken from js-cardano-wasm
 
@@ -45,13 +44,21 @@ pub fn encrypt_with_password(
     let data = hex::decode(data).map_err(|e| JsError::from_str(&e.to_string()))?;
 
     if salt.len() != SALT_SIZE {
-        return Err(JsError::from_str(&format!("salt len must be {}, found {} bytes", SALT_SIZE, salt.len())));
+        return Err(JsError::from_str(&format!(
+            "salt len must be {}, found {} bytes",
+            SALT_SIZE,
+            salt.len()
+        )));
     }
     if nonce.len() != NONCE_SIZE {
-        return Err(JsError::from_str(&format!("nonce len must be {}, found {} bytes", NONCE_SIZE, nonce.len())));
+        return Err(JsError::from_str(&format!(
+            "nonce len must be {}, found {} bytes",
+            NONCE_SIZE,
+            nonce.len()
+        )));
     }
     if password.len() == 0 {
-      return Err(JsError::from_str("Password len cannot be 0"));
+        return Err(JsError::from_str("Password len cannot be 0"));
     }
 
     let key = {
@@ -77,10 +84,7 @@ pub fn encrypt_with_password(
 }
 
 #[wasm_bindgen]
-pub fn decrypt_with_password(
-    password: &str,
-    data: &str,
-) -> Result<String, JsError> {
+pub fn decrypt_with_password(password: &str, data: &str) -> Result<String, JsError> {
     use password_encryption_parameter::*;
     let password = hex::decode(password).map_err(|e| JsError::from_str(&e.to_string()))?;
     let data = hex::decode(data).map_err(|e| JsError::from_str(&e.to_string()))?;
@@ -112,7 +116,6 @@ pub fn decrypt_with_password(
         Err(JsError::from_str("Decryption error"))
     }
 }
-
 
 #[cfg(test)]
 mod tests {

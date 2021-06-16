@@ -1,7 +1,9 @@
 use crate::chain_crypto::key::{
     AsymmetricKey, AsymmetricPublicKey, PublicKeyError, SecretKeyError, SecretKeySizeStatic,
 };
-use crate::chain_crypto::sign::{SignatureError, SigningAlgorithm, Verification, VerificationAlgorithm};
+use crate::chain_crypto::sign::{
+    SignatureError, SigningAlgorithm, Verification, VerificationAlgorithm,
+};
 
 use cryptoxide::digest::Digest;
 use cryptoxide::hmac::Hmac;

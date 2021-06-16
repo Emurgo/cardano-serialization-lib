@@ -1,39 +1,37 @@
-use super::*;
 use super::fees;
 use super::utils;
+use super::*;
 use std::collections::BTreeSet;
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
     match &cert_enum.0 {
         // stake key registrations do not require a witness
-        CertificateEnum::StakeRegistration(_cert) => {},
+        CertificateEnum::StakeRegistration(_cert) => {}
         CertificateEnum::StakeDeregistration(cert) => {
             keys.insert(cert.stake_credential().to_keyhash().unwrap());
-        },
+        }
         CertificateEnum::StakeDelegation(cert) => {
             keys.insert(cert.stake_credential().to_keyhash().unwrap());
-        },
+        }
         CertificateEnum::PoolRegistration(cert) => {
             for owner in &cert.pool_params().pool_owners().0 {
                 keys.insert(owner.clone());
             }
             keys.insert(
-                Ed25519KeyHash::from_bytes(cert.pool_params().operator().to_bytes()).unwrap()
+                Ed25519KeyHash::from_bytes(cert.pool_params().operator().to_bytes()).unwrap(),
             );
-        },
+        }
         CertificateEnum::PoolRetirement(cert) => {
-            keys.insert(
-                Ed25519KeyHash::from_bytes(cert.pool_keyhash().to_bytes()).unwrap()
-            );
-        },
+            keys.insert(Ed25519KeyHash::from_bytes(cert.pool_keyhash().to_bytes()).unwrap());
+        }
         CertificateEnum::GenesisKeyDelegation(cert) => {
             keys.insert(
-                Ed25519KeyHash::from_bytes(cert.genesis_delegate_hash().to_bytes()).unwrap()
+                Ed25519KeyHash::from_bytes(cert.genesis_delegate_hash().to_bytes()).unwrap(),
             );
-        },
+        }
         // not witness as there is no single core node or genesis key that posts the certificate
-        CertificateEnum::MoveInstantaneousRewardsCert(_cert) => {},
+        CertificateEnum::MoveInstantaneousRewardsCert(_cert) => {}
     }
 }
 
@@ -42,8 +40,11 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
 
     let fake_key_root = Bip32PrivateKey::from_bip39_entropy(
         // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
-        &[0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12],
-        &[]
+        &[
+            0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22,
+            0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12,
+        ],
+        &[],
     );
 
     // recall: this includes keys for input, certs and withdrawals
@@ -55,18 +56,18 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
             for _i in 0..x {
                 result.add(&Vkeywitness::new(
                     &Vkey::new(&raw_key.to_public()),
-                    &raw_key.sign([1u8; 100].as_ref())
+                    &raw_key.sign([1u8; 100].as_ref()),
                 ));
             }
             Some(result)
-        },
+        }
     };
     let script_keys = match tx_builder.input_types.scripts.len() {
         0 => None,
         _x => {
             // TODO: figure out how to populate fake witnesses for these
-            return Err(JsError::from_str("Script inputs not supported yet"))
-        },
+            return Err(JsError::from_str("Script inputs not supported yet"));
+        }
     };
     let bootstrap_keys = match tx_builder.input_types.bootstraps.len() {
         0 => None,
@@ -77,11 +78,11 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
                 result.add(&make_icarus_bootstrap_witness(
                     &hash_transaction(&body),
                     &ByronAddress::from_bytes(addr.clone()).unwrap(),
-                    &fake_key_root
+                    &fake_key_root,
                 ));
             }
             Some(result)
-        },
+        }
     };
     let witness_set = TransactionWitnessSet {
         vkeys: vkeys,
@@ -95,7 +96,6 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     };
     fees::min_fee(&full_tx, &tx_builder.fee_algo)
 }
-
 
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
 #[derive(Clone, Debug)]
@@ -135,28 +135,43 @@ impl TransactionBuilder {
     // We have to know what kind of inputs these are to know what kind of mock witnesses to create since
     // 1) mock witnesses have different lengths depending on the type which changes the expecting fee
     // 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
-    pub fn add_key_input(&mut self, hash: &Ed25519KeyHash, input: &TransactionInput, amount: &Value) {
+    pub fn add_key_input(
+        &mut self,
+        hash: &Ed25519KeyHash,
+        input: &TransactionInput,
+        amount: &Value,
+    ) {
         self.inputs.push(TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
         });
         self.input_types.vkeys.insert(hash.clone());
     }
-    pub fn add_script_input(&mut self, hash: &ScriptHash, input: &TransactionInput, amount: &Value) {
+    pub fn add_script_input(
+        &mut self,
+        hash: &ScriptHash,
+        input: &TransactionInput,
+        amount: &Value,
+    ) {
         self.inputs.push(TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
         });
         self.input_types.scripts.insert(hash.clone());
     }
-    pub fn add_bootstrap_input(&mut self, hash: &ByronAddress, input: &TransactionInput, amount: &Value) {
+    pub fn add_bootstrap_input(
+        &mut self,
+        hash: &ByronAddress,
+        input: &TransactionInput,
+        amount: &Value,
+    ) {
         self.inputs.push(TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
         });
         self.input_types.bootstraps.insert(hash.to_bytes());
     }
-    
+
     pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) {
         match &BaseAddress::from_address(address) {
             Some(addr) => {
@@ -168,7 +183,7 @@ impl TransactionBuilder {
                     Some(hash) => return self.add_script_input(hash, input, amount),
                     None => (),
                 }
-            },
+            }
             None => (),
         }
         match &EnterpriseAddress::from_address(address) {
@@ -181,7 +196,7 @@ impl TransactionBuilder {
                     Some(hash) => return self.add_script_input(hash, input, amount),
                     None => (),
                 }
-            },
+            }
             None => (),
         }
         match &PointerAddress::from_address(address) {
@@ -194,19 +209,24 @@ impl TransactionBuilder {
                     Some(hash) => return self.add_script_input(hash, input, amount),
                     None => (),
                 }
-            },
+            }
             None => (),
         }
         match &ByronAddress::from_address(address) {
             Some(addr) => {
                 return self.add_bootstrap_input(addr, input, amount);
-            },
+            }
             None => (),
         }
     }
 
     /// calculates how much the fee would increase if you added a given output
-    pub fn fee_for_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) -> Result<Coin, JsError> {
+    pub fn fee_for_input(
+        &mut self,
+        address: &Address,
+        input: &TransactionInput,
+        amount: &Value,
+    ) -> Result<Coin, JsError> {
         let mut self_copy = self.clone();
 
         // we need some value for these for it to be a a valid transaction
@@ -267,14 +287,16 @@ impl TransactionBuilder {
         self.certs = Some(certs.clone());
         for cert in &certs.0 {
             witness_keys_for_cert(cert, &mut self.input_types.vkeys);
-        };
+        }
     }
 
     pub fn set_withdrawals(&mut self, withdrawals: &Withdrawals) {
         self.withdrawals = Some(withdrawals.clone());
         for (withdrawal, _coin) in &withdrawals.0 {
-            self.input_types.vkeys.insert(withdrawal.payment_cred().to_keyhash().unwrap().clone());
-        };
+            self.input_types
+                .vkeys
+                .insert(withdrawal.payment_cred().to_keyhash().unwrap().clone());
+        }
     }
 
     pub fn set_metadata(&mut self, metadata: &TransactionMetadata) {
@@ -306,7 +328,7 @@ impl TransactionBuilder {
                 bootstraps: BTreeSet::new(),
             },
             validity_start_interval: None,
-            mint: None
+            mint: None,
         }
     }
 
@@ -339,11 +361,7 @@ impl TransactionBuilder {
     }
 
     pub fn get_deposit(&self) -> Result<Coin, JsError> {
-        internal_get_deposit(
-            &self.certs,
-            &self.pool_deposit,
-            &self.key_deposit,
-        )
+        internal_get_deposit(&self.certs, &self.pool_deposit, &self.key_deposit)
     }
 
     pub fn get_fee_if_set(&self) -> Option<Coin> {
@@ -376,17 +394,22 @@ impl TransactionBuilder {
                 // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
                 self.set_fee(&input_total.checked_sub(&output_total)?.coin());
                 Ok(false)
-            },
+            }
             Some(Ordering::Less) => Err(JsError::from_str("Insufficient input in transaction")),
             Some(Ordering::Greater) => {
                 let change_estimator = input_total.checked_sub(&output_total)?;
                 let min_ada = min_ada_required(&change_estimator.clone(), &self.minimum_utxo_val);
 
-                let enough_input = |
-                    builder: &mut TransactionBuilder,
-                    burn_fee: &dyn Fn(&mut TransactionBuilder, &BigNum) -> Result<bool, JsError>,
-                    add_change: &dyn Fn(&mut TransactionBuilder, &BigNum) -> Result<bool, JsError>
-                | {
+                let enough_input = |builder: &mut TransactionBuilder,
+                                    burn_fee: &dyn Fn(
+                    &mut TransactionBuilder,
+                    &BigNum,
+                ) -> Result<bool, JsError>,
+                                    add_change: &dyn Fn(
+                    &mut TransactionBuilder,
+                    &BigNum,
+                )
+                    -> Result<bool, JsError>| {
                     match change_estimator.coin() >= min_ada {
                         false => burn_fee(builder, &change_estimator.coin()),
                         true => {
@@ -397,33 +420,34 @@ impl TransactionBuilder {
                             })?;
 
                             let new_fee = fee.checked_add(&fee_for_change)?;
-                            match change_estimator.coin() >= min_ada.checked_add(&Value::new(&new_fee).coin())? {
+                            match change_estimator.coin()
+                                >= min_ada.checked_add(&Value::new(&new_fee).coin())?
+                            {
                                 false => burn_fee(builder, &change_estimator.coin()),
-                                true => add_change(builder, &new_fee)
+                                true => add_change(builder, &new_fee),
                             }
                         }
                     }
                 };
 
-                let burn_extra = |
-                    builder: &mut TransactionBuilder,
-                    burn_amount: &BigNum
-                | {
-                    let has_assets = change_estimator.multiasset().map(|assets| assets.len() > 0).unwrap_or(false);
+                let burn_extra = |builder: &mut TransactionBuilder, burn_amount: &BigNum| {
+                    let has_assets = change_estimator
+                        .multiasset()
+                        .map(|assets| assets.len() > 0)
+                        .unwrap_or(false);
                     match has_assets {
                         false => {
                             // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
                             builder.set_fee(burn_amount);
                             Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
-                        },
-                        true => Err(JsError::from_str("Not enough ADA leftover to include non-ADA assets in a change address")),
+                        }
+                        true => Err(JsError::from_str(
+                            "Not enough ADA leftover to include non-ADA assets in a change address",
+                        )),
                     }
                 };
 
-                let add_change = |
-                    builder: &mut TransactionBuilder,
-                    new_fee: &BigNum
-                | {
+                let add_change = |builder: &mut TransactionBuilder, new_fee: &BigNum| {
                     // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
                     builder.set_fee(&new_fee);
 
@@ -435,20 +459,23 @@ impl TransactionBuilder {
                     Ok(true)
                 };
 
-                enough_input(
-                    self,
-                    &burn_extra,
-                    &add_change
-                )
+                enough_input(self, &burn_extra, &add_change)
             }
             None => Err(JsError::from_str("missing input for some native asset")),
         }
     }
 
     pub fn build(&self) -> Result<TransactionBody, JsError> {
-        let fee = self.fee.ok_or_else(|| JsError::from_str("Fee not specified"))?;
+        let fee = self
+            .fee
+            .ok_or_else(|| JsError::from_str("Fee not specified"))?;
         Ok(TransactionBody {
-            inputs: TransactionInputs(self.inputs.iter().map(|ref tx_builder_input| tx_builder_input.input.clone()).collect()),
+            inputs: TransactionInputs(
+                self.inputs
+                    .iter()
+                    .map(|ref tx_builder_input| tx_builder_input.input.clone())
+                    .collect(),
+            ),
             outputs: self.outputs.clone(),
             fee: fee,
             ttl: self.ttl,
@@ -485,7 +512,10 @@ mod tests {
 
     fn root_key_15() -> Bip32PrivateKey {
         // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
-        let entropy = [0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12];
+        let entropy = [
+            0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22,
+            0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12,
+        ];
         Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
     }
 
@@ -522,28 +552,46 @@ mod tests {
 
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+        .to_address();
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(1_000_000))
+            &Value::new(&to_bignum(1_000_000)),
         );
-        tx_builder.add_output(&TransactionOutput::new(
-            &addr_net_0,
-            &Value::new(&to_bignum(10))
-        )).unwrap();
+        tx_builder
+            .add_output(&TransactionOutput::new(
+                &addr_net_0,
+                &Value::new(&to_bignum(10)),
+            ))
+            .unwrap();
         tx_builder.set_ttl(1000);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
-        let added_change = tx_builder.add_change_if_needed(
-            &change_addr
-        );
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+        .to_address();
+        let added_change = tx_builder.add_change_if_needed(&change_addr);
         assert!(added_change.unwrap());
         assert_eq!(tx_builder.outputs.len(), 2);
         assert_eq!(
-            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+            tx_builder
+                .get_explicit_input()
+                .unwrap()
+                .checked_add(&tx_builder.get_implicit_input().unwrap())
+                .unwrap(),
+            tx_builder
+                .get_explicit_output()
+                .unwrap()
+                .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
+                .unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -577,28 +625,46 @@ mod tests {
 
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+        .to_address();
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(1_000_000))
+            &Value::new(&to_bignum(1_000_000)),
         );
-        tx_builder.add_output(&TransactionOutput::new(
-            &addr_net_0,
-            &Value::new(&to_bignum(880_000))
-        )).unwrap();
+        tx_builder
+            .add_output(&TransactionOutput::new(
+                &addr_net_0,
+                &Value::new(&to_bignum(880_000)),
+            ))
+            .unwrap();
         tx_builder.set_ttl(1000);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
-        let added_change = tx_builder.add_change_if_needed(
-            &change_addr
-        );
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+        .to_address();
+        let added_change = tx_builder.add_change_if_needed(&change_addr);
         assert!(!added_change.unwrap());
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
-            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+            tx_builder
+                .get_explicit_input()
+                .unwrap()
+                .checked_add(&tx_builder.get_implicit_input().unwrap())
+                .unwrap(),
+            tx_builder
+                .get_explicit_output()
+                .unwrap()
+                .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
+                .unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -638,12 +704,14 @@ mod tests {
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(5_000_000))
+            &Value::new(&to_bignum(5_000_000)),
         );
         tx_builder.set_ttl(1000);
 
         let mut certs = Certificates::new();
-        certs.add(&Certificate::new_stake_registration(&StakeRegistration::new(&stake_cred)));
+        certs.add(&Certificate::new_stake_registration(
+            &StakeRegistration::new(&stake_cred),
+        ));
         certs.add(&Certificate::new_stake_delegation(&StakeDelegation::new(
             &stake_cred,
             &stake.to_raw_key().hash(), // in reality, this should be the pool owner's key, not ours
@@ -651,20 +719,30 @@ mod tests {
         tx_builder.set_certs(&certs);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
-        tx_builder.add_change_if_needed(
-            &change_addr
-        ).unwrap();
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+        .to_address();
+        tx_builder.add_change_if_needed(&change_addr).unwrap();
         assert_eq!(tx_builder.min_fee().unwrap().to_str(), "213502");
         assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "213502");
         assert_eq!(tx_builder.get_deposit().unwrap().to_str(), "1000000");
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
-            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
             tx_builder
-                .get_explicit_output().unwrap()
-                .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
-                .checked_add(&Value::new(&tx_builder.get_deposit().unwrap())).unwrap()
+                .get_explicit_input()
+                .unwrap()
+                .checked_add(&tx_builder.get_implicit_input().unwrap())
+                .unwrap(),
+            tx_builder
+                .get_explicit_output()
+                .unwrap()
+                .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
+                .unwrap()
+                .checked_add(&Value::new(&tx_builder.get_deposit().unwrap()))
+                .unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -699,22 +777,32 @@ mod tests {
         tx_builder.add_key_input(
             &&spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(5))
+            &Value::new(&to_bignum(5)),
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
-        tx_builder.add_output(&TransactionOutput::new(
-            &addr_net_0,
-            &Value::new(&to_bignum(5))
-        )).unwrap();
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+        .to_address();
+        tx_builder
+            .add_output(&TransactionOutput::new(
+                &addr_net_0,
+                &Value::new(&to_bignum(5)),
+            ))
+            .unwrap();
         tx_builder.set_ttl(0);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
-        let added_change = tx_builder.add_change_if_needed(
-            &change_addr
-        ).unwrap();
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+        .to_address();
+        let added_change = tx_builder.add_change_if_needed(&change_addr).unwrap();
         assert_eq!(added_change, false);
         let final_tx = tx_builder.build().unwrap();
         assert_eq!(final_tx.outputs().len(), 1);
@@ -750,7 +838,7 @@ mod tests {
         tx_builder.add_key_input(
             &&spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(6))
+            &Value::new(&to_bignum(6)),
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
@@ -769,10 +857,13 @@ mod tests {
         tx_builder.set_ttl(0);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
-        let added_change = tx_builder.add_change_if_needed(
-            &change_addr
-        ).unwrap();
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+        .to_address();
+        let added_change = tx_builder.add_change_if_needed(&change_addr).unwrap();
         assert_eq!(added_change, true);
         let final_tx = tx_builder.build().unwrap();
         assert_eq!(final_tx.outputs().len(), 2);
@@ -870,51 +961,50 @@ mod tests {
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
 
         {
-            assert_eq!(tx_builder.fee_for_input(
-                &EnterpriseAddress::new(
-                    NetworkInfo::testnet().network_id(),
-                    &spend_cred
-                ).to_address(),
-                &TransactionInput::new(&genesis_id(), 0),
-                &Value::new(&to_bignum(1_000_000))
-            ).unwrap().to_str(), "69500");
+            assert_eq!(
+                tx_builder
+                    .fee_for_input(
+                        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred)
+                            .to_address(),
+                        &TransactionInput::new(&genesis_id(), 0),
+                        &Value::new(&to_bignum(1_000_000))
+                    )
+                    .unwrap()
+                    .to_str(),
+                "69500"
+            );
             tx_builder.add_input(
-                &EnterpriseAddress::new(
-                    NetworkInfo::testnet().network_id(),
-                    &spend_cred
-                ).to_address(),
+                &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred)
+                    .to_address(),
                 &TransactionInput::new(&genesis_id(), 0),
-                &Value::new(&to_bignum(1_000_000))
+                &Value::new(&to_bignum(1_000_000)),
             );
         }
         tx_builder.add_input(
             &BaseAddress::new(
                 NetworkInfo::testnet().network_id(),
                 &spend_cred,
-                &stake_cred
-            ).to_address(),
+                &stake_cred,
+            )
+            .to_address(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(1_000_000))
+            &Value::new(&to_bignum(1_000_000)),
         );
         tx_builder.add_input(
             &PointerAddress::new(
                 NetworkInfo::testnet().network_id(),
                 &spend_cred,
-                &Pointer::new(
-                    0,
-                    0,
-                    0
-                )
-            ).to_address(),
+                &Pointer::new(0, 0, 0),
+            )
+            .to_address(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(1_000_000))
+            &Value::new(&to_bignum(1_000_000)),
         );
         tx_builder.add_input(
-            &ByronAddress::icarus_from_key(
-                &spend, NetworkInfo::testnet().protocol_magic()
-            ).to_address(),
+            &ByronAddress::icarus_from_key(&spend, NetworkInfo::testnet().protocol_magic())
+                .to_address(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(1_000_000))
+            &Value::new(&to_bignum(1_000_000)),
         );
 
         assert_eq!(tx_builder.inputs.len(), 4);
@@ -1064,7 +1154,12 @@ mod tests {
 
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+        .to_address();
 
         // add an input that contains an asset not present in the output
         let policy_id = &PolicyID::from([0u8; 28]);
@@ -1080,25 +1175,38 @@ mod tests {
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &input_amount
+            &input_amount,
         );
 
-        tx_builder.add_output(&TransactionOutput::new(
-            &addr_net_0,
-            &Value::new(&to_bignum(880_000))
-        )).unwrap();
+        tx_builder
+            .add_output(&TransactionOutput::new(
+                &addr_net_0,
+                &Value::new(&to_bignum(880_000)),
+            ))
+            .unwrap();
         tx_builder.set_ttl(1000);
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
-        let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
-        let added_change = tx_builder.add_change_if_needed(
-            &change_addr
-        );
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+        .to_address();
+        let added_change = tx_builder.add_change_if_needed(&change_addr);
         assert!(!added_change.unwrap());
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
-            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+            tx_builder
+                .get_explicit_input()
+                .unwrap()
+                .checked_add(&tx_builder.get_implicit_input().unwrap())
+                .unwrap(),
+            tx_builder
+                .get_explicit_output()
+                .unwrap()
+                .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
+                .unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -1106,35 +1214,54 @@ mod tests {
     #[test]
     fn build_tx_burn_less_than_min_ada() {
         let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
-        let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1000000), &to_bignum(500000000), &to_bignum(2000000));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &to_bignum(1000000),
+            &to_bignum(500000000),
+            &to_bignum(2000000),
+        );
 
-        let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap();
-        tx_builder.add_output(&TransactionOutput::new(
-            &output_addr.to_address(),
-            &Value::new(&to_bignum(2_000_000))
-        )).unwrap();
+        let output_addr = ByronAddress::from_base58(
+            "Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b",
+        )
+        .unwrap();
+        tx_builder
+            .add_output(&TransactionOutput::new(
+                &output_addr.to_address(),
+                &Value::new(&to_bignum(2_000_000)),
+            ))
+            .unwrap();
 
         tx_builder.add_input(
-            &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3").unwrap().to_address(),
-            &TransactionInput::new(
-                &genesis_id(),
-                0
-            ),
-            &Value::new(&to_bignum(2_400_000))
+            &ByronAddress::from_base58(
+                "Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3",
+            )
+            .unwrap()
+            .to_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(2_400_000)),
         );
-        
+
         tx_builder.set_ttl(1);
 
-        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
-        let added_change = tx_builder.add_change_if_needed(
-            &change_addr.to_address()
-        );
+        let change_addr = ByronAddress::from_base58(
+            "Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho",
+        )
+        .unwrap();
+        let added_change = tx_builder.add_change_if_needed(&change_addr.to_address());
         assert!(!added_change.unwrap());
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
-            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+            tx_builder
+                .get_explicit_input()
+                .unwrap()
+                .checked_add(&tx_builder.get_implicit_input().unwrap())
+                .unwrap(),
+            tx_builder
+                .get_explicit_output()
+                .unwrap()
+                .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
+                .unwrap()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -1142,37 +1269,58 @@ mod tests {
     #[test]
     fn build_tx_burn_empty_assets() {
         let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
-        let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1000000), &to_bignum(500000000), &to_bignum(2000000));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &to_bignum(1000000),
+            &to_bignum(500000000),
+            &to_bignum(2000000),
+        );
 
-        let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap();
-        tx_builder.add_output(&TransactionOutput::new(
-            &output_addr.to_address(),
-            &Value::new(&to_bignum(2_000_000))
-        )).unwrap();
+        let output_addr = ByronAddress::from_base58(
+            "Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b",
+        )
+        .unwrap();
+        tx_builder
+            .add_output(&TransactionOutput::new(
+                &output_addr.to_address(),
+                &Value::new(&to_bignum(2_000_000)),
+            ))
+            .unwrap();
 
         let mut input_value = Value::new(&to_bignum(2_400_000));
         input_value.set_multiasset(&MultiAsset::new());
         tx_builder.add_input(
-            &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3").unwrap().to_address(),
-            &TransactionInput::new(
-                &genesis_id(),
-                0
-            ),
-            &input_value
+            &ByronAddress::from_base58(
+                "Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3",
+            )
+            .unwrap()
+            .to_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &input_value,
         );
-        
+
         tx_builder.set_ttl(1);
 
-        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
-        let added_change = tx_builder.add_change_if_needed(
-            &change_addr.to_address()
-        );
+        let change_addr = ByronAddress::from_base58(
+            "Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho",
+        )
+        .unwrap();
+        let added_change = tx_builder.add_change_if_needed(&change_addr.to_address());
         assert!(!added_change.unwrap());
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
-            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap().coin(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap().coin()
+            tx_builder
+                .get_explicit_input()
+                .unwrap()
+                .checked_add(&tx_builder.get_implicit_input().unwrap())
+                .unwrap()
+                .coin(),
+            tx_builder
+                .get_explicit_output()
+                .unwrap()
+                .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
+                .unwrap()
+                .coin()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }

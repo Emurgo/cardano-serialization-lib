@@ -11,8 +11,8 @@ pub mod bech32;
 pub mod derive;
 pub mod digest;
 pub mod hash;
-mod sign;
 mod key;
+mod sign;
 
 pub use algorithms::*;
 pub use hash::{Blake2b256, Sha3_256};

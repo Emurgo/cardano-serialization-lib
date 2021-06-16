@@ -38,6 +38,7 @@ pub mod address;
 pub mod chain_core;
 pub mod chain_crypto;
 pub mod crypto;
+pub mod emip3;
 pub mod error;
 pub mod fees;
 pub mod impl_mockchain;
@@ -46,7 +47,6 @@ pub mod metadata;
 pub mod serialization;
 pub mod tx_builder;
 pub mod typed_bytes;
-pub mod emip3;
 #[macro_use]
 pub mod utils;
 
@@ -917,15 +917,18 @@ impl URL {
         Self::new_impl(url).map_err(|e| JsError::from_str(&e.to_string()))
     }
 
-    pub (crate) fn new_impl(url: String) -> Result<URL, DeserializeError> {
+    pub(crate) fn new_impl(url: String) -> Result<URL, DeserializeError> {
         if url.len() <= URL_MAX_LEN {
             Ok(Self(url))
         } else {
-            Err(DeserializeError::new("URL", DeserializeFailure::OutOfRange{
-                min: 0,
-                max: URL_MAX_LEN,
-                found: url.len(),
-            }))
+            Err(DeserializeError::new(
+                "URL",
+                DeserializeFailure::OutOfRange {
+                    min: 0,
+                    max: URL_MAX_LEN,
+                    found: url.len(),
+                },
+            ))
         }
     }
 
@@ -948,15 +951,18 @@ impl DNSRecordAorAAAA {
         Self::new_impl(dns_name).map_err(|e| JsError::from_str(&e.to_string()))
     }
 
-    pub (crate) fn new_impl(dns_name: String) -> Result<DNSRecordAorAAAA, DeserializeError> {
+    pub(crate) fn new_impl(dns_name: String) -> Result<DNSRecordAorAAAA, DeserializeError> {
         if dns_name.len() <= DNS_NAME_MAX_LEN {
             Ok(Self(dns_name))
         } else {
-            Err(DeserializeError::new("DNSRecordAorAAAA", DeserializeFailure::OutOfRange{
-                min: 0,
-                max: DNS_NAME_MAX_LEN,
-                found: dns_name.len(),
-            }))
+            Err(DeserializeError::new(
+                "DNSRecordAorAAAA",
+                DeserializeFailure::OutOfRange {
+                    min: 0,
+                    max: DNS_NAME_MAX_LEN,
+                    found: dns_name.len(),
+                },
+            ))
         }
     }
 
@@ -977,15 +983,18 @@ impl DNSRecordSRV {
         Self::new_impl(dns_name).map_err(|e| JsError::from_str(&e.to_string()))
     }
 
-    pub (crate) fn new_impl(dns_name: String) -> Result<DNSRecordSRV, DeserializeError> {
+    pub(crate) fn new_impl(dns_name: String) -> Result<DNSRecordSRV, DeserializeError> {
         if dns_name.len() <= DNS_NAME_MAX_LEN {
             Ok(Self(dns_name))
         } else {
-            Err(DeserializeError::new("DNSRecordSRV", DeserializeFailure::OutOfRange{
-                min: 0,
-                max: DNS_NAME_MAX_LEN,
-                found: dns_name.len(),
-            }))
+            Err(DeserializeError::new(
+                "DNSRecordSRV",
+                DeserializeFailure::OutOfRange {
+                    min: 0,
+                    max: DNS_NAME_MAX_LEN,
+                    found: dns_name.len(),
+                },
+            ))
         }
     }
 
@@ -1069,7 +1078,9 @@ impl MultiHostName {
     }
 
     pub fn new(dns_name: &DNSRecordSRV) -> Self {
-        Self { dns_name: dns_name.clone() }
+        Self {
+            dns_name: dns_name.clone(),
+        }
     }
 }
 
@@ -1399,9 +1410,7 @@ impl TimelockStart {
     }
 
     pub fn new(slot: Slot) -> Self {
-        Self {
-            slot,
-        }
+        Self { slot }
     }
 }
 
@@ -1420,9 +1429,7 @@ impl TimelockExpiry {
     }
 
     pub fn new(slot: Slot) -> Self {
-        Self {
-            slot,
-        }
+        Self { slot }
     }
 }
 
@@ -1630,7 +1637,7 @@ impl GenesisHashes {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct ScriptHashes(pub (crate) Vec<ScriptHash>);
+pub struct ScriptHashes(pub(crate) Vec<ScriptHash>);
 
 to_from_bytes!(ScriptHashes);
 
@@ -1972,7 +1979,9 @@ pub type TransactionIndexes = Vec<TransactionIndex>;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MapTransactionIndexToTransactionMetadata(linked_hash_map::LinkedHashMap<TransactionIndex, TransactionMetadata>);
+pub struct MapTransactionIndexToTransactionMetadata(
+    linked_hash_map::LinkedHashMap<TransactionIndex, TransactionMetadata>,
+);
 
 #[wasm_bindgen]
 impl MapTransactionIndexToTransactionMetadata {
@@ -1984,7 +1993,11 @@ impl MapTransactionIndexToTransactionMetadata {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: TransactionIndex, value: &TransactionMetadata) -> Option<TransactionMetadata> {
+    pub fn insert(
+        &mut self,
+        key: TransactionIndex,
+        value: &TransactionMetadata,
+    ) -> Option<TransactionMetadata> {
         self.0.insert(key, value.clone())
     }
 
@@ -1993,7 +2006,10 @@ impl MapTransactionIndexToTransactionMetadata {
     }
 
     pub fn keys(&self) -> TransactionIndexes {
-        self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<TransactionIndex>>()
+        self.0
+            .iter()
+            .map(|(k, _v)| k.clone())
+            .collect::<Vec<TransactionIndex>>()
     }
 }
 
@@ -2026,7 +2042,12 @@ impl Block {
         self.transaction_metadata_set.clone()
     }
 
-    pub fn new(header: &Header, transaction_bodies: &TransactionBodies, transaction_witness_sets: &TransactionWitnessSets, transaction_metadata_set: &MapTransactionIndexToTransactionMetadata) -> Self {
+    pub fn new(
+        header: &Header,
+        transaction_bodies: &TransactionBodies,
+        transaction_witness_sets: &TransactionWitnessSets,
+        transaction_metadata_set: &MapTransactionIndexToTransactionMetadata,
+    ) -> Self {
         Self {
             header: header.clone(),
             transaction_bodies: transaction_bodies.clone(),
@@ -2092,7 +2113,12 @@ impl OperationalCert {
         self.sigma.clone()
     }
 
-    pub fn new(hot_vkey: &KESVKey, sequence_number: u32, kes_period: u32, sigma: &Ed25519Signature) -> Self {
+    pub fn new(
+        hot_vkey: &KESVKey,
+        sequence_number: u32,
+        kes_period: u32,
+        sigma: &Ed25519Signature,
+    ) -> Self {
         Self {
             hot_vkey: hot_vkey.clone(),
             sequence_number: sequence_number,
@@ -2166,7 +2192,19 @@ impl HeaderBody {
         self.protocol_version.clone()
     }
 
-    pub fn new(block_number: u32, slot: Slot, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+    pub fn new(
+        block_number: u32,
+        slot: Slot,
+        prev_hash: Option<BlockHash>,
+        issuer_vkey: &Vkey,
+        vrf_vkey: &VRFVKey,
+        nonce_vrf: &VRFCert,
+        leader_vrf: &VRFCert,
+        block_body_size: u32,
+        block_body_hash: &BlockHash,
+        operational_cert: &OperationalCert,
+        protocol_version: &ProtocolVersion,
+    ) -> Self {
         Self {
             block_number: block_number,
             slot: slot,
@@ -2183,8 +2221,6 @@ impl HeaderBody {
     }
 }
 
-
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct AssetName(Vec<u8>);
@@ -2197,15 +2233,18 @@ impl AssetName {
         Self::new_impl(name).map_err(|e| JsError::from_str(&e.to_string()))
     }
 
-    pub (crate) fn new_impl(name: Vec<u8>) -> Result<AssetName, DeserializeError> {
+    pub(crate) fn new_impl(name: Vec<u8>) -> Result<AssetName, DeserializeError> {
         if name.len() <= 32 {
             Ok(Self(name))
         } else {
-            Err(DeserializeError::new("AssetName", DeserializeFailure::OutOfRange{
-                min: 0,
-                max: 32,
-                found: name.len(),
-            }))
+            Err(DeserializeError::new(
+                "AssetName",
+                DeserializeFailure::OutOfRange {
+                    min: 0,
+                    max: 32,
+                    found: name.len(),
+                },
+            ))
         }
     }
 
@@ -2265,7 +2304,12 @@ impl Assets {
     }
 
     pub fn keys(&self) -> AssetNames {
-        AssetNames(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<AssetName>>())
+        AssetNames(
+            self.0
+                .iter()
+                .map(|(k, _v)| k.clone())
+                .collect::<Vec<AssetName>>(),
+        )
     }
 }
 
@@ -2294,7 +2338,12 @@ impl MultiAsset {
     }
 
     pub fn keys(&self) -> PolicyIDs {
-        ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<PolicyID>>())
+        ScriptHashes(
+            self.0
+                .iter()
+                .map(|(k, _v)| k.clone())
+                .collect::<Vec<PolicyID>>(),
+        )
     }
 
     /// removes an asset from the list if the result is 0 or less
@@ -2305,23 +2354,25 @@ impl MultiAsset {
                 match lhs_ma.0.get_mut(policy) {
                     Some(assets) => match assets.0.get_mut(asset_name) {
                         Some(current) => match current.checked_sub(&amount) {
-                            Ok(new) => {
-                                match new.compare(&to_bignum(0)) {
-                                    0 => {
-                                        assets.0.remove(asset_name);
-                                        match assets.0.len() {
-                                            0 => { lhs_ma.0.remove(policy); },
-                                            _ => {},
+                            Ok(new) => match new.compare(&to_bignum(0)) {
+                                0 => {
+                                    assets.0.remove(asset_name);
+                                    match assets.0.len() {
+                                        0 => {
+                                            lhs_ma.0.remove(policy);
                                         }
-                                    },
-                                    _ => *current = new
+                                        _ => {}
+                                    }
                                 }
+                                _ => *current = new,
                             },
                             Err(_) => {
                                 assets.0.remove(asset_name);
                                 match assets.0.len() {
-                                    0 => { lhs_ma.0.remove(policy); },
-                                    _ => {},
+                                    0 => {
+                                        lhs_ma.0.remove(policy);
+                                    }
+                                    _ => {}
                                 }
                             }
                         },
@@ -2348,7 +2399,8 @@ impl MultiAsset {
 impl PartialOrd for MultiAsset {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         fn amount_or_zero(ma: &MultiAsset, pid: &PolicyID, aname: &AssetName) -> Coin {
-            ma.get(&pid).and_then(|assets| assets.get(aname))
+            ma.get(&pid)
+                .and_then(|assets| assets.get(aname))
                 .unwrap_or(to_bignum(0u64)) // assume 0 if asset not present
         }
 
@@ -2357,11 +2409,11 @@ impl PartialOrd for MultiAsset {
             for (pid, assets) in lhs.0.iter() {
                 for (aname, amount) in assets.0.iter() {
                     match amount
-                            .clamped_sub(&amount_or_zero(&rhs, pid, aname))
-                            .cmp(&to_bignum(0))
+                        .clamped_sub(&amount_or_zero(&rhs, pid, aname))
+                        .cmp(&to_bignum(0))
                     {
                         std::cmp::Ordering::Equal => (),
-                        _ => return false
+                        _ => return false,
                     }
                 }
             }
@@ -2400,7 +2452,12 @@ impl MintAssets {
     }
 
     pub fn keys(&self) -> AssetNames {
-        AssetNames(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<AssetName>>())
+        AssetNames(
+            self.0
+                .iter()
+                .map(|(k, _v)| k.clone())
+                .collect::<Vec<AssetName>>(),
+        )
     }
 }
 
@@ -2429,7 +2486,12 @@ impl Mint {
     }
 
     pub fn keys(&self) -> PolicyIDs {
-        ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<ScriptHash>>())
+        ScriptHashes(
+            self.0
+                .iter()
+                .map(|(k, _v)| k.clone())
+                .collect::<Vec<ScriptHash>>(),
+        )
     }
 }
 
@@ -2439,15 +2501,25 @@ mod tests {
 
     #[test]
     fn native_script_hash() {
-        let hash = Ed25519KeyHash::from_bytes(vec![143, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244, 98, 246, 13, 33, 212, 128, 168, 136, 40]).unwrap();
-        assert_eq!(hex::encode(&hash.to_bytes()), "8fb4ba5ddf2af3075162567d61456e3482f3f462f60d21d480a88828");
+        let hash = Ed25519KeyHash::from_bytes(vec![
+            143, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244,
+            98, 246, 13, 33, 212, 128, 168, 136, 40,
+        ])
+        .unwrap();
+        assert_eq!(
+            hex::encode(&hash.to_bytes()),
+            "8fb4ba5ddf2af3075162567d61456e3482f3f462f60d21d480a88828"
+        );
 
         let script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&hash));
 
-        let script_hash = ScriptHash::from_bytes(
-            script.hash(ScriptHashNamespace::NativeScript).to_bytes()
-        ).unwrap();
+        let script_hash =
+            ScriptHash::from_bytes(script.hash(ScriptHashNamespace::NativeScript).to_bytes())
+                .unwrap();
 
-        assert_eq!(hex::encode(&script_hash.to_bytes()), "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f");
+        assert_eq!(
+            hex::encode(&script_hash.to_bytes()),
+            "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f"
+        );
     }
 }

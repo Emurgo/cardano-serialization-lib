@@ -1,7 +1,9 @@
 use crate::chain_crypto::key::{
     AsymmetricKey, AsymmetricPublicKey, PublicKeyError, SecretKeyError, SecretKeySizeStatic,
 };
-use crate::chain_crypto::sign::{SignatureError, SigningAlgorithm, Verification, VerificationAlgorithm};
+use crate::chain_crypto::sign::{
+    SignatureError, SigningAlgorithm, Verification, VerificationAlgorithm,
+};
 
 use ed25519_bip32 as i;
 use ed25519_bip32::{XPrv, XPub, XPRV_SIZE, XPUB_SIZE};

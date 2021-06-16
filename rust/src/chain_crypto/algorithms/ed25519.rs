@@ -1,7 +1,9 @@
 use crate::chain_crypto::key::{
     AsymmetricKey, AsymmetricPublicKey, PublicKeyError, SecretKeyError, SecretKeySizeStatic,
 };
-use crate::chain_crypto::sign::{SignatureError, SigningAlgorithm, Verification, VerificationAlgorithm};
+use crate::chain_crypto::sign::{
+    SignatureError, SigningAlgorithm, Verification, VerificationAlgorithm,
+};
 use cryptoxide::ed25519;
 use rand_os::rand_core::{CryptoRng, RngCore};
 

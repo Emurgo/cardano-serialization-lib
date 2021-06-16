@@ -1,9 +1,13 @@
-use crate::error::{DeserializeError, DeserializeFailure};
-use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
-use std::io::{BufRead, Seek, Write};
-use std::cmp;
-use std::ops::{Rem, Div, Sub};
 use super::*;
+use crate::error::{DeserializeError, DeserializeFailure};
+use cbor_event::{
+    self,
+    de::Deserializer,
+    se::{Serialize, Serializer},
+};
+use std::cmp;
+use std::io::{BufRead, Seek, Write};
+use std::ops::{Div, Rem, Sub};
 
 // JsError can't be used by non-wasm targets so we use this macro to expose
 // either a DeserializeError or a JsError error depending on if we're on a
@@ -53,7 +57,7 @@ macro_rules! to_bytes {
                 buf.finalize()
             }
         }
-    }
+    };
 }
 
 #[macro_export]
@@ -61,14 +65,14 @@ macro_rules! to_from_bytes {
     ($name:ident) => {
         to_bytes!($name);
         from_bytes!($name);
-    }
+    };
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionUnspentOutput {
     input: TransactionInput,
-    output: TransactionOutput
+    output: TransactionOutput,
 }
 
 to_from_bytes!(TransactionUnspentOutput);
@@ -78,7 +82,7 @@ impl TransactionUnspentOutput {
     pub fn new(input: &TransactionInput, output: &TransactionOutput) -> TransactionUnspentOutput {
         Self {
             input: input.clone(),
-            output: output.clone()
+            output: output.clone(),
         }
     }
 
@@ -92,7 +96,10 @@ impl TransactionUnspentOutput {
 }
 
 impl cbor_event::se::Serialize for TransactionUnspentOutput {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
         self.input.serialize(serializer)?;
         self.output.serialize(serializer)
@@ -107,35 +114,47 @@ impl Deserialize for TransactionUnspentOutput {
                     let len = raw.array()?;
                     let input = (|| -> Result<_, DeserializeError> {
                         Ok(TransactionInput::deserialize(raw)?)
-                    })().map_err(|e| e.annotate("input"))?;
+                    })()
+                    .map_err(|e| e.annotate("input"))?;
                     let output = (|| -> Result<_, DeserializeError> {
                         Ok(TransactionOutput::deserialize(raw)?)
-                    })().map_err(|e| e.annotate("output"))?;
-                    let ret = Ok(Self {
-                        input,
-                        output
-                    });
+                    })()
+                    .map_err(|e| e.annotate("output"))?;
+                    let ret = Ok(Self { input, output });
                     match len {
                         cbor_event::Len::Len(n) => match n {
-                            2 => /* it's ok */(),
-                            n => return Err(DeserializeFailure::DefiniteLenMismatch(n, Some(2)).into()),
+                            2 =>
+                            /* it's ok */
+                            {
+                                ()
+                            }
+                            n => {
+                                return Err(
+                                    DeserializeFailure::DefiniteLenMismatch(n, Some(2)).into()
+                                )
+                            }
                         },
                         cbor_event::Len::Indefinite => match raw.special()? {
-                            CBORSpecial::Break => /* it's ok */(),
+                            CBORSpecial::Break =>
+                            /* it's ok */
+                            {
+                                ()
+                            }
                             _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                         },
                     }
                     ret
-                },
+                }
                 _ => Err(DeserializeFailure::NoVariantMatched.into()),
             }
-        })().map_err(|e| e.annotate("TransactionUnspentOutput"))
+        })()
+        .map_err(|e| e.annotate("TransactionUnspentOutput"))
     }
 }
 
 // Generic u64 wrapper for platforms that don't support u64 or BigInt/etc
 // This is an unsigned type - no negative numbers.
-// Can be converted to/from plain rust 
+// Can be converted to/from plain rust
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BigNum(u64);
@@ -146,7 +165,8 @@ to_from_bytes!(BigNum);
 impl BigNum {
     // Create a BigNum from a standard rust string representation
     pub fn from_str(string: &str) -> Result<BigNum, JsError> {
-        string.parse::<u64>()
+        string
+            .parse::<u64>()
             .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
             .map(BigNum)
     }
@@ -195,18 +215,21 @@ impl BigNum {
 }
 
 impl cbor_event::se::Serialize for BigNum {
-  fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-      serializer.write_unsigned_integer(self.0)
-  }
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_unsigned_integer(self.0)
+    }
 }
 
 impl Deserialize for BigNum {
-  fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-      match raw.unsigned_integer() {
-          Ok(value) => Ok(Self(value)),
-          Err(e) => Err(DeserializeError::new("BigNum", DeserializeFailure::CBOR(e))),
-      }
-  }
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        match raw.unsigned_integer() {
+            Ok(value) => Ok(Self(value)),
+            Err(e) => Err(DeserializeError::new("BigNum", DeserializeFailure::CBOR(e))),
+        }
+    }
 }
 
 pub fn to_bignum(val: u64) -> BigNum {
@@ -287,27 +310,22 @@ impl Value {
                 }
 
                 Some(multiasset)
-            },
-            (None, None) => None, 
+            }
+            (None, None) => None,
             (Some(ma), None) => Some(ma.clone()),
             (None, Some(ma)) => Some(ma.clone()),
         };
 
-        Ok(Value {
-            coin, 
-            multiasset
-        })
+        Ok(Value { coin, multiasset })
     }
 
     pub fn checked_sub(&self, rhs_value: &Value) -> Result<Value, JsError> {
         let coin = self.coin.checked_sub(&rhs_value.coin)?;
-        let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
-            (Some(lhs_ma), Some(rhs_ma)) => {
-                Some(lhs_ma.sub(rhs_ma))
-            },
+        let multiasset = match (&self.multiasset, &rhs_value.multiasset) {
+            (Some(lhs_ma), Some(rhs_ma)) => Some(lhs_ma.sub(rhs_ma)),
             (Some(lhs_ma), None) => Some(lhs_ma.clone()),
             (None, Some(_rhs_ma)) => None,
-            (None, None) => None
+            (None, None) => None,
         };
 
         Ok(Value { coin, multiasset })
@@ -315,13 +333,11 @@ impl Value {
 
     pub fn clamped_sub(&self, rhs_value: &Value) -> Value {
         let coin = self.coin.clamped_sub(&rhs_value.coin);
-        let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
-            (Some(lhs_ma), Some(rhs_ma)) => {
-                Some(lhs_ma.sub(rhs_ma))
-            },
+        let multiasset = match (&self.multiasset, &rhs_value.multiasset) {
+            (Some(lhs_ma), Some(rhs_ma)) => Some(lhs_ma.sub(rhs_ma)),
             (Some(lhs_ma), None) => Some(lhs_ma.clone()),
             (None, Some(_rhs_ma)) => None,
-            (None, None) => None
+            (None, None) => None,
         };
 
         Value { coin, multiasset }
@@ -342,7 +358,10 @@ impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         use std::cmp::Ordering::*;
 
-        fn compare_assets(lhs: &Option<MultiAsset>, rhs: &Option<MultiAsset>) -> Option<std::cmp::Ordering> {
+        fn compare_assets(
+            lhs: &Option<MultiAsset>,
+            rhs: &Option<MultiAsset>,
+        ) -> Option<std::cmp::Ordering> {
             match (lhs, rhs) {
                 (None, None) => Some(Equal),
                 (None, Some(rhs_assets)) => MultiAsset::new().partial_cmp(&rhs_assets),
@@ -351,31 +370,33 @@ impl PartialOrd for Value {
             }
         }
 
-        compare_assets(&self.multiasset(), &other.multiasset())
-            .and_then(|assets_match| {
-                let coin_cmp = self.coin.cmp(&other.coin);
+        compare_assets(&self.multiasset(), &other.multiasset()).and_then(|assets_match| {
+            let coin_cmp = self.coin.cmp(&other.coin);
 
-                match (coin_cmp, assets_match) {
-                    (coin_order, Equal) => Some(coin_order),
-                    (Equal, Less) => Some(Less),
-                    (Less, Less) => Some(Less),
-                    (Equal, Greater) => Some(Greater),
-                    (Greater, Greater) => Some(Greater),
-                    (_, _) => None
-                }
-            })
+            match (coin_cmp, assets_match) {
+                (coin_order, Equal) => Some(coin_order),
+                (Equal, Less) => Some(Less),
+                (Less, Less) => Some(Less),
+                (Equal, Greater) => Some(Greater),
+                (Greater, Greater) => Some(Greater),
+                (_, _) => None,
+            }
+        })
     }
 }
 
 impl cbor_event::se::Serialize for Value {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         match &self.multiasset {
             Some(multiasset) => {
                 serializer.write_array(cbor_event::Len::Len(2))?;
                 self.coin.serialize(serializer)?;
                 multiasset.serialize(serializer)
-            },
-            None => self.coin.serialize(serializer)
+            }
+            None => self.coin.serialize(serializer),
         }
     }
 }
@@ -387,38 +408,51 @@ impl Deserialize for Value {
                 cbor_event::Type::UnsignedInteger => Ok(Value::new(&Coin::deserialize(raw)?)),
                 cbor_event::Type::Array => {
                     let len = raw.array()?;
-                    let coin = (|| -> Result<_, DeserializeError> {
-                        Ok(Coin::deserialize(raw)?)
-                    })().map_err(|e| e.annotate("coin"))?;
-                    let multiasset = (|| -> Result<_, DeserializeError> {
-                        Ok(MultiAsset::deserialize(raw)?)
-                    })().map_err(|e| e.annotate("multiasset"))?;
+                    let coin =
+                        (|| -> Result<_, DeserializeError> { Ok(Coin::deserialize(raw)?) })()
+                            .map_err(|e| e.annotate("coin"))?;
+                    let multiasset =
+                        (|| -> Result<_, DeserializeError> { Ok(MultiAsset::deserialize(raw)?) })()
+                            .map_err(|e| e.annotate("multiasset"))?;
                     let ret = Ok(Self {
                         coin,
                         multiasset: Some(multiasset),
                     });
                     match len {
                         cbor_event::Len::Len(n) => match n {
-                            2 => /* it's ok */(),
-                            n => return Err(DeserializeFailure::DefiniteLenMismatch(n, Some(2)).into()),
+                            2 =>
+                            /* it's ok */
+                            {
+                                ()
+                            }
+                            n => {
+                                return Err(
+                                    DeserializeFailure::DefiniteLenMismatch(n, Some(2)).into()
+                                )
+                            }
                         },
                         cbor_event::Len::Indefinite => match raw.special()? {
-                            CBORSpecial::Break => /* it's ok */(),
+                            CBORSpecial::Break =>
+                            /* it's ok */
+                            {
+                                ()
+                            }
                             _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                         },
                     }
                     ret
-                },
+                }
                 _ => Err(DeserializeFailure::NoVariantMatched.into()),
             }
-        })().map_err(|e| e.annotate("Value"))
+        })()
+        .map_err(|e| e.annotate("Value"))
     }
 }
 
 // CBOR has int = uint / nint
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Int(pub (crate) i128);
+pub struct Int(pub(crate) i128);
 
 #[wasm_bindgen]
 impl Int {
@@ -435,7 +469,7 @@ impl Int {
     }
 
     pub fn is_positive(&self) -> bool {
-        return self.0 >= 0
+        return self.0 >= 0;
     }
 
     pub fn as_positive(&self) -> Option<BigNum> {
@@ -461,7 +495,10 @@ impl Int {
 }
 
 impl cbor_event::se::Serialize for Int {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+    fn serialize<'se, W: Write>(
+        &self,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
         if self.0 < 0 {
             serializer.write_negative_integer(self.0 as i64)
         } else {
@@ -478,14 +515,15 @@ impl Deserialize for Int {
                 cbor_event::Type::NegativeInteger => Ok(Self(raw.negative_integer()? as i128)),
                 _ => Err(DeserializeFailure::NoVariantMatched.into()),
             }
-        })().map_err(|e| e.annotate("Int"))
+        })()
+        .map_err(|e| e.annotate("Int"))
     }
 }
 
 // we use the cbor_event::Serialize trait directly
 
 // This is only for use for plain cddl groups who need to be embedded within outer groups.
-pub (crate) trait SerializeEmbeddedGroup {
+pub(crate) trait SerializeEmbeddedGroup {
     fn serialize_as_embedded_group<'a, W: Write + Sized>(
         &self,
         serializer: &'a mut Serializer<W>,
@@ -494,9 +532,9 @@ pub (crate) trait SerializeEmbeddedGroup {
 
 // same as cbor_event::de::Deserialize but with our DeserializeError
 pub trait Deserialize {
-    fn deserialize<R: BufRead + Seek>(
-        raw: &mut Deserializer<R>,
-    ) -> Result<Self, DeserializeError> where Self: Sized;
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError>
+    where
+        Self: Sized;
 }
 
 // auto-implement for all cbor_event Deserialize implementors
@@ -511,7 +549,9 @@ pub trait DeserializeEmbeddedGroup {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
-    ) -> Result<Self, DeserializeError> where Self: Sized;
+    ) -> Result<Self, DeserializeError>
+    where
+        Self: Sized;
 }
 
 pub struct CBORReadLen {
@@ -538,7 +578,7 @@ impl CBORReadLen {
                 } else {
                     Ok(())
                 }
-            },
+            }
             cbor_event::Len::Indefinite => Ok(()),
         }
     }
@@ -551,7 +591,7 @@ impl CBORReadLen {
                 } else {
                     Err(DeserializeFailure::DefiniteLenMismatch(n, Some(self.read)))
                 }
-            },
+            }
             cbor_event::Len::Indefinite => Ok(()),
         }
     }
@@ -567,14 +607,11 @@ pub fn make_daedalus_bootstrap_witness(
 
     let pubkey = Bip32PublicKey::from_bytes(&key.0.to_public().as_ref()).unwrap();
     let vkey = Vkey::new(&pubkey.to_raw_key());
-    let signature = Ed25519Signature::from_bytes(key.0.sign(&tx_body_hash.to_bytes()).as_ref().to_vec()).unwrap();
+    let signature =
+        Ed25519Signature::from_bytes(key.0.sign(&tx_body_hash.to_bytes()).as_ref().to_vec())
+            .unwrap();
 
-    BootstrapWitness::new(
-        &vkey,
-        &signature,
-        chain_code,
-        addr.attributes(),
-    )
+    BootstrapWitness::new(&vkey, &signature, chain_code, addr.attributes())
 }
 
 #[wasm_bindgen]
@@ -589,26 +626,18 @@ pub fn make_icarus_bootstrap_witness(
     let vkey = Vkey::new(&raw_key.to_public());
     let signature = raw_key.sign(&tx_body_hash.to_bytes());
 
-    BootstrapWitness::new(
-        &vkey,
-        &signature,
-        chain_code,
-        addr.attributes(),
-    )
+    BootstrapWitness::new(&vkey, &signature, chain_code, addr.attributes())
 }
 
 #[wasm_bindgen]
-pub fn make_vkey_witness(
-    tx_body_hash: &TransactionHash,
-    sk: &PrivateKey
-) -> Vkeywitness {
+pub fn make_vkey_witness(tx_body_hash: &TransactionHash, sk: &PrivateKey) -> Vkeywitness {
     let sig = sk.sign(tx_body_hash.0.as_ref());
     Vkeywitness::new(&Vkey::new(&sk.to_public()), &sig)
 }
 
 #[wasm_bindgen]
 pub fn hash_metadata(metadata: &TransactionMetadata) -> MetadataHash {
-  MetadataHash::from(blake2b256(&metadata.to_bytes()))
+    MetadataHash::from(blake2b256(&metadata.to_bytes()))
 }
 #[wasm_bindgen]
 pub fn hash_transaction(tx_body: &TransactionBody) -> TransactionHash {
@@ -620,60 +649,57 @@ pub fn internal_get_implicit_input(
     withdrawals: &Option<Withdrawals>,
     certs: &Option<Certificates>,
     pool_deposit: &BigNum, // // protocol parameter
-    key_deposit: &BigNum, // protocol parameter
+    key_deposit: &BigNum,  // protocol parameter
 ) -> Result<Value, JsError> {
     let withdrawal_sum = match &withdrawals {
         None => to_bignum(0),
-        Some(x) => x.0
-            .values()
-            .try_fold(
-                to_bignum(0),
-                |acc, ref withdrawal_amt| acc.checked_add(&withdrawal_amt)
-            )?,
+        Some(x) => {
+            x.0.values()
+                .try_fold(to_bignum(0), |acc, ref withdrawal_amt| {
+                    acc.checked_add(&withdrawal_amt)
+                })?
+        }
     };
     let certificate_refund = match &certs {
         None => to_bignum(0),
-        Some(certs) => certs.0
+        Some(certs) => certs
+            .0
             .iter()
-            .try_fold(
-                to_bignum(0),
-                |acc, ref cert| match &cert.0 {
-                    CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&pool_deposit),
-                    CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&key_deposit),
-                    _ => Ok(acc),
-                }
-            )?
+            .try_fold(to_bignum(0), |acc, ref cert| match &cert.0 {
+                CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&pool_deposit),
+                CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&key_deposit),
+                _ => Ok(acc),
+            })?,
     };
 
-    Ok(Value::new(&withdrawal_sum.checked_add(&certificate_refund)?))
+    Ok(Value::new(
+        &withdrawal_sum.checked_add(&certificate_refund)?,
+    ))
 }
 pub fn internal_get_deposit(
     certs: &Option<Certificates>,
     pool_deposit: &BigNum, // // protocol parameter
-    key_deposit: &BigNum, // protocol parameter
+    key_deposit: &BigNum,  // protocol parameter
 ) -> Result<Coin, JsError> {
     let certificate_refund = match &certs {
         None => to_bignum(0),
-        Some(certs) => certs.0
+        Some(certs) => certs
+            .0
             .iter()
-            .try_fold(
-                to_bignum(0),
-                |acc, ref cert| match &cert.0 {
-                    CertificateEnum::PoolRegistration(_cert) => acc.checked_add(&pool_deposit),
-                    CertificateEnum::StakeRegistration(_cert) => acc.checked_add(&key_deposit),
-                    _ => Ok(acc),
-                }
-            )?
+            .try_fold(to_bignum(0), |acc, ref cert| match &cert.0 {
+                CertificateEnum::PoolRegistration(_cert) => acc.checked_add(&pool_deposit),
+                CertificateEnum::StakeRegistration(_cert) => acc.checked_add(&key_deposit),
+                _ => Ok(acc),
+            })?,
     };
     Ok(certificate_refund)
 }
-
 
 #[wasm_bindgen]
 pub fn get_implicit_input(
     txbody: &TransactionBody,
     pool_deposit: &BigNum, // // protocol parameter
-    key_deposit: &BigNum, // protocol parameter
+    key_deposit: &BigNum,  // protocol parameter
 ) -> Result<Value, JsError> {
     internal_get_implicit_input(
         &txbody.withdrawals,
@@ -687,13 +713,9 @@ pub fn get_implicit_input(
 pub fn get_deposit(
     txbody: &TransactionBody,
     pool_deposit: &BigNum, // // protocol parameter
-    key_deposit: &BigNum, // protocol parameter
+    key_deposit: &BigNum,  // protocol parameter
 ) -> Result<Coin, JsError> {
-    internal_get_deposit(
-        &txbody.certs,
-        &pool_deposit,
-        &key_deposit,
-    )
+    internal_get_deposit(&txbody.certs, &pool_deposit, &key_deposit)
 }
 
 struct OutputSizeConstants {
@@ -703,45 +725,34 @@ struct OutputSizeConstants {
 }
 
 fn quot<T>(a: T, b: T) -> T
-where T: Sub<Output=T> + Rem<Output=T> + Div<Output=T> + Copy + Clone + std::fmt::Display {
+where
+    T: Sub<Output = T> + Rem<Output = T> + Div<Output = T> + Copy + Clone + std::fmt::Display,
+{
     (a - (a % b)) / b
 }
 
-fn bundle_size(
-    assets: &Value,
-    constants: &OutputSizeConstants,
-) -> usize {
+fn bundle_size(assets: &Value, constants: &OutputSizeConstants) -> usize {
     // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo.rst
     match &assets.multiasset {
         None => 1, // Haskell codebase considers these size 1
-        Some (assets) => {
-            let num_assets = assets.0
-                .values()
-                .fold(
-                    0,
-                    | acc, next| acc + next.len()
-                );
-            let sum_asset_name_lengths = assets.0
+        Some(assets) => {
+            let num_assets = assets.0.values().fold(0, |acc, next| acc + next.len());
+            let sum_asset_name_lengths = assets
+                .0
                 .values()
                 .flat_map(|assets| assets.0.keys())
-                .fold(
-                    0,
-                    | acc, next| acc + next.0.len()
-                );
-            let sum_policy_id_lengths = assets.0
-                .keys()
-                .fold(
-                    0,
-                    | acc, next| acc + next.0.len()
-                );
+                .fold(0, |acc, next| acc + next.0.len());
+            let sum_policy_id_lengths = assets.0.keys().fold(0, |acc, next| acc + next.0.len());
             // converts bytes to 8-byte long words, rounding up
             fn roundup_bytes_to_words(b: usize) -> usize {
                 quot(b + 7, 8)
             };
-            constants.k0 + roundup_bytes_to_words(
-                (num_assets * constants.k1) + sum_asset_name_lengths +
-                (constants.k2 * sum_policy_id_lengths)
-            )
+            constants.k0
+                + roundup_bytes_to_words(
+                    (num_assets * constants.k1)
+                        + sum_asset_name_lengths
+                        + (constants.k2 * sum_policy_id_lengths),
+                )
         }
     }
 }
@@ -774,7 +785,8 @@ pub fn min_ada_required(
             );
             BigNum(cmp::max(
                 minimum_utxo_val.0,
-                quot(minimum_utxo_val.0, ada_only_utxo_size) * (utxo_entry_size_without_val + (size as u64))
+                quot(minimum_utxo_val.0, ada_only_utxo_size)
+                    * (utxo_entry_size_without_val + (size as u64)),
             ))
         }
     }
@@ -789,12 +801,11 @@ mod tests {
 
     #[test]
     fn no_token_minimum() {
-        
         let assets = Value {
             coin: BigNum(0),
             multiasset: None,
         };
-        
+
         assert_eq!(
             min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
             MINIMUM_UTXO_VAL
@@ -803,22 +814,15 @@ mod tests {
 
     #[test]
     fn one_policy_one_smallest_name() {
-        
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
-        asset_list.insert(
-            &AssetName(vec![]),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
+        asset_list.insert(&AssetName(vec![]), &BigNum(1));
+        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
         let assets = Value {
             coin: BigNum(1407406),
             multiasset: Some(token_bundle),
         };
-        
+
         assert_eq!(
             min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
             1407406
@@ -827,22 +831,15 @@ mod tests {
 
     #[test]
     fn one_policy_one_small_name() {
-        
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
-        asset_list.insert(
-            &AssetName(vec![1]),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
+        asset_list.insert(&AssetName(vec![1]), &BigNum(1));
+        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
         let assets = Value {
             coin: BigNum(1444443),
             multiasset: Some(token_bundle),
         };
-        
+
         assert_eq!(
             min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
             1444443
@@ -851,23 +848,19 @@ mod tests {
 
     #[test]
     fn one_policy_one_largest_name() {
-        
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
             // The largest asset names have length thirty-two
             &AssetName([1; 32].to_vec()),
-            &BigNum(1)
+            &BigNum(1),
         );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
+        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
         let assets = Value {
             coin: BigNum(1555554),
             multiasset: Some(token_bundle),
         };
-        
+
         assert_eq!(
             min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
             1555554
@@ -876,30 +869,17 @@ mod tests {
 
     #[test]
     fn one_policy_three_small_names() {
-        
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
-        asset_list.insert(
-            &AssetName(vec![1]),
-            &BigNum(1)
-        );
-        asset_list.insert(
-            &AssetName(vec![2]),
-            &BigNum(1)
-        );
-        asset_list.insert(
-            &AssetName(vec![3]),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
+        asset_list.insert(&AssetName(vec![1]), &BigNum(1));
+        asset_list.insert(&AssetName(vec![2]), &BigNum(1));
+        asset_list.insert(&AssetName(vec![3]), &BigNum(1));
+        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
         let assets = Value {
             coin: BigNum(1555554),
             multiasset: Some(token_bundle),
         };
-        
+
         assert_eq!(
             min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
             1555554
@@ -908,33 +888,29 @@ mod tests {
 
     #[test]
     fn one_policy_three_largest_names() {
-        
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
             // The largest asset names have length thirty-two
             &AssetName([1; 32].to_vec()),
-            &BigNum(1)
+            &BigNum(1),
         );
         asset_list.insert(
             // The largest asset names have length thirty-two
             &AssetName([2; 32].to_vec()),
-            &BigNum(1)
+            &BigNum(1),
         );
         asset_list.insert(
             // The largest asset names have length thirty-two
             &AssetName([3; 32].to_vec()),
-            &BigNum(1)
+            &BigNum(1),
         );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
+        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
         let assets = Value {
             coin: BigNum(1962961),
             multiasset: Some(token_bundle),
         };
-        
+
         assert_eq!(
             min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
             1962961
@@ -943,26 +919,16 @@ mod tests {
 
     #[test]
     fn two_policies_one_smallest_name() {
-        
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
-        asset_list.insert(
-            &AssetName(vec![]),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        token_bundle.insert(
-            &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
+        asset_list.insert(&AssetName(vec![]), &BigNum(1));
+        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
+        token_bundle.insert(&PolicyID::from([1; ScriptHash::BYTE_COUNT]), &asset_list);
         let assets = Value {
             coin: BigNum(1592591),
             multiasset: Some(token_bundle),
         };
-        
+
         assert_eq!(
             min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
             1592591
@@ -971,26 +937,16 @@ mod tests {
 
     #[test]
     fn two_policies_two_small_names() {
-        
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
-        asset_list.insert(
-            &AssetName(vec![]),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        token_bundle.insert(
-            &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
+        asset_list.insert(&AssetName(vec![]), &BigNum(1));
+        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
+        token_bundle.insert(&PolicyID::from([1; ScriptHash::BYTE_COUNT]), &asset_list);
         let assets = Value {
             coin: BigNum(1592591),
             multiasset: Some(token_bundle),
         };
-        
+
         assert_eq!(
             min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
             1592591
@@ -999,20 +955,16 @@ mod tests {
 
     #[test]
     fn three_policies_99_small_names() {
-        
         let mut token_bundle = MultiAsset::new();
         fn add_policy(token_bundle: &mut MultiAsset, index: u8) -> () {
             let mut asset_list = Assets::new();
 
             for i in 0..33 {
-                asset_list.insert(
-                    &AssetName(vec![i]),
-                    &BigNum(1)
-                );
+                asset_list.insert(&AssetName(vec![i]), &BigNum(1));
             }
             token_bundle.insert(
                 &PolicyID::from([index; ScriptHash::BYTE_COUNT]),
-                &asset_list
+                &asset_list,
             );
         }
         add_policy(&mut token_bundle, 1);
@@ -1022,7 +974,7 @@ mod tests {
             coin: BigNum(7592585),
             multiasset: Some(token_bundle),
         };
-        
+
         assert_eq!(
             min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
             7592585
@@ -1042,36 +994,15 @@ mod tests {
         let mut token_bundle1 = MultiAsset::new();
         {
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            asset_list1.insert(
-                &asset2,
-                &BigNum(1)
-            );
-            asset_list1.insert(
-                &asset3,
-                &BigNum(1)
-            );
-            asset_list1.insert(
-                &asset4,
-                &BigNum(2)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(1));
+            asset_list1.insert(&asset2, &BigNum(1));
+            asset_list1.insert(&asset3, &BigNum(1));
+            asset_list1.insert(&asset4, &BigNum(2));
+            token_bundle1.insert(&policy1, &asset_list1);
 
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy2,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(1));
+            token_bundle1.insert(&policy2, &asset_list2);
         }
         let assets1 = Value {
             coin: BigNum(1555554),
@@ -1082,36 +1013,18 @@ mod tests {
         {
             let mut asset_list2 = Assets::new();
             // more than asset1 bundle
-            asset_list2.insert(
-                &asset1,
-                &BigNum(2)
-            );
+            asset_list2.insert(&asset1, &BigNum(2));
             // exactly equal to asset1 bundle
-            asset_list2.insert(
-                &asset2,
-                &BigNum(1)
-            );
+            asset_list2.insert(&asset2, &BigNum(1));
             // skip asset 3
             // less than in asset1 bundle
-            asset_list2.insert(
-                &asset4,
-                &BigNum(1)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset4, &BigNum(1));
+            token_bundle2.insert(&policy1, &asset_list2);
 
             // this policy should be removed entirely
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle2.insert(
-                &policy2,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(1));
+            token_bundle2.insert(&policy2, &asset_list2);
         }
 
         let assets2 = Value {
@@ -1120,27 +1033,15 @@ mod tests {
         };
 
         let result = assets1.clamped_sub(&assets2);
-        assert_eq!(
-            result.coin().to_str(),
-            "0"
-        );
+        assert_eq!(result.coin().to_str(), "0");
         assert_eq!(
             result.multiasset().unwrap().len(),
             1 // policy 2 was deleted successfully
         );
         let policy1_content = result.multiasset().unwrap().get(&policy1).unwrap();
-        assert_eq!(
-            policy1_content.len(),
-            2
-        );
-        assert_eq!(
-            policy1_content.get(&asset3).unwrap().to_str(),
-            "1"
-        );
-        assert_eq!(
-            policy1_content.get(&asset4).unwrap().to_str(),
-            "1"
-        );
+        assert_eq!(policy1_content.len(), 2);
+        assert_eq!(policy1_content.get(&asset3).unwrap().to_str(), "1");
+        assert_eq!(policy1_content.get(&asset4).unwrap().to_str(), "1");
     }
 
     #[test]
@@ -1170,14 +1071,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(1));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle1),
@@ -1188,14 +1083,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(1));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value::new(&to_bignum(1));
             let b = Value {
                 coin: BigNum(1),
@@ -1207,14 +1096,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(1));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle1),
@@ -1222,14 +1105,8 @@ mod tests {
 
             let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(1));
+            token_bundle2.insert(&policy1, &asset_list2);
             let b = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle2),
@@ -1239,14 +1116,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(1));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(2),
                 multiasset: Some(token_bundle1),
@@ -1254,14 +1125,8 @@ mod tests {
 
             let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(1));
+            token_bundle2.insert(&policy1, &asset_list2);
             let b = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle2),
@@ -1271,14 +1136,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(1));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle1),
@@ -1286,14 +1145,8 @@ mod tests {
 
             let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(1));
+            token_bundle2.insert(&policy1, &asset_list2);
             let b = Value {
                 coin: BigNum(2),
                 multiasset: Some(token_bundle2),
@@ -1303,14 +1156,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(2)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(2));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle1),
@@ -1318,14 +1165,8 @@ mod tests {
 
             let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(1));
+            token_bundle2.insert(&policy1, &asset_list2);
             let b = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle2),
@@ -1335,14 +1176,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(2)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(2));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(2),
                 multiasset: Some(token_bundle1),
@@ -1350,14 +1185,8 @@ mod tests {
 
             let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(1));
+            token_bundle2.insert(&policy1, &asset_list2);
             let b = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle2),
@@ -1367,14 +1196,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(2)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(2));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle1),
@@ -1382,14 +1205,8 @@ mod tests {
 
             let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(1));
+            token_bundle2.insert(&policy1, &asset_list2);
             let b = Value {
                 coin: BigNum(2),
                 multiasset: Some(token_bundle2),
@@ -1399,14 +1216,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(1));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle1),
@@ -1414,14 +1225,8 @@ mod tests {
 
             let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(2)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(2));
+            token_bundle2.insert(&policy1, &asset_list2);
             let b = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle2),
@@ -1431,14 +1236,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(1));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle1),
@@ -1446,14 +1245,8 @@ mod tests {
 
             let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(2)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(2));
+            token_bundle2.insert(&policy1, &asset_list2);
             let b = Value {
                 coin: BigNum(2),
                 multiasset: Some(token_bundle2),
@@ -1463,14 +1256,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(1));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(2),
                 multiasset: Some(token_bundle1),
@@ -1478,14 +1265,8 @@ mod tests {
 
             let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset1,
-                &BigNum(2)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset1, &BigNum(2));
+            token_bundle2.insert(&policy1, &asset_list2);
             let b = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle2),
@@ -1495,14 +1276,8 @@ mod tests {
         {
             let mut token_bundle1 = MultiAsset::new();
             let mut asset_list1 = Assets::new();
-            asset_list1.insert(
-                &asset1,
-                &BigNum(1)
-            );
-            token_bundle1.insert(
-                &policy1,
-                &asset_list1
-            );
+            asset_list1.insert(&asset1, &BigNum(1));
+            token_bundle1.insert(&policy1, &asset_list1);
             let a = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle1),
@@ -1510,14 +1285,8 @@ mod tests {
 
             let mut token_bundle2 = MultiAsset::new();
             let mut asset_list2 = Assets::new();
-            asset_list2.insert(
-                &asset2,
-                &BigNum(1)
-            );
-            token_bundle2.insert(
-                &policy1,
-                &asset_list2
-            );
+            asset_list2.insert(&asset2, &BigNum(1));
+            token_bundle2.insert(&policy1, &asset_list2);
             let b = Value {
                 coin: BigNum(1),
                 multiasset: Some(token_bundle2),

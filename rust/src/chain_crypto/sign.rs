@@ -2,9 +2,9 @@ use crate::chain_crypto::{
     bech32::{self, Bech32},
     key,
 };
+use crate::typed_bytes::{ByteArray, ByteSlice};
 use hex::FromHexError;
 use std::{fmt, marker::PhantomData, str::FromStr};
-use crate::typed_bytes::{ByteArray, ByteSlice};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verification {
