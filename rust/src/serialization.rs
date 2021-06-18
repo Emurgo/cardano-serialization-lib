@@ -495,13 +495,18 @@ impl DeserializeEmbeddedGroup for TransactionInput {
 
 impl cbor_event::se::Serialize for TransactionOutput {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(2))?;
+        serializer.write_array(cbor_event::Len::Len(if self.data_hash.is_some() { 3 } else { 2 }))?;
         self.address.serialize(serializer)?;
         self.amount.serialize(serializer)?;
+        if let Some(data_hash) = &self.data_hash {
+            data_hash.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
 
+// this is used when deserializing it on its own, but the more likely case
+// is when it's done via TransactionOutputs
 impl Deserialize for TransactionOutput {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
@@ -519,19 +524,49 @@ impl Deserialize for TransactionOutput {
     }
 }
 
+// this is used by both TransactionOutput (on its own)'s deserialize
+// but also for TransactionOutputs
+// This implementation was hand-coded since cddl-codegen doesn't support deserialization
+// with array-encoded types with optional fields, due to the complexity.
+// This is made worse as this is a plain group...
 impl DeserializeEmbeddedGroup for TransactionOutput {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+        use std::convert::TryInto;
         let address = (|| -> Result<_, DeserializeError> {
             Ok(Address::deserialize(raw)?)
         })().map_err(|e| e.annotate("address"))?;
         let amount = (|| -> Result<_, DeserializeError> {
             Ok(Value::deserialize(raw)?)
         })().map_err(|e| e.annotate("amount"))?;
-        // TODO: how are we supposed to do this inside of a plain group?!
+        // there are only two cases so far where this is used:
+        // 1) on its own inside of TransactionOutput's Deserialize trait (only used if someone calls to_bytes() on it)
+        // 2) from TransactionOutput's deserialization
+        // in 1) we would encounter an array-end (or track it for definite deserialization - which we don't do right now)
+        // and in 2) we would encounter the same OR we would encounter the next TransactionOutput in the array
+        // Unfortunately, both address and data hash are bytes type, so we can't just check the type, but instead
+        // must check the length, and backtrack if that wasn't the case.
+        let data_hash = match raw.cbor_type() {
+            Ok(cbor_event::Type::Bytes) => {
+                let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
+                let bytes = raw.bytes().unwrap();
+                if bytes.len() == DataHash::BYTE_COUNT {
+                    Some(DataHash(bytes[..DataHash::BYTE_COUNT].try_into().unwrap()))
+                } else {
+                    // This is an address of the next output in sequence, which luckily is > 32 bytes so there's no confusion
+                    // Go to previous place in array then carry on
+                    raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap();
+                    None
+                }
+            },
+            // not possibly a data hash
+            Ok(_) |
+            // end of input
+            Err(_) => None,
+        };
         Ok(TransactionOutput {
             address,
             amount,
-            data_hash: None,
+            data_hash,
         })
     }
 }
@@ -3388,10 +3423,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn testing() {
-        let hex = "83a40082825820c9f112a8f20e0cf618918f76c936e859769f02f25539c3b90844dbf6fa3d3250008258207162f3d9a1edc1a20c0a38c2acb854e221329ca76f7666ee3c82c026b5dadfbf000182825839000c82e5ee957c7c3758b310e41a4ff501ab984aee7214275c330f2e3ec11ef08c44f3610b7e56d46e086b90186c12e9a68f0521b7c4c72e4b821a00160a5ba1581c8c4662efcb7fd069c9e4003192b430e9e153e5c3e11099e3dab29772a1454d4152454b181e825839005e0954bcf3f67374ac7a74d5246b63231650d543b1661bff6687943bc11ef08c44f3610b7e56d46e086b90186c12e9a68f0521b7c4c72e4b821a3ba09e60a1581c8c4662efcb7fd069c9e4003192b430e9e153e5c3e11099e3dab29772a1454d4152454b19027c021a0002a5c5031a0121ca4da10081825820ad34b8a04bc18ec5f55afca0d3bfee2d64b870f125a9808c2d74bc21d9d480855840a6289508fe121e14f2ebf58ac0453ba02a7af084042159f833bc6cd3a911e3fe0bfbc6a44980ca2a129fe6dc8c190fa00e883f0b4db0f03ced6b246d5c2ac80bf6";
-        let bytes = hex::decode(hex).unwrap();
-        Transaction::from_bytes(bytes).unwrap();
+    fn tx_output_deser() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput::new(&addr, &val);
+        let mut txo_dh = txo.clone();
+        txo_dh.set_data_hash(&DataHash::from([47u8; DataHash::BYTE_COUNT]));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
     }
 
 }
