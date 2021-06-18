@@ -284,22 +284,32 @@ impl GeneralTransactionMetadata {
     }
 }
 
-// TODO: hand-write this as AuxiliaryData
-pub type AuxiliaryData = TransactionMetadata;
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct TransactionMetadata {
-    general: GeneralTransactionMetadata,
+pub struct AuxiliaryData {
+    metadata: Option<GeneralTransactionMetadata>,
     native_scripts: Option<NativeScripts>,
+    plutus_scripts: Option<PlutusScripts>,
 }
 
-to_from_bytes!(TransactionMetadata);
+to_from_bytes!(AuxiliaryData);
 
 #[wasm_bindgen]
-impl TransactionMetadata {
-    pub fn general(&self) -> GeneralTransactionMetadata {
-        self.general.clone()
+impl AuxiliaryData {
+    pub fn new() -> Self {
+        Self {
+            metadata: None,
+            native_scripts: None,
+            plutus_scripts: None,
+        }
+    }
+
+    pub fn metadata(&self) -> Option<GeneralTransactionMetadata> {
+        self.metadata.clone()
+    }
+
+    pub fn set_metadata(&mut self, metadata: &GeneralTransactionMetadata) {
+        self.metadata = Some(metadata.clone());
     }
 
     pub fn native_scripts(&self) -> Option<NativeScripts> {
@@ -310,11 +320,12 @@ impl TransactionMetadata {
         self.native_scripts = Some(native_scripts.clone())
     }
 
-    pub fn new(general: &GeneralTransactionMetadata) -> Self {
-        Self {
-            general: general.clone(),
-            native_scripts: None,
-        }
+    pub fn plutus_scripts(&self) -> Option<PlutusScripts> {
+        self.plutus_scripts.clone()
+    }
+
+    pub fn set_plutus_scripts(&mut self, plutus_scripts: &PlutusScripts) {
+        self.plutus_scripts = Some(plutus_scripts.clone())
     }
 }
 
@@ -755,30 +766,121 @@ impl Deserialize for GeneralTransactionMetadata {
     }
 }
 
-impl cbor_event::se::Serialize for TransactionMetadata {
+impl cbor_event::se::Serialize for AuxiliaryData {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match &self.native_scripts() {
-            Some(native_scripts) => {
-                serializer.write_array(cbor_event::Len::Len(2))?;
-                self.general.serialize(serializer)?;
-                native_scripts.serialize(serializer)
-            },
-            None => self.general.serialize(serializer)
+        // we still serialize using the shelley-mary era format as it is still supported
+        // and it takes up less space on-chain so this should be better for scaling.
+        // Plus the code was already written for shelley-mary anyway
+        if self.metadata.is_some() && self.plutus_scripts.is_none()  {
+            match &self.native_scripts() {
+                Some(native_scripts) => {
+                    serializer.write_array(cbor_event::Len::Len(2))?;
+                    self.metadata.as_ref().unwrap().serialize(serializer)?;
+                    native_scripts.serialize(serializer)
+                },
+                None => self.metadata.as_ref().unwrap().serialize(serializer),
+            }
+        } else {
+            // new format with plutus support
+            serializer.write_tag(259u64)?;
+            serializer.write_map(cbor_event::Len::Len(
+                if self.metadata.is_some() { 1 } else { 0 } +
+                if self.native_scripts.is_some() { 1 } else { 0 } +
+                if self.plutus_scripts.is_some() { 1 } else { 0 }))?;
+            if let Some(metadata) = &self.metadata {
+                serializer.write_unsigned_integer(0)?;
+                metadata.serialize(serializer)?;
+            }
+            if let Some(native_scripts) = &self.native_scripts {
+                serializer.write_unsigned_integer(1)?;
+                native_scripts.serialize(serializer)?;
+            }
+            if let Some(plutus_scripts) = &self.plutus_scripts {
+                serializer.write_unsigned_integer(2)?;
+                plutus_scripts.serialize(serializer)?;
+            }
+            Ok(serializer)
         }
     }
 }
 
-impl Deserialize for TransactionMetadata {
+impl Deserialize for AuxiliaryData {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             match raw.cbor_type()? {
+                // alonzo format
+                CBORType::Tag => {
+                    let tag = raw.tag()?;
+                    if tag != 259 {
+                        return Err(DeserializeError::new("AuxiliaryData", DeserializeFailure::TagMismatch{ found: tag, expected: 259 }));
+                    }
+                    let len = raw.map()?;
+                    let mut read_len = CBORReadLen::new(len);
+                    let mut metadata = None;
+                    let mut native_scripts = None;
+                    let mut plutus_scripts = None;
+                    let mut read = 0;
+                    while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
+                        match raw.cbor_type()? {
+                            CBORType::UnsignedInteger => match raw.unsigned_integer()? {
+                                0 =>  {
+                                    if metadata.is_some() {
+                                        return Err(DeserializeFailure::DuplicateKey(Key::Uint(0)).into());
+                                    }
+                                    metadata = Some((|| -> Result<_, DeserializeError> {
+                                        read_len.read_elems(1)?;
+                                        Ok(GeneralTransactionMetadata::deserialize(raw)?)
+                                    })().map_err(|e| e.annotate("metadata"))?);
+                                },
+                                1 =>  {
+                                    if native_scripts.is_some() {
+                                        return Err(DeserializeFailure::DuplicateKey(Key::Uint(1)).into());
+                                    }
+                                    native_scripts = Some((|| -> Result<_, DeserializeError> {
+                                        read_len.read_elems(1)?;
+                                        Ok(NativeScripts::deserialize(raw)?)
+                                    })().map_err(|e| e.annotate("native_scripts"))?);
+                                },
+                                2 =>  {
+                                    if plutus_scripts.is_some() {
+                                        return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
+                                    }
+                                    plutus_scripts = Some((|| -> Result<_, DeserializeError> {
+                                        read_len.read_elems(1)?;
+                                        Ok(PlutusScripts::deserialize(raw)?)
+                                    })().map_err(|e| e.annotate("plutus_scripts"))?);
+                                },
+                                unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
+                            },
+                            CBORType::Text => match raw.text()?.as_str() {
+                                unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Str(unknown_key.to_owned())).into()),
+                            },
+                            CBORType::Special => match len {
+                                cbor_event::Len::Len(_) => return Err(DeserializeFailure::BreakInDefiniteLen.into()),
+                                cbor_event::Len::Indefinite => match raw.special()? {
+                                    CBORSpecial::Break => break,
+                                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                                },
+                            },
+                            other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
+                        }
+                        read += 1;
+                    }
+                    read_len.finish()?;
+                    Ok(Self {
+                        metadata,
+                        native_scripts,
+                        plutus_scripts,
+                    })
+                },
+                // shelley mary format (still valid for alonzo)
                 CBORType::Array => {
                     let len = raw.array()?;
                     let mut read_len = CBORReadLen::new(len);
                     read_len.read_elems(2)?;
-                    let general = (|| -> Result<_, DeserializeError> {
+                    let metadata = (|| -> Result<_, DeserializeError> {
                         Ok(GeneralTransactionMetadata::deserialize(raw)?)
-                    })().map_err(|e| e.annotate("general"))?;
+                    })().map_err(|e| e.annotate("metadata"))?;
                     let native_scripts = (|| -> Result<_, DeserializeError> {
                         Ok(NativeScripts::deserialize(raw)?)
                     })().map_err(|e| e.annotate("native_scripts"))?;
@@ -789,18 +891,21 @@ impl Deserialize for TransactionMetadata {
                             _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                         },
                     }
-                    Ok(TransactionMetadata {
-                        general,
+                    Ok(Self {
+                        metadata: Some(metadata),
                         native_scripts: Some(native_scripts),
+                        plutus_scripts: None,
                     })
                 },
-                CBORType::Map => Ok(TransactionMetadata {
-                    general: GeneralTransactionMetadata::deserialize(raw).map_err(|e| e.annotate("general"))?,
+                // shelley pre-mary format (still valid for alonzo + mary)
+                CBORType::Map => Ok(Self {
+                    metadata: Some(GeneralTransactionMetadata::deserialize(raw).map_err(|e| e.annotate("metadata"))?),
                     native_scripts: None,
+                    plutus_scripts: None,
                 }),
                 _ => return Err(DeserializeFailure::NoVariantMatched)?
             }
-        })().map_err(|e| e.annotate("TransactionMetadata"))
+        })().map_err(|e| e.annotate("AuxiliaryData"))
     }
 }
 
@@ -936,18 +1041,29 @@ mod tests {
     }
 
     #[test]
-    fn allegra_metadata() {
+    fn metadata_serialize() {
         let mut gmd = GeneralTransactionMetadata::new();
         let mdatum = TransactionMetadatum::new_text(String::from("string md")).unwrap();
         gmd.insert(&to_bignum(100), &mdatum);
-        let md1 = TransactionMetadata::new(&gmd);
-        let md1_deser = TransactionMetadata::from_bytes(md1.to_bytes()).unwrap();
-        assert_eq!(md1.to_bytes(), md1_deser.to_bytes());
-        let mut md2 = TransactionMetadata::new(&gmd);
-        let mut scripts = NativeScripts::new();
-        scripts.add(&NativeScript::new_timelock_start(&TimelockStart::new(20)));
-        md2.set_native_scripts(&scripts);
-        let md2_deser = TransactionMetadata::from_bytes(md2.to_bytes()).unwrap();
-        assert_eq!(md2.to_bytes(), md2_deser.to_bytes());
+        let mut aux_data = AuxiliaryData::new();
+        // alonzo (empty)
+        let ad0_deser = AuxiliaryData::from_bytes(aux_data.to_bytes()).unwrap();
+        assert_eq!(aux_data.to_bytes(), ad0_deser.to_bytes());
+        // pre-mary shelley
+        aux_data.set_metadata(&gmd);
+        let ad1_deser = AuxiliaryData::from_bytes(aux_data.to_bytes()).unwrap();
+        assert_eq!(aux_data.to_bytes(), ad1_deser.to_bytes());
+        // mary shelley
+        let mut native_scripts = NativeScripts::new();
+        native_scripts.add(&NativeScript::new_timelock_start(&TimelockStart::new(20)));
+        aux_data.set_native_scripts(&native_scripts);
+        let ad2_deser = AuxiliaryData::from_bytes(aux_data.to_bytes()).unwrap();
+        assert_eq!(aux_data.to_bytes(), ad2_deser.to_bytes());
+        // alonzo
+        let mut plutus_scripts = PlutusScripts::new();
+        plutus_scripts.add(&PlutusScript::new([61u8; 29].to_vec()));
+        aux_data.set_plutus_scripts(&plutus_scripts);
+        let ad3_deser = AuxiliaryData::from_bytes(aux_data.to_bytes()).unwrap();
+        assert_eq!(aux_data.to_bytes(), ad3_deser.to_bytes());
     }
 }

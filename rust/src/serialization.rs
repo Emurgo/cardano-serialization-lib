@@ -97,7 +97,7 @@ impl DeserializeEmbeddedGroup for Transaction {
         let auxiliary_data = (|| -> Result<_, DeserializeError> {
             Ok(match raw.cbor_type()? != CBORType::Special {
                 true => {
-                    Some(TransactionMetadata::deserialize(raw)?)
+                    Some(AuxiliaryData::deserialize(raw)?)
                 },
                 false => {
                     if raw.special()? != CBORSpecial::Null {
@@ -2898,7 +2898,7 @@ impl Deserialize for AuxiliaryDataSet {
                     break;
                 }
                 let key = TransactionIndex::deserialize(raw)?;
-                let value = TransactionMetadata::deserialize(raw)?;
+                let value = AuxiliaryData::deserialize(raw)?;
                 if table.insert(key.clone(), value).is_some() {
                     return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
                 }

@@ -7,8 +7,47 @@ use super::*;
 use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 
 
-// TODO: replace with its own struct if we decide to add other functionality?
-type PlutusScript = Vec<u8>;
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct PlutusScript(Vec<u8>);
+
+to_from_bytes!(PlutusScript);
+
+#[wasm_bindgen]
+impl PlutusScript {
+    pub fn new(bytes: Vec<u8>) -> PlutusScript {
+        Self(bytes)
+    }
+
+    pub fn bytes(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct PlutusScripts(Vec<PlutusScript>);
+
+to_from_bytes!(PlutusScripts);
+
+#[wasm_bindgen]
+impl PlutusScripts {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> PlutusScript {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &PlutusScript) {
+        self.0.push(elem.clone());
+    }
+}
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -605,6 +644,48 @@ impl Strings {
 // Serialization
 
 use std::io::{SeekFrom};
+
+
+impl cbor_event::se::Serialize for PlutusScript {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_bytes(&self.0)
+    }
+}
+
+impl Deserialize for PlutusScript {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        Ok(Self(raw.bytes()?))
+    }
+}
+
+impl cbor_event::se::Serialize for PlutusScripts {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for PlutusScripts {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                arr.push(PlutusScript::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("PlutusScripts"))?;
+        Ok(Self(arr))
+    }
+}
+
 
 // TODO: write tests for this hand-coded implementation?
 impl cbor_event::se::Serialize for ConstrPlutusData {
