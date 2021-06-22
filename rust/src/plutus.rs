@@ -567,6 +567,7 @@ pub enum RedeemerTagKind {
     Reward,
 }
 
+// TODO: simplify these two into one struct if possible: see NetworkId
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum RedeemerTagEnum {
     Spend,
@@ -583,19 +584,19 @@ to_from_bytes!(RedeemerTagEnum);
 
 #[wasm_bindgen]
 impl RedeemerTag {
-    pub fn new_i0() -> Self {
+    pub fn new_spend() -> Self {
         Self(RedeemerTagEnum::Spend)
     }
 
-    pub fn new_i1() -> Self {
+    pub fn new_mint() -> Self {
         Self(RedeemerTagEnum::Mint)
     }
 
-    pub fn new_i2() -> Self {
+    pub fn new_cert() -> Self {
         Self(RedeemerTagEnum::Cert)
     }
 
-    pub fn new_i3() -> Self {
+    pub fn new_reward() -> Self {
         Self(RedeemerTagEnum::Reward)
     }
 
@@ -606,6 +607,29 @@ impl RedeemerTag {
             RedeemerTagEnum::Cert => RedeemerTagKind::Cert,
             RedeemerTagEnum::Reward => RedeemerTagKind::Reward,
         }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Redeemers(Vec<Redeemer>);
+
+#[wasm_bindgen]
+impl Redeemers {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> Redeemer {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &Redeemer) {
+        self.0.push(elem.clone());
     }
 }
 
@@ -1332,6 +1356,34 @@ impl cbor_event::se::Serialize for RedeemerTag {
 impl Deserialize for RedeemerTag {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         Ok(Self(RedeemerTagEnum::deserialize(raw)?))
+    }
+}
+
+impl cbor_event::se::Serialize for Redeemers {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        for element in &self.0 {
+            element.serialize(serializer)?;
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for Redeemers {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        let mut arr = Vec::new();
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+                if raw.cbor_type()? == CBORType::Special {
+                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                    break;
+                }
+                arr.push(Redeemer::deserialize(raw)?);
+            }
+            Ok(())
+        })().map_err(|e| e.annotate("Redeemers"))?;
+        Ok(Self(arr))
     }
 }
 

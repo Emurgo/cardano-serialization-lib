@@ -207,7 +207,7 @@ impl Certificates {
     }
 }
 
-pub type RequiredSigners = Vkeys;
+pub type RequiredSigners = Ed25519KeyHashes;
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -911,7 +911,6 @@ impl MIRToStakeCredentials {
     }
 }
 
-// TODO: rewrite to handle the simple coin case (split this into 2 types?)
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MoveInstantaneousReward {
@@ -1371,8 +1370,11 @@ impl Withdrawals {
 #[derive(Clone)]
 pub struct TransactionWitnessSet {
     vkeys: Option<Vkeywitnesses>,
-    scripts: Option<NativeScripts>,
+    native_scripts: Option<NativeScripts>,
     bootstraps: Option<BootstrapWitnesses>,
+    plutus_scripts: Option<PlutusScripts>,
+    plutus_data: Option<PlutusList>,
+    redeemers: Option<Redeemers>,
 }
 
 to_from_bytes!(TransactionWitnessSet);
@@ -1387,12 +1389,12 @@ impl TransactionWitnessSet {
         self.vkeys.clone()
     }
 
-    pub fn set_scripts(&mut self, scripts: &NativeScripts) {
-        self.scripts = Some(scripts.clone())
+    pub fn set_native_scripts(&mut self, native_scripts: &NativeScripts) {
+        self.native_scripts = Some(native_scripts.clone())
     }
 
-    pub fn scripts(&self) -> Option<NativeScripts> {
-        self.scripts.clone()
+    pub fn native_scripts(&self) -> Option<NativeScripts> {
+        self.native_scripts.clone()
     }
 
     pub fn set_bootstraps(&mut self, bootstraps: &BootstrapWitnesses) {
@@ -1403,11 +1405,38 @@ impl TransactionWitnessSet {
         self.bootstraps.clone()
     }
 
+    pub fn set_plutus_scripts(&mut self, plutus_scripts: &PlutusScripts) {
+        self.plutus_scripts = Some(plutus_scripts.clone())
+    }
+
+    pub fn plutus_scripts(&self) -> Option<PlutusScripts> {
+        self.plutus_scripts.clone()
+    }
+
+    pub fn set_plutus_data(&mut self, plutus_data: &PlutusList) {
+        self.plutus_data = Some(plutus_data.clone())
+    }
+
+    pub fn plutus_data(&self) -> Option<PlutusList> {
+        self.plutus_data.clone()
+    }
+
+    pub fn set_redeemers(&mut self, redeemers: &Redeemers) {
+        self.redeemers = Some(redeemers.clone())
+    }
+
+    pub fn redeemers(&self) -> Option<Redeemers> {
+        self.redeemers.clone()
+    }
+
     pub fn new() -> Self {
         Self {
             vkeys: None,
-            scripts: None,
+            native_scripts: None,
             bootstraps: None,
+            plutus_scripts: None,
+            plutus_data: None,
+            redeemers: None,
         }
     }
 }

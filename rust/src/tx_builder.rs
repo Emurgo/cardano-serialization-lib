@@ -85,8 +85,12 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     };
     let witness_set = TransactionWitnessSet {
         vkeys: vkeys,
-        scripts: script_keys,
+        native_scripts: script_keys,
         bootstraps: bootstrap_keys,
+        // TODO: plutus support?
+        plutus_scripts: None,
+        plutus_data: None,
+        redeemers: None,
     };
     let full_tx = Transaction {
         body,

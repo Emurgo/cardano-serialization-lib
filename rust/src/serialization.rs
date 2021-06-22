@@ -1757,17 +1757,29 @@ impl Deserialize for Withdrawals {
 
 impl cbor_event::se::Serialize for TransactionWitnessSet {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(match &self.vkeys { Some(x) => 1, None => 0 } + match &self.scripts { Some(x) => 1, None => 0 } + match &self.bootstraps { Some(x) => 1, None => 0 }))?;
+        serializer.write_map(cbor_event::Len::Len(match &self.vkeys { Some(x) => 1, None => 0 } + match &self.native_scripts { Some(x) => 1, None => 0 } + match &self.bootstraps { Some(x) => 1, None => 0 } + match &self.plutus_scripts { Some(x) => 1, None => 0 } + match &self.plutus_data { Some(x) => 1, None => 0 } + match &self.redeemers { Some(x) => 1, None => 0 }))?;
         if let Some(field) = &self.vkeys {
             serializer.write_unsigned_integer(0)?;
             field.serialize(serializer)?;
         }
-        if let Some(field) = &self.scripts {
+        if let Some(field) = &self.native_scripts {
             serializer.write_unsigned_integer(1)?;
             field.serialize(serializer)?;
         }
         if let Some(field) = &self.bootstraps {
             serializer.write_unsigned_integer(2)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.plutus_scripts {
+            serializer.write_unsigned_integer(3)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.plutus_data {
+            serializer.write_unsigned_integer(4)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.redeemers {
+            serializer.write_unsigned_integer(5)?;
             field.serialize(serializer)?;
         }
         Ok(serializer)
@@ -1778,65 +1790,97 @@ impl Deserialize for TransactionWitnessSet {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
-            Self::deserialize_as_embedded_group(raw, len)
-        })().map_err(|e| e.annotate("TransactionWitnessSet"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for TransactionWitnessSet {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
-        let mut vkeys = None;
-        let mut scripts = None;
-        let mut bootstraps = None;
-        let mut read = 0;
-        while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
-            match raw.cbor_type()? {
-                CBORType::UnsignedInteger => match raw.unsigned_integer()? {
-                    0 =>  {
-                        if vkeys.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(0)).into());
-                        }
-                        vkeys = Some((|| -> Result<_, DeserializeError> {
-                            Ok(Vkeywitnesses::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("vkeys"))?);
+            let mut read_len = CBORReadLen::new(len);
+            let mut vkeys = None;
+            let mut native_scripts = None;
+            let mut bootstraps = None;
+            let mut plutus_scripts = None;
+            let mut plutus_data = None;
+            let mut redeemers = None;
+            let mut read = 0;
+            while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
+                match raw.cbor_type()? {
+                    CBORType::UnsignedInteger => match raw.unsigned_integer()? {
+                        0 =>  {
+                            if vkeys.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(0)).into());
+                            }
+                            vkeys = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(Vkeywitnesses::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("vkeys"))?);
+                        },
+                        1 =>  {
+                            if native_scripts.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(1)).into());
+                            }
+                            native_scripts = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(NativeScripts::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("native_scripts"))?);
+                        },
+                        2 =>  {
+                            if bootstraps.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
+                            }
+                            bootstraps = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(BootstrapWitnesses::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("bootstraps"))?);
+                        },
+                        3 =>  {
+                            if plutus_scripts.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
+                            }
+                            plutus_scripts = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(PlutusScripts::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("plutus_scripts"))?);
+                        },
+                        4 =>  {
+                            if plutus_data.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(4)).into());
+                            }
+                            plutus_data = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(PlutusList::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("plutus_data"))?);
+                        },
+                        5 =>  {
+                            if redeemers.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(5)).into());
+                            }
+                            redeemers = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(Redeemers::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("redeemers"))?);
+                        },
+                        unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                     },
-                    1 =>  {
-                        if scripts.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(1)).into());
-                        }
-                        scripts = Some((|| -> Result<_, DeserializeError> {
-                            Ok(NativeScripts::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("scripts"))?);
+                    CBORType::Text => match raw.text()?.as_str() {
+                        unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Str(unknown_key.to_owned())).into()),
                     },
-                    2 =>  {
-                        if bootstraps.is_some() {
-                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
-                        }
-                        bootstraps = Some((|| -> Result<_, DeserializeError> {
-                            Ok(BootstrapWitnesses::deserialize(raw)?)
-                        })().map_err(|e| e.annotate("bootstraps"))?);
+                    CBORType::Special => match len {
+                        cbor_event::Len::Len(_) => return Err(DeserializeFailure::BreakInDefiniteLen.into()),
+                        cbor_event::Len::Indefinite => match raw.special()? {
+                            CBORSpecial::Break => break,
+                            _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                        },
                     },
-                    unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
-                },
-                CBORType::Text => match raw.text()?.as_str() {
-                    unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Str(unknown_key.to_owned())).into()),
-                },
-                CBORType::Special => match len {
-                    cbor_event::Len::Len(_) => return Err(DeserializeFailure::BreakInDefiniteLen.into()),
-                    cbor_event::Len::Indefinite => match raw.special()? {
-                        CBORSpecial::Break => break,
-                        _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                    },
-                },
-                other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
+                    other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
+                }
+                read += 1;
             }
-            read += 1;
-        }
-        Ok(Self {
-            vkeys,
-            scripts,
-            bootstraps,
-        })
+            read_len.finish()?;
+            Ok(Self {
+                vkeys,
+                native_scripts,
+                bootstraps,
+                plutus_scripts,
+                plutus_data,
+                redeemers,
+            })
+        })().map_err(|e| e.annotate("TransactionWitnessSet"))
     }
 }
 
@@ -3369,8 +3413,6 @@ impl Deserialize for Mint {
 impl cbor_event::se::Serialize for NetworkId {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         match self.0 {
-            // TODO: this is what I understood from the Haskell code
-            // but we should double-check it
             NetworkIdKind::Testnet => {
                 serializer.write_unsigned_integer(0u64)
             },
@@ -3479,5 +3521,15 @@ mod tests {
         let to_stake_creds_deser = MoveInstantaneousReward::from_bytes(to_stake_creds.to_bytes()).unwrap();
         assert_eq!(to_stake_creds.to_bytes(), to_stake_creds_deser.to_bytes());
         
+    }
+
+    #[test]
+    #[ignore]
+    fn alonzo_block() {
+        // this test for some reason has 2-byte pool metadata hashes so don't run this without changing that
+        let bytes = hex::decode("85828f03095820bb30a42c1e62f0afda5f0a4e8a562f7a13a24cea00ee81917b86b89e801314aa58208a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c58208a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c8258404fefc7c718693b57c87170ceba220382afbdd148c0a53b4a009ca63ad1f101483a6170c83a77f23d362a68dcb502802df7f98fa4f7a78b4082b211530e1234305850f770f6769ae9871d42b970fc6254bb927c2181fff45897f241bd72221d86d33c8df64c0a3c8cbb9aa52fef191d7202465c52df8d33727a38c7dc5d40864d753348a340f8afcbb3bb05d4a03f16b1080d825840fe682775f0fa232e909ddc9ec3210ea7a0ee6514cd8b0815190a08f7cef3985463152e10dfad9ed6c09b641b6c1824498e77814a7c12e03096a63cd62056446358500951ed3ef2065e4196d008b50a63bb3e2bdc9a64df67eff4e230b35429291def476684114e074357a5c834bf79eacf583b6fe9fcd1d17f3719a31de97aa4da5e4630b05421359e0b6e4a9bd76c6b920b190929582010c865acec05c84c2c0d0b889f7dbe9bf3b5561f8552da1eb286eac4ccdabc5e5820d298da3803eb9958f01c02e73f2410f2f9bb2ecbc346526b1b76772e1bdd7db500005840940f8a3696847e4a238705bdd27a345086282067b9bc5cb7b69847ca8756085844d576f59ab056c169a504320cc1eab4c11fd529482b3c57da6fa96d44635b0802005901c0a1b2ee63b357fe0b19c6bb8dc3fc865c0608a89626505c5f9aff3b74a0809ca2635e0c4235c247306987c7fd76a4a06210ebf74178e72a1faa78fb8865a69005cc6a5ab5c9b40f817c715df558af7d07b6186f0ccf31715ec2fb00980730ac166af657e6670608afe1bf651d496e01b1c7ff1eb44614d8cfd1b7e32b2c2939349236cc0ada145d8d8d7ad919ef1e60c8bbad31dbedf9f395849705a00c14a8785106aae31f55abc5b1f2089cbef16d9401f158704c1e4f740f7125cfc700a99d97d0332eacb33e4bbc8dab2872ec2b3df9e113addaebd156bfc64fdfc732614d2aedd10a58a34993b7b08c822af3aa615b6bbb9b267bc902e4f1075e194aed084ca18f8bcde1a6b094bf3f5295a0d454c0a083ed5b74f7092fc0a7346c03979a30eeea76d686e512ba48d21544ba874886cdd166cbf275b11f1f3881f4c4277c09a24b88fc6168f4578267bdc9d62cb9b78b8dfc888ccce226a177725f39e7d50930552861d1e88b7898971c780dc3b773321ba1854422b5cecead7d50e77783050eeae2cd9595b9cd91681c72e5d53bb7d12f28dec9b2847ee70a3d7781fb1133aea3b169f536ff5945ec0a76950e51beded0627bb78120617a2f0842e50e3981ae0081825820ee155ace9c40292074cb6aff8c9ccdd273c81648ff1149ef36bcea6ebb8a3e25000d81825820bb30a42c1e62f0afda5f0a4e8a562f7a13a24cea00ee81917b86b89e801314aa01018183583900cb9358529df4729c3246a2a033cb9821abbfd16de4888005904abc410d6a577e9441ad8ed9663931906e4d43ece8f82c712b1d0235affb06821864a1581ca646474b8f5431261506b6c273d307c7569a4eb6c96b42dd4a29520aa14a636f75747473436f696e1903e85820ee155ace9c40292074cb6aff8c9ccdd273c81648ff1149ef36bcea6ebb8a3e25021903e70304048382008200581c0d6a577e9441ad8ed9663931906e4d43ece8f82c712b1d0235affb068a03581c0d6a577e9441ad8ed9663931906e4d43ece8f82c712b1d0235affb065820c5e21ab1c9f6022d81c3b25e3436cb7f1df77f9652ae3e1310c28e621dd87b4c0105d81e82010a581de00d6a577e9441ad8ed9663931906e4d43ece8f82c712b1d0235affb0681581c0d6a577e9441ad8ed9663931906e4d43ece8f82c712b1d0235affb0680826e636f6e73656e7375732e706f6f6c427b7d82068200a18200581c008b47844d92812fc30d1f0ac9b6fbf38778ccba9db8312ad9079079186e05a1581de00d6a577e9441ad8ed9663931906e4d43ece8f82c712b1d0235affb0618640682a1581ce0a714319812c3f773ba04ec5d6b3ffcd5aad85006805b047b082541a104190fa00008020e81581cf81ce66e0f52da5ca48193386e7511fde5b030a307b4c3681736c6f009a1581cb16b56f5ec064be6ac3cab6035efae86b366cc3dc4a0d571603d70e5a14a636f75747473436f696e1903e80b58209e1199a988ba72ffd6e9c269cadb3b53b5f360ff99f112d9b2ee30c4d74ad88b0758209e1199a988ba72ffd6e9c269cadb3b53b5f360ff99f112d9b2ee30c4d74ad88b0f0181a400818258203b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da295840815671b581b4b02a30108a799a85c7f2e5487fb667e748e8fde59e466ab987ce133ecb77ffa0dc53c5804e6706e26b94e17803235da28112bc747de48ccbd70903814c4b0100002002002002000011048118bf058184000019039782191388191388a100d90103a300a40166737472696e67024562797465730382010204a10341620181820180028148470100002002006180").unwrap();
+        let block = Block::from_bytes(bytes).unwrap();
+        let block2 = Block::from_bytes(block.to_bytes()).unwrap();
+        assert_eq!(block.to_bytes(), block2.to_bytes());
     }
 }
