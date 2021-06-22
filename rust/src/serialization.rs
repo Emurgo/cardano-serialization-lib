@@ -1221,13 +1221,8 @@ impl Deserialize for StakeCredentials {
     }
 }
 
-impl cbor_event::se::Serialize for MoveInstantaneousReward {
+impl cbor_event::se::Serialize for MIRToStakeCredentials {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(2))?;
-        match self.pot {
-            MIRPot::Reserves => serializer.write_unsigned_integer(0u64),
-            MIRPot::Treasury => serializer.write_unsigned_integer(1u64),
-        }?;
         serializer.write_map(cbor_event::Len::Len(self.rewards.len() as u64))?;
         for (key, value) in &self.rewards {
             key.serialize(serializer)?;
@@ -1237,17 +1232,10 @@ impl cbor_event::se::Serialize for MoveInstantaneousReward {
     }
 }
 
-impl Deserialize for MoveInstantaneousReward {
+impl Deserialize for MIRToStakeCredentials {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = linked_hash_map::LinkedHashMap::new();
-        let pot = (|| -> Result<_, DeserializeError> {
-            let outer_len = raw.array()?;
-            let pot = match raw.unsigned_integer()? {
-                0 => MIRPot::Reserves,
-                1 => MIRPot::Treasury,
-                n => return Err(DeserializeFailure::UnknownKey(Key::Uint(n)).into()),
-            };
-            let len = raw.map()?;
+        (|| -> Result<_, DeserializeError> {
+            let mut table = linked_hash_map::LinkedHashMap::new();let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
                 if raw.cbor_type()? == CBORType::Special {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
@@ -1256,9 +1244,45 @@ impl Deserialize for MoveInstantaneousReward {
                 let key = StakeCredential::deserialize(raw)?;
                 let value = DeltaCoin::deserialize(raw)?;
                 if table.insert(key.clone(), value).is_some() {
-                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
+                    return Err(DeserializeFailure::DuplicateKey(Key::Str(format!("StakeCred: {} (hex bytes)", hex::encode(key.to_bytes())))).into());
                 }
             }
+            Ok(Self {
+                rewards: table
+            })
+        })().map_err(|e| e.annotate("MIRToStakeCredentials"))
+        
+    }
+}
+
+impl cbor_event::se::Serialize for MoveInstantaneousReward {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(2))?;
+        match self.pot {
+            MIRPot::Reserves => serializer.write_unsigned_integer(0u64),
+            MIRPot::Treasury => serializer.write_unsigned_integer(1u64),
+        }?;
+        match &self.variant {
+            MIREnum::ToOtherPot(amount) => amount.serialize(serializer),
+            MIREnum::ToStakeCredentials(amounts) => amounts.serialize(serializer),
+        }
+    }
+}
+
+impl Deserialize for MoveInstantaneousReward {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let outer_len = raw.array()?;
+            let pot = match raw.unsigned_integer()? {
+                0 => MIRPot::Reserves,
+                1 => MIRPot::Treasury,
+                n => return Err(DeserializeFailure::UnknownKey(Key::Uint(n)).into()),
+            };
+            let variant = match raw.cbor_type()? {
+                CBORType::UnsignedInteger => MIREnum::ToOtherPot(Coin::deserialize(raw)?),
+                CBORType::Map => MIREnum::ToStakeCredentials(MIRToStakeCredentials::deserialize(raw)?),
+                _ => return Err(DeserializeFailure::NoVariantMatched.into()),
+            };
             match outer_len {
                 cbor_event::Len::Len(n) => if n != 2 {
                     return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(n, outer_len, "MoveInstantaneousReward")).into())
@@ -1268,12 +1292,11 @@ impl Deserialize for MoveInstantaneousReward {
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
             };
-            Ok(pot)
-        })().map_err(|e| e.annotate("MoveInstantaneousReward"))?;
-        Ok(Self {
-            pot,
-            rewards: table
-        })
+            Ok(Self {
+                pot,
+                variant,
+            })
+        })().map_err(|e| e.annotate("MoveInstantaneousReward"))
     }
 }
 
@@ -3442,4 +3465,19 @@ mod tests {
         assert_eq!(bytes, bytes_deser);
     }
 
+    #[test]
+    fn mir_deser() {
+        let reserves_to_pot = MoveInstantaneousReward::new_to_other_pot(MIRPot::Treasury, &Coin::from_str("143546464").unwrap());
+        let reserves_to_pot_deser = MoveInstantaneousReward::from_bytes(reserves_to_pot.to_bytes()).unwrap();
+        assert_eq!(reserves_to_pot.to_bytes(), reserves_to_pot_deser.to_bytes());
+        let treasury_to_pot = MoveInstantaneousReward::new_to_other_pot(MIRPot::Treasury, &Coin::from_str("0").unwrap());
+        let treasury_to_pot_deser = MoveInstantaneousReward::from_bytes(treasury_to_pot.to_bytes()).unwrap();
+        assert_eq!(treasury_to_pot.to_bytes(), treasury_to_pot_deser.to_bytes());
+        let mut stake_creds = MIRToStakeCredentials::new();
+        stake_creds.insert(&StakeCredential::from_scripthash(&ScriptHash([54u8; ScriptHash::BYTE_COUNT])), &Int::new_i32(-314159265));
+        let to_stake_creds = MoveInstantaneousReward::new_to_stake_creds(MIRPot::Treasury, &stake_creds);
+        let to_stake_creds_deser = MoveInstantaneousReward::from_bytes(to_stake_creds.to_bytes()).unwrap();
+        assert_eq!(to_stake_creds.to_bytes(), to_stake_creds_deser.to_bytes());
+        
+    }
 }

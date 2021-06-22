@@ -854,27 +854,37 @@ impl Certificate {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum MIRPot {
     Reserves,
     Treasury,
 }
 
-// TODO: rewrite to handle the simple coin case (split this into 2 types?)
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum MIREnum {
+    ToOtherPot(Coin),
+    ToStakeCredentials(MIRToStakeCredentials),
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MoveInstantaneousReward {
-    pot: MIRPot,
+pub enum MIRKind {
+    ToOtherPot,
+    ToStakeCredentials,
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MIRToStakeCredentials {
     rewards: linked_hash_map::LinkedHashMap<StakeCredential, DeltaCoin>,
 }
 
-to_from_bytes!(MoveInstantaneousReward);
+to_from_bytes!(MIRToStakeCredentials);
 
 #[wasm_bindgen]
-impl MoveInstantaneousReward {
-    pub fn new(pot: MIRPot) -> Self {
+impl MIRToStakeCredentials {
+    pub fn new() -> Self {
         Self {
-            pot,
             rewards: linked_hash_map::LinkedHashMap::new(),
         }
     }
@@ -898,6 +908,58 @@ impl MoveInstantaneousReward {
                 .map(|(k, _v)| k.clone())
                 .collect::<Vec<StakeCredential>>(),
         )
+    }
+}
+
+// TODO: rewrite to handle the simple coin case (split this into 2 types?)
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MoveInstantaneousReward {
+    pot: MIRPot,
+    variant: MIREnum, 
+}
+
+to_from_bytes!(MoveInstantaneousReward);
+
+#[wasm_bindgen]
+impl MoveInstantaneousReward {
+    pub fn new_to_other_pot(pot: MIRPot, amount: &Coin) -> Self {
+        Self {
+            pot,
+            variant: MIREnum::ToOtherPot(amount.clone()),
+        }
+    }
+
+    pub fn new_to_stake_creds(pot: MIRPot, amounts: &MIRToStakeCredentials) -> Self {
+        Self {
+            pot,
+            variant: MIREnum::ToStakeCredentials(amounts.clone()),
+        }
+    }
+
+    pub fn pot(&self) -> MIRPot {
+        self.pot
+    }
+
+    pub fn kind(&self) -> MIRKind {
+        match &self.variant {
+            MIREnum::ToOtherPot(_) => MIRKind::ToOtherPot,
+            MIREnum::ToStakeCredentials(_) => MIRKind::ToStakeCredentials,
+        }
+    }
+
+    pub fn as_to_other_pot(&self) -> Option<Coin> {
+        match &self.variant {
+            MIREnum::ToOtherPot(amount) => Some(amount.clone()),
+            MIREnum::ToStakeCredentials(_) => None,
+        }
+    }
+
+    pub fn as_to_stake_creds(&self) -> Option<MIRToStakeCredentials> {
+        match &self.variant {
+            MIREnum::ToOtherPot(_) => None,
+            MIREnum::ToStakeCredentials(amounts) => Some(amounts.clone()),
+        }
     }
 }
 
