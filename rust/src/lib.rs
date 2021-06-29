@@ -2240,13 +2240,13 @@ impl Block {
         self.invalid_transactions.clone()
     }
 
-    pub fn new(header: &Header, transaction_bodies: &TransactionBodies, transaction_witness_sets: &TransactionWitnessSets, auxiliary_data_set: &AuxiliaryDataSet, invalid_transactions: &TransactionIndexes) -> Self {
+    pub fn new(header: &Header, transaction_bodies: &TransactionBodies, transaction_witness_sets: &TransactionWitnessSets, auxiliary_data_set: &AuxiliaryDataSet, invalid_transactions: TransactionIndexes) -> Self {
         Self {
             header: header.clone(),
             transaction_bodies: transaction_bodies.clone(),
             transaction_witness_sets: transaction_witness_sets.clone(),
             auxiliary_data_set: auxiliary_data_set.clone(),
-            invalid_transactions: invalid_transactions.clone(),
+            invalid_transactions: invalid_transactions,
         }
     }
 }
@@ -2694,7 +2694,7 @@ enum PreludeUnsignedEnum {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PreludeUnsigned(PreludeUnsignedEnum);
 
-to_from_bytes!(PreludeUnsignedEnum);
+to_from_bytes!(PreludeUnsigned);
 
 #[wasm_bindgen]
 impl PreludeUnsigned {

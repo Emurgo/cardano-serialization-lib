@@ -297,7 +297,7 @@ pub struct PlutusData(PlutusDataEnum);
 
 const PLUTUS_BYTES_MAX_LEN: usize = 64;
 
-to_from_bytes!(PlutusDataEnum);
+to_from_bytes!(PlutusData);
 
 #[wasm_bindgen]
 impl PlutusData {
@@ -412,7 +412,7 @@ enum PreludeBigintEnum {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PreludeBigint(PreludeBigintEnum);
 
-to_from_bytes!(PreludeBigintEnum);
+to_from_bytes!(PreludeBigint);
 
 #[wasm_bindgen]
 impl PreludeBigint {
@@ -485,7 +485,7 @@ enum PreludeIntegerEnum {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PreludeInteger(PreludeIntegerEnum);
 
-to_from_bytes!(PreludeIntegerEnum);
+to_from_bytes!(PreludeInteger);
 
 #[wasm_bindgen]
 impl PreludeInteger {
@@ -580,7 +580,7 @@ enum RedeemerTagEnum {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct RedeemerTag(RedeemerTagEnum);
 
-to_from_bytes!(RedeemerTagEnum);
+to_from_bytes!(RedeemerTag);
 
 #[wasm_bindgen]
 impl RedeemerTag {
