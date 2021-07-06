@@ -536,8 +536,8 @@ pub fn make_vkey_witness(
 }
 
 #[wasm_bindgen]
-pub fn hash_metadata(metadata: &TransactionMetadata) -> MetadataHash {
-  MetadataHash::from(blake2b256(&metadata.to_bytes()))
+pub fn hash_auxiliary_data(auxiliary_data: &AuxiliaryData) -> AuxiliaryDataHash {
+  AuxiliaryDataHash::from(blake2b256(&auxiliary_data.to_bytes()))
 }
 #[wasm_bindgen]
 pub fn hash_transaction(tx_body: &TransactionBody) -> TransactionHash {
