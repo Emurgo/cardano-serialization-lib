@@ -411,6 +411,107 @@ impl Deserialize for Int {
     }
 }
 
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct BigInt(num_bigint::BigInt);
+
+to_from_bytes!(BigInt);
+
+#[wasm_bindgen]
+impl BigInt {
+    pub fn as_u64(&self) -> Option<BigNum> {
+        let (sign, u64_digits) = self.0.to_u64_digits();
+        if sign == num_bigint::Sign::Minus {
+            return None;
+        }
+        match u64_digits.len() {
+            1 => Some(to_bignum(*u64_digits.first().unwrap())),
+            _ => None,
+        }
+    }
+
+    pub fn from_str(text: &str) -> Result<BigInt, JsError> {
+        use std::str::FromStr;
+        num_bigint::BigInt::from_str(text)
+            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
+            .map(BigInt)
+    }
+
+    pub fn to_str(&self) -> String {
+        self.0.to_string()
+    }
+}
+
+impl cbor_event::se::Serialize for BigInt {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        let (sign, u64_digits) = self.0.to_u64_digits();
+        // we use the uint/nint encodings to use a minimum of space
+        if u64_digits.len() == 1 {
+            match sign {
+                // uint
+                num_bigint::Sign::Plus |
+                num_bigint::Sign::NoSign => serializer.write_unsigned_integer(*u64_digits.first().unwrap())?,
+                // nint
+                num_bigint::Sign::Minus => serializer.write_negative_integer(-(*u64_digits.first().unwrap() as i128) as i64)?,
+            };
+        } else {
+            let (sign, bytes) = self.0.to_bytes_be();
+            match sign {
+                // positive bigint
+                num_bigint::Sign::Plus |
+                num_bigint::Sign::NoSign => {
+                    serializer.write_tag(2u64)?;
+                    serializer.write_bytes(bytes)?;
+                },
+                // negative bigint
+                num_bigint::Sign::Minus => {
+                    serializer.write_tag(3u64)?;
+                    use std::ops::Neg;
+                    // CBOR RFC defines this as the bytes of -n -1
+                    let adjusted = self.0.clone().neg().checked_sub(&num_bigint::BigInt::from(1u32)).unwrap().to_biguint().unwrap();
+                    serializer.write_bytes(adjusted.to_bytes_be())?;
+                },
+            }
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for BigInt {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            match raw.cbor_type()? {
+                // bigint
+                CBORType::Tag => {
+                    let tag = raw.tag()?;
+                    let bytes = raw.bytes()?;
+                    if bytes.len() > 64 {
+                        return Err(DeserializeFailure::OutOfRange{ found: bytes.len(), min: 0, max: 64}.into())
+                    }
+                    match tag {
+                        // positive bigint
+                        2 => Ok(Self(num_bigint::BigInt::from_bytes_be(num_bigint::Sign::Plus, &bytes))),
+                        // negative bigint
+                        3 => {
+                            // CBOR RFC defines this as the bytes of -n -1
+                            let initial = num_bigint::BigInt::from_bytes_be(num_bigint::Sign::Plus, &bytes);
+                            use std::ops::Neg;
+                            let adjusted = initial.checked_add(&num_bigint::BigInt::from(1u32)).unwrap().neg();
+                            Ok(Self(adjusted))
+                        },
+                        _ => return Err(DeserializeFailure::TagMismatch{ found: tag, expected: 2 }.into()),
+                    }
+                },
+                // uint
+                CBORType::UnsignedInteger => Ok(Self(num_bigint::BigInt::from(raw.unsigned_integer()?))),
+                // nint
+                CBORType::NegativeInteger => Ok(Self(num_bigint::BigInt::from(raw.negative_integer()?))),
+                _ => return Err(DeserializeFailure::NoVariantMatched.into()),
+            }
+        })().map_err(|e| e.annotate("BigInt"))
+    }
+}
+
 // we use the cbor_event::Serialize trait directly
 
 // This is only for use for plain cddl groups who need to be embedded within outer groups.
@@ -1453,5 +1554,46 @@ mod tests {
             };
             assert_eq!(a.partial_cmp(&b), None);
         }
+    }
+
+    #[test]
+    fn bigint_serialization() {
+        let zero = BigInt::from_str("0").unwrap();
+        let zero_rt = BigInt::from_bytes(zero.to_bytes()).unwrap();
+        assert_eq!(zero.to_str(), zero_rt.to_str());
+
+        let pos_small = BigInt::from_str("100").unwrap();
+        let pos_small_rt = BigInt::from_bytes(pos_small.to_bytes()).unwrap();
+        assert_eq!(pos_small.to_str(), pos_small_rt.to_str());
+
+        let pos_big = BigInt::from_str("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").unwrap();
+        let pos_big_rt = BigInt::from_bytes(pos_big.to_bytes()).unwrap();
+        assert_eq!(pos_big.to_str(), pos_big_rt.to_str());
+
+        let neg_small = BigInt::from_str("-100").unwrap();
+        let neg_small_rt = BigInt::from_bytes(neg_small.to_bytes()).unwrap();
+        assert_eq!(neg_small.to_str(), neg_small_rt.to_str());
+
+        let neg_big = BigInt::from_str("-123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890").unwrap();
+        let neg_big_rt = BigInt::from_bytes(neg_big.to_bytes()).unwrap();
+        assert_eq!(neg_big.to_str(), neg_big_rt.to_str());
+
+        // taken from CBOR RFC examples
+        // negative big int
+        assert_eq!(hex::decode("c349010000000000000000").unwrap(), BigInt::from_str("-18446744073709551617").unwrap().to_bytes());
+        // positive big int
+        assert_eq!(hex::decode("c249010000000000000000").unwrap(), BigInt::from_str("18446744073709551616").unwrap().to_bytes());
+        // uint
+        assert_eq!(hex::decode("1b000000e8d4a51000").unwrap(), BigInt::from_str("1000000000000").unwrap().to_bytes());
+        // nint
+        // we can't use this due to cbor_event actually not supporting the full NINT spectrum as it uses an i64 for some reason...
+        //assert_eq!(hex::decode("3bffffffffffffffff").unwrap(), BigInt::from_str("-18446744073709551616").unwrap().to_bytes());
+        // this one fits in an i64 though
+        assert_eq!(hex::decode("3903e7").unwrap(), BigInt::from_str("-1000").unwrap().to_bytes());
+
+
+        let x = BigInt::from_str("-18446744073709551617").unwrap();
+        let x_rt = BigInt::from_bytes(x.to_bytes()).unwrap();
+        assert_eq!(x.to_str(), x_rt.to_str());
     }
 }
