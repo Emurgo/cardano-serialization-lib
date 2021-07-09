@@ -18,4 +18,4 @@ This is a library for serialization & deserialization of data structures used in
 
 ## Documentation
 
-You can find documentation [here](https://docs.cardano.org/projects/cardano-serialization-lib/en/latest/)
+You can find documentation [here](https://docs.cardano.org/cardano-components/cardano-serialization-lib)
