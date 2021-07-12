@@ -14,7 +14,7 @@ use ed25519_bip32::{XPrv, XPub, XPRV_SIZE, XPUB_SIZE};
 use rand_os::rand_core::{CryptoRng, RngCore};
 
 const CHAIN_CODE_SIZE: usize = 32;
-const SEED_SIZE: usize = 64;
+pub const SEED_SIZE: usize = 32;
 
 /// Legacy Daedalus algorithm
 pub struct LegacyDaedalus;
@@ -48,27 +48,8 @@ impl LegacyPriv {
             .clone_from_slice(&self.0.as_ref()[ed25519::PRIVATE_KEY_LENGTH..XPRV_SIZE]);
         buf
     }
-}
 
-impl AsymmetricPublicKey for LegacyDaedalus {
-    type Public = XPub;
-    const PUBLIC_BECH32_HRP: &'static str = "legacy_xpub";
-    const PUBLIC_KEY_SIZE: usize = XPUB_SIZE;
-    fn public_from_binary(data: &[u8]) -> Result<Self::Public, PublicKeyError> {
-        let xpub = XPub::from_slice(data)?;
-        Ok(xpub)
-    }
-}
-
-impl AsymmetricKey for LegacyDaedalus {
-    type Secret = LegacyPriv;
-    type PubAlg = LegacyDaedalus;
-
-    const SECRET_BECH32_HRP: &'static str = "legacy_xprv";
-
-    fn generate<T: RngCore + CryptoRng>(mut rng: T) -> Self::Secret {
-        let mut seed = [0u8; SEED_SIZE];
-        rng.fill_bytes(&mut seed);
+    pub fn from_seed(seed: &[u8]) -> LegacyPriv {
         let mut mac = Hmac::new(Sha512::new(), &seed);
 
         let mut iter = 1;
@@ -90,6 +71,29 @@ impl AsymmetricKey for LegacyDaedalus {
         }
 
         LegacyPriv(out)
+    }
+}
+
+impl AsymmetricPublicKey for LegacyDaedalus {
+    type Public = XPub;
+    const PUBLIC_BECH32_HRP: &'static str = "legacy_xpub";
+    const PUBLIC_KEY_SIZE: usize = XPUB_SIZE;
+    fn public_from_binary(data: &[u8]) -> Result<Self::Public, PublicKeyError> {
+        let xpub = XPub::from_slice(data)?;
+        Ok(xpub)
+    }
+}
+
+impl AsymmetricKey for LegacyDaedalus {
+    type Secret = LegacyPriv;
+    type PubAlg = LegacyDaedalus;
+
+    const SECRET_BECH32_HRP: &'static str = "legacy_xprv";
+
+    fn generate<T: RngCore + CryptoRng>(mut rng: T) -> Self::Secret {
+        let mut seed = [0u8; SEED_SIZE];
+        rng.fill_bytes(&mut seed);
+        LegacyPriv::from_seed(&seed)
     }
 
     fn compute_public(key: &Self::Secret) -> <Self as AsymmetricPublicKey>::Public {

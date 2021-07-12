@@ -232,7 +232,17 @@ impl ByronAddress {
 
         // need to ensure we use None for mainnet since Byron-era addresses omitted the network id
         let filtered_protocol_magic = if protocol_magic == NetworkInfo::mainnet().protocol_magic() { None } else { Some(protocol_magic) };
-        ByronAddress(ExtendedAddr::new_simple(& XPub::from_bytes(out), filtered_protocol_magic))
+        ByronAddress(ExtendedAddr::new_icarus(& XPub::from_bytes(out), filtered_protocol_magic))
+    }
+
+    // legacy daedalus-style address (Dd)
+    pub fn legacy_daedalus_from_key(key: &LegacyDaedalusPublicKey, payload: &[u8], protocol_magic: u32) -> ByronAddress {
+        let mut out = [0u8; 64];
+        out.clone_from_slice(&key.as_bytes());
+
+        // need to ensure we use None for mainnet since Byron-era addresses omitted the network id
+        let filtered_protocol_magic = if protocol_magic == NetworkInfo::mainnet().protocol_magic() { None } else { Some(protocol_magic) };
+        ByronAddress(ExtendedAddr::new_legacy_daedalus(& XPub::from_bytes(out), &payload.to_vec(), filtered_protocol_magic))
     }
 
     pub fn is_valid(s: &str) -> bool {
@@ -767,6 +777,14 @@ mod tests {
         let addr = ByronAddress::from_base58("2cWKMJemoBaipzQe9BArYdo2iPUfJQdZAjm4iCzDA1AfNxJSTgm9FZQTmFCYhKkeYrede").unwrap();
         assert_eq!(addr.byron_protocol_magic(), NetworkInfo::testnet().protocol_magic());
         assert_eq!(addr.network_id().unwrap(), NetworkInfo::testnet().network_id());
+    }
+
+    #[test]
+    fn legacy_daedalus_parsing() {
+        let base58 = "DdzFFzCqrhsrcTVhLygT24QwTnNqQqQ8mZrq5jykUzMveU26sxaH529kMpo7VhPrt5pwW3dXeB2k3EEvKcNBRmzCfcQ7dTkyGzTs658C";
+        let addr = ByronAddress::from_base58(base58).unwrap();
+
+        assert_eq!(base58, addr.to_base58());
     }
 
     #[test]
