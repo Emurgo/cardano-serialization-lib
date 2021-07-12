@@ -161,9 +161,9 @@ dependencies = [
 
 [[package]]
 name = "ed25519-bip32"
-version = "0.3.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8827180a2b511141fbe49141e50b31a8d542465e0fb572f81f36feea2addfe92"
+checksum = "6c091ed784fcf257830c75851d6c88fd5991f98d2f3fa9ed23c3f6bac4eec3cc"
 dependencies = [
  "cryptoxide",
 ]
