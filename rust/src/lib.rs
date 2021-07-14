@@ -273,7 +273,7 @@ impl TransactionBody {
         self.update.clone()
     }
 
-    pub fn set_metadata_hash(&mut self, auxiliary_data_hash: &AuxiliaryDataHash) {
+    pub fn set_auxiliary_data_hash(&mut self, auxiliary_data_hash: &AuxiliaryDataHash) {
         self.auxiliary_data_hash = Some(auxiliary_data_hash.clone())
     }
 
