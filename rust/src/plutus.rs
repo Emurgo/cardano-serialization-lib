@@ -145,23 +145,23 @@ impl Costmdls {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ExUnitPrices {
-    mem_price: Coin,
-    step_price: Coin,
+    mem_price: SubCoin,
+    step_price: SubCoin,
 }
 
 to_from_bytes!(ExUnitPrices);
 
 #[wasm_bindgen]
 impl ExUnitPrices {
-    pub fn mem_price(&self) -> Coin {
+    pub fn mem_price(&self) -> SubCoin {
         self.mem_price.clone()
     }
 
-    pub fn step_price(&self) -> Coin {
+    pub fn step_price(&self) -> SubCoin {
         self.step_price.clone()
     }
 
-    pub fn new(mem_price: &Coin, step_price: &Coin) -> Self {
+    pub fn new(mem_price: &SubCoin, step_price: &SubCoin) -> Self {
         Self {
             mem_price: mem_price.clone(),
             step_price: step_price.clone(),
@@ -847,10 +847,10 @@ impl Deserialize for ExUnitPrices {
             let mut read_len = CBORReadLen::new(len);
             read_len.read_elems(2)?;
             let mem_price = (|| -> Result<_, DeserializeError> {
-                Ok(Coin::deserialize(raw)?)
+                Ok(SubCoin::deserialize(raw)?)
             })().map_err(|e| e.annotate("mem_price"))?;
             let step_price = (|| -> Result<_, DeserializeError> {
-                Ok(Coin::deserialize(raw)?)
+                Ok(SubCoin::deserialize(raw)?)
             })().map_err(|e| e.annotate("step_price"))?;
             match len {
                 cbor_event::Len::Len(_) => (),
