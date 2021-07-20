@@ -87,6 +87,7 @@ impl UnitInterval {
     }
 }
 
+type SubCoin = UnitInterval;
 type Rational = UnitInterval;
 type Epoch = u32;
 type Slot = u32;

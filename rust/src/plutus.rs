@@ -145,23 +145,23 @@ impl Costmdls {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ExUnitPrices {
-    mem_price: Coin,
-    step_price: Coin,
+    mem_price: SubCoin,
+    step_price: SubCoin,
 }
 
 to_from_bytes!(ExUnitPrices);
 
 #[wasm_bindgen]
 impl ExUnitPrices {
-    pub fn mem_price(&self) -> Coin {
+    pub fn mem_price(&self) -> SubCoin {
         self.mem_price.clone()
     }
 
-    pub fn step_price(&self) -> Coin {
+    pub fn step_price(&self) -> SubCoin {
         self.step_price.clone()
     }
 
-    pub fn new(mem_price: &Coin, step_price: &Coin) -> Self {
+    pub fn new(mem_price: &SubCoin, step_price: &SubCoin) -> Self {
         Self {
             mem_price: mem_price.clone(),
             step_price: step_price.clone(),
@@ -434,7 +434,7 @@ impl Redeemer {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum RedeemerTagKind {
     Spend,
     Mint,
@@ -442,46 +442,32 @@ pub enum RedeemerTagKind {
     Reward,
 }
 
-// TODO: simplify these two into one struct if possible: see NetworkId
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum RedeemerTagEnum {
-    Spend,
-    Mint,
-    Cert,
-    Reward,
-}
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct RedeemerTag(RedeemerTagEnum);
+pub struct RedeemerTag(RedeemerTagKind);
 
 to_from_bytes!(RedeemerTag);
 
 #[wasm_bindgen]
 impl RedeemerTag {
     pub fn new_spend() -> Self {
-        Self(RedeemerTagEnum::Spend)
+        Self(RedeemerTagKind::Spend)
     }
 
     pub fn new_mint() -> Self {
-        Self(RedeemerTagEnum::Mint)
+        Self(RedeemerTagKind::Mint)
     }
 
     pub fn new_cert() -> Self {
-        Self(RedeemerTagEnum::Cert)
+        Self(RedeemerTagKind::Cert)
     }
 
     pub fn new_reward() -> Self {
-        Self(RedeemerTagEnum::Reward)
+        Self(RedeemerTagKind::Reward)
     }
 
     pub fn kind(&self) -> RedeemerTagKind {
-        match &self.0 {
-            RedeemerTagEnum::Spend => RedeemerTagKind::Spend,
-            RedeemerTagEnum::Mint => RedeemerTagKind::Mint,
-            RedeemerTagEnum::Cert => RedeemerTagKind::Cert,
-            RedeemerTagEnum::Reward => RedeemerTagKind::Reward,
-        }
+        self.0
     }
 }
 
@@ -722,10 +708,10 @@ impl Deserialize for ExUnitPrices {
             let mut read_len = CBORReadLen::new(len);
             read_len.read_elems(2)?;
             let mem_price = (|| -> Result<_, DeserializeError> {
-                Ok(Coin::deserialize(raw)?)
+                Ok(SubCoin::deserialize(raw)?)
             })().map_err(|e| e.annotate("mem_price"))?;
             let step_price = (|| -> Result<_, DeserializeError> {
-                Ok(Coin::deserialize(raw)?)
+                Ok(SubCoin::deserialize(raw)?)
             })().map_err(|e| e.annotate("step_price"))?;
             match len {
                 cbor_event::Len::Len(_) => (),
@@ -1020,74 +1006,35 @@ impl Deserialize for Redeemer {
     }
 }
 
-impl cbor_event::se::Serialize for RedeemerTagEnum {
+impl cbor_event::se::Serialize for RedeemerTagKind {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         match self {
-            RedeemerTagEnum::Spend => {
+            RedeemerTagKind::Spend => {
                 serializer.write_unsigned_integer(0u64)
             },
-            RedeemerTagEnum::Mint => {
+            RedeemerTagKind::Mint => {
                 serializer.write_unsigned_integer(1u64)
             },
-            RedeemerTagEnum::Cert => {
+            RedeemerTagKind::Cert => {
                 serializer.write_unsigned_integer(2u64)
             },
-            RedeemerTagEnum::Reward => {
+            RedeemerTagKind::Reward => {
                 serializer.write_unsigned_integer(3u64)
             },
         }
     }
 }
 
-impl Deserialize for RedeemerTagEnum {
+impl Deserialize for RedeemerTagKind {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                let i0_value = raw.unsigned_integer()?;
-                if i0_value != 0 {
-                    return Err(DeserializeFailure::FixedValueMismatch{ found: Key::Uint(i0_value), expected: Key::Uint(0) }.into());
-                }
-                Ok(())
-            })(raw)
-            {
-                Ok(()) => return Ok(RedeemerTagEnum::Spend),
-                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                let i1_value = raw.unsigned_integer()?;
-                if i1_value != 1 {
-                    return Err(DeserializeFailure::FixedValueMismatch{ found: Key::Uint(i1_value), expected: Key::Uint(1) }.into());
-                }
-                Ok(())
-            })(raw)
-            {
-                Ok(()) => return Ok(RedeemerTagEnum::Mint),
-                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                let i2_value = raw.unsigned_integer()?;
-                if i2_value != 2 {
-                    return Err(DeserializeFailure::FixedValueMismatch{ found: Key::Uint(i2_value), expected: Key::Uint(2) }.into());
-                }
-                Ok(())
-            })(raw)
-            {
-                Ok(()) => return Ok(RedeemerTagEnum::Cert),
-                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                let i3_value = raw.unsigned_integer()?;
-                if i3_value != 3 {
-                    return Err(DeserializeFailure::FixedValueMismatch{ found: Key::Uint(i3_value), expected: Key::Uint(3) }.into());
-                }
-                Ok(())
-            })(raw)
-            {
-                Ok(()) => return Ok(RedeemerTagEnum::Reward),
-                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-            };
-            Err(DeserializeError::new("RedeemerTagEnum", DeserializeFailure::NoVariantMatched.into()))
+            match raw.unsigned_integer() {
+                Ok(0) => Ok(RedeemerTagKind::Spend),
+                Ok(1) => Ok(RedeemerTagKind::Mint),
+                Ok(2) => Ok(RedeemerTagKind::Cert),
+                Ok(3) => Ok(RedeemerTagKind::Reward),
+                Ok(_) | Err(_) => Err(DeserializeFailure::NoVariantMatched.into()),
+            }
         })().map_err(|e| e.annotate("RedeemerTagEnum"))
     }
 }
@@ -1100,7 +1047,7 @@ impl cbor_event::se::Serialize for RedeemerTag {
 
 impl Deserialize for RedeemerTag {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(RedeemerTagEnum::deserialize(raw)?))
+        Ok(Self(RedeemerTagKind::deserialize(raw)?))
     }
 }
 
