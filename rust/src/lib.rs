@@ -1918,7 +1918,7 @@ pub struct ProtocolParamUpdate {
     execution_costs: Option<ExUnitPrices>,
     max_tx_ex_units: Option<ExUnits>,
     max_block_ex_units: Option<ExUnits>,
-    max_value_size: Option<PreludeUnsigned>,
+    max_value_size: Option<u32>,
 }
 
 to_from_bytes!(ProtocolParamUpdate);
@@ -2093,11 +2093,11 @@ impl ProtocolParamUpdate {
         self.max_block_ex_units.clone()
     }
 
-    pub fn set_max_value_size(&mut self, max_value_size: &PreludeUnsigned) {
+    pub fn set_max_value_size(&mut self, max_value_size: u32) {
         self.max_value_size = Some(max_value_size.clone())
     }
 
-    pub fn max_value_size(&self) -> Option<PreludeUnsigned> {
+    pub fn max_value_size(&self) -> Option<u32> {
         self.max_value_size.clone()
     }
 
@@ -2675,57 +2675,6 @@ impl NetworkId {
 
     pub fn kind(&self) -> NetworkIdKind {
         self.0
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum PreludeUnsignedKind {
-    U64,
-    PreludeBiguint,
-}
-
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum PreludeUnsignedEnum {
-    U64(BigNum),
-    PreludeBiguint(PreludeBiguint),
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PreludeUnsigned(PreludeUnsignedEnum);
-
-to_from_bytes!(PreludeUnsigned);
-
-#[wasm_bindgen]
-impl PreludeUnsigned {
-    pub fn new_u64(uint: BigNum) -> Self {
-        Self(PreludeUnsignedEnum::U64(uint))
-    }
-
-    pub fn new_prelude_biguint(prelude_biguint: &PreludeBiguint) -> Self {
-        Self(PreludeUnsignedEnum::PreludeBiguint(prelude_biguint.clone()))
-    }
-
-    pub fn kind(&self) -> PreludeUnsignedKind {
-        match &self.0 {
-            PreludeUnsignedEnum::U64(_) => PreludeUnsignedKind::U64,
-            PreludeUnsignedEnum::PreludeBiguint(_) => PreludeUnsignedKind::PreludeBiguint,
-        }
-    }
-
-    pub fn as_u64(&self) -> Option<BigNum> {
-        match &self.0 {
-            PreludeUnsignedEnum::U64(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn as_prelude_biguint(&self) -> Option<PreludeBiguint> {
-        match &self.0 {
-            PreludeUnsignedEnum::PreludeBiguint(x) => Some(x.clone()),
-            _ => None,
-        }
     }
 }
 

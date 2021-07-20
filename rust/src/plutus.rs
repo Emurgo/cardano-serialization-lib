@@ -86,7 +86,7 @@ impl ConstrPlutusData {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct CostModel(std::collections::BTreeMap<String, PreludeInteger>);
+pub struct CostModel(std::collections::BTreeMap<String, BigInt>);
 
 to_from_bytes!(CostModel);
 
@@ -100,11 +100,11 @@ impl CostModel {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: String, value: &PreludeInteger) -> Option<PreludeInteger> {
+    pub fn insert(&mut self, key: String, value: &BigInt) -> Option<BigInt> {
         self.0.insert(key, value.clone())
     }
 
-    pub fn get(&self, key: String) -> Option<PreludeInteger> {
+    pub fn get(&self, key: String) -> Option<BigInt> {
         self.0.get(&key).map(|v| v.clone())
     }
 
@@ -276,18 +276,18 @@ impl PlutusMap {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum PlutusDataKind {
     ConstrPlutusData,
-    PlutusMap,
-    PlutusList,
-    PreludeInteger,
+    Map,
+    List,
+    Integer,
     Bytes,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum PlutusDataEnum {
     ConstrPlutusData(ConstrPlutusData),
-    PlutusMap(PlutusMap),
-    PlutusList(PlutusList),
-    PreludeInteger(PreludeInteger),
+    Map(PlutusMap),
+    List(PlutusList),
+    Integer(BigInt),
     Bytes(Vec<u8>),
 }
 
@@ -306,15 +306,15 @@ impl PlutusData {
     }
 
     pub fn new_map(map: &PlutusMap) -> Self {
-        Self(PlutusDataEnum::PlutusMap(map.clone()))
+        Self(PlutusDataEnum::Map(map.clone()))
     }
 
     pub fn new_list(list: &PlutusList) -> Self {
-        Self(PlutusDataEnum::PlutusList(list.clone()))
+        Self(PlutusDataEnum::List(list.clone()))
     }
 
-    pub fn new_integer(integer: &PreludeInteger) -> Self {
-        Self(PlutusDataEnum::PreludeInteger(integer.clone()))
+    pub fn new_integer(integer: &BigInt) -> Self {
+        Self(PlutusDataEnum::Integer(integer.clone()))
     }
 
     pub fn new_bytes(bytes: Vec<u8>) -> Result<PlutusData, JsError> {
@@ -328,9 +328,9 @@ impl PlutusData {
     pub fn kind(&self) -> PlutusDataKind {
         match &self.0 {
             PlutusDataEnum::ConstrPlutusData(_) => PlutusDataKind::ConstrPlutusData,
-            PlutusDataEnum::PlutusMap(_) => PlutusDataKind::PlutusMap,
-            PlutusDataEnum::PlutusList(_) => PlutusDataKind::PlutusList,
-            PlutusDataEnum::PreludeInteger(_) => PlutusDataKind::PreludeInteger,
+            PlutusDataEnum::Map(_) => PlutusDataKind::Map,
+            PlutusDataEnum::List(_) => PlutusDataKind::List,
+            PlutusDataEnum::Integer(_) => PlutusDataKind::Integer,
             PlutusDataEnum::Bytes(_) => PlutusDataKind::Bytes,
         }
     }
@@ -344,21 +344,21 @@ impl PlutusData {
 
     pub fn as_map(&self) -> Option<PlutusMap> {
         match &self.0 {
-            PlutusDataEnum::PlutusMap(x) => Some(x.clone()),
+            PlutusDataEnum::Map(x) => Some(x.clone()),
             _ => None,
         }
     }
 
     pub fn as_list(&self) -> Option<PlutusList> {
         match &self.0 {
-            PlutusDataEnum::PlutusList(x) => Some(x.clone()),
+            PlutusDataEnum::List(x) => Some(x.clone()),
             _ => None,
         }
     }
 
-    pub fn as_integer(&self) -> Option<PreludeInteger> {
+    pub fn as_integer(&self) -> Option<BigInt> {
         match &self.0 {
-            PlutusDataEnum::PreludeInteger(x) => Some(x.clone()),
+            PlutusDataEnum::Integer(x) => Some(x.clone()),
             _ => None,
         }
     }
@@ -391,131 +391,6 @@ impl PlutusList {
 
     pub fn add(&mut self, elem: &PlutusData) {
         self.0.push(elem.clone());
-    }
-}
-
-// TODO: replace these prelude ints with a generalized Integer class
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum PreludeBigintKind {
-    PreludeBiguint,
-    PreludeBignint,
-}
-
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum PreludeBigintEnum {
-    PreludeBiguint(PreludeBiguint),
-    PreludeBignint(PreludeBignint),
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PreludeBigint(PreludeBigintEnum);
-
-to_from_bytes!(PreludeBigint);
-
-#[wasm_bindgen]
-impl PreludeBigint {
-    pub fn new_prelude_biguint(prelude_biguint: &PreludeBiguint) -> Self {
-        Self(PreludeBigintEnum::PreludeBiguint(prelude_biguint.clone()))
-    }
-
-    pub fn new_prelude_bignint(prelude_bignint: &PreludeBignint) -> Self {
-        Self(PreludeBigintEnum::PreludeBignint(prelude_bignint.clone()))
-    }
-
-    pub fn kind(&self) -> PreludeBigintKind {
-        match &self.0 {
-            PreludeBigintEnum::PreludeBiguint(_) => PreludeBigintKind::PreludeBiguint,
-            PreludeBigintEnum::PreludeBignint(_) => PreludeBigintKind::PreludeBignint,
-        }
-    }
-
-    pub fn as_prelude_biguint(&self) -> Option<PreludeBiguint> {
-        match &self.0 {
-            PreludeBigintEnum::PreludeBiguint(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn as_prelude_bignint(&self) -> Option<PreludeBignint> {
-        match &self.0 {
-            PreludeBigintEnum::PreludeBignint(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PreludeBignint(Vec<u8>);
-
-#[wasm_bindgen]
-impl PreludeBignint {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self(data)
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PreludeBiguint(Vec<u8>);
-
-#[wasm_bindgen]
-impl PreludeBiguint {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self(data)
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum PreludeIntegerKind {
-    Int,
-    PreludeBigint,
-}
-
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum PreludeIntegerEnum {
-    Int(Int),
-    PreludeBigint(PreludeBigint),
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PreludeInteger(PreludeIntegerEnum);
-
-to_from_bytes!(PreludeInteger);
-
-#[wasm_bindgen]
-impl PreludeInteger {
-    pub fn new_int(int: &Int) -> Self {
-        Self(PreludeIntegerEnum::Int(int.clone()))
-    }
-
-    pub fn new_prelude_bigint(prelude_bigint: &PreludeBigint) -> Self {
-        Self(PreludeIntegerEnum::PreludeBigint(prelude_bigint.clone()))
-    }
-
-    pub fn kind(&self) -> PreludeIntegerKind {
-        match &self.0 {
-            PreludeIntegerEnum::Int(_) => PreludeIntegerKind::Int,
-            PreludeIntegerEnum::PreludeBigint(_) => PreludeIntegerKind::PreludeBigint,
-        }
-    }
-
-    pub fn as_int(&self) -> Option<Int> {
-        match &self.0 {
-            PreludeIntegerEnum::Int(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn as_prelude_bigint(&self) -> Option<PreludeBigint> {
-        match &self.0 {
-            PreludeIntegerEnum::PreludeBigint(x) => Some(x.clone()),
-            _ => None,
-        }
     }
 }
 
@@ -787,7 +662,7 @@ impl Deserialize for CostModel {
                     break;
                 }
                 let key = String::deserialize(raw)?;
-                let value = PreludeInteger::deserialize(raw)?;
+                let value = BigInt::deserialize(raw)?;
                 if table.insert(key.clone(), value).is_some() {
                     return Err(DeserializeFailure::DuplicateKey(Key::Str(key)).into());
                 }
@@ -991,13 +866,13 @@ impl cbor_event::se::Serialize for PlutusDataEnum {
             PlutusDataEnum::ConstrPlutusData(x) => {
                 x.serialize(serializer)
             },
-            PlutusDataEnum::PlutusMap(x) => {
+            PlutusDataEnum::Map(x) => {
                 x.serialize(serializer)
             },
-            PlutusDataEnum::PlutusList(x) => {
+            PlutusDataEnum::List(x) => {
                 x.serialize(serializer)
             },
-            PlutusDataEnum::PreludeInteger(x) => {
+            PlutusDataEnum::Integer(x) => {
                 x.serialize(serializer)
             },
             PlutusDataEnum::Bytes(x) => {
@@ -1022,21 +897,21 @@ impl Deserialize for PlutusDataEnum {
                 Ok(PlutusMap::deserialize(raw)?)
             })(raw)
             {
-                Ok(variant) => return Ok(PlutusDataEnum::PlutusMap(variant)),
+                Ok(variant) => return Ok(PlutusDataEnum::Map(variant)),
                 Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
             };
             match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
                 Ok(PlutusList::deserialize(raw)?)
             })(raw)
             {
-                Ok(variant) => return Ok(PlutusDataEnum::PlutusList(variant)),
+                Ok(variant) => return Ok(PlutusDataEnum::List(variant)),
                 Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
             };
             match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(PreludeInteger::deserialize(raw)?)
+                Ok(BigInt::deserialize(raw)?)
             })(raw)
             {
-                Ok(variant) => return Ok(PlutusDataEnum::PreludeInteger(variant)),
+                Ok(variant) => return Ok(PlutusDataEnum::Integer(variant)),
                 Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
             };
             match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
@@ -1096,136 +971,6 @@ impl Deserialize for PlutusList {
             Ok(())
         })().map_err(|e| e.annotate("PlutusList"))?;
         Ok(Self(arr))
-    }
-}
-
-impl cbor_event::se::Serialize for PreludeBigintEnum {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self {
-            PreludeBigintEnum::PreludeBiguint(x) => {
-                x.serialize(serializer)
-            },
-            PreludeBigintEnum::PreludeBignint(x) => {
-                x.serialize(serializer)
-            },
-        }
-    }
-}
-
-impl Deserialize for PreludeBigintEnum {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(PreludeBiguint::deserialize(raw)?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(PreludeBigintEnum::PreludeBiguint(variant)),
-                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(PreludeBignint::deserialize(raw)?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(PreludeBigintEnum::PreludeBignint(variant)),
-                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-            };
-            Err(DeserializeError::new("PreludeBigintEnum", DeserializeFailure::NoVariantMatched.into()))
-        })().map_err(|e| e.annotate("PreludeBigintEnum"))
-    }
-}
-
-impl cbor_event::se::Serialize for PreludeBigint {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        self.0.serialize(serializer)
-    }
-}
-
-impl Deserialize for PreludeBigint {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(PreludeBigintEnum::deserialize(raw)?))
-    }
-}
-
-impl cbor_event::se::Serialize for PreludeBignint {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_tag(3u64)?;
-        serializer.write_bytes(&self.0)
-    }
-}
-
-impl Deserialize for PreludeBignint {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let tag = raw.tag().map_err(|e| DeserializeError::from(e).annotate("PreludeBignint"))?;
-        if tag != 3 {
-            return Err(DeserializeError::new("PreludeBignint", DeserializeFailure::TagMismatch{ found: tag, expected: 3 }));
-        }
-        Ok(Self(raw.bytes()?))
-    }
-}
-
-impl cbor_event::se::Serialize for PreludeBiguint {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_tag(2u64)?;
-        serializer.write_bytes(&self.0)
-    }
-}
-
-impl Deserialize for PreludeBiguint {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let tag = raw.tag().map_err(|e| DeserializeError::from(e).annotate("PreludeBiguint"))?;
-        if tag != 2 {
-            return Err(DeserializeError::new("PreludeBiguint", DeserializeFailure::TagMismatch{ found: tag, expected: 2 }));
-        }
-        Ok(Self(raw.bytes()?))
-    }
-}
-
-impl cbor_event::se::Serialize for PreludeIntegerEnum {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self {
-            PreludeIntegerEnum::Int(x) => {
-                x.serialize(serializer)
-            },
-            PreludeIntegerEnum::PreludeBigint(x) => {
-                x.serialize(serializer)
-            },
-        }
-    }
-}
-
-impl Deserialize for PreludeIntegerEnum {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(Int::deserialize(raw)?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(PreludeIntegerEnum::Int(variant)),
-                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(PreludeBigint::deserialize(raw)?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(PreludeIntegerEnum::PreludeBigint(variant)),
-                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-            };
-            Err(DeserializeError::new("PreludeIntegerEnum", DeserializeFailure::NoVariantMatched.into()))
-        })().map_err(|e| e.annotate("PreludeIntegerEnum"))
-    }
-}
-
-impl cbor_event::se::Serialize for PreludeInteger {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        self.0.serialize(serializer)
-    }
-}
-
-impl Deserialize for PreludeInteger {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(PreludeIntegerEnum::deserialize(raw)?))
     }
 }
 

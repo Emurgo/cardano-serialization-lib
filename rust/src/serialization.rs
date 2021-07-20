@@ -2839,7 +2839,7 @@ impl Deserialize for ProtocolParamUpdate {
                             }
                             max_value_size = Some((|| -> Result<_, DeserializeError> {
                                 read_len.read_elems(1)?;
-                                Ok(PreludeUnsigned::deserialize(raw)?)
+                                Ok(u32::deserialize(raw)?)
                             })().map_err(|e| e.annotate("max_value_size"))?);
                         },
                         unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
@@ -3432,54 +3432,6 @@ impl Deserialize for NetworkId {
                 _ => Err(DeserializeError::new("NetworkId", DeserializeFailure::NoVariantMatched.into())),
             }
         })().map_err(|e| e.annotate("NetworkId"))
-    }
-}
-
-impl cbor_event::se::Serialize for PreludeUnsignedEnum {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self {
-            PreludeUnsignedEnum::U64(x) => {
-                x.serialize(serializer)
-            },
-            PreludeUnsignedEnum::PreludeBiguint(x) => {
-                x.serialize(serializer)
-            },
-        }
-    }
-}
-
-impl Deserialize for PreludeUnsignedEnum {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(BigNum::deserialize(raw)?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(PreludeUnsignedEnum::U64(variant)),
-                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(PreludeBiguint::deserialize(raw)?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(PreludeUnsignedEnum::PreludeBiguint(variant)),
-                Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
-            };
-            Err(DeserializeError::new("PreludeUnsignedEnum", DeserializeFailure::NoVariantMatched.into()))
-        })().map_err(|e| e.annotate("PreludeUnsignedEnum"))
-    }
-}
-
-impl cbor_event::se::Serialize for PreludeUnsigned {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        self.0.serialize(serializer)
-    }
-}
-
-impl Deserialize for PreludeUnsigned {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(PreludeUnsignedEnum::deserialize(raw)?))
     }
 }
 
