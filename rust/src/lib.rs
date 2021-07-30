@@ -43,6 +43,7 @@ pub mod fees;
 pub mod impl_mockchain;
 pub mod legacy_address;
 pub mod metadata;
+pub mod plutus;
 pub mod serialization;
 pub mod tx_builder;
 pub mod typed_bytes;
@@ -53,8 +54,11 @@ pub mod utils;
 use address::*;
 use crypto::*;
 use error::*;
+use plutus::*;
 use metadata::*;
 use utils::*;
+
+type DeltaCoin = Int;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -83,6 +87,7 @@ impl UnitInterval {
     }
 }
 
+type SubCoin = UnitInterval;
 type Rational = UnitInterval;
 type Epoch = u32;
 type Slot = u32;
@@ -92,7 +97,7 @@ type Slot = u32;
 pub struct Transaction {
     body: TransactionBody,
     witness_set: TransactionWitnessSet,
-    metadata: Option<TransactionMetadata>,
+    auxiliary_data: Option<AuxiliaryData>,
 }
 
 to_from_bytes!(Transaction);
@@ -107,19 +112,19 @@ impl Transaction {
         self.witness_set.clone()
     }
 
-    pub fn metadata(&self) -> Option<TransactionMetadata> {
-        self.metadata.clone()
+    pub fn auxiliary_data(&self) -> Option<AuxiliaryData> {
+        self.auxiliary_data.clone()
     }
 
     pub fn new(
         body: &TransactionBody,
         witness_set: &TransactionWitnessSet,
-        metadata: Option<TransactionMetadata>,
+        auxiliary_data: Option<AuxiliaryData>,
     ) -> Self {
         Self {
             body: body.clone(),
             witness_set: witness_set.clone(),
-            metadata: metadata.clone(),
+            auxiliary_data: auxiliary_data.clone(),
         }
     }
 }
@@ -204,6 +209,8 @@ impl Certificates {
     }
 }
 
+pub type RequiredSigners = Ed25519KeyHashes;
+
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct TransactionBody {
@@ -214,9 +221,13 @@ pub struct TransactionBody {
     certs: Option<Certificates>,
     withdrawals: Option<Withdrawals>,
     update: Option<Update>,
-    metadata_hash: Option<MetadataHash>,
+    auxiliary_data_hash: Option<AuxiliaryDataHash>,
     validity_start_interval: Option<Slot>,
     mint: Option<Mint>,
+    script_data_hash: Option<ScriptDataHash>,
+    collateral: Option<TransactionInputs>,
+    required_signers: Option<RequiredSigners>,
+    network_id: Option<NetworkId>,
 }
 
 to_from_bytes!(TransactionBody);
@@ -262,12 +273,13 @@ impl TransactionBody {
     pub fn update(&self) -> Option<Update> {
         self.update.clone()
     }
-    pub fn set_metadata_hash(&mut self, metadata_hash: &MetadataHash) {
-        self.metadata_hash = Some(metadata_hash.clone())
+
+    pub fn set_auxiliary_data_hash(&mut self, auxiliary_data_hash: &AuxiliaryDataHash) {
+        self.auxiliary_data_hash = Some(auxiliary_data_hash.clone())
     }
 
-    pub fn metadata_hash(&self) -> Option<MetadataHash> {
-        self.metadata_hash.clone()
+    pub fn auxiliary_data_hash(&self) -> Option<AuxiliaryDataHash> {
+        self.auxiliary_data_hash.clone()
     }
 
     pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot) {
@@ -275,7 +287,7 @@ impl TransactionBody {
     }
 
     pub fn validity_start_interval(&self) -> Option<Slot> {
-        self.validity_start_interval
+        self.validity_start_interval.clone()
     }
 
     pub fn set_mint(&mut self, mint: &Mint) {
@@ -286,12 +298,43 @@ impl TransactionBody {
         self.mint.clone()
     }
 
+    pub fn set_script_data_hash(&mut self, script_data_hash: &ScriptDataHash) {
+        self.script_data_hash = Some(script_data_hash.clone())
+    }
+
+    pub fn script_data_hash(&self) -> Option<ScriptDataHash> {
+        self.script_data_hash.clone()
+    }
+
+    pub fn set_collateral(&mut self, collateral: &TransactionInputs) {
+        self.collateral = Some(collateral.clone())
+    }
+
+    pub fn collateral(&self) -> Option<TransactionInputs> {
+        self.collateral.clone()
+    }
+
+    pub fn set_required_signers(&mut self, required_signers: &RequiredSigners) {
+        self.required_signers = Some(required_signers.clone())
+    }
+
+    pub fn required_signers(&self) -> Option<RequiredSigners> {
+        self.required_signers.clone()
+    }
+
+    pub fn set_network_id(&mut self, network_id: &NetworkId) {
+        self.network_id = Some(network_id.clone())
+    }
+
+    pub fn network_id(&self) -> Option<NetworkId> {
+        self.network_id.clone()
+    }
+
     pub fn new(
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
         fee: &Coin,
-        ttl: Option<Slot>,
-    ) -> Self {
+        ttl: Option<Slot>) -> Self {
         Self {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
@@ -300,9 +343,13 @@ impl TransactionBody {
             certs: None,
             withdrawals: None,
             update: None,
-            metadata_hash: None,
+            auxiliary_data_hash: None,
             validity_start_interval: None,
             mint: None,
+            script_data_hash: None,
+            collateral: None,
+            required_signers: None,
+            network_id: None,
         }
     }
 }
@@ -339,6 +386,7 @@ impl TransactionInput {
 pub struct TransactionOutput {
     address: Address,
     amount: Value,
+    data_hash: Option<DataHash>,
 }
 
 to_from_bytes!(TransactionOutput);
@@ -353,10 +401,19 @@ impl TransactionOutput {
         self.amount.clone()
     }
 
+    pub fn data_hash(&self) -> Option<DataHash> {
+        self.data_hash.clone()
+    }
+
+    pub fn set_data_hash(&mut self, data_hash: &DataHash) {
+        self.data_hash = Some(data_hash.clone());
+    }
+
     pub fn new(address: &Address, amount: &Value) -> Self {
         Self {
             address: address.clone(),
             amount: amount.clone(),
+            data_hash: None,
         }
     }
 }
@@ -799,26 +856,37 @@ impl Certificate {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum MIRPot {
     Reserves,
     Treasury,
 }
 
-#[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MoveInstantaneousReward {
-    pot: MIRPot,
-    rewards: linked_hash_map::LinkedHashMap<StakeCredential, Coin>,
+pub enum MIREnum {
+    ToOtherPot(Coin),
+    ToStakeCredentials(MIRToStakeCredentials),
 }
 
-to_from_bytes!(MoveInstantaneousReward);
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum MIRKind {
+    ToOtherPot,
+    ToStakeCredentials,
+}
 
 #[wasm_bindgen]
-impl MoveInstantaneousReward {
-    pub fn new(pot: MIRPot) -> Self {
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MIRToStakeCredentials {
+    rewards: linked_hash_map::LinkedHashMap<StakeCredential, DeltaCoin>,
+}
+
+to_from_bytes!(MIRToStakeCredentials);
+
+#[wasm_bindgen]
+impl MIRToStakeCredentials {
+    pub fn new() -> Self {
         Self {
-            pot,
             rewards: linked_hash_map::LinkedHashMap::new(),
         }
     }
@@ -827,12 +895,12 @@ impl MoveInstantaneousReward {
         self.rewards.len()
     }
 
-    pub fn insert(&mut self, key: &StakeCredential, value: &Coin) -> Option<Coin> {
-        self.rewards.insert(key.clone(), value.clone())
+    pub fn insert(&mut self, cred: &StakeCredential, delta: &DeltaCoin) -> Option<DeltaCoin> {
+        self.rewards.insert(cred.clone(), delta.clone())
     }
 
-    pub fn get(&self, key: &StakeCredential) -> Option<Coin> {
-        self.rewards.get(key).map(|v| v.clone())
+    pub fn get(&self, cred: &StakeCredential) -> Option<DeltaCoin> {
+        self.rewards.get(cred).map(|v| v.clone())
     }
 
     pub fn keys(&self) -> StakeCredentials {
@@ -842,6 +910,57 @@ impl MoveInstantaneousReward {
                 .map(|(k, _v)| k.clone())
                 .collect::<Vec<StakeCredential>>(),
         )
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MoveInstantaneousReward {
+    pot: MIRPot,
+    variant: MIREnum, 
+}
+
+to_from_bytes!(MoveInstantaneousReward);
+
+#[wasm_bindgen]
+impl MoveInstantaneousReward {
+    pub fn new_to_other_pot(pot: MIRPot, amount: &Coin) -> Self {
+        Self {
+            pot,
+            variant: MIREnum::ToOtherPot(amount.clone()),
+        }
+    }
+
+    pub fn new_to_stake_creds(pot: MIRPot, amounts: &MIRToStakeCredentials) -> Self {
+        Self {
+            pot,
+            variant: MIREnum::ToStakeCredentials(amounts.clone()),
+        }
+    }
+
+    pub fn pot(&self) -> MIRPot {
+        self.pot
+    }
+
+    pub fn kind(&self) -> MIRKind {
+        match &self.variant {
+            MIREnum::ToOtherPot(_) => MIRKind::ToOtherPot,
+            MIREnum::ToStakeCredentials(_) => MIRKind::ToStakeCredentials,
+        }
+    }
+
+    pub fn as_to_other_pot(&self) -> Option<Coin> {
+        match &self.variant {
+            MIREnum::ToOtherPot(amount) => Some(amount.clone()),
+            MIREnum::ToStakeCredentials(_) => None,
+        }
+    }
+
+    pub fn as_to_stake_creds(&self) -> Option<MIRToStakeCredentials> {
+        match &self.variant {
+            MIREnum::ToOtherPot(_) => None,
+            MIREnum::ToStakeCredentials(amounts) => Some(amounts.clone()),
+        }
     }
 }
 
@@ -1142,7 +1261,7 @@ impl Relay {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PoolMetadata {
     url: URL,
-    metadata_hash: MetadataHash,
+    pool_metadata_hash: PoolMetadataHash,
 }
 
 to_from_bytes!(PoolMetadata);
@@ -1153,14 +1272,14 @@ impl PoolMetadata {
         self.url.clone()
     }
 
-    pub fn metadata_hash(&self) -> MetadataHash {
-        self.metadata_hash.clone()
+    pub fn pool_metadata_hash(&self) -> PoolMetadataHash {
+        self.pool_metadata_hash.clone()
     }
 
-    pub fn new(url: &URL, metadata_hash: &MetadataHash) -> Self {
+    pub fn new(url: &URL, pool_metadata_hash: &PoolMetadataHash) -> Self {
         Self {
             url: url.clone(),
-            metadata_hash: metadata_hash.clone(),
+            pool_metadata_hash: pool_metadata_hash.clone(),
         }
     }
 }
@@ -1253,8 +1372,11 @@ impl Withdrawals {
 #[derive(Clone)]
 pub struct TransactionWitnessSet {
     vkeys: Option<Vkeywitnesses>,
-    scripts: Option<NativeScripts>,
+    native_scripts: Option<NativeScripts>,
     bootstraps: Option<BootstrapWitnesses>,
+    plutus_scripts: Option<PlutusScripts>,
+    plutus_data: Option<PlutusList>,
+    redeemers: Option<Redeemers>,
 }
 
 to_from_bytes!(TransactionWitnessSet);
@@ -1269,12 +1391,12 @@ impl TransactionWitnessSet {
         self.vkeys.clone()
     }
 
-    pub fn set_scripts(&mut self, scripts: &NativeScripts) {
-        self.scripts = Some(scripts.clone())
+    pub fn set_native_scripts(&mut self, native_scripts: &NativeScripts) {
+        self.native_scripts = Some(native_scripts.clone())
     }
 
-    pub fn scripts(&self) -> Option<NativeScripts> {
-        self.scripts.clone()
+    pub fn native_scripts(&self) -> Option<NativeScripts> {
+        self.native_scripts.clone()
     }
 
     pub fn set_bootstraps(&mut self, bootstraps: &BootstrapWitnesses) {
@@ -1285,11 +1407,38 @@ impl TransactionWitnessSet {
         self.bootstraps.clone()
     }
 
+    pub fn set_plutus_scripts(&mut self, plutus_scripts: &PlutusScripts) {
+        self.plutus_scripts = Some(plutus_scripts.clone())
+    }
+
+    pub fn plutus_scripts(&self) -> Option<PlutusScripts> {
+        self.plutus_scripts.clone()
+    }
+
+    pub fn set_plutus_data(&mut self, plutus_data: &PlutusList) {
+        self.plutus_data = Some(plutus_data.clone())
+    }
+
+    pub fn plutus_data(&self) -> Option<PlutusList> {
+        self.plutus_data.clone()
+    }
+
+    pub fn set_redeemers(&mut self, redeemers: &Redeemers) {
+        self.redeemers = Some(redeemers.clone())
+    }
+
+    pub fn redeemers(&self) -> Option<Redeemers> {
+        self.redeemers.clone()
+    }
+
     pub fn new() -> Self {
         Self {
             vkeys: None,
-            scripts: None,
+            native_scripts: None,
             bootstraps: None,
+            plutus_scripts: None,
+            plutus_data: None,
+            redeemers: None,
         }
     }
 }
@@ -1461,6 +1610,7 @@ to_from_bytes!(NativeScript);
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ScriptHashNamespace {
     NativeScript,
+    // TODO: do we need to update this for Plutus?
 }
 
 #[wasm_bindgen]
@@ -1742,6 +1892,7 @@ impl ProtocolVersions {
     }
 }
 
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ProtocolParamUpdate {
@@ -1762,7 +1913,13 @@ pub struct ProtocolParamUpdate {
     d: Option<UnitInterval>,
     extra_entropy: Option<Nonce>,
     protocol_version: Option<ProtocolVersions>,
-    min_utxo_value: Option<Coin>,
+    min_pool_cost: Option<Coin>,
+    ada_per_utxo_byte: Option<Coin>,
+    cost_models: Option<Costmdls>,
+    execution_costs: Option<ExUnitPrices>,
+    max_tx_ex_units: Option<ExUnits>,
+    max_block_ex_units: Option<ExUnits>,
+    max_value_size: Option<u32>,
 }
 
 to_from_bytes!(ProtocolParamUpdate);
@@ -1889,12 +2046,60 @@ impl ProtocolParamUpdate {
         self.protocol_version.clone()
     }
 
-    pub fn set_min_utxo_value(&mut self, min_utxo_value: &Coin) {
-        self.min_utxo_value = Some(min_utxo_value.clone())
+    pub fn set_min_pool_cost(&mut self, min_pool_cost: &Coin) {
+        self.min_pool_cost = Some(min_pool_cost.clone())
     }
 
-    pub fn min_utxo_value(&self) -> Option<Coin> {
-        self.min_utxo_value.clone()
+    pub fn min_pool_cost(&self) -> Option<Coin> {
+        self.min_pool_cost.clone()
+    }
+
+    pub fn set_ada_per_utxo_byte(&mut self, ada_per_utxo_byte: &Coin) {
+        self.ada_per_utxo_byte = Some(ada_per_utxo_byte.clone())
+    }
+
+    pub fn ada_per_utxo_byte(&self) -> Option<Coin> {
+        self.ada_per_utxo_byte.clone()
+    }
+
+    pub fn set_cost_models(&mut self, cost_models: &Costmdls) {
+        self.cost_models = Some(cost_models.clone())
+    }
+
+    pub fn cost_models(&self) -> Option<Costmdls> {
+        self.cost_models.clone()
+    }
+
+    pub fn set_execution_costs(&mut self, execution_costs: &ExUnitPrices) {
+        self.execution_costs = Some(execution_costs.clone())
+    }
+
+    pub fn execution_costs(&self) -> Option<ExUnitPrices> {
+        self.execution_costs.clone()
+    }
+
+    pub fn set_max_tx_ex_units(&mut self, max_tx_ex_units: &ExUnits) {
+        self.max_tx_ex_units = Some(max_tx_ex_units.clone())
+    }
+
+    pub fn max_tx_ex_units(&self) -> Option<ExUnits> {
+        self.max_tx_ex_units.clone()
+    }
+
+    pub fn set_max_block_ex_units(&mut self, max_block_ex_units: &ExUnits) {
+        self.max_block_ex_units = Some(max_block_ex_units.clone())
+    }
+
+    pub fn max_block_ex_units(&self) -> Option<ExUnits> {
+        self.max_block_ex_units.clone()
+    }
+
+    pub fn set_max_value_size(&mut self, max_value_size: u32) {
+        self.max_value_size = Some(max_value_size.clone())
+    }
+
+    pub fn max_value_size(&self) -> Option<u32> {
+        self.max_value_size.clone()
     }
 
     pub fn new() -> Self {
@@ -1914,7 +2119,13 @@ impl ProtocolParamUpdate {
             d: None,
             extra_entropy: None,
             protocol_version: None,
-            min_utxo_value: None,
+            min_pool_cost: None,
+            ada_per_utxo_byte: None,
+            cost_models: None,
+            execution_costs: None,
+            max_tx_ex_units: None,
+            max_block_ex_units: None,
+            max_value_size: None,
         }
     }
 }
@@ -1972,10 +2183,10 @@ pub type TransactionIndexes = Vec<TransactionIndex>;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct MapTransactionIndexToTransactionMetadata(linked_hash_map::LinkedHashMap<TransactionIndex, TransactionMetadata>);
+pub struct AuxiliaryDataSet(linked_hash_map::LinkedHashMap<TransactionIndex, AuxiliaryData>);
 
 #[wasm_bindgen]
-impl MapTransactionIndexToTransactionMetadata {
+impl AuxiliaryDataSet {
     pub fn new() -> Self {
         Self(linked_hash_map::LinkedHashMap::new())
     }
@@ -1984,15 +2195,15 @@ impl MapTransactionIndexToTransactionMetadata {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: TransactionIndex, value: &TransactionMetadata) -> Option<TransactionMetadata> {
-        self.0.insert(key, value.clone())
+    pub fn insert(&mut self, tx_index: TransactionIndex, data: &AuxiliaryData) -> Option<AuxiliaryData> {
+        self.0.insert(tx_index, data.clone())
     }
 
-    pub fn get(&self, key: TransactionIndex) -> Option<TransactionMetadata> {
-        self.0.get(&key).map(|v| v.clone())
+    pub fn get(&self, tx_index: TransactionIndex) -> Option<AuxiliaryData> {
+        self.0.get(&tx_index).map(|v| v.clone())
     }
 
-    pub fn keys(&self) -> TransactionIndexes {
+    pub fn indices(&self) -> TransactionIndexes {
         self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<TransactionIndex>>()
     }
 }
@@ -2003,7 +2214,8 @@ pub struct Block {
     header: Header,
     transaction_bodies: TransactionBodies,
     transaction_witness_sets: TransactionWitnessSets,
-    transaction_metadata_set: MapTransactionIndexToTransactionMetadata,
+    auxiliary_data_set: AuxiliaryDataSet,
+    invalid_transactions: TransactionIndexes,
 }
 
 to_from_bytes!(Block);
@@ -2022,16 +2234,21 @@ impl Block {
         self.transaction_witness_sets.clone()
     }
 
-    pub fn transaction_metadata_set(&self) -> MapTransactionIndexToTransactionMetadata {
-        self.transaction_metadata_set.clone()
+    pub fn auxiliary_data_set(&self) -> AuxiliaryDataSet {
+        self.auxiliary_data_set.clone()
     }
 
-    pub fn new(header: &Header, transaction_bodies: &TransactionBodies, transaction_witness_sets: &TransactionWitnessSets, transaction_metadata_set: &MapTransactionIndexToTransactionMetadata) -> Self {
+    pub fn invalid_transactions(&self) -> TransactionIndexes {
+        self.invalid_transactions.clone()
+    }
+
+    pub fn new(header: &Header, transaction_bodies: &TransactionBodies, transaction_witness_sets: &TransactionWitnessSets, auxiliary_data_set: &AuxiliaryDataSet, invalid_transactions: TransactionIndexes) -> Self {
         Self {
             header: header.clone(),
             transaction_bodies: transaction_bodies.clone(),
             transaction_witness_sets: transaction_witness_sets.clone(),
-            transaction_metadata_set: transaction_metadata_set.clone(),
+            auxiliary_data_set: auxiliary_data_set.clone(),
+            invalid_transactions: invalid_transactions,
         }
     }
 }
@@ -2430,6 +2647,35 @@ impl Mint {
 
     pub fn keys(&self) -> PolicyIDs {
         ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<ScriptHash>>())
+    }
+}
+
+
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum NetworkIdKind {
+    Testnet,
+    Mainnet,
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct NetworkId(NetworkIdKind);
+
+to_from_bytes!(NetworkId);
+
+#[wasm_bindgen]
+impl NetworkId {
+    pub fn testnet() -> Self {
+        Self(NetworkIdKind::Testnet)
+    }
+
+    pub fn mainnet() -> Self {
+        Self(NetworkIdKind::Mainnet)
+    }
+
+    pub fn kind(&self) -> NetworkIdKind {
+        self.0
     }
 }
 
