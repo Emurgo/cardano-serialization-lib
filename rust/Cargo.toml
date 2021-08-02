@@ -48,7 +48,7 @@ js-sys = "=0.3.51"
 opt-level = "s"
 
 [dev-dependencies]
-quickcheck = "0.9.2"
+quickcheck = "1.0.3"
 quickcheck_macros = "0.9.1"
 rand_os = "0.1"
 rand_chacha = "0.1"
