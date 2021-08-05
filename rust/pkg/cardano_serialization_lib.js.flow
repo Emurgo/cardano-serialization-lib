@@ -6,6 +6,37 @@
  */
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -40,12 +71,12 @@ declare export function make_vkey_witness(
 ): Vkeywitness;
 
 /**
- * @param {TransactionMetadata} metadata
- * @returns {MetadataHash}
+ * @param {AuxiliaryData} auxiliary_data
+ * @returns {AuxiliaryDataHash}
  */
-declare export function hash_metadata(
-  metadata: TransactionMetadata
-): MetadataHash;
+declare export function hash_auxiliary_data(
+  auxiliary_data: AuxiliaryData
+): AuxiliaryDataHash;
 
 /**
  * @param {TransactionBody} tx_body
@@ -90,30 +121,6 @@ declare export function min_ada_required(
 ): BigNum;
 
 /**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
- */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
-
-/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -150,13 +157,6 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
  */
 
 declare export var CertificateKind: {|
@@ -175,6 +175,14 @@ declare export var CertificateKind: {|
 declare export var MIRPot: {|
   +Reserves: 0, // 0
   +Treasury: 1, // 1
+|};
+
+/**
+ */
+
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
 |};
 
 /**
@@ -207,6 +215,42 @@ declare export var NativeScriptKind: {|
 
 declare export var ScriptHashNamespace: {|
   +NativeScript: 0, // 0
+|};
+
+/**
+ */
+
+declare export var NetworkIdKind: {|
+  +Testnet: 0, // 0
+  +Mainnet: 1, // 1
+|};
+
+/**
+ */
+
+declare export var LanguageKind: {|
+  +PlutusV1: 0, // 0
+|};
+
+/**
+ */
+
+declare export var PlutusDataKind: {|
+  +ConstrPlutusData: 0, // 0
+  +Map: 1, // 1
+  +List: 2, // 2
+  +Integer: 3, // 3
+  +Bytes: 4, // 4
+|};
+
+/**
+ */
+
+declare export var RedeemerTagKind: {|
+  +Spend: 0, // 0
+  +Mint: 1, // 1
+  +Cert: 2, // 2
+  +Reward: 3, // 3
 |};
 
 /**
@@ -361,6 +405,118 @@ declare export class Assets {
 }
 /**
  */
+declare export class AuxiliaryData {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {AuxiliaryData}
+   */
+  static from_bytes(bytes: Uint8Array): AuxiliaryData;
+
+  /**
+   * @returns {AuxiliaryData}
+   */
+  static new(): AuxiliaryData;
+
+  /**
+   * @returns {GeneralTransactionMetadata | void}
+   */
+  metadata(): GeneralTransactionMetadata | void;
+
+  /**
+   * @param {GeneralTransactionMetadata} metadata
+   */
+  set_metadata(metadata: GeneralTransactionMetadata): void;
+
+  /**
+   * @returns {NativeScripts | void}
+   */
+  native_scripts(): NativeScripts | void;
+
+  /**
+   * @param {NativeScripts} native_scripts
+   */
+  set_native_scripts(native_scripts: NativeScripts): void;
+
+  /**
+   * @returns {PlutusScripts | void}
+   */
+  plutus_scripts(): PlutusScripts | void;
+
+  /**
+   * @param {PlutusScripts} plutus_scripts
+   */
+  set_plutus_scripts(plutus_scripts: PlutusScripts): void;
+}
+/**
+ */
+declare export class AuxiliaryDataHash {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {AuxiliaryDataHash}
+   */
+  static from_bech32(bech_str: string): AuxiliaryDataHash;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {AuxiliaryDataHash}
+   */
+  static from_bytes(bytes: Uint8Array): AuxiliaryDataHash;
+}
+/**
+ */
+declare export class AuxiliaryDataSet {
+  free(): void;
+
+  /**
+   * @returns {AuxiliaryDataSet}
+   */
+  static new(): AuxiliaryDataSet;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} tx_index
+   * @param {AuxiliaryData} data
+   * @returns {AuxiliaryData | void}
+   */
+  insert(tx_index: number, data: AuxiliaryData): AuxiliaryData | void;
+
+  /**
+   * @param {number} tx_index
+   * @returns {AuxiliaryData | void}
+   */
+  get(tx_index: number): AuxiliaryData | void;
+
+  /**
+   * @returns {Uint32Array}
+   */
+  indices(): Uint32Array;
+}
+/**
+ */
 declare export class BaseAddress {
   free(): void;
 
@@ -396,6 +552,38 @@ declare export class BaseAddress {
    * @returns {BaseAddress | void}
    */
   static from_address(addr: Address): BaseAddress | void;
+}
+/**
+ */
+declare export class BigInt {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {BigInt}
+   */
+  static from_bytes(bytes: Uint8Array): BigInt;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  as_u64(): BigNum | void;
+
+  /**
+   * @param {string} text
+   * @returns {BigInt}
+   */
+  static from_str(text: string): BigInt;
+
+  /**
+   * @returns {string}
+   */
+  to_str(): string;
 }
 /**
  */
@@ -654,22 +842,29 @@ declare export class Block {
   transaction_witness_sets(): TransactionWitnessSets;
 
   /**
-   * @returns {MapTransactionIndexToTransactionMetadata}
+   * @returns {AuxiliaryDataSet}
    */
-  transaction_metadata_set(): MapTransactionIndexToTransactionMetadata;
+  auxiliary_data_set(): AuxiliaryDataSet;
+
+  /**
+   * @returns {Uint32Array}
+   */
+  invalid_transactions(): Uint32Array;
 
   /**
    * @param {Header} header
    * @param {TransactionBodies} transaction_bodies
    * @param {TransactionWitnessSets} transaction_witness_sets
-   * @param {MapTransactionIndexToTransactionMetadata} transaction_metadata_set
+   * @param {AuxiliaryDataSet} auxiliary_data_set
+   * @param {Uint32Array} invalid_transactions
    * @returns {Block}
    */
   static new(
     header: Header,
     transaction_bodies: TransactionBodies,
     transaction_witness_sets: TransactionWitnessSets,
-    transaction_metadata_set: MapTransactionIndexToTransactionMetadata
+    auxiliary_data_set: AuxiliaryDataSet,
+    invalid_transactions: Uint32Array
   ): Block;
 }
 /**
@@ -994,6 +1189,127 @@ declare export class Certificates {
 }
 /**
  */
+declare export class ConstrPlutusData {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ConstrPlutusData}
+   */
+  static from_bytes(bytes: Uint8Array): ConstrPlutusData;
+
+  /**
+   * @returns {Int}
+   */
+  tag(): Int;
+
+  /**
+   * @returns {PlutusList}
+   */
+  data(): PlutusList;
+
+  /**
+   * @param {Int} tag
+   * @param {PlutusList} data
+   * @returns {ConstrPlutusData}
+   */
+  static new(tag: Int, data: PlutusList): ConstrPlutusData;
+}
+/**
+ */
+declare export class CostModel {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {CostModel}
+   */
+  static from_bytes(bytes: Uint8Array): CostModel;
+
+  /**
+   * @returns {CostModel}
+   */
+  static new(): CostModel;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {string} key
+   * @param {BigInt} value
+   * @returns {BigInt | void}
+   */
+  insert(key: string, value: BigInt): BigInt | void;
+
+  /**
+   * @param {string} key
+   * @returns {BigInt | void}
+   */
+  get(key: string): BigInt | void;
+
+  /**
+   * @returns {Strings}
+   */
+  keys(): Strings;
+}
+/**
+ */
+declare export class Costmdls {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Costmdls}
+   */
+  static from_bytes(bytes: Uint8Array): Costmdls;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static new(): Costmdls;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {Language} key
+   * @param {CostModel} value
+   * @returns {CostModel | void}
+   */
+  insert(key: Language, value: CostModel): CostModel | void;
+
+  /**
+   * @param {Language} key
+   * @returns {CostModel | void}
+   */
+  get(key: Language): CostModel | void;
+
+  /**
+   * @returns {Languages}
+   */
+  keys(): Languages;
+}
+/**
+ */
 declare export class DNSRecordAorAAAA {
   free(): void;
 
@@ -1045,6 +1361,34 @@ declare export class DNSRecordSRV {
    * @returns {string}
    */
   record(): string;
+}
+/**
+ */
+declare export class DataHash {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {DataHash}
+   */
+  static from_bech32(bech_str: string): DataHash;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DataHash}
+   */
+  static from_bytes(bytes: Uint8Array): DataHash;
 }
 /**
  */
@@ -1176,6 +1520,72 @@ declare export class EnterpriseAddress {
    * @returns {EnterpriseAddress | void}
    */
   static from_address(addr: Address): EnterpriseAddress | void;
+}
+/**
+ */
+declare export class ExUnitPrices {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ExUnitPrices}
+   */
+  static from_bytes(bytes: Uint8Array): ExUnitPrices;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  mem_price(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  step_price(): UnitInterval;
+
+  /**
+   * @param {UnitInterval} mem_price
+   * @param {UnitInterval} step_price
+   * @returns {ExUnitPrices}
+   */
+  static new(mem_price: UnitInterval, step_price: UnitInterval): ExUnitPrices;
+}
+/**
+ */
+declare export class ExUnits {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ExUnits}
+   */
+  static from_bytes(bytes: Uint8Array): ExUnits;
+
+  /**
+   * @returns {BigNum}
+   */
+  mem(): BigNum;
+
+  /**
+   * @returns {BigNum}
+   */
+  steps(): BigNum;
+
+  /**
+   * @param {BigNum} mem
+   * @param {BigNum} steps
+   * @returns {ExUnits}
+   */
+  static new(mem: BigNum, steps: BigNum): ExUnits;
 }
 /**
  */
@@ -1632,6 +2042,58 @@ declare export class KESVKey {
 }
 /**
  */
+declare export class Language {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Language}
+   */
+  static from_bytes(bytes: Uint8Array): Language;
+
+  /**
+   * @returns {Language}
+   */
+  static new_plutus_v1(): Language;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+}
+/**
+ */
+declare export class Languages {
+  free(): void;
+
+  /**
+   * @returns {Languages}
+   */
+  static new(): Languages;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {Language}
+   */
+  get(index: number): Language;
+
+  /**
+   * @param {Language} elem
+   */
+  add(elem: Language): void;
+}
+/**
+ */
 declare export class LegacyDaedalusPrivateKey {
   free(): void;
 
@@ -1675,40 +2137,7 @@ declare export class LinearFee {
 }
 /**
  */
-declare export class MapTransactionIndexToTransactionMetadata {
-  free(): void;
-
-  /**
-   * @returns {MapTransactionIndexToTransactionMetadata}
-   */
-  static new(): MapTransactionIndexToTransactionMetadata;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {number} key
-   * @param {TransactionMetadata} value
-   * @returns {TransactionMetadata | void}
-   */
-  insert(key: number, value: TransactionMetadata): TransactionMetadata | void;
-
-  /**
-   * @param {number} key
-   * @returns {TransactionMetadata | void}
-   */
-  get(key: number): TransactionMetadata | void;
-
-  /**
-   * @returns {Uint32Array}
-   */
-  keys(): Uint32Array;
-}
-/**
- */
-declare export class MetadataHash {
+declare export class MIRToStakeCredentials {
   free(): void;
 
   /**
@@ -1717,22 +2146,38 @@ declare export class MetadataHash {
   to_bytes(): Uint8Array;
 
   /**
-   * @param {string} prefix
-   * @returns {string}
-   */
-  to_bech32(prefix: string): string;
-
-  /**
-   * @param {string} bech_str
-   * @returns {MetadataHash}
-   */
-  static from_bech32(bech_str: string): MetadataHash;
-
-  /**
    * @param {Uint8Array} bytes
-   * @returns {MetadataHash}
+   * @returns {MIRToStakeCredentials}
    */
-  static from_bytes(bytes: Uint8Array): MetadataHash;
+  static from_bytes(bytes: Uint8Array): MIRToStakeCredentials;
+
+  /**
+   * @returns {MIRToStakeCredentials}
+   */
+  static new(): MIRToStakeCredentials;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {StakeCredential} cred
+   * @param {Int} delta
+   * @returns {Int | void}
+   */
+  insert(cred: StakeCredential, delta: Int): Int | void;
+
+  /**
+   * @param {StakeCredential} cred
+   * @returns {Int | void}
+   */
+  get(cred: StakeCredential): Int | void;
+
+  /**
+   * @returns {StakeCredentials}
+   */
+  keys(): StakeCredentials;
 }
 /**
  */
@@ -1951,32 +2396,40 @@ declare export class MoveInstantaneousReward {
 
   /**
    * @param {number} pot
+   * @param {BigNum} amount
    * @returns {MoveInstantaneousReward}
    */
-  static new(pot: number): MoveInstantaneousReward;
+  static new_to_other_pot(pot: number, amount: BigNum): MoveInstantaneousReward;
+
+  /**
+   * @param {number} pot
+   * @param {MIRToStakeCredentials} amounts
+   * @returns {MoveInstantaneousReward}
+   */
+  static new_to_stake_creds(
+    pot: number,
+    amounts: MIRToStakeCredentials
+  ): MoveInstantaneousReward;
 
   /**
    * @returns {number}
    */
-  len(): number;
+  pot(): number;
 
   /**
-   * @param {StakeCredential} key
-   * @param {BigNum} value
+   * @returns {number}
+   */
+  kind(): number;
+
+  /**
    * @returns {BigNum | void}
    */
-  insert(key: StakeCredential, value: BigNum): BigNum | void;
+  as_to_other_pot(): BigNum | void;
 
   /**
-   * @param {StakeCredential} key
-   * @returns {BigNum | void}
+   * @returns {MIRToStakeCredentials | void}
    */
-  get(key: StakeCredential): BigNum | void;
-
-  /**
-   * @returns {StakeCredentials}
-   */
-  keys(): StakeCredentials;
+  as_to_stake_creds(): MIRToStakeCredentials | void;
 }
 /**
  */
@@ -2206,6 +2659,37 @@ declare export class NativeScripts {
 }
 /**
  */
+declare export class NetworkId {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {NetworkId}
+   */
+  static from_bytes(bytes: Uint8Array): NetworkId;
+
+  /**
+   * @returns {NetworkId}
+   */
+  static testnet(): NetworkId;
+
+  /**
+   * @returns {NetworkId}
+   */
+  static mainnet(): NetworkId;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+}
+/**
+ */
 declare export class NetworkInfo {
   free(): void;
 
@@ -2320,6 +2804,218 @@ declare export class OperationalCert {
 }
 /**
  */
+declare export class PlutusData {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {PlutusData}
+   */
+  static from_bytes(bytes: Uint8Array): PlutusData;
+
+  /**
+   * @param {ConstrPlutusData} constr_plutus_data
+   * @returns {PlutusData}
+   */
+  static new_constr_plutus_data(
+    constr_plutus_data: ConstrPlutusData
+  ): PlutusData;
+
+  /**
+   * @param {PlutusMap} map
+   * @returns {PlutusData}
+   */
+  static new_map(map: PlutusMap): PlutusData;
+
+  /**
+   * @param {PlutusList} list
+   * @returns {PlutusData}
+   */
+  static new_list(list: PlutusList): PlutusData;
+
+  /**
+   * @param {BigInt} integer
+   * @returns {PlutusData}
+   */
+  static new_integer(integer: BigInt): PlutusData;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {PlutusData}
+   */
+  static new_bytes(bytes: Uint8Array): PlutusData;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+
+  /**
+   * @returns {ConstrPlutusData | void}
+   */
+  as_constr_plutus_data(): ConstrPlutusData | void;
+
+  /**
+   * @returns {PlutusMap | void}
+   */
+  as_map(): PlutusMap | void;
+
+  /**
+   * @returns {PlutusList | void}
+   */
+  as_list(): PlutusList | void;
+
+  /**
+   * @returns {BigInt | void}
+   */
+  as_integer(): BigInt | void;
+
+  /**
+   * @returns {Uint8Array | void}
+   */
+  as_bytes(): Uint8Array | void;
+}
+/**
+ */
+declare export class PlutusList {
+  free(): void;
+
+  /**
+   * @returns {PlutusList}
+   */
+  static new(): PlutusList;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {PlutusData}
+   */
+  get(index: number): PlutusData;
+
+  /**
+   * @param {PlutusData} elem
+   */
+  add(elem: PlutusData): void;
+}
+/**
+ */
+declare export class PlutusMap {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {PlutusMap}
+   */
+  static from_bytes(bytes: Uint8Array): PlutusMap;
+
+  /**
+   * @returns {PlutusMap}
+   */
+  static new(): PlutusMap;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {PlutusData} key
+   * @param {PlutusData} value
+   * @returns {PlutusData | void}
+   */
+  insert(key: PlutusData, value: PlutusData): PlutusData | void;
+
+  /**
+   * @param {PlutusData} key
+   * @returns {PlutusData | void}
+   */
+  get(key: PlutusData): PlutusData | void;
+
+  /**
+   * @returns {PlutusList}
+   */
+  keys(): PlutusList;
+}
+/**
+ */
+declare export class PlutusScript {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {PlutusScript}
+   */
+  static from_bytes(bytes: Uint8Array): PlutusScript;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {PlutusScript}
+   */
+  static new(bytes: Uint8Array): PlutusScript;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  bytes(): Uint8Array;
+}
+/**
+ */
+declare export class PlutusScripts {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {PlutusScripts}
+   */
+  static from_bytes(bytes: Uint8Array): PlutusScripts;
+
+  /**
+   * @returns {PlutusScripts}
+   */
+  static new(): PlutusScripts;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {PlutusScript}
+   */
+  get(index: number): PlutusScript;
+
+  /**
+   * @param {PlutusScript} elem
+   */
+  add(elem: PlutusScript): void;
+}
+/**
+ */
 declare export class Pointer {
   free(): void;
 
@@ -2406,16 +3102,44 @@ declare export class PoolMetadata {
   url(): URL;
 
   /**
-   * @returns {MetadataHash}
+   * @returns {PoolMetadataHash}
    */
-  metadata_hash(): MetadataHash;
+  pool_metadata_hash(): PoolMetadataHash;
 
   /**
    * @param {URL} url
-   * @param {MetadataHash} metadata_hash
+   * @param {PoolMetadataHash} pool_metadata_hash
    * @returns {PoolMetadata}
    */
-  static new(url: URL, metadata_hash: MetadataHash): PoolMetadata;
+  static new(url: URL, pool_metadata_hash: PoolMetadataHash): PoolMetadata;
+}
+/**
+ */
+declare export class PoolMetadataHash {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {PoolMetadataHash}
+   */
+  static from_bech32(bech_str: string): PoolMetadataHash;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {PoolMetadataHash}
+   */
+  static from_bytes(bytes: Uint8Array): PoolMetadataHash;
 }
 /**
  */
@@ -2824,14 +3548,74 @@ declare export class ProtocolParamUpdate {
   protocol_version(): ProtocolVersions | void;
 
   /**
-   * @param {BigNum} min_utxo_value
+   * @param {BigNum} min_pool_cost
    */
-  set_min_utxo_value(min_utxo_value: BigNum): void;
+  set_min_pool_cost(min_pool_cost: BigNum): void;
 
   /**
    * @returns {BigNum | void}
    */
-  min_utxo_value(): BigNum | void;
+  min_pool_cost(): BigNum | void;
+
+  /**
+   * @param {BigNum} ada_per_utxo_byte
+   */
+  set_ada_per_utxo_byte(ada_per_utxo_byte: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  ada_per_utxo_byte(): BigNum | void;
+
+  /**
+   * @param {Costmdls} cost_models
+   */
+  set_cost_models(cost_models: Costmdls): void;
+
+  /**
+   * @returns {Costmdls | void}
+   */
+  cost_models(): Costmdls | void;
+
+  /**
+   * @param {ExUnitPrices} execution_costs
+   */
+  set_execution_costs(execution_costs: ExUnitPrices): void;
+
+  /**
+   * @returns {ExUnitPrices | void}
+   */
+  execution_costs(): ExUnitPrices | void;
+
+  /**
+   * @param {ExUnits} max_tx_ex_units
+   */
+  set_max_tx_ex_units(max_tx_ex_units: ExUnits): void;
+
+  /**
+   * @returns {ExUnits | void}
+   */
+  max_tx_ex_units(): ExUnits | void;
+
+  /**
+   * @param {ExUnits} max_block_ex_units
+   */
+  set_max_block_ex_units(max_block_ex_units: ExUnits): void;
+
+  /**
+   * @returns {ExUnits | void}
+   */
+  max_block_ex_units(): ExUnits | void;
+
+  /**
+   * @param {number} max_value_size
+   */
+  set_max_value_size(max_value_size: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  max_value_size(): number | void;
 
   /**
    * @returns {ProtocolParamUpdate}
@@ -2977,6 +3761,123 @@ declare export class PublicKeys {
    * @param {PublicKey} key
    */
   add(key: PublicKey): void;
+}
+/**
+ */
+declare export class Redeemer {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Redeemer}
+   */
+  static from_bytes(bytes: Uint8Array): Redeemer;
+
+  /**
+   * @returns {RedeemerTag}
+   */
+  tag(): RedeemerTag;
+
+  /**
+   * @returns {BigNum}
+   */
+  index(): BigNum;
+
+  /**
+   * @returns {PlutusData}
+   */
+  data(): PlutusData;
+
+  /**
+   * @returns {ExUnits}
+   */
+  ex_units(): ExUnits;
+
+  /**
+   * @param {RedeemerTag} tag
+   * @param {BigNum} index
+   * @param {PlutusData} data
+   * @param {ExUnits} ex_units
+   * @returns {Redeemer}
+   */
+  static new(
+    tag: RedeemerTag,
+    index: BigNum,
+    data: PlutusData,
+    ex_units: ExUnits
+  ): Redeemer;
+}
+/**
+ */
+declare export class RedeemerTag {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {RedeemerTag}
+   */
+  static from_bytes(bytes: Uint8Array): RedeemerTag;
+
+  /**
+   * @returns {RedeemerTag}
+   */
+  static new_spend(): RedeemerTag;
+
+  /**
+   * @returns {RedeemerTag}
+   */
+  static new_mint(): RedeemerTag;
+
+  /**
+   * @returns {RedeemerTag}
+   */
+  static new_cert(): RedeemerTag;
+
+  /**
+   * @returns {RedeemerTag}
+   */
+  static new_reward(): RedeemerTag;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+}
+/**
+ */
+declare export class Redeemers {
+  free(): void;
+
+  /**
+   * @returns {Redeemers}
+   */
+  static new(): Redeemers;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {Redeemer}
+   */
+  get(index: number): Redeemer;
+
+  /**
+   * @param {Redeemer} elem
+   */
+  add(elem: Redeemer): void;
 }
 /**
  */
@@ -3187,6 +4088,34 @@ declare export class ScriptAny {
    * @returns {ScriptAny}
    */
   static new(native_scripts: NativeScripts): ScriptAny;
+}
+/**
+ */
+declare export class ScriptDataHash {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {ScriptDataHash}
+   */
+  static from_bech32(bech_str: string): ScriptDataHash;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ScriptDataHash}
+   */
+  static from_bytes(bytes: Uint8Array): ScriptDataHash;
 }
 /**
  */
@@ -3557,6 +4486,32 @@ declare export class StakeRegistration {
 }
 /**
  */
+declare export class Strings {
+  free(): void;
+
+  /**
+   * @returns {Strings}
+   */
+  static new(): Strings;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {string}
+   */
+  get(index: number): string;
+
+  /**
+   * @param {string} elem
+   */
+  add(elem: string): void;
+}
+/**
+ */
 declare export class TimelockExpiry {
   free(): void;
 
@@ -3636,20 +4591,20 @@ declare export class Transaction {
   witness_set(): TransactionWitnessSet;
 
   /**
-   * @returns {TransactionMetadata | void}
+   * @returns {AuxiliaryData | void}
    */
-  metadata(): TransactionMetadata | void;
+  auxiliary_data(): AuxiliaryData | void;
 
   /**
    * @param {TransactionBody} body
    * @param {TransactionWitnessSet} witness_set
-   * @param {TransactionMetadata | void} metadata
+   * @param {AuxiliaryData | void} auxiliary_data
    * @returns {Transaction}
    */
   static new(
     body: TransactionBody,
     witness_set: TransactionWitnessSet,
-    metadata?: TransactionMetadata
+    auxiliary_data?: AuxiliaryData
   ): Transaction;
 }
 /**
@@ -3756,14 +4711,14 @@ declare export class TransactionBody {
   update(): Update | void;
 
   /**
-   * @param {MetadataHash} metadata_hash
+   * @param {AuxiliaryDataHash} auxiliary_data_hash
    */
-  set_metadata_hash(metadata_hash: MetadataHash): void;
+  set_auxiliary_data_hash(auxiliary_data_hash: AuxiliaryDataHash): void;
 
   /**
-   * @returns {MetadataHash | void}
+   * @returns {AuxiliaryDataHash | void}
    */
-  metadata_hash(): MetadataHash | void;
+  auxiliary_data_hash(): AuxiliaryDataHash | void;
 
   /**
    * @param {number} validity_start_interval
@@ -3784,6 +4739,46 @@ declare export class TransactionBody {
    * @returns {Mint | void}
    */
   multiassets(): Mint | void;
+
+  /**
+   * @param {ScriptDataHash} script_data_hash
+   */
+  set_script_data_hash(script_data_hash: ScriptDataHash): void;
+
+  /**
+   * @returns {ScriptDataHash | void}
+   */
+  script_data_hash(): ScriptDataHash | void;
+
+  /**
+   * @param {TransactionInputs} collateral
+   */
+  set_collateral(collateral: TransactionInputs): void;
+
+  /**
+   * @returns {TransactionInputs | void}
+   */
+  collateral(): TransactionInputs | void;
+
+  /**
+   * @param {Ed25519KeyHashes} required_signers
+   */
+  set_required_signers(required_signers: Ed25519KeyHashes): void;
+
+  /**
+   * @returns {Ed25519KeyHashes | void}
+   */
+  required_signers(): Ed25519KeyHashes | void;
+
+  /**
+   * @param {NetworkId} network_id
+   */
+  set_network_id(network_id: NetworkId): void;
+
+  /**
+   * @returns {NetworkId | void}
+   */
+  network_id(): NetworkId | void;
 
   /**
    * @param {TransactionInputs} inputs
@@ -3895,9 +4890,9 @@ declare export class TransactionBuilder {
   set_withdrawals(withdrawals: Withdrawals): void;
 
   /**
-   * @param {TransactionMetadata} metadata
+   * @param {AuxiliaryData} auxiliary_data
    */
-  set_metadata(metadata: TransactionMetadata): void;
+  set_auxiliary_data(auxiliary_data: AuxiliaryData): void;
 
   /**
    * @param {LinearFee} linear_fee
@@ -4061,43 +5056,6 @@ declare export class TransactionInputs {
 }
 /**
  */
-declare export class TransactionMetadata {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {TransactionMetadata}
-   */
-  static from_bytes(bytes: Uint8Array): TransactionMetadata;
-
-  /**
-   * @returns {GeneralTransactionMetadata}
-   */
-  general(): GeneralTransactionMetadata;
-
-  /**
-   * @returns {NativeScripts | void}
-   */
-  native_scripts(): NativeScripts | void;
-
-  /**
-   * @param {NativeScripts} native_scripts
-   */
-  set_native_scripts(native_scripts: NativeScripts): void;
-
-  /**
-   * @param {GeneralTransactionMetadata} general
-   * @returns {TransactionMetadata}
-   */
-  static new(general: GeneralTransactionMetadata): TransactionMetadata;
-}
-/**
- */
 declare export class TransactionMetadatum {
   free(): void;
 
@@ -4236,6 +5194,16 @@ declare export class TransactionOutput {
   amount(): Value;
 
   /**
+   * @returns {DataHash | void}
+   */
+  data_hash(): DataHash | void;
+
+  /**
+   * @param {DataHash} data_hash
+   */
+  set_data_hash(data_hash: DataHash): void;
+
+  /**
    * @param {Address} address
    * @param {Value} amount
    * @returns {TransactionOutput}
@@ -4342,14 +5310,14 @@ declare export class TransactionWitnessSet {
   vkeys(): Vkeywitnesses | void;
 
   /**
-   * @param {NativeScripts} scripts
+   * @param {NativeScripts} native_scripts
    */
-  set_scripts(scripts: NativeScripts): void;
+  set_native_scripts(native_scripts: NativeScripts): void;
 
   /**
    * @returns {NativeScripts | void}
    */
-  scripts(): NativeScripts | void;
+  native_scripts(): NativeScripts | void;
 
   /**
    * @param {BootstrapWitnesses} bootstraps
@@ -4360,6 +5328,36 @@ declare export class TransactionWitnessSet {
    * @returns {BootstrapWitnesses | void}
    */
   bootstraps(): BootstrapWitnesses | void;
+
+  /**
+   * @param {PlutusScripts} plutus_scripts
+   */
+  set_plutus_scripts(plutus_scripts: PlutusScripts): void;
+
+  /**
+   * @returns {PlutusScripts | void}
+   */
+  plutus_scripts(): PlutusScripts | void;
+
+  /**
+   * @param {PlutusList} plutus_data
+   */
+  set_plutus_data(plutus_data: PlutusList): void;
+
+  /**
+   * @returns {PlutusList | void}
+   */
+  plutus_data(): PlutusList | void;
+
+  /**
+   * @param {Redeemers} redeemers
+   */
+  set_redeemers(redeemers: Redeemers): void;
+
+  /**
+   * @returns {Redeemers | void}
+   */
+  redeemers(): Redeemers | void;
 
   /**
    * @returns {TransactionWitnessSet}
@@ -4681,6 +5679,32 @@ declare export class Vkey {
    * @returns {PublicKey}
    */
   public_key(): PublicKey;
+}
+/**
+ */
+declare export class Vkeys {
+  free(): void;
+
+  /**
+   * @returns {Vkeys}
+   */
+  static new(): Vkeys;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {Vkey}
+   */
+  get(index: number): Vkey;
+
+  /**
+   * @param {Vkey} elem
+   */
+  add(elem: Vkey): void;
 }
 /**
  */
