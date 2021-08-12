@@ -37,9 +37,10 @@ fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519Key
     }
 }
 
-fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
-    let body = tx_builder.build()?;
-
+// tx_body must be the result of building from tx_builder
+// constructs the rest of the Transaction using fake witness data of the correct length
+// for use in calculating the size of the final Transaction
+fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Result<Transaction, JsError> {
     let fake_key_root = Bip32PrivateKey::from_bip39_entropy(
         // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
         &[0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12],
@@ -92,11 +93,15 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
         plutus_data: None,
         redeemers: None,
     };
-    let full_tx = Transaction {
+    Ok(Transaction {
         body,
         witness_set,
         auxiliary_data: tx_builder.auxiliary_data.clone(),
-    };
+    })
+}
+
+fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
+    let full_tx = fake_full_tx(tx_builder, tx_builder.build()?)?;
     fees::min_fee(&full_tx, &tx_builder.fee_algo)
 }
 
@@ -540,15 +545,17 @@ impl TransactionBuilder {
             required_signers: None,
             network_id: None,
         };
-        let built_size = built.to_bytes().len();
-        if built_size > self.max_tx_size as usize {
+        // we must build a tx with fake data (of correct size) to check the final Transaction size
+        let full_tx = fake_full_tx(self, built)?;
+        let full_tx_size = full_tx.to_bytes().len();
+        if full_tx_size > self.max_tx_size as usize {
             Err(JsError::from_str(&format!(
                 "Maximum transaction size of {} exceeded. Found: {}",
                 self.max_tx_size,
-                built_size
+                full_tx_size
             )))
         } else {
-            Ok(built)
+            Ok(full_tx.body)
         }
     }
 
