@@ -2,7 +2,7 @@
 
 ## BIP32 Keys
 
-There are two main categories of keys in this library. There are the raw `PublicKey` and `PrivateKey` which are used for cryptographically signing/verifying, and `BIP32PrivateKey`/`BIP32PublicKey` which in addition to this have the ability to derive additional keys from them following the `[BIP32 derivation scheme]`(https://en.bitcoin.it/wiki/BIP_0032) variant called BIP32-Ed25519, which will be referred to as BIP32 for brevity. We use the [BIP44 spec](https://en.bitcoin.it/wiki/BIP_0044) variant for Ed25519 as well for the derivation paths using 1852 or 44 as the purpose consant and 1815 for the coin type depending on address type. See [this doc](https://github.com/input-output-hk/implementation-decisions/pull/18) for more details.
+There are two main categories of keys in this library. There are the raw `PublicKey` and `PrivateKey` which are used for cryptographically signing/verifying, and `BIP32PrivateKey`/`BIP32PublicKey` which in addition to this have the ability to derive additional keys from them following the [BIP32 derivation scheme](https://en.bitcoin.it/wiki/BIP_0032) variant called BIP32-Ed25519, which will be referred to as BIP32 for brevity. We use the [BIP44 spec](https://en.bitcoin.it/wiki/BIP_0044) variant for Ed25519 as well for the derivation paths using 1852 or 44 as the purpose consant and 1815 for the coin type depending on address type. See [this doc](https://github.com/input-output-hk/implementation-decisions/pull/18) for more details.
 
 This is demonstrated with the below code
 ```javascript
