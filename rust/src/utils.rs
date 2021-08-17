@@ -303,7 +303,10 @@ impl Value {
         let coin = self.coin.checked_sub(&rhs_value.coin)?;
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                Some(lhs_ma.sub(rhs_ma))
+                match (lhs_ma.sub(rhs_ma).len()) {
+                    0 => None,
+                    _ => Some(lhs_ma.sub(rhs_ma))
+                }
             },
             (Some(lhs_ma), None) => Some(lhs_ma.clone()),
             (None, Some(_rhs_ma)) => None,
@@ -317,7 +320,10 @@ impl Value {
         let coin = self.coin.clamped_sub(&rhs_value.coin);
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                Some(lhs_ma.sub(rhs_ma))
+                match (lhs_ma.sub(rhs_ma).len()) {
+                    0 => None,
+                    _ => Some(lhs_ma.sub(rhs_ma))
+                }
             },
             (Some(lhs_ma), None) => Some(lhs_ma.clone()),
             (None, Some(_rhs_ma)) => None,
