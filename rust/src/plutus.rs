@@ -84,32 +84,38 @@ impl ConstrPlutusData {
     const GENERAL_FORM_TAG: u64 = 102;
 }
 
+const COST_MODEL_OP_COUNT: usize = 166;
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct CostModel(std::collections::BTreeMap<String, BigInt>);
+pub struct CostModel(Vec<Int>);
 
 to_from_bytes!(CostModel);
 
 #[wasm_bindgen]
 impl CostModel {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        let mut costs = Vec::with_capacity(COST_MODEL_OP_COUNT);
+        for _ in 0 .. COST_MODEL_OP_COUNT {
+            costs.push(Int::new_i32(0));
+        }
+        Self(costs)
     }
 
-    pub fn len(&self) -> usize {
-        self.0.len()
+    pub fn set(&mut self, operation: usize, cost: &Int) -> Result<Int, JsError> {
+        if operation >= COST_MODEL_OP_COUNT {
+            return Err(JsError::from_str(&format!("CostModel operation {} out of bounds. Max is {}", operation, COST_MODEL_OP_COUNT)));
+        }
+        let old = self.0[operation].clone();
+        self.0[operation] = cost.clone();
+        Ok(old)
     }
 
-    pub fn insert(&mut self, key: String, value: &BigInt) -> Option<BigInt> {
-        self.0.insert(key, value.clone())
-    }
-
-    pub fn get(&self, key: String) -> Option<BigInt> {
-        self.0.get(&key).map(|v| v.clone())
-    }
-
-    pub fn keys(&self) -> Strings {
-        Strings(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<_>>())
+    pub fn get(&self, operation: usize) -> Result<Int, JsError> {
+        if operation >= COST_MODEL_OP_COUNT {
+            return Err(JsError::from_str(&format!("CostModel operation {} out of bounds. Max is {}", operation, COST_MODEL_OP_COUNT)));
+        }
+        Ok(self.0[operation].clone())
     }
 }
 
@@ -295,8 +301,6 @@ enum PlutusDataEnum {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PlutusData(PlutusDataEnum);
 
-const PLUTUS_BYTES_MAX_LEN: usize = 64;
-
 to_from_bytes!(PlutusData);
 
 #[wasm_bindgen]
@@ -317,12 +321,8 @@ impl PlutusData {
         Self(PlutusDataEnum::Integer(integer.clone()))
     }
 
-    pub fn new_bytes(bytes: Vec<u8>) -> Result<PlutusData, JsError> {
-        if bytes.len() > PLUTUS_BYTES_MAX_LEN {
-            Err(JsError::from_str(&format!("Max Plutus bytes too long: {}, max = {}", bytes.len(), PLUTUS_BYTES_MAX_LEN)))
-        } else {
-            Ok(Self(PlutusDataEnum::Bytes(bytes)))
-        }
+    pub fn new_bytes(bytes: Vec<u8>) -> Self {
+        Self(PlutusDataEnum::Bytes(bytes))
     }
 
     pub fn kind(&self) -> PlutusDataKind {
@@ -628,10 +628,9 @@ impl Deserialize for ConstrPlutusData {
 
 impl cbor_event::se::Serialize for CostModel {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
-        for (key, value) in &self.0 {
-            serializer.write_text(&key)?;
-            value.serialize(serializer)?;
+        serializer.write_map(cbor_event::Len::Len(COST_MODEL_OP_COUNT as u64))?;
+        for cost in &self.0 {
+            cost.serialize(serializer)?;
         }
         Ok(serializer)
     }
@@ -639,23 +638,26 @@ impl cbor_event::se::Serialize for CostModel {
 
 impl Deserialize for CostModel {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = std::collections::BTreeMap::new();
+        let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
-            let len = raw.map()?;
-            while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+            let len = raw.array()?;
+            while match len { cbor_event::Len::Len(n) => arr.len() < n as usize, cbor_event::Len::Indefinite => true, } {
                 if raw.cbor_type()? == CBORType::Special {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
                 }
-                let key = String::deserialize(raw)?;
-                let value = BigInt::deserialize(raw)?;
-                if table.insert(key.clone(), value).is_some() {
-                    return Err(DeserializeFailure::DuplicateKey(Key::Str(key)).into());
-                }
+                arr.push(Int::deserialize(raw)?);
+            }
+            if arr.len() != COST_MODEL_OP_COUNT {
+                return Err(DeserializeFailure::OutOfRange{
+                    min: COST_MODEL_OP_COUNT,
+                    max: COST_MODEL_OP_COUNT,
+                    found: arr.len()
+                }.into());
             }
             Ok(())
         })().map_err(|e| e.annotate("CostModel"))?;
-        Ok(Self(table))
+        Ok(Self(arr.try_into().unwrap()))
     }
 }
 
@@ -862,7 +864,7 @@ impl cbor_event::se::Serialize for PlutusDataEnum {
                 x.serialize(serializer)
             },
             PlutusDataEnum::Bytes(x) => {
-                serializer.write_bytes(&x)
+                write_bounded_bytes(serializer, &x)
             },
         }
     }
@@ -901,18 +903,10 @@ impl Deserialize for PlutusDataEnum {
                 Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
             };
             match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(raw.bytes()?)
+                Ok(read_bounded_bytes(raw)?)
             })(raw)
             {
-                Ok(variant) => if variant.len() <= PLUTUS_BYTES_MAX_LEN {
-                    return Ok(PlutusDataEnum::Bytes(variant));
-                } else {
-                    return Err(DeserializeFailure::OutOfRange{
-                        min: 0,
-                        max: PLUTUS_BYTES_MAX_LEN,
-                        found: variant.len(),
-                    }.into());
-                }
+                Ok(variant) => return Ok(PlutusDataEnum::Bytes(variant)),
                 Err(_) => raw.as_mut_ref().seek(SeekFrom::Start(initial_position)).unwrap(),
             };
             Err(DeserializeError::new("PlutusDataEnum", DeserializeFailure::NoVariantMatched.into()))
