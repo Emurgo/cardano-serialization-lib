@@ -804,7 +804,7 @@ pub fn hash_plutus_data(plutus_data: &PlutusData) -> DataHash {
     DataHash::from(blake2b256(&plutus_data.to_bytes()))
 }
 #[wasm_bindgen]
-pub fn hash_script_data(redeemers: &Redeemers, cost_model: &CostModel, datums: Option<PlutusList>) -> ScriptDataHash {
+pub fn hash_script_data(redeemers: &Redeemers, cost_models: &Costmdls, datums: Option<PlutusList>) -> ScriptDataHash {
     /*
     ; script data format:
     ; [ redeemers | datums | language views ]
@@ -820,7 +820,7 @@ pub fn hash_script_data(redeemers: &Redeemers, cost_model: &CostModel, datums: O
         let empty_string = "";
         buf.extend(empty_string.as_bytes());
     }
-    buf.extend(cost_model.to_bytes());
+    buf.extend(cost_models.to_bytes());
     ScriptDataHash::from(blake2b256(&buf))
 }
 
