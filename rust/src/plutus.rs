@@ -375,6 +375,8 @@ impl PlutusData {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PlutusList(Vec<PlutusData>);
 
+to_from_bytes!(PlutusList);
+
 #[wasm_bindgen]
 impl PlutusList {
     pub fn new() -> Self {

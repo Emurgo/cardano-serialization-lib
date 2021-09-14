@@ -799,6 +799,30 @@ pub fn hash_auxiliary_data(auxiliary_data: &AuxiliaryData) -> AuxiliaryDataHash 
 pub fn hash_transaction(tx_body: &TransactionBody) -> TransactionHash {
     TransactionHash::from(crypto::blake2b256(tx_body.to_bytes().as_ref()))
 }
+#[wasm_bindgen]
+pub fn hash_plutus_data(plutus_data: &PlutusData) -> DataHash {
+    DataHash::from(blake2b256(&plutus_data.to_bytes()))
+}
+#[wasm_bindgen]
+pub fn hash_script_data(redeemers: &Redeemers, cost_model: &CostModel, datums: Option<&PlutusList>) -> ScriptDataHash {
+    /*
+    ; script data format:
+    ; [ redeemers | datums | language views ]
+    ; The redeemers are exactly the data present in the transaction witness set.
+    ; Similarly for the datums, if present. If no datums are provided, the middle
+    ; field is an empty string.
+    */
+    let mut buf = Vec::new();
+    buf.extend(redeemers.to_bytes());
+     if let Some(d) = &datums {
+        buf.extend(d.to_bytes());
+    } else {
+        let empty_string = "";
+        buf.extend(empty_string.as_bytes());
+    }
+    buf.extend(cost_model.to_bytes());
+    ScriptDataHash::from(blake2b256(&buf))
+}
 
 // wasm-bindgen can't accept Option without clearing memory, so we avoid exposing this in WASM
 pub fn internal_get_implicit_input(
