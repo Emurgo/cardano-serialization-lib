@@ -477,6 +477,8 @@ impl RedeemerTag {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Redeemers(Vec<Redeemer>);
 
+to_from_bytes!(Redeemers);
+
 #[wasm_bindgen]
 impl Redeemers {
     pub fn new() -> Self {
