@@ -156,6 +156,10 @@ impl BigNum {
         format!("{}", self.0)
     }
 
+    pub fn zero() -> Self {
+        Self(0)
+    }
+
     pub fn checked_mul(&self, other: &BigNum) -> Result<BigNum, JsError> {
         match self.0.checked_mul(other.0) {
             Some(value) => Ok(BigNum(value)),
@@ -222,8 +226,8 @@ pub type Coin = BigNum;
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, /*Hash,*/ Ord, PartialEq)]
 pub struct Value {
-    coin: Coin,
-    multiasset: Option<MultiAsset>,
+    pub (crate) coin: Coin,
+    pub (crate) multiasset: Option<MultiAsset>,
 }
 
 to_from_bytes!(Value);
