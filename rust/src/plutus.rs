@@ -628,7 +628,7 @@ impl Deserialize for ConstrPlutusData {
 
 impl cbor_event::se::Serialize for CostModel {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(COST_MODEL_OP_COUNT as u64))?;
+        serializer.write_array(cbor_event::Len::Len(COST_MODEL_OP_COUNT as u64))?;
         for cost in &self.0 {
             cost.serialize(serializer)?;
         }
