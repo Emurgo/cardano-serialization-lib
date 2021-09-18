@@ -523,7 +523,7 @@ impl TransactionBuilder {
         }
     }
 
-    pub fn build(&self) -> Result<TransactionBody, JsError> {
+    fn build_and_size(&self) -> (TransactionBody, usize) {
         let fee = self.fee.ok_or_else(|| JsError::from_str("Fee not specified"))?;
         let built = TransactionBody {
             inputs: TransactionInputs(self.inputs.iter().map(|ref tx_builder_input| tx_builder_input.input.clone()).collect()),
@@ -548,6 +548,15 @@ impl TransactionBuilder {
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;
         let full_tx_size = full_tx.to_bytes().len();
+        return (full_tx.body, full_tx_size);
+    }
+
+    pub fn full_size(&self) -> usize {
+        return self.build_and_size().1;
+    }
+
+    pub fn build(&self) -> Result<TransactionBody, JsError> {
+        let (body, full_tx_size) = self.build_and_size();
         if full_tx_size > self.max_tx_size as usize {
             Err(JsError::from_str(&format!(
                 "Maximum transaction size of {} exceeded. Found: {}",
@@ -555,7 +564,7 @@ impl TransactionBuilder {
                 full_tx_size
             )))
         } else {
-            Ok(full_tx.body)
+            Ok(body)
         }
     }
 
