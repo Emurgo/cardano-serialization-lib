@@ -523,7 +523,7 @@ impl TransactionBuilder {
         }
     }
 
-    fn build_and_size(&self) -> (TransactionBody, usize) {
+    fn build_and_size(&self) -> Result<(TransactionBody, usize), JsError> {
         let fee = self.fee.ok_or_else(|| JsError::from_str("Fee not specified"))?;
         let built = TransactionBody {
             inputs: TransactionInputs(self.inputs.iter().map(|ref tx_builder_input| tx_builder_input.input.clone()).collect()),
@@ -548,15 +548,19 @@ impl TransactionBuilder {
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;
         let full_tx_size = full_tx.to_bytes().len();
-        return (full_tx.body, full_tx_size);
+        return Ok((full_tx.body, full_tx_size));
     }
 
-    pub fn full_size(&self) -> usize {
-        return self.build_and_size().1;
+    pub fn full_size(&self) -> Result<usize, JsError> {
+        return self.build_and_size().map(|r| { r.1 });
+    }
+
+    pub fn output_sizes(&self) -> Vec<usize> {
+        return self.outputs.0.iter().map(|o| { o.to_bytes().len() }).collect();
     }
 
     pub fn build(&self) -> Result<TransactionBody, JsError> {
-        let (body, full_tx_size) = self.build_and_size();
+        let (body, full_tx_size) = self.build_and_size()?;
         if full_tx_size > self.max_tx_size as usize {
             Err(JsError::from_str(&format!(
                 "Maximum transaction size of {} exceeded. Found: {}",
@@ -658,6 +662,8 @@ mod tests {
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
             tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
         );
+        assert_eq!(tx_builder.full_size().unwrap(), 283);
+        assert_eq!(tx_builder.output_sizes(), vec![61, 65]);
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
 
@@ -1346,7 +1352,14 @@ mod tests {
     fn build_tx_no_useless_multiasset() {
         let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
         let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1000000), &to_bignum(500000000), &to_bignum(2000000));
+            TransactionBuilder::new(
+                &linear_fee,
+                &to_bignum(1000000),
+                &to_bignum(500000000),
+                &to_bignum(2000000),
+                MAX_OUTPUT_SIZE,
+                MAX_TX_SIZE,
+            );
 
         let policy_id = &PolicyID::from([0u8; 28]);
         let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
