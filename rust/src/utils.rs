@@ -307,7 +307,10 @@ impl Value {
         let coin = self.coin.checked_sub(&rhs_value.coin)?;
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                Some(lhs_ma.sub(rhs_ma))
+                match (lhs_ma.sub(rhs_ma).len()) {
+                    0 => None,
+                    _ => Some(lhs_ma.sub(rhs_ma))
+                }
             },
             (Some(lhs_ma), None) => Some(lhs_ma.clone()),
             (None, Some(_rhs_ma)) => None,
@@ -321,7 +324,10 @@ impl Value {
         let coin = self.coin.clamped_sub(&rhs_value.coin);
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                Some(lhs_ma.sub(rhs_ma))
+                match (lhs_ma.sub(rhs_ma).len()) {
+                    0 => None,
+                    _ => Some(lhs_ma.sub(rhs_ma))
+                }
             },
             (Some(lhs_ma), None) => Some(lhs_ma.clone()),
             (None, Some(_rhs_ma)) => None,
@@ -486,6 +492,87 @@ impl Deserialize for Int {
     }
 }
 
+const BOUNDED_BYTES_CHUNK_SIZE: usize = 64;
+
+pub (crate) fn write_bounded_bytes<'se, W: Write>(serializer: &'se mut Serializer<W>, bytes: &[u8]) -> cbor_event::Result<&'se mut Serializer<W>> {
+    if bytes.len() <= BOUNDED_BYTES_CHUNK_SIZE {
+        serializer.write_bytes(bytes)
+    } else {
+        // to get around not having access from outside the library we just write the raw CBOR indefinite byte string code here
+        serializer.write_raw_bytes(&[0x5f])?;
+        for chunk in bytes.chunks(BOUNDED_BYTES_CHUNK_SIZE) {
+            serializer.write_bytes(chunk)?;
+        }
+        serializer.write_special(CBORSpecial::Break)
+    }
+}
+
+pub (crate) fn read_bounded_bytes<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Vec<u8>, DeserializeError> {
+    use std::io::Read;
+    let t = raw.cbor_type()?;
+    if t != CBORType::Bytes {
+        return Err(cbor_event::Error::Expected(CBORType::Bytes, t).into());
+    }
+    let (len, len_sz) = raw.cbor_len()?;
+    match len {
+        cbor_event::Len::Len(_) => {
+            let bytes = raw.bytes()?;
+            if bytes.len() > BOUNDED_BYTES_CHUNK_SIZE {
+                return Err(DeserializeFailure::OutOfRange{
+                    min: 0,
+                    max: BOUNDED_BYTES_CHUNK_SIZE,
+                    found: bytes.len(),
+                }.into());
+            }
+            Ok(bytes)
+        },
+        cbor_event::Len::Indefinite => {
+            // this is CBOR indefinite encoding, but we must check that each chunk
+            // is at most 64 big so we can't just use cbor_event's implementation
+            // and check after the fact.
+            // This is a slightly adopted version of what I made internally in cbor_event
+            // but with the extra checks and not having access to non-pub methods.
+            let mut bytes = Vec::new();
+            raw.advance(1 + len_sz)?;
+            // TODO: also change this + check at end of loop to the following after we update cbor_event
+            //while raw.cbor_type()? != CBORType::Special || !raw.special_break()? {
+            while raw.cbor_type()? != CBORType::Special {
+                let chunk_t = raw.cbor_type()?;
+                if chunk_t != CBORType::Bytes {
+                    return Err(cbor_event::Error::Expected(CBORType::Bytes, chunk_t).into());
+                }
+                let (chunk_len, chunk_len_sz) = raw.cbor_len()?;
+                match chunk_len {
+                    // TODO: use this error instead once that PR is merged into cbor_event
+                    //cbor_event::Len::Indefinite => return Err(cbor_event::Error::InvalidIndefiniteString.into()),
+                    cbor_event::Len::Indefinite => return Err(cbor_event::Error::CustomError(String::from("Illegal CBOR: Indefinite string found inside indefinite string")).into()),
+                    cbor_event::Len::Len(len) => {
+                        if chunk_len_sz > BOUNDED_BYTES_CHUNK_SIZE {
+                            return Err(DeserializeFailure::OutOfRange{
+                                min: 0,
+                                max: BOUNDED_BYTES_CHUNK_SIZE,
+                                found: chunk_len_sz,
+                            }.into());
+                        }
+                        raw.advance(1 + chunk_len_sz)?;
+                        raw
+                            .as_mut_ref()
+                            .by_ref()
+                            .take(len)
+                            .read_to_end(&mut bytes)
+                            .map_err(|e| cbor_event::Error::IoError(e))?;
+                    }
+                }
+            }
+            if raw.special()? != CBORSpecial::Break {
+                return Err(DeserializeFailure::EndingBreakMissing.into());
+            }
+            Ok(bytes)
+        },
+    }
+
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BigInt(num_bigint::BigInt);
@@ -536,7 +623,7 @@ impl cbor_event::se::Serialize for BigInt {
                 num_bigint::Sign::Plus |
                 num_bigint::Sign::NoSign => {
                     serializer.write_tag(2u64)?;
-                    serializer.write_bytes(bytes)?;
+                    write_bounded_bytes(serializer, &bytes)?;
                 },
                 // negative bigint
                 num_bigint::Sign::Minus => {
@@ -544,7 +631,7 @@ impl cbor_event::se::Serialize for BigInt {
                     use std::ops::Neg;
                     // CBOR RFC defines this as the bytes of -n -1
                     let adjusted = self.0.clone().neg().checked_sub(&num_bigint::BigInt::from(1u32)).unwrap().to_biguint().unwrap();
-                    serializer.write_bytes(adjusted.to_bytes_be())?;
+                    write_bounded_bytes(serializer, &adjusted.to_bytes_be())?;
                 },
             }
         }
@@ -559,10 +646,7 @@ impl Deserialize for BigInt {
                 // bigint
                 CBORType::Tag => {
                     let tag = raw.tag()?;
-                    let bytes = raw.bytes()?;
-                    if bytes.len() > 64 {
-                        return Err(DeserializeFailure::OutOfRange{ found: bytes.len(), min: 0, max: 64}.into())
-                    }
+                    let bytes = read_bounded_bytes(raw)?;
                     match tag {
                         // positive bigint
                         2 => Ok(Self(num_bigint::BigInt::from_bytes_be(num_bigint::Sign::Plus, &bytes))),
@@ -1670,5 +1754,51 @@ mod tests {
         let x = BigInt::from_str("-18446744073709551617").unwrap();
         let x_rt = BigInt::from_bytes(x.to_bytes()).unwrap();
         assert_eq!(x.to_str(), x_rt.to_str());
+    }
+
+    #[test]
+    fn bounded_bytes_read_chunked() {
+        use std::io::Cursor;
+        let chunks = vec![
+            vec![
+                0x52, 0x73, 0x6F, 0x6D, 0x65, 0x20, 0x72, 0x61, 0x6E, 0x64, 0x6F, 0x6D, 0x20, 0x73,
+                0x74, 0x72, 0x69, 0x6E, 0x67,
+            ],
+            vec![0x44, 0x01, 0x02, 0x03, 0x04],
+        ];
+        let mut expected = Vec::new();
+        for chunk in chunks.iter() {
+            expected.extend_from_slice(&chunk[1..]);
+        }
+        let mut vec = vec![0x5f];
+        for mut chunk in chunks {
+            vec.append(&mut chunk);
+        }
+        vec.push(0xff);
+        let mut raw = Deserializer::from(Cursor::new(vec.clone()));
+        let found = read_bounded_bytes(&mut raw).unwrap();
+        assert_eq!(found, expected);
+    }
+
+    #[test]
+    fn bounded_bytes_write_chunked() {
+        let mut chunk_64 = vec![0x58, BOUNDED_BYTES_CHUNK_SIZE as u8];
+        chunk_64.extend(std::iter::repeat(37).take(BOUNDED_BYTES_CHUNK_SIZE));
+        let chunks = vec![
+            chunk_64,
+            vec![0x44, 0x01, 0x02, 0x03, 0x04],
+        ];
+        let mut input = Vec::new();
+        input.extend_from_slice(&chunks[0][2..]);
+        input.extend_from_slice(&chunks[1][1..]);
+        let mut serializer = cbor_event::se::Serializer::new_vec();
+        write_bounded_bytes(&mut serializer, &input).unwrap();
+        let written = serializer.finalize();
+        let mut expected = vec![0x5f];
+        for mut chunk in chunks {
+            expected.append(&mut chunk);
+        }
+        expected.push(0xff);
+        assert_eq!(expected, written);
     }
 }

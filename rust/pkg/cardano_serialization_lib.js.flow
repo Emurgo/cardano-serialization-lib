@@ -6,13 +6,6 @@
  */
 
 /**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -35,6 +28,13 @@ declare export function decrypt_with_password(
   password: string,
   data: string
 ): string;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  * @param {TransactionHash} tx_body_hash
@@ -1242,27 +1242,17 @@ declare export class CostModel {
   static new(): CostModel;
 
   /**
-   * @returns {number}
+   * @param {number} operation
+   * @param {Int} cost
+   * @returns {Int}
    */
-  len(): number;
+  set(operation: number, cost: Int): Int;
 
   /**
-   * @param {string} key
-   * @param {BigInt} value
-   * @returns {BigInt | void}
+   * @param {number} operation
+   * @returns {Int}
    */
-  insert(key: string, value: BigInt): BigInt | void;
-
-  /**
-   * @param {string} key
-   * @returns {BigInt | void}
-   */
-  get(key: string): BigInt | void;
-
-  /**
-   * @returns {Strings}
-   */
-  keys(): Strings;
+  get(operation: number): Int;
 }
 /**
  */

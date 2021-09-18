@@ -428,7 +428,7 @@ impl TransactionBuilder {
                             // you would need to have a very high amoun of assets (which add 1-36 bytes each)
                             // in a single policy to make a difference. In the future if this becomes an issue
                             // we can change that here.
-                            
+
                             // this is the other part of the optimization but we need to take into account
                             // the difference between CBOR encoding which can change which happens in two places:
                             // a) length within assets of one policy id
@@ -1331,6 +1331,67 @@ mod tests {
             tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap().coin()
         );
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
+    }
+
+    #[test]
+    fn build_tx_no_useless_multiasset() {
+        let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+        let mut tx_builder =
+            TransactionBuilder::new(&linear_fee, &to_bignum(1000000), &to_bignum(500000000), &to_bignum(2000000));
+
+        let policy_id = &PolicyID::from([0u8; 28]);
+        let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+
+        // add an output that uses up all the token but leaves ADA
+        let mut input_amount = Value::new(&to_bignum(5_000_000));
+        let mut input_multiasset = MultiAsset::new();
+        input_multiasset.insert(policy_id, &{
+            let mut assets = Assets::new();
+            assets.insert(&name, &to_bignum(100));
+            assets
+        });
+        input_amount.set_multiasset(&input_multiasset);
+
+        tx_builder.add_input(
+            &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3").unwrap().to_address(),
+            &TransactionInput::new(
+                &genesis_id(),
+                0
+            ),
+            &input_amount
+        );
+
+        // add an input that contains an asset & ADA
+        let mut output_amount = Value::new(&to_bignum(2_000_000));
+        let mut output_multiasset = MultiAsset::new();
+        output_multiasset.insert(policy_id, &{
+            let mut assets = Assets::new();
+            assets.insert(&name, &to_bignum(100));
+            assets
+        });
+        output_amount.set_multiasset(&output_multiasset);
+
+        let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap();
+        tx_builder.add_output(&TransactionOutput::new(
+            &output_addr.to_address(),
+            &output_amount
+        )).unwrap();
+
+        tx_builder.set_ttl(1);
+
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
+        let added_change = tx_builder.add_change_if_needed(
+            &change_addr.to_address()
+        );
+        assert!(added_change.unwrap());
+        assert_eq!(tx_builder.outputs.len(), 2);
+        let final_tx = tx_builder.build().unwrap();
+        let change_output = final_tx.outputs().get(1);
+        let change_assets = change_output.amount().multiasset();
+
+        // since all tokens got sent in the output
+        // the change should be only ADA and not have any multiasset struct in it
+        assert!(change_assets.is_none());
     }
 
     #[test]
