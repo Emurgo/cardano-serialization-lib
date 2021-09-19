@@ -123,6 +123,24 @@ declare export function hash_transaction(
 ): TransactionHash;
 
 /**
+ * @param {PlutusData} plutus_data
+ * @returns {DataHash}
+ */
+declare export function hash_plutus_data(plutus_data: PlutusData): DataHash;
+
+/**
+ * @param {Redeemers} redeemers
+ * @param {Costmdls} cost_models
+ * @param {PlutusList | void} datums
+ * @returns {ScriptDataHash}
+ */
+declare export function hash_script_data(
+  redeemers: Redeemers,
+  cost_models: Costmdls,
+  datums?: PlutusList
+): ScriptDataHash;
+
+/**
  * @param {TransactionBody} txbody
  * @param {BigNum} pool_deposit
  * @param {BigNum} key_deposit
@@ -2892,6 +2910,17 @@ declare export class PlutusList {
   free(): void;
 
   /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {PlutusList}
+   */
+  static from_bytes(bytes: Uint8Array): PlutusList;
+
+  /**
    * @returns {PlutusList}
    */
   static new(): PlutusList;
@@ -3863,6 +3892,17 @@ declare export class RedeemerTag {
  */
 declare export class Redeemers {
   free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Redeemers}
+   */
+  static from_bytes(bytes: Uint8Array): Redeemers;
 
   /**
    * @returns {Redeemers}
