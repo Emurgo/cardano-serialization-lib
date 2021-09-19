@@ -12,8 +12,8 @@
     "rust:test": "cd rust; cargo test; cd ..",
     "js:flowgen": "flowgen ./rust/pkg/cardano_serialization_lib.d.ts -o ./rust/pkg/cardano_serialization_lib.js.flow --add-flow-header",
     "js:prepublish": "npm run rust:test && rimraf ./publish && cp -r ./rust/pkg ./publish && cp README.md publish/ && cp LICENSE publish/",
-    "js:publish-nodejs": "npm run rust:build-nodejs && npm run js:prepublish && node ./scripts/publish-helper -nodejs && cd publish && npm publish --tag beta --access public",
-    "js:publish-browser": "npm run rust:build-browser && npm run js:prepublish && node ./scripts/publish-helper -browser && cd publish && npm publish --tag beta --access public",
+    "js:publish-nodejs": "npm run rust:build-nodejs && npm run js:prepublish && node ./scripts/publish-helper -nodejs && cd publish && npm publish --access public",
+    "js:publish-browser": "npm run rust:build-browser && npm run js:prepublish && node ./scripts/publish-helper -browser && cd publish && npm publish --access public",
     "js:publish-asm": "npm run rust:build-asm && npm run js:prepublish && node ./scripts/publish-helper -asmjs && cd publish && npm publish --access public",
     "postinstall": "git submodule update --init --recursive && cd binaryen; cmake . && make"
   },
