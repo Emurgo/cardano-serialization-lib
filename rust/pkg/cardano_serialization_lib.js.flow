@@ -6,6 +6,42 @@
  */
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -121,42 +157,6 @@ declare export function min_ada_required(
 ): BigNum;
 
 /**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
-): string;
-
-/**
  */
 
 declare export var CertificateKind: {|
@@ -228,6 +228,26 @@ declare export var NetworkIdKind: {|
 /**
  */
 
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
 |};
@@ -251,26 +271,6 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
-|};
-
-/**
- */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
 |};
 
 /**
@@ -374,6 +374,17 @@ declare export class AssetNames {
  */
 declare export class Assets {
   free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Assets}
+   */
+  static from_bytes(bytes: Uint8Array): Assets;
 
   /**
    * @returns {Assets}
@@ -611,6 +622,11 @@ declare export class BigNum {
    * @returns {string}
    */
   to_str(): string;
+
+  /**
+   * @returns {BigNum}
+   */
+  static zero(): BigNum;
 
   /**
    * @param {BigNum} other
@@ -4889,13 +4905,17 @@ declare export class TransactionBuilder {
    * @param {BigNum} minimum_utxo_val
    * @param {BigNum} pool_deposit
    * @param {BigNum} key_deposit
+   * @param {number} max_output_size
+   * @param {number} max_tx_size
    * @returns {TransactionBuilder}
    */
   static new(
     linear_fee: LinearFee,
     minimum_utxo_val: BigNum,
     pool_deposit: BigNum,
-    key_deposit: BigNum
+    key_deposit: BigNum,
+    max_output_size: number,
+    max_tx_size: number
   ): TransactionBuilder;
 
   /**
@@ -4932,6 +4952,21 @@ declare export class TransactionBuilder {
    * @returns {boolean}
    */
   add_change_if_needed(address: Address): boolean;
+
+  /**
+   * @returns {number}
+   */
+  full_size(): number;
+
+  /**
+   * @returns {Uint32Array}
+   */
+  output_sizes(): Uint32Array;
+
+  /**
+   * @returns {Uint32Array}
+   */
+  output_value_sizes(): Uint32Array;
 
   /**
    * @returns {TransactionBody}

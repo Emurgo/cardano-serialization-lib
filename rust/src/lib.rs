@@ -385,7 +385,7 @@ impl TransactionInput {
 #[derive(Clone, Debug)]
 pub struct TransactionOutput {
     address: Address,
-    amount: Value,
+    pub (crate) amount: Value,
     data_hash: Option<DataHash>,
 }
 
@@ -2461,7 +2461,9 @@ pub type PolicyIDs = ScriptHashes;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Assets(std::collections::BTreeMap<AssetName, BigNum>);
+pub struct Assets(pub (crate) std::collections::BTreeMap<AssetName, BigNum>);
+
+to_from_bytes!(Assets);
 
 #[wasm_bindgen]
 impl Assets {
@@ -2488,7 +2490,7 @@ impl Assets {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq)]
-pub struct MultiAsset(std::collections::BTreeMap<PolicyID, Assets>);
+pub struct MultiAsset(pub (crate) std::collections::BTreeMap<PolicyID, Assets>);
 
 to_from_bytes!(MultiAsset);
 
