@@ -4964,11 +4964,6 @@ declare export class TransactionBuilder {
   output_sizes(): Uint32Array;
 
   /**
-   * @returns {Uint32Array}
-   */
-  output_value_sizes(): Uint32Array;
-
-  /**
    * @returns {TransactionBody}
    */
   build(): TransactionBody;
