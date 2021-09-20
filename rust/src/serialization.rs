@@ -96,7 +96,7 @@ impl DeserializeEmbeddedGroup for Transaction {
             Ok(TransactionWitnessSet::deserialize(raw)?)
         })().map_err(|e| e.annotate("witness_set"))?;
         let is_valid = (|| -> Result<_, DeserializeError> {
-            Ok(match raw.cbor_type()? == CBORType::Special {
+            match raw.cbor_type()? == CBORType::Special {
                 true => {
                     if let CBORSpecial::Bool(b) = raw.special()? {
                         return Ok(b);
@@ -104,7 +104,7 @@ impl DeserializeEmbeddedGroup for Transaction {
                     return Err(DeserializeFailure::ExpectedBool.into());
                 },
                 _ => return Err(DeserializeFailure::ExpectedBool.into())
-            })
+            }
         })().map_err(|e| e.annotate("is_valid"))?;
         let auxiliary_data = (|| -> Result<_, DeserializeError> {
             Ok(match raw.cbor_type()? != CBORType::Special {
