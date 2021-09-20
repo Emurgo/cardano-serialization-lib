@@ -56,7 +56,7 @@ impl DeserializeEmbeddedGroup for UnitInterval {
 
 impl cbor_event::se::Serialize for Transaction {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(3))?;
+        serializer.write_array(cbor_event::Len::Len(4))?;
         self.body.serialize(serializer)?;
         self.witness_set.serialize(serializer)?;
         serializer.write_special(CBORSpecial::Bool(self.is_valid))?;
