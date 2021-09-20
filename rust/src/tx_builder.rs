@@ -96,6 +96,7 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
     Ok(Transaction {
         body,
         witness_set,
+        is_valid: true,
         auxiliary_data: tx_builder.auxiliary_data.clone(),
     })
 }
@@ -662,7 +663,7 @@ mod tests {
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
             tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
         );
-        assert_eq!(tx_builder.full_size().unwrap(), 283);
+        assert_eq!(tx_builder.full_size().unwrap(), 284);
         assert_eq!(tx_builder.output_sizes(), vec![61, 65]);
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -782,8 +783,8 @@ mod tests {
         tx_builder.add_change_if_needed(
             &change_addr
         ).unwrap();
-        assert_eq!(tx_builder.min_fee().unwrap().to_str(), "213502");
-        assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "213502");
+        assert_eq!(tx_builder.min_fee().unwrap().to_str(), "214002");
+        assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "214002");
         assert_eq!(tx_builder.get_deposit().unwrap().to_str(), "1000000");
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(

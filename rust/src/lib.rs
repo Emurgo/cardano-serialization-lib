@@ -97,6 +97,7 @@ type Slot = u32;
 pub struct Transaction {
     body: TransactionBody,
     witness_set: TransactionWitnessSet,
+    is_valid: bool,
     auxiliary_data: Option<AuxiliaryData>,
 }
 
@@ -112,6 +113,10 @@ impl Transaction {
         self.witness_set.clone()
     }
 
+    pub fn is_valid(&self) -> bool {
+        self.is_valid.clone()
+    }
+
     pub fn auxiliary_data(&self) -> Option<AuxiliaryData> {
         self.auxiliary_data.clone()
     }
@@ -119,11 +124,13 @@ impl Transaction {
     pub fn new(
         body: &TransactionBody,
         witness_set: &TransactionWitnessSet,
+        is_valid: bool,
         auxiliary_data: Option<AuxiliaryData>,
     ) -> Self {
         Self {
             body: body.clone(),
             witness_set: witness_set.clone(),
+            is_valid: is_valid.clone(),
             auxiliary_data: auxiliary_data.clone(),
         }
     }
