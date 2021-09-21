@@ -808,7 +808,7 @@ pub fn hash_plutus_data(plutus_data: &PlutusData) -> DataHash {
     DataHash::from(blake2b256(&plutus_data.to_bytes()))
 }
 #[wasm_bindgen]
-pub fn hash_script_data(redeemers: &Redeemers, cost_models: &Costmdls, datums: Option<PlutusList>) -> ScriptDataHash {
+pub fn hash_script_data(redeemers: &Redeemers, language_views: &LanguageViews, datums: Option<PlutusList>) -> ScriptDataHash {
     /*
     ; script data format:
     ; [ redeemers | datums | language views ]
@@ -818,13 +818,10 @@ pub fn hash_script_data(redeemers: &Redeemers, cost_models: &Costmdls, datums: O
     */
     let mut buf = Vec::new();
     buf.extend(redeemers.to_bytes());
-     if let Some(d) = &datums {
+    if let Some(d) = &datums {
         buf.extend(d.to_bytes());
-    } else {
-        let empty_string = "";
-        buf.extend(empty_string.as_bytes());
     }
-    buf.extend(cost_models.to_bytes());
+    buf.extend(language_views.bytes());
     ScriptDataHash::from(blake2b256(&buf))
 }
 
@@ -999,6 +996,23 @@ mod tests {
 
     // this is what is used in mainnet
     static MINIMUM_UTXO_VAL: u64 = 1_000_000;
+
+    #[test]
+    fn correct_script_data_hash() {
+        let mut datums = PlutusList::new();
+        datums.add(&PlutusData::new_integer(&BigInt::from_str("1000").unwrap()));
+        let mut redeemers = Redeemers::new();
+        redeemers.add(&Redeemer::new(&RedeemerTag::new_spend(), &BigNum::from_str("1").unwrap(), &PlutusData::new_integer(&BigInt::from_str("2000").unwrap()), &ExUnits::new(&BigNum::from_str("0").unwrap(), &BigNum::from_str("0").unwrap())));
+        let language_views = LanguageViews::new(hex::decode("a141005901d59f1a000302590001011a00060bc719026d00011a000249f01903e800011a000249f018201a0025cea81971f70419744d186419744d186419744d186419744d186419744d186419744d18641864186419744d18641a000249f018201a000249f018201a000249f018201a000249f01903e800011a000249f018201a000249f01903e800081a000242201a00067e2318760001011a000249f01903e800081a000249f01a0001b79818f7011a000249f0192710011a0002155e19052e011903e81a000249f01903e8011a000249f018201a000249f018201a000249f0182001011a000249f0011a000249f0041a000194af18f8011a000194af18f8011a0002377c190556011a0002bdea1901f1011a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a000242201a00067e23187600010119f04c192bd200011a000249f018201a000242201a00067e2318760001011a000242201a00067e2318760001011a0025cea81971f704001a000141bb041a000249f019138800011a000249f018201a000302590001011a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a00330da70101ff").unwrap());
+
+        let script_data_hash = hash_script_data(&redeemers,&language_views, Some(datums));
+
+        assert_eq!(
+            hex::encode(script_data_hash.to_bytes()),
+            "57240d358f8ab6128c4a66340271e4fec39b4971232add308f01a5809313adcf"
+        );
+    }
+
 
     #[test]
     fn no_token_minimum() {

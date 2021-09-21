@@ -51,6 +51,23 @@ impl PlutusScripts {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct LanguageViews(Vec<u8>);
+
+to_from_bytes!(LanguageViews);
+
+#[wasm_bindgen]
+impl LanguageViews {
+    pub fn new(bytes: Vec<u8>) -> LanguageViews {
+        Self(bytes)
+    }
+
+    pub fn bytes(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ConstrPlutusData {
     tag: Int,
     data: PlutusList,
@@ -627,6 +644,18 @@ impl Deserialize for ConstrPlutusData {
                 data,
             })
         })().map_err(|e| e.annotate("ConstrPlutusData"))
+    }
+}
+
+impl cbor_event::se::Serialize for LanguageViews {
+    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
+        serializer.write_bytes(&self.0)
+    }
+}
+
+impl Deserialize for LanguageViews {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        Ok(Self(raw.bytes()?))
     }
 }
 
