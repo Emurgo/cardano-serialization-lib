@@ -126,7 +126,7 @@ pub struct TransactionBuilder {
     minimum_utxo_val: BigNum,
     pool_deposit: BigNum,
     key_deposit: BigNum,
-    max_output_size: u32,
+    max_value_size: u32,
     max_tx_size: u32,
     fee_algo: fees::LinearFee,
     inputs: Vec<TxBuilderInput>,
@@ -233,12 +233,12 @@ impl TransactionBuilder {
     }
 
     pub fn add_output(&mut self, output: &TransactionOutput) -> Result<(), JsError> {
-        let output_size = output.to_bytes().len();
-        if output_size > self.max_output_size as usize {
+        let value_size = output.amount.to_bytes().len();
+        if value_size > self.max_value_size as usize {
             return Err(JsError::from_str(&format!(
-                "Maximum output size of {} exceeded. Found: {}",
-                self.max_output_size,
-                output_size
+                "Maximum value size of {} exceeded. Found: {}",
+                self.max_value_size,
+                value_size
             )));
         }
         let min_ada = min_ada_required(&output.amount(), &self.minimum_utxo_val);
@@ -306,14 +306,14 @@ impl TransactionBuilder {
         minimum_utxo_val: &Coin,
         pool_deposit: &BigNum, // protocol parameter
         key_deposit: &BigNum,  // protocol parameter
-        max_output_size: u32, // protocol parameter
+        max_value_size: u32, // protocol parameter
         max_tx_size: u32, // protocol parameter
     ) -> Self {
         Self {
             minimum_utxo_val: minimum_utxo_val.clone(),
             key_deposit: key_deposit.clone(),
             pool_deposit: pool_deposit.clone(),
-            max_output_size,
+            max_value_size,
             max_tx_size,
             fee_algo: linear_fee.clone(),
             inputs: Vec::new(),
@@ -407,7 +407,7 @@ impl TransactionBuilder {
                 }
                 let change_estimator = input_total.checked_sub(&output_total)?;
                 if has_assets(change_estimator.multiasset()) {
-                    fn pack_nfts_for_change(max_output_size: u32, change_address: &Address, change_estimator: &Value) -> Result<MultiAsset, JsError> {
+                    fn pack_nfts_for_change(max_value_size: u32, change_address: &Address, change_estimator: &Value) -> Result<MultiAsset, JsError> {
                         // we insert the entire available ADA temporarily here since that could potentially impact the size
                         // as it could be 1, 2 3 or 4 bytes for Coin.
                         let mut base_coin = Value::new(&change_estimator.coin());
@@ -436,14 +436,14 @@ impl TransactionBuilder {
                             // so for simplicity we will just do it the safe, naive way unless
                             // performance becomes an issue.
                             //let extra_bytes = policy.to_bytes().len() + assets.to_bytes().len() + 2 + cbor_len_diff;
-                            //if bytes_used + extra_bytes <= max_output_size as usize {
+                            //if bytes_used + extra_bytes <= max_value_size as usize {
                             let old_amount = output.amount.clone();
                             let mut val = Value::new(&Coin::zero());
                             let mut next_nft = MultiAsset::new();
                             next_nft.insert(policy, assets);
                             val.set_multiasset(&next_nft);
                             output.amount = output.amount.checked_add(&val)?;
-                            if output.to_bytes().len() > max_output_size as usize {
+                            if output.amount.to_bytes().len() > max_value_size as usize {
                                 output.amount = old_amount;
                                 break;
                             }
@@ -455,7 +455,7 @@ impl TransactionBuilder {
                     // we might need multiple change outputs for cases where the change has many asset types
                     // which surpass the max UTXO size limit
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
-                        let nft_change = pack_nfts_for_change(self.max_output_size, address, &change_left)?;
+                        let nft_change = pack_nfts_for_change(self.max_value_size, address, &change_left)?;
                         if nft_change.len() == 0 {
                             // this likely should never happen
                             return Err(JsError::from_str("NFTs too large for change output"));
@@ -587,7 +587,7 @@ mod tests {
     use super::*;
     use fees::*;
 
-    const MAX_OUTPUT_SIZE: u32 = 4000;
+    const MAX_VALUE_SIZE: u32 = 4000;
     const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
 
     fn genesis_id() -> TransactionHash {
@@ -612,7 +612,7 @@ mod tests {
             &to_bignum(1),
             &to_bignum(1),
             &to_bignum(1),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
         let spend = root_key_15()
@@ -675,7 +675,7 @@ mod tests {
             &to_bignum(1),
             &to_bignum(1),
             &to_bignum(1),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
         let spend = root_key_15()
@@ -736,7 +736,7 @@ mod tests {
             &to_bignum(1),
             &to_bignum(1),
             &to_bignum(1_000_000),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
         let spend = root_key_15()
@@ -805,7 +805,7 @@ mod tests {
             &to_bignum(1),
             &to_bignum(0),
             &to_bignum(0),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
         let spend = root_key_15()
@@ -862,7 +862,7 @@ mod tests {
             &to_bignum(1),
             &to_bignum(0),
             &to_bignum(0),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
         let spend = root_key_15()
@@ -928,7 +928,7 @@ mod tests {
             &to_bignum(1),
             &to_bignum(0),
             &to_bignum(5),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
         let spend = root_key_15()
@@ -999,7 +999,7 @@ mod tests {
             &to_bignum(1),
             &to_bignum(1),
             &to_bignum(1),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
         let spend = root_key_15()
@@ -1080,7 +1080,7 @@ mod tests {
             &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
         let spend = root_key_15()
@@ -1196,7 +1196,7 @@ mod tests {
             &to_bignum(1),
             &to_bignum(1),
             &to_bignum(1),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
         let spend = root_key_15()
@@ -1270,7 +1270,7 @@ mod tests {
             &to_bignum(1000000),
             &to_bignum(500000000),
             &to_bignum(2000000),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
 
@@ -1312,7 +1312,7 @@ mod tests {
             &to_bignum(1000000),
             &to_bignum(500000000),
             &to_bignum(2000000),
-            MAX_OUTPUT_SIZE,
+            MAX_VALUE_SIZE,
             MAX_TX_SIZE
         );
 
@@ -1357,7 +1357,7 @@ mod tests {
                 &to_bignum(1000000),
                 &to_bignum(500000000),
                 &to_bignum(2000000),
-                MAX_OUTPUT_SIZE,
+                MAX_VALUE_SIZE,
                 MAX_TX_SIZE,
             );
 
@@ -1416,20 +1416,7 @@ mod tests {
         assert!(change_assets.is_none());
     }
 
-    #[test]
-    fn build_tx_add_change_split_nfts() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
-        let max_output_size = 150; // super low max output size to test with fewer assets
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
-            max_output_size,
-            MAX_TX_SIZE
-        );
-
+    fn create_multiasset() -> (MultiAsset, [ScriptHash; 3], [AssetName; 3]) {
         let policy_ids = [
             PolicyID::from([0u8; 28]),
             PolicyID::from([1u8; 28]),
@@ -1440,7 +1427,6 @@ mod tests {
             AssetName::new(vec![0u8, 1, 2, 3]).unwrap(),
             AssetName::new(vec![4u8, 5, 6, 7, 8, 9]).unwrap(),
         ];
-
         let multiasset = policy_ids
             .iter()
             .zip(names.iter())
@@ -1452,6 +1438,24 @@ mod tests {
                 });
                 acc
             });
+        return (multiasset, policy_ids, names);
+    }
+
+    #[test]
+    fn build_tx_add_change_split_nfts() {
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
+        let minimum_utxo_value = to_bignum(1);
+        let max_value_size = 100; // super low max output size to test with fewer assets
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &minimum_utxo_value,
+            &to_bignum(0),
+            &to_bignum(0),
+            max_value_size,
+            MAX_TX_SIZE
+        );
+
+        let (multiasset, policy_ids, names) = create_multiasset();
 
         let mut input_value = Value::new(&to_bignum(10));
         input_value.set_multiasset(&multiasset);
@@ -1491,7 +1495,7 @@ mod tests {
             );
         }
         for output in final_tx.outputs.0.iter() {
-            assert!(output.to_bytes().len() <= max_output_size as usize);
+            assert!(output.amount.to_bytes().len() <= max_value_size as usize);
         }
     }
 
@@ -1518,7 +1522,8 @@ mod tests {
         );
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap().to_address();
-        let output_amount = Value::new(&to_bignum(1));
+        let mut output_amount = Value::new(&to_bignum(1));
+        output_amount.set_multiasset(&create_multiasset().0);
 
         assert!(tx_builder.add_output(&TransactionOutput::new(&output_addr, &output_amount)).is_err());
     }
@@ -1527,13 +1532,13 @@ mod tests {
     fn build_tx_add_change_nfts_not_enough_ada() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
         let minimum_utxo_value = to_bignum(1);
-        let max_output_size = 150; // super low max output size to test with fewer assets
+        let max_value_size = 150; // super low max output size to test with fewer assets
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
             &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
-            max_output_size,
+            max_value_size,
             MAX_TX_SIZE
         );
 
