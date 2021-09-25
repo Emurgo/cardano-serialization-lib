@@ -4945,7 +4945,7 @@ declare export class TransactionBuilder {
    * @param {BigNum} minimum_utxo_val
    * @param {BigNum} pool_deposit
    * @param {BigNum} key_deposit
-   * @param {number} max_output_size
+   * @param {number} max_value_size
    * @param {number} max_tx_size
    * @returns {TransactionBuilder}
    */
@@ -4954,7 +4954,7 @@ declare export class TransactionBuilder {
     minimum_utxo_val: BigNum,
     pool_deposit: BigNum,
     key_deposit: BigNum,
-    max_output_size: number,
+    max_value_size: number,
     max_tx_size: number
   ): TransactionBuilder;
 
