@@ -37,15 +37,19 @@ fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519Key
     }
 }
 
+fn fake_private_key() -> Bip32PrivateKey {
+    Bip32PrivateKey::from_bip39_entropy(
+        // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
+        &[0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12],
+        &[]
+    )
+}
+
 // tx_body must be the result of building from tx_builder
 // constructs the rest of the Transaction using fake witness data of the correct length
 // for use in calculating the size of the final Transaction
 fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Result<Transaction, JsError> {
-    let fake_key_root = Bip32PrivateKey::from_bip39_entropy(
-        // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
-        &[0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12],
-        &[]
-    );
+    let fake_key_root = fake_private_key();
 
     // recall: this includes keys for input, certs and withdrawals
     let vkeys = match tx_builder.input_types.vkeys.len() {
@@ -602,6 +606,19 @@ mod tests {
 
     fn harden(index: u32) -> u32 {
         index | 0x80_00_00_00
+    }
+
+    #[test]
+    fn check_fake_private_key() {
+        let fpk = fake_private_key();
+        assert_eq!(
+            fpk.to_bech32(),
+            "xprv1hretan5mml3tq2p0twkhq4tz4jvka7m2l94kfr6yghkyfar6m9wppc7h9unw6p65y23kakzct3695rs32z7vaw3r2lg9scmfj8ec5du3ufydu5yuquxcz24jlkjhsc9vsa4ufzge9s00fn398svhacse5su2awrw",
+        );
+        assert_eq!(
+            fpk.to_public().to_bech32(),
+            "xpub1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xercjgmegfcpcdsy4t9ld90ps2epmtcjy3jtq77n8z20qe0m3pnfqntgrgj",
+        );
     }
 
     #[test]
