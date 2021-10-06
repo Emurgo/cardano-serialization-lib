@@ -51,23 +51,6 @@ impl PlutusScripts {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct LanguageViews(Vec<u8>);
-
-to_from_bytes!(LanguageViews);
-
-#[wasm_bindgen]
-impl LanguageViews {
-    pub fn new(bytes: Vec<u8>) -> LanguageViews {
-        Self(bytes)
-    }
-
-    pub fn bytes(&self) -> Vec<u8> {
-        self.0.clone()
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ConstrPlutusData {
     tag: Int,
     data: PlutusList,
@@ -162,6 +145,32 @@ impl Costmdls {
 
     pub fn keys(&self) -> Languages {
         Languages(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<_>>())
+    }
+
+    pub(crate) fn language_views_encoding(&self) -> Vec<u8> {
+        let mut serializer = Serializer::new_vec();
+        let mut keys_bytes: Vec<(Language, Vec<u8>)> = self.0.iter().map(|(k, _v)| (k.clone(), k.to_bytes())).collect();
+        // keys must be in canonical ordering first
+        keys_bytes.sort_by(|lhs, rhs| match lhs.1.len().cmp(&rhs.1.len()) {
+            std::cmp::Ordering::Equal => lhs.1.cmp(&rhs.1),
+            len_order => len_order,
+        });
+        serializer.write_map(cbor_event::Len::Len(self.0.len() as u64)).unwrap();
+        for (key, key_bytes) in keys_bytes.iter() {
+            serializer.write_bytes(key_bytes).unwrap();
+            let cost_model = self.0.get(&key).unwrap();
+            // not sure why but the cardano node seems to use indefinite encoding despite this not being standard canonical CBOR
+            let mut cost_model_serializer = Serializer::new_vec();
+            cost_model_serializer.write_array(cbor_event::Len::Indefinite).unwrap();
+            for cost in &cost_model.0 {
+                cost.serialize(&mut cost_model_serializer).unwrap();
+            }
+            cost_model_serializer.write_special(cbor_event::Special::Break).unwrap();
+            serializer.write_bytes(cost_model_serializer.finalize()).unwrap();
+        }
+        let out = serializer.finalize();
+        println!("language_views = {}", hex::encode(out.clone()));
+        out
     }
 }
 
@@ -644,18 +653,6 @@ impl Deserialize for ConstrPlutusData {
                 data,
             })
         })().map_err(|e| e.annotate("ConstrPlutusData"))
-    }
-}
-
-impl cbor_event::se::Serialize for LanguageViews {
-    fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_bytes(&self.0)
-    }
-}
-
-impl Deserialize for LanguageViews {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(raw.bytes()?))
     }
 }
 
