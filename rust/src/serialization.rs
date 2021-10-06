@@ -95,30 +95,48 @@ impl DeserializeEmbeddedGroup for Transaction {
         let witness_set = (|| -> Result<_, DeserializeError> {
             Ok(TransactionWitnessSet::deserialize(raw)?)
         })().map_err(|e| e.annotate("witness_set"))?;
+        let mut checked_auxiliary_data = false;
+        let mut auxiliary_data = None;
         let is_valid = (|| -> Result<_, DeserializeError> {
             match raw.cbor_type()? == CBORType::Special {
                 true => {
-                    if let CBORSpecial::Bool(b) = raw.special()? {
+                    // if it's special it can be either a bool or null. if it's null, then it's empty auxiliary data, otherwise not a valid encoding
+                    let special = raw.special()?;
+                    if let CBORSpecial::Bool(b) = special {
                         return Ok(b);
+                    } else if special == CBORSpecial::Null {
+                        checked_auxiliary_data = true;
+                        return Ok(true);
+                    } else {
+                        return Err(DeserializeFailure::ExpectedBool.into());
                     }
-                    return Err(DeserializeFailure::ExpectedBool.into());
-                },
-                _ => return Err(DeserializeFailure::ExpectedBool.into())
-            }
-        })().map_err(|e| e.annotate("is_valid"))?;
-        let auxiliary_data = (|| -> Result<_, DeserializeError> {
-            Ok(match raw.cbor_type()? != CBORType::Special {
-                true => {
-                    Some(AuxiliaryData::deserialize(raw)?)
                 },
                 false => {
-                    if raw.special()? != CBORSpecial::Null {
-                        return Err(DeserializeFailure::ExpectedNull.into());
-                    }
-                    None
+                    // if no special symbol was detected, it must have auxiliary data
+                    auxiliary_data = (|| -> Result<_, DeserializeError> {
+                                Ok(Some(AuxiliaryData::deserialize(raw)?))
+                    })().map_err(|e| e.annotate("auxiliary_data"))?;
+                    checked_auxiliary_data = true;
+                    return Ok(true);
                 }
-            })
-        })().map_err(|e| e.annotate("auxiliary_data"))?;
+            }
+        })().map_err(|e| e.annotate("is_valid"))?;
+        if (!checked_auxiliary_data) {
+            // this branch is reached, if the 3rd argument was a bool. then it simply follows the rules for checking auxiliary data
+            auxiliary_data = (|| -> Result<_, DeserializeError> {
+                Ok(match raw.cbor_type()? != CBORType::Special {
+                    true => {
+                        Some(AuxiliaryData::deserialize(raw)?)
+                    },
+                    false => {
+                        if raw.special()? != CBORSpecial::Null {
+                            return Err(DeserializeFailure::ExpectedNull.into());
+                        }
+                        None
+                    }
+                })
+            })().map_err(|e| e.annotate("auxiliary_data"))?;
+        }
         Ok(Transaction {
             body,
             witness_set,
