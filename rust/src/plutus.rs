@@ -159,7 +159,8 @@ impl Costmdls {
         for (key, key_bytes) in keys_bytes.iter() {
             serializer.write_bytes(key_bytes).unwrap();
             let cost_model = self.0.get(&key).unwrap();
-            // not sure why but the cardano node seems to use indefinite encoding despite this not being standard canonical CBOR
+            // Due to a bug in the cardano-node input-output-hk/cardano-ledger-specs/issues/2512
+            // we must use indefinite length serialization in this inner bytestring to match it
             let mut cost_model_serializer = Serializer::new_vec();
             cost_model_serializer.write_array(cbor_event::Len::Indefinite).unwrap();
             for cost in &cost_model.0 {
