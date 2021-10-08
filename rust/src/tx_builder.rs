@@ -128,7 +128,7 @@ struct TxBuilderInput {
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionBuilder {
-    minimum_utxo_val: BigNum,
+    coins_per_utxo_word: BigNum,
     pool_deposit: BigNum,
     key_deposit: BigNum,
     max_value_size: u32,
@@ -246,7 +246,7 @@ impl TransactionBuilder {
                 value_size
             )));
         }
-        let min_ada = min_ada_required(&output.amount(), &self.minimum_utxo_val);
+        let min_ada = min_ada_required(&output.amount(), false, &self.coins_per_utxo_word)?;
         if output.amount().coin() < min_ada {
             Err(JsError::from_str(&format!(
                 "Value {} less than the minimum UTXO value {}",
@@ -307,15 +307,14 @@ impl TransactionBuilder {
 
     pub fn new(
         linear_fee: &fees::LinearFee,
-        // protocol parameter that defines the minimum value a newly created UTXO can contain
-        minimum_utxo_val: &Coin,
+        coins_per_utxo_word: &Coin, // protocol parameter
         pool_deposit: &BigNum, // protocol parameter
         key_deposit: &BigNum,  // protocol parameter
         max_value_size: u32, // protocol parameter
         max_tx_size: u32, // protocol parameter
     ) -> Self {
         Self {
-            minimum_utxo_val: minimum_utxo_val.clone(),
+            coins_per_utxo_word: coins_per_utxo_word.clone(),
             key_deposit: key_deposit.clone(),
             pool_deposit: pool_deposit.clone(),
             max_value_size,
@@ -468,7 +467,7 @@ impl TransactionBuilder {
                         // we only add the minimum needed (for now) to cover this output
                         let mut change_value = Value::new(&Coin::zero());
                         change_value.set_multiasset(&nft_change);
-                        let min_ada = min_ada_required(&change_value, &self.minimum_utxo_val);
+                        let min_ada = min_ada_required(&change_value, false, &self.coins_per_utxo_word)?;
                         change_value.set_coin(&min_ada);
                         let change_output = TransactionOutput::new(address, &change_value);
                         // increase fee
@@ -486,7 +485,7 @@ impl TransactionBuilder {
                     self.outputs.0.last_mut().unwrap().amount = self.outputs.0.last().unwrap().amount.checked_add(&change_left)?;
                     Ok(true)
                 } else {
-                    let min_ada = min_ada_required(&change_estimator, &self.minimum_utxo_val);
+                    let min_ada = min_ada_required(&change_estimator, false, &self.coins_per_utxo_word)?;
                     // no-asset case so we have no problem burning the rest if there is no other option
                     fn burn_extra(builder: &mut TransactionBuilder, burn_amount: &BigNum) -> Result<bool, JsError> {
                         // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
