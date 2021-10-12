@@ -1023,7 +1023,7 @@ pub fn encode_json_str_to_native_script(
         serde_json::from_str(&json).map_err(|e| JsError::from_str(&e.to_string()))?;
 
     let native_script = match schema {
-        ScriptSchema::Wallet => encode_wallet_value_to_native_script(value, self_address)?,
+        ScriptSchema::Wallet => encode_wallet_value_to_native_script(value, self_xpub)?,
         ScriptSchema::Node => todo!(),
     };
 
