@@ -1610,7 +1610,7 @@ mod tests {
     fn build_tx_pay_to_multisig() {
         let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
         let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1));
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE);
         let spend = root_key_15()
             .derive(harden(1854))
             .derive(harden(1815))
@@ -1671,7 +1671,7 @@ mod tests {
     fn build_tx_multisig_spend_1on1_unsigned() {
         let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
         let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1));
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE);
 
         let spend = root_key_15()//multisig
             .derive(harden(1854))
@@ -1746,7 +1746,7 @@ mod tests {
     fn build_tx_multisig_1on1_signed() {
         let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
         let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1));
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE);
         let spend = root_key_15()
             .derive(harden(1854))//multisig
             .derive(harden(1815))
