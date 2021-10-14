@@ -968,10 +968,9 @@ pub fn min_ada_required(
     coins_per_utxo_word: &BigNum, // protocol parameter (in lovelace)
 ) -> Result<BigNum, JsError> {
     // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
-    let ada_only_utxo_size = 1_000_000; // in lovelace
     let data_hash_size = if has_data_hash { 10 } else { 0 }; // in words
+    let utxo_entry_size_without_val = 27; // in words
     if assets.multiasset.is_some() {
-        let utxo_entry_size_without_val = 27; // in words
         let size = bundle_size(
             &assets,
             &OutputSizeConstants {
@@ -983,15 +982,18 @@ pub fn min_ada_required(
         let words = to_bignum(utxo_entry_size_without_val)
             .checked_add(&to_bignum(size as u64))?
             .checked_add(&to_bignum(data_hash_size))?;
-        let min_utxo = coins_per_utxo_word.checked_mul(&words)?;
-        Ok(to_bignum(cmp::max(
-            ada_only_utxo_size,
-            min_utxo.0
-        )))
+        coins_per_utxo_word.checked_mul(&words)
     } else {
-        to_bignum(data_hash_size)
-            .checked_mul(&coins_per_utxo_word)?
-            .checked_add(&to_bignum(ada_only_utxo_size))
+        // apparently this is accepted by mainnet despite being below the stated
+        // 1_000_000 ada only min utxo value, and in the mary era min utxo calculation
+        // it mentions we need to increase coin_size to 2 turning this into 29 instead of 27
+        // however we should investigate this further
+        let utxo_entry_size_without_val = 27; // in words
+        let coin_size = 2;
+        let ada_only_min_utxo_value = utxo_entry_size_without_val + coin_size;
+        let words = to_bignum(ada_only_min_utxo_value)
+            .checked_add(&to_bignum(data_hash_size))?;
+        coins_per_utxo_word.checked_mul(&words)
     }
 }
 
@@ -1002,7 +1004,7 @@ mod tests {
     use super::*;
 
     // this is what is used in mainnet
-    static COINS_PER_UTXO_WORD: u64 = 34_482;
+    const COINS_PER_UTXO_WORD: u64 = 34_482;
 
     fn bundle_constants() -> OutputSizeConstants {
         OutputSizeConstants {
@@ -1168,7 +1170,7 @@ mod tests {
     fn min_ada_value_no_multiasset() {
         assert_eq!(
             from_bignum(&min_ada_required(&Value::new(&Coin::zero()), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_000_000,
+            999978,
         );
     }
 
