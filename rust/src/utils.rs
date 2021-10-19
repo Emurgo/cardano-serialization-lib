@@ -251,7 +251,7 @@ impl Value {
     }
 
     pub fn is_zero(&self) -> bool {
-        self.coin.is_zero() && self.multiasset.map(|m| m.len() == 0).unwrap_or(true)
+        self.coin.is_zero() && self.multiasset.as_ref().map(|m| m.len() == 0).unwrap_or(true)
     }
 
     pub fn coin(&self) -> Coin {

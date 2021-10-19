@@ -465,7 +465,7 @@ impl TransactionBuilder {
                     let mut new_fee = fee.clone();
                     // we might need multiple change outputs for cases where the change has many asset types
                     // which surpass the max UTXO size limit
-                    let minimum_utxo_val = &self.minimum_utxo_val;
+                    let minimum_utxo_val = self.minimum_utxo_val;
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
                         let nft_change = pack_nfts_for_change(self.max_value_size, address, &change_left)?;
                         if nft_change.len() == 0 {
@@ -475,7 +475,7 @@ impl TransactionBuilder {
                         // we only add the minimum needed (for now) to cover this output
                         let mut change_value = Value::new(&Coin::zero());
                         change_value.set_multiasset(&nft_change);
-                        let min_ada = min_ada_required(&change_value, minimum_utxo_val);
+                        let min_ada = min_ada_required(&change_value, &minimum_utxo_val);
                         change_value.set_coin(&min_ada);
                         let change_output = TransactionOutput::new(address, &change_value);
                         // increase fee
@@ -489,12 +489,12 @@ impl TransactionBuilder {
                     }
                     change_left = change_left.checked_sub(&Value::new(&new_fee))?;
                     // add potentially a separate pure ADA change output
-                    let left_above_minimum = change_left.coin.compare(minimum_utxo_val) > 0;
+                    let left_above_minimum = change_left.coin.compare(&minimum_utxo_val) > 0;
                     if self.prefer_pure_change && left_above_minimum {
                         let pure_output = TransactionOutput::new(address, &change_left);
                         let additional_fee = self.fee_for_output(&pure_output)?;
                         let potential_pure_value = change_left.checked_sub(&Value::new(&additional_fee))?;
-                        let potential_pure_above_minimum = potential_pure_value.coin.compare(minimum_utxo_val) > 0;
+                        let potential_pure_above_minimum = potential_pure_value.coin.compare(&minimum_utxo_val) > 0;
                         if potential_pure_above_minimum {
                             new_fee = new_fee.checked_add(&additional_fee)?;
                             change_left = Value::zero();
