@@ -161,6 +161,10 @@ impl BigNum {
         Self(0)
     }
 
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
+    }
+
     pub fn checked_mul(&self, other: &BigNum) -> Result<BigNum, JsError> {
         match self.0.checked_mul(other.0) {
             Some(value) => Ok(BigNum(value)),
@@ -240,6 +244,14 @@ impl Value {
             coin: coin.clone(),
             multiasset: None,
         }
+    }
+
+    pub fn zero() -> Value {
+        Value::new(&to_bignum(0))
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.coin.is_zero() && self.multiasset.map(|m| m.len() == 0).unwrap_or(true)
     }
 
     pub fn coin(&self) -> Coin {
