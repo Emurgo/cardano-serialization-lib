@@ -932,10 +932,14 @@ impl Deserialize for PlutusData {
 
 impl cbor_event::se::Serialize for PlutusList {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+        if self.0.len() == 0 {
+          return Ok(serializer.write_array(cbor_event::Len::Len(0))?);
+        }
+        serializer.write_array(cbor_event::Len::Indefinite)?;
         for element in &self.0 {
             element.serialize(serializer)?;
         }
+        serializer.write_special(cbor_event::Special::Break)?;
         Ok(serializer)
     }
 }
