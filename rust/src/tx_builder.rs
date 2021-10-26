@@ -307,51 +307,55 @@ impl TransactionBuilder {
     }
 
     pub fn set_metadata(&mut self, metadata: &GeneralTransactionMetadata) {
-        if self.auxiliary_data.is_none() {
-            self.auxiliary_data = Some(AuxiliaryData::new());
-        }
-        self.auxiliary_data?.set_metadata(metadata);
+        let mut aux = self.auxiliary_data.as_ref().cloned().unwrap_or(AuxiliaryData::new());
+        aux.set_metadata(metadata);
+        self.set_auxiliary_data(&aux);
     }
 
     pub fn add_metadatum(&mut self, key: &TransactionMetadatumLabel, val: &TransactionMetadatum) {
-        let mut metadata = self.auxiliary_data
-            .map(|aux| { aux.metadata() })
+        let mut metadata = self.auxiliary_data.as_ref()
+            .map(|aux| { aux.metadata().as_ref().cloned() })
             .unwrap_or(None)
             .unwrap_or(GeneralTransactionMetadata::new());
         metadata.insert(key, val);
         self.set_metadata(&metadata);
     }
 
-    pub fn add_json_metadatum(&mut self, key: &TransactionMetadatumLabel, val: String) {
-        self.add_json_metadatum_with_schema(key, val, MetadataJsonSchema::NoConversions);
+    pub fn add_json_metadatum(
+        &mut self,
+        key: &TransactionMetadatumLabel,
+        val: String,
+    ) -> Result<(), JsError> {
+        self.add_json_metadatum_with_schema(key, val, MetadataJsonSchema::NoConversions)
     }
 
     pub fn add_json_metadatum_with_schema(
         &mut self,
         key: &TransactionMetadatumLabel,
         val: String, schema: MetadataJsonSchema,
-    ) {
+    ) -> Result<(), JsError> {
         let metadatum = encode_json_str_to_metadatum(val, schema)?;
         self.add_metadatum(key, &metadatum);
+        Ok(())
     }
 
     pub fn set_mint(&mut self, mint: &Mint) {
         self.mint = Some(mint.clone());
     }
 
-    pub fn set_mint_asset(&mut self, key: &PolicyID, value: &MintAssets) {
-        let mut mint = self.mint.unwrap_or(Mint::new());
-        mint.insert(key, value);
+    pub fn set_mint_asset(&mut self, policy_id: &PolicyID, mint_assets: &MintAssets) {
+        let mut mint = self.mint.as_ref().cloned().unwrap_or(Mint::new());
+        mint.insert(policy_id, mint_assets);
         self.set_mint(&mint);
     }
 
-    pub fn add_mint_asset(&mut self, key: &PolicyID, name: &AssetName, value: Int) {
-        let mut asset = self.mint
-            .map(|m| { m.get(key) })
+    pub fn add_mint_asset(&mut self, policy_id: &PolicyID, asset_name: &AssetName, amount: Int) {
+        let mut asset = self.mint.as_ref()
+            .map(|m| { m.get(policy_id).as_ref().cloned() })
             .unwrap_or(None)
             .unwrap_or(MintAssets::new());
-        asset.insert(name, value);
-        self.set_mint_asset(key, &asset);
+        asset.insert(asset_name, amount);
+        self.set_mint_asset(policy_id, &asset);
     }
 
     pub fn set_prefer_pure_change(&mut self, prefer_pure_change: bool) {

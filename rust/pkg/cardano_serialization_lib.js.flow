@@ -4946,6 +4946,56 @@ declare export class TransactionBuilder {
   set_auxiliary_data(auxiliary_data: AuxiliaryData): void;
 
   /**
+   * @param {GeneralTransactionMetadata} metadata
+   */
+  set_metadata(metadata: GeneralTransactionMetadata): void;
+
+  /**
+   * @param {BigNum} key
+   * @param {TransactionMetadatum} val
+   */
+  add_metadatum(key: BigNum, val: TransactionMetadatum): void;
+
+  /**
+   * @param {BigNum} key
+   * @param {string} val
+   */
+  add_json_metadatum(key: BigNum, val: string): void;
+
+  /**
+   * @param {BigNum} key
+   * @param {string} val
+   * @param {number} schema
+   */
+  add_json_metadatum_with_schema(
+    key: BigNum,
+    val: string,
+    schema: number
+  ): void;
+
+  /**
+   * @param {Mint} mint
+   */
+  set_mint(mint: Mint): void;
+
+  /**
+   * @param {ScriptHash} policy_id
+   * @param {MintAssets} mint_assets
+   */
+  set_mint_asset(policy_id: ScriptHash, mint_assets: MintAssets): void;
+
+  /**
+   * @param {ScriptHash} policy_id
+   * @param {AssetName} asset_name
+   * @param {Int} amount
+   */
+  add_mint_asset(
+    policy_id: ScriptHash,
+    asset_name: AssetName,
+    amount: Int
+  ): void;
+
+  /**
    * @param {boolean} prefer_pure_change
    */
   set_prefer_pure_change(prefer_pure_change: boolean): void;
