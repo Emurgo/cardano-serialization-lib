@@ -306,6 +306,54 @@ impl TransactionBuilder {
         self.auxiliary_data = Some(auxiliary_data.clone())
     }
 
+    pub fn set_metadata(&mut self, metadata: &GeneralTransactionMetadata) {
+        if self.auxiliary_data.is_none() {
+            self.auxiliary_data = Some(AuxiliaryData::new());
+        }
+        self.auxiliary_data?.set_metadata(metadata);
+    }
+
+    pub fn add_metadatum(&mut self, key: &TransactionMetadatumLabel, val: &TransactionMetadatum) {
+        let mut metadata = self.auxiliary_data
+            .map(|aux| { aux.metadata() })
+            .unwrap_or(None)
+            .unwrap_or(GeneralTransactionMetadata::new());
+        metadata.insert(key, val);
+        self.set_metadata(&metadata);
+    }
+
+    pub fn add_json_metadatum(&mut self, key: &TransactionMetadatumLabel, val: String) {
+        self.add_json_metadatum_with_schema(key, val, MetadataJsonSchema::NoConversions);
+    }
+
+    pub fn add_json_metadatum_with_schema(
+        &mut self,
+        key: &TransactionMetadatumLabel,
+        val: String, schema: MetadataJsonSchema,
+    ) {
+        let metadatum = encode_json_str_to_metadatum(val, schema)?;
+        self.add_metadatum(key, &metadatum);
+    }
+
+    pub fn set_mint(&mut self, mint: &Mint) {
+        self.mint = Some(mint.clone());
+    }
+
+    pub fn set_mint_asset(&mut self, key: &PolicyID, value: &MintAssets) {
+        let mut mint = self.mint.unwrap_or(Mint::new());
+        mint.insert(key, value);
+        self.set_mint(&mint);
+    }
+
+    pub fn add_mint_asset(&mut self, key: &PolicyID, name: &AssetName, value: Int) {
+        let mut asset = self.mint
+            .map(|m| { m.get(key) })
+            .unwrap_or(None)
+            .unwrap_or(MintAssets::new());
+        asset.insert(name, value);
+        self.set_mint_asset(key, &asset);
+    }
+
     pub fn set_prefer_pure_change(&mut self, prefer_pure_change: bool) {
         self.prefer_pure_change = prefer_pure_change;
     }

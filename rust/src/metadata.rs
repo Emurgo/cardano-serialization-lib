@@ -219,7 +219,7 @@ impl TransactionMetadatum {
     }
 }
 
-type TransactionMetadatumLabel = BigNum;
+pub type TransactionMetadatumLabel = BigNum;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
