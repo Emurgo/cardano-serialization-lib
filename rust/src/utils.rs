@@ -68,8 +68,8 @@ macro_rules! to_from_bytes {
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionUnspentOutput {
-    input: TransactionInput,
-    output: TransactionOutput
+    pub(crate) input: TransactionInput,
+    pub(crate) output: TransactionOutput
 }
 
 to_from_bytes!(TransactionUnspentOutput);
@@ -131,6 +131,29 @@ impl Deserialize for TransactionUnspentOutput {
                 _ => Err(DeserializeFailure::NoVariantMatched.into()),
             }
         })().map_err(|e| e.annotate("TransactionUnspentOutput"))
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
+pub struct TransactionUnspentOutputs(pub(crate) Vec<TransactionUnspentOutput>);
+
+#[wasm_bindgen]
+impl TransactionUnspentOutputs {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> TransactionUnspentOutput {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &TransactionUnspentOutput) {
+        self.0.push(elem.clone());
     }
 }
 

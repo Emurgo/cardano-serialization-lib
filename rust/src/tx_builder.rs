@@ -1,7 +1,7 @@
 use super::*;
 use super::fees;
 use super::utils;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
@@ -126,6 +126,12 @@ struct TxBuilderInput {
 }
 
 #[wasm_bindgen]
+pub enum CoinSelectionStrategyCIP2 {
+    LargestFirst,
+    RandomImprove,
+}
+
+#[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionBuilder {
     minimum_utxo_val: BigNum,
@@ -144,13 +150,101 @@ pub struct TransactionBuilder {
     validity_start_interval: Option<Slot>,
     input_types: MockWitnessSet,
     mint: Option<Mint>,
+    inputs_auto_added: bool,
 }
 
 #[wasm_bindgen]
 impl TransactionBuilder {
-    // We have to know what kind of inputs these are to know what kind of mock witnesses to create since
-    // 1) mock witnesses have different lengths depending on the type which changes the expecting fee
-    // 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
+    /// This automatically selects and adds inputs from {inputs} consisting of just enough to cover
+    /// the outputs that have already been added.
+    /// This should be called after adding all certs/outputs/etc and will be an error otherwise.
+    /// Uses CIP2: https://github.com/cardano-foundation/CIPs/blob/master/CIP-0002/CIP-0002.md
+    /// Adding a change output must be called after via TransactionBuilder::add_change_if_needed()
+    /// This function, diverging from CIP2, takes into account fees and will attempt to add additional
+    /// inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
+    pub fn add_inputs_from(&mut self, inputs: &TransactionUnspentOutputs, strategy: CoinSelectionStrategyCIP2) -> Result<(), JsError> {
+        let mut available_inputs = inputs.0.clone();
+        let mut input_total = self
+            .get_explicit_input()?
+            .checked_add(&self.get_implicit_input()?)?;
+        let mut output_total = self
+            .get_explicit_output()?
+            .checked_add(&Value::new(&self.get_deposit()?))?
+            .checked_add(&Value::new(&self.min_fee()?))?;
+        match strategy {
+            CoinSelectionStrategyCIP2::LargestFirst => {
+                available_inputs.sort_by_key(|input| input.output.amount.coin);
+                // iterate in decreasing order of ADA-only value
+                for input in available_inputs.iter().rev() {
+                    if input_total >= output_total {
+                        break;
+                    }
+                    // differing from CIP2, we include the needed fees in the targets instead of just output values
+                    let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+                    self.add_input(&input.output.address, &input.input, &input.output.amount);
+                    input_total = input_total.checked_add(&input.output.amount)?;
+                    output_total = output_total.checked_add(&Value::new(&input_fee))?;
+                }
+                if input_total < output_total {
+                    return Err(JsError::from_str("UTxO Balance Insufficient"));
+                }
+            },
+            CoinSelectionStrategyCIP2::RandomImprove => {
+                use rand::Rng;
+                if self.outputs.0.iter().any(|output| output.amount.multiasset.is_some()) {
+                    return Err(JsError::from_str("Multiasset values not supported by RandomImprove. Please use LargestFirst"));
+                }
+                // Phase 1: Random Selection
+                let mut associated_inputs: BTreeMap<TransactionOutput, Vec<TransactionUnspentOutput>> = BTreeMap::new();
+                let mut rng = rand::thread_rng();
+                let mut outputs = self.outputs.0.clone();
+                outputs.sort_by_key(|output| output.amount.coin);
+                for output in outputs.iter().rev() {
+                    let mut added = Value::new(&Coin::zero());
+                    let mut needed = output.amount.clone();
+                    while added < needed {
+                        if available_inputs.is_empty() {
+                            return Err(JsError::from_str("UTxO Balance Insufficient"));
+                        }
+                        let random_index = rng.gen_range(0..available_inputs.len());
+                        let input = available_inputs.swap_remove(random_index);
+                        // differing from CIP2, we include the needed fees in the targets instead of just output values
+                        let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+                        self.add_input(&input.output.address, &input.input, &input.output.amount);
+                        input_total = input_total.checked_add(&input.output.amount)?;
+                        output_total = output_total.checked_add(&Value::new(&input_fee))?;
+                        needed = needed.checked_add(&Value::new(&input_fee))?;
+                        added = added.checked_add(&input.output.amount)?;
+                        associated_inputs.entry(output.clone()).or_default().push(input);
+                    }
+                }
+                // Phase 2: Improvement
+                for output in outputs.iter_mut() {
+                    let associated = associated_inputs.get_mut(output).unwrap();
+                    for input in associated.iter_mut() {
+                        let random_index = rng.gen_range(0..available_inputs.len());
+                        let new_input = available_inputs.get_mut(random_index).unwrap();
+                        let cur = from_bignum(&input.output.amount.coin);
+                        let new = from_bignum(&new_input.output.amount.coin);
+                        let min = from_bignum(&output.amount.coin);
+                        let ideal = 2 * min;
+                        let max = 3 * min;
+                        let move_closer = (ideal as i128 - new as i128).abs() < (ideal as i128 - cur as i128).abs();
+                        let not_exceed_max = new < max;
+                        if move_closer && not_exceed_max {
+                            std::mem::swap(input, new_input);
+                        }
+                    }
+                }
+            },
+        }
+
+        Ok(())
+    }
+
+    /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
+    /// 1) mock witnesses have different lengths depending on the type which changes the expecting fee
+    /// 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
     pub fn add_key_input(&mut self, hash: &Ed25519KeyHash, input: &TransactionInput, amount: &Value) {
         self.inputs.push(TxBuilderInput {
             input: input.clone(),
@@ -222,7 +316,7 @@ impl TransactionBuilder {
     }
 
     /// calculates how much the fee would increase if you added a given output
-    pub fn fee_for_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) -> Result<Coin, JsError> {
+    pub fn fee_for_input(&self, address: &Address, input: &TransactionInput, amount: &Value) -> Result<Coin, JsError> {
         let mut self_copy = self.clone();
 
         // we need some value for these for it to be a a valid transaction
@@ -334,7 +428,8 @@ impl TransactionBuilder {
                 bootstraps: BTreeSet::new(),
             },
             validity_start_interval: None,
-            mint: None
+            mint: None,
+            inputs_auto_added: false,
         }
     }
 
@@ -1605,5 +1700,132 @@ mod tests {
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
 
         assert!(tx_builder.add_change_if_needed(&change_addr).is_err())
+    }
+
+    fn make_input(input_hash_byte: u8, value: Value) -> TransactionUnspentOutput {
+        TransactionUnspentOutput::new(
+            &TransactionInput::new(&TransactionHash::from([input_hash_byte; 32]), 0),
+            &TransactionOutput::new(&Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(), &value)
+        )
+    }
+
+    #[test]
+    fn tx_builder_cip2_largest_first_increasing_fees() {
+        // we have a = 1 to test increasing fees when more inputs are added
+        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &Coin::zero(),
+            &to_bignum(0),
+            &to_bignum(0),
+            9999,
+            9999
+        );
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &Value::new(&to_bignum(1000))
+        )).unwrap();
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(200))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(800))));
+        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(400))));
+        available_inputs.add(&make_input(4u8, Value::new(&to_bignum(100))));
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::LargestFirst).unwrap();
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+        let change_added = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert!(change_added);
+        let tx = tx_builder.build().unwrap();
+        // change needed
+        assert_eq!(2, tx.outputs().len());
+        assert_eq!(3, tx.inputs().len());
+        // confirm order of only what is necessary
+        assert_eq!(2u8, tx.inputs().get(0).transaction_id().0[0]);
+        assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
+        assert_eq!(1u8, tx.inputs().get(2).transaction_id().0[0]);
+    }
+
+
+    #[test]
+    fn tx_builder_cip2_largest_first_static_fees() {
+        // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &Coin::zero(),
+            &to_bignum(0),
+            &to_bignum(0),
+            9999,
+            9999
+        );
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &Value::new(&to_bignum(1200))
+        )).unwrap();
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(200))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(800))));
+        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(400))));
+        available_inputs.add(&make_input(4u8, Value::new(&to_bignum(100))));
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::LargestFirst).unwrap();
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+        let change_added = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert!(!change_added);
+        let tx = tx_builder.build().unwrap();
+        // change not needed - should be exact
+        assert_eq!(1, tx.outputs().len());
+        assert_eq!(2, tx.inputs().len());
+        // confirm order of only what is necessary
+        assert_eq!(2u8, tx.inputs().get(0).transaction_id().0[0]);
+        assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
+    }
+
+
+    #[test]
+    fn tx_builder_cip2_random_improve() {
+        // we have a = 1 to test increasing fees when more inputs are added
+        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &Coin::zero(),
+            &to_bignum(0),
+            &to_bignum(0),
+            9999,
+            9999
+        );
+        const COST: u64 = 1000;
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &Value::new(&to_bignum(COST))
+        )).unwrap();
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(200))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(800))));
+        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(400))));
+        available_inputs.add(&make_input(4u8, Value::new(&to_bignum(100))));
+        available_inputs.add(&make_input(5u8, Value::new(&to_bignum(200))));
+        available_inputs.add(&make_input(6u8, Value::new(&to_bignum(150))));
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove).unwrap();
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+        let _change_added = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        let tx = tx_builder.build().unwrap();
+        // we need to look up the values to ensure there's enough
+        let mut input_values = BTreeMap::new();
+        for utxo in available_inputs.0.iter() {
+            input_values.insert(utxo.input.transaction_id(), utxo.output.amount.clone());
+        }
+        let mut encountered = std::collections::HashSet::new();
+        let mut input_total = Value::new(&Coin::zero());
+        for input in tx.inputs.0.iter() {
+            let txid = input.transaction_id();
+            if !encountered.insert(txid.clone()) {
+                panic!("Input {:?} duplicated", txid);
+            }
+            let value = input_values.get(&txid).unwrap();
+            input_total = input_total.checked_add(value).unwrap();
+        }
+        assert!(input_total >= Value::new(&tx_builder.min_fee().unwrap().checked_add(&to_bignum(COST)).unwrap()));
     }
 }
