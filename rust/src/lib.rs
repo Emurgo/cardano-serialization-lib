@@ -2651,8 +2651,8 @@ impl Mint {
         ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<ScriptHash>>())
     }
 
-    pub fn to_value(&self) -> Result<Value, JsError> {
-        let multiasset: Result<MultiAsset, JsError> = self.0.iter().fold(Ok(MultiAsset::new()), | res, e | {
+    pub fn to_multiasset(&self) -> Result<MultiAsset, JsError> {
+        self.0.iter().fold(Ok(MultiAsset::new()), | res, e | {
             let assets: Result<Assets, JsError> = (e.1).0.iter().fold(Ok(Assets::new()), | res, e| {
                 let mut assets = res?;
                 if e.1.is_positive() {
@@ -2665,9 +2665,12 @@ impl Mint {
             let mut ma = res?;
             ma.insert(e.0, &assets?);
             Ok(ma)
-        });
+        })
+    }
+
+    pub fn to_value(&self) -> Result<Value, JsError> {
         let mut val = Value::new(&Coin::zero());
-        val.set_multiasset(&multiasset?);
+        val.set_multiasset(&self.to_multiasset()?);
         Ok(val)
     }
 }
