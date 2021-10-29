@@ -2174,4 +2174,38 @@ mod tests {
         assert_mint_asset(&mint, &policy_id1);
         assert_mint_asset(&mint, &policy_id2);
     }
+
+    #[test]
+    fn add_mint_asset_with_empty_mint() {
+        let mut tx_builder = create_default_tx_builder();
+
+        let policy_id = PolicyID::from([0u8; 28]);
+        tx_builder.add_mint_asset(&policy_id, &create_asset_name(), Int::new_i32(1234));
+
+        assert!(tx_builder.mint.is_some());
+
+        let mint = tx_builder.mint.unwrap();
+
+        assert_eq!(mint.len(), 1);
+        assert_mint_asset(&mint, &policy_id);
+    }
+
+    #[test]
+    fn add_mint_asset_with_existing_mint() {
+        let mut tx_builder = create_default_tx_builder();
+
+        let policy_id1 = PolicyID::from([0u8; 28]);
+        tx_builder.set_mint(&create_mint_with_one_asset(&policy_id1));
+
+        let policy_id2 = PolicyID::from([1u8; 28]);
+        tx_builder.add_mint_asset(&policy_id2, &create_asset_name(), Int::new_i32(1234));
+
+        assert!(tx_builder.mint.is_some());
+
+        let mint = tx_builder.mint.unwrap();
+
+        assert_eq!(mint.len(), 2);
+        assert_mint_asset(&mint, &policy_id1);
+        assert_mint_asset(&mint, &policy_id2);
+    }
 }
