@@ -1261,6 +1261,98 @@ mod tests {
     }
 
     #[test]
+    fn build_tx_with_mint_in_change() {
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+
+        // Input with 3 coins only
+        tx_builder.add_input(
+            &EnterpriseAddress::new(
+                NetworkInfo::testnet().network_id(),
+                &spend_cred
+            ).to_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(3))
+        );
+
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+        .to_address();
+
+        let policy_id = PolicyID::from([0u8; 28]);
+        let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+
+        let amount_minted = BigNum::from_str("1000").unwrap();
+        let amount_sent = BigNum::from_str("500").unwrap();
+
+        // Adding mint of the asset - which should work as an input
+        tx_builder.add_mint_asset(&policy_id, &name, Int::new(&amount_minted));
+
+        let mut ass = Assets::new();
+        ass.insert(&name, &amount_sent);
+        let mut mass = MultiAsset::new();
+        mass.insert(&policy_id, &ass);
+
+        // One coin and the minted asset goes into the output
+        let mut output_amount = Value::new(&to_bignum(1));
+        output_amount.set_multiasset(&mass);
+
+        tx_builder
+            .add_output(&TransactionOutput::new(&addr_net_0, &output_amount))
+            .unwrap();
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+        .to_address();
+
+        let added_change = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert!(added_change);
+        assert_eq!(tx_builder.outputs.len(), 2);
+
+        // Change must be one remaining coin because fee is one constant coin
+        let change = tx_builder.outputs.get(1).amount();
+        assert_eq!(change.coin(), BigNum::from_str("1").unwrap());
+        assert!(change.multiasset().is_some());
+
+        let change_assets = change.multiasset().unwrap();
+        let change_asset = change_assets.get(&policy_id).unwrap();
+        assert_eq!(
+            change_asset.get(&name).unwrap(),
+            amount_minted.checked_sub(&amount_sent).unwrap(),
+        );
+    }
+
+    #[test]
     fn build_tx_with_native_assets_change() {
         let minimum_utxo_value = to_bignum(1);
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
