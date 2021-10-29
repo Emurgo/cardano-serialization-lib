@@ -400,10 +400,11 @@ impl TransactionBuilder {
     pub fn get_explicit_input(&self) -> Result<Value, JsError> {
         self.inputs
             .iter()
-            .try_fold(Value::new(&to_bignum(0)), |acc, ref tx_builder_input| {
+            .try_fold(Value::zero(), |acc, ref tx_builder_input| {
                 acc.checked_add(&tx_builder_input.amount)
             })
     }
+
     /// withdrawals and refunds
     pub fn get_implicit_input(&self) -> Result<Value, JsError> {
         internal_get_implicit_input(
@@ -412,6 +413,11 @@ impl TransactionBuilder {
             &self.pool_deposit,
             &self.key_deposit,
         )
+    }
+
+    /// mint as value
+    pub fn get_mint_value(&self) -> Result<Value, JsError> {
+        self.mint.as_ref().map(|m| { m.to_value() }).unwrap_or(Ok(Value::zero()))
     }
 
     /// does not include fee
@@ -450,7 +456,8 @@ impl TransactionBuilder {
 
         let input_total = self
             .get_explicit_input()?
-            .checked_add(&self.get_implicit_input()?)?;
+            .checked_add(&self.get_implicit_input()?)?
+            .checked_add(&self.get_mint_value()?)?;
 
         let output_total = self
             .get_explicit_output()?
@@ -1168,6 +1175,89 @@ mod tests {
         );
 
         assert_eq!(tx_builder.inputs.len(), 4);
+    }
+
+    #[test]
+    fn build_tx_with_mint_all_sent() {
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+
+        // Input with 3 coins only
+        tx_builder.add_input(
+            &EnterpriseAddress::new(
+                NetworkInfo::testnet().network_id(),
+                &spend_cred
+            ).to_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(3))
+        );
+
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+        .to_address();
+
+        let policy_id = PolicyID::from([0u8; 28]);
+        let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+        let amount = BigNum::from_str("1234").unwrap();
+
+        // Adding mint of the asset - which should work as an input
+        tx_builder.add_mint_asset(&policy_id, &name, Int::new(&amount));
+
+        let mut ass = Assets::new();
+        ass.insert(&name, &amount);
+        let mut mass = MultiAsset::new();
+        mass.insert(&policy_id, &ass);
+
+        // One coin and the minted asset goes into the output
+        let mut output_amount = Value::new(&to_bignum(1));
+        output_amount.set_multiasset(&mass);
+
+        tx_builder
+            .add_output(&TransactionOutput::new(&addr_net_0, &output_amount))
+            .unwrap();
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+        .to_address();
+
+        let added_change = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert!(added_change);
+        assert_eq!(tx_builder.outputs.len(), 2);
+
+        // Change must be one remaining coin because fee is one constant coin
+        let change = tx_builder.outputs.get(1).amount();
+        assert_eq!(change.coin(), BigNum::from_str("1").unwrap());
+        assert!(change.multiasset().is_none());
     }
 
     #[test]
