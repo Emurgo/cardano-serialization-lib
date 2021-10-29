@@ -1944,9 +1944,13 @@ mod tests {
         assert!(tx_builder.add_change_if_needed(&change_addr).is_err())
     }
 
+    fn create_json_metadatum_string() -> String {
+        String::from("{ \"qwe\": 123 }")
+    }
+
     fn create_json_metadatum() -> TransactionMetadatum {
         encode_json_str_to_metadatum(
-            String::from("{ \"qwe\": 123 }").clone(),
+            create_json_metadatum_string(),
             MetadataJsonSchema::NoConversions,
         ).unwrap()
     }
@@ -1977,19 +1981,23 @@ mod tests {
         assert_eq!(val.as_int().unwrap(), Int::new_i32(123));
     }
 
-    #[test]
-    fn set_metadata_with_empty_auxiliary() {
+    fn create_default_tx_builder() -> TransactionBuilder {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
         let minimum_utxo_value = to_bignum(1);
         let max_value_size = 150; // super low max output size to test with fewer assets
-        let mut tx_builder = TransactionBuilder::new(
+        TransactionBuilder::new(
             &linear_fee,
             &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
             max_value_size,
             MAX_TX_SIZE
-        );
+        )
+    }
+
+    #[test]
+    fn set_metadata_with_empty_auxiliary() {
+        let mut tx_builder = create_default_tx_builder();
 
         let num = BigNum::from_str("42").unwrap();
         tx_builder.set_metadata(&create_aux_with_metadata(&num).metadata().unwrap());
@@ -2009,17 +2017,7 @@ mod tests {
 
     #[test]
     fn set_metadata_with_existing_auxiliary() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
-        let max_value_size = 150; // super low max output size to test with fewer assets
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
-            max_value_size,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_default_tx_builder();
 
         let num1 = BigNum::from_str("42").unwrap();
         tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
@@ -2040,17 +2038,7 @@ mod tests {
 
     #[test]
     fn add_metadatum_with_empty_auxiliary() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
-        let max_value_size = 150; // super low max output size to test with fewer assets
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
-            max_value_size,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_default_tx_builder();
 
         let num = BigNum::from_str("42").unwrap();
         tx_builder.add_metadatum(&num, &create_json_metadatum());
@@ -2070,17 +2058,7 @@ mod tests {
 
     #[test]
     fn add_metadatum_with_existing_auxiliary() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
-        let max_value_size = 150; // super low max output size to test with fewer assets
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
-            max_value_size,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_default_tx_builder();
 
         let num1 = BigNum::from_str("42").unwrap();
         tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
@@ -2097,5 +2075,103 @@ mod tests {
         assert_eq!(met.len(), 2);
         assert_json_metadatum(&met.get(&num1).unwrap());
         assert_json_metadatum(&met.get(&num2).unwrap());
+    }
+
+    #[test]
+    fn add_json_metadatum_with_empty_auxiliary() {
+        let mut tx_builder = create_default_tx_builder();
+
+        let num = BigNum::from_str("42").unwrap();
+        tx_builder.add_json_metadatum(&num, create_json_metadatum_string());
+
+        assert!(tx_builder.auxiliary_data.is_some());
+
+        let aux = tx_builder.auxiliary_data.unwrap();
+        assert!(aux.metadata().is_some());
+        assert!(aux.native_scripts().is_none());
+        assert!(aux.plutus_scripts().is_none());
+
+        let met = aux.metadata().unwrap();
+
+        assert_eq!(met.len(), 1);
+        assert_json_metadatum(&met.get(&num).unwrap());
+    }
+
+    #[test]
+    fn add_json_metadatum_with_existing_auxiliary() {
+        let mut tx_builder = create_default_tx_builder();
+
+        let num1 = BigNum::from_str("42").unwrap();
+        tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
+
+        let num2 = BigNum::from_str("84").unwrap();
+        tx_builder.add_json_metadatum(&num2, create_json_metadatum_string());
+
+        let aux = tx_builder.auxiliary_data.unwrap();
+        assert!(aux.metadata().is_some());
+        assert!(aux.native_scripts().is_some());
+        assert!(aux.plutus_scripts().is_none());
+
+        let met = aux.metadata().unwrap();
+        assert_eq!(met.len(), 2);
+        assert_json_metadatum(&met.get(&num1).unwrap());
+        assert_json_metadatum(&met.get(&num2).unwrap());
+    }
+
+    fn create_asset_name() -> AssetName {
+        AssetName::new(vec![0u8, 1, 2, 3]).unwrap()
+    }
+
+    fn create_mint_asset() -> MintAssets {
+        let mut assets = MintAssets::new();
+        assets.insert(&create_asset_name(), Int::new_i32(1234));
+        return assets;
+    }
+
+    fn create_mint_with_one_asset(policy_id: &PolicyID) -> Mint {
+        let mut mint = Mint::new();
+        mint.insert(policy_id, &create_mint_asset());
+        return mint;
+    }
+
+    fn assert_mint_asset(mint: &Mint, policy_id: &PolicyID) {
+        assert!(mint.get(&policy_id).is_some());
+        let result_asset = mint.get(&policy_id).unwrap();
+        assert_eq!(result_asset.len(), 1);
+        assert_eq!(result_asset.get(&create_asset_name()).unwrap(), Int::new_i32(1234));
+    }
+
+    #[test]
+    fn set_mint_asset_with_empty_mint() {
+        let mut tx_builder = create_default_tx_builder();
+
+        let policy_id = PolicyID::from([0u8; 28]);
+        tx_builder.set_mint_asset(&policy_id, &create_mint_asset());
+
+        assert!(tx_builder.mint.is_some());
+
+        let mint = tx_builder.mint.unwrap();
+
+        assert_eq!(mint.len(), 1);
+        assert_mint_asset(&mint, &policy_id);
+    }
+
+    #[test]
+    fn set_mint_asset_with_existing_mint() {
+        let mut tx_builder = create_default_tx_builder();
+
+        let policy_id1 = PolicyID::from([0u8; 28]);
+        tx_builder.set_mint(&create_mint_with_one_asset(&policy_id1));
+
+        let policy_id2 = PolicyID::from([1u8; 28]);
+        tx_builder.set_mint_asset(&policy_id2, &create_mint_asset());
+
+        assert!(tx_builder.mint.is_some());
+
+        let mint = tx_builder.mint.unwrap();
+
+        assert_eq!(mint.len(), 2);
+        assert_mint_asset(&mint, &policy_id1);
+        assert_mint_asset(&mint, &policy_id2);
     }
 }
