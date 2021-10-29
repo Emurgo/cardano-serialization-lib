@@ -1615,11 +1615,11 @@ pub enum ScriptHashNamespace {
 
 #[wasm_bindgen]
 impl NativeScript {
-    pub fn hash(&self, namespace: ScriptHashNamespace) -> Ed25519KeyHash {
+    pub fn hash(&self, namespace: ScriptHashNamespace) -> ScriptHash {
         let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
         bytes.extend_from_slice(&vec![namespace as u8]);
         bytes.extend_from_slice(&self.to_bytes());
-        Ed25519KeyHash::from(blake2b224(bytes.as_ref()))
+        ScriptHash::from(blake2b224(bytes.as_ref()))
     }
 
     pub fn new_script_pubkey(script_pubkey: &ScriptPubkey) -> Self {
