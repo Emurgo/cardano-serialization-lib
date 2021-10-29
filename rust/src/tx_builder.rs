@@ -1943,4 +1943,52 @@ mod tests {
 
         assert!(tx_builder.add_change_if_needed(&change_addr).is_err())
     }
+
+    #[test]
+    fn set_metadata_with_empty_auxiliary() {
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
+        let minimum_utxo_value = to_bignum(1);
+        let max_value_size = 150; // super low max output size to test with fewer assets
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &minimum_utxo_value,
+            &to_bignum(0),
+            &to_bignum(0),
+            max_value_size,
+            MAX_TX_SIZE
+        );
+
+        let mut metadata = GeneralTransactionMetadata::new();
+        let num = BigNum::from_str("42").unwrap();
+        let json = String::from("{ \"qwe\": 123 }");
+        metadata.insert(&num,
+            &encode_json_str_to_metadatum(json.clone(),
+                MetadataJsonSchema::NoConversions,
+            ).unwrap(),
+        );
+
+        tx_builder.set_metadata(&metadata);
+
+        assert!(tx_builder.auxiliary_data.is_some());
+        assert!(tx_builder.auxiliary_data.is_some());
+
+        let aux = tx_builder.auxiliary_data.unwrap();
+        assert!(aux.metadata().is_some());
+        assert!(aux.native_scripts().is_none());
+        assert!(aux.plutus_scripts().is_none());
+
+        let met = aux.metadata().unwrap();
+
+        assert_eq!(met.len(), 1);
+
+        let dat = met.get(&num).unwrap();
+        let map = dat.as_map().unwrap();
+
+        assert_eq!(map.len(), 1);
+
+        let key = TransactionMetadatum::new_text(String::from("qwe")).unwrap();
+        let val = map.get(&key).unwrap();
+
+        assert_eq!(val.as_int().unwrap(), Int::new_i32(123));
+    }
 }
