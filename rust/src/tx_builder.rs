@@ -1944,15 +1944,16 @@ mod tests {
         assert!(tx_builder.add_change_if_needed(&change_addr).is_err())
     }
 
+    fn create_json_metadatum() -> TransactionMetadatum {
+        encode_json_str_to_metadatum(
+            String::from("{ \"qwe\": 123 }").clone(),
+            MetadataJsonSchema::NoConversions,
+        ).unwrap()
+    }
+
     fn create_aux_with_metadata(metadatum_key: &TransactionMetadatumLabel) -> AuxiliaryData {
         let mut metadata = GeneralTransactionMetadata::new();
-        metadata.insert(
-            metadatum_key,
-            &encode_json_str_to_metadatum(
-                String::from("{ \"qwe\": 123 }").clone(),
-                MetadataJsonSchema::NoConversions,
-            ).unwrap(),
-        );
+        metadata.insert(metadatum_key, &create_json_metadatum());
 
         let mut aux = AuxiliaryData::new();
         aux.set_metadata(&metadata);
@@ -2034,6 +2035,67 @@ mod tests {
         let met = aux.metadata().unwrap();
         assert_eq!(met.len(), 1);
         assert!(met.get(&num1).is_none());
+        assert_json_metadatum(&met.get(&num2).unwrap());
+    }
+
+    #[test]
+    fn add_metadatum_with_empty_auxiliary() {
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
+        let minimum_utxo_value = to_bignum(1);
+        let max_value_size = 150; // super low max output size to test with fewer assets
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &minimum_utxo_value,
+            &to_bignum(0),
+            &to_bignum(0),
+            max_value_size,
+            MAX_TX_SIZE
+        );
+
+        let num = BigNum::from_str("42").unwrap();
+        tx_builder.add_metadatum(&num, &create_json_metadatum());
+
+        assert!(tx_builder.auxiliary_data.is_some());
+
+        let aux = tx_builder.auxiliary_data.unwrap();
+        assert!(aux.metadata().is_some());
+        assert!(aux.native_scripts().is_none());
+        assert!(aux.plutus_scripts().is_none());
+
+        let met = aux.metadata().unwrap();
+
+        assert_eq!(met.len(), 1);
+        assert_json_metadatum(&met.get(&num).unwrap());
+    }
+
+    #[test]
+    fn add_metadatum_with_existing_auxiliary() {
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
+        let minimum_utxo_value = to_bignum(1);
+        let max_value_size = 150; // super low max output size to test with fewer assets
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &minimum_utxo_value,
+            &to_bignum(0),
+            &to_bignum(0),
+            max_value_size,
+            MAX_TX_SIZE
+        );
+
+        let num1 = BigNum::from_str("42").unwrap();
+        tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
+
+        let num2 = BigNum::from_str("84").unwrap();
+        tx_builder.add_metadatum(&num2, &create_json_metadatum());
+
+        let aux = tx_builder.auxiliary_data.unwrap();
+        assert!(aux.metadata().is_some());
+        assert!(aux.native_scripts().is_some());
+        assert!(aux.plutus_scripts().is_none());
+
+        let met = aux.metadata().unwrap();
+        assert_eq!(met.len(), 2);
+        assert_json_metadatum(&met.get(&num1).unwrap());
         assert_json_metadatum(&met.get(&num2).unwrap());
     }
 }
