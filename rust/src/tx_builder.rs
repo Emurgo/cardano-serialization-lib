@@ -1891,4 +1891,65 @@ mod tests {
 
         assert!(tx_builder.add_change_if_needed(&change_addr).is_err())
     }
+
+    #[test]
+    fn add_change_fails_when_nfts_too_large_for_output() {
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
+        let minimum_utxo_value = to_bignum(1);
+        let max_value_size = 100; // super low max output size to test with fewer assets
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &minimum_utxo_value,
+            &to_bignum(0),
+            &to_bignum(0),
+            max_value_size,
+            MAX_TX_SIZE
+        );
+
+        let policy_id = PolicyID::from([0u8; 28]);
+        let names = [
+            AssetName::new(vec![99u8; 32]).unwrap(),
+            AssetName::new(vec![0u8, 1, 2, 3]).unwrap(),
+            AssetName::new(vec![4u8, 5, 6, 7]).unwrap(),
+            AssetName::new(vec![5u8, 5, 6, 7]).unwrap(),
+            AssetName::new(vec![6u8, 5, 6, 7]).unwrap(),
+        ];
+        let assets = names
+            .iter()
+            .fold(Assets::new(), |mut a, name| {
+                a.insert(&name, &to_bignum(500));
+                a
+            });
+        let mut multiasset = MultiAsset::new();
+        multiasset.insert(&policy_id, &assets);
+
+        let mut input_value = Value::new(&to_bignum(10));
+        input_value.set_multiasset(&multiasset);
+
+        tx_builder.add_input(
+            &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3").unwrap().to_address(),
+            &TransactionInput::new(
+                &genesis_id(),
+                0
+            ),
+            &input_value
+        );
+
+        let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap().to_address();
+        let output_amount = Value::new(&to_bignum(1));
+
+        tx_builder
+            .add_output(&TransactionOutput::new(&output_addr, &output_amount))
+            .unwrap();
+
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+
+        let add_change_result = tx_builder.add_change_if_needed(&change_addr);
+        assert!(add_change_result.is_err());
+
+        let err: JsError = add_change_result.unwrap_err();
+        let error_msg: String = err.as_string().unwrap();
+
+        assert!(error_msg == "NFTs too large for change output");
+    }
 }
