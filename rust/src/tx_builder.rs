@@ -238,6 +238,37 @@ impl TransactionBuilder {
         fee_after.checked_sub(&fee_before)
     }
 
+    pub fn add_output_amount(&mut self, address: &Address, amount: &Value) -> Result<(), JsError> {
+        self.add_output(&TransactionOutput::new(address, amount))
+    }
+
+    pub fn add_output_coin(&mut self, address: &Address, coin: &Coin) -> Result<(), JsError> {
+        self.add_output_amount(address, &Value::new(coin))
+    }
+
+    pub fn add_output_coin_and_asset(
+        &mut self,
+        address: &Address,
+        coin: &Coin,
+        multiasset: &MultiAsset,
+    ) -> Result<(), JsError> {
+        let mut val = Value::new(coin);
+        val.set_multiasset(multiasset);
+        self.add_output_amount(address, &val)
+    }
+
+    pub fn add_output_asset_and_min_required_coin(
+        &mut self,
+        address: &Address,
+        multiasset: &MultiAsset,
+    ) -> Result<(), JsError> {
+        let min_possible_coin = self.minimum_utxo_val;
+        let mut value = Value::new(&min_possible_coin);
+        value.set_multiasset(multiasset);
+        let required_coin = min_ada_required(&value, &min_possible_coin);
+        self.add_output_coin_and_asset(address, &required_coin, multiasset)
+    }
+
     pub fn add_output(&mut self, output: &TransactionOutput) -> Result<(), JsError> {
         let value_size = output.amount.to_bytes().len();
         if value_size > self.max_value_size as usize {
@@ -356,6 +387,31 @@ impl TransactionBuilder {
             .unwrap_or(MintAssets::new());
         asset.insert(asset_name, amount);
         self.set_mint_asset(policy_id, &asset);
+    }
+
+    pub fn add_mint_asset_and_output(
+        &mut self,
+        policy_id: &PolicyID,
+        asset_name: &AssetName,
+        amount: Int,
+        address: &Address,
+        output_coin: &Coin,
+    ) -> Result<(), JsError> {
+        self.add_mint_asset(policy_id, asset_name, amount);
+        let multiasset = self.mint.as_ref().unwrap().to_multiasset()?;
+        self.add_output_coin_and_asset(address, output_coin, &multiasset)
+    }
+
+    pub fn add_mint_asset_and_output_min_required_coin(
+        &mut self,
+        policy_id: &PolicyID,
+        asset_name: &AssetName,
+        amount: Int,
+        address: &Address,
+    ) -> Result<(), JsError> {
+        self.add_mint_asset(policy_id, asset_name, amount);
+        let multiasset = self.mint.as_ref().unwrap().to_multiasset()?;
+        self.add_output_asset_and_min_required_coin(address, &multiasset)
     }
 
     pub fn set_prefer_pure_change(&mut self, prefer_pure_change: bool) {
@@ -557,7 +613,7 @@ impl TransactionBuilder {
                         if potential_pure_above_minimum {
                             new_fee = new_fee.checked_add(&additional_fee)?;
                             change_left = Value::zero();
-                            self.add_output(&TransactionOutput::new(address, &potential_pure_value));
+                            self.add_output(&TransactionOutput::new(address, &potential_pure_value))?;
                         }
                     }
                     self.set_fee(&new_fee);
@@ -701,6 +757,10 @@ mod tests {
             fpk.to_public().to_bech32(),
             "xpub1eamrnx3pph58yr5l4z2wghjpu2dt2f0rp0zq9qquqa39p52ct0xercjgmegfcpcdsy4t9ld90ps2epmtcjy3jtq77n8z20qe0m3pnfqntgrgj",
         );
+    }
+
+    fn byron_address() -> Address {
+        ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3").unwrap().to_address()
     }
 
     fn create_linear_fee(coefficient: u64, constant: u64) -> LinearFee {
@@ -2181,7 +2241,7 @@ mod tests {
         let mut tx_builder = create_default_tx_builder();
 
         let num = BigNum::from_str("42").unwrap();
-        tx_builder.add_json_metadatum(&num, create_json_metadatum_string());
+        tx_builder.add_json_metadatum(&num, create_json_metadatum_string()).unwrap();
 
         assert!(tx_builder.auxiliary_data.is_some());
 
@@ -2204,7 +2264,7 @@ mod tests {
         tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
 
         let num2 = BigNum::from_str("84").unwrap();
-        tx_builder.add_json_metadatum(&num2, create_json_metadatum_string());
+        tx_builder.add_json_metadatum(&num2, create_json_metadatum_string()).unwrap();
 
         let aux = tx_builder.auxiliary_data.unwrap();
         assert!(aux.metadata().is_some());
@@ -2227,9 +2287,21 @@ mod tests {
         return assets;
     }
 
+    fn create_assets() -> Assets {
+        let mut assets = Assets::new();
+        assets.insert(&create_asset_name(), &BigNum::from_str("1234").unwrap());
+        return assets;
+    }
+
     fn create_mint_with_one_asset(policy_id: &PolicyID) -> Mint {
         let mut mint = Mint::new();
         mint.insert(policy_id, &create_mint_asset());
+        return mint;
+    }
+
+    fn create_multiasset_one_asset(policy_id: &PolicyID) -> MultiAsset {
+        let mut mint = MultiAsset::new();
+        mint.insert(policy_id, &create_assets());
         return mint;
     }
 
@@ -2306,5 +2378,160 @@ mod tests {
         assert_eq!(mint.len(), 2);
         assert_mint_asset(&mint, &policy_id1);
         assert_mint_asset(&mint, &policy_id2);
+    }
+
+    #[test]
+    fn add_output_amount() {
+        let mut tx_builder = create_default_tx_builder();
+
+        let policy_id1 = PolicyID::from([0u8; 28]);
+        let multiasset = create_multiasset_one_asset(&policy_id1);
+        let mut value = Value::new(&to_bignum(42));
+        value.set_multiasset(&multiasset);
+
+        let address = byron_address();
+        tx_builder.add_output_amount(&address, &value).unwrap();
+
+        assert_eq!(tx_builder.outputs.len(), 1);
+        let out = tx_builder.outputs.get(0);
+
+        assert_eq!(out.address.to_bytes(), address.to_bytes());
+        assert_eq!(out.amount, value);
+    }
+
+    #[test]
+    fn add_output_coin() {
+        let mut tx_builder = create_default_tx_builder();
+
+        let address = byron_address();
+        let coin = to_bignum(43);
+        tx_builder.add_output_coin(&address, &coin).unwrap();
+
+        assert_eq!(tx_builder.outputs.len(), 1);
+        let out = tx_builder.outputs.get(0);
+
+        assert_eq!(out.address.to_bytes(), address.to_bytes());
+        assert_eq!(out.amount.coin, coin);
+        assert!(out.amount.multiasset.is_none());
+    }
+
+    #[test]
+    fn add_output_coin_and_multiasset() {
+        let mut tx_builder = create_default_tx_builder();
+
+        let policy_id1 = PolicyID::from([0u8; 28]);
+        let multiasset = create_multiasset_one_asset(&policy_id1);
+
+        let address = byron_address();
+        let coin = to_bignum(42);
+
+        tx_builder.add_output_coin_and_asset(&address, &coin, &multiasset).unwrap();
+
+        assert_eq!(tx_builder.outputs.len(), 1);
+        let out = tx_builder.outputs.get(0);
+
+        assert_eq!(out.address.to_bytes(), address.to_bytes());
+        assert_eq!(out.amount.coin, coin);
+        assert_eq!(out.amount.multiasset.unwrap(), multiasset);
+    }
+
+    #[test]
+    fn add_output_asset_and_min_required_coin() {
+        let mut tx_builder = create_reallistic_tx_builder();
+
+        let policy_id1 = PolicyID::from([0u8; 28]);
+        let multiasset = create_multiasset_one_asset(&policy_id1);
+
+        let address = byron_address();
+        tx_builder.add_output_asset_and_min_required_coin(&address, &multiasset).unwrap();
+
+        assert_eq!(tx_builder.outputs.len(), 1);
+        let out = tx_builder.outputs.get(0);
+
+        assert_eq!(out.address.to_bytes(), address.to_bytes());
+        assert_eq!(out.amount.multiasset.unwrap(), multiasset);
+        assert_eq!(out.amount.coin, to_bignum(1444443));
+    }
+
+    #[test]
+    fn add_mint_asset_and_output() {
+        let mut tx_builder = create_default_tx_builder();
+
+        let policy_id1 = PolicyID::from([0u8; 28]);
+        let name = create_asset_name();
+        let amount = Int::new_i32(1234);
+
+        let address = byron_address();
+        let coin = to_bignum(42);
+
+        tx_builder.add_mint_asset_and_output(
+            &policy_id1,
+            &name,
+            amount.clone(),
+            &address,
+            &coin,
+        ).unwrap();
+
+        assert!(tx_builder.mint.is_some());
+
+        let mint = tx_builder.mint.as_ref().unwrap();
+        assert_eq!(mint.len(), 1);
+        assert_mint_asset(mint, &policy_id1);
+
+        assert_eq!(tx_builder.outputs.len(), 1);
+        let out = tx_builder.outputs.get(0);
+
+        assert_eq!(out.address.to_bytes(), address.to_bytes());
+        assert_eq!(out.amount.coin, coin);
+
+        let multiasset = out.amount.multiasset.unwrap();
+        assert_eq!(
+            multiasset,
+            tx_builder.get_mint_value().unwrap().multiasset.unwrap(),
+        );
+
+        let asset = multiasset.get(&policy_id1).unwrap();
+        assert_eq!(asset.len(), 1);
+        assert_eq!(asset.get(&name).unwrap(), to_bignum(1234));
+    }
+
+    #[test]
+    fn add_mint_asset_and_min_required_coin() {
+        let mut tx_builder = create_reallistic_tx_builder();
+
+        let policy_id1 = PolicyID::from([0u8; 28]);
+        let name = create_asset_name();
+        let amount = Int::new_i32(1234);
+
+        let address = byron_address();
+
+        tx_builder.add_mint_asset_and_output_min_required_coin(
+            &policy_id1,
+            &name,
+            amount.clone(),
+            &address,
+        ).unwrap();
+
+        assert!(tx_builder.mint.is_some());
+
+        let mint = tx_builder.mint.as_ref().unwrap();
+        assert_eq!(mint.len(), 1);
+        assert_mint_asset(mint, &policy_id1);
+
+        assert_eq!(tx_builder.outputs.len(), 1);
+        let out = tx_builder.outputs.get(0);
+
+        assert_eq!(out.address.to_bytes(), address.to_bytes());
+        assert_eq!(out.amount.coin, to_bignum(1444443));
+
+        let multiasset = out.amount.multiasset.unwrap();
+        assert_eq!(
+            multiasset,
+            tx_builder.get_mint_value().unwrap().multiasset.unwrap(),
+        );
+
+        let asset = multiasset.get(&policy_id1).unwrap();
+        assert_eq!(asset.len(), 1);
+        assert_eq!(asset.get(&name).unwrap(), to_bignum(1234));
     }
 }
