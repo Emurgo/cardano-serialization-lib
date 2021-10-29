@@ -696,17 +696,72 @@ mod tests {
         );
     }
 
+    fn create_linear_fee(coefficient: u64, constant: u64) -> LinearFee {
+        LinearFee::new(&to_bignum(coefficient), &to_bignum(constant))
+    }
+
+    fn create_default_linear_fee() -> LinearFee {
+        create_linear_fee(500, 2)
+    }
+
+    fn create_tx_builder_full(
+        linear_fee: &LinearFee,
+        min_utxo_val: u64,
+        pool_deposit: u64,
+        key_deposit: u64,
+        max_val_size: u32,
+    ) -> TransactionBuilder {
+        TransactionBuilder::new(
+            linear_fee,
+            &to_bignum(min_utxo_val),
+            &to_bignum(pool_deposit),
+            &to_bignum(key_deposit),
+            max_val_size,
+            MAX_TX_SIZE
+        )
+    }
+
+    fn create_tx_builder(
+        linear_fee: &LinearFee,
+        min_utxo_val: u64,
+        pool_deposit: u64,
+        key_deposit: u64,
+    ) -> TransactionBuilder {
+        create_tx_builder_full(linear_fee, min_utxo_val, pool_deposit, key_deposit, MAX_VALUE_SIZE)
+    }
+
+    fn create_reallistic_tx_builder() -> TransactionBuilder {
+        create_tx_builder(
+            &create_linear_fee(44, 155381),
+            1000000,
+            500000000,
+            2000000,
+        )
+    }
+
+    fn create_tx_builder_with_fee_and_min_val(linear_fee: &LinearFee, min_utxo_val: u64) -> TransactionBuilder {
+        create_tx_builder(linear_fee, min_utxo_val, 1, 1)
+    }
+
+    fn create_tx_builder_with_fee_and_val_size(linear_fee: &LinearFee, max_val_size: u32) -> TransactionBuilder {
+        create_tx_builder_full(linear_fee, 1, 1, 1, max_val_size)
+    }
+
+    fn create_tx_builder_with_fee(linear_fee: &LinearFee) -> TransactionBuilder {
+        create_tx_builder(linear_fee, 1, 1, 1)
+    }
+
+    fn create_tx_builder_with_key_deposit(deposit: u64) -> TransactionBuilder {
+        create_tx_builder(&create_default_linear_fee(), 1, 1, deposit)
+    }
+
+    fn create_default_tx_builder() -> TransactionBuilder {
+        create_tx_builder_with_fee(&create_default_linear_fee())
+    }
+
     #[test]
     fn build_tx_with_change() {
-        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(1),
-            &to_bignum(1),
-            &to_bignum(1),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_default_tx_builder();
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -761,15 +816,7 @@ mod tests {
 
     #[test]
     fn build_tx_without_change() {
-        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(1),
-            &to_bignum(1),
-            &to_bignum(1),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_default_tx_builder();
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -822,15 +869,7 @@ mod tests {
 
     #[test]
     fn build_tx_with_certs() {
-        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(1),
-            &to_bignum(1),
-            &to_bignum(1_000_000),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_tx_builder_with_key_deposit(1_000_000);
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -891,15 +930,7 @@ mod tests {
     #[test]
     fn build_tx_exact_amount() {
         // transactions where sum(input) == sum(output) exact should pass
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(1),
-            &to_bignum(0),
-            &to_bignum(0),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -948,15 +979,7 @@ mod tests {
     #[test]
     fn build_tx_exact_change() {
         // transactions where we have exactly enough ADA to add change should pass
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(1),
-            &to_bignum(0),
-            &to_bignum(0),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -1014,15 +1037,7 @@ mod tests {
     #[should_panic]
     fn build_tx_insufficient_deposit() {
         // transactions should fail with insufficient fees if a deposit is required
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(1),
-            &to_bignum(0),
-            &to_bignum(5),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_tx_builder_with_key_deposit(5);
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -1085,15 +1100,7 @@ mod tests {
 
     #[test]
     fn build_tx_with_inputs() {
-        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(1),
-            &to_bignum(1),
-            &to_bignum(1),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_default_tx_builder();
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -1165,16 +1172,8 @@ mod tests {
 
     #[test]
     fn build_tx_with_native_assets_change() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
         let minimum_utxo_value = to_bignum(1);
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -1285,16 +1284,8 @@ mod tests {
 
     #[test]
     fn build_tx_with_native_assets_change_and_purification() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
         let minimum_utxo_value = to_bignum(1);
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
         // Prefer pure change!
         tx_builder.set_prefer_pure_change(true);
         let spend = root_key_15()
@@ -1420,16 +1411,8 @@ mod tests {
 
     #[test]
     fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
-        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(1));
         let minimum_utxo_value = to_bignum(10);
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_tx_builder_with_fee_and_min_val(&create_linear_fee(1, 1), 10);
         // Prefer pure change!
         tx_builder.set_prefer_pure_change(true);
         let spend = root_key_15()
@@ -1545,15 +1528,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn build_tx_leftover_assets() {
-        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(1),
-            &to_bignum(1),
-            &to_bignum(1),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_default_tx_builder();
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -1619,15 +1594,7 @@ mod tests {
 
     #[test]
     fn build_tx_burn_less_than_min_ada() {
-        let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(1000000),
-            &to_bignum(500000000),
-            &to_bignum(2000000),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_reallistic_tx_builder();
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap();
         tx_builder.add_output(&TransactionOutput::new(
@@ -1661,15 +1628,7 @@ mod tests {
 
     #[test]
     fn build_tx_burn_empty_assets() {
-        let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(1000000),
-            &to_bignum(500000000),
-            &to_bignum(2000000),
-            MAX_VALUE_SIZE,
-            MAX_TX_SIZE
-        );
+        let mut tx_builder = create_reallistic_tx_builder();
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap();
         tx_builder.add_output(&TransactionOutput::new(
@@ -1705,16 +1664,7 @@ mod tests {
 
     #[test]
     fn build_tx_no_useless_multiasset() {
-        let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
-        let mut tx_builder =
-            TransactionBuilder::new(
-                &linear_fee,
-                &to_bignum(1000000),
-                &to_bignum(500000000),
-                &to_bignum(2000000),
-                MAX_VALUE_SIZE,
-                MAX_TX_SIZE,
-            );
+        let mut tx_builder = create_reallistic_tx_builder();
 
         let policy_id = &PolicyID::from([0u8; 28]);
         let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
@@ -1798,16 +1748,10 @@ mod tests {
 
     #[test]
     fn build_tx_add_change_split_nfts() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
         let max_value_size = 100; // super low max output size to test with fewer assets
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
+        let mut tx_builder = create_tx_builder_with_fee_and_val_size(
+            &create_linear_fee(0, 1),
             max_value_size,
-            MAX_TX_SIZE
         );
 
         let (multiasset, policy_ids, names) = create_multiasset();
@@ -1856,15 +1800,9 @@ mod tests {
 
     #[test]
     fn build_tx_too_big_output() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
-            10, // super low max output size to test,
-            MAX_TX_SIZE
+        let mut tx_builder = create_tx_builder_with_fee_and_val_size(
+            &create_linear_fee(0, 1),
+            10,
         );
 
         tx_builder.add_input(
@@ -1885,16 +1823,9 @@ mod tests {
 
     #[test]
     fn build_tx_add_change_nfts_not_enough_ada() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
-        let max_value_size = 150; // super low max output size to test with fewer assets
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
-            max_value_size,
-            MAX_TX_SIZE
+        let mut tx_builder = create_tx_builder_with_fee_and_val_size(
+            &create_linear_fee(0, 1),
+            150,  // super low max output size to test with fewer assets
         );
 
         let policy_ids = [
@@ -1979,20 +1910,6 @@ mod tests {
         let key = TransactionMetadatum::new_text(String::from("qwe")).unwrap();
         let val = map.get(&key).unwrap();
         assert_eq!(val.as_int().unwrap(), Int::new_i32(123));
-    }
-
-    fn create_default_tx_builder() -> TransactionBuilder {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
-        let max_value_size = 150; // super low max output size to test with fewer assets
-        TransactionBuilder::new(
-            &linear_fee,
-            &minimum_utxo_value,
-            &to_bignum(0),
-            &to_bignum(0),
-            max_value_size,
-            MAX_TX_SIZE
-        )
     }
 
     #[test]
