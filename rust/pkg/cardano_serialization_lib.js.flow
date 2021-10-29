@@ -2373,6 +2373,16 @@ declare export class Mint {
    * @returns {ScriptHashes}
    */
   keys(): ScriptHashes;
+
+  /**
+   * @returns {MultiAsset}
+   */
+  to_multiasset(): MultiAsset;
+
+  /**
+   * @returns {Value}
+   */
+  to_value(): Value;
 }
 /**
  */
@@ -4904,6 +4914,38 @@ declare export class TransactionBuilder {
   ): BigNum;
 
   /**
+   * @param {Address} address
+   * @param {Value} amount
+   */
+  add_output_amount(address: Address, amount: Value): void;
+
+  /**
+   * @param {Address} address
+   * @param {BigNum} coin
+   */
+  add_output_coin(address: Address, coin: BigNum): void;
+
+  /**
+   * @param {Address} address
+   * @param {BigNum} coin
+   * @param {MultiAsset} multiasset
+   */
+  add_output_coin_and_asset(
+    address: Address,
+    coin: BigNum,
+    multiasset: MultiAsset
+  ): void;
+
+  /**
+   * @param {Address} address
+   * @param {MultiAsset} multiasset
+   */
+  add_output_asset_and_min_required_coin(
+    address: Address,
+    multiasset: MultiAsset
+  ): void;
+
+  /**
    * @param {TransactionOutput} output
    */
   add_output(output: TransactionOutput): void;
@@ -4996,6 +5038,34 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
+   * @param {ScriptHash} policy_id
+   * @param {AssetName} asset_name
+   * @param {Int} amount
+   * @param {Address} address
+   * @param {BigNum} output_coin
+   */
+  add_mint_asset_and_output(
+    policy_id: ScriptHash,
+    asset_name: AssetName,
+    amount: Int,
+    address: Address,
+    output_coin: BigNum
+  ): void;
+
+  /**
+   * @param {ScriptHash} policy_id
+   * @param {AssetName} asset_name
+   * @param {Int} amount
+   * @param {Address} address
+   */
+  add_mint_asset_and_output_min_required_coin(
+    policy_id: ScriptHash,
+    asset_name: AssetName,
+    amount: Int,
+    address: Address
+  ): void;
+
+  /**
    * @param {boolean} prefer_pure_change
    */
   set_prefer_pure_change(prefer_pure_change: boolean): void;
@@ -5029,6 +5099,12 @@ declare export class TransactionBuilder {
    * @returns {Value}
    */
   get_implicit_input(): Value;
+
+  /**
+   * mint as value
+   * @returns {Value}
+   */
+  get_mint_value(): Value;
 
   /**
    * does not include fee
