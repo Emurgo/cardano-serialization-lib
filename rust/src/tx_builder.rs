@@ -144,6 +144,7 @@ pub struct TransactionBuilder {
     validity_start_interval: Option<Slot>,
     input_types: MockWitnessSet,
     mint: Option<Mint>,
+    prefer_pure_change: bool,
 }
 
 #[wasm_bindgen]
@@ -305,6 +306,10 @@ impl TransactionBuilder {
         self.auxiliary_data = Some(auxiliary_data.clone())
     }
 
+    pub fn set_prefer_pure_change(&mut self, prefer_pure_change: bool) {
+        self.prefer_pure_change = prefer_pure_change;
+    }
+
     pub fn new(
         linear_fee: &fees::LinearFee,
         // protocol parameter that defines the minimum value a newly created UTXO can contain
@@ -334,7 +339,8 @@ impl TransactionBuilder {
                 bootstraps: BTreeSet::new(),
             },
             validity_start_interval: None,
-            mint: None
+            mint: None,
+            prefer_pure_change: false,
         }
     }
 
@@ -459,6 +465,7 @@ impl TransactionBuilder {
                     let mut new_fee = fee.clone();
                     // we might need multiple change outputs for cases where the change has many asset types
                     // which surpass the max UTXO size limit
+                    let minimum_utxo_val = self.minimum_utxo_val;
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
                         let nft_change = pack_nfts_for_change(self.max_value_size, address, &change_left)?;
                         if nft_change.len() == 0 {
@@ -468,7 +475,7 @@ impl TransactionBuilder {
                         // we only add the minimum needed (for now) to cover this output
                         let mut change_value = Value::new(&Coin::zero());
                         change_value.set_multiasset(&nft_change);
-                        let min_ada = min_ada_required(&change_value, &self.minimum_utxo_val);
+                        let min_ada = min_ada_required(&change_value, &minimum_utxo_val);
                         change_value.set_coin(&min_ada);
                         let change_output = TransactionOutput::new(address, &change_value);
                         // increase fee
@@ -481,9 +488,24 @@ impl TransactionBuilder {
                         self.add_output(&change_output)?;
                     }
                     change_left = change_left.checked_sub(&Value::new(&new_fee))?;
+                    // add potentially a separate pure ADA change output
+                    let left_above_minimum = change_left.coin.compare(&minimum_utxo_val) > 0;
+                    if self.prefer_pure_change && left_above_minimum {
+                        let pure_output = TransactionOutput::new(address, &change_left);
+                        let additional_fee = self.fee_for_output(&pure_output)?;
+                        let potential_pure_value = change_left.checked_sub(&Value::new(&additional_fee))?;
+                        let potential_pure_above_minimum = potential_pure_value.coin.compare(&minimum_utxo_val) > 0;
+                        if potential_pure_above_minimum {
+                            new_fee = new_fee.checked_add(&additional_fee)?;
+                            change_left = Value::zero();
+                            self.add_output(&TransactionOutput::new(address, &potential_pure_value));
+                        }
+                    }
                     self.set_fee(&new_fee);
                     // add in the rest of the ADA
-                    self.outputs.0.last_mut().unwrap().amount = self.outputs.0.last().unwrap().amount.checked_add(&change_left)?;
+                    if !change_left.is_zero() {
+                        self.outputs.0.last_mut().unwrap().amount = self.outputs.0.last().unwrap().amount.checked_add(&change_left)?;
+                    }
                     Ok(true)
                 } else {
                     let min_ada = min_ada_required(&change_estimator, &self.minimum_utxo_val);
@@ -1202,6 +1224,269 @@ mod tests {
                 .get(&name)
                 .unwrap(),
             to_bignum(ma_input1 + ma_input2 - ma_output1)
+        );
+        assert_eq!(
+            final_tx.outputs().get(1).amount().coin(),
+            to_bignum(18)
+        );
+    }
+
+    #[test]
+    fn build_tx_with_native_assets_change_and_purification() {
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
+        let minimum_utxo_value = to_bignum(1);
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &minimum_utxo_value,
+            &to_bignum(0),
+            &to_bignum(0),
+            MAX_VALUE_SIZE,
+            MAX_TX_SIZE
+        );
+        // Prefer pure change!
+        tx_builder.set_prefer_pure_change(true);
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let policy_id = &PolicyID::from([0u8; 28]);
+        let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+
+        let ma_input1 = 100;
+        let ma_input2 = 200;
+        let ma_output1 = 60;
+
+        let multiassets = [ma_input1, ma_input2, ma_output1]
+            .iter()
+            .map(|input| {
+                let mut multiasset = MultiAsset::new();
+                multiasset.insert(policy_id, &{
+                    let mut assets = Assets::new();
+                    assets.insert(&name, &to_bignum(*input));
+                    assets
+                });
+                multiasset
+            })
+            .collect::<Vec<MultiAsset>>();
+
+        for (multiasset, ada) in multiassets
+            .iter()
+            .zip([10u64, 10].iter().cloned().map(to_bignum))
+        {
+            let mut input_amount = Value::new(&ada);
+            input_amount.set_multiasset(multiasset);
+
+            tx_builder.add_key_input(
+                &&spend.to_raw_key().hash(),
+                &TransactionInput::new(&genesis_id(), 0),
+                &input_amount,
+            );
+        }
+
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+        .to_address();
+
+        let mut output_amount = Value::new(&to_bignum(1));
+        output_amount.set_multiasset(&multiassets[2]);
+
+        tx_builder
+            .add_output(&TransactionOutput::new(&addr_net_0, &output_amount))
+            .unwrap();
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+        .to_address();
+
+        let added_change = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert_eq!(added_change, true);
+        let final_tx = tx_builder.build().unwrap();
+        assert_eq!(final_tx.outputs().len(), 3);
+        assert_eq!(
+            final_tx.outputs().get(0).amount().coin(),
+            minimum_utxo_value
+        );
+        assert_eq!(
+            final_tx
+                .outputs()
+                .get(1)
+                .amount()
+                .multiasset()
+                .unwrap()
+                .get(policy_id)
+                .unwrap()
+                .get(&name)
+                .unwrap(),
+            to_bignum(ma_input1 + ma_input2 - ma_output1)
+        );
+        // The first change output that contains all the tokens contain minimum required Coin
+        let min_coin_for_dirty_change = min_ada_required(
+            &final_tx.outputs().get(1).amount(),
+            &minimum_utxo_value,
+        );
+        assert_eq!(
+            final_tx.outputs().get(1).amount().coin(),
+            min_coin_for_dirty_change
+        );
+        assert_eq!(
+            final_tx.outputs().get(2).amount().coin(),
+            to_bignum(17)
+        );
+        assert_eq!(
+            final_tx.outputs().get(2).amount().multiasset(),
+            None
+        );
+    }
+
+    #[test]
+    fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
+        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(1));
+        let minimum_utxo_value = to_bignum(10);
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &minimum_utxo_value,
+            &to_bignum(0),
+            &to_bignum(0),
+            MAX_VALUE_SIZE,
+            MAX_TX_SIZE
+        );
+        // Prefer pure change!
+        tx_builder.set_prefer_pure_change(true);
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let policy_id = &PolicyID::from([0u8; 28]);
+        let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+
+        let ma_input1 = 100;
+        let ma_input2 = 200;
+        let ma_output1 = 60;
+
+        let multiassets = [ma_input1, ma_input2, ma_output1]
+            .iter()
+            .map(|input| {
+                let mut multiasset = MultiAsset::new();
+                multiasset.insert(policy_id, &{
+                    let mut assets = Assets::new();
+                    assets.insert(&name, &to_bignum(*input));
+                    assets
+                });
+                multiasset
+            })
+            .collect::<Vec<MultiAsset>>();
+
+        for (multiasset, ada) in multiassets
+            .iter()
+            .zip([300u64, 180].iter().cloned().map(to_bignum))
+        {
+            let mut input_amount = Value::new(&ada);
+            input_amount.set_multiasset(multiasset);
+
+            tx_builder.add_key_input(
+                &&spend.to_raw_key().hash(),
+                &TransactionInput::new(&genesis_id(), 0),
+                &input_amount,
+            );
+        }
+
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+        .to_address();
+
+        let mut output_amount = Value::new(&minimum_utxo_value);
+        output_amount.set_multiasset(&multiassets[2]);
+
+        tx_builder
+            .add_output(&TransactionOutput::new(&addr_net_0, &output_amount))
+            .unwrap();
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+        .to_address();
+
+        let added_change = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert_eq!(added_change, true);
+        let final_tx = tx_builder.build().unwrap();
+        assert_eq!(final_tx.outputs().len(), 2);
+        assert_eq!(
+            final_tx.outputs().get(0).amount().coin(),
+            minimum_utxo_value
+        );
+        assert_eq!(
+            final_tx
+                .outputs()
+                .get(1)
+                .amount()
+                .multiasset()
+                .unwrap()
+                .get(policy_id)
+                .unwrap()
+                .get(&name)
+                .unwrap(),
+            to_bignum(ma_input1 + ma_input2 - ma_output1)
+        );
+        // The single change output contains more Coin then minimal utxo value
+        // But not enough to cover the additional fee for a separate output
+        assert_eq!(
+            final_tx.outputs().get(1).amount().coin(),
+            to_bignum(74)
         );
     }
 
