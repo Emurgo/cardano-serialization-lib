@@ -677,6 +677,11 @@ declare export class BigNum {
   static zero(): BigNum;
 
   /**
+   * @returns {boolean}
+   */
+  is_zero(): boolean;
+
+  /**
    * @param {BigNum} other
    * @returns {BigNum}
    */
@@ -4971,6 +4976,11 @@ declare export class TransactionBuilder {
   set_auxiliary_data(auxiliary_data: AuxiliaryData): void;
 
   /**
+   * @param {boolean} prefer_pure_change
+   */
+  set_prefer_pure_change(prefer_pure_change: boolean): void;
+
+  /**
    * @param {LinearFee} linear_fee
    * @param {BigNum} minimum_utxo_val
    * @param {BigNum} pool_deposit
@@ -5697,6 +5707,16 @@ declare export class Value {
    * @returns {Value}
    */
   static new(coin: BigNum): Value;
+
+  /**
+   * @returns {Value}
+   */
+  static zero(): Value;
+
+  /**
+   * @returns {boolean}
+   */
+  is_zero(): boolean;
 
   /**
    * @returns {BigNum}
