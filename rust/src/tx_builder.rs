@@ -1284,7 +1284,7 @@ mod tests {
 
         let policy_id = PolicyID::from([0u8; 28]);
         let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
-        let amount = BigNum::from_str("1234").unwrap();
+        let amount = to_bignum(1234);
 
         // Adding mint of the asset - which should work as an input
         tx_builder.add_mint_asset(&policy_id, &name, Int::new(&amount));
@@ -1316,7 +1316,7 @@ mod tests {
 
         // Change must be one remaining coin because fee is one constant coin
         let change = tx_builder.outputs.get(1).amount();
-        assert_eq!(change.coin(), BigNum::from_str("1").unwrap());
+        assert_eq!(change.coin(), to_bignum(1));
         assert!(change.multiasset().is_none());
     }
 
@@ -1368,8 +1368,8 @@ mod tests {
         let policy_id = PolicyID::from([0u8; 28]);
         let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
 
-        let amount_minted = BigNum::from_str("1000").unwrap();
-        let amount_sent = BigNum::from_str("500").unwrap();
+        let amount_minted = to_bignum(1000);
+        let amount_sent = to_bignum(500);
 
         // Adding mint of the asset - which should work as an input
         tx_builder.add_mint_asset(&policy_id, &name, Int::new(&amount_minted));
@@ -1401,7 +1401,7 @@ mod tests {
 
         // Change must be one remaining coin because fee is one constant coin
         let change = tx_builder.outputs.get(1).amount();
-        assert_eq!(change.coin(), BigNum::from_str("1").unwrap());
+        assert_eq!(change.coin(), to_bignum(1));
         assert!(change.multiasset().is_some());
 
         let change_assets = change.multiasset().unwrap();
@@ -2158,7 +2158,7 @@ mod tests {
     fn set_metadata_with_empty_auxiliary() {
         let mut tx_builder = create_default_tx_builder();
 
-        let num = BigNum::from_str("42").unwrap();
+        let num = to_bignum(42);
         tx_builder.set_metadata(&create_aux_with_metadata(&num).metadata().unwrap());
 
         assert!(tx_builder.auxiliary_data.is_some());
@@ -2178,10 +2178,10 @@ mod tests {
     fn set_metadata_with_existing_auxiliary() {
         let mut tx_builder = create_default_tx_builder();
 
-        let num1 = BigNum::from_str("42").unwrap();
+        let num1 = to_bignum(42);
         tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
 
-        let num2 = BigNum::from_str("84").unwrap();
+        let num2 = to_bignum(84);
         tx_builder.set_metadata(&create_aux_with_metadata(&num2).metadata().unwrap());
 
         let aux = tx_builder.auxiliary_data.unwrap();
@@ -2199,7 +2199,7 @@ mod tests {
     fn add_metadatum_with_empty_auxiliary() {
         let mut tx_builder = create_default_tx_builder();
 
-        let num = BigNum::from_str("42").unwrap();
+        let num = to_bignum(42);
         tx_builder.add_metadatum(&num, &create_json_metadatum());
 
         assert!(tx_builder.auxiliary_data.is_some());
@@ -2219,10 +2219,10 @@ mod tests {
     fn add_metadatum_with_existing_auxiliary() {
         let mut tx_builder = create_default_tx_builder();
 
-        let num1 = BigNum::from_str("42").unwrap();
+        let num1 = to_bignum(42);
         tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
 
-        let num2 = BigNum::from_str("84").unwrap();
+        let num2 = to_bignum(84);
         tx_builder.add_metadatum(&num2, &create_json_metadatum());
 
         let aux = tx_builder.auxiliary_data.unwrap();
@@ -2240,7 +2240,7 @@ mod tests {
     fn add_json_metadatum_with_empty_auxiliary() {
         let mut tx_builder = create_default_tx_builder();
 
-        let num = BigNum::from_str("42").unwrap();
+        let num = to_bignum(42);
         tx_builder.add_json_metadatum(&num, create_json_metadatum_string()).unwrap();
 
         assert!(tx_builder.auxiliary_data.is_some());
@@ -2260,10 +2260,10 @@ mod tests {
     fn add_json_metadatum_with_existing_auxiliary() {
         let mut tx_builder = create_default_tx_builder();
 
-        let num1 = BigNum::from_str("42").unwrap();
+        let num1 = to_bignum(42);
         tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
 
-        let num2 = BigNum::from_str("84").unwrap();
+        let num2 = to_bignum(84);
         tx_builder.add_json_metadatum(&num2, create_json_metadatum_string()).unwrap();
 
         let aux = tx_builder.auxiliary_data.unwrap();
@@ -2289,7 +2289,7 @@ mod tests {
 
     fn create_assets() -> Assets {
         let mut assets = Assets::new();
-        assets.insert(&create_asset_name(), &BigNum::from_str("1234").unwrap());
+        assets.insert(&create_asset_name(), &to_bignum(1234));
         return assets;
     }
 
