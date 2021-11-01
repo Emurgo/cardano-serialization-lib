@@ -831,13 +831,10 @@ pub fn hash_script_data(redeemers: &Redeemers, cost_models: &Costmdls, datums: O
     */
     let mut buf = Vec::new();
     buf.extend(redeemers.to_bytes());
-     if let Some(d) = &datums {
+    if let Some(d) = &datums {
         buf.extend(d.to_bytes());
-    } else {
-        let empty_string = "";
-        buf.extend(empty_string.as_bytes());
     }
-    buf.extend(cost_models.to_bytes());
+    buf.extend(cost_models.language_views_encoding());
     ScriptDataHash::from(blake2b256(&buf))
 }
 
@@ -1015,6 +1012,41 @@ mod tests {
 
     // this is what is used in mainnet
     static MINIMUM_UTXO_VAL: u64 = 1_000_000;
+
+    #[test]
+    fn correct_script_data_hash() {
+        let mut datums = PlutusList::new();
+        datums.add(&PlutusData::new_integer(&BigInt::from_str("1000").unwrap()));
+        let mut redeemers = Redeemers::new();
+        redeemers.add(&Redeemer::new(&RedeemerTag::new_spend(), &BigNum::from_str("1").unwrap(), &PlutusData::new_integer(&BigInt::from_str("2000").unwrap()), &ExUnits::new(&BigNum::from_str("0").unwrap(), &BigNum::from_str("0").unwrap())));
+        let plutus_cost_model = CostModel::from_bytes(vec![
+            159, 26, 0, 3, 2, 89, 0, 1, 1, 26, 0, 6, 11, 199, 25, 2, 109, 0, 1, 26, 0, 2, 73, 240, 25, 3, 232, 0, 1, 26, 0,
+            2, 73, 240, 24, 32, 26, 0, 37, 206, 168, 25, 113, 247, 4, 25, 116, 77, 24, 100, 25, 116, 77, 24, 100, 25, 116, 77,
+            24, 100, 25, 116, 77, 24, 100, 25, 116, 77, 24, 100, 25, 116, 77, 24, 100, 24, 100, 24, 100, 25, 116, 77, 24, 100,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 25, 3, 232, 0,
+            1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 25, 3, 232, 0, 8, 26, 0, 2, 66, 32, 26, 0, 6, 126, 35, 24, 118, 0,
+            1, 1, 26, 0, 2, 73, 240, 25, 3, 232, 0, 8, 26, 0, 2, 73, 240, 26, 0, 1, 183, 152, 24, 247, 1, 26, 0, 2, 73, 240, 25,
+            39, 16, 1, 26, 0, 2, 21, 94, 25, 5, 46, 1, 25, 3, 232, 26, 0, 2, 73, 240, 25, 3, 232, 1, 26, 0, 2, 73, 240, 24, 32,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 1, 1, 26, 0, 2, 73, 240, 1, 26, 0, 2, 73, 240, 4, 26, 0, 1, 148,
+            175, 24, 248, 1, 26, 0, 1, 148, 175, 24, 248, 1, 26, 0, 2, 55, 124, 25, 5, 86, 1, 26, 0, 2, 189, 234, 25, 1, 241, 1,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2,
+            73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 66, 32, 26, 0, 6, 126, 35, 24, 118, 0, 1, 1, 25, 240, 76, 25, 43,
+            210, 0, 1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 66, 32, 26, 0, 6, 126, 35, 24, 118, 0, 1, 1, 26, 0, 2, 66, 32, 26, 0, 6,
+            126, 35, 24, 118, 0, 1, 1, 26, 0, 37, 206, 168, 25, 113, 247, 4, 0, 26, 0, 1, 65, 187, 4, 26, 0, 2, 73, 240, 25, 19,
+            136, 0, 1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 3, 2, 89, 0, 1, 1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73,
+            240, 24, 32, 26, 0, 51, 13, 167, 1, 1, 255
+        ]).unwrap();
+        let mut cost_models = Costmdls::new();
+        cost_models.insert(&Language::new_plutus_v1(), &plutus_cost_model);
+        let script_data_hash = hash_script_data(&redeemers, &cost_models, Some(datums));
+
+        assert_eq!(
+            hex::encode(script_data_hash.to_bytes()),
+            "57240d358f8ab6128c4a66340271e4fec39b4971232add308f01a5809313adcf"
+        );
+    }
+
 
     #[test]
     fn no_token_minimum() {
