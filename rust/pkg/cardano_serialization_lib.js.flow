@@ -266,6 +266,11 @@ declare export var MetadataJsonSchema: {|
 /**
  */
 
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
 |};
