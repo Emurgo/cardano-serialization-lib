@@ -267,7 +267,7 @@ impl TransactionBuilder {
         });
         self.input_types.bootstraps.insert(hash.to_bytes());
     }
-    
+
     pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) {
         match &BaseAddress::from_address(address) {
             Some(addr) => {
@@ -1686,7 +1686,7 @@ mod tests {
             ),
             &Value::new(&to_bignum(2_400_000))
         );
-        
+
         tx_builder.set_ttl(1);
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
@@ -1730,7 +1730,7 @@ mod tests {
             ),
             &input_value
         );
-        
+
         tx_builder.set_ttl(1);
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
@@ -2112,5 +2112,210 @@ mod tests {
             input_total = input_total.checked_add(value).unwrap();
         }
         assert!(input_total >= Value::new(&tx_builder.min_fee().unwrap().checked_add(&to_bignum(COST)).unwrap()));
+    }
+
+    fn build_tx_pay_to_multisig() {
+        let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
+        let mut tx_builder =
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE);
+        let spend = root_key_15()
+            .derive(harden(1854))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+
+        tx_builder.add_key_input(
+            &spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_net_0,
+            &Value::new(&to_bignum(999_000 ))
+        )).unwrap();
+        tx_builder.set_ttl(1000);
+        tx_builder.set_fee(&to_bignum(1_000));
+
+        assert_eq!(tx_builder.outputs.len(),1);
+        assert_eq!(
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+        );
+
+
+        let  _final_tx = tx_builder.build().unwrap();
+        let _deser_t = TransactionBody::from_bytes(_final_tx.to_bytes()).unwrap();
+
+        assert_eq!(_deser_t.to_bytes(), _final_tx.to_bytes());
+    }
+
+    fn build_full_tx(body: &TransactionBody,
+        witness_set: &TransactionWitnessSet,
+        auxiliary_data: Option<AuxiliaryData>) -> Transaction {
+            return Transaction::new(
+                body,
+                witness_set,
+                auxiliary_data
+            );
+        }
+
+    #[test]
+    fn build_tx_multisig_spend_1on1_unsigned() {
+        let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
+        let mut tx_builder =
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE);
+
+        let spend = root_key_15()//multisig
+            .derive(harden(1854))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()//multisig
+            .derive(harden(1854))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let addr_multisig = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        let addr_output = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
+
+        tx_builder.add_input(
+            &addr_multisig,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_output,
+            &Value::new(&to_bignum(999_000 ))
+        )).unwrap();
+        tx_builder.set_ttl(1000);
+        tx_builder.set_fee(&to_bignum(1_000));
+
+        let mut auxiliary_data = AuxiliaryData::new();
+        let mut pubkey_native_scripts = NativeScripts::new();
+        let mut oneof_native_scripts = NativeScripts::new();
+
+        let spending_hash = spend.to_raw_key().hash();
+        pubkey_native_scripts.add(&NativeScript::new_script_pubkey(&ScriptPubkey::new(&spending_hash)));
+        oneof_native_scripts.add(&NativeScript::new_script_n_of_k(&ScriptNOfK::new(1, &pubkey_native_scripts)));
+        auxiliary_data.set_native_scripts(&oneof_native_scripts);
+        tx_builder.set_auxiliary_data(&auxiliary_data);
+
+
+        let body = tx_builder.build().unwrap();
+
+        assert_eq!(tx_builder.outputs.len(), 1);
+        assert_eq!(
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+        );
+
+
+        let  _final_tx = tx_builder.build().unwrap();
+        let _deser_t = TransactionBody::from_bytes(_final_tx.to_bytes()).unwrap();
+
+        assert_eq!(_deser_t.to_bytes(), _final_tx.to_bytes());
+        assert_eq!(_deser_t.auxiliary_data_hash.unwrap(), utils::hash_auxiliary_data(&auxiliary_data));
+    }
+
+    #[test]
+    fn build_tx_multisig_1on1_signed() {
+        let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
+        let mut tx_builder =
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE);
+        let spend = root_key_15()
+            .derive(harden(1854))//multisig
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1854))//multisig
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        tx_builder.add_key_input(
+            &spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_net_0,
+            &Value::new(&to_bignum(999_000 ))
+        )).unwrap();
+        tx_builder.set_ttl(1000);
+        tx_builder.set_fee(&to_bignum(1_000));
+
+        let mut auxiliary_data = AuxiliaryData::new();
+        let mut pubkey_native_scripts = NativeScripts::new();
+        let mut oneof_native_scripts = NativeScripts::new();
+
+        let spending_hash = spend.to_raw_key().hash();
+        pubkey_native_scripts.add(&NativeScript::new_script_pubkey(&ScriptPubkey::new(&spending_hash)));
+        oneof_native_scripts.add(&NativeScript::new_script_n_of_k(&ScriptNOfK::new(1, &pubkey_native_scripts)));
+        auxiliary_data.set_native_scripts(&oneof_native_scripts);
+        tx_builder.set_auxiliary_data(&auxiliary_data);
+
+
+        let body = tx_builder.build().unwrap();
+
+        assert_eq!(tx_builder.outputs.len(), 1);
+        assert_eq!(
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+        );
+
+        let mut witness_set = TransactionWitnessSet::new();
+        let mut vkw = Vkeywitnesses::new();
+        vkw.add(&make_vkey_witness(
+            &hash_transaction(&body),
+            &PrivateKey::from_normal_bytes(
+                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a").unwrap()
+            ).unwrap()
+        ));
+        witness_set.set_vkeys(&vkw);
+
+        let _final_tx = build_full_tx(&body, &witness_set, None);
+        let _deser_t = Transaction::from_bytes(_final_tx.to_bytes()).unwrap();
+        assert_eq!(_deser_t.to_bytes(), _final_tx.to_bytes());
+        assert_eq!(_deser_t.body().auxiliary_data_hash.unwrap(), utils::hash_auxiliary_data(&auxiliary_data));
     }
 }
