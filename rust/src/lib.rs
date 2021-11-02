@@ -57,6 +57,7 @@ use error::*;
 use plutus::*;
 use metadata::*;
 use utils::*;
+use linked_hash_map::LinkedHashMap;
 
 type DeltaCoin = Int;
 
@@ -2403,7 +2404,7 @@ impl HeaderBody {
 
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct AssetName(Vec<u8>);
 
 to_from_bytes!(AssetName);
@@ -2461,14 +2462,14 @@ pub type PolicyIDs = ScriptHashes;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Assets(pub (crate) std::collections::BTreeMap<AssetName, BigNum>);
+pub struct Assets(pub (crate) LinkedHashMap<AssetName, BigNum>);
 
 to_from_bytes!(Assets);
 
 #[wasm_bindgen]
 impl Assets {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -2490,14 +2491,14 @@ impl Assets {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq)]
-pub struct MultiAsset(pub (crate) std::collections::BTreeMap<PolicyID, Assets>);
+pub struct MultiAsset(pub (crate) LinkedHashMap<PolicyID, Assets>);
 
 to_from_bytes!(MultiAsset);
 
 #[wasm_bindgen]
 impl MultiAsset {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {

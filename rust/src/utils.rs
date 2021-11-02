@@ -271,7 +271,7 @@ impl Value {
     }
 
     pub fn checked_add(&self, rhs: &Value) -> Result<Value, JsError> {
-        use std::collections::btree_map::Entry;
+        use linked_hash_map::Entry;
         let coin = self.coin.checked_add(&rhs.coin)?;
 
         let multiasset = match (&self.multiasset, &rhs.multiasset) {
