@@ -71,6 +71,14 @@ enum StakeCredType {
 }
 
 #[wasm_bindgen]
+#[repr(u8)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum StakeCredKind {
+    Key,
+    Script,
+}
+
+#[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct StakeCredential(StakeCredType);
 
@@ -98,10 +106,10 @@ impl StakeCredential {
         }
     }
 
-    pub fn kind(&self) -> u8 {
+    pub fn kind(&self) -> StakeCredKind {
         match &self.0 {
-            StakeCredType::Key(_) => 0,
-            StakeCredType::Script(_) => 1,
+            StakeCredType::Key(_) => StakeCredKind::Key,
+            StakeCredType::Script(_) => StakeCredKind::Script,
         }
     }
 
@@ -272,8 +280,8 @@ impl Address {
         let mut buf = Vec::new();
         match &self.0 {
             AddrType::Base(base) => {
-                let header: u8 = (base.payment.kind() << 4)
-                           | (base.stake.kind() << 5)
+                let header: u8 = ((base.payment.kind() as u8) << 4)
+                           | ((base.stake.kind() as u8) << 5)
                            | (base.network & 0xF);
                 buf.push(header);
                 buf.extend(base.payment.to_raw_bytes());
@@ -281,7 +289,7 @@ impl Address {
             },
             AddrType::Ptr(ptr) => {
                 let header: u8 = 0b0100_0000
-                               | (ptr.payment.kind() << 4)
+                               | ((ptr.payment.kind() as u8) << 4)
                                | (ptr.network & 0xF);
                 buf.push(header);
                 buf.extend(ptr.payment.to_raw_bytes());
@@ -291,14 +299,14 @@ impl Address {
             },
             AddrType::Enterprise(enterprise) => {
                 let header: u8 = 0b0110_0000
-                               | (enterprise.payment.kind() << 4)
+                               | ((enterprise.payment.kind() as u8) << 4)
                                | (enterprise.network & 0xF);
                 buf.push(header);
                 buf.extend(enterprise.payment.to_raw_bytes());
             },
             AddrType::Reward(reward) => {
                 let header: u8 = 0b1110_0000
-                                | (reward.payment.kind() << 4)
+                                | ((reward.payment.kind() as u8) << 4)
                                 | (reward.network & 0xF);
                 buf.push(header);
                 buf.extend(reward.payment.to_raw_bytes());
