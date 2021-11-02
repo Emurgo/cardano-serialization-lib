@@ -58,6 +58,7 @@ use plutus::*;
 use metadata::*;
 use utils::*;
 use linked_hash_map::LinkedHashMap;
+use itertools::Itertools;
 
 type DeltaCoin = Int;
 
@@ -1791,6 +1792,10 @@ impl ScriptHashes {
         Self(Vec::new())
     }
 
+    fn from_vec(vec: Vec<&ScriptHash>) -> Self {
+        Self(vec.iter().map(|h| { h.clone().clone() }).collect_vec())
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -2444,6 +2449,10 @@ impl AssetNames {
         Self(Vec::new())
     }
 
+    fn from_vec(vec: Vec<&AssetName>) -> Self {
+        Self(vec.iter().map(|h| { h.clone().clone() }).collect_vec())
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -2698,5 +2707,45 @@ mod tests {
         ).unwrap();
 
         assert_eq!(hex::encode(&script_hash.to_bytes()), "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f");
+    }
+
+    #[test]
+    fn assets_ordering_preserved_as_inserted() {
+
+        let policy_id1 = PolicyID::from([0u8; 28]);
+        let policy_id2 = PolicyID::from([1u8; 28]);
+
+        let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+        let name2 = AssetName::new(vec![0u8, 3, 2]).unwrap();
+
+        let mut asset1 = Assets::new();
+        let mut asset2 = Assets::new();
+
+        asset1.insert(&name1, &to_bignum(11));
+        asset1.insert(&name2, &to_bignum(12));
+
+        asset2.insert(&name2, &to_bignum(21));
+        asset2.insert(&name1, &to_bignum(22));
+
+        let mut masset1 = MultiAsset::new();
+        let mut masset2 = MultiAsset::new();
+
+        masset1.insert(&policy_id1, &asset1);
+        masset1.insert(&policy_id2, &asset2);
+
+        masset2.insert(&policy_id2, &asset1);
+        masset2.insert(&policy_id1, &asset2);
+
+        assert_eq!(masset1.len(), 2);
+        assert_eq!(masset2.len(), 2);
+
+        assert_eq!(asset1.len(), 2);
+        assert_eq!(asset2.len(), 2);
+
+        assert_eq!(masset1.keys(), PolicyIDs::from_vec([&policy_id1, &policy_id2].to_vec()));
+        assert_eq!(masset2.keys(), PolicyIDs::from_vec([&policy_id2, &policy_id1].to_vec()));
+
+        assert_eq!(asset1.keys(), AssetNames::from_vec([&name1, &name2].to_vec()));
+        assert_eq!(asset2.keys(), AssetNames::from_vec([&name2, &name1].to_vec()));
     }
 }
