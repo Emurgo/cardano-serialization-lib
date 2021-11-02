@@ -58,7 +58,6 @@ use plutus::*;
 use metadata::*;
 use utils::*;
 use linked_hash_map::LinkedHashMap;
-use itertools::Itertools;
 
 type DeltaCoin = Int;
 
@@ -1792,10 +1791,6 @@ impl ScriptHashes {
         Self(Vec::new())
     }
 
-    fn from_vec(vec: Vec<&ScriptHash>) -> Self {
-        Self(vec.iter().map(|h| { h.clone().clone() }).collect_vec())
-    }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -2449,10 +2444,6 @@ impl AssetNames {
         Self(Vec::new())
     }
 
-    fn from_vec(vec: Vec<&AssetName>) -> Self {
-        Self(vec.iter().map(|h| { h.clone().clone() }).collect_vec())
-    }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -2742,10 +2733,10 @@ mod tests {
         assert_eq!(asset1.len(), 2);
         assert_eq!(asset2.len(), 2);
 
-        assert_eq!(masset1.keys(), PolicyIDs::from_vec([&policy_id1, &policy_id2].to_vec()));
-        assert_eq!(masset2.keys(), PolicyIDs::from_vec([&policy_id2, &policy_id1].to_vec()));
+        assert_eq!(masset1.keys(), ScriptHashes([policy_id1.clone(), policy_id2.clone()].to_vec()));
+        assert_eq!(masset2.keys(), ScriptHashes([policy_id2.clone(), policy_id1.clone()].to_vec()));
 
-        assert_eq!(asset1.keys(), AssetNames::from_vec([&name1, &name2].to_vec()));
-        assert_eq!(asset2.keys(), AssetNames::from_vec([&name2, &name1].to_vec()));
+        assert_eq!(asset1.keys(), AssetNames([name1.clone(), name2.clone()].to_vec()));
+        assert_eq!(asset2.keys(), AssetNames([name2.clone(), name1.clone()].to_vec()));
     }
 }
