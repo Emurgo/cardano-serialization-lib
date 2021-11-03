@@ -229,6 +229,25 @@ impl PrivateKey {
             .map_err(|e| JsError::from_str(&format!("{}", e)))
     }
 
+    /// Get private key from its bech32 representation
+    /// ```javascript
+    /// PrivateKey.from_bech32(&#39;ed25519_sk1ahfetf02qwwg4dkq7mgp4a25lx5vh9920cr5wnxmpzz9906qvm8qwvlts0&#39;);
+    /// ```
+    /// For an extended 25519 key
+    /// ```javascript
+    /// PrivateKey.from_bech32(&#39;ed25519e_sk1gqwl4szuwwh6d0yk3nsqcc6xxc3fpvjlevgwvt60df59v8zd8f8prazt8ln3lmz096ux3xvhhvm3ca9wj2yctdh3pnw0szrma07rt5gl748fp&#39;);
+    /// ```
+    pub fn from_bech32(bech32_str: &str) -> Result<PrivateKey, JsError> {
+        crypto::SecretKey::try_from_bech32_str(&bech32_str)
+            .map(key::EitherEd25519SecretKey::Extended)
+            .or_else(|_| {
+                crypto::SecretKey::try_from_bech32_str(&bech32_str)
+                    .map(key::EitherEd25519SecretKey::Normal)
+            })
+            .map(PrivateKey)
+            .map_err(|_| JsError::from_str("Invalid secret key"))
+    }
+
     pub fn to_bech32(&self) -> String {
         match self.0 {
             key::EitherEd25519SecretKey::Normal(ref secret) => secret.to_bech32_str(),

@@ -3382,6 +3382,12 @@ declare export class PrivateKey {
   static generate_ed25519extended(): PrivateKey;
 
   /**
+   * @param {string} bech_str
+   * @returns {PrivateKey}
+   */
+  static from_bech32(bech_str: string): PrivateKey;
+
+  /**
    * @returns {string}
    */
   to_bech32(): string;
