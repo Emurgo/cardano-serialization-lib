@@ -2746,5 +2746,12 @@ mod tests {
         map.insert(&name3, &to_bignum(1));
 
         assert_eq!(map.keys(), AssetNames(vec![name3, name1, name2]));
+
+        let mut map2 = MintAssets::new();
+        map2.insert(&name11, Int::new_i32(1));
+        map2.insert(&name33, Int::new_i32(1));
+        map2.insert(&name22, Int::new_i32(1));
+
+        assert_eq!(map2.keys(), AssetNames(vec![name33, name11, name22]));
     }
 }
