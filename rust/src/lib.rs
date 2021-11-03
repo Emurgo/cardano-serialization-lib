@@ -2702,7 +2702,6 @@ impl NetworkId {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeMap;
 
     #[test]
     fn native_script_hash() {
