@@ -1107,4 +1107,22 @@ mod tests {
         let pub_chaincode = root_key.to_public().chaincode();
         assert_eq!(hex::encode(&pub_chaincode), "91e248de509c070d812ab2fda57860ac876bc489192c1ef4ce253c197ee219a4");
     }
+
+    #[test]
+    fn private_key_from_bech32() {
+        let pk = PrivateKey::generate_ed25519().unwrap();
+        let pk_ext = PrivateKey::generate_ed25519extended().unwrap();
+
+        assert_eq!(
+            PrivateKey::from_bech32(&pk.to_bech32()).unwrap().as_bytes(),
+            pk.as_bytes(),
+        );
+        assert_eq!(
+            PrivateKey::from_bech32(&pk_ext.to_bech32()).unwrap().as_bytes(),
+            pk_ext.as_bytes(),
+        );
+
+        let er = PrivateKey::from_bech32("qwe");
+        assert!(er.is_err());
+    }
 }
