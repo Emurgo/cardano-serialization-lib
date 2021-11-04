@@ -238,14 +238,18 @@ impl TransactionBuilder {
         fee_after.checked_sub(&fee_before)
     }
 
+    /// Add output by specifying the Address and Value
     pub fn add_output_amount(&mut self, address: &Address, amount: &Value) -> Result<(), JsError> {
         self.add_output(&TransactionOutput::new(address, amount))
     }
 
+    /// Add output by specifying the Address and Coin (BigNum)
+    /// Output will have no additional assets
     pub fn add_output_coin(&mut self, address: &Address, coin: &Coin) -> Result<(), JsError> {
         self.add_output_amount(address, &Value::new(coin))
     }
 
+    /// Add output by specifying the Address, the Coin (BigNum), and the MultiAsset
     pub fn add_output_coin_and_asset(
         &mut self,
         address: &Address,
@@ -257,6 +261,8 @@ impl TransactionBuilder {
         self.add_output_amount(address, &val)
     }
 
+    /// Add output by specifying the Address and the MultiAsset
+    /// The output will be set to contain the minimum required amount of Coin
     pub fn add_output_asset_and_min_required_coin(
         &mut self,
         address: &Address,
@@ -270,6 +276,7 @@ impl TransactionBuilder {
         self.add_output_coin_and_asset(address, &required_coin, multiasset)
     }
 
+    /// Add explicit output via a TransactionOutput object
     pub fn add_output(&mut self, output: &TransactionOutput) -> Result<(), JsError> {
         let value_size = output.amount.to_bytes().len();
         if value_size > self.max_value_size as usize {
@@ -334,16 +341,22 @@ impl TransactionBuilder {
         };
     }
 
+    /// Set explicit auxiliary data via an AuxiliaryData object
+    /// It might contain some metadata plus native or Plutus scripts
     pub fn set_auxiliary_data(&mut self, auxiliary_data: &AuxiliaryData) {
         self.auxiliary_data = Some(auxiliary_data.clone())
     }
 
+    /// Set metadata using a GeneralTransactionMetadata object
+    /// It will be set to the existing or new auxiliary data in this builder
     pub fn set_metadata(&mut self, metadata: &GeneralTransactionMetadata) {
         let mut aux = self.auxiliary_data.as_ref().cloned().unwrap_or(AuxiliaryData::new());
         aux.set_metadata(metadata);
         self.set_auxiliary_data(&aux);
     }
 
+    /// Add a single metadatum using TransactionMetadatumLabel and TransactionMetadatum objects
+    /// It will be securely added to existing or new metadata in this builder
     pub fn add_metadatum(&mut self, key: &TransactionMetadatumLabel, val: &TransactionMetadatum) {
         let mut metadata = self.auxiliary_data.as_ref()
             .map(|aux| { aux.metadata().as_ref().cloned() })
@@ -353,6 +366,8 @@ impl TransactionBuilder {
         self.set_metadata(&metadata);
     }
 
+    /// Add a single JSON metadatum using a TransactionMetadatumLabel and a String
+    /// It will be securely added to existing or new metadata in this builder
     pub fn add_json_metadatum(
         &mut self,
         key: &TransactionMetadatumLabel,
@@ -361,26 +376,37 @@ impl TransactionBuilder {
         self.add_json_metadatum_with_schema(key, val, MetadataJsonSchema::NoConversions)
     }
 
+    /// Add a single JSON metadatum using a TransactionMetadatumLabel, a String, and a MetadataJsonSchema object
+    /// It will be securely added to existing or new metadata in this builder
     pub fn add_json_metadatum_with_schema(
         &mut self,
         key: &TransactionMetadatumLabel,
-        val: String, schema: MetadataJsonSchema,
+        val: String,
+        schema: MetadataJsonSchema,
     ) -> Result<(), JsError> {
         let metadatum = encode_json_str_to_metadatum(val, schema)?;
         self.add_metadatum(key, &metadatum);
         Ok(())
     }
 
+    /// Set explicit Mint object to this builder
+    /// it will replace any previously existing mint
     pub fn set_mint(&mut self, mint: &Mint) {
         self.mint = Some(mint.clone());
     }
 
+    /// Add a mint entry to this builder using a PolicyID and MintAssets object
+    /// It will be securely added to existing or new Mint in this builder
+    /// It will replace any existing mint assets with the same PolicyID
     pub fn set_mint_asset(&mut self, policy_id: &PolicyID, mint_assets: &MintAssets) {
         let mut mint = self.mint.as_ref().cloned().unwrap_or(Mint::new());
         mint.insert(policy_id, mint_assets);
         self.set_mint(&mint);
     }
 
+    /// Add a mint entry to this builder using a PolicyID, AssetName, and Int object for amount
+    /// It will be securely added to existing or new Mint in this builder
+    /// It will replace any previous existing amount same PolicyID and AssetName
     pub fn add_mint_asset(&mut self, policy_id: &PolicyID, asset_name: &AssetName, amount: Int) {
         let mut asset = self.mint.as_ref()
             .map(|m| { m.get(policy_id).as_ref().cloned() })
@@ -390,6 +416,10 @@ impl TransactionBuilder {
         self.set_mint_asset(policy_id, &asset);
     }
 
+    /// Add a mint entry together with an output to this builder
+    /// Using a PolicyID, AssetName, Int for amount, Address, and Coin (BigNum) objects
+    /// The asset will be securely added to existing or new Mint in this builder
+    /// A new output will be added with the specified Address, the Coin value, and the minted asset
     pub fn add_mint_asset_and_output(
         &mut self,
         policy_id: &PolicyID,
@@ -403,6 +433,11 @@ impl TransactionBuilder {
         self.add_output_coin_and_asset(address, output_coin, &multiasset)
     }
 
+    /// Add a mint entry together with an output to this builder
+    /// Using a PolicyID, AssetName, Int for amount, and Address objects
+    /// The asset will be securely added to existing or new Mint in this builder
+    /// A new output will be added with the specified Address and the minted asset
+    /// The output will be set to contain the minimum required amount of Coin
     pub fn add_mint_asset_and_output_min_required_coin(
         &mut self,
         policy_id: &PolicyID,
@@ -415,6 +450,8 @@ impl TransactionBuilder {
         self.add_output_asset_and_min_required_coin(address, &multiasset)
     }
 
+    /// If set to true, add_change_if_needed will try
+    /// to put pure Coin in a separate output from assets
     pub fn set_prefer_pure_change(&mut self, prefer_pure_change: bool) {
         self.prefer_pure_change = prefer_pure_change;
     }
@@ -499,6 +536,9 @@ impl TransactionBuilder {
     }
 
     /// Warning: this function will mutate the /fee/ field
+    /// Make sure to call this function last after setting all other tx-body properties
+    /// Editing inputs, outputs, mint, etc. after change been calculated
+    /// might cause a mismatch in calculated fee versus the required fee
     pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsError> {
         let fee = match &self.fee {
             None => self.min_fee(),
