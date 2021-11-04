@@ -464,7 +464,7 @@ impl TransactionBuilder {
                     let mut new_fee = fee.clone();
                     // we might need multiple change outputs for cases where the change has many asset types
                     // which surpass the max UTXO size limit
-                    let minimum_utxo_val = self.minimum_utxo_val;
+                    let minimum_utxo_val = min_pure_ada(&self.coins_per_utxo_word)?;
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
                         let nft_change = pack_nfts_for_change(self.max_value_size, address, &change_left)?;
                         if nft_change.len() == 0 {
@@ -1224,7 +1224,7 @@ mod tests {
         );
         assert_eq!(
             final_tx.outputs().get(1).amount().coin(),
-            to_bignum(18)
+            to_bignum(99)
         );
     }
 
@@ -1232,13 +1232,14 @@ mod tests {
     fn build_tx_with_native_assets_change_and_purification() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
         let minimum_utxo_value = to_bignum(1);
+        let coin_per_utxo_word = to_bignum(1);
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &coin_per_utxo_word,
         );
         // Prefer pure change!
         tx_builder.set_prefer_pure_change(true);
@@ -1286,7 +1287,7 @@ mod tests {
 
         for (multiasset, ada) in multiassets
             .iter()
-            .zip([10u64, 10].iter().cloned().map(to_bignum))
+            .zip([100u64, 100].iter().cloned().map(to_bignum))
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
@@ -1308,7 +1309,7 @@ mod tests {
         )
         .to_address();
 
-        let mut output_amount = Value::new(&to_bignum(1));
+        let mut output_amount = Value::new(&to_bignum(50));
         output_amount.set_multiasset(&multiassets[2]);
 
         tx_builder
@@ -1329,7 +1330,7 @@ mod tests {
         assert_eq!(final_tx.outputs().len(), 3);
         assert_eq!(
             final_tx.outputs().get(0).amount().coin(),
-            minimum_utxo_value
+            to_bignum(50)
         );
         assert_eq!(
             final_tx
@@ -1347,15 +1348,16 @@ mod tests {
         // The first change output that contains all the tokens contain minimum required Coin
         let min_coin_for_dirty_change = min_ada_required(
             &final_tx.outputs().get(1).amount(),
-            &minimum_utxo_value,
-        );
+            false,
+            &coin_per_utxo_word,
+        ).unwrap();
         assert_eq!(
             final_tx.outputs().get(1).amount().coin(),
             min_coin_for_dirty_change
         );
         assert_eq!(
             final_tx.outputs().get(2).amount().coin(),
-            to_bignum(17)
+            to_bignum(110)
         );
         assert_eq!(
             final_tx.outputs().get(2).amount().multiasset(),
@@ -1369,11 +1371,11 @@ mod tests {
         let minimum_utxo_value = to_bignum(10);
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1),
         );
         // Prefer pure change!
         tx_builder.set_prefer_pure_change(true);
@@ -1421,7 +1423,7 @@ mod tests {
 
         for (multiasset, ada) in multiassets
             .iter()
-            .zip([300u64, 180].iter().cloned().map(to_bignum))
+            .zip([300u64, 300].iter().cloned().map(to_bignum))
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
@@ -1443,7 +1445,7 @@ mod tests {
         )
         .to_address();
 
-        let mut output_amount = Value::new(&minimum_utxo_value);
+        let mut output_amount = Value::new(&to_bignum(100));
         output_amount.set_multiasset(&multiassets[2]);
 
         tx_builder
@@ -1464,7 +1466,7 @@ mod tests {
         assert_eq!(final_tx.outputs().len(), 2);
         assert_eq!(
             final_tx.outputs().get(0).amount().coin(),
-            minimum_utxo_value
+            to_bignum(100)
         );
         assert_eq!(
             final_tx
@@ -1483,7 +1485,7 @@ mod tests {
         // But not enough to cover the additional fee for a separate output
         assert_eq!(
             final_tx.outputs().get(1).amount().coin(),
-            to_bignum(74)
+            to_bignum(102)
         );
     }
 
@@ -1890,7 +1892,7 @@ mod tests {
     fn build_tx_pay_to_multisig() {
         let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
         let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE);
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE, &to_bignum(1));
         let spend = root_key_15()
             .derive(harden(1854))
             .derive(harden(1815))
@@ -1951,7 +1953,7 @@ mod tests {
     fn build_tx_multisig_spend_1on1_unsigned() {
         let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
         let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE);
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE, &to_bignum(1));
 
         let spend = root_key_15()//multisig
             .derive(harden(1854))
@@ -2026,7 +2028,7 @@ mod tests {
     fn build_tx_multisig_1on1_signed() {
         let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
         let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE);
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE, &to_bignum(1));
         let spend = root_key_15()
             .derive(harden(1854))//multisig
             .derive(harden(1815))

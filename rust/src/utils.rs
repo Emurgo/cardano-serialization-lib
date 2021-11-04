@@ -1009,6 +1009,14 @@ pub fn min_ada_required(
     }
 }
 
+pub fn min_pure_ada(coins_per_utxo_word: &BigNum) -> Result<BigNum, JsError> {
+    min_ada_required(
+        &Value::new(&Coin::from_str("1000000")?),
+        false,
+        coins_per_utxo_word,
+    )
+}
+
 /// Used to choosed the schema for a script JSON string
 #[wasm_bindgen]
 pub enum ScriptSchema {
@@ -2059,5 +2067,106 @@ mod tests {
         }
         expected.push(0xff);
         assert_eq!(expected, written);
+    }
+
+    #[test]
+    fn correct_script_data_hash() {
+        let mut datums = PlutusList::new();
+        datums.add(&PlutusData::new_integer(&BigInt::from_str("1000").unwrap()));
+        let mut redeemers = Redeemers::new();
+        redeemers.add(&Redeemer::new(&RedeemerTag::new_spend(), &BigNum::from_str("1").unwrap(), &PlutusData::new_integer(&BigInt::from_str("2000").unwrap()), &ExUnits::new(&BigNum::from_str("0").unwrap(), &BigNum::from_str("0").unwrap())));
+        let plutus_cost_model = CostModel::from_bytes(vec![
+            159, 26, 0, 3, 2, 89, 0, 1, 1, 26, 0, 6, 11, 199, 25, 2, 109, 0, 1, 26, 0, 2, 73, 240, 25, 3, 232, 0, 1, 26, 0,
+            2, 73, 240, 24, 32, 26, 0, 37, 206, 168, 25, 113, 247, 4, 25, 116, 77, 24, 100, 25, 116, 77, 24, 100, 25, 116, 77,
+            24, 100, 25, 116, 77, 24, 100, 25, 116, 77, 24, 100, 25, 116, 77, 24, 100, 24, 100, 24, 100, 25, 116, 77, 24, 100,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 25, 3, 232, 0,
+            1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 25, 3, 232, 0, 8, 26, 0, 2, 66, 32, 26, 0, 6, 126, 35, 24, 118, 0,
+            1, 1, 26, 0, 2, 73, 240, 25, 3, 232, 0, 8, 26, 0, 2, 73, 240, 26, 0, 1, 183, 152, 24, 247, 1, 26, 0, 2, 73, 240, 25,
+            39, 16, 1, 26, 0, 2, 21, 94, 25, 5, 46, 1, 25, 3, 232, 26, 0, 2, 73, 240, 25, 3, 232, 1, 26, 0, 2, 73, 240, 24, 32,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 1, 1, 26, 0, 2, 73, 240, 1, 26, 0, 2, 73, 240, 4, 26, 0, 1, 148,
+            175, 24, 248, 1, 26, 0, 1, 148, 175, 24, 248, 1, 26, 0, 2, 55, 124, 25, 5, 86, 1, 26, 0, 2, 189, 234, 25, 1, 241, 1,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2,
+            73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 66, 32, 26, 0, 6, 126, 35, 24, 118, 0, 1, 1, 25, 240, 76, 25, 43,
+            210, 0, 1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 66, 32, 26, 0, 6, 126, 35, 24, 118, 0, 1, 1, 26, 0, 2, 66, 32, 26, 0, 6,
+            126, 35, 24, 118, 0, 1, 1, 26, 0, 37, 206, 168, 25, 113, 247, 4, 0, 26, 0, 1, 65, 187, 4, 26, 0, 2, 73, 240, 25, 19,
+            136, 0, 1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 3, 2, 89, 0, 1, 1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73,
+            240, 24, 32, 26, 0, 51, 13, 167, 1, 1, 255
+        ]).unwrap();
+        let mut cost_models = Costmdls::new();
+        cost_models.insert(&Language::new_plutus_v1(), &plutus_cost_model);
+        let script_data_hash = hash_script_data(&redeemers, &cost_models, Some(datums));
+
+        assert_eq!(
+            hex::encode(script_data_hash.to_bytes()),
+            "57240d358f8ab6128c4a66340271e4fec39b4971232add308f01a5809313adcf"
+        );
+    }
+
+    #[test]
+    fn native_scripts_from_wallet_json() {
+        let cosigner0_hex = "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1";
+        let cosigner1_hex = "a48d97f57ce49433f347d44ee07e54a100229b4f8e125d25f7bca9ad66d9707a25cd1331f46f7d6e279451637ca20802a25c441ba9436abf644fe5410d1080e3";
+        let self_key_hex = "6ce83a12e9d4c783f54c0bb511303b37160a6e4f3f96b8e878a7c1f7751e18c4ccde3fb916d330d07f7bd51fb6bd99aa831d925008d3f7795033f48abd6df7f6";
+        let native_script = encode_json_str_to_native_script(
+            &format!(r#"
+        {{
+            "cosigners": {{
+                "cosigner#0": "{}",
+                "cosigner#1": "{}",
+                "cosigner#2": "self"
+            }},
+            "template": {{
+                "some": {{
+                    "at_least": 2,
+                    "from": [
+                        {{
+                            "all": [
+                                "cosigner#0",
+                                {{ "active_from": 120 }}
+                            ]
+                        }},
+                        {{
+                            "any": [
+                                "cosigner#1",
+                                {{ "active_until": 1000 }}
+                            ]
+                        }},
+                        "cosigner#2"
+                    ]
+                }}
+            }}
+        }}"#, cosigner0_hex, cosigner1_hex),
+            self_key_hex,
+            ScriptSchema::Wallet,
+        );
+
+        let n_of_k = native_script.unwrap().as_script_n_of_k().unwrap();
+        let from = n_of_k.native_scripts();
+        assert_eq!(n_of_k.n(), 2);
+        assert_eq!(from.len(), 3);
+        let all = from.get(0).as_script_all().unwrap().native_scripts();
+        assert_eq!(all.len(), 2);
+        let all_0 = all.get(0).as_script_pubkey().unwrap();
+        assert_eq!(
+            all_0.addr_keyhash(),
+            Bip32PublicKey::from_bytes(&hex::decode(cosigner0_hex).unwrap()).unwrap().to_raw_key().hash()
+        );
+        let all_1 = all.get(1).as_timelock_start().unwrap();
+        assert_eq!(all_1.slot(), 120);
+        let any = from.get(1).as_script_any().unwrap().native_scripts();
+        assert_eq!(all.len(), 2);
+        let any_0 = any.get(0).as_script_pubkey().unwrap();
+        assert_eq!(
+            any_0.addr_keyhash(),
+            Bip32PublicKey::from_bytes(&hex::decode(cosigner1_hex).unwrap()).unwrap().to_raw_key().hash()
+        );
+        let any_1 = any.get(1).as_timelock_expiry().unwrap();
+        assert_eq!(any_1.slot(), 1000);
+        let self_key = from.get(2).as_script_pubkey().unwrap();
+        assert_eq!(
+            self_key.addr_keyhash(),
+            Bip32PublicKey::from_bytes(&hex::decode(self_key_hex).unwrap()).unwrap().to_raw_key().hash()
+        );
     }
 }
