@@ -57,6 +57,7 @@ use error::*;
 use plutus::*;
 use metadata::*;
 use utils::*;
+use std::cmp::Ordering;
 
 type DeltaCoin = Int;
 
@@ -2403,8 +2404,25 @@ impl HeaderBody {
 
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AssetName(Vec<u8>);
+
+impl Ord for AssetName {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Implementing canonical CBOR order for asset names,
+        // as they might be of different length.
+        return match self.0.len().cmp(&other.0.len()) {
+            Ordering::Equal => self.0.cmp(&other.0),
+            x => x,
+        };
+    }
+}
+
+impl PartialOrd for AssetName {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 to_from_bytes!(AssetName);
 
@@ -2720,6 +2738,44 @@ mod tests {
         ).unwrap();
 
         assert_eq!(hex::encode(&script_hash.to_bytes()), "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f");
+    }
+
+    #[test]
+    fn asset_name_ord() {
+
+        let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+        let name11 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+
+        let name2 = AssetName::new(vec![0u8, 4, 5, 6]).unwrap();
+        let name22 = AssetName::new(vec![0u8, 4, 5, 6]).unwrap();
+
+        let name3 = AssetName::new(vec![0u8, 7, 8]).unwrap();
+        let name33 = AssetName::new(vec![0u8, 7, 8]).unwrap();
+
+        assert_eq!(name1.cmp(&name2), Ordering::Less);
+        assert_eq!(name2.cmp(&name1), Ordering::Greater);
+        assert_eq!(name1.cmp(&name3), Ordering::Greater);
+        assert_eq!(name2.cmp(&name3), Ordering::Greater);
+        assert_eq!(name3.cmp(&name1), Ordering::Less);
+        assert_eq!(name3.cmp(&name2), Ordering::Less);
+
+        assert_eq!(name1.cmp(&name11), Ordering::Equal);
+        assert_eq!(name2.cmp(&name22), Ordering::Equal);
+        assert_eq!(name3.cmp(&name33), Ordering::Equal);
+
+        let mut map = Assets::new();
+        map.insert(&name2, &to_bignum(1));
+        map.insert(&name1, &to_bignum(1));
+        map.insert(&name3, &to_bignum(1));
+
+        assert_eq!(map.keys(), AssetNames(vec![name3, name1, name2]));
+
+        let mut map2 = MintAssets::new();
+        map2.insert(&name11, Int::new_i32(1));
+        map2.insert(&name33, Int::new_i32(1));
+        map2.insert(&name22, Int::new_i32(1));
+
+        assert_eq!(map2.keys(), AssetNames(vec![name33, name11, name22]));
     }
 
     #[test]
