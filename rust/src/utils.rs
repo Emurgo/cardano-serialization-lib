@@ -937,7 +937,7 @@ fn bundle_size(
     assets: &Value,
     constants: &OutputSizeConstants,
 ) -> usize {
-    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo.rst
+    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-mary.rst
     match &assets.multiasset {
         None => 1, // Haskell codebase considers these size 1
         Some (assets) => {
@@ -976,34 +976,36 @@ fn bundle_size(
 #[wasm_bindgen]
 pub fn min_ada_required(
     assets: &Value,
-    minimum_utxo_val: &BigNum, // protocol parameter
-) -> BigNum {
-    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo.rst
-    match &assets.multiasset {
-        None => minimum_utxo_val.clone(),
-        Some(_assets) => {
-            // NOTE: should be 2, but a bug in Haskell set this to 0
-            let coin_size: u64 = 0;
-            let tx_out_len_no_val = 14;
-            let tx_in_len = 7;
-            let utxo_entry_size_without_val: u64 = 6 + tx_out_len_no_val + tx_in_len; // 27
-
-            // NOTE: should be 29 but a bug in Haskell set this to 27
-            let ada_only_utxo_size: u64 = utxo_entry_size_without_val + coin_size;
-
-            let size = bundle_size(
-                &assets,
-                &OutputSizeConstants {
-                    k0: 6,
-                    k1: 12,
-                    k2: 1,
-                },
-            );
-            BigNum(cmp::max(
-                minimum_utxo_val.0,
-                quot(minimum_utxo_val.0, ada_only_utxo_size) * (utxo_entry_size_without_val + (size as u64))
-            ))
-        }
+    has_data_hash: bool, // whether the output includes a data hash
+    coins_per_utxo_word: &BigNum, // protocol parameter (in lovelace)
+) -> Result<BigNum, JsError> {
+    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
+    let data_hash_size = if has_data_hash { 10 } else { 0 }; // in words
+    let utxo_entry_size_without_val = 27; // in words
+    if assets.multiasset.is_some() {
+        let size = bundle_size(
+            &assets,
+            &OutputSizeConstants {
+                k0: 6,
+                k1: 12,
+                k2: 1,
+            },
+        );
+        let words = to_bignum(utxo_entry_size_without_val)
+            .checked_add(&to_bignum(size as u64))?
+            .checked_add(&to_bignum(data_hash_size))?;
+        coins_per_utxo_word.checked_mul(&words)
+    } else {
+        // apparently this is accepted by mainnet despite being below the stated
+        // 1_000_000 ada only min utxo value, and in the mary era min utxo calculation
+        // it mentions we need to increase coin_size to 2 turning this into 29 instead of 27
+        // however we should investigate this further
+        let utxo_entry_size_without_val = 27; // in words
+        let coin_size = 2;
+        let ada_only_min_utxo_value = utxo_entry_size_without_val + coin_size;
+        let words = to_bignum(ada_only_min_utxo_value)
+            .checked_add(&to_bignum(data_hash_size))?;
+        coins_per_utxo_word.checked_mul(&words)
     }
 }
 
@@ -1014,25 +1016,18 @@ mod tests {
     use super::*;
 
     // this is what is used in mainnet
-    static MINIMUM_UTXO_VAL: u64 = 1_000_000;
+    const COINS_PER_UTXO_WORD: u64 = 34_482;
 
-    #[test]
-    fn no_token_minimum() {
-        
-        let assets = Value {
-            coin: BigNum(0),
-            multiasset: None,
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            MINIMUM_UTXO_VAL
-        );
+    fn bundle_constants() -> OutputSizeConstants {
+        OutputSizeConstants {
+            k0: 6,
+            k1: 12,
+            k2: 1,
+        }
     }
 
-    #[test]
-    fn one_policy_one_smallest_name() {
-        
+    // taken from https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
+    fn one_policy_one_0_char_asset() -> Value {
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
@@ -1043,20 +1038,13 @@ mod tests {
             &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
             &asset_list
         );
-        let assets = Value {
-            coin: BigNum(1407406),
+        Value {
+            coin: BigNum(0),
             multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1407406
-        );
+        }
     }
 
-    #[test]
-    fn one_policy_one_small_name() {
-        
+    fn one_policy_one_1_char_asset() -> Value {
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
@@ -1067,45 +1055,13 @@ mod tests {
             &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
             &asset_list
         );
-        let assets = Value {
-            coin: BigNum(1444443),
+        Value {
+            coin: BigNum(1407406),
             multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1444443
-        );
+        }
     }
 
-    #[test]
-    fn one_policy_one_largest_name() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([1; 32].to_vec()),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1555554),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1555554
-        );
-    }
-
-    #[test]
-    fn one_policy_three_small_names() {
-        
+    fn one_policy_three_1_char_assets() -> Value {
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
@@ -1124,55 +1080,13 @@ mod tests {
             &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
             &asset_list
         );
-        let assets = Value {
+        Value {
             coin: BigNum(1555554),
             multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1555554
-        );
+        }
     }
 
-    #[test]
-    fn one_policy_three_largest_names() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([1; 32].to_vec()),
-            &BigNum(1)
-        );
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([2; 32].to_vec()),
-            &BigNum(1)
-        );
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([3; 32].to_vec()),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1962961),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1962961
-        );
-    }
-
-    #[test]
-    fn two_policies_one_smallest_name() {
-        
+    fn two_policies_one_0_char_asset() -> Value {
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
@@ -1187,24 +1101,17 @@ mod tests {
             &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
             &asset_list
         );
-        let assets = Value {
+        Value {
             coin: BigNum(1592591),
             multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1592591
-        );
+        }
     }
 
-    #[test]
-    fn two_policies_two_small_names() {
-        
+    fn two_policies_one_1_char_asset() -> Value {
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
-            &AssetName(vec![]),
+            &AssetName(vec![1]),
             &BigNum(1)
         );
         token_bundle.insert(
@@ -1215,27 +1122,20 @@ mod tests {
             &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
             &asset_list
         );
-        let assets = Value {
+        Value {
             coin: BigNum(1592591),
             multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1592591
-        );
+        }
     }
 
-    #[test]
-    fn three_policies_99_small_names() {
-        
+    fn three_policies_96_1_char_assets() -> Value {
         let mut token_bundle = MultiAsset::new();
         fn add_policy(token_bundle: &mut MultiAsset, index: u8) -> () {
             let mut asset_list = Assets::new();
 
-            for i in 0..33 {
+            for i in 0..32 {
                 asset_list.insert(
-                    &AssetName(vec![i]),
+                    &AssetName(vec![index * 32 + i]),
                     &BigNum(1)
                 );
             }
@@ -1247,26 +1147,146 @@ mod tests {
         add_policy(&mut token_bundle, 1);
         add_policy(&mut token_bundle, 2);
         add_policy(&mut token_bundle, 3);
-        let assets = Value {
+        Value {
             coin: BigNum(7592585),
             multiasset: Some(token_bundle),
-        };
-        
+        }
+    }
+
+    fn one_policy_three_32_char_assets() -> Value {
+        let mut token_bundle = MultiAsset::new();
+        let mut asset_list = Assets::new();
+        asset_list.insert(
+            &AssetName(vec![1; 32]),
+            &BigNum(1)
+        );
+        asset_list.insert(
+            &AssetName(vec![2; 32]),
+            &BigNum(1)
+        );
+        asset_list.insert(
+            &AssetName(vec![3; 32]),
+            &BigNum(1)
+        );
+        token_bundle.insert(
+            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        Value {
+            coin: BigNum(1555554),
+            multiasset: Some(token_bundle),
+        }
+    }
+
+    #[test]
+    fn min_ada_value_no_multiasset() {
         assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            7296289
+            from_bignum(&min_ada_required(&Value::new(&Coin::zero()), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            999978,
         );
     }
-    
-    #[test]
-    fn proper_asset_size_calculation() {
-        let assets = Value::from_bytes(
-            Vec::from_hex("821a011cd498b82f581c4fd307695d244431ca93599be34d9aea403f24cf30f2eadcd7a178e2a1487377616e6b70696501581c50000001f7d74d2f95f82c4cfeb13f4119c350c2f91090fd69757fbda34f43617264616e6f526f6e696e313130014f43617264616e6f526f6e696e323732014f43617264616e6f526f6e696e34313401581c5090573eaf3ca637bce1fb23afc98a7ae1bc803df151a3c82e0921b5a14e4b6174654665617244656164313001581c513cdfefd0c39c79ff77b77f28aca06e74a6f3bd63a2599f8481db41a15454686546697273744b6579686f6c64657230383101581c52f02b66a66da2935d8b2c6424956a000b15e971004b1e32d88e4820a15254484548494748505249455354455353303101581c531052a4c667b84648c74f362c0c1878c3001b0f7696815752a4bed1a1554e46545530303132506c616e657450616c7a30353301581c558430d47055f97e15bfeb264a68c8e1c5acef1712bd36ab31ceb22ca14346414d01581c55dd4519ca2ce4071ba005eb209506d2140cccba49cdc3419dda695ca148417269657330303501581c56cffff175760004b9f2da7d2120341baee137f2131b09e7a0ad3eb4a1581b7766303030344368616f7469634d617468656d617469637330313801581c570f3e65dc46e8edf8ac288f13385297e6f749a8fd84064cdcda2839a1534e465455303031384e46544372617a6530393101581c597ecdd4be1ffdcd9426ca4cfaaf75285650351045e21bfc7b7f0ba8a1465275706565730a581c5b597e4f6560f9403dcba7618fef04df235bfcb72552176c0e8a599ba1444265657201581c5d58881d98f367befbce25ff966ee22b4de8f099da0e7f71c089e542a35543436f756e747269657342726f6e7a654d6564616c01464368696e613801464a6170616e3901581c5df412e3eb27ffa1665302f8bf97f74f89fa42215d3e5b09464c1c14a14b4c75636b794e654b6f696e190649581c61aaaaad465f0f8a28aec3461beaf38990f671f2e4bc979ddda194c4a1581b5468654d6973616476656e74757265736f66426f6763686932316101581c62ea7cb573306f6c272a2ff066679f2e4216270311d8e71b5f765251ac4a4164616c6f746c303134014a4164616c6f746c303434014a4164616c6f746c313439014a4164616c6f746c323337014a4164616c6f746c323430014a4164616c6f746c343432014a4164616c6f746c343836014a4164616c6f746c363036014a4164616c6f746c363530014a4164616c6f746c363638014a4164616c6f746c363932014a4164616c6f746c38333801581c6590687768bf097900b546a15efb0e413010cbefca2ade9f629c6d43a14c566f78656c697a656432303801581c66fb86c135d9d1350d29abff0b1c549a4b8204885227f76346601782a1475448454d4f4f4e01581c68fb69abc121dfb77be74e5d589876ea7fa271a70a905a4bbc580a60a1554e465455303030365375736869427974657330333101581c6ce4f2fd965a3f782baa0b9aa421c21299d434ad6c566ed077d6d663a1504475636343616d65466972737430363601581c73c590cc5d909ff19c2521bf14f673928a1fe3ff0e2c6eaa7bd36d5da14a45617450697a7a61303101581c76c2ddb32f3d974be983c39789313ab26e1791ef7a1bb09a55d2ade9a158186e65766572466f72676574446973636f726452617265303401581c77e4da914068a50d9d9420dbdda80817b55516ac6304273879318d5aa14f43756c746f664c75636b794e656b6f01581c78517792ad45d22f70a8ec4a1d30c458925938a8e7a5d9acb2449a63ad4f434d42594e41444150555a5a4c45310153434d42594e41444150555a5a4c45424b524437014c434d42594e50555a5a4c4531014d434d42594e50555a5a4c453130014d434d42594e50555a5a4c453131014c434d42594e50555a5a4c4532014c434d42594e50555a5a4c4533014c434d42594e50555a5a4c4534014c434d42594e50555a5a4c4535014c434d42594e50555a5a4c4536014c434d42594e50555a5a4c4537014c434d42594e50555a5a4c4538014c434d42594e50555a5a4c453901581c787622826f8ebd1baa04e5a9a76ae0eac7392f730544528738faafcba14f526f62696e5265645374616d70303901581c7b5fd95985e08b72a5c37b9d3c7d863bb8a6fed82ef4741594be357da1487377616e6b70696501581c7b9e74668dad56367f9314485a402c726d3bb8561834fdf253c65c4ba14f566973696f6e73426c61636b4f696c01581c7c306b00720b3a941ede9d6e1c469ec678cea1d1be8f70ff146dd6c8a1487377616e6b70696501581c84c0acb101c14416ad92859c429058871e201804468d5f353be31d71a64f50756e6b7374657241727432343038014f50756e6b7374657241727436393534014f50756e6b7374657241727437343733014f50756e6b7374657241727437353237014f50756e6b7374657241727437363831014f50756e6b737465724172743736393501581c8579617b51f533912b1652b7baa57a97335490848ec750741699db3ca34a535452454e4754483031014a544845444556494c3031014b5448454c4f56455253303101581c88814632e81b0d0d92d76bf7c7321351618a331558eb76f699f62580a1444f50323301581c89ee9ed7ce189c466be5937af4dc9103d71cc9ec150efdf158d4fe13a35043617264616e6f417065334431313830015043617264616e6f417065334432363032015043617264616e6f41706533443237383601581c89fa6dc66a24799ccaee43a3a16930bb045a8152fdf2a2642034774fa14f506c616e657450616c7a313134303801581c8acb8d48ccee9f22265bcf1f41b4bcffbcecf5a5a85c5e4e1bb7bad0a1464f726967696e01581c8bd876119ed2152848cc364db9fab76c5ed8d98fdf53c2157ffd4092a1487377616e6b70696501581c8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635a45243617264616e6f57617272696f7235393535015243617264616e6f57617272696f7236313933015243617264616e6f57617272696f7238393131015243617264616e6f57617272696f723938383101581c8fea90d673cbdd5b3da3309fb7cf1dcbb1c485ba6a7e5148468351a2a14f457570686f726963446f736573333601581c900c8cf13faf04300988e173b2695b74423da2be1615e544ddf7f9d7a14d48617070795768616c6530303101581c91acca0a2614212d68a5ae7313c85962849994aab54e340d3a68aabba14653483435363101581c922cb8a086179b1b0464f1b80c1679a210d9ed9b1e1b8374f27496e6a1445250313401581c92e7d5f2ac1994d2916d547395ab8ce650bb7387a0f70a9efbd543a6a1534e46545530303131436f6e6a7572657231363401581c942f26b14e57ab29ceac5f5d0e1ce392001ac486a019ab272f37c9c5a3581a434d42594e784261636b776172647347656f6d6574727942303801581a434d42594e784261636b776172647347656f6d6574727945303301581a434d42594e784261636b776172647347656f6d6574727947303801581c949dbdd63f3157100e3b98dffb20259f5053bcddb1ce6fd253c6da85a54e466c6f77496e64696142756c6c30014e466c6f77496e646961466f757231014d466c6f77496e6469614f6e6532014f466c6f77496e646961546872656536014d466c6f77496e64696154776f3601581c97305ec3684b4e5ac2977d44ee05fd453b038ae882e665fd6499484ca45818456e70696d6f6e7943616e61646143656e746175723030380156456e70696d6f6e7943616e616461476f6c656d3031330156456e70696d6f6e7943616e616461486f7273653032330157456e70696d6f6e7943616e6164614b6e6967687430383701581ca8731ef90e36acc7083d9bd501f733cb610ad67e7143d891fd45ab89a14e53776565744b697473756e65303901581cabe233937c19a90f826d94f121029a2fccf2bc411b9c5456e2ba49dba155496e746f5468654c6f6f6b696e67476c617373303401581cd3bbe5b2a27a392fbac2471e0c42f54ddd55da1005f86e9c18c3e082a1581a526f79616c4d6348756d70696e4b69747469657342656163683201").unwrap()
-        ).unwrap();
 
+    #[test]
+    fn min_ada_value_one_policy_one_0_char_asset() {
         assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            18666648
+            from_bignum(&min_ada_required(&one_policy_one_0_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_310_316,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_one_policy_one_1_char_asset() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&one_policy_one_1_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_344_798,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_one_policy_three_1_char_assets() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&one_policy_three_1_char_assets(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_448_244,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_two_policies_one_0_char_asset() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&two_policies_one_0_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_482_726,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_two_policies_one_1_char_asset() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&two_policies_one_1_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_517_208,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_three_policies_96_1_char_assets() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&three_policies_96_1_char_assets(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            6_896_400,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_one_policy_one_0_char_asset_datum_hash() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&one_policy_one_0_char_asset(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_655_136,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_one_policy_three_32_char_assets_datum_hash() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&one_policy_three_32_char_assets(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            2_172_366,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_two_policies_one_0_char_asset_datum_hash() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&two_policies_one_0_char_asset(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_827_546,
+        );
+    }
+
+    #[test]
+    fn bundle_sizes() {
+        assert_eq!(
+            bundle_size(&one_policy_one_0_char_asset(), &bundle_constants()),
+            11
+        );
+        assert_eq!(
+            bundle_size(&one_policy_one_1_char_asset(), &bundle_constants()),
+            12
+        );
+        assert_eq!(
+            bundle_size(&one_policy_three_1_char_assets(), &bundle_constants()),
+            15
+        );
+        assert_eq!(
+            bundle_size(&two_policies_one_0_char_asset(), &bundle_constants()),
+            16
+        );
+        assert_eq!(
+            bundle_size(&two_policies_one_1_char_asset(), &bundle_constants()),
+            17
+        );
+        assert_eq!(
+            bundle_size(&three_policies_96_1_char_assets(), &bundle_constants()),
+            173
+        );
+        assert_eq!(
+            bundle_size(&one_policy_three_32_char_assets(), &bundle_constants()),
+            26
         );
     }
 
