@@ -2622,7 +2622,7 @@ declare export class NativeScript {
    * @param {number} namespace
    * @returns {Ed25519KeyHash}
    */
-  hash(namespace: number): Ed25519KeyHash;
+  hash(namespace: number): ScriptHash;
 
   /**
    * @param {ScriptPubkey} script_pubkey
