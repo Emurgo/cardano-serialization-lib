@@ -3322,8 +3322,8 @@ impl cbor_event::se::Serialize for MultiAsset {
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
          //canonical encoding
          let mut multi_assets: Vec<(ScriptHash, Assets)> = self.0.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-         multi_assets.sort_by(|(a1,_), (a2,_)| match a1.0.len().cmp(&a2.0.len()) {
-             std::cmp::Ordering::Equal => a1.0.cmp(&a2.0),
+         multi_assets.sort_by(|(s1,_), (s2,_)| match s1.0.len().cmp(&s2.0.len()) {
+             std::cmp::Ordering::Equal => s1.0.cmp(&s2.0),
              len_order => len_order,
          });
         for (key, value) in multi_assets.iter() {
@@ -3398,7 +3398,13 @@ impl Deserialize for MintAssets {
 impl cbor_event::se::Serialize for Mint {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
-        for (key, value) in &self.0 {
+         //canonical encoding
+         let mut mint: Vec<(ScriptHash, MintAssets)> = self.0.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+         mint.sort_by(|(s1,_), (s2,_)| match s1.0.len().cmp(&s2.0.len()) {
+             std::cmp::Ordering::Equal => s1.0.cmp(&s2.0),
+             len_order => len_order,
+         });
+        for (key, value) in mint.iter() {
             key.serialize(serializer)?;
             value.serialize(serializer)?;
         }
