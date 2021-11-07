@@ -2378,16 +2378,16 @@ mod tests {
     #[test]
     fn add_change_splits_change_into_multiple_outputs_when_nfts_overflow_output_size() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
         let max_value_size = 100; // super low max output size to test with fewer assets
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
             max_value_size,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1),
         );
+        tx_builder.set_prefer_pure_change(true);
 
         let policy_id = PolicyID::from([0u8; 28]);
         let names = [
@@ -2406,7 +2406,7 @@ mod tests {
         let mut multiasset = MultiAsset::new();
         multiasset.insert(&policy_id, &assets);
 
-        let mut input_value = Value::new(&to_bignum(10));
+        let mut input_value = Value::new(&to_bignum(300));
         input_value.set_multiasset(&multiasset);
 
         tx_builder.add_input(
@@ -2419,7 +2419,7 @@ mod tests {
         );
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap().to_address();
-        let output_amount = Value::new(&to_bignum(1));
+        let output_amount = Value::new(&to_bignum(50));
 
         tx_builder
             .add_output(&TransactionOutput::new(&output_addr, &output_amount))
@@ -2429,5 +2429,40 @@ mod tests {
 
         let add_change_result = tx_builder.add_change_if_needed(&change_addr);
         assert!(add_change_result.is_ok());
+        assert_eq!(tx_builder.outputs.len(), 4);
+
+        let change1 = tx_builder.outputs.get(1);
+        let change2 = tx_builder.outputs.get(2);
+        let change3 = tx_builder.outputs.get(3);
+
+        assert_eq!(change1.address, change_addr);
+        assert_eq!(change1.address, change2.address);
+        assert_eq!(change1.address, change3.address);
+
+        assert_eq!(change1.amount.coin, to_bignum(45));
+        assert_eq!(change2.amount.coin, to_bignum(42));
+        assert_eq!(change3.amount.coin, to_bignum(162));
+
+        assert!(change1.amount.multiasset.is_some());
+        assert!(change2.amount.multiasset.is_some());
+        assert!(change3.amount.multiasset.is_none()); // purified
+
+        let masset1 = change1.amount.multiasset.unwrap();
+        let masset2 = change2.amount.multiasset.unwrap();
+
+        assert_eq!(masset1.keys().len(), 1);
+        assert_eq!(masset1.keys(), masset2.keys());
+
+        let asset1 = masset1.get(&policy_id).unwrap();
+        let asset2 = masset2.get(&policy_id).unwrap();
+        assert_eq!(asset1.len(), 4);
+        assert_eq!(asset2.len(), 1);
+
+        names.iter().for_each(|name| {
+            let v1 = asset1.get(name);
+            let v2 = asset2.get(name);
+            assert_ne!(v1.is_some(), v2.is_some());
+            assert_eq!(v1.or(v2).unwrap(), to_bignum(500));
+        });
     }
 }
