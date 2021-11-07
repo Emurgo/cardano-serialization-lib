@@ -71,6 +71,14 @@ enum StakeCredType {
 }
 
 #[wasm_bindgen]
+#[repr(u8)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum StakeCredKind {
+    Key,
+    Script,
+}
+
+#[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct StakeCredential(StakeCredType);
 
@@ -98,10 +106,10 @@ impl StakeCredential {
         }
     }
 
-    pub fn kind(&self) -> u8 {
+    pub fn kind(&self) -> StakeCredKind {
         match &self.0 {
-            StakeCredType::Key(_) => 0,
-            StakeCredType::Script(_) => 1,
+            StakeCredType::Key(_) => StakeCredKind::Key,
+            StakeCredType::Script(_) => StakeCredKind::Script,
         }
     }
 
@@ -159,7 +167,7 @@ impl Deserialize for StakeCredential {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum AddrType {
     Base(BaseAddress),
     Ptr(PointerAddress),
@@ -169,7 +177,7 @@ enum AddrType {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ByronAddress(pub (crate) ExtendedAddr);
 #[wasm_bindgen]
 impl ByronAddress {
@@ -256,7 +264,7 @@ impl ByronAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Address(AddrType);
 
 from_bytes!(Address, data, {
@@ -272,8 +280,8 @@ impl Address {
         let mut buf = Vec::new();
         match &self.0 {
             AddrType::Base(base) => {
-                let header: u8 = (base.payment.kind() << 4)
-                           | (base.stake.kind() << 5)
+                let header: u8 = ((base.payment.kind() as u8) << 4)
+                           | ((base.stake.kind() as u8) << 5)
                            | (base.network & 0xF);
                 buf.push(header);
                 buf.extend(base.payment.to_raw_bytes());
@@ -281,7 +289,7 @@ impl Address {
             },
             AddrType::Ptr(ptr) => {
                 let header: u8 = 0b0100_0000
-                               | (ptr.payment.kind() << 4)
+                               | ((ptr.payment.kind() as u8) << 4)
                                | (ptr.network & 0xF);
                 buf.push(header);
                 buf.extend(ptr.payment.to_raw_bytes());
@@ -291,14 +299,14 @@ impl Address {
             },
             AddrType::Enterprise(enterprise) => {
                 let header: u8 = 0b0110_0000
-                               | (enterprise.payment.kind() << 4)
+                               | ((enterprise.payment.kind() as u8) << 4)
                                | (enterprise.network & 0xF);
                 buf.push(header);
                 buf.extend(enterprise.payment.to_raw_bytes());
             },
             AddrType::Reward(reward) => {
                 let header: u8 = 0b1110_0000
-                                | (reward.payment.kind() << 4)
+                                | ((reward.payment.kind() as u8) << 4)
                                 | (reward.network & 0xF);
                 buf.push(header);
                 buf.extend(reward.payment.to_raw_bytes());
@@ -978,5 +986,59 @@ mod tests {
         assert_eq!(addr_net_0.to_bech32(None).unwrap(), "stake_test1uqevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqp8n5xl");
         let addr_net_3 = RewardAddress::new(NetworkInfo::mainnet().network_id(), &staking_cred).to_address();
         assert_eq!(addr_net_3.to_bech32(None).unwrap(), "stake1uyevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqxdekzz");
+    }
+
+    #[test]
+    fn bip32_24_base_multisig_hd_derivation() {
+        let spend = root_key_24()
+            .derive(harden(1854))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let stake = root_key_24()
+            .derive(harden(1854))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1qz8fg2e9yn0ga6sav0760cxmx0antql96mfuhqgzcc5swugw2jqqlugnx9qjep9xvcx40z0zfyep55r2t3lav5smyjrs96cusg");
+        let addr_net_3 = BaseAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1qx8fg2e9yn0ga6sav0760cxmx0antql96mfuhqgzcc5swugw2jqqlugnx9qjep9xvcx40z0zfyep55r2t3lav5smyjrsxv9uuh");
+    }
+
+    #[test]
+    fn multisig_from_script() {
+
+        let spend = root_key_24()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+
+
+        let mut pubkey_native_scripts = NativeScripts::new();
+
+        let spending_hash = spend.to_raw_key().hash();
+        pubkey_native_scripts.add(&NativeScript::new_script_pubkey(&ScriptPubkey::new(&spending_hash)));
+        let oneof_native_script = NativeScript::new_script_n_of_k(&ScriptNOfK::new(1, &pubkey_native_scripts));
+
+        let script_hash = ScriptHash::from_bytes(
+            oneof_native_script.hash(ScriptHashNamespace::NativeScript).to_bytes()
+        ).unwrap();
+
+        let spend_cred = StakeCredential::from_scripthash(&script_hash);
+        let stake_cred = StakeCredential::from_scripthash(&script_hash);
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1xr0de0mz3m9xmgtlmqqzu06s0uvfsczskdec8k7v4jhr7077mjlk9rk2dkshlkqq9cl4qlccnps9pvmns0duet9w8uls8flvxc");
+        let addr_net_3 = BaseAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &stake_cred).to_address();
+        assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1x80de0mz3m9xmgtlmqqzu06s0uvfsczskdec8k7v4jhr7077mjlk9rk2dkshlkqq9cl4qlccnps9pvmns0duet9w8ulsylzv28");
     }
 }
