@@ -175,6 +175,27 @@ declare export function min_ada_required(
 ): BigNum;
 
 /**
+ * Receives a script JSON string
+ * and returns a NativeScript.
+ * Cardano Wallet and Node styles are supported.
+ *
+ * * wallet: https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listSharedWallets
+ *    * payment_script_template is the schema
+ * * node: https://github.com/input-output-hk/cardano-node/blob/master/doc/reference/simple-scripts.md
+ *
+ * self_address is expected to be a Bip32PublicKey as hex-encoded bytes
+ * @param {string} json
+ * @param {string} self_address
+ * @param {number} schema
+ * @returns {NativeScript}
+ */
+declare export function encode_json_str_to_native_script(
+  json: string,
+  self_address: string,
+  schema: number
+): NativeScript;
+
+/**
  */
 
 declare export var CertificateKind: {|
@@ -264,7 +285,21 @@ declare export var MetadataJsonSchema: {|
 |};
 
 /**
+ * Used to choosed the schema for a script JSON string
  */
+
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
 
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
@@ -2587,7 +2622,7 @@ declare export class NativeScript {
    * @param {number} namespace
    * @returns {Ed25519KeyHash}
    */
-  hash(namespace: number): Ed25519KeyHash;
+  hash(namespace: number): ScriptHash;
 
   /**
    * @param {ScriptPubkey} script_pubkey
@@ -3345,6 +3380,12 @@ declare export class PrivateKey {
    * @returns {PrivateKey}
    */
   static generate_ed25519extended(): PrivateKey;
+
+  /**
+   * @param {string} bech_str
+   * @returns {PrivateKey}
+   */
+  static from_bech32(bech_str: string): PrivateKey;
 
   /**
    * @returns {string}
@@ -4642,9 +4683,19 @@ declare export class Transaction {
   witness_set(): TransactionWitnessSet;
 
   /**
+   * @returns {boolean}
+   */
+  is_valid(): boolean;
+
+  /**
    * @returns {AuxiliaryData | void}
    */
   auxiliary_data(): AuxiliaryData | void;
+
+  /**
+   * @param {boolean} valid
+   */
+  set_is_valid(valid: boolean): void;
 
   /**
    * @param {TransactionBody} body

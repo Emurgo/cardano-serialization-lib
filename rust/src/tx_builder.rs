@@ -1,7 +1,7 @@
 use super::*;
 use super::fees;
 use super::utils;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
@@ -101,6 +101,7 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
     Ok(Transaction {
         body,
         witness_set,
+        is_valid: true,
         auxiliary_data: tx_builder.auxiliary_data.clone(),
     })
 }
@@ -126,9 +127,15 @@ struct TxBuilderInput {
 }
 
 #[wasm_bindgen]
+pub enum CoinSelectionStrategyCIP2 {
+    LargestFirst,
+    RandomImprove,
+}
+
+#[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionBuilder {
-    minimum_utxo_val: BigNum,
+    coins_per_utxo_word: BigNum,
     pool_deposit: BigNum,
     key_deposit: BigNum,
     max_value_size: u32,
@@ -144,14 +151,102 @@ pub struct TransactionBuilder {
     validity_start_interval: Option<Slot>,
     input_types: MockWitnessSet,
     mint: Option<Mint>,
+    inputs_auto_added: bool,
     prefer_pure_change: bool,
 }
 
 #[wasm_bindgen]
 impl TransactionBuilder {
-    // We have to know what kind of inputs these are to know what kind of mock witnesses to create since
-    // 1) mock witnesses have different lengths depending on the type which changes the expecting fee
-    // 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
+    /// This automatically selects and adds inputs from {inputs} consisting of just enough to cover
+    /// the outputs that have already been added.
+    /// This should be called after adding all certs/outputs/etc and will be an error otherwise.
+    /// Uses CIP2: https://github.com/cardano-foundation/CIPs/blob/master/CIP-0002/CIP-0002.md
+    /// Adding a change output must be called after via TransactionBuilder::add_change_if_needed()
+    /// This function, diverging from CIP2, takes into account fees and will attempt to add additional
+    /// inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
+    pub fn add_inputs_from(&mut self, inputs: &TransactionUnspentOutputs, strategy: CoinSelectionStrategyCIP2) -> Result<(), JsError> {
+        let mut available_inputs = inputs.0.clone();
+        let mut input_total = self
+            .get_explicit_input()?
+            .checked_add(&self.get_implicit_input()?)?;
+        let mut output_total = self
+            .get_explicit_output()?
+            .checked_add(&Value::new(&self.get_deposit()?))?
+            .checked_add(&Value::new(&self.min_fee()?))?;
+        match strategy {
+            CoinSelectionStrategyCIP2::LargestFirst => {
+                available_inputs.sort_by_key(|input| input.output.amount.coin);
+                // iterate in decreasing order of ADA-only value
+                for input in available_inputs.iter().rev() {
+                    if input_total >= output_total {
+                        break;
+                    }
+                    // differing from CIP2, we include the needed fees in the targets instead of just output values
+                    let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+                    self.add_input(&input.output.address, &input.input, &input.output.amount);
+                    input_total = input_total.checked_add(&input.output.amount)?;
+                    output_total = output_total.checked_add(&Value::new(&input_fee))?;
+                }
+                if input_total < output_total {
+                    return Err(JsError::from_str("UTxO Balance Insufficient"));
+                }
+            },
+            CoinSelectionStrategyCIP2::RandomImprove => {
+                use rand::Rng;
+                if self.outputs.0.iter().any(|output| output.amount.multiasset.is_some()) {
+                    return Err(JsError::from_str("Multiasset values not supported by RandomImprove. Please use LargestFirst"));
+                }
+                // Phase 1: Random Selection
+                let mut associated_inputs: BTreeMap<TransactionOutput, Vec<TransactionUnspentOutput>> = BTreeMap::new();
+                let mut rng = rand::thread_rng();
+                let mut outputs = self.outputs.0.clone();
+                outputs.sort_by_key(|output| output.amount.coin);
+                for output in outputs.iter().rev() {
+                    let mut added = Value::new(&Coin::zero());
+                    let mut needed = output.amount.clone();
+                    while added < needed {
+                        if available_inputs.is_empty() {
+                            return Err(JsError::from_str("UTxO Balance Insufficient"));
+                        }
+                        let random_index = rng.gen_range(0..available_inputs.len());
+                        let input = available_inputs.swap_remove(random_index);
+                        // differing from CIP2, we include the needed fees in the targets instead of just output values
+                        let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+                        self.add_input(&input.output.address, &input.input, &input.output.amount);
+                        input_total = input_total.checked_add(&input.output.amount)?;
+                        output_total = output_total.checked_add(&Value::new(&input_fee))?;
+                        needed = needed.checked_add(&Value::new(&input_fee))?;
+                        added = added.checked_add(&input.output.amount)?;
+                        associated_inputs.entry(output.clone()).or_default().push(input);
+                    }
+                }
+                // Phase 2: Improvement
+                for output in outputs.iter_mut() {
+                    let associated = associated_inputs.get_mut(output).unwrap();
+                    for input in associated.iter_mut() {
+                        let random_index = rng.gen_range(0..available_inputs.len());
+                        let new_input = available_inputs.get_mut(random_index).unwrap();
+                        let cur = from_bignum(&input.output.amount.coin);
+                        let new = from_bignum(&new_input.output.amount.coin);
+                        let min = from_bignum(&output.amount.coin);
+                        let ideal = 2 * min;
+                        let max = 3 * min;
+                        let move_closer = (ideal as i128 - new as i128).abs() < (ideal as i128 - cur as i128).abs();
+                        let not_exceed_max = new < max;
+                        if move_closer && not_exceed_max {
+                            std::mem::swap(input, new_input);
+                        }
+                    }
+                }
+            },
+        }
+
+        Ok(())
+    }
+
+    /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
+    /// 1) mock witnesses have different lengths depending on the type which changes the expecting fee
+    /// 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
     pub fn add_key_input(&mut self, hash: &Ed25519KeyHash, input: &TransactionInput, amount: &Value) {
         self.inputs.push(TxBuilderInput {
             input: input.clone(),
@@ -173,7 +268,7 @@ impl TransactionBuilder {
         });
         self.input_types.bootstraps.insert(hash.to_bytes());
     }
-    
+
     pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) {
         match &BaseAddress::from_address(address) {
             Some(addr) => {
@@ -223,7 +318,7 @@ impl TransactionBuilder {
     }
 
     /// calculates how much the fee would increase if you added a given output
-    pub fn fee_for_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) -> Result<Coin, JsError> {
+    pub fn fee_for_input(&self, address: &Address, input: &TransactionInput, amount: &Value) -> Result<Coin, JsError> {
         let mut self_copy = self.clone();
 
         // we need some value for these for it to be a a valid transaction
@@ -247,7 +342,7 @@ impl TransactionBuilder {
                 value_size
             )));
         }
-        let min_ada = min_ada_required(&output.amount(), &self.minimum_utxo_val);
+        let min_ada = min_ada_required(&output.amount(), false, &self.coins_per_utxo_word)?;
         if output.amount().coin() < min_ada {
             Err(JsError::from_str(&format!(
                 "Value {} less than the minimum UTXO value {}",
@@ -312,15 +407,14 @@ impl TransactionBuilder {
 
     pub fn new(
         linear_fee: &fees::LinearFee,
-        // protocol parameter that defines the minimum value a newly created UTXO can contain
-        minimum_utxo_val: &Coin,
         pool_deposit: &BigNum, // protocol parameter
         key_deposit: &BigNum,  // protocol parameter
         max_value_size: u32, // protocol parameter
         max_tx_size: u32, // protocol parameter
+        coins_per_utxo_word: &Coin, // protocol parameter
     ) -> Self {
         Self {
-            minimum_utxo_val: minimum_utxo_val.clone(),
+            coins_per_utxo_word: coins_per_utxo_word.clone(),
             key_deposit: key_deposit.clone(),
             pool_deposit: pool_deposit.clone(),
             max_value_size,
@@ -340,6 +434,7 @@ impl TransactionBuilder {
             },
             validity_start_interval: None,
             mint: None,
+            inputs_auto_added: false,
             prefer_pure_change: false,
         }
     }
@@ -473,7 +568,7 @@ impl TransactionBuilder {
                             for n in 0..asset_names.len() {
                                 let asset_name = asset_names.get(n);
                                 let value = assets.get(&asset_name).unwrap();
-                                
+
                                 if will_adding_asset_make_output_overflow(&output, &rebuilt_assets, (policy.clone(), asset_name.clone(), value), max_value_size) {
                                     // if we got here, this means we will run into a overflow error,
                                     // so we want to split into multiple outputs, for that we...
@@ -503,7 +598,7 @@ impl TransactionBuilder {
                             next_nft.insert(policy, &rebuilt_assets);
                             val.set_multiasset(&next_nft);
                             output.amount = output.amount.checked_add(&val)?;
-                            
+
                             if output.amount.to_bytes().len() > max_value_size as usize {
                                 output.amount = old_amount;
                                 break;
@@ -516,7 +611,7 @@ impl TransactionBuilder {
                     let mut new_fee = fee.clone();
                     // we might need multiple change outputs for cases where the change has many asset types
                     // which surpass the max UTXO size limit
-                    let minimum_utxo_val = self.minimum_utxo_val;
+                    let minimum_utxo_val = min_pure_ada(&self.coins_per_utxo_word)?;
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
                         let nft_changes = pack_nfts_for_change(self.max_value_size, address, &change_left)?;
                         if nft_changes.len() == 0 {
@@ -527,7 +622,7 @@ impl TransactionBuilder {
                         let mut change_value = Value::new(&Coin::zero());
                         for nft_change in nft_changes.iter() {
                             change_value.set_multiasset(&nft_change);
-                            let min_ada = min_ada_required(&change_value, &minimum_utxo_val);
+                            let min_ada = min_ada_required(&change_value, false, &self.coins_per_utxo_word)?;
                             change_value.set_coin(&min_ada);
                             let change_output = TransactionOutput::new(address, &change_value);
                             // increase fee
@@ -561,7 +656,7 @@ impl TransactionBuilder {
                     }
                     Ok(true)
                 } else {
-                    let min_ada = min_ada_required(&change_estimator, &self.minimum_utxo_val);
+                    let min_ada = min_ada_required(&change_estimator, false, &self.coins_per_utxo_word)?;
                     // no-asset case so we have no problem burning the rest if there is no other option
                     fn burn_extra(builder: &mut TransactionBuilder, burn_amount: &BigNum) -> Result<bool, JsError> {
                         // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
@@ -669,6 +764,8 @@ mod tests {
 
     const MAX_VALUE_SIZE: u32 = 4000;
     const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
+    // this is what is used in mainnet
+    static COINS_PER_UTXO_WORD: u64 = 34_482;
 
     fn genesis_id() -> TransactionHash {
         TransactionHash::from([0u8; TransactionHash::BYTE_COUNT])
@@ -704,9 +801,9 @@ mod tests {
             &linear_fee,
             &to_bignum(1),
             &to_bignum(1),
-            &to_bignum(1),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1),
         );
         let spend = root_key_15()
             .derive(harden(1852))
@@ -740,7 +837,7 @@ mod tests {
         );
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
-            &Value::new(&to_bignum(10))
+            &Value::new(&to_bignum(29))
         )).unwrap();
         tx_builder.set_ttl(1000);
 
@@ -755,8 +852,8 @@ mod tests {
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
             tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
         );
-        assert_eq!(tx_builder.full_size().unwrap(), 283);
-        assert_eq!(tx_builder.output_sizes(), vec![61, 65]);
+        assert_eq!(tx_builder.full_size().unwrap(), 285);
+        assert_eq!(tx_builder.output_sizes(), vec![62, 65]);
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
 
@@ -767,9 +864,9 @@ mod tests {
             &linear_fee,
             &to_bignum(1),
             &to_bignum(1),
-            &to_bignum(1),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1),
         );
         let spend = root_key_15()
             .derive(harden(1852))
@@ -827,10 +924,10 @@ mod tests {
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
             &to_bignum(1),
-            &to_bignum(1),
             &to_bignum(1_000_000),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1),
         );
         let spend = root_key_15()
             .derive(harden(1852))
@@ -875,8 +972,8 @@ mod tests {
         tx_builder.add_change_if_needed(
             &change_addr
         ).unwrap();
-        assert_eq!(tx_builder.min_fee().unwrap().to_str(), "213502");
-        assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "213502");
+        assert_eq!(tx_builder.min_fee().unwrap().to_str(), "214002");
+        assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "214002");
         assert_eq!(tx_builder.get_deposit().unwrap().to_str(), "1000000");
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
@@ -895,11 +992,11 @@ mod tests {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &to_bignum(1),
             &to_bignum(0),
             &to_bignum(0),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1),
         );
         let spend = root_key_15()
             .derive(harden(1852))
@@ -925,14 +1022,14 @@ mod tests {
         tx_builder.add_key_input(
             &&spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(5))
+            &Value::new(&to_bignum(100))
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
         tx_builder.add_output(&TransactionOutput::new(
             &addr_net_0,
-            &Value::new(&to_bignum(5))
+            &Value::new(&to_bignum(100))
         )).unwrap();
         tx_builder.set_ttl(0);
 
@@ -952,11 +1049,11 @@ mod tests {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &to_bignum(1),
             &to_bignum(0),
             &to_bignum(0),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1)
         );
         let spend = root_key_15()
             .derive(harden(1852))
@@ -982,7 +1079,7 @@ mod tests {
         tx_builder.add_key_input(
             &&spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(6))
+            &Value::new(&to_bignum(58))
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
@@ -995,7 +1092,7 @@ mod tests {
         tx_builder
             .add_output(&TransactionOutput::new(
                 &addr_net_0,
-                &Value::new(&to_bignum(5)),
+                &Value::new(&to_bignum(29)),
             ))
             .unwrap();
         tx_builder.set_ttl(0);
@@ -1008,7 +1105,7 @@ mod tests {
         assert_eq!(added_change, true);
         let final_tx = tx_builder.build().unwrap();
         assert_eq!(final_tx.outputs().len(), 2);
-        assert_eq!(final_tx.outputs().get(1).amount().coin().to_str(), "1");
+        assert_eq!(final_tx.outputs().get(1).amount().coin().to_str(), "29");
     }
 
     #[test]
@@ -1018,11 +1115,11 @@ mod tests {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &to_bignum(1),
             &to_bignum(0),
             &to_bignum(5),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1)
         );
         let spend = root_key_15()
             .derive(harden(1852))
@@ -1091,9 +1188,9 @@ mod tests {
             &linear_fee,
             &to_bignum(1),
             &to_bignum(1),
-            &to_bignum(1),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1)
         );
         let spend = root_key_15()
             .derive(harden(1852))
@@ -1167,14 +1264,14 @@ mod tests {
     #[test]
     fn build_tx_with_native_assets_change() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
+        let coins_per_utxo_word = to_bignum(1);
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &coins_per_utxo_word,
         );
         let spend = root_key_15()
             .derive(harden(1852))
@@ -1220,7 +1317,7 @@ mod tests {
 
         for (multiasset, ada) in multiassets
             .iter()
-            .zip([10u64, 10].iter().cloned().map(to_bignum))
+            .zip([100u64, 100].iter().cloned().map(to_bignum))
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
@@ -1242,7 +1339,7 @@ mod tests {
         )
         .to_address();
 
-        let mut output_amount = Value::new(&to_bignum(1));
+        let mut output_amount = Value::new(&to_bignum(100));
         output_amount.set_multiasset(&multiassets[2]);
 
         tx_builder
@@ -1262,10 +1359,6 @@ mod tests {
         let final_tx = tx_builder.build().unwrap();
         assert_eq!(final_tx.outputs().len(), 2);
         assert_eq!(
-            final_tx.outputs().get(0).amount().coin(),
-            minimum_utxo_value
-        );
-        assert_eq!(
             final_tx
                 .outputs()
                 .get(1)
@@ -1280,7 +1373,7 @@ mod tests {
         );
         assert_eq!(
             final_tx.outputs().get(1).amount().coin(),
-            to_bignum(18)
+            to_bignum(99)
         );
     }
 
@@ -1288,13 +1381,14 @@ mod tests {
     fn build_tx_with_native_assets_change_and_purification() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
         let minimum_utxo_value = to_bignum(1);
+        let coin_per_utxo_word = to_bignum(1);
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &coin_per_utxo_word,
         );
         // Prefer pure change!
         tx_builder.set_prefer_pure_change(true);
@@ -1342,7 +1436,7 @@ mod tests {
 
         for (multiasset, ada) in multiassets
             .iter()
-            .zip([10u64, 10].iter().cloned().map(to_bignum))
+            .zip([100u64, 100].iter().cloned().map(to_bignum))
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
@@ -1364,7 +1458,7 @@ mod tests {
         )
         .to_address();
 
-        let mut output_amount = Value::new(&to_bignum(1));
+        let mut output_amount = Value::new(&to_bignum(50));
         output_amount.set_multiasset(&multiassets[2]);
 
         tx_builder
@@ -1385,7 +1479,7 @@ mod tests {
         assert_eq!(final_tx.outputs().len(), 3);
         assert_eq!(
             final_tx.outputs().get(0).amount().coin(),
-            minimum_utxo_value
+            to_bignum(50)
         );
         assert_eq!(
             final_tx
@@ -1403,15 +1497,16 @@ mod tests {
         // The first change output that contains all the tokens contain minimum required Coin
         let min_coin_for_dirty_change = min_ada_required(
             &final_tx.outputs().get(1).amount(),
-            &minimum_utxo_value,
-        );
+            false,
+            &coin_per_utxo_word,
+        ).unwrap();
         assert_eq!(
             final_tx.outputs().get(1).amount().coin(),
             min_coin_for_dirty_change
         );
         assert_eq!(
             final_tx.outputs().get(2).amount().coin(),
-            to_bignum(17)
+            to_bignum(110)
         );
         assert_eq!(
             final_tx.outputs().get(2).amount().multiasset(),
@@ -1425,11 +1520,11 @@ mod tests {
         let minimum_utxo_value = to_bignum(10);
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1),
         );
         // Prefer pure change!
         tx_builder.set_prefer_pure_change(true);
@@ -1477,7 +1572,7 @@ mod tests {
 
         for (multiasset, ada) in multiassets
             .iter()
-            .zip([300u64, 180].iter().cloned().map(to_bignum))
+            .zip([300u64, 300].iter().cloned().map(to_bignum))
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
@@ -1499,7 +1594,7 @@ mod tests {
         )
         .to_address();
 
-        let mut output_amount = Value::new(&minimum_utxo_value);
+        let mut output_amount = Value::new(&to_bignum(100));
         output_amount.set_multiasset(&multiassets[2]);
 
         tx_builder
@@ -1520,7 +1615,7 @@ mod tests {
         assert_eq!(final_tx.outputs().len(), 2);
         assert_eq!(
             final_tx.outputs().get(0).amount().coin(),
-            minimum_utxo_value
+            to_bignum(100)
         );
         assert_eq!(
             final_tx
@@ -1539,7 +1634,7 @@ mod tests {
         // But not enough to cover the additional fee for a separate output
         assert_eq!(
             final_tx.outputs().get(1).amount().coin(),
-            to_bignum(74)
+            to_bignum(101)
         );
     }
 
@@ -1551,9 +1646,9 @@ mod tests {
             &linear_fee,
             &to_bignum(1),
             &to_bignum(1),
-            &to_bignum(1),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1)
         );
         let spend = root_key_15()
             .derive(harden(1852))
@@ -1623,11 +1718,12 @@ mod tests {
         let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &to_bignum(1000000),
             &to_bignum(500000000),
             &to_bignum(2000000),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            // with this mainnet value we should end up with a final min_ada_required of just under 1_000_000
+            &to_bignum(COINS_PER_UTXO_WORD),
         );
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap();
@@ -1644,7 +1740,7 @@ mod tests {
             ),
             &Value::new(&to_bignum(2_400_000))
         );
-        
+
         tx_builder.set_ttl(1);
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
@@ -1665,11 +1761,11 @@ mod tests {
         let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &to_bignum(1000000),
             &to_bignum(500000000),
             &to_bignum(2000000),
             MAX_VALUE_SIZE,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(COINS_PER_UTXO_WORD)
         );
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap();
@@ -1688,7 +1784,7 @@ mod tests {
             ),
             &input_value
         );
-        
+
         tx_builder.set_ttl(1);
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
@@ -1710,11 +1806,11 @@ mod tests {
         let mut tx_builder =
             TransactionBuilder::new(
                 &linear_fee,
-                &to_bignum(1000000),
                 &to_bignum(500000000),
                 &to_bignum(2000000),
                 MAX_VALUE_SIZE,
                 MAX_TX_SIZE,
+                &to_bignum(COINS_PER_UTXO_WORD)
             );
 
         let policy_id = &PolicyID::from([0u8; 28]);
@@ -1800,20 +1896,19 @@ mod tests {
     #[test]
     fn build_tx_add_change_split_nfts() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
         let max_value_size = 100; // super low max output size to test with fewer assets
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
             max_value_size,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1)
         );
 
         let (multiasset, policy_ids, names) = create_multiasset();
 
-        let mut input_value = Value::new(&to_bignum(10));
+        let mut input_value = Value::new(&to_bignum(1000));
         input_value.set_multiasset(&multiasset);
 
         tx_builder.add_input(
@@ -1826,7 +1921,7 @@ mod tests {
         );
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap().to_address();
-        let output_amount = Value::new(&to_bignum(1));
+        let output_amount = Value::new(&to_bignum(100));
 
         tx_builder
             .add_output(&TransactionOutput::new(&output_addr, &output_amount))
@@ -1858,14 +1953,13 @@ mod tests {
     #[test]
     fn build_tx_too_big_output() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
             10, // super low max output size to test,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1)
         );
 
         tx_builder.add_input(
@@ -1887,15 +1981,14 @@ mod tests {
     #[test]
     fn build_tx_add_change_nfts_not_enough_ada() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
         let max_value_size = 150; // super low max output size to test with fewer assets
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
-            &minimum_utxo_value,
             &to_bignum(0),
             &to_bignum(0),
             max_value_size,
-            MAX_TX_SIZE
+            MAX_TX_SIZE,
+            &to_bignum(1)
         );
 
         let policy_ids = [
@@ -1921,7 +2014,7 @@ mod tests {
                 acc
             });
 
-        let mut input_value = Value::new(&to_bignum(2));
+        let mut input_value = Value::new(&to_bignum(58));
         input_value.set_multiasset(&multiasset);
 
         tx_builder.add_input(
@@ -1934,7 +2027,7 @@ mod tests {
         );
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap().to_address();
-        let output_amount = Value::new(&to_bignum(1));
+        let output_amount = Value::new(&to_bignum(29));
 
         tx_builder
             .add_output(&TransactionOutput::new(&output_addr, &output_amount))
@@ -1943,6 +2036,343 @@ mod tests {
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
 
         assert!(tx_builder.add_change_if_needed(&change_addr).is_err())
+    }
+
+    fn make_input(input_hash_byte: u8, value: Value) -> TransactionUnspentOutput {
+        TransactionUnspentOutput::new(
+            &TransactionInput::new(&TransactionHash::from([input_hash_byte; 32]), 0),
+            &TransactionOutput::new(&Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(), &value)
+        )
+    }
+
+    #[test]
+    fn tx_builder_cip2_largest_first_increasing_fees() {
+        // we have a = 1 to test increasing fees when more inputs are added
+        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &Coin::zero(),
+            &to_bignum(0),
+            9999,
+            9999,
+            &to_bignum(0),
+        );
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &Value::new(&to_bignum(1000))
+        )).unwrap();
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(200))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(800))));
+        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(400))));
+        available_inputs.add(&make_input(4u8, Value::new(&to_bignum(100))));
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::LargestFirst).unwrap();
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+        let change_added = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert!(change_added);
+        let tx = tx_builder.build().unwrap();
+        // change needed
+        assert_eq!(2, tx.outputs().len());
+        assert_eq!(3, tx.inputs().len());
+        // confirm order of only what is necessary
+        assert_eq!(2u8, tx.inputs().get(0).transaction_id().0[0]);
+        assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
+        assert_eq!(1u8, tx.inputs().get(2).transaction_id().0[0]);
+    }
+
+
+    #[test]
+    fn tx_builder_cip2_largest_first_static_fees() {
+        // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &Coin::zero(),
+            &to_bignum(0),
+            9999,
+            9999,
+            &to_bignum(0),
+        );
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &Value::new(&to_bignum(1200))
+        )).unwrap();
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(200))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(800))));
+        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(400))));
+        available_inputs.add(&make_input(4u8, Value::new(&to_bignum(100))));
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::LargestFirst).unwrap();
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+        let change_added = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert!(!change_added);
+        let tx = tx_builder.build().unwrap();
+        // change not needed - should be exact
+        assert_eq!(1, tx.outputs().len());
+        assert_eq!(2, tx.inputs().len());
+        // confirm order of only what is necessary
+        assert_eq!(2u8, tx.inputs().get(0).transaction_id().0[0]);
+        assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
+    }
+
+
+    #[test]
+    fn tx_builder_cip2_random_improve() {
+        // we have a = 1 to test increasing fees when more inputs are added
+        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &Coin::zero(),
+            &to_bignum(0),
+            9999,
+            9999,
+            &to_bignum(0),
+        );
+        const COST: u64 = 10000;
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &Value::new(&to_bignum(COST))
+        )).unwrap();
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(1500))));
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(2000))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(8000))));
+        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(4000))));
+        available_inputs.add(&make_input(4u8, Value::new(&to_bignum(1000))));
+        available_inputs.add(&make_input(5u8, Value::new(&to_bignum(2000))));
+        available_inputs.add(&make_input(6u8, Value::new(&to_bignum(1500))));
+        let add_inputs_res =
+            tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
+        assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+        let add_change_res = tx_builder.add_change_if_needed(&change_addr);
+        assert!(add_change_res.is_ok(), "{:?}", add_change_res.err());
+        let tx_build_res = tx_builder.build();
+        assert!(tx_build_res.is_ok(), "{:?}", tx_build_res.err());
+        let tx = tx_build_res.unwrap();
+        // we need to look up the values to ensure there's enough
+        let mut input_values = BTreeMap::new();
+        for utxo in available_inputs.0.iter() {
+            input_values.insert(utxo.input.transaction_id(), utxo.output.amount.clone());
+        }
+        let mut encountered = std::collections::HashSet::new();
+        let mut input_total = Value::new(&Coin::zero());
+        for input in tx.inputs.0.iter() {
+            let txid = input.transaction_id();
+            if !encountered.insert(txid.clone()) {
+                panic!("Input {:?} duplicated", txid);
+            }
+            let value = input_values.get(&txid).unwrap();
+            input_total = input_total.checked_add(value).unwrap();
+        }
+        assert!(input_total >= Value::new(&tx_builder.min_fee().unwrap().checked_add(&to_bignum(COST)).unwrap()));
+    }
+
+    fn build_tx_pay_to_multisig() {
+        let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
+        let mut tx_builder =
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE, &to_bignum(1));
+        let spend = root_key_15()
+            .derive(harden(1854))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+
+        tx_builder.add_key_input(
+            &spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_net_0,
+            &Value::new(&to_bignum(999_000 ))
+        )).unwrap();
+        tx_builder.set_ttl(1000);
+        tx_builder.set_fee(&to_bignum(1_000));
+
+        assert_eq!(tx_builder.outputs.len(),1);
+        assert_eq!(
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+        );
+
+
+        let  _final_tx = tx_builder.build().unwrap();
+        let _deser_t = TransactionBody::from_bytes(_final_tx.to_bytes()).unwrap();
+
+        assert_eq!(_deser_t.to_bytes(), _final_tx.to_bytes());
+    }
+
+    fn build_full_tx(body: &TransactionBody,
+        witness_set: &TransactionWitnessSet,
+        auxiliary_data: Option<AuxiliaryData>) -> Transaction {
+            return Transaction::new(
+                body,
+                witness_set,
+                auxiliary_data
+            );
+        }
+
+    #[test]
+    fn build_tx_multisig_spend_1on1_unsigned() {
+        let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
+        let mut tx_builder =
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE, &to_bignum(1));
+
+        let spend = root_key_15()//multisig
+            .derive(harden(1854))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()//multisig
+            .derive(harden(1854))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let addr_multisig = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        let addr_output = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
+
+        tx_builder.add_input(
+            &addr_multisig,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_output,
+            &Value::new(&to_bignum(999_000 ))
+        )).unwrap();
+        tx_builder.set_ttl(1000);
+        tx_builder.set_fee(&to_bignum(1_000));
+
+        let mut auxiliary_data = AuxiliaryData::new();
+        let mut pubkey_native_scripts = NativeScripts::new();
+        let mut oneof_native_scripts = NativeScripts::new();
+
+        let spending_hash = spend.to_raw_key().hash();
+        pubkey_native_scripts.add(&NativeScript::new_script_pubkey(&ScriptPubkey::new(&spending_hash)));
+        oneof_native_scripts.add(&NativeScript::new_script_n_of_k(&ScriptNOfK::new(1, &pubkey_native_scripts)));
+        auxiliary_data.set_native_scripts(&oneof_native_scripts);
+        tx_builder.set_auxiliary_data(&auxiliary_data);
+
+
+        let body = tx_builder.build().unwrap();
+
+        assert_eq!(tx_builder.outputs.len(), 1);
+        assert_eq!(
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+        );
+
+
+        let  _final_tx = tx_builder.build().unwrap();
+        let _deser_t = TransactionBody::from_bytes(_final_tx.to_bytes()).unwrap();
+
+        assert_eq!(_deser_t.to_bytes(), _final_tx.to_bytes());
+        assert_eq!(_deser_t.auxiliary_data_hash.unwrap(), utils::hash_auxiliary_data(&auxiliary_data));
+    }
+
+    #[test]
+    fn build_tx_multisig_1on1_signed() {
+        let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
+        let mut tx_builder =
+            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE, &to_bignum(1));
+        let spend = root_key_15()
+            .derive(harden(1854))//multisig
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1854))//multisig
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
+        tx_builder.add_key_input(
+            &spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        tx_builder.add_output(&TransactionOutput::new(
+            &addr_net_0,
+            &Value::new(&to_bignum(999_000 ))
+        )).unwrap();
+        tx_builder.set_ttl(1000);
+        tx_builder.set_fee(&to_bignum(1_000));
+
+        let mut auxiliary_data = AuxiliaryData::new();
+        let mut pubkey_native_scripts = NativeScripts::new();
+        let mut oneof_native_scripts = NativeScripts::new();
+
+        let spending_hash = spend.to_raw_key().hash();
+        pubkey_native_scripts.add(&NativeScript::new_script_pubkey(&ScriptPubkey::new(&spending_hash)));
+        oneof_native_scripts.add(&NativeScript::new_script_n_of_k(&ScriptNOfK::new(1, &pubkey_native_scripts)));
+        auxiliary_data.set_native_scripts(&oneof_native_scripts);
+        tx_builder.set_auxiliary_data(&auxiliary_data);
+
+
+        let body = tx_builder.build().unwrap();
+
+        assert_eq!(tx_builder.outputs.len(), 1);
+        assert_eq!(
+            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
+            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
+        );
+
+        let mut witness_set = TransactionWitnessSet::new();
+        let mut vkw = Vkeywitnesses::new();
+        vkw.add(&make_vkey_witness(
+            &hash_transaction(&body),
+            &PrivateKey::from_normal_bytes(
+                &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a").unwrap()
+            ).unwrap()
+        ));
+        witness_set.set_vkeys(&vkw);
+
+        let _final_tx = build_full_tx(&body, &witness_set, None);
+        let _deser_t = Transaction::from_bytes(_final_tx.to_bytes()).unwrap();
+        assert_eq!(_deser_t.to_bytes(), _final_tx.to_bytes());
+        assert_eq!(_deser_t.body().auxiliary_data_hash.unwrap(), utils::hash_auxiliary_data(&auxiliary_data));
     }
 
     #[test]
