@@ -98,6 +98,7 @@ type Slot = u32;
 pub struct Transaction {
     body: TransactionBody,
     witness_set: TransactionWitnessSet,
+    is_valid: bool,
     auxiliary_data: Option<AuxiliaryData>,
 }
 
@@ -113,8 +114,16 @@ impl Transaction {
         self.witness_set.clone()
     }
 
+    pub fn is_valid(&self) -> bool {
+        self.is_valid.clone()
+    }
+
     pub fn auxiliary_data(&self) -> Option<AuxiliaryData> {
         self.auxiliary_data.clone()
+    }
+
+    pub fn set_is_valid(&mut self, valid: bool) {
+        self.is_valid = valid
     }
 
     pub fn new(
@@ -125,6 +134,7 @@ impl Transaction {
         Self {
             body: body.clone(),
             witness_set: witness_set.clone(),
+            is_valid: true,
             auxiliary_data: auxiliary_data.clone(),
         }
     }
@@ -383,7 +393,7 @@ impl TransactionInput {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionOutput {
     address: Address,
     pub (crate) amount: Value,
@@ -1616,11 +1626,11 @@ pub enum ScriptHashNamespace {
 
 #[wasm_bindgen]
 impl NativeScript {
-    pub fn hash(&self, namespace: ScriptHashNamespace) -> Ed25519KeyHash {
+    pub fn hash(&self, namespace: ScriptHashNamespace) -> ScriptHash {
         let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
         bytes.extend_from_slice(&vec![namespace as u8]);
         bytes.extend_from_slice(&self.to_bytes());
-        Ed25519KeyHash::from(blake2b224(bytes.as_ref()))
+        ScriptHash::from(blake2b224(bytes.as_ref()))
     }
 
     pub fn new_script_pubkey(script_pubkey: &ScriptPubkey) -> Self {
@@ -2728,14 +2738,12 @@ mod tests {
 
     #[test]
     fn native_script_hash() {
-        let hash = Ed25519KeyHash::from_bytes(vec![143, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244, 98, 246, 13, 33, 212, 128, 168, 136, 40]).unwrap();
-        assert_eq!(hex::encode(&hash.to_bytes()), "8fb4ba5ddf2af3075162567d61456e3482f3f462f60d21d480a88828");
+        let keyhash = Ed25519KeyHash::from_bytes(vec![143, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244, 98, 246, 13, 33, 212, 128, 168, 136, 40]).unwrap();
+        assert_eq!(hex::encode(&keyhash.to_bytes()), "8fb4ba5ddf2af3075162567d61456e3482f3f462f60d21d480a88828");
 
-        let script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&hash));
+        let script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&keyhash));
 
-        let script_hash = ScriptHash::from_bytes(
-            script.hash(ScriptHashNamespace::NativeScript).to_bytes()
-        ).unwrap();
+        let script_hash = script.hash(ScriptHashNamespace::NativeScript);
 
         assert_eq!(hex::encode(&script_hash.to_bytes()), "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f");
     }

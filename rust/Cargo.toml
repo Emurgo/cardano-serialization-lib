@@ -1,6 +1,6 @@
 [package]
 name = "cardano-serialization-lib"
-version = "9.1.1"
+version = "9.1.2"
 edition = "2018"
 authors = ["EMURGO"]
 license = "MIT"
@@ -30,6 +30,7 @@ num-bigint = "0.4.0"
 # feature or this one
 clear_on_drop = { version = "0.2", features = ["no_cc"] }
 itertools = "0.10.1"
+rand = "0.8.4"
 
 # non-wasm
 [target.'cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))'.dependencies]

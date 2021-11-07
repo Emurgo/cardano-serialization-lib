@@ -2636,7 +2636,7 @@ declare export class NativeScript {
    * @param {number} namespace
    * @returns {Ed25519KeyHash}
    */
-  hash(namespace: number): Ed25519KeyHash;
+  hash(namespace: number): ScriptHash;
 
   /**
    * @param {ScriptPubkey} script_pubkey
@@ -4705,9 +4705,19 @@ declare export class Transaction {
   witness_set(): TransactionWitnessSet;
 
   /**
+   * @returns {boolean}
+   */
+  is_valid(): boolean;
+
+  /**
    * @returns {AuxiliaryData | void}
    */
   auxiliary_data(): AuxiliaryData | void;
+
+  /**
+   * @param {boolean} valid
+   */
+  set_is_valid(valid: boolean): void;
 
   /**
    * @param {TransactionBody} body
