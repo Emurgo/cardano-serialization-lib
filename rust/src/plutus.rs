@@ -52,7 +52,7 @@ impl PlutusScripts {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ConstrPlutusData {
-    tag: Int,
+    alternative: BigNum,
     data: PlutusList,
 }
 
@@ -60,28 +60,52 @@ to_from_bytes!(ConstrPlutusData);
 
 #[wasm_bindgen]
 impl ConstrPlutusData {
-    pub fn tag(&self) -> Int {
-        self.tag.clone()
+    pub fn alternative(&self) -> BigNum {
+        self.alternative.clone()
     }
 
     pub fn data(&self) -> PlutusList {
         self.data.clone()
     }
 
-    pub fn new(tag: Int, data: &PlutusList) -> Self {
+    pub fn new(alternative: &BigNum, data: &PlutusList) -> Self {
         Self {
-            tag,
+            alternative: alternative.clone(),
             data: data.clone(),
         }
     }
 }
 
 impl ConstrPlutusData {
-    fn is_tag_compact(tag: i128) -> bool {
-        (tag >= 121 && tag <= 127) || (tag >= 1280 && tag <= 1400)
+    // see: https://github.com/input-output-hk/plutus/blob/1f31e640e8a258185db01fa899da63f9018c0e85/plutus-core/plutus-core/src/PlutusCore/Data.hs#L61
+    // We don't directly serialize the alternative in the tag, instead the scheme is:
+    // - Alternatives 0-6 -> tags 121-127, followed by the arguments in a list
+    // - Alternatives 7-127 -> tags 1280-1400, followed by the arguments in a list
+    // - Any alternatives, including those that don't fit in the above -> tag 102 followed by a list containing
+    //   an unsigned integer for the actual alternative, and then the arguments in a (nested!) list.
+    const GENERAL_FORM_TAG: u64 = 102;
+
+    // None -> needs general tag serialization, not compact
+    fn alternative_to_compact_cbor_tag(alt: u64) -> Option<u64> {
+        if alt <= 6 {
+            Some(121 + alt)
+        } else if alt >= 7 && alt <= 127 {
+            Some(1280 - 7 + alt)
+        } else {
+            None
+        }
     }
 
-    const GENERAL_FORM_TAG: u64 = 102;
+    // None -> General tag(=102) OR Invalid CBOR tag for this scheme
+    fn compact_cbor_tag_to_alternative(cbor_tag: u64) -> Option<u64> {
+        if cbor_tag >= 121 && cbor_tag <= 127 {
+            Some(cbor_tag - 121)
+        } else if cbor_tag >= 1280 && cbor_tag <= 1400 {
+            Some(cbor_tag - 1280 + 7)
+        } else {
+            None
+        }
+    }
 }
 
 const COST_MODEL_OP_COUNT: usize = 166;
@@ -606,15 +630,15 @@ impl Deserialize for PlutusScripts {
 // TODO: write tests for this hand-coded implementation?
 impl cbor_event::se::Serialize for ConstrPlutusData {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        if Self::is_tag_compact(self.tag.0) {
+        if let Some(compact_tag) = Self::alternative_to_compact_cbor_tag(from_bignum(&self.alternative)) {
             // compact form
-            serializer.write_tag(self.tag.0 as u64)?;
+            serializer.write_tag(compact_tag as u64)?;
             self.data.serialize(serializer)
         } else {
             // general form
             serializer.write_tag(Self::GENERAL_FORM_TAG)?;
             serializer.write_array(cbor_event::Len::Len(2))?;
-            self.tag.serialize(serializer)?;
+            self.alternative.serialize(serializer)?;
             self.data.serialize(serializer)
         }
     }
@@ -623,13 +647,13 @@ impl cbor_event::se::Serialize for ConstrPlutusData {
 impl Deserialize for ConstrPlutusData {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let (tag, data) = match raw.tag()? {
+            let (alternative, data) = match raw.tag()? {
                 // general form
                 Self::GENERAL_FORM_TAG => {
                     let len = raw.array()?;
                     let mut read_len = CBORReadLen::new(len);
                     read_len.read_elems(2)?;
-                    let tag = Int::deserialize(raw)?;
+                    let alternative = BigNum::deserialize(raw)?;
                     let data = (|| -> Result<_, DeserializeError> {
                         Ok(PlutusList::deserialize(raw)?)
                     })().map_err(|e| e.annotate("datas"))?;
@@ -640,17 +664,22 @@ impl Deserialize for ConstrPlutusData {
                             _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                         },
                     }
-                    (tag, data)
+                    (alternative, data)
                 },
                 // concise form
-                tag if Self::is_tag_compact(tag.into()) => (Int::new(&to_bignum(tag)), PlutusList::deserialize(raw)?),
-                invalid_tag => return Err(DeserializeFailure::TagMismatch{
-                    found: invalid_tag,
-                    expected: Self::GENERAL_FORM_TAG,
-                }.into()),
+                tag => {
+                    if let Some(alternative) = Self::compact_cbor_tag_to_alternative(tag) {
+                        (to_bignum(alternative), PlutusList::deserialize(raw)?)
+                    } else {
+                        return Err(DeserializeFailure::TagMismatch{
+                            found: tag,
+                            expected: Self::GENERAL_FORM_TAG,
+                        }.into());
+                    }
+                },
             };
             Ok(ConstrPlutusData{
-                tag,
+                alternative,
                 data,
             })
         })().map_err(|e| e.annotate("ConstrPlutusData"))
@@ -1129,5 +1158,26 @@ impl Deserialize for Strings {
             Ok(())
         })().map_err(|e| e.annotate("Strings"))?;
         Ok(Self(arr))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn plutus_constr_data() {
+        let constr_0 = PlutusData::new_constr_plutus_data(
+            &ConstrPlutusData::new(&to_bignum(0), &PlutusList::new())
+        );
+        let constr_0_hash = hex::encode(hash_plutus_data(&constr_0).to_bytes());
+        assert_eq!(constr_0_hash, "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec");
+        let constr_0_roundtrip = PlutusData::from_bytes(constr_0.to_bytes()).unwrap();
+        assert_eq!(constr_0, constr_0_roundtrip);
+        let constr_1854 = PlutusData::new_constr_plutus_data(
+            &ConstrPlutusData::new(&to_bignum(1854), &PlutusList::new())
+        );
+        let constr_1854_roundtrip = PlutusData::from_bytes(constr_1854.to_bytes()).unwrap();
+        assert_eq!(constr_1854, constr_1854_roundtrip);
     }
 }
