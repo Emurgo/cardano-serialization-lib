@@ -799,7 +799,7 @@ mod tests {
             tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
             tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
         );
-        assert_eq!(tx_builder.full_size().unwrap(), 284);
+        assert_eq!(tx_builder.full_size().unwrap(), 285);
         assert_eq!(tx_builder.output_sizes(), vec![62, 65]);
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
@@ -1581,7 +1581,7 @@ mod tests {
         // But not enough to cover the additional fee for a separate output
         assert_eq!(
             final_tx.outputs().get(1).amount().coin(),
-            to_bignum(102)
+            to_bignum(101)
         );
     }
 
@@ -2000,9 +2000,9 @@ mod tests {
             &linear_fee,
             &Coin::zero(),
             &to_bignum(0),
-            &to_bignum(0),
             9999,
-            9999
+            9999,
+            &to_bignum(0),
         );
         tx_builder.add_output(&TransactionOutput::new(
             &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
@@ -2037,9 +2037,9 @@ mod tests {
             &linear_fee,
             &Coin::zero(),
             &to_bignum(0),
-            &to_bignum(0),
             9999,
-            9999
+            9999,
+            &to_bignum(0),
         );
         tx_builder.add_output(&TransactionOutput::new(
             &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
@@ -2073,27 +2073,32 @@ mod tests {
             &linear_fee,
             &Coin::zero(),
             &to_bignum(0),
-            &to_bignum(0),
             9999,
-            9999
+            9999,
+            &to_bignum(0),
         );
-        const COST: u64 = 1000;
+        const COST: u64 = 10000;
         tx_builder.add_output(&TransactionOutput::new(
             &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
             &Value::new(&to_bignum(COST))
         )).unwrap();
         let mut available_inputs = TransactionUnspentOutputs::new();
-        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
-        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(200))));
-        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(800))));
-        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(400))));
-        available_inputs.add(&make_input(4u8, Value::new(&to_bignum(100))));
-        available_inputs.add(&make_input(5u8, Value::new(&to_bignum(200))));
-        available_inputs.add(&make_input(6u8, Value::new(&to_bignum(150))));
-        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove).unwrap();
+        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(1500))));
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(2000))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(8000))));
+        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(4000))));
+        available_inputs.add(&make_input(4u8, Value::new(&to_bignum(1000))));
+        available_inputs.add(&make_input(5u8, Value::new(&to_bignum(2000))));
+        available_inputs.add(&make_input(6u8, Value::new(&to_bignum(1500))));
+        let add_inputs_res =
+            tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
+        assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
-        let _change_added = tx_builder.add_change_if_needed(&change_addr).unwrap();
-        let tx = tx_builder.build().unwrap();
+        let add_change_res = tx_builder.add_change_if_needed(&change_addr);
+        assert!(add_change_res.is_ok(), "{:?}", add_change_res.err());
+        let tx_build_res = tx_builder.build();
+        assert!(tx_build_res.is_ok(), "{:?}", tx_build_res.err());
+        let tx = tx_build_res.unwrap();
         // we need to look up the values to ensure there's enough
         let mut input_values = BTreeMap::new();
         for utxo in available_inputs.0.iter() {
