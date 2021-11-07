@@ -167,7 +167,7 @@ impl Deserialize for StakeCredential {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 enum AddrType {
     Base(BaseAddress),
     Ptr(PointerAddress),
@@ -177,7 +177,7 @@ enum AddrType {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ByronAddress(pub (crate) ExtendedAddr);
 #[wasm_bindgen]
 impl ByronAddress {
@@ -264,7 +264,7 @@ impl ByronAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Address(AddrType);
 
 from_bytes!(Address, data, {

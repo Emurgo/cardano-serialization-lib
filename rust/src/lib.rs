@@ -383,7 +383,7 @@ impl TransactionInput {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionOutput {
     address: Address,
     pub (crate) amount: Value,

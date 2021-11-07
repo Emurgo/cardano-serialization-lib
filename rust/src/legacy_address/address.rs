@@ -76,7 +76,7 @@ impl cbor_event::de::Deserialize for AddrType {
 
 type HDAddressPayload = Vec<u8>;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Attributes {
     pub derivation_path: Option<HDAddressPayload>,
     pub protocol_magic: Option<u32>,
@@ -182,10 +182,10 @@ fn hash_spending_data(addr_type: AddrType, xpub: &XPub, attrs: &Attributes) -> [
 }
 
 /// A valid cardano Address that is displayed in base58
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Addr(Vec<u8>);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum AddressMatchXPub {
     Yes,
     No,
@@ -277,7 +277,7 @@ impl cbor_event::de::Deserialize for Addr {
 const EXTENDED_ADDR_LEN: usize = 28;
 
 /// A valid cardano address deconstructed
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ExtendedAddr {
     pub addr: [u8; EXTENDED_ADDR_LEN],
     pub attributes: Attributes,
