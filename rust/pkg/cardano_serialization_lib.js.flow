@@ -4683,9 +4683,19 @@ declare export class Transaction {
   witness_set(): TransactionWitnessSet;
 
   /**
+   * @returns {boolean}
+   */
+  is_valid(): boolean;
+
+  /**
    * @returns {AuxiliaryData | void}
    */
   auxiliary_data(): AuxiliaryData | void;
+
+  /**
+   * @param {boolean} valid
+   */
+  set_is_valid(valid: boolean): void;
 
   /**
    * @param {TransactionBody} body
