@@ -166,9 +166,7 @@ impl TransactionBuilder {
     /// inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
     pub fn add_inputs_from(&mut self, inputs: &TransactionUnspentOutputs, strategy: CoinSelectionStrategyCIP2) -> Result<(), JsError> {
         let mut available_inputs = inputs.0.clone();
-        let mut input_total = self
-            .get_explicit_input()?
-            .checked_add(&self.get_implicit_input()?)?;
+        let mut input_total = self.get_total_input()?;
         let mut output_total = self
             .get_explicit_output()?
             .checked_add(&Value::new(&self.get_deposit()?))?
@@ -609,6 +607,12 @@ impl TransactionBuilder {
         self.mint.as_ref().map(|m| { m.to_value() }).unwrap_or(Ok(Value::zero()))
     }
 
+    fn get_total_input(&self) -> Result<Value, JsError> {
+        self.get_explicit_input()?
+            .checked_add(&self.get_implicit_input()?)?
+            .checked_add(&self.get_mint_value()?)
+    }
+
     /// does not include fee
     pub fn get_explicit_output(&self) -> Result<Value, JsError> {
         self.outputs
@@ -646,10 +650,7 @@ impl TransactionBuilder {
             }
         }?;
 
-        let input_total = self
-            .get_explicit_input()?
-            .checked_add(&self.get_implicit_input()?)?
-            .checked_add(&self.get_mint_value()?)?;
+        let input_total = self.get_total_input()?;
 
         let output_total = self
             .get_explicit_output()?
