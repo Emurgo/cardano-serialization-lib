@@ -2266,15 +2266,7 @@ mod tests {
     #[test]
     fn tx_builder_cip2_largest_first_increasing_fees() {
         // we have a = 1 to test increasing fees when more inputs are added
-        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &Coin::zero(),
-            &to_bignum(0),
-            9999,
-            9999,
-            &to_bignum(0),
-        );
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 0));
         tx_builder.add_output(&TransactionOutput::new(
             &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
             &Value::new(&to_bignum(1000))
@@ -2303,15 +2295,7 @@ mod tests {
     #[test]
     fn tx_builder_cip2_largest_first_static_fees() {
         // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &Coin::zero(),
-            &to_bignum(0),
-            9999,
-            9999,
-            &to_bignum(0),
-        );
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
         tx_builder.add_output(&TransactionOutput::new(
             &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
             &Value::new(&to_bignum(1200))
@@ -2339,15 +2323,7 @@ mod tests {
     #[test]
     fn tx_builder_cip2_random_improve() {
         // we have a = 1 to test increasing fees when more inputs are added
-        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &Coin::zero(),
-            &to_bignum(0),
-            9999,
-            9999,
-            &to_bignum(0),
-        );
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 0));
         const COST: u64 = 10000;
         tx_builder.add_output(&TransactionOutput::new(
             &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
@@ -2389,9 +2365,7 @@ mod tests {
     }
 
     fn build_tx_pay_to_multisig() {
-        let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
-        let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE, &to_bignum(1));
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
         let spend = root_key_15()
             .derive(harden(1854))
             .derive(harden(1815))
@@ -2450,9 +2424,7 @@ mod tests {
 
     #[test]
     fn build_tx_multisig_spend_1on1_unsigned() {
-        let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
-        let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE, &to_bignum(1));
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
 
         let spend = root_key_15()//multisig
             .derive(harden(1854))
@@ -2525,9 +2497,7 @@ mod tests {
 
     #[test]
     fn build_tx_multisig_1on1_signed() {
-        let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
-        let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE, &to_bignum(1));
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
         let spend = root_key_15()
             .derive(harden(1854))//multisig
             .derive(harden(1815))
