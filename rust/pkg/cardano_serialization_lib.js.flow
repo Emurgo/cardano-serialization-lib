@@ -42,6 +42,30 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -166,30 +190,6 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
- */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
-
-/**
  * @param {Transaction} tx
  * @param {LinearFee} linear_fee
  * @returns {BigNum}
@@ -268,6 +268,42 @@ declare export var NetworkIdKind: {|
 /**
  */
 
+declare export var LanguageKind: {|
+  +PlutusV1: 0, // 0
+|};
+
+/**
+ */
+
+declare export var PlutusDataKind: {|
+  +ConstrPlutusData: 0, // 0
+  +Map: 1, // 1
+  +List: 2, // 2
+  +Integer: 3, // 3
+  +Bytes: 4, // 4
+|};
+
+/**
+ */
+
+declare export var RedeemerTagKind: {|
+  +Spend: 0, // 0
+  +Mint: 1, // 1
+  +Cert: 2, // 2
+  +Reward: 3, // 3
+|};
+
+/**
+ */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+|};
+
+/**
+ */
+
 declare export var TransactionMetadatumKind: {|
   +MetadataMap: 0, // 0
   +MetadataList: 1, // 1
@@ -300,34 +336,6 @@ declare export var ScriptSchema: {|
 declare export var StakeCredKind: {|
   +Key: 0, // 0
   +Script: 1, // 1
-|};
-
-/**
- */
-
-declare export var LanguageKind: {|
-  +PlutusV1: 0, // 0
-|};
-
-/**
- */
-
-declare export var PlutusDataKind: {|
-  +ConstrPlutusData: 0, // 0
-  +Map: 1, // 1
-  +List: 2, // 2
-  +Integer: 3, // 3
-  +Bytes: 4, // 4
-|};
-
-/**
- */
-
-declare export var RedeemerTagKind: {|
-  +Spend: 0, // 0
-  +Mint: 1, // 1
-  +Cert: 2, // 2
-  +Reward: 3, // 3
 |};
 
 /**
@@ -1282,9 +1290,9 @@ declare export class ConstrPlutusData {
   static from_bytes(bytes: Uint8Array): ConstrPlutusData;
 
   /**
-   * @returns {Int}
+   * @returns {BigNum}
    */
-  tag(): Int;
+  alternative(): BigNum;
 
   /**
    * @returns {PlutusList}
@@ -1292,11 +1300,11 @@ declare export class ConstrPlutusData {
   data(): PlutusList;
 
   /**
-   * @param {Int} tag
+   * @param {BigNum} alternative
    * @param {PlutusList} data
    * @returns {ConstrPlutusData}
    */
-  static new(tag: Int, data: PlutusList): ConstrPlutusData;
+  static new(alternative: BigNum, data: PlutusList): ConstrPlutusData;
 }
 /**
  */
@@ -2391,6 +2399,13 @@ declare export class Mint {
   static new(): Mint;
 
   /**
+   * @param {ScriptHash} key
+   * @param {MintAssets} value
+   * @returns {Mint}
+   */
+  static new_from_entry(key: ScriptHash, value: MintAssets): Mint;
+
+  /**
    * @returns {number}
    */
   len(): number;
@@ -2432,6 +2447,13 @@ declare export class MintAssets {
    * @returns {MintAssets}
    */
   static new(): MintAssets;
+
+  /**
+   * @param {AssetName} key
+   * @param {Int} value
+   * @returns {MintAssets}
+   */
+  static new_from_entry(key: AssetName, value: Int): MintAssets;
 
   /**
    * @returns {number}
@@ -2634,7 +2656,7 @@ declare export class NativeScript {
 
   /**
    * @param {number} namespace
-   * @returns {Ed25519KeyHash}
+   * @returns {ScriptHash}
    */
   hash(namespace: number): ScriptHash;
 
@@ -4924,6 +4946,22 @@ declare export class TransactionBuilder {
   free(): void;
 
   /**
+   * This automatically selects and adds inputs from {inputs} consisting of just enough to cover
+   * the outputs that have already been added.
+   * This should be called after adding all certs/outputs/etc and will be an error otherwise.
+   * Uses CIP2: https://github.com/cardano-foundation/CIPs/blob/master/CIP-0002/CIP-0002.md
+   * Adding a change output must be called after via TransactionBuilder::add_change_if_needed()
+   * This function, diverging from CIP2, takes into account fees and will attempt to add additional
+   * inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
+   * @param {TransactionUnspentOutputs} inputs
+   * @param {number} strategy
+   */
+  add_inputs_from(inputs: TransactionUnspentOutputs, strategy: number): void;
+
+  /**
+   * We have to know what kind of inputs these are to know what kind of mock witnesses to create since
+   * 1) mock witnesses have different lengths depending on the type which changes the expecting fee
+   * 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
    * @param {Ed25519KeyHash} hash
    * @param {TransactionInput} input
    * @param {Value} amount
@@ -5580,6 +5618,32 @@ declare export class TransactionUnspentOutput {
    * @returns {TransactionOutput}
    */
   output(): TransactionOutput;
+}
+/**
+ */
+declare export class TransactionUnspentOutputs {
+  free(): void;
+
+  /**
+   * @returns {TransactionUnspentOutputs}
+   */
+  static new(): TransactionUnspentOutputs;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {TransactionUnspentOutput}
+   */
+  get(index: number): TransactionUnspentOutput;
+
+  /**
+   * @param {TransactionUnspentOutput} elem
+   */
+  add(elem: TransactionUnspentOutput): void;
 }
 /**
  */
