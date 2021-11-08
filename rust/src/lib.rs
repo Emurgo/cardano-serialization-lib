@@ -2634,6 +2634,12 @@ impl MintAssets {
         Self(std::collections::BTreeMap::new())
     }
 
+    pub fn new_from_entry(key: &AssetName, value: Int) -> Self {
+        let mut ma = MintAssets::new();
+        ma.insert(key, value);
+        ma
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -2661,6 +2667,12 @@ to_from_bytes!(Mint);
 impl Mint {
     pub fn new() -> Self {
         Self(std::collections::BTreeMap::new())
+    }
+
+    pub fn new_from_entry(key: &PolicyID, value: &MintAssets) -> Self {
+        let mut m = Mint::new();
+        m.insert(key, value);
+        m
     }
 
     pub fn len(&self) -> usize {

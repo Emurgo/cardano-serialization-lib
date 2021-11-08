@@ -46,11 +46,18 @@ fn fake_private_key() -> Bip32PrivateKey {
     ).unwrap()
 }
 
+fn fake_key_hash() -> Ed25519KeyHash {
+    Ed25519KeyHash::from_bytes(
+        vec![142, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
+    ).unwrap()
+}
+
 // tx_body must be the result of building from tx_builder
 // constructs the rest of the Transaction using fake witness data of the correct length
 // for use in calculating the size of the final Transaction
 fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Result<Transaction, JsError> {
     let fake_key_root = fake_private_key();
+    let fake_key_hash = fake_key_hash();
 
     // recall: this includes keys for input, certs and withdrawals
     let vkeys = match tx_builder.input_types.vkeys.len() {
@@ -67,7 +74,7 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
-    let script_keys = match tx_builder.input_types.scripts.len() {
+    let script_keys: Option<NativeScripts> = match tx_builder.input_types.scripts.len() {
         0 => None,
         _x => {
             // TODO: figure out how to populate fake witnesses for these
@@ -89,9 +96,22 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
+    let full_script_keys = match &tx_builder.mint {
+        None => script_keys,
+        Some(mint) => {
+            let mut ns = script_keys
+                .map(|sk| { sk.clone() })
+                .unwrap_or(NativeScripts::new());
+            let spk = ScriptPubkey::new(&fake_key_hash);
+            mint.keys().0.iter().for_each(|_p| {
+                ns.add(&NativeScript::new_script_pubkey(&spk));
+            });
+            Some(ns)
+        }
+    };
     let witness_set = TransactionWitnessSet {
         vkeys: vkeys,
-        native_scripts: script_keys,
+        native_scripts: full_script_keys,
         bootstraps: bootstrap_keys,
         // TODO: plutus support?
         plutus_scripts: None,
@@ -2728,9 +2748,7 @@ mod tests {
     }
 
     fn create_mint_asset() -> MintAssets {
-        let mut assets = MintAssets::new();
-        assets.insert(&create_asset_name(), Int::new_i32(1234));
-        return assets;
+        MintAssets::new_from_entry(&create_asset_name(), Int::new_i32(1234))
     }
 
     fn create_assets() -> Assets {
@@ -2740,9 +2758,7 @@ mod tests {
     }
 
     fn create_mint_with_one_asset(policy_id: &PolicyID) -> Mint {
-        let mut mint = Mint::new();
-        mint.insert(policy_id, &create_mint_asset());
-        return mint;
+        Mint::new_from_entry(policy_id, &create_mint_asset())
     }
 
     fn create_multiasset_one_asset(policy_id: &PolicyID) -> MultiAsset {
@@ -2979,5 +2995,67 @@ mod tests {
         let asset = multiasset.get(&policy_id1).unwrap();
         assert_eq!(asset.len(), 1);
         assert_eq!(asset.get(&name).unwrap(), to_bignum(1234));
+    }
+
+
+    #[test]
+    fn add_mint_includes_witnesses_into_fee_estimation() {
+        let mut tx_builder = create_reallistic_tx_builder();
+
+        let original_tx_fee = tx_builder.min_fee().unwrap();
+        assert_eq!(original_tx_fee, to_bignum(156217));
+
+        let policy_id1 = PolicyID::from([0u8; 28]);
+        let policy_id2 = PolicyID::from([1u8; 28]);
+        let policy_id3 = PolicyID::from([2u8; 28]);
+        let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+        let name2 = AssetName::new(vec![1u8, 1, 2, 3]).unwrap();
+        let name3 = AssetName::new(vec![2u8, 1, 2, 3]).unwrap();
+        let name4 = AssetName::new(vec![3u8, 1, 2, 3]).unwrap();
+        let amount = Int::new_i32(1234);
+
+        let mut mint = Mint::new();
+        mint.insert(
+            &policy_id1,
+            &MintAssets::new_from_entry(&name1, amount.clone()),
+        );
+        mint.insert(
+            &policy_id2,
+            &MintAssets::new_from_entry(&name2, amount.clone()),
+        );
+        // Third policy with two asset names
+        let mut mass = MintAssets::new_from_entry(&name3, amount.clone());
+        mass.insert(&name4, amount.clone());
+        mint.insert(&policy_id3, &mass);
+
+        let mint_len = mint.to_bytes().len();
+        let fee_coefficient = tx_builder.fee_algo.coefficient();
+
+        let raw_mint_fee = fee_coefficient
+            .checked_mul(&to_bignum(mint_len as u64))
+            .unwrap();
+
+        assert_eq!(raw_mint_fee, to_bignum(5544));
+
+        tx_builder.set_mint(&mint);
+
+        let new_tx_fee = tx_builder.min_fee().unwrap();
+
+        let fee_diff_from_adding_mint =
+            new_tx_fee.checked_sub(&original_tx_fee)
+            .unwrap();
+
+        let witness_fee_increase =
+            fee_diff_from_adding_mint.checked_sub(&raw_mint_fee)
+            .unwrap();
+
+        assert_eq!(witness_fee_increase, to_bignum(4356));
+
+        let fee_increase_bytes = witness_fee_increase.0
+            .checked_div(fee_coefficient.0)
+            .unwrap();
+
+        // Three policy IDs of 32 bytes each + 3 byte overhead
+        assert_eq!(fee_increase_bytes, 99);
     }
 }
