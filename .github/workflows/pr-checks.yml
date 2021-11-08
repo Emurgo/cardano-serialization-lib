@@ -5,7 +5,7 @@ on:
     types: [submitted]
 
 jobs:
-  test:
+  test-and-build:
     if: github.event.review && (github.event.review.state == 'approved' || contains(github.event.review.body, '/check'))
     runs-on: ubuntu-latest
     steps:
@@ -24,32 +24,7 @@ jobs:
             ${{ runner.os }}-build-${{ env.cache-name }}-
             ${{ runner.os }}-build-
             ${{ runner.os }}-
-      - name: install
-        run: |
-          npm install
-      - name: rust:test
-        run: |
-          npm run rust:test
-  build:
-    if: github.event.review && (github.event.review.state == 'approved' || contains(github.event.review.body, '/check'))
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: 'recursive'
-      - uses: actions/setup-node@v1
-        with:
-          node-version: '12.18.1'
-      - name: Cache node modules
-        uses: actions/cache@v1
-        with:
-          path: ~/.npm # npm cache files are stored in `~/.npm` on Linux/macOS
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-      - name: prepare
+      - name: prepare-rust
         run: |
           rustup install stable
           rustup target add wasm32-unknown-unknown --toolchain stable
@@ -57,6 +32,9 @@ jobs:
       - name: install
         run: |
           npm install
+      - name: rust:test
+        run: |
+          npm run rust:test
       - name: rust:build-nodejs
         run: |
           npm run rust:build-nodejs
