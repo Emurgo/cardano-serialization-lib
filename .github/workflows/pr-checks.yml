@@ -49,6 +49,11 @@ jobs:
             ${{ runner.os }}-build-${{ env.cache-name }}-
             ${{ runner.os }}-build-
             ${{ runner.os }}-
+      - name: prepare
+        run: |
+          rustup install stable
+          rustup target add wasm32-unknown-unknown --toolchain stable
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: install
         run: |
           npm install
