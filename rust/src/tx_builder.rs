@@ -593,7 +593,10 @@ impl TransactionBuilder {
                         if potential_pure_above_minimum {
                             new_fee = new_fee.checked_add(&additional_fee)?;
                             change_left = Value::zero();
-                            self.add_output(&TransactionOutput::new(address, &potential_pure_value));
+                            match self.add_output(&TransactionOutput::new(address, &potential_pure_value)) {
+                              Err(e) => panic!(e),
+                              Ok(_) => {}
+                            };
                         }
                     }
                     self.set_fee(&new_fee);
@@ -1327,7 +1330,6 @@ mod tests {
     #[test]
     fn build_tx_with_native_assets_change_and_purification() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
         let coin_per_utxo_word = to_bignum(1);
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
@@ -1464,7 +1466,6 @@ mod tests {
     #[test]
     fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
         let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(10);
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
             &to_bignum(0),
@@ -2117,56 +2118,6 @@ mod tests {
         assert!(input_total >= Value::new(&tx_builder.min_fee().unwrap().checked_add(&to_bignum(COST)).unwrap()));
     }
 
-    fn build_tx_pay_to_multisig() {
-        let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
-        let mut tx_builder =
-            TransactionBuilder::new(&linear_fee, &to_bignum(1), &to_bignum(1), MAX_VALUE_SIZE, MAX_TX_SIZE, &to_bignum(1));
-        let spend = root_key_15()
-            .derive(harden(1854))
-            .derive(harden(1815))
-            .derive(harden(0))
-            .derive(0)
-            .derive(0)
-            .to_public();
-
-        let stake = root_key_15()
-            .derive(harden(1852))
-            .derive(harden(1815))
-            .derive(harden(0))
-            .derive(2)
-            .derive(0)
-            .to_public();
-
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-
-        let addr_net_0 = BaseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &stake_cred).to_address();
-
-        tx_builder.add_key_input(
-            &spend.to_raw_key().hash(),
-            &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(1_000_000))
-        );
-        tx_builder.add_output(&TransactionOutput::new(
-            &addr_net_0,
-            &Value::new(&to_bignum(999_000 ))
-        )).unwrap();
-        tx_builder.set_ttl(1000);
-        tx_builder.set_fee(&to_bignum(1_000));
-
-        assert_eq!(tx_builder.outputs.len(),1);
-        assert_eq!(
-            tx_builder.get_explicit_input().unwrap().checked_add(&tx_builder.get_implicit_input().unwrap()).unwrap(),
-            tx_builder.get_explicit_output().unwrap().checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap())).unwrap()
-        );
-
-
-        let  _final_tx = tx_builder.build().unwrap();
-        let _deser_t = TransactionBody::from_bytes(_final_tx.to_bytes()).unwrap();
-
-        assert_eq!(_deser_t.to_bytes(), _final_tx.to_bytes());
-    }
-
     fn build_full_tx(body: &TransactionBody,
         witness_set: &TransactionWitnessSet,
         auxiliary_data: Option<AuxiliaryData>) -> Transaction {
@@ -2235,8 +2186,6 @@ mod tests {
         auxiliary_data.set_native_scripts(&oneof_native_scripts);
         tx_builder.set_auxiliary_data(&auxiliary_data);
 
-
-        let body = tx_builder.build().unwrap();
 
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(

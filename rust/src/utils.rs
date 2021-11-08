@@ -3,7 +3,6 @@ use hex::FromHex;
 use serde_json;
 use std::{collections::HashMap, io::{BufRead, Seek, Write}};
 use itertools::Itertools;
-use std::cmp;
 use std::ops::{Rem, Div, Sub};
 
 use super::*;
@@ -346,7 +345,7 @@ impl Value {
         let coin = self.coin.checked_sub(&rhs_value.coin)?;
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                match (lhs_ma.sub(rhs_ma).len()) {
+                match lhs_ma.sub(rhs_ma).len() {
                     0 => None,
                     _ => Some(lhs_ma.sub(rhs_ma))
                 }
@@ -363,7 +362,7 @@ impl Value {
         let coin = self.coin.clamped_sub(&rhs_value.coin);
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                match (lhs_ma.sub(rhs_ma).len()) {
+                match lhs_ma.sub(rhs_ma).len() {
                     0 => None,
                     _ => Some(lhs_ma.sub(rhs_ma))
                 }
@@ -1229,8 +1228,6 @@ fn encode_template_to_native_script(
 
 #[cfg(test)]
 mod tests {
-    use hex::FromHex;
-
     use super::*;
 
     // this is what is used in mainnet
