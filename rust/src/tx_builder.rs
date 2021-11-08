@@ -2143,6 +2143,37 @@ mod tests {
         assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
     }
 
+    #[test]
+    fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
+        // we have a = 1 to test increasing fees when more inputs are added
+        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &Coin::zero(),
+            &to_bignum(0),
+            9999,
+            9999,
+            &to_bignum(0),
+        );
+        const COST: u64 = 100;
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &Value::new(&to_bignum(COST))
+        )).unwrap();
+        assert_eq!(tx_builder.min_fee().unwrap(), to_bignum(53));
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(150))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(150))));
+        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(150))));
+        let add_inputs_res =
+            tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
+        assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
+        assert_eq!(tx_builder.min_fee().unwrap(), to_bignum(228));
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+        let add_change_res = tx_builder.add_change_if_needed(&change_addr);
+        assert!(add_change_res.is_ok(), "{:?}", add_change_res.err());
+    }
+
     fn build_tx_pay_to_multisig() {
         let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
         let mut tx_builder =
