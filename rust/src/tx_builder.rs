@@ -259,7 +259,7 @@ impl TransactionBuilder {
                 // Phase 3: add extra inputs needed for fees
                 // We do this at the end because this new inputs won't be associated with
                 // a specific output, so the improvement algorithm we do above does not apply here.
-                if input_total.partial_cmp(&output_total).unwrap().eq(&Ordering::Less) {
+                if input_total < output_total {
                     let mut added = Value::new(&Coin::zero());
                     let mut remaining_amount = output_total.checked_sub(&input_total)?;
                     while added < remaining_amount {
