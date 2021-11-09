@@ -192,6 +192,26 @@ impl TransactionBuilder {
                 }
             },
             CoinSelectionStrategyCIP2::RandomImprove => {
+                fn add_random_input(
+                    s: &mut TransactionBuilder,
+                    rng: &mut rand::rngs::ThreadRng,
+                    available_inputs: &mut Vec<TransactionUnspentOutput>,
+                    input_total: &Value,
+                    output_total: &Value,
+                    added: &Value,
+                    needed: &Value
+                ) -> Result<(Value, Value, Value, Value, TransactionUnspentOutput), JsError> {
+                    let random_index = rng.gen_range(0..available_inputs.len());
+                    let input = available_inputs.swap_remove(random_index);
+                    // differing from CIP2, we include the needed fees in the targets instead of just output values
+                    let input_fee = s.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+                    s.add_input(&input.output.address, &input.input, &input.output.amount);
+                    let new_input_total = input_total.checked_add(&input.output.amount)?;
+                    let new_output_total = output_total.checked_add(&Value::new(&input_fee))?;
+                    let new_needed = needed.checked_add(&Value::new(&input_fee))?;
+                    let new_added = added.checked_add(&input.output.amount)?;
+                    Ok((new_input_total, new_output_total, new_added, new_needed, input))
+                }
                 use rand::Rng;
                 if self.outputs.0.iter().any(|output| output.amount.multiasset.is_some()) {
                     return Err(JsError::from_str("Multiasset values not supported by RandomImprove. Please use LargestFirst"));
@@ -208,15 +228,11 @@ impl TransactionBuilder {
                         if available_inputs.is_empty() {
                             return Err(JsError::from_str("UTxO Balance Insufficient"));
                         }
-                        let random_index = rng.gen_range(0..available_inputs.len());
-                        let input = available_inputs.swap_remove(random_index);
-                        // differing from CIP2, we include the needed fees in the targets instead of just output values
-                        let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
-                        self.add_input(&input.output.address, &input.input, &input.output.amount);
-                        input_total = input_total.checked_add(&input.output.amount)?;
-                        output_total = output_total.checked_add(&Value::new(&input_fee))?;
-                        needed = needed.checked_add(&Value::new(&input_fee))?;
-                        added = added.checked_add(&input.output.amount)?;
+                        let (new_input_total, new_output_total, new_added, new_needed, input) = add_random_input(self, &mut rng, &mut available_inputs, &input_total, &output_total, &added, &needed)?;
+                        input_total = new_input_total;
+                        output_total = new_output_total;
+                        added = new_added;
+                        needed = new_needed;
                         associated_inputs.entry(output.clone()).or_default().push(input);
                     }
                 }
