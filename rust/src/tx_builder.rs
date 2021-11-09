@@ -256,6 +256,23 @@ impl TransactionBuilder {
                         }
                     }
                 }
+                // Phase 3: add extra inputs needed for fees
+                // We do this at the end because this new inputs won't be associated with
+                // a specific output, so the improvement algorithm we do above does not apply here.
+                if input_total.partial_cmp(&output_total).unwrap().eq(&Ordering::Less) {
+                    let mut added = Value::new(&Coin::zero());
+                    let mut remaining_amount = output_total.checked_sub(&input_total)?;
+                    while added < remaining_amount {
+                        if available_inputs.is_empty() {
+                            return Err(JsError::from_str("UTxO Balance Insufficient"));
+                        }
+                        let (new_input_total, new_output_total, new_added, new_remaining_amount, _) = add_random_input(self, &mut rng, &mut available_inputs, &input_total, &output_total, &added, &remaining_amount)?;
+                        input_total = new_input_total;
+                        output_total = new_output_total;
+                        added = new_added;
+                        remaining_amount = new_remaining_amount;
+                    }
+                }
             },
         }
 
