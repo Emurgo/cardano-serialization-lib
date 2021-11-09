@@ -593,10 +593,7 @@ impl TransactionBuilder {
                         if potential_pure_above_minimum {
                             new_fee = new_fee.checked_add(&additional_fee)?;
                             change_left = Value::zero();
-                            match self.add_output(&TransactionOutput::new(address, &potential_pure_value)) {
-                              Err(e) => panic!(e),
-                              Ok(_) => {}
-                            };
+                            self.add_output(&TransactionOutput::new(address, &potential_pure_value))?;
                         }
                     }
                     self.set_fee(&new_fee);
