@@ -220,21 +220,23 @@ impl TransactionBuilder {
                         associated_inputs.entry(output.clone()).or_default().push(input);
                     }
                 }
-                // Phase 2: Improvement
-                for output in outputs.iter_mut() {
-                    let associated = associated_inputs.get_mut(output).unwrap();
-                    for input in associated.iter_mut() {
-                        let random_index = rng.gen_range(0..available_inputs.len());
-                        let new_input = available_inputs.get_mut(random_index).unwrap();
-                        let cur = from_bignum(&input.output.amount.coin);
-                        let new = from_bignum(&new_input.output.amount.coin);
-                        let min = from_bignum(&output.amount.coin);
-                        let ideal = 2 * min;
-                        let max = 3 * min;
-                        let move_closer = (ideal as i128 - new as i128).abs() < (ideal as i128 - cur as i128).abs();
-                        let not_exceed_max = new < max;
-                        if move_closer && not_exceed_max {
-                            std::mem::swap(input, new_input);
+                if !available_inputs.is_empty() {
+                    // Phase 2: Improvement
+                    for output in outputs.iter_mut() {
+                        let associated = associated_inputs.get_mut(output).unwrap();
+                        for input in associated.iter_mut() {
+                            let random_index = rng.gen_range(0..available_inputs.len());
+                            let new_input = available_inputs.get_mut(random_index).unwrap();
+                            let cur = from_bignum(&input.output.amount.coin);
+                            let new = from_bignum(&new_input.output.amount.coin);
+                            let min = from_bignum(&output.amount.coin);
+                            let ideal = 2 * min;
+                            let max = 3 * min;
+                            let move_closer = (ideal as i128 - new as i128).abs() < (ideal as i128 - cur as i128).abs();
+                            let not_exceed_max = new < max;
+                            if move_closer && not_exceed_max {
+                                std::mem::swap(input, new_input);
+                            }
                         }
                     }
                 }
@@ -2117,7 +2119,6 @@ mod tests {
         assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
     }
 
-
     #[test]
     fn tx_builder_cip2_random_improve() {
         // we have a = 1 to test increasing fees when more inputs are added
@@ -2168,6 +2169,31 @@ mod tests {
             input_total = input_total.checked_add(value).unwrap();
         }
         assert!(input_total >= Value::new(&tx_builder.min_fee().unwrap().checked_add(&to_bignum(COST)).unwrap()));
+    }
+
+    #[test]
+    fn tx_builder_cip2_random_improve_when_using_all_available_inputs() {
+        // we have a = 1 to test increasing fees when more inputs are added
+        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &Coin::zero(),
+            &to_bignum(0),
+            9999,
+            9999,
+            &to_bignum(0),
+        );
+        const COST: u64 = 1000;
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &Value::new(&to_bignum(COST))
+        )).unwrap();
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(800))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(800))));
+        let add_inputs_res =
+            tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
+        assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
     }
 
     fn build_tx_pay_to_multisig() {
@@ -2466,3 +2492,4 @@ mod tests {
         });
     }
 }
+
