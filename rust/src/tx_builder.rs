@@ -1459,7 +1459,7 @@ mod tests {
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
 
-        // Input with 3 coins only
+        // Input with 150 coins
         tx_builder.add_input(
             &EnterpriseAddress::new(
                 NetworkInfo::testnet().network_id(),
@@ -1542,7 +1542,7 @@ mod tests {
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
 
-        // Input with 3 coins only
+        // Input with 150 coins
         tx_builder.add_input(
             &EnterpriseAddress::new(
                 NetworkInfo::testnet().network_id(),
