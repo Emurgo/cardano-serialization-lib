@@ -192,6 +192,26 @@ impl TransactionBuilder {
                 }
             },
             CoinSelectionStrategyCIP2::RandomImprove => {
+                fn add_random_input(
+                    s: &mut TransactionBuilder,
+                    rng: &mut rand::rngs::ThreadRng,
+                    available_inputs: &mut Vec<TransactionUnspentOutput>,
+                    input_total: &Value,
+                    output_total: &Value,
+                    added: &Value,
+                    needed: &Value
+                ) -> Result<(Value, Value, Value, Value, TransactionUnspentOutput), JsError> {
+                    let random_index = rng.gen_range(0..available_inputs.len());
+                    let input = available_inputs.swap_remove(random_index);
+                    // differing from CIP2, we include the needed fees in the targets instead of just output values
+                    let input_fee = s.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+                    s.add_input(&input.output.address, &input.input, &input.output.amount);
+                    let new_input_total = input_total.checked_add(&input.output.amount)?;
+                    let new_output_total = output_total.checked_add(&Value::new(&input_fee))?;
+                    let new_needed = needed.checked_add(&Value::new(&input_fee))?;
+                    let new_added = added.checked_add(&input.output.amount)?;
+                    Ok((new_input_total, new_output_total, new_added, new_needed, input))
+                }
                 use rand::Rng;
                 if self.outputs.0.iter().any(|output| output.amount.multiasset.is_some()) {
                     return Err(JsError::from_str("Multiasset values not supported by RandomImprove. Please use LargestFirst"));
@@ -208,15 +228,11 @@ impl TransactionBuilder {
                         if available_inputs.is_empty() {
                             return Err(JsError::from_str("UTxO Balance Insufficient"));
                         }
-                        let random_index = rng.gen_range(0..available_inputs.len());
-                        let input = available_inputs.swap_remove(random_index);
-                        // differing from CIP2, we include the needed fees in the targets instead of just output values
-                        let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
-                        self.add_input(&input.output.address, &input.input, &input.output.amount);
-                        input_total = input_total.checked_add(&input.output.amount)?;
-                        output_total = output_total.checked_add(&Value::new(&input_fee))?;
-                        needed = needed.checked_add(&Value::new(&input_fee))?;
-                        added = added.checked_add(&input.output.amount)?;
+                        let (new_input_total, new_output_total, new_added, new_needed, input) = add_random_input(self, &mut rng, &mut available_inputs, &input_total, &output_total, &added, &needed)?;
+                        input_total = new_input_total;
+                        output_total = new_output_total;
+                        added = new_added;
+                        needed = new_needed;
                         associated_inputs.entry(output.clone()).or_default().push(input);
                     }
                 }
@@ -238,6 +254,23 @@ impl TransactionBuilder {
                                 std::mem::swap(input, new_input);
                             }
                         }
+                    }
+                }
+                // Phase 3: add extra inputs needed for fees
+                // We do this at the end because this new inputs won't be associated with
+                // a specific output, so the improvement algorithm we do above does not apply here.
+                if input_total < output_total {
+                    let mut added = Value::new(&Coin::zero());
+                    let mut remaining_amount = output_total.checked_sub(&input_total)?;
+                    while added < remaining_amount {
+                        if available_inputs.is_empty() {
+                            return Err(JsError::from_str("UTxO Balance Insufficient"));
+                        }
+                        let (new_input_total, new_output_total, new_added, new_remaining_amount, _) = add_random_input(self, &mut rng, &mut available_inputs, &input_total, &output_total, &added, &remaining_amount)?;
+                        input_total = new_input_total;
+                        output_total = new_output_total;
+                        added = new_added;
+                        remaining_amount = new_remaining_amount;
                     }
                 }
             },
@@ -2141,6 +2174,37 @@ mod tests {
         let add_inputs_res =
             tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
         assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
+    }
+
+    #[test]
+    fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
+        // we have a = 1 to test increasing fees when more inputs are added
+        let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+        let mut tx_builder = TransactionBuilder::new(
+            &linear_fee,
+            &Coin::zero(),
+            &to_bignum(0),
+            9999,
+            9999,
+            &to_bignum(0),
+        );
+        const COST: u64 = 100;
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &Value::new(&to_bignum(COST))
+        )).unwrap();
+        assert_eq!(tx_builder.min_fee().unwrap(), to_bignum(53));
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(150))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(150))));
+        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(150))));
+        let add_inputs_res =
+            tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
+        assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
+        assert_eq!(tx_builder.min_fee().unwrap(), to_bignum(264));
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+        let add_change_res = tx_builder.add_change_if_needed(&change_addr);
+        assert!(add_change_res.is_ok(), "{:?}", add_change_res.err());
     }
 
     fn build_tx_pay_to_multisig() {
