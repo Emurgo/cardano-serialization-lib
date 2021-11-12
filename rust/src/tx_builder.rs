@@ -3141,8 +3141,8 @@ mod tests {
 
         assert_eq!(witness_fee_increase, to_bignum(4356));
 
-        let fee_increase_bytes = witness_fee_increase.0
-            .checked_div(fee_coefficient.0)
+        let fee_increase_bytes = from_bignum(&witness_fee_increase)
+            .checked_div(from_bignum(&fee_coefficient))
             .unwrap();
 
         // Three policy IDs of 32 bytes each + 3 byte overhead

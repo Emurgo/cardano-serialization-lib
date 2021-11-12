@@ -165,7 +165,7 @@ impl TransactionUnspentOutputs {
 // Can be converted to/from plain rust 
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct BigNum(pub (crate) u64);
+pub struct BigNum(u64);
 
 to_from_bytes!(BigNum);
 
