@@ -6,66 +6,6 @@
  */
 
 /**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
-): string;
-
-/**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
- */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
-
-/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -190,6 +130,66 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
  * @param {Transaction} tx
  * @param {LinearFee} linear_fee
  * @returns {BigNum}
@@ -294,11 +294,12 @@ declare export var RedeemerTagKind: {|
 |};
 
 /**
+ * Used to choosed the schema for a script JSON string
  */
 
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
 |};
 
 /**
@@ -322,12 +323,11 @@ declare export var MetadataJsonSchema: {|
 |};
 
 /**
- * Used to choosed the schema for a script JSON string
  */
 
-declare export var ScriptSchema: {|
-  +Wallet: 0, // 0
-  +Node: 1, // 1
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
 |};
 
 /**
@@ -2004,19 +2004,55 @@ declare export class Int {
   is_positive(): boolean;
 
   /**
+   * BigNum can only contain unsigned u64 values
+   *
+   * This function will return the BigNum representation
+   * only in case the underlying i128 value is positive.
+   *
+   * Otherwise nothing will be returned (undefined).
    * @returns {BigNum | void}
    */
   as_positive(): BigNum | void;
 
   /**
+   * BigNum can only contain unsigned u64 values
+   *
+   * This function will return the *absolute* BigNum representation
+   * only in case the underlying i128 value is negative.
+   *
+   * Otherwise nothing will be returned (undefined).
    * @returns {BigNum | void}
    */
   as_negative(): BigNum | void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns an i32 value in case the underlying original i128 value is within the limits.
+   * Otherwise will just return an empty value (undefined).
    * @returns {number | void}
    */
   as_i32(): number | void;
+
+  /**
+   * Returns the underlying value converted to i32 if possible (within limits)
+   * Otherwise will just return an empty value (undefined).
+   * @returns {number | void}
+   */
+  as_i32_or_nothing(): number | void;
+
+  /**
+   * Returns the underlying value converted to i32 if possible (within limits)
+   * JsError in case of out of boundary overflow
+   * @returns {number}
+   */
+  as_i32_or_fail(): number;
+
+  /**
+   * Returns string representation of the underlying i128 value directly.
+   * Might contain the minus sign (-) in case of negative value.
+   * @returns {string}
+   */
+  to_str(): string;
 }
 /**
  */
@@ -2399,13 +2435,6 @@ declare export class Mint {
   static new(): Mint;
 
   /**
-   * @param {ScriptHash} key
-   * @param {MintAssets} value
-   * @returns {Mint}
-   */
-  static new_from_entry(key: ScriptHash, value: MintAssets): Mint;
-
-  /**
    * @returns {number}
    */
   len(): number;
@@ -2427,16 +2456,6 @@ declare export class Mint {
    * @returns {ScriptHashes}
    */
   keys(): ScriptHashes;
-
-  /**
-   * @returns {MultiAsset}
-   */
-  to_multiasset(): MultiAsset;
-
-  /**
-   * @returns {Value}
-   */
-  to_value(): Value;
 }
 /**
  */
@@ -2447,13 +2466,6 @@ declare export class MintAssets {
    * @returns {MintAssets}
    */
   static new(): MintAssets;
-
-  /**
-   * @param {AssetName} key
-   * @param {Int} value
-   * @returns {MintAssets}
-   */
-  static new_from_entry(key: AssetName, value: Int): MintAssets;
 
   /**
    * @returns {number}
@@ -5015,45 +5027,6 @@ declare export class TransactionBuilder {
   ): BigNum;
 
   /**
-   * Add output by specifying the Address and Value
-   * @param {Address} address
-   * @param {Value} amount
-   */
-  add_output_amount(address: Address, amount: Value): void;
-
-  /**
-   * Add output by specifying the Address and Coin (BigNum)
-   * Output will have no additional assets
-   * @param {Address} address
-   * @param {BigNum} coin
-   */
-  add_output_coin(address: Address, coin: BigNum): void;
-
-  /**
-   * Add output by specifying the Address, the Coin (BigNum), and the MultiAsset
-   * @param {Address} address
-   * @param {BigNum} coin
-   * @param {MultiAsset} multiasset
-   */
-  add_output_coin_and_asset(
-    address: Address,
-    coin: BigNum,
-    multiasset: MultiAsset
-  ): void;
-
-  /**
-   * Add output by specifying the Address and the MultiAsset
-   * The output will be set to contain the minimum required amount of Coin
-   * @param {Address} address
-   * @param {MultiAsset} multiasset
-   */
-  add_output_asset_and_min_required_coin(
-    address: Address,
-    multiasset: MultiAsset
-  ): void;
-
-  /**
-   * Add explicit output via a TransactionOutput object
    * @param {TransactionOutput} output
    */
   add_output(output: TransactionOutput): void;
@@ -5091,118 +5064,11 @@ declare export class TransactionBuilder {
   set_withdrawals(withdrawals: Withdrawals): void;
 
   /**
-   * Set explicit auxiliary data via an AuxiliaryData object
-   * It might contain some metadata plus native or Plutus scripts
    * @param {AuxiliaryData} auxiliary_data
    */
   set_auxiliary_data(auxiliary_data: AuxiliaryData): void;
 
   /**
-   * Set metadata using a GeneralTransactionMetadata object
-   * It will be set to the existing or new auxiliary data in this builder
-   * @param {GeneralTransactionMetadata} metadata
-   */
-  set_metadata(metadata: GeneralTransactionMetadata): void;
-
-  /**
-   * Add a single metadatum using TransactionMetadatumLabel and TransactionMetadatum objects
-   * It will be securely added to existing or new metadata in this builder
-   * @param {BigNum} key
-   * @param {TransactionMetadatum} val
-   */
-  add_metadatum(key: BigNum, val: TransactionMetadatum): void;
-
-  /**
-   * Add a single JSON metadatum using a TransactionMetadatumLabel and a String
-   * It will be securely added to existing or new metadata in this builder
-   * @param {BigNum} key
-   * @param {string} val
-   */
-  add_json_metadatum(key: BigNum, val: string): void;
-
-  /**
-   * Add a single JSON metadatum using a TransactionMetadatumLabel, a String, and a MetadataJsonSchema object
-   * It will be securely added to existing or new metadata in this builder
-   * @param {BigNum} key
-   * @param {string} val
-   * @param {number} schema
-   */
-  add_json_metadatum_with_schema(
-    key: BigNum,
-    val: string,
-    schema: number
-  ): void;
-
-  /**
-   * Set explicit Mint object to this builder
-   * it will replace any previously existing mint
-   * @param {Mint} mint
-   */
-  set_mint(mint: Mint): void;
-
-  /**
-   * Add a mint entry to this builder using a PolicyID and MintAssets object
-   * It will be securely added to existing or new Mint in this builder
-   * It will replace any existing mint assets with the same PolicyID
-   * @param {ScriptHash} policy_id
-   * @param {MintAssets} mint_assets
-   */
-  set_mint_asset(policy_id: ScriptHash, mint_assets: MintAssets): void;
-
-  /**
-   * Add a mint entry to this builder using a PolicyID, AssetName, and Int object for amount
-   * It will be securely added to existing or new Mint in this builder
-   * It will replace any previous existing amount same PolicyID and AssetName
-   * @param {ScriptHash} policy_id
-   * @param {AssetName} asset_name
-   * @param {Int} amount
-   */
-  add_mint_asset(
-    policy_id: ScriptHash,
-    asset_name: AssetName,
-    amount: Int
-  ): void;
-
-  /**
-   * Add a mint entry together with an output to this builder
-   * Using a PolicyID, AssetName, Int for amount, Address, and Coin (BigNum) objects
-   * The asset will be securely added to existing or new Mint in this builder
-   * A new output will be added with the specified Address, the Coin value, and the minted asset
-   * @param {ScriptHash} policy_id
-   * @param {AssetName} asset_name
-   * @param {Int} amount
-   * @param {Address} address
-   * @param {BigNum} output_coin
-   */
-  add_mint_asset_and_output(
-    policy_id: ScriptHash,
-    asset_name: AssetName,
-    amount: Int,
-    address: Address,
-    output_coin: BigNum
-  ): void;
-
-  /**
-   * Add a mint entry together with an output to this builder
-   * Using a PolicyID, AssetName, Int for amount, and Address objects
-   * The asset will be securely added to existing or new Mint in this builder
-   * A new output will be added with the specified Address and the minted asset
-   * The output will be set to contain the minimum required amount of Coin
-   * @param {ScriptHash} policy_id
-   * @param {AssetName} asset_name
-   * @param {Int} amount
-   * @param {Address} address
-   */
-  add_mint_asset_and_output_min_required_coin(
-    policy_id: ScriptHash,
-    asset_name: AssetName,
-    amount: Int,
-    address: Address
-  ): void;
-
-  /**
-   * If set to true, add_change_if_needed will try
-   * to put pure Coin in a separate output from assets
    * @param {boolean} prefer_pure_change
    */
   set_prefer_pure_change(prefer_pure_change: boolean): void;
@@ -5238,12 +5104,6 @@ declare export class TransactionBuilder {
   get_implicit_input(): Value;
 
   /**
-   * mint as value
-   * @returns {Value}
-   */
-  get_mint_value(): Value;
-
-  /**
    * does not include fee
    * @returns {Value}
    */
@@ -5261,9 +5121,6 @@ declare export class TransactionBuilder {
 
   /**
    * Warning: this function will mutate the /fee/ field
-   * Make sure to call this function last after setting all other tx-body properties
-   * Editing inputs, outputs, mint, etc. after change been calculated
-   * might cause a mismatch in calculated fee versus the required fee
    * @param {Address} address
    * @returns {boolean}
    */

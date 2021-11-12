@@ -930,7 +930,7 @@ mod tests {
         assert_eq!(map.get_str("sender_id").unwrap().as_text().unwrap(), "jkfdsufjdk34h3Sdfjdhfduf873");
         assert_eq!(map.get_str("comment").unwrap().as_text().unwrap(), "happy birthday");
         let tags = map.get_str("tags").unwrap().as_list().unwrap();
-        let tags_i32 = tags.0.iter().map(|md| md.as_int().unwrap().as_i32().unwrap()).collect::<Vec<i32>>();
+        let tags_i32 = tags.0.iter().map(|md| md.as_int().unwrap().as_i32_or_fail().unwrap()).collect::<Vec<i32>>();
         assert_eq!(tags_i32, vec![0, 264, -1024, 32]);
         let output_str = decode_metadatum_to_json_str(&metadata, MetadataJsonSchema::NoConversions).expect("decode failed");
         let input_json: serde_json::Value = serde_json::from_str(&input_str).unwrap();
@@ -991,11 +991,11 @@ mod tests {
     fn json_encoding_check_example_metadatum(metadata: &TransactionMetadatum) {
         let map = metadata.as_map().unwrap();
         assert_eq!(map.get(&TransactionMetadatum::new_bytes(hex::decode("8badf00d").unwrap()).unwrap()).unwrap().as_bytes().unwrap(), hex::decode("deadbeef").unwrap());
-        assert_eq!(map.get_i32(9).unwrap().as_int().unwrap().as_i32().unwrap(), 5);
+        assert_eq!(map.get_i32(9).unwrap().as_int().unwrap().as_i32_or_fail().unwrap(), 5);
         let inner_map = map.get_str("obj").unwrap().as_map().unwrap();
         let a = inner_map.get_str("a").unwrap().as_list().unwrap();
         let a1 = a.get(0).as_map().unwrap();
-        assert_eq!(a1.get_i32(5).unwrap().as_int().unwrap().as_i32().unwrap(), 2);
+        assert_eq!(a1.get_i32(5).unwrap().as_int().unwrap().as_i32_or_fail().unwrap(), 2);
         let a2 = a.get(1).as_map().unwrap();
         assert_eq!(a2.keys().len(), 0);
     }
@@ -1025,11 +1025,11 @@ mod tests {
 
         let map = metadata.as_map().unwrap();
         let key = map.keys().get(0);
-        assert_eq!(map.get(&key).unwrap().as_int().unwrap().as_i32().unwrap(), 5);
+        assert_eq!(map.get(&key).unwrap().as_int().unwrap().as_i32_or_fail().unwrap(), 5);
         let key_list = key.as_list().unwrap();
         assert_eq!(key_list.len(), 2);
         let key_map = key_list.get(0).as_map().unwrap();
-        assert_eq!(key_map.get_i32(5).unwrap().as_int().unwrap().as_i32().unwrap(), -7);
+        assert_eq!(key_map.get_i32(5).unwrap().as_int().unwrap().as_i32_or_fail().unwrap(), -7);
         assert_eq!(key_map.get_str("hello").unwrap().as_text().unwrap(), "world");
         let key_bytes = key_list.get(1).as_bytes().unwrap();
         assert_eq!(key_bytes, hex::decode("ff00ff00").unwrap());
