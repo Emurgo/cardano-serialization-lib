@@ -576,8 +576,11 @@ impl TransactionBuilder {
         address: &Address,
         output_coin: &Coin,
     ) -> Result<(), JsError> {
-        self.add_mint_asset(policy_id, asset_name, amount);
-        let multiasset = self.mint.as_ref().unwrap().to_multiasset()?;
+        self.add_mint_asset(policy_id, asset_name, amount.clone());
+        let mut multiasset = Mint::new_from_entry(
+            policy_id,
+            &MintAssets::new_from_entry(asset_name, amount.clone())
+        ).to_multiasset()?;
         self.add_output_coin_and_asset(address, output_coin, &multiasset)
     }
 
@@ -593,8 +596,11 @@ impl TransactionBuilder {
         amount: Int,
         address: &Address,
     ) -> Result<(), JsError> {
-        self.add_mint_asset(policy_id, asset_name, amount);
-        let multiasset = self.mint.as_ref().unwrap().to_multiasset()?;
+        self.add_mint_asset(policy_id, asset_name, amount.clone());
+        let mut multiasset = Mint::new_from_entry(
+            policy_id,
+            &MintAssets::new_from_entry(asset_name, amount.clone())
+        ).to_multiasset()?;
         self.add_output_asset_and_min_required_coin(address, &multiasset)
     }
 
@@ -3009,12 +3015,16 @@ mod tests {
     fn add_mint_asset_and_output() {
         let mut tx_builder = create_default_tx_builder();
 
-        let policy_id1 = PolicyID::from([0u8; 28]);
+        let policy_id0 = PolicyID::from([0u8; 28]);
+        let policy_id1 = PolicyID::from([1u8; 28]);
         let name = create_asset_name();
         let amount = Int::new_i32(1234);
 
         let address = byron_address();
-        let coin = to_bignum(42);
+        let coin = to_bignum(100);
+
+        // Add unrelated mint first to check it is NOT added to output later
+        tx_builder.add_mint_asset(&policy_id0, &name, amount.clone());
 
         tx_builder.add_mint_asset_and_output(
             &policy_id1,
@@ -3027,9 +3037,13 @@ mod tests {
         assert!(tx_builder.mint.is_some());
 
         let mint = tx_builder.mint.as_ref().unwrap();
-        assert_eq!(mint.len(), 1);
+
+        // Mint contains two entries
+        assert_eq!(mint.len(), 2);
+        assert_mint_asset(mint, &policy_id0);
         assert_mint_asset(mint, &policy_id1);
 
+        // One new output is created
         assert_eq!(tx_builder.outputs.len(), 1);
         let out = tx_builder.outputs.get(0);
 
@@ -3037,10 +3051,11 @@ mod tests {
         assert_eq!(out.amount.coin, coin);
 
         let multiasset = out.amount.multiasset.unwrap();
-        assert_eq!(
-            multiasset,
-            tx_builder.get_mint_value().unwrap().multiasset.unwrap(),
-        );
+
+        // Only second mint entry was added to the output
+        assert_eq!(multiasset.len(), 1);
+        assert!(multiasset.get(&policy_id0).is_none());
+        assert!(multiasset.get(&policy_id1).is_some());
 
         let asset = multiasset.get(&policy_id1).unwrap();
         assert_eq!(asset.len(), 1);
@@ -3051,11 +3066,15 @@ mod tests {
     fn add_mint_asset_and_min_required_coin() {
         let mut tx_builder = create_reallistic_tx_builder();
 
-        let policy_id1 = PolicyID::from([0u8; 28]);
+        let policy_id0 = PolicyID::from([0u8; 28]);
+        let policy_id1 = PolicyID::from([1u8; 28]);
         let name = create_asset_name();
         let amount = Int::new_i32(1234);
 
         let address = byron_address();
+
+        // Add unrelated mint first to check it is NOT added to output later
+        tx_builder.add_mint_asset(&policy_id0, &name, amount.clone());
 
         tx_builder.add_mint_asset_and_output_min_required_coin(
             &policy_id1,
@@ -3067,9 +3086,13 @@ mod tests {
         assert!(tx_builder.mint.is_some());
 
         let mint = tx_builder.mint.as_ref().unwrap();
-        assert_eq!(mint.len(), 1);
+
+        // Mint contains two entries
+        assert_eq!(mint.len(), 2);
+        assert_mint_asset(mint, &policy_id0);
         assert_mint_asset(mint, &policy_id1);
 
+        // One new output is created
         assert_eq!(tx_builder.outputs.len(), 1);
         let out = tx_builder.outputs.get(0);
 
@@ -3077,10 +3100,11 @@ mod tests {
         assert_eq!(out.amount.coin, to_bignum(1344798));
 
         let multiasset = out.amount.multiasset.unwrap();
-        assert_eq!(
-            multiasset,
-            tx_builder.get_mint_value().unwrap().multiasset.unwrap(),
-        );
+
+        // Only second mint entry was added to the output
+        assert_eq!(multiasset.len(), 1);
+        assert!(multiasset.get(&policy_id0).is_none());
+        assert!(multiasset.get(&policy_id1).is_some());
 
         let asset = multiasset.get(&policy_id1).unwrap();
         assert_eq!(asset.len(), 1);
