@@ -2,6 +2,7 @@ use super::*;
 use super::fees;
 use super::utils;
 use std::collections::{BTreeMap, BTreeSet};
+use derive_builder::Builder;
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
@@ -172,6 +173,19 @@ pub struct TransactionBuilder {
     input_types: MockWitnessSet,
     mint: Option<Mint>,
     inputs_auto_added: bool,
+    prefer_pure_change: bool,
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Builder, Debug)]
+pub struct TransactionBuilderConfig {
+    linear_fee: fees::LinearFee,
+    pool_deposit: BigNum,      // protocol parameter
+    key_deposit: BigNum,       // protocol parameter
+    max_value_size: u32,       // protocol parameter
+    max_tx_size: u32,          // protocol parameter
+    coins_per_utxo_word: Coin, // protocol parameter
+    #[builder(default = "false")]
     prefer_pure_change: bool,
 }
 
@@ -610,21 +624,14 @@ impl TransactionBuilder {
         self.prefer_pure_change = prefer_pure_change;
     }
 
-    pub fn new(
-        linear_fee: &fees::LinearFee,
-        pool_deposit: &BigNum, // protocol parameter
-        key_deposit: &BigNum,  // protocol parameter
-        max_value_size: u32, // protocol parameter
-        max_tx_size: u32, // protocol parameter
-        coins_per_utxo_word: &Coin, // protocol parameter
-    ) -> Self {
+    pub fn new(cfg: &TransactionBuilderConfig) -> Self {
         Self {
-            coins_per_utxo_word: coins_per_utxo_word.clone(),
-            key_deposit: key_deposit.clone(),
-            pool_deposit: pool_deposit.clone(),
-            max_value_size,
-            max_tx_size,
-            fee_algo: linear_fee.clone(),
+            coins_per_utxo_word: cfg.coins_per_utxo_word.clone(),
+            key_deposit: cfg.key_deposit.clone(),
+            pool_deposit: cfg.pool_deposit.clone(),
+            max_value_size: cfg.max_value_size,
+            max_tx_size: cfg.max_tx_size,
+            fee_algo: cfg.linear_fee.clone(),
             inputs: Vec::new(),
             outputs: TransactionOutputs::new(),
             fee: None,
@@ -640,7 +647,7 @@ impl TransactionBuilder {
             validity_start_interval: None,
             mint: None,
             inputs_auto_added: false,
-            prefer_pure_change: false,
+            prefer_pure_change: cfg.prefer_pure_change,
         }
     }
 
@@ -978,14 +985,16 @@ mod tests {
         max_val_size: u32,
         coins_per_utxo_word: u64,
     ) -> TransactionBuilder {
-        TransactionBuilder::new(
-            linear_fee,
-            &to_bignum(pool_deposit),
-            &to_bignum(key_deposit),
-            max_val_size,
-            MAX_TX_SIZE,
-            &to_bignum(coins_per_utxo_word)
-        )
+        let cfg = TransactionBuilderConfigBuilder::default()
+            .linear_fee(linear_fee.clone())
+            .pool_deposit(to_bignum(pool_deposit))
+            .key_deposit(to_bignum(key_deposit))
+            .max_value_size(max_val_size)
+            .max_tx_size(MAX_TX_SIZE)
+            .coins_per_utxo_word(to_bignum(coins_per_utxo_word))
+            .build()
+            .unwrap();
+        TransactionBuilder::new(&cfg)
     }
 
     fn create_tx_builder(
@@ -2428,14 +2437,16 @@ mod tests {
     fn tx_builder_cip2_random_improve_when_using_all_available_inputs() {
         // we have a = 1 to test increasing fees when more inputs are added
         let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &Coin::zero(),
-            &to_bignum(0),
-            9999,
-            9999,
-            &to_bignum(0),
-        );
+        let cfg = TransactionBuilderConfigBuilder::default()
+            .linear_fee(linear_fee)
+            .pool_deposit(to_bignum(0))
+            .key_deposit(to_bignum(0))
+            .max_value_size(9999)
+            .max_tx_size(9999)
+            .coins_per_utxo_word(Coin::zero())
+            .build()
+            .unwrap();
+        let mut tx_builder = TransactionBuilder::new(&cfg);
         const COST: u64 = 1000;
         tx_builder.add_output(&TransactionOutput::new(
             &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
@@ -2453,14 +2464,16 @@ mod tests {
     fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
         // we have a = 1 to test increasing fees when more inputs are added
         let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &Coin::zero(),
-            &to_bignum(0),
-            9999,
-            9999,
-            &to_bignum(0),
-        );
+        let cfg = TransactionBuilderConfigBuilder::default()
+            .linear_fee(linear_fee)
+            .pool_deposit(to_bignum(0))
+            .key_deposit(to_bignum(0))
+            .max_value_size(9999)
+            .max_tx_size(9999)
+            .coins_per_utxo_word(Coin::zero())
+            .build()
+            .unwrap();
+        let mut tx_builder = TransactionBuilder::new(&cfg);
         const COST: u64 = 100;
         tx_builder.add_output(&TransactionOutput::new(
             &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
