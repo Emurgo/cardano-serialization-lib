@@ -489,6 +489,10 @@ impl TransactionBuilder {
         };
     }
 
+    pub fn get_auxiliary_data(&self) -> Option<AuxiliaryData> {
+        self.auxiliary_data.clone()
+    }
+
     /// Set explicit auxiliary data via an AuxiliaryData object
     /// It might contain some metadata plus native or Plutus scripts
     pub fn set_auxiliary_data(&mut self, auxiliary_data: &AuxiliaryData) {
@@ -899,6 +903,9 @@ impl TransactionBuilder {
         return self.outputs.0.iter().map(|o| { o.to_bytes().len() }).collect();
     }
 
+    /// Returns object the body of the new transaction
+    /// Auxiliary data itself is not included
+    /// You can use `get_auxiliary_date` or `build_tx`
     pub fn build(&self) -> Result<TransactionBody, JsError> {
         let (body, full_tx_size) = self.build_and_size()?;
         if full_tx_size > self.max_tx_size as usize {
@@ -910,6 +917,18 @@ impl TransactionBuilder {
         } else {
             Ok(body)
         }
+    }
+
+    /// Returns full Transaction object with the body and the auxiliary data
+    /// NOTE: witness_set is set to just empty set
+    /// NOTE: is_valid set to true
+    pub fn build_tx(&self) -> Result<Transaction, JsError> {
+        Ok(Transaction {
+            body: self.build()?,
+            witness_set: TransactionWitnessSet::new(),
+            is_valid: true,
+            auxiliary_data: self.auxiliary_data.clone(),
+        })
     }
 
     /// warning: sum of all parts of a transaction must equal 0. You cannot just set the fee to the min value and forget about it
