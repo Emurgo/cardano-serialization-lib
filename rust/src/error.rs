@@ -30,6 +30,7 @@ pub enum DeserializeFailure {
     DuplicateKey(Key),
     EndingBreakMissing,
     ExpectedNull,
+    ExpectedBool,
     FixedValueMismatch{
         found: Key,
         expected: Key,
@@ -95,6 +96,7 @@ impl std::fmt::Display for DeserializeError {
             DeserializeFailure::DuplicateKey(key) => write!(f, "Duplicate key: {}", key),
             DeserializeFailure::EndingBreakMissing => write!(f, "Missing ending CBOR Break"),
             DeserializeFailure::ExpectedNull => write!(f, "Expected null, found other type"),
+            DeserializeFailure::ExpectedBool => write!(f, "Expected bool, found other type"),
             DeserializeFailure::FixedValueMismatch{ found, expected } => write!(f, "Expected fixed value {} found {}", expected, found),
             DeserializeFailure::MandatoryFieldMissing(key) => write!(f, "Mandatory field {} not found", key),
             DeserializeFailure::Metadata(e) => write!(f, "Metadata error: {:?}", e),

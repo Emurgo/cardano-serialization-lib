@@ -1,10 +1,13 @@
-use crate::error::{DeserializeError, DeserializeFailure};
 use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
+use hex::FromHex;
+use serde_json;
+use std::{collections::HashMap, io::{BufRead, Seek, Write}};
 use itertools::Itertools;
-use std::io::{BufRead, Seek, Write};
 use std::cmp;
 use std::ops::{Rem, Div, Sub};
+
 use super::*;
+use crate::error::{DeserializeError, DeserializeFailure};
 
 // JsError can't be used by non-wasm targets so we use this macro to expose
 // either a DeserializeError or a JsError error depending on if we're on a
@@ -68,8 +71,8 @@ macro_rules! to_from_bytes {
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionUnspentOutput {
-    input: TransactionInput,
-    output: TransactionOutput
+    pub(crate) input: TransactionInput,
+    pub(crate) output: TransactionOutput
 }
 
 to_from_bytes!(TransactionUnspentOutput);
@@ -131,6 +134,29 @@ impl Deserialize for TransactionUnspentOutput {
                 _ => Err(DeserializeFailure::NoVariantMatched.into()),
             }
         })().map_err(|e| e.annotate("TransactionUnspentOutput"))
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
+pub struct TransactionUnspentOutputs(pub(crate) Vec<TransactionUnspentOutput>);
+
+#[wasm_bindgen]
+impl TransactionUnspentOutputs {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> TransactionUnspentOutput {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &TransactionUnspentOutput) {
+        self.0.push(elem.clone());
     }
 }
 
@@ -461,6 +487,12 @@ impl Int {
         return self.0 >= 0
     }
 
+    /// BigNum can only contain unsigned u64 values
+    ///
+    /// This function will return the BigNum representation
+    /// only in case the underlying i128 value is positive.
+    ///
+    /// Otherwise nothing will be returned (undefined).
     pub fn as_positive(&self) -> Option<BigNum> {
         if self.is_positive() {
             Some(to_bignum(self.0 as u64))
@@ -469,6 +501,12 @@ impl Int {
         }
     }
 
+    /// BigNum can only contain unsigned u64 values
+    ///
+    /// This function will return the *absolute* BigNum representation
+    /// only in case the underlying i128 value is negative.
+    ///
+    /// Otherwise nothing will be returned (undefined).
     pub fn as_negative(&self) -> Option<BigNum> {
         if !self.is_positive() {
             Some(to_bignum((-self.0) as u64))
@@ -477,9 +515,36 @@ impl Int {
         }
     }
 
+    /// !!! DEPRECATED !!!
+    /// Returns an i32 value in case the underlying original i128 value is within the limits.
+    /// Otherwise will just return an empty value (undefined).
+    #[deprecated(
+        since = "10.0.0",
+        note = "Unsafe ignoring of possible boundary error and it's not clear from the function name. Use `as_i32_or_nothing`, `as_i32_or_fail`, or `to_str`"
+    )]
     pub fn as_i32(&self) -> Option<i32> {
+        self.as_i32_or_nothing()
+    }
+
+    /// Returns the underlying value converted to i32 if possible (within limits)
+    /// Otherwise will just return an empty value (undefined).
+    pub fn as_i32_or_nothing(&self) -> Option<i32> {
         use std::convert::TryFrom;
         i32::try_from(self.0).ok()
+    }
+
+    /// Returns the underlying value converted to i32 if possible (within limits)
+    /// JsError in case of out of boundary overflow
+    pub fn as_i32_or_fail(&self) -> Result<i32, JsError> {
+        use std::convert::TryFrom;
+        i32::try_from(self.0)
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
+    }
+
+    /// Returns string representation of the underlying i128 value directly.
+    /// Might contain the minus sign (-) in case of negative value.
+    pub fn to_str(&self) -> String {
+        format!("{}", self.0)
     }
 }
 
@@ -831,13 +896,10 @@ pub fn hash_script_data(redeemers: &Redeemers, cost_models: &Costmdls, datums: O
     */
     let mut buf = Vec::new();
     buf.extend(redeemers.to_bytes());
-     if let Some(d) = &datums {
+    if let Some(d) = &datums {
         buf.extend(d.to_bytes());
-    } else {
-        let empty_string = "";
-        buf.extend(empty_string.as_bytes());
     }
-    buf.extend(cost_models.to_bytes());
+    buf.extend(cost_models.language_views_encoding());
     ScriptDataHash::from(blake2b256(&buf))
 }
 
@@ -937,7 +999,7 @@ fn bundle_size(
     assets: &Value,
     constants: &OutputSizeConstants,
 ) -> usize {
-    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo.rst
+    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-mary.rst
     match &assets.multiasset {
         None => 1, // Haskell codebase considers these size 1
         Some (assets) => {
@@ -976,34 +1038,231 @@ fn bundle_size(
 #[wasm_bindgen]
 pub fn min_ada_required(
     assets: &Value,
-    minimum_utxo_val: &BigNum, // protocol parameter
-) -> BigNum {
-    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo.rst
-    match &assets.multiasset {
-        None => minimum_utxo_val.clone(),
-        Some(_assets) => {
-            // NOTE: should be 2, but a bug in Haskell set this to 0
-            let coin_size: u64 = 0;
-            let tx_out_len_no_val = 14;
-            let tx_in_len = 7;
-            let utxo_entry_size_without_val: u64 = 6 + tx_out_len_no_val + tx_in_len; // 27
+    has_data_hash: bool, // whether the output includes a data hash
+    coins_per_utxo_word: &BigNum, // protocol parameter (in lovelace)
+) -> Result<BigNum, JsError> {
+    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
+    let data_hash_size = if has_data_hash { 10 } else { 0 }; // in words
+    let utxo_entry_size_without_val = 27; // in words
+    if assets.multiasset.is_some() {
+        let size = bundle_size(
+            &assets,
+            &OutputSizeConstants {
+                k0: 6,
+                k1: 12,
+                k2: 1,
+            },
+        );
+        let words = to_bignum(utxo_entry_size_without_val)
+            .checked_add(&to_bignum(size as u64))?
+            .checked_add(&to_bignum(data_hash_size))?;
+        coins_per_utxo_word.checked_mul(&words)
+    } else {
+        // apparently this is accepted by mainnet despite being below the stated
+        // 1_000_000 ada only min utxo value, and in the mary era min utxo calculation
+        // it mentions we need to increase coin_size to 2 turning this into 29 instead of 27
+        // however we should investigate this further
+        let utxo_entry_size_without_val = 27; // in words
+        let coin_size = 2;
+        let ada_only_min_utxo_value = utxo_entry_size_without_val + coin_size;
+        let words = to_bignum(ada_only_min_utxo_value)
+            .checked_add(&to_bignum(data_hash_size))?;
+        coins_per_utxo_word.checked_mul(&words)
+    }
+}
 
-            // NOTE: should be 29 but a bug in Haskell set this to 27
-            let ada_only_utxo_size: u64 = utxo_entry_size_without_val + coin_size;
+pub fn min_pure_ada(coins_per_utxo_word: &BigNum) -> Result<BigNum, JsError> {
+    min_ada_required(
+        &Value::new(&Coin::from_str("1000000")?),
+        false,
+        coins_per_utxo_word,
+    )
+}
 
-            let size = bundle_size(
-                &assets,
-                &OutputSizeConstants {
-                    k0: 6,
-                    k1: 12,
-                    k2: 1,
-                },
-            );
-            BigNum(cmp::max(
-                minimum_utxo_val.0,
-                quot(minimum_utxo_val.0, ada_only_utxo_size) * (utxo_entry_size_without_val + (size as u64))
-            ))
+/// Used to choosed the schema for a script JSON string
+#[wasm_bindgen]
+pub enum ScriptSchema {
+    Wallet,
+    Node,
+}
+
+/// Receives a script JSON string
+/// and returns a NativeScript.
+/// Cardano Wallet and Node styles are supported.
+///
+/// * wallet: https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/api/swagger.yaml
+/// * node: https://github.com/input-output-hk/cardano-node/blob/master/doc/reference/simple-scripts.md
+///
+/// self_xpub is expected to be a Bip32PublicKey as hex-encoded bytes
+#[wasm_bindgen]
+pub fn encode_json_str_to_native_script(
+    json: &str,
+    self_xpub: &str,
+    schema: ScriptSchema,
+) -> Result<NativeScript, JsError> {
+    let value: serde_json::Value =
+        serde_json::from_str(&json).map_err(|e| JsError::from_str(&e.to_string()))?;
+
+    let native_script = match schema {
+        ScriptSchema::Wallet => encode_wallet_value_to_native_script(value, self_xpub)?,
+        ScriptSchema::Node => todo!(),
+    };
+
+    Ok(native_script)
+}
+
+fn encode_wallet_value_to_native_script(value: serde_json::Value, self_xpub: &str) -> Result<NativeScript, JsError> {
+    match value {
+        serde_json::Value::Object(map)
+            if map.contains_key("cosigners") && map.contains_key("template") =>
+        {
+            let mut cosigners = HashMap::new();
+
+            if let serde_json::Value::Object(cosigner_map) = map.get("cosigners").unwrap() {
+                for (key, value) in cosigner_map.iter() {
+                    if let serde_json::Value::String(xpub) = value {
+                        if xpub == "self" {
+                            cosigners.insert(key.to_owned(), self_xpub.to_owned());
+                        } else {
+                            cosigners.insert(key.to_owned(), xpub.to_owned());
+                        }
+                    } else {
+                        return Err(JsError::from_str("cosigner value must be a string"));
+                    }
+                }
+            } else {
+                return Err(JsError::from_str("cosigners must be a map"));
+            }
+
+            let template = map.get("template").unwrap();
+
+            let template_native_script = encode_template_to_native_script(template, &cosigners)?;
+
+            Ok(template_native_script)
         }
+        _ => Err(JsError::from_str(
+            "top level must be an object. cosigners and template keys are required",
+        )),
+    }
+}
+
+fn encode_template_to_native_script(
+    template: &serde_json::Value,
+    cosigners: &HashMap<String, String>,
+) -> Result<NativeScript, JsError> {
+    match template {
+        serde_json::Value::String(cosigner) => {
+            if let Some(xpub) = cosigners.get(cosigner) {
+                let bytes =
+                    Vec::from_hex(xpub).map_err(|e| JsError::from_str(&e.to_string()))?;
+
+                let public_key = Bip32PublicKey::from_bytes(&bytes)?;
+
+                Ok(NativeScript::new_script_pubkey(&ScriptPubkey::new(
+                    &public_key.to_raw_key().hash(),
+                )))
+            } else {
+                Err(JsError::from_str(&format!("cosigner {} not found", cosigner)))
+            }
+        }
+        serde_json::Value::Object(map) if map.contains_key("all") => {
+            let mut all = NativeScripts::new();
+
+            if let serde_json::Value::Array(array) = map.get("all").unwrap() {
+                for val in array {
+                    all.add(&encode_template_to_native_script(val, cosigners)?);
+                }
+            } else {
+                return Err(JsError::from_str("all must be an array"));
+            }
+
+            Ok(NativeScript::new_script_all(&ScriptAll::new(&all)))
+        }
+        serde_json::Value::Object(map) if map.contains_key("any") => {
+            let mut any = NativeScripts::new();
+
+            if let serde_json::Value::Array(array) = map.get("any").unwrap() {
+                for val in array {
+                    any.add(&encode_template_to_native_script(val, cosigners)?);
+                }
+            } else {
+                return Err(JsError::from_str("any must be an array"));
+            }
+
+            Ok(NativeScript::new_script_any(&ScriptAny::new(&any)))
+        }
+        serde_json::Value::Object(map) if map.contains_key("some") => {
+            if let serde_json::Value::Object(some) = map.get("some").unwrap() {
+                if some.contains_key("at_least") && some.contains_key("from") {
+                    let n = if let serde_json::Value::Number(at_least) =
+                        some.get("at_least").unwrap()
+                    {
+                        if let Some(n) = at_least.as_u64() {
+                            n as u32
+                        } else {
+                            return Err(JsError::from_str("at_least must be an integer"));
+                        }
+                    } else {
+                        return Err(JsError::from_str("at_least must be an integer"));
+                    };
+
+                    let mut from_scripts = NativeScripts::new();
+
+                    if let serde_json::Value::Array(array) = some.get("from").unwrap() {
+                        for val in array {
+                            from_scripts
+                                .add(&encode_template_to_native_script(val, cosigners)?);
+                        }
+                    } else {
+                        return Err(JsError::from_str("from must be an array"));
+                    }
+
+                    Ok(NativeScript::new_script_n_of_k(&ScriptNOfK::new(
+                        n,
+                        &from_scripts,
+                    )))
+                } else {
+                    Err(JsError::from_str("some must contain at_least and from"))
+                }
+            } else {
+                Err(JsError::from_str("some must be an object"))
+            }
+        }
+        serde_json::Value::Object(map) if map.contains_key("active_from") => {
+            if let serde_json::Value::Number(active_from) = map.get("active_from").unwrap() {
+                if let Some(n) = active_from.as_u64() {
+                    let slot: u32 = n as u32;
+
+                    let time_lock_start = TimelockStart::new(slot);
+
+                    Ok(NativeScript::new_timelock_start(&time_lock_start))
+                } else {
+                    Err(JsError::from_str(
+                        "active_from slot must be an integer greater than or equal to 0",
+                    ))
+                }
+            } else {
+                Err(JsError::from_str("active_from slot must be a number"))
+            }
+        }
+        serde_json::Value::Object(map) if map.contains_key("active_until") => {
+            if let serde_json::Value::Number(active_until) = map.get("active_until").unwrap() {
+                if let Some(n) = active_until.as_u64() {
+                    let slot: u32 = n as u32;
+
+                    let time_lock_expiry = TimelockExpiry::new(slot);
+
+                    Ok(NativeScript::new_timelock_expiry(&time_lock_expiry))
+                } else {
+                    Err(JsError::from_str(
+                        "active_until slot must be an integer greater than or equal to 0",
+                    ))
+                }
+            } else {
+                Err(JsError::from_str("active_until slot must be a number"))
+            }
+        }
+        _ => Err(JsError::from_str("invalid template format")),
     }
 }
 
@@ -1014,25 +1273,18 @@ mod tests {
     use super::*;
 
     // this is what is used in mainnet
-    static MINIMUM_UTXO_VAL: u64 = 1_000_000;
+    const COINS_PER_UTXO_WORD: u64 = 34_482;
 
-    #[test]
-    fn no_token_minimum() {
-        
-        let assets = Value {
-            coin: BigNum(0),
-            multiasset: None,
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            MINIMUM_UTXO_VAL
-        );
+    fn bundle_constants() -> OutputSizeConstants {
+        OutputSizeConstants {
+            k0: 6,
+            k1: 12,
+            k2: 1,
+        }
     }
 
-    #[test]
-    fn one_policy_one_smallest_name() {
-        
+    // taken from https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
+    fn one_policy_one_0_char_asset() -> Value {
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
@@ -1043,20 +1295,13 @@ mod tests {
             &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
             &asset_list
         );
-        let assets = Value {
-            coin: BigNum(1407406),
+        Value {
+            coin: BigNum(0),
             multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1407406
-        );
+        }
     }
 
-    #[test]
-    fn one_policy_one_small_name() {
-        
+    fn one_policy_one_1_char_asset() -> Value {
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
@@ -1067,45 +1312,13 @@ mod tests {
             &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
             &asset_list
         );
-        let assets = Value {
-            coin: BigNum(1444443),
+        Value {
+            coin: BigNum(1407406),
             multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1444443
-        );
+        }
     }
 
-    #[test]
-    fn one_policy_one_largest_name() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([1; 32].to_vec()),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1555554),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1555554
-        );
-    }
-
-    #[test]
-    fn one_policy_three_small_names() {
-        
+    fn one_policy_three_1_char_assets() -> Value {
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
@@ -1124,55 +1337,13 @@ mod tests {
             &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
             &asset_list
         );
-        let assets = Value {
+        Value {
             coin: BigNum(1555554),
             multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1555554
-        );
+        }
     }
 
-    #[test]
-    fn one_policy_three_largest_names() {
-        
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([1; 32].to_vec()),
-            &BigNum(1)
-        );
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([2; 32].to_vec()),
-            &BigNum(1)
-        );
-        asset_list.insert(
-            // The largest asset names have length thirty-two
-            &AssetName([3; 32].to_vec()),
-            &BigNum(1)
-        );
-        token_bundle.insert(
-            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
-            &asset_list
-        );
-        let assets = Value {
-            coin: BigNum(1962961),
-            multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1962961
-        );
-    }
-
-    #[test]
-    fn two_policies_one_smallest_name() {
-        
+    fn two_policies_one_0_char_asset() -> Value {
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
@@ -1187,24 +1358,17 @@ mod tests {
             &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
             &asset_list
         );
-        let assets = Value {
+        Value {
             coin: BigNum(1592591),
             multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1592591
-        );
+        }
     }
 
-    #[test]
-    fn two_policies_two_small_names() {
-        
+    fn two_policies_one_1_char_asset() -> Value {
         let mut token_bundle = MultiAsset::new();
         let mut asset_list = Assets::new();
         asset_list.insert(
-            &AssetName(vec![]),
+            &AssetName(vec![1]),
             &BigNum(1)
         );
         token_bundle.insert(
@@ -1215,27 +1379,20 @@ mod tests {
             &PolicyID::from([1; ScriptHash::BYTE_COUNT]),
             &asset_list
         );
-        let assets = Value {
+        Value {
             coin: BigNum(1592591),
             multiasset: Some(token_bundle),
-        };
-        
-        assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            1592591
-        );
+        }
     }
 
-    #[test]
-    fn three_policies_99_small_names() {
-        
+    fn three_policies_96_1_char_assets() -> Value {
         let mut token_bundle = MultiAsset::new();
         fn add_policy(token_bundle: &mut MultiAsset, index: u8) -> () {
             let mut asset_list = Assets::new();
 
-            for i in 0..33 {
+            for i in 0..32 {
                 asset_list.insert(
-                    &AssetName(vec![i]),
+                    &AssetName(vec![index * 32 + i]),
                     &BigNum(1)
                 );
             }
@@ -1247,26 +1404,146 @@ mod tests {
         add_policy(&mut token_bundle, 1);
         add_policy(&mut token_bundle, 2);
         add_policy(&mut token_bundle, 3);
-        let assets = Value {
+        Value {
             coin: BigNum(7592585),
             multiasset: Some(token_bundle),
-        };
-        
+        }
+    }
+
+    fn one_policy_three_32_char_assets() -> Value {
+        let mut token_bundle = MultiAsset::new();
+        let mut asset_list = Assets::new();
+        asset_list.insert(
+            &AssetName(vec![1; 32]),
+            &BigNum(1)
+        );
+        asset_list.insert(
+            &AssetName(vec![2; 32]),
+            &BigNum(1)
+        );
+        asset_list.insert(
+            &AssetName(vec![3; 32]),
+            &BigNum(1)
+        );
+        token_bundle.insert(
+            &PolicyID::from([0; ScriptHash::BYTE_COUNT]),
+            &asset_list
+        );
+        Value {
+            coin: BigNum(1555554),
+            multiasset: Some(token_bundle),
+        }
+    }
+
+    #[test]
+    fn min_ada_value_no_multiasset() {
         assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            7296289
+            from_bignum(&min_ada_required(&Value::new(&Coin::zero()), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            999978,
         );
     }
-    
-    #[test]
-    fn proper_asset_size_calculation() {
-        let assets = Value::from_bytes(
-            Vec::from_hex("821a011cd498b82f581c4fd307695d244431ca93599be34d9aea403f24cf30f2eadcd7a178e2a1487377616e6b70696501581c50000001f7d74d2f95f82c4cfeb13f4119c350c2f91090fd69757fbda34f43617264616e6f526f6e696e313130014f43617264616e6f526f6e696e323732014f43617264616e6f526f6e696e34313401581c5090573eaf3ca637bce1fb23afc98a7ae1bc803df151a3c82e0921b5a14e4b6174654665617244656164313001581c513cdfefd0c39c79ff77b77f28aca06e74a6f3bd63a2599f8481db41a15454686546697273744b6579686f6c64657230383101581c52f02b66a66da2935d8b2c6424956a000b15e971004b1e32d88e4820a15254484548494748505249455354455353303101581c531052a4c667b84648c74f362c0c1878c3001b0f7696815752a4bed1a1554e46545530303132506c616e657450616c7a30353301581c558430d47055f97e15bfeb264a68c8e1c5acef1712bd36ab31ceb22ca14346414d01581c55dd4519ca2ce4071ba005eb209506d2140cccba49cdc3419dda695ca148417269657330303501581c56cffff175760004b9f2da7d2120341baee137f2131b09e7a0ad3eb4a1581b7766303030344368616f7469634d617468656d617469637330313801581c570f3e65dc46e8edf8ac288f13385297e6f749a8fd84064cdcda2839a1534e465455303031384e46544372617a6530393101581c597ecdd4be1ffdcd9426ca4cfaaf75285650351045e21bfc7b7f0ba8a1465275706565730a581c5b597e4f6560f9403dcba7618fef04df235bfcb72552176c0e8a599ba1444265657201581c5d58881d98f367befbce25ff966ee22b4de8f099da0e7f71c089e542a35543436f756e747269657342726f6e7a654d6564616c01464368696e613801464a6170616e3901581c5df412e3eb27ffa1665302f8bf97f74f89fa42215d3e5b09464c1c14a14b4c75636b794e654b6f696e190649581c61aaaaad465f0f8a28aec3461beaf38990f671f2e4bc979ddda194c4a1581b5468654d6973616476656e74757265736f66426f6763686932316101581c62ea7cb573306f6c272a2ff066679f2e4216270311d8e71b5f765251ac4a4164616c6f746c303134014a4164616c6f746c303434014a4164616c6f746c313439014a4164616c6f746c323337014a4164616c6f746c323430014a4164616c6f746c343432014a4164616c6f746c343836014a4164616c6f746c363036014a4164616c6f746c363530014a4164616c6f746c363638014a4164616c6f746c363932014a4164616c6f746c38333801581c6590687768bf097900b546a15efb0e413010cbefca2ade9f629c6d43a14c566f78656c697a656432303801581c66fb86c135d9d1350d29abff0b1c549a4b8204885227f76346601782a1475448454d4f4f4e01581c68fb69abc121dfb77be74e5d589876ea7fa271a70a905a4bbc580a60a1554e465455303030365375736869427974657330333101581c6ce4f2fd965a3f782baa0b9aa421c21299d434ad6c566ed077d6d663a1504475636343616d65466972737430363601581c73c590cc5d909ff19c2521bf14f673928a1fe3ff0e2c6eaa7bd36d5da14a45617450697a7a61303101581c76c2ddb32f3d974be983c39789313ab26e1791ef7a1bb09a55d2ade9a158186e65766572466f72676574446973636f726452617265303401581c77e4da914068a50d9d9420dbdda80817b55516ac6304273879318d5aa14f43756c746f664c75636b794e656b6f01581c78517792ad45d22f70a8ec4a1d30c458925938a8e7a5d9acb2449a63ad4f434d42594e41444150555a5a4c45310153434d42594e41444150555a5a4c45424b524437014c434d42594e50555a5a4c4531014d434d42594e50555a5a4c453130014d434d42594e50555a5a4c453131014c434d42594e50555a5a4c4532014c434d42594e50555a5a4c4533014c434d42594e50555a5a4c4534014c434d42594e50555a5a4c4535014c434d42594e50555a5a4c4536014c434d42594e50555a5a4c4537014c434d42594e50555a5a4c4538014c434d42594e50555a5a4c453901581c787622826f8ebd1baa04e5a9a76ae0eac7392f730544528738faafcba14f526f62696e5265645374616d70303901581c7b5fd95985e08b72a5c37b9d3c7d863bb8a6fed82ef4741594be357da1487377616e6b70696501581c7b9e74668dad56367f9314485a402c726d3bb8561834fdf253c65c4ba14f566973696f6e73426c61636b4f696c01581c7c306b00720b3a941ede9d6e1c469ec678cea1d1be8f70ff146dd6c8a1487377616e6b70696501581c84c0acb101c14416ad92859c429058871e201804468d5f353be31d71a64f50756e6b7374657241727432343038014f50756e6b7374657241727436393534014f50756e6b7374657241727437343733014f50756e6b7374657241727437353237014f50756e6b7374657241727437363831014f50756e6b737465724172743736393501581c8579617b51f533912b1652b7baa57a97335490848ec750741699db3ca34a535452454e4754483031014a544845444556494c3031014b5448454c4f56455253303101581c88814632e81b0d0d92d76bf7c7321351618a331558eb76f699f62580a1444f50323301581c89ee9ed7ce189c466be5937af4dc9103d71cc9ec150efdf158d4fe13a35043617264616e6f417065334431313830015043617264616e6f417065334432363032015043617264616e6f41706533443237383601581c89fa6dc66a24799ccaee43a3a16930bb045a8152fdf2a2642034774fa14f506c616e657450616c7a313134303801581c8acb8d48ccee9f22265bcf1f41b4bcffbcecf5a5a85c5e4e1bb7bad0a1464f726967696e01581c8bd876119ed2152848cc364db9fab76c5ed8d98fdf53c2157ffd4092a1487377616e6b70696501581c8f80ebfaf62a8c33ae2adf047572604c74db8bc1daba2b43f9a65635a45243617264616e6f57617272696f7235393535015243617264616e6f57617272696f7236313933015243617264616e6f57617272696f7238393131015243617264616e6f57617272696f723938383101581c8fea90d673cbdd5b3da3309fb7cf1dcbb1c485ba6a7e5148468351a2a14f457570686f726963446f736573333601581c900c8cf13faf04300988e173b2695b74423da2be1615e544ddf7f9d7a14d48617070795768616c6530303101581c91acca0a2614212d68a5ae7313c85962849994aab54e340d3a68aabba14653483435363101581c922cb8a086179b1b0464f1b80c1679a210d9ed9b1e1b8374f27496e6a1445250313401581c92e7d5f2ac1994d2916d547395ab8ce650bb7387a0f70a9efbd543a6a1534e46545530303131436f6e6a7572657231363401581c942f26b14e57ab29ceac5f5d0e1ce392001ac486a019ab272f37c9c5a3581a434d42594e784261636b776172647347656f6d6574727942303801581a434d42594e784261636b776172647347656f6d6574727945303301581a434d42594e784261636b776172647347656f6d6574727947303801581c949dbdd63f3157100e3b98dffb20259f5053bcddb1ce6fd253c6da85a54e466c6f77496e64696142756c6c30014e466c6f77496e646961466f757231014d466c6f77496e6469614f6e6532014f466c6f77496e646961546872656536014d466c6f77496e64696154776f3601581c97305ec3684b4e5ac2977d44ee05fd453b038ae882e665fd6499484ca45818456e70696d6f6e7943616e61646143656e746175723030380156456e70696d6f6e7943616e616461476f6c656d3031330156456e70696d6f6e7943616e616461486f7273653032330157456e70696d6f6e7943616e6164614b6e6967687430383701581ca8731ef90e36acc7083d9bd501f733cb610ad67e7143d891fd45ab89a14e53776565744b697473756e65303901581cabe233937c19a90f826d94f121029a2fccf2bc411b9c5456e2ba49dba155496e746f5468654c6f6f6b696e67476c617373303401581cd3bbe5b2a27a392fbac2471e0c42f54ddd55da1005f86e9c18c3e082a1581a526f79616c4d6348756d70696e4b69747469657342656163683201").unwrap()
-        ).unwrap();
 
+    #[test]
+    fn min_ada_value_one_policy_one_0_char_asset() {
         assert_eq!(
-            min_ada_required(&assets, &BigNum(MINIMUM_UTXO_VAL)).0,
-            18666648
+            from_bignum(&min_ada_required(&one_policy_one_0_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_310_316,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_one_policy_one_1_char_asset() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&one_policy_one_1_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_344_798,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_one_policy_three_1_char_assets() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&one_policy_three_1_char_assets(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_448_244,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_two_policies_one_0_char_asset() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&two_policies_one_0_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_482_726,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_two_policies_one_1_char_asset() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&two_policies_one_1_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_517_208,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_three_policies_96_1_char_assets() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&three_policies_96_1_char_assets(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            6_896_400,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_one_policy_one_0_char_asset_datum_hash() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&one_policy_one_0_char_asset(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_655_136,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_one_policy_three_32_char_assets_datum_hash() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&one_policy_three_32_char_assets(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            2_172_366,
+        );
+    }
+
+    #[test]
+    fn min_ada_value_two_policies_one_0_char_asset_datum_hash() {
+        assert_eq!(
+            from_bignum(&min_ada_required(&two_policies_one_0_char_asset(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
+            1_827_546,
+        );
+    }
+
+    #[test]
+    fn bundle_sizes() {
+        assert_eq!(
+            bundle_size(&one_policy_one_0_char_asset(), &bundle_constants()),
+            11
+        );
+        assert_eq!(
+            bundle_size(&one_policy_one_1_char_asset(), &bundle_constants()),
+            12
+        );
+        assert_eq!(
+            bundle_size(&one_policy_three_1_char_assets(), &bundle_constants()),
+            15
+        );
+        assert_eq!(
+            bundle_size(&two_policies_one_0_char_asset(), &bundle_constants()),
+            16
+        );
+        assert_eq!(
+            bundle_size(&two_policies_one_1_char_asset(), &bundle_constants()),
+            17
+        );
+        assert_eq!(
+            bundle_size(&three_policies_96_1_char_assets(), &bundle_constants()),
+            173
+        );
+        assert_eq!(
+            bundle_size(&one_policy_three_32_char_assets(), &bundle_constants()),
+            26
         );
     }
 
@@ -1852,5 +2129,162 @@ mod tests {
         }
         expected.push(0xff);
         assert_eq!(expected, written);
+    }
+
+    #[test]
+    fn correct_script_data_hash() {
+        let mut datums = PlutusList::new();
+        datums.add(&PlutusData::new_integer(&BigInt::from_str("1000").unwrap()));
+        let mut redeemers = Redeemers::new();
+        redeemers.add(&Redeemer::new(&RedeemerTag::new_spend(), &BigNum::from_str("1").unwrap(), &PlutusData::new_integer(&BigInt::from_str("2000").unwrap()), &ExUnits::new(&BigNum::from_str("0").unwrap(), &BigNum::from_str("0").unwrap())));
+        let plutus_cost_model = CostModel::from_bytes(vec![
+            159, 26, 0, 3, 2, 89, 0, 1, 1, 26, 0, 6, 11, 199, 25, 2, 109, 0, 1, 26, 0, 2, 73, 240, 25, 3, 232, 0, 1, 26, 0,
+            2, 73, 240, 24, 32, 26, 0, 37, 206, 168, 25, 113, 247, 4, 25, 116, 77, 24, 100, 25, 116, 77, 24, 100, 25, 116, 77,
+            24, 100, 25, 116, 77, 24, 100, 25, 116, 77, 24, 100, 25, 116, 77, 24, 100, 24, 100, 24, 100, 25, 116, 77, 24, 100,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 25, 3, 232, 0,
+            1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 25, 3, 232, 0, 8, 26, 0, 2, 66, 32, 26, 0, 6, 126, 35, 24, 118, 0,
+            1, 1, 26, 0, 2, 73, 240, 25, 3, 232, 0, 8, 26, 0, 2, 73, 240, 26, 0, 1, 183, 152, 24, 247, 1, 26, 0, 2, 73, 240, 25,
+            39, 16, 1, 26, 0, 2, 21, 94, 25, 5, 46, 1, 25, 3, 232, 26, 0, 2, 73, 240, 25, 3, 232, 1, 26, 0, 2, 73, 240, 24, 32,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 1, 1, 26, 0, 2, 73, 240, 1, 26, 0, 2, 73, 240, 4, 26, 0, 1, 148,
+            175, 24, 248, 1, 26, 0, 1, 148, 175, 24, 248, 1, 26, 0, 2, 55, 124, 25, 5, 86, 1, 26, 0, 2, 189, 234, 25, 1, 241, 1,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2,
+            73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 66, 32, 26, 0, 6, 126, 35, 24, 118, 0, 1, 1, 25, 240, 76, 25, 43,
+            210, 0, 1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 66, 32, 26, 0, 6, 126, 35, 24, 118, 0, 1, 1, 26, 0, 2, 66, 32, 26, 0, 6,
+            126, 35, 24, 118, 0, 1, 1, 26, 0, 37, 206, 168, 25, 113, 247, 4, 0, 26, 0, 1, 65, 187, 4, 26, 0, 2, 73, 240, 25, 19,
+            136, 0, 1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 3, 2, 89, 0, 1, 1, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32,
+            26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73, 240, 24, 32, 26, 0, 2, 73,
+            240, 24, 32, 26, 0, 51, 13, 167, 1, 1, 255
+        ]).unwrap();
+        let mut cost_models = Costmdls::new();
+        cost_models.insert(&Language::new_plutus_v1(), &plutus_cost_model);
+        let script_data_hash = hash_script_data(&redeemers, &cost_models, Some(datums));
+
+        assert_eq!(
+            hex::encode(script_data_hash.to_bytes()),
+            "57240d358f8ab6128c4a66340271e4fec39b4971232add308f01a5809313adcf"
+        );
+    }
+
+    #[test]
+    fn native_scripts_from_wallet_json() {
+        let cosigner0_hex = "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1";
+        let cosigner1_hex = "a48d97f57ce49433f347d44ee07e54a100229b4f8e125d25f7bca9ad66d9707a25cd1331f46f7d6e279451637ca20802a25c441ba9436abf644fe5410d1080e3";
+        let self_key_hex = "6ce83a12e9d4c783f54c0bb511303b37160a6e4f3f96b8e878a7c1f7751e18c4ccde3fb916d330d07f7bd51fb6bd99aa831d925008d3f7795033f48abd6df7f6";
+        let native_script = encode_json_str_to_native_script(
+            &format!(r#"
+        {{
+            "cosigners": {{
+                "cosigner#0": "{}",
+                "cosigner#1": "{}",
+                "cosigner#2": "self"
+            }},
+            "template": {{
+                "some": {{
+                    "at_least": 2,
+                    "from": [
+                        {{
+                            "all": [
+                                "cosigner#0",
+                                {{ "active_from": 120 }}
+                            ]
+                        }},
+                        {{
+                            "any": [
+                                "cosigner#1",
+                                {{ "active_until": 1000 }}
+                            ]
+                        }},
+                        "cosigner#2"
+                    ]
+                }}
+            }}
+        }}"#, cosigner0_hex, cosigner1_hex),
+            self_key_hex,
+            ScriptSchema::Wallet,
+        );
+
+        let n_of_k = native_script.unwrap().as_script_n_of_k().unwrap();
+        let from = n_of_k.native_scripts();
+        assert_eq!(n_of_k.n(), 2);
+        assert_eq!(from.len(), 3);
+        let all = from.get(0).as_script_all().unwrap().native_scripts();
+        assert_eq!(all.len(), 2);
+        let all_0 = all.get(0).as_script_pubkey().unwrap();
+        assert_eq!(
+            all_0.addr_keyhash(),
+            Bip32PublicKey::from_bytes(&hex::decode(cosigner0_hex).unwrap()).unwrap().to_raw_key().hash()
+        );
+        let all_1 = all.get(1).as_timelock_start().unwrap();
+        assert_eq!(all_1.slot(), 120);
+        let any = from.get(1).as_script_any().unwrap().native_scripts();
+        assert_eq!(all.len(), 2);
+        let any_0 = any.get(0).as_script_pubkey().unwrap();
+        assert_eq!(
+            any_0.addr_keyhash(),
+            Bip32PublicKey::from_bytes(&hex::decode(cosigner1_hex).unwrap()).unwrap().to_raw_key().hash()
+        );
+        let any_1 = any.get(1).as_timelock_expiry().unwrap();
+        assert_eq!(any_1.slot(), 1000);
+        let self_key = from.get(2).as_script_pubkey().unwrap();
+        assert_eq!(
+            self_key.addr_keyhash(),
+            Bip32PublicKey::from_bytes(&hex::decode(self_key_hex).unwrap()).unwrap().to_raw_key().hash()
+        );
+    }
+
+    #[test]
+    fn int_to_str() {
+        assert_eq!(Int::new(&BigNum(u64::max_value())).to_str(), u64::max_value().to_string());
+        assert_eq!(Int::new(&BigNum(u64::min_value())).to_str(), u64::min_value().to_string());
+        assert_eq!(Int::new_negative(&BigNum(u64::max_value())).to_str(), (-(u64::max_value() as i128)).to_string());
+        assert_eq!(Int::new_negative(&BigNum(u64::min_value())).to_str(), (-(u64::min_value() as i128)).to_string());
+        assert_eq!(Int::new_i32(142).to_str(), "142");
+        assert_eq!(Int::new_i32(-142).to_str(), "-142");
+    }
+
+    #[test]
+    fn int_as_i32_or_nothing() {
+
+        let over_pos_i32 = (i32::max_value() as i64) + 1;
+        assert!(Int::new(&BigNum(over_pos_i32 as u64)).as_i32_or_nothing().is_none());
+
+        let valid_pos_i32 = (i32::max_value() as i64);
+        assert_eq!(Int::new(&BigNum(valid_pos_i32 as u64)).as_i32_or_nothing().unwrap(), i32::max_value());
+
+        let over_neg_i32 = (i32::min_value() as i64) - 1;
+        assert!(Int::new_negative(&BigNum((-over_neg_i32) as u64)).as_i32_or_nothing().is_none());
+
+        let valid_neg_i32 = (i32::min_value() as i64);
+        assert_eq!(Int::new_negative(&BigNum((-valid_neg_i32) as u64)).as_i32_or_nothing().unwrap(), i32::min_value());
+
+        assert!(Int::new(&BigNum(u64::max_value())).as_i32_or_nothing().is_none());
+        assert_eq!(Int::new(&BigNum(i32::max_value() as u64)).as_i32_or_nothing().unwrap(), i32::max_value());
+        assert_eq!(Int::new_negative(&BigNum(i32::max_value() as u64)).as_i32_or_nothing().unwrap(), -i32::max_value());
+
+        assert_eq!(Int::new_i32(42).as_i32_or_nothing().unwrap(), 42);
+        assert_eq!(Int::new_i32(-42).as_i32_or_nothing().unwrap(), -42);
+    }
+
+    #[test]
+    fn int_as_i32_or_fail() {
+
+        let over_pos_i32 = (i32::max_value() as i64) + 1;
+        assert!(Int::new(&BigNum(over_pos_i32 as u64)).as_i32_or_fail().is_err());
+
+        let valid_pos_i32 = (i32::max_value() as i64);
+        assert_eq!(Int::new(&BigNum(valid_pos_i32 as u64)).as_i32_or_fail().unwrap(), i32::max_value());
+
+        let over_neg_i32 = (i32::min_value() as i64) - 1;
+        assert!(Int::new_negative(&BigNum((-over_neg_i32) as u64)).as_i32_or_fail().is_err());
+
+        let valid_neg_i32 = (i32::min_value() as i64);
+        assert_eq!(Int::new_negative(&BigNum((-valid_neg_i32) as u64)).as_i32_or_fail().unwrap(), i32::min_value());
+
+        assert!(Int::new(&BigNum(u64::max_value())).as_i32_or_fail().is_err());
+        assert_eq!(Int::new(&BigNum(i32::max_value() as u64)).as_i32_or_fail().unwrap(), i32::max_value());
+        assert_eq!(Int::new_negative(&BigNum(i32::max_value() as u64)).as_i32_or_fail().unwrap(), -i32::max_value());
+
+        assert_eq!(Int::new_i32(42).as_i32_or_fail().unwrap(), 42);
+        assert_eq!(Int::new_i32(-42).as_i32_or_fail().unwrap(), -42);
     }
 }

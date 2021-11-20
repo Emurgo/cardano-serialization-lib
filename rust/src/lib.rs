@@ -57,6 +57,7 @@ use error::*;
 use plutus::*;
 use metadata::*;
 use utils::*;
+use std::cmp::Ordering;
 
 type DeltaCoin = Int;
 
@@ -97,6 +98,7 @@ type Slot = u32;
 pub struct Transaction {
     body: TransactionBody,
     witness_set: TransactionWitnessSet,
+    is_valid: bool,
     auxiliary_data: Option<AuxiliaryData>,
 }
 
@@ -112,8 +114,16 @@ impl Transaction {
         self.witness_set.clone()
     }
 
+    pub fn is_valid(&self) -> bool {
+        self.is_valid.clone()
+    }
+
     pub fn auxiliary_data(&self) -> Option<AuxiliaryData> {
         self.auxiliary_data.clone()
+    }
+
+    pub fn set_is_valid(&mut self, valid: bool) {
+        self.is_valid = valid
     }
 
     pub fn new(
@@ -124,6 +134,7 @@ impl Transaction {
         Self {
             body: body.clone(),
             witness_set: witness_set.clone(),
+            is_valid: true,
             auxiliary_data: auxiliary_data.clone(),
         }
     }
@@ -382,7 +393,7 @@ impl TransactionInput {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionOutput {
     address: Address,
     pub (crate) amount: Value,
@@ -1615,11 +1626,11 @@ pub enum ScriptHashNamespace {
 
 #[wasm_bindgen]
 impl NativeScript {
-    pub fn hash(&self, namespace: ScriptHashNamespace) -> Ed25519KeyHash {
+    pub fn hash(&self, namespace: ScriptHashNamespace) -> ScriptHash {
         let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
         bytes.extend_from_slice(&vec![namespace as u8]);
         bytes.extend_from_slice(&self.to_bytes());
-        Ed25519KeyHash::from(blake2b224(bytes.as_ref()))
+        ScriptHash::from(blake2b224(bytes.as_ref()))
     }
 
     pub fn new_script_pubkey(script_pubkey: &ScriptPubkey) -> Self {
@@ -2403,8 +2414,25 @@ impl HeaderBody {
 
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AssetName(Vec<u8>);
+
+impl Ord for AssetName {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Implementing canonical CBOR order for asset names,
+        // as they might be of different length.
+        return match self.0.len().cmp(&other.0.len()) {
+            Ordering::Equal => self.0.cmp(&other.0),
+            x => x,
+        };
+    }
+}
+
+impl PartialOrd for AssetName {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 to_from_bytes!(AssetName);
 
@@ -2687,15 +2715,51 @@ mod tests {
 
     #[test]
     fn native_script_hash() {
-        let hash = Ed25519KeyHash::from_bytes(vec![143, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244, 98, 246, 13, 33, 212, 128, 168, 136, 40]).unwrap();
-        assert_eq!(hex::encode(&hash.to_bytes()), "8fb4ba5ddf2af3075162567d61456e3482f3f462f60d21d480a88828");
+        let keyhash = Ed25519KeyHash::from_bytes(vec![143, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244, 98, 246, 13, 33, 212, 128, 168, 136, 40]).unwrap();
+        assert_eq!(hex::encode(&keyhash.to_bytes()), "8fb4ba5ddf2af3075162567d61456e3482f3f462f60d21d480a88828");
 
-        let script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&hash));
+        let script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&keyhash));
 
-        let script_hash = ScriptHash::from_bytes(
-            script.hash(ScriptHashNamespace::NativeScript).to_bytes()
-        ).unwrap();
+        let script_hash = script.hash(ScriptHashNamespace::NativeScript);
 
         assert_eq!(hex::encode(&script_hash.to_bytes()), "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f");
+    }
+
+    #[test]
+    fn asset_name_ord() {
+
+        let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+        let name11 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+
+        let name2 = AssetName::new(vec![0u8, 4, 5, 6]).unwrap();
+        let name22 = AssetName::new(vec![0u8, 4, 5, 6]).unwrap();
+
+        let name3 = AssetName::new(vec![0u8, 7, 8]).unwrap();
+        let name33 = AssetName::new(vec![0u8, 7, 8]).unwrap();
+
+        assert_eq!(name1.cmp(&name2), Ordering::Less);
+        assert_eq!(name2.cmp(&name1), Ordering::Greater);
+        assert_eq!(name1.cmp(&name3), Ordering::Greater);
+        assert_eq!(name2.cmp(&name3), Ordering::Greater);
+        assert_eq!(name3.cmp(&name1), Ordering::Less);
+        assert_eq!(name3.cmp(&name2), Ordering::Less);
+
+        assert_eq!(name1.cmp(&name11), Ordering::Equal);
+        assert_eq!(name2.cmp(&name22), Ordering::Equal);
+        assert_eq!(name3.cmp(&name33), Ordering::Equal);
+
+        let mut map = Assets::new();
+        map.insert(&name2, &to_bignum(1));
+        map.insert(&name1, &to_bignum(1));
+        map.insert(&name3, &to_bignum(1));
+
+        assert_eq!(map.keys(), AssetNames(vec![name3, name1, name2]));
+
+        let mut map2 = MintAssets::new();
+        map2.insert(&name11, Int::new_i32(1));
+        map2.insert(&name33, Int::new_i32(1));
+        map2.insert(&name22, Int::new_i32(1));
+
+        assert_eq!(map2.keys(), AssetNames(vec![name33, name11, name22]));
     }
 }

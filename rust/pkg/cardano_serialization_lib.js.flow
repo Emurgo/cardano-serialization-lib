@@ -6,73 +6,6 @@
  */
 
 /**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
-): string;
-
-/**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
- */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -166,13 +99,102 @@ declare export function get_deposit(
 
 /**
  * @param {Value} assets
- * @param {BigNum} minimum_utxo_val
+ * @param {boolean} has_data_hash
+ * @param {BigNum} coins_per_utxo_word
  * @returns {BigNum}
  */
 declare export function min_ada_required(
   assets: Value,
-  minimum_utxo_val: BigNum
+  has_data_hash: boolean,
+  coins_per_utxo_word: BigNum
 ): BigNum;
+
+/**
+ * Receives a script JSON string
+ * and returns a NativeScript.
+ * Cardano Wallet and Node styles are supported.
+ *
+ * * wallet: https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/api/swagger.yaml
+ * * node: https://github.com/input-output-hk/cardano-node/blob/master/doc/reference/simple-scripts.md
+ *
+ * self_xpub is expected to be a Bip32PublicKey as hex-encoded bytes
+ * @param {string} json
+ * @param {string} self_xpub
+ * @param {number} schema
+ * @returns {NativeScript}
+ */
+declare export function encode_json_str_to_native_script(
+  json: string,
+  self_xpub: string,
+  schema: number
+): NativeScript;
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -246,26 +268,6 @@ declare export var NetworkIdKind: {|
 /**
  */
 
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
 |};
@@ -289,6 +291,51 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
+|};
+
+/**
+ * Used to choosed the schema for a script JSON string
+ */
+
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
 |};
 
 /**
@@ -1243,9 +1290,9 @@ declare export class ConstrPlutusData {
   static from_bytes(bytes: Uint8Array): ConstrPlutusData;
 
   /**
-   * @returns {Int}
+   * @returns {BigNum}
    */
-  tag(): Int;
+  alternative(): BigNum;
 
   /**
    * @returns {PlutusList}
@@ -1253,11 +1300,11 @@ declare export class ConstrPlutusData {
   data(): PlutusList;
 
   /**
-   * @param {Int} tag
+   * @param {BigNum} alternative
    * @param {PlutusList} data
    * @returns {ConstrPlutusData}
    */
-  static new(tag: Int, data: PlutusList): ConstrPlutusData;
+  static new(alternative: BigNum, data: PlutusList): ConstrPlutusData;
 }
 /**
  */
@@ -1957,19 +2004,55 @@ declare export class Int {
   is_positive(): boolean;
 
   /**
+   * BigNum can only contain unsigned u64 values
+   *
+   * This function will return the BigNum representation
+   * only in case the underlying i128 value is positive.
+   *
+   * Otherwise nothing will be returned (undefined).
    * @returns {BigNum | void}
    */
   as_positive(): BigNum | void;
 
   /**
+   * BigNum can only contain unsigned u64 values
+   *
+   * This function will return the *absolute* BigNum representation
+   * only in case the underlying i128 value is negative.
+   *
+   * Otherwise nothing will be returned (undefined).
    * @returns {BigNum | void}
    */
   as_negative(): BigNum | void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns an i32 value in case the underlying original i128 value is within the limits.
+   * Otherwise will just return an empty value (undefined).
    * @returns {number | void}
    */
   as_i32(): number | void;
+
+  /**
+   * Returns the underlying value converted to i32 if possible (within limits)
+   * Otherwise will just return an empty value (undefined).
+   * @returns {number | void}
+   */
+  as_i32_or_nothing(): number | void;
+
+  /**
+   * Returns the underlying value converted to i32 if possible (within limits)
+   * JsError in case of out of boundary overflow
+   * @returns {number}
+   */
+  as_i32_or_fail(): number;
+
+  /**
+   * Returns string representation of the underlying i128 value directly.
+   * Might contain the minus sign (-) in case of negative value.
+   * @returns {string}
+   */
+  to_str(): string;
 }
 /**
  */
@@ -2585,9 +2668,9 @@ declare export class NativeScript {
 
   /**
    * @param {number} namespace
-   * @returns {Ed25519KeyHash}
+   * @returns {ScriptHash}
    */
-  hash(namespace: number): Ed25519KeyHash;
+  hash(namespace: number): ScriptHash;
 
   /**
    * @param {ScriptPubkey} script_pubkey
@@ -3345,6 +3428,20 @@ declare export class PrivateKey {
    * @returns {PrivateKey}
    */
   static generate_ed25519extended(): PrivateKey;
+
+  /**
+   * Get private key from its bech32 representation
+   * ```javascript
+   * PrivateKey.from_bech32(&#39;ed25519_sk1ahfetf02qwwg4dkq7mgp4a25lx5vh9920cr5wnxmpzz9906qvm8qwvlts0&#39;);
+   * ```
+   * For an extended 25519 key
+   * ```javascript
+   * PrivateKey.from_bech32(&#39;ed25519e_sk1gqwl4szuwwh6d0yk3nsqcc6xxc3fpvjlevgwvt60df59v8zd8f8prazt8ln3lmz096ux3xvhhvm3ca9wj2yctdh3pnw0szrma07rt5gl748fp&#39;);
+   * ```
+   * @param {string} bech32_str
+   * @returns {PrivateKey}
+   */
+  static from_bech32(bech32_str: string): PrivateKey;
 
   /**
    * @returns {string}
@@ -4642,9 +4739,19 @@ declare export class Transaction {
   witness_set(): TransactionWitnessSet;
 
   /**
+   * @returns {boolean}
+   */
+  is_valid(): boolean;
+
+  /**
    * @returns {AuxiliaryData | void}
    */
   auxiliary_data(): AuxiliaryData | void;
+
+  /**
+   * @param {boolean} valid
+   */
+  set_is_valid(valid: boolean): void;
 
   /**
    * @param {TransactionBody} body
@@ -4851,6 +4958,22 @@ declare export class TransactionBuilder {
   free(): void;
 
   /**
+   * This automatically selects and adds inputs from {inputs} consisting of just enough to cover
+   * the outputs that have already been added.
+   * This should be called after adding all certs/outputs/etc and will be an error otherwise.
+   * Uses CIP2: https://github.com/cardano-foundation/CIPs/blob/master/CIP-0002/CIP-0002.md
+   * Adding a change output must be called after via TransactionBuilder::add_change_if_needed()
+   * This function, diverging from CIP2, takes into account fees and will attempt to add additional
+   * inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
+   * @param {TransactionUnspentOutputs} inputs
+   * @param {number} strategy
+   */
+  add_inputs_from(inputs: TransactionUnspentOutputs, strategy: number): void;
+
+  /**
+   * We have to know what kind of inputs these are to know what kind of mock witnesses to create since
+   * 1) mock witnesses have different lengths depending on the type which changes the expecting fee
+   * 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
    * @param {Ed25519KeyHash} hash
    * @param {TransactionInput} input
    * @param {Value} amount
@@ -4952,20 +5075,20 @@ declare export class TransactionBuilder {
 
   /**
    * @param {LinearFee} linear_fee
-   * @param {BigNum} minimum_utxo_val
    * @param {BigNum} pool_deposit
    * @param {BigNum} key_deposit
    * @param {number} max_value_size
    * @param {number} max_tx_size
+   * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionBuilder}
    */
   static new(
     linear_fee: LinearFee,
-    minimum_utxo_val: BigNum,
     pool_deposit: BigNum,
     key_deposit: BigNum,
     max_value_size: number,
-    max_tx_size: number
+    max_tx_size: number,
+    coins_per_utxo_word: BigNum
   ): TransactionBuilder;
 
   /**
@@ -5352,6 +5475,32 @@ declare export class TransactionUnspentOutput {
    * @returns {TransactionOutput}
    */
   output(): TransactionOutput;
+}
+/**
+ */
+declare export class TransactionUnspentOutputs {
+  free(): void;
+
+  /**
+   * @returns {TransactionUnspentOutputs}
+   */
+  static new(): TransactionUnspentOutputs;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {TransactionUnspentOutput}
+   */
+  get(index: number): TransactionUnspentOutput;
+
+  /**
+   * @param {TransactionUnspentOutput} elem
+   */
+  add(elem: TransactionUnspentOutput): void;
 }
 /**
  */
