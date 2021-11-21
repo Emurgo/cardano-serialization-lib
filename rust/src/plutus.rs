@@ -1168,6 +1168,7 @@ impl Deserialize for Strings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hex::*;
 
     #[test]
     pub fn plutus_constr_data() {
@@ -1183,5 +1184,31 @@ mod tests {
         );
         let constr_1854_roundtrip = PlutusData::from_bytes(constr_1854.to_bytes()).unwrap();
         assert_eq!(constr_1854, constr_1854_roundtrip);
+    }
+
+    #[test]
+    pub fn plutus_list_serialization_cli_compatibility() {
+        // mimic cardano-cli array encoding, see https://github.com/Emurgo/cardano-serialization-lib/issues/227
+        let datum_cli = "d8799f4100d8799fd8799fd8799f581cffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd8799fd8799fd8799f581cffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd87a80ff1a002625a0d8799fd879801a000f4240d87a80ffff";
+        let datum = PlutusData::from_bytes(Vec::from_hex(datum_cli).unwrap()).unwrap();
+        assert_eq!(datum_cli, hex::encode(datum.to_bytes()));
+
+        // encode empty arrays as fixed
+        assert_eq!("80", hex::encode(PlutusList::from_bytes(Vec::from_hex("9fff").unwrap()).unwrap().to_bytes()));
+
+        // encode arrays as indefinite length array
+        let mut list = PlutusList::new();
+        list.add(&PlutusData::new_integer(&BigInt::from_str("1").unwrap()));
+        assert_eq!("9f01ff", hex::encode(list.to_bytes()));
+
+        // witness_set should have fixed length array
+        let mut witness_set = TransactionWitnessSet::new();
+        witness_set.set_plutus_data(&list);
+        assert_eq!("a1048101", hex::encode(witness_set.to_bytes()));
+
+        list = PlutusList::new();
+        list.add(&datum);
+        witness_set.set_plutus_data(&list);
+        assert_eq!(format!("a10481{}", datum_cli), hex::encode(witness_set.to_bytes()));
     }
 }
