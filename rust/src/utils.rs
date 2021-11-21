@@ -265,6 +265,7 @@ to_from_bytes!(Value);
 
 #[wasm_bindgen]
 impl Value {
+
     pub fn new(coin: &Coin) -> Value {
         Self {
             coin: coin.clone(),
@@ -272,8 +273,18 @@ impl Value {
         }
     }
 
+    pub fn new_from_assets(multiasset: &MultiAsset) -> Value {
+        match multiasset.0.is_empty() {
+            true => Value::zero(),
+            false => Self {
+                coin: Coin::zero(),
+                multiasset: Some(multiasset.clone()),
+            }
+        }
+    }
+
     pub fn zero() -> Value {
-        Value::new(&to_bignum(0))
+        Value::new(&Coin::zero())
     }
 
     pub fn is_zero(&self) -> bool {

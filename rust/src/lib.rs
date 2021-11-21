@@ -2691,27 +2691,35 @@ impl Mint {
         ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<ScriptHash>>())
     }
 
-    pub fn to_multiasset(&self) -> Result<MultiAsset, JsError> {
-        self.0.iter().fold(Ok(MultiAsset::new()), | res, e | {
-            let assets: Result<Assets, JsError> = (e.1).0.iter().fold(Ok(Assets::new()), | res, e| {
-                let mut assets = res?;
-                if e.1.is_positive() {
-                    assets.insert(e.0, &e.1.as_positive().unwrap());
-                    Ok(assets)
-                } else {
-                    Err(JsError::from_str("Asset amount cannot be negative!"))
+    fn as_multiasset(&self, is_positive: bool) -> MultiAsset {
+        self.0.iter().fold(MultiAsset::new(), | res, e | {
+            let assets: Assets = (e.1).0.iter().fold(Assets::new(), | res, e| {
+                let mut assets = res;
+                if e.1.is_positive() == is_positive {
+                    let amount = match is_positive {
+                        true => e.1.as_positive(),
+                        false => e.1.as_negative(),
+                    };
+                    assets.insert(e.0, &amount.unwrap());
                 }
+                assets
             });
-            let mut ma = res?;
-            ma.insert(e.0, &assets?);
-            Ok(ma)
+            let mut ma = res;
+            if !assets.0.is_empty() {
+                ma.insert(e.0, &assets);
+            }
+            ma
         })
     }
 
-    pub fn to_value(&self) -> Result<Value, JsError> {
-        let mut val = Value::new(&Coin::zero());
-        val.set_multiasset(&self.to_multiasset()?);
-        Ok(val)
+    /// Returns the multiasset where only positive (minting) entries are present
+    pub fn as_positive_multiasset(&self) -> MultiAsset {
+        self.as_multiasset(true)
+    }
+
+    /// Returns the multiasset where only negative (burning) entries are present
+    pub fn as_negative_multiasset(&self) -> MultiAsset {
+        self.as_multiasset(false)
     }
 }
 
@@ -2799,7 +2807,7 @@ mod tests {
     }
 
     #[test]
-    fn mint_to_value() {
+    fn mint_to_multiasset() {
         let policy_id1 = PolicyID::from([0u8; 28]);
         let policy_id2 = PolicyID::from([1u8; 28]);
         let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
@@ -2819,12 +2827,7 @@ mod tests {
         mint.insert(&policy_id1, &mass1);
         mint.insert(&policy_id2, &mass2);
 
-        let val = mint.to_value().unwrap();
-
-        assert_eq!(val.coin(), Coin::zero());
-        assert!(val.multiasset().is_some());
-
-        let multiasset = val.multiasset().unwrap();
+        let multiasset = mint.as_positive_multiasset();
         assert_eq!(multiasset.len(), 2);
 
         let ass1 = multiasset.get(&policy_id1).unwrap();
@@ -2841,22 +2844,93 @@ mod tests {
     }
 
     #[test]
-    fn mint_to_value_negative_err() {
+    fn mint_to_negative_multiasset() {
         let policy_id1 = PolicyID::from([0u8; 28]);
+        let policy_id2 = PolicyID::from([1u8; 28]);
         let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+        let name2 = AssetName::new(vec![0u8, 4, 5, 6]).unwrap();
+        let amount1 = BigNum::from_str("1234").unwrap();
+        let amount2 = BigNum::from_str("5678").unwrap();
 
         let mut mass1 = MintAssets::new();
-        mass1.insert(&name1, Int::new_i32(-42));
+        mass1.insert(&name1, Int::new(&amount1));
+        mass1.insert(&name2, Int::new_negative(&amount2));
+
+        let mut mass2 = MintAssets::new();
+        mass2.insert(&name1, Int::new_negative(&amount1));
+        mass2.insert(&name2, Int::new(&amount2));
 
         let mut mint = Mint::new();
         mint.insert(&policy_id1, &mass1);
+        mint.insert(&policy_id2, &mass2);
 
-        let res = mint.to_value();
+        let p_multiasset = mint.as_positive_multiasset();
+        let n_multiasset = mint.as_negative_multiasset();
 
-        assert!(res.is_err());
+        assert_eq!(p_multiasset.len(), 2);
+        assert_eq!(n_multiasset.len(), 2);
 
-        let err = res.err().unwrap();
+        let p_ass1 = p_multiasset.get(&policy_id1).unwrap();
+        let p_ass2 = p_multiasset.get(&policy_id2).unwrap();
 
-        assert!(err.to_string().contains("cannot be negative"))
+        let n_ass1 = n_multiasset.get(&policy_id1).unwrap();
+        let n_ass2 = n_multiasset.get(&policy_id2).unwrap();
+
+        assert_eq!(p_ass1.len(), 1);
+        assert_eq!(p_ass2.len(), 1);
+        assert_eq!(n_ass1.len(), 1);
+        assert_eq!(n_ass2.len(), 1);
+
+        assert_eq!(p_ass1.get(&name1).unwrap(), amount1);
+        assert!(p_ass1.get(&name2).is_none());
+
+        assert!(p_ass2.get(&name1).is_none());
+        assert_eq!(p_ass2.get(&name2).unwrap(), amount2);
+
+        assert!(n_ass1.get(&name1).is_none());
+        assert_eq!(n_ass1.get(&name2).unwrap(), amount2);
+
+        assert_eq!(n_ass2.get(&name1).unwrap(), amount1);
+        assert!(n_ass2.get(&name2).is_none());
+    }
+
+    #[test]
+    fn mint_to_negative_multiasset_empty() {
+        let policy_id1 = PolicyID::from([0u8; 28]);
+        let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+        let amount1 = BigNum::from_str("1234").unwrap();
+
+        let mut mass1 = MintAssets::new();
+        mass1.insert(&name1, Int::new(&amount1));
+
+        let mut mass2 = MintAssets::new();
+        mass2.insert(&name1, Int::new_negative(&amount1));
+
+        let mut mint1 = Mint::new();
+        mint1.insert(&policy_id1, &mass1);
+
+        let mut mint2 = Mint::new();
+        mint2.insert(&policy_id1, &mass2);
+
+        let p_multiasset_some = mint1.as_positive_multiasset();
+        let p_multiasset_none = mint2.as_positive_multiasset();
+
+        let n_multiasset_none = mint1.as_negative_multiasset();
+        let n_multiasset_some = mint2.as_negative_multiasset();
+
+        assert_eq!(p_multiasset_some.len(), 1);
+        assert_eq!(p_multiasset_none.len(), 0);
+
+        assert_eq!(n_multiasset_some.len(), 1);
+        assert_eq!(n_multiasset_none.len(), 0);
+
+        let p_ass = p_multiasset_some.get(&policy_id1).unwrap();
+        let n_ass = n_multiasset_some.get(&policy_id1).unwrap();
+
+        assert_eq!(p_ass.len(), 1);
+        assert_eq!(n_ass.len(), 1);
+
+        assert_eq!(p_ass.get(&name1).unwrap(), amount1);
+        assert_eq!(n_ass.get(&name1).unwrap(), amount1);
     }
 }

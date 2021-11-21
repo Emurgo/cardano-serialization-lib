@@ -3,6 +3,7 @@ use super::fees;
 use super::utils;
 use std::collections::{BTreeMap, BTreeSet};
 use derive_builder::Builder;
+use itertools::Itertools;
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
@@ -503,6 +504,10 @@ impl TransactionBuilder {
         };
     }
 
+    pub fn get_auxiliary_data(&self) -> Option<AuxiliaryData> {
+        self.auxiliary_data.clone()
+    }
+
     /// Set explicit auxiliary data via an AuxiliaryData object
     /// It might contain some metadata plus native or Plutus scripts
     pub fn set_auxiliary_data(&mut self, auxiliary_data: &AuxiliaryData) {
@@ -590,11 +595,14 @@ impl TransactionBuilder {
         address: &Address,
         output_coin: &Coin,
     ) -> Result<(), JsError> {
+        if !amount.is_positive() {
+            return Err(JsError::from_str("Output value must be positive!"));
+        }
         self.add_mint_asset(policy_id, asset_name, amount.clone());
         let mut multiasset = Mint::new_from_entry(
             policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone())
-        ).to_multiasset()?;
+        ).as_positive_multiasset();
         self.add_output_coin_and_asset(address, output_coin, &multiasset)
     }
 
@@ -610,11 +618,14 @@ impl TransactionBuilder {
         amount: Int,
         address: &Address,
     ) -> Result<(), JsError> {
+        if !amount.is_positive() {
+            return Err(JsError::from_str("Output value must be positive!"));
+        }
         self.add_mint_asset(policy_id, asset_name, amount.clone());
         let mut multiasset = Mint::new_from_entry(
             policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone())
-        ).to_multiasset()?;
+        ).as_positive_multiasset();
         self.add_output_asset_and_min_required_coin(address, &multiasset)
     }
 
@@ -670,15 +681,20 @@ impl TransactionBuilder {
         )
     }
 
-    /// mint as value
-    pub fn get_mint_value(&self) -> Result<Value, JsError> {
-        self.mint.as_ref().map(|m| { m.to_value() }).unwrap_or(Ok(Value::zero()))
+    /// Returns mint as tuple of (mint_value, burn_value) or two zero values
+    fn get_mint_as_values(&self) -> (Value, Value) {
+        self.mint.as_ref().map(|m| {
+            (Value::new_from_assets(&m.as_positive_multiasset()),
+             Value::new_from_assets(&m.as_negative_multiasset()))
+        }).unwrap_or((Value::zero(), Value::zero()))
     }
 
     fn get_total_input(&self) -> Result<Value, JsError> {
+        let (mint_value, burn_value) = self.get_mint_as_values();
         self.get_explicit_input()?
             .checked_add(&self.get_implicit_input()?)?
-            .checked_add(&self.get_mint_value()?)
+            .checked_add(&mint_value)?
+            .checked_sub(&burn_value)
     }
 
     /// does not include fee
@@ -906,6 +922,9 @@ impl TransactionBuilder {
         return self.outputs.0.iter().map(|o| { o.to_bytes().len() }).collect();
     }
 
+    /// Returns object the body of the new transaction
+    /// Auxiliary data itself is not included
+    /// You can use `get_auxiliary_date` or `build_tx`
     pub fn build(&self) -> Result<TransactionBody, JsError> {
         let (body, full_tx_size) = self.build_and_size()?;
         if full_tx_size > self.max_tx_size as usize {
@@ -917,6 +936,18 @@ impl TransactionBuilder {
         } else {
             Ok(body)
         }
+    }
+
+    /// Returns full Transaction object with the body and the auxiliary data
+    /// NOTE: witness_set is set to just empty set
+    /// NOTE: is_valid set to true
+    pub fn build_tx(&self) -> Result<Transaction, JsError> {
+        Ok(Transaction {
+            body: self.build()?,
+            witness_set: TransactionWitnessSet::new(),
+            is_valid: true,
+            auxiliary_data: self.auxiliary_data.clone(),
+        })
     }
 
     /// warning: sum of all parts of a transaction must equal 0. You cannot just set the fee to the min value and forget about it
