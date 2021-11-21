@@ -2,6 +2,7 @@ use super::*;
 use super::fees;
 use super::utils;
 use std::collections::{BTreeMap, BTreeSet};
+use itertools::Itertools;
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
@@ -580,11 +581,14 @@ impl TransactionBuilder {
         address: &Address,
         output_coin: &Coin,
     ) -> Result<(), JsError> {
+        if !amount.is_positive() {
+            return Err(JsError::from_str("Output value must be positive!"));
+        }
         self.add_mint_asset(policy_id, asset_name, amount.clone());
         let mut multiasset = Mint::new_from_entry(
             policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone())
-        ).to_multiasset()?;
+        ).as_positive_multiasset();
         self.add_output_coin_and_asset(address, output_coin, &multiasset)
     }
 
@@ -600,11 +604,14 @@ impl TransactionBuilder {
         amount: Int,
         address: &Address,
     ) -> Result<(), JsError> {
+        if !amount.is_positive() {
+            return Err(JsError::from_str("Output value must be positive!"));
+        }
         self.add_mint_asset(policy_id, asset_name, amount.clone());
         let mut multiasset = Mint::new_from_entry(
             policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone())
-        ).to_multiasset()?;
+        ).as_positive_multiasset();
         self.add_output_asset_and_min_required_coin(address, &multiasset)
     }
 
@@ -667,15 +674,20 @@ impl TransactionBuilder {
         )
     }
 
-    /// mint as value
-    pub fn get_mint_value(&self) -> Result<Value, JsError> {
-        self.mint.as_ref().map(|m| { m.to_value() }).unwrap_or(Ok(Value::zero()))
+    /// Returns mint as tuple of (mint_value, burn_value) or two zero values
+    fn get_mint_as_values(&self) -> (Value, Value) {
+        self.mint.as_ref().map(|m| {
+            (Value::new_from_assets(&m.as_positive_multiasset()),
+             Value::new_from_assets(&m.as_negative_multiasset()))
+        }).unwrap_or((Value::zero(), Value::zero()))
     }
 
     fn get_total_input(&self) -> Result<Value, JsError> {
+        let (mint_value, burn_value) = self.get_mint_as_values();
         self.get_explicit_input()?
             .checked_add(&self.get_implicit_input()?)?
-            .checked_add(&self.get_mint_value()?)
+            .checked_add(&mint_value)?
+            .checked_sub(&burn_value)
     }
 
     /// does not include fee
