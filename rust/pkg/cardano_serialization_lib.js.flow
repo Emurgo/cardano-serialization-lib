@@ -5244,29 +5244,10 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
-   * If set to true, add_change_if_needed will try
-   * to put pure Coin in a separate output from assets
-   * @param {boolean} prefer_pure_change
-   */
-  set_prefer_pure_change(prefer_pure_change: boolean): void;
-
-  /**
-   * @param {LinearFee} linear_fee
-   * @param {BigNum} pool_deposit
-   * @param {BigNum} key_deposit
-   * @param {number} max_value_size
-   * @param {number} max_tx_size
-   * @param {BigNum} coins_per_utxo_word
+   * @param {TransactionBuilderConfig} cfg
    * @returns {TransactionBuilder}
    */
-  static new(
-    linear_fee: LinearFee,
-    pool_deposit: BigNum,
-    key_deposit: BigNum,
-    max_value_size: number,
-    max_tx_size: number,
-    coins_per_utxo_word: BigNum
-  ): TransactionBuilder;
+  static new(cfg: TransactionBuilderConfig): TransactionBuilder;
 
   /**
    * does not include refunds or withdrawals
@@ -5339,6 +5320,11 @@ declare export class TransactionBuilder {
    * @returns {BigNum}
    */
   min_fee(): BigNum;
+}
+/**
+ */
+declare export class TransactionBuilderConfig {
+  free(): void;
 }
 /**
  */
