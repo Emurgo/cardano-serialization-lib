@@ -2245,13 +2245,13 @@ mod tests {
         let over_pos_i32 = (i32::max_value() as i64) + 1;
         assert!(Int::new(&BigNum(over_pos_i32 as u64)).as_i32_or_nothing().is_none());
 
-        let valid_pos_i32 = (i32::max_value() as i64);
+        let valid_pos_i32 = i32::max_value() as i64;
         assert_eq!(Int::new(&BigNum(valid_pos_i32 as u64)).as_i32_or_nothing().unwrap(), i32::max_value());
 
         let over_neg_i32 = (i32::min_value() as i64) - 1;
         assert!(Int::new_negative(&BigNum((-over_neg_i32) as u64)).as_i32_or_nothing().is_none());
 
-        let valid_neg_i32 = (i32::min_value() as i64);
+        let valid_neg_i32 = i32::min_value() as i64;
         assert_eq!(Int::new_negative(&BigNum((-valid_neg_i32) as u64)).as_i32_or_nothing().unwrap(), i32::min_value());
 
         assert!(Int::new(&BigNum(u64::max_value())).as_i32_or_nothing().is_none());
@@ -2268,13 +2268,13 @@ mod tests {
         let over_pos_i32 = (i32::max_value() as i64) + 1;
         assert!(Int::new(&BigNum(over_pos_i32 as u64)).as_i32_or_fail().is_err());
 
-        let valid_pos_i32 = (i32::max_value() as i64);
+        let valid_pos_i32 = i32::max_value() as i64;
         assert_eq!(Int::new(&BigNum(valid_pos_i32 as u64)).as_i32_or_fail().unwrap(), i32::max_value());
 
         let over_neg_i32 = (i32::min_value() as i64) - 1;
         assert!(Int::new_negative(&BigNum((-over_neg_i32) as u64)).as_i32_or_fail().is_err());
 
-        let valid_neg_i32 = (i32::min_value() as i64);
+        let valid_neg_i32 = i32::min_value() as i64;
         assert_eq!(Int::new_negative(&BigNum((-valid_neg_i32) as u64)).as_i32_or_fail().unwrap(), i32::min_value());
 
         assert!(Int::new(&BigNum(u64::max_value())).as_i32_or_fail().is_err());
