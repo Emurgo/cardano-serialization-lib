@@ -842,7 +842,7 @@ impl TransactionBuilder {
                         // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
                         builder.set_fee(burn_amount);
                         Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
-                    };
+                    }
                     match change_estimator.coin() >= min_ada {
                         false => burn_extra(self, &change_estimator.coin()),
                         true => {
