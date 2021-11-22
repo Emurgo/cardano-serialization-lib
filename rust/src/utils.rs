@@ -3,7 +3,6 @@ use hex::FromHex;
 use serde_json;
 use std::{collections::HashMap, io::{BufRead, Seek, Write}};
 use itertools::Itertools;
-use std::cmp;
 use std::ops::{Rem, Div, Sub};
 
 use super::*;
@@ -346,7 +345,7 @@ impl Value {
         let coin = self.coin.checked_sub(&rhs_value.coin)?;
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                match (lhs_ma.sub(rhs_ma).len()) {
+                match lhs_ma.sub(rhs_ma).len() {
                     0 => None,
                     _ => Some(lhs_ma.sub(rhs_ma))
                 }
@@ -363,7 +362,7 @@ impl Value {
         let coin = self.coin.clamped_sub(&rhs_value.coin);
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                match (lhs_ma.sub(rhs_ma).len()) {
+                match lhs_ma.sub(rhs_ma).len() {
                     0 => None,
                     _ => Some(lhs_ma.sub(rhs_ma))
                 }
@@ -1268,8 +1267,6 @@ fn encode_template_to_native_script(
 
 #[cfg(test)]
 mod tests {
-    use hex::FromHex;
-
     use super::*;
 
     // this is what is used in mainnet
@@ -2248,13 +2245,13 @@ mod tests {
         let over_pos_i32 = (i32::max_value() as i64) + 1;
         assert!(Int::new(&BigNum(over_pos_i32 as u64)).as_i32_or_nothing().is_none());
 
-        let valid_pos_i32 = (i32::max_value() as i64);
+        let valid_pos_i32 = i32::max_value() as i64;
         assert_eq!(Int::new(&BigNum(valid_pos_i32 as u64)).as_i32_or_nothing().unwrap(), i32::max_value());
 
         let over_neg_i32 = (i32::min_value() as i64) - 1;
         assert!(Int::new_negative(&BigNum((-over_neg_i32) as u64)).as_i32_or_nothing().is_none());
 
-        let valid_neg_i32 = (i32::min_value() as i64);
+        let valid_neg_i32 = i32::min_value() as i64;
         assert_eq!(Int::new_negative(&BigNum((-valid_neg_i32) as u64)).as_i32_or_nothing().unwrap(), i32::min_value());
 
         assert!(Int::new(&BigNum(u64::max_value())).as_i32_or_nothing().is_none());
@@ -2271,13 +2268,13 @@ mod tests {
         let over_pos_i32 = (i32::max_value() as i64) + 1;
         assert!(Int::new(&BigNum(over_pos_i32 as u64)).as_i32_or_fail().is_err());
 
-        let valid_pos_i32 = (i32::max_value() as i64);
+        let valid_pos_i32 = i32::max_value() as i64;
         assert_eq!(Int::new(&BigNum(valid_pos_i32 as u64)).as_i32_or_fail().unwrap(), i32::max_value());
 
         let over_neg_i32 = (i32::min_value() as i64) - 1;
         assert!(Int::new_negative(&BigNum((-over_neg_i32) as u64)).as_i32_or_fail().is_err());
 
-        let valid_neg_i32 = (i32::min_value() as i64);
+        let valid_neg_i32 = i32::min_value() as i64;
         assert_eq!(Int::new_negative(&BigNum((-valid_neg_i32) as u64)).as_i32_or_fail().unwrap(), i32::min_value());
 
         assert!(Int::new(&BigNum(u64::max_value())).as_i32_or_fail().is_err());

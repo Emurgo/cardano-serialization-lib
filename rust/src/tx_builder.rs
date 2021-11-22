@@ -628,7 +628,7 @@ impl TransactionBuilder {
                         if potential_pure_above_minimum {
                             new_fee = new_fee.checked_add(&additional_fee)?;
                             change_left = Value::zero();
-                            self.add_output(&TransactionOutput::new(address, &potential_pure_value));
+                            self.add_output(&TransactionOutput::new(address, &potential_pure_value))?;
                         }
                     }
                     self.set_fee(&new_fee);
@@ -1362,7 +1362,6 @@ mod tests {
     #[test]
     fn build_tx_with_native_assets_change_and_purification() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(1);
         let coin_per_utxo_word = to_bignum(1);
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
@@ -1499,7 +1498,6 @@ mod tests {
     #[test]
     fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
         let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(1));
-        let minimum_utxo_value = to_bignum(10);
         let mut tx_builder = TransactionBuilder::new(
             &linear_fee,
             &to_bignum(0),
@@ -2207,6 +2205,7 @@ mod tests {
         assert!(add_change_res.is_ok(), "{:?}", add_change_res.err());
     }
 
+    #[test]
     fn build_tx_pay_to_multisig() {
         let linear_fee = LinearFee::new(&to_bignum(10), &to_bignum(2));
         let mut tx_builder =
@@ -2325,8 +2324,6 @@ mod tests {
         auxiliary_data.set_native_scripts(&oneof_native_scripts);
         tx_builder.set_auxiliary_data(&auxiliary_data);
 
-
-        let body = tx_builder.build().unwrap();
 
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
