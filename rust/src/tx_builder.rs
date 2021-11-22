@@ -2,7 +2,6 @@ use super::*;
 use super::fees;
 use super::utils;
 use std::collections::{BTreeMap, BTreeSet};
-use itertools::Itertools;
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
@@ -585,7 +584,7 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         self.add_mint_asset(policy_id, asset_name, amount.clone());
-        let mut multiasset = Mint::new_from_entry(
+        let multiasset = Mint::new_from_entry(
             policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone())
         ).as_positive_multiasset();
@@ -608,7 +607,7 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         self.add_mint_asset(policy_id, asset_name, amount.clone());
-        let mut multiasset = Mint::new_from_entry(
+        let multiasset = Mint::new_from_entry(
             policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone())
         ).as_positive_multiasset();
@@ -1035,10 +1034,6 @@ mod tests {
             500000000,
             2000000,
         )
-    }
-
-    fn create_tx_builder_with_fee_and_coins_per_word(linear_fee: &LinearFee, coins_per_utxo_word: u64) -> TransactionBuilder {
-        create_tx_builder(linear_fee, coins_per_utxo_word, 1, 1)
     }
 
     fn create_tx_builder_with_fee_and_val_size(linear_fee: &LinearFee, max_val_size: u32) -> TransactionBuilder {
