@@ -2465,14 +2465,16 @@ declare export class Mint {
   keys(): ScriptHashes;
 
   /**
+   * Returns the multiasset where only positive (minting) entries are present
    * @returns {MultiAsset}
    */
-  to_multiasset(): MultiAsset;
+  as_positive_multiasset(): MultiAsset;
 
   /**
-   * @returns {Value}
+   * Returns the multiasset where only negative (burning) entries are present
+   * @returns {MultiAsset}
    */
-  to_value(): Value;
+  as_negative_multiasset(): MultiAsset;
 }
 /**
  */
@@ -5127,6 +5129,11 @@ declare export class TransactionBuilder {
   set_withdrawals(withdrawals: Withdrawals): void;
 
   /**
+   * @returns {AuxiliaryData | void}
+   */
+  get_auxiliary_data(): AuxiliaryData | void;
+
+  /**
    * Set explicit auxiliary data via an AuxiliaryData object
    * It might contain some metadata plus native or Plutus scripts
    * @param {AuxiliaryData} auxiliary_data
@@ -5274,12 +5281,6 @@ declare export class TransactionBuilder {
   get_implicit_input(): Value;
 
   /**
-   * mint as value
-   * @returns {Value}
-   */
-  get_mint_value(): Value;
-
-  /**
    * does not include fee
    * @returns {Value}
    */
@@ -5316,9 +5317,20 @@ declare export class TransactionBuilder {
   output_sizes(): Uint32Array;
 
   /**
+   * Returns object the body of the new transaction
+   * Auxiliary data itself is not included
+   * You can use `get_auxiliary_date` or `build_tx`
    * @returns {TransactionBody}
    */
   build(): TransactionBody;
+
+  /**
+   * Returns full Transaction object with the body and the auxiliary data
+   * NOTE: witness_set is set to just empty set
+   * NOTE: is_valid set to true
+   * @returns {Transaction}
+   */
+  build_tx(): Transaction;
 
   /**
    * warning: sum of all parts of a transaction must equal 0. You cannot just set the fee to the min value and forget about it
@@ -6005,6 +6017,12 @@ declare export class Value {
    * @returns {Value}
    */
   static new(coin: BigNum): Value;
+
+  /**
+   * @param {MultiAsset} multiasset
+   * @returns {Value}
+   */
+  static new_from_assets(multiasset: MultiAsset): Value;
 
   /**
    * @returns {Value}
