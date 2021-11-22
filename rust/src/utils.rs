@@ -486,6 +486,12 @@ impl Int {
         return self.0 >= 0
     }
 
+    /// BigNum can only contain unsigned u64 values
+    ///
+    /// This function will return the BigNum representation
+    /// only in case the underlying i128 value is positive.
+    ///
+    /// Otherwise nothing will be returned (undefined).
     pub fn as_positive(&self) -> Option<BigNum> {
         if self.is_positive() {
             Some(to_bignum(self.0 as u64))
@@ -494,6 +500,12 @@ impl Int {
         }
     }
 
+    /// BigNum can only contain unsigned u64 values
+    ///
+    /// This function will return the *absolute* BigNum representation
+    /// only in case the underlying i128 value is negative.
+    ///
+    /// Otherwise nothing will be returned (undefined).
     pub fn as_negative(&self) -> Option<BigNum> {
         if !self.is_positive() {
             Some(to_bignum((-self.0) as u64))
@@ -502,9 +514,36 @@ impl Int {
         }
     }
 
+    /// !!! DEPRECATED !!!
+    /// Returns an i32 value in case the underlying original i128 value is within the limits.
+    /// Otherwise will just return an empty value (undefined).
+    #[deprecated(
+        since = "10.0.0",
+        note = "Unsafe ignoring of possible boundary error and it's not clear from the function name. Use `as_i32_or_nothing`, `as_i32_or_fail`, or `to_str`"
+    )]
     pub fn as_i32(&self) -> Option<i32> {
+        self.as_i32_or_nothing()
+    }
+
+    /// Returns the underlying value converted to i32 if possible (within limits)
+    /// Otherwise will just return an empty value (undefined).
+    pub fn as_i32_or_nothing(&self) -> Option<i32> {
         use std::convert::TryFrom;
         i32::try_from(self.0).ok()
+    }
+
+    /// Returns the underlying value converted to i32 if possible (within limits)
+    /// JsError in case of out of boundary overflow
+    pub fn as_i32_or_fail(&self) -> Result<i32, JsError> {
+        use std::convert::TryFrom;
+        i32::try_from(self.0)
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
+    }
+
+    /// Returns string representation of the underlying i128 value directly.
+    /// Might contain the minus sign (-) in case of negative value.
+    pub fn to_str(&self) -> String {
+        format!("{}", self.0)
     }
 }
 
@@ -2188,5 +2227,61 @@ mod tests {
             self_key.addr_keyhash(),
             Bip32PublicKey::from_bytes(&hex::decode(self_key_hex).unwrap()).unwrap().to_raw_key().hash()
         );
+    }
+
+    #[test]
+    fn int_to_str() {
+        assert_eq!(Int::new(&BigNum(u64::max_value())).to_str(), u64::max_value().to_string());
+        assert_eq!(Int::new(&BigNum(u64::min_value())).to_str(), u64::min_value().to_string());
+        assert_eq!(Int::new_negative(&BigNum(u64::max_value())).to_str(), (-(u64::max_value() as i128)).to_string());
+        assert_eq!(Int::new_negative(&BigNum(u64::min_value())).to_str(), (-(u64::min_value() as i128)).to_string());
+        assert_eq!(Int::new_i32(142).to_str(), "142");
+        assert_eq!(Int::new_i32(-142).to_str(), "-142");
+    }
+
+    #[test]
+    fn int_as_i32_or_nothing() {
+
+        let over_pos_i32 = (i32::max_value() as i64) + 1;
+        assert!(Int::new(&BigNum(over_pos_i32 as u64)).as_i32_or_nothing().is_none());
+
+        let valid_pos_i32 = (i32::max_value() as i64);
+        assert_eq!(Int::new(&BigNum(valid_pos_i32 as u64)).as_i32_or_nothing().unwrap(), i32::max_value());
+
+        let over_neg_i32 = (i32::min_value() as i64) - 1;
+        assert!(Int::new_negative(&BigNum((-over_neg_i32) as u64)).as_i32_or_nothing().is_none());
+
+        let valid_neg_i32 = (i32::min_value() as i64);
+        assert_eq!(Int::new_negative(&BigNum((-valid_neg_i32) as u64)).as_i32_or_nothing().unwrap(), i32::min_value());
+
+        assert!(Int::new(&BigNum(u64::max_value())).as_i32_or_nothing().is_none());
+        assert_eq!(Int::new(&BigNum(i32::max_value() as u64)).as_i32_or_nothing().unwrap(), i32::max_value());
+        assert_eq!(Int::new_negative(&BigNum(i32::max_value() as u64)).as_i32_or_nothing().unwrap(), -i32::max_value());
+
+        assert_eq!(Int::new_i32(42).as_i32_or_nothing().unwrap(), 42);
+        assert_eq!(Int::new_i32(-42).as_i32_or_nothing().unwrap(), -42);
+    }
+
+    #[test]
+    fn int_as_i32_or_fail() {
+
+        let over_pos_i32 = (i32::max_value() as i64) + 1;
+        assert!(Int::new(&BigNum(over_pos_i32 as u64)).as_i32_or_fail().is_err());
+
+        let valid_pos_i32 = (i32::max_value() as i64);
+        assert_eq!(Int::new(&BigNum(valid_pos_i32 as u64)).as_i32_or_fail().unwrap(), i32::max_value());
+
+        let over_neg_i32 = (i32::min_value() as i64) - 1;
+        assert!(Int::new_negative(&BigNum((-over_neg_i32) as u64)).as_i32_or_fail().is_err());
+
+        let valid_neg_i32 = (i32::min_value() as i64);
+        assert_eq!(Int::new_negative(&BigNum((-valid_neg_i32) as u64)).as_i32_or_fail().unwrap(), i32::min_value());
+
+        assert!(Int::new(&BigNum(u64::max_value())).as_i32_or_fail().is_err());
+        assert_eq!(Int::new(&BigNum(i32::max_value() as u64)).as_i32_or_fail().unwrap(), i32::max_value());
+        assert_eq!(Int::new_negative(&BigNum(i32::max_value() as u64)).as_i32_or_fail().unwrap(), -i32::max_value());
+
+        assert_eq!(Int::new_i32(42).as_i32_or_fail().unwrap(), 42);
+        assert_eq!(Int::new_i32(-42).as_i32_or_fail().unwrap(), -42);
     }
 }
