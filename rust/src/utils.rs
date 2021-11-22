@@ -264,6 +264,7 @@ to_from_bytes!(Value);
 
 #[wasm_bindgen]
 impl Value {
+
     pub fn new(coin: &Coin) -> Value {
         Self {
             coin: coin.clone(),
@@ -271,8 +272,18 @@ impl Value {
         }
     }
 
+    pub fn new_from_assets(multiasset: &MultiAsset) -> Value {
+        match multiasset.0.is_empty() {
+            true => Value::zero(),
+            false => Self {
+                coin: Coin::zero(),
+                multiasset: Some(multiasset.clone()),
+            }
+        }
+    }
+
     pub fn zero() -> Value {
-        Value::new(&to_bignum(0))
+        Value::new(&Coin::zero())
     }
 
     pub fn is_zero(&self) -> bool {
@@ -1025,7 +1036,7 @@ fn bundle_size(
             // converts bytes to 8-byte long words, rounding up
             fn roundup_bytes_to_words(b: usize) -> usize {
                 quot(b + 7, 8)
-            };
+            }
             constants.k0 + roundup_bytes_to_words(
                 (num_assets * constants.k1) + sum_asset_name_lengths +
                 (constants.k2 * sum_policy_id_lengths)
