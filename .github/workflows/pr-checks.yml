@@ -41,3 +41,30 @@ jobs:
       - name: rust:build-browser
         run: |
           npm run rust:build-browser
+  check-warns:
+    if: github.event.review && (github.event.review.state == 'approved' || contains(github.event.review.body, '/check'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '12.18.1'
+      - name: Cache node modules
+        uses: actions/cache@v1
+        with:
+          path: ~/.npm # npm cache files are stored in `~/.npm` on Linux/macOS
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+      - name: prepare-rust
+        run: |
+          rustup install stable
+          rustup target add wasm32-unknown-unknown --toolchain stable
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: rust:check-warnings
+        run: |
+          npm run rust:check-warnings

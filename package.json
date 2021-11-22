@@ -9,6 +9,7 @@
     "rust:build-asm": "(rimraf ./rust/pkg && cd rust; wasm-pack build --target=browser; wasm-pack pack) && npm run asm:build && npm run js:flowgen",
     "rust:publish": "cd rust && cargo publish && cd ../",
     "asm:build": "./binaryen/bin/wasm2js ./rust/pkg/cardano_serialization_lib_bg.wasm --output ./rust/pkg/cardano_serialization_lib.asm.js && node ./scripts/wasm-to-asm",
+    "rust:check-warnings": "(cd rust; RUSTFLAGS=\"-D warnings\" cargo build)",
     "rust:test": "(cd rust; cargo test)",
     "js:flowgen": "flowgen ./rust/pkg/cardano_serialization_lib.d.ts -o ./rust/pkg/cardano_serialization_lib.js.flow --add-flow-header",
     "js:prepublish": "npm run rust:test && rimraf ./publish && cp -r ./rust/pkg ./publish && cp README.md publish/ && cp LICENSE publish/",
