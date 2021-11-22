@@ -440,7 +440,7 @@ impl Address {
             None => {
                 // see CIP5 for bech32 prefix rules
                 let prefix_header = match &self.0 {
-                    AddrType::Reward(a) => "stake",
+                    AddrType::Reward(_) => "stake",
                     _ => "addr",
                 };
                 let prefix_tail = match self.network_id()? {

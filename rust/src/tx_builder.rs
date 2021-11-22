@@ -2511,6 +2511,7 @@ mod tests {
         assert!(add_change_res.is_ok(), "{:?}", add_change_res.err());
     }
 
+    #[test]
     fn build_tx_pay_to_multisig() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
         let spend = root_key_15()
@@ -2625,8 +2626,6 @@ mod tests {
         auxiliary_data.set_native_scripts(&oneof_native_scripts);
         tx_builder.set_auxiliary_data(&auxiliary_data);
 
-
-        let body = tx_builder.build().unwrap();
 
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
