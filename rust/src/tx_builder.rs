@@ -3,7 +3,6 @@ use super::fees;
 use super::utils;
 use std::collections::{BTreeMap, BTreeSet};
 use derive_builder::Builder;
-use itertools::Itertools;
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
@@ -599,7 +598,7 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         self.add_mint_asset(policy_id, asset_name, amount.clone());
-        let mut multiasset = Mint::new_from_entry(
+        let multiasset = Mint::new_from_entry(
             policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone())
         ).as_positive_multiasset();
@@ -622,7 +621,7 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         self.add_mint_asset(policy_id, asset_name, amount.clone());
-        let mut multiasset = Mint::new_from_entry(
+        let multiasset = Mint::new_from_entry(
             policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone())
         ).as_positive_multiasset();
@@ -850,7 +849,7 @@ impl TransactionBuilder {
                         // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
                         builder.set_fee(burn_amount);
                         Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
-                    };
+                    }
                     match change_estimator.coin() >= min_ada {
                         false => burn_extra(self, &change_estimator.coin()),
                         true => {
@@ -1044,10 +1043,6 @@ mod tests {
             500000000,
             2000000,
         )
-    }
-
-    fn create_tx_builder_with_fee_and_coins_per_word(linear_fee: &LinearFee, coins_per_utxo_word: u64) -> TransactionBuilder {
-        create_tx_builder(linear_fee, coins_per_utxo_word, 1, 1)
     }
 
     fn create_tx_builder_with_fee_and_val_size(linear_fee: &LinearFee, max_val_size: u32) -> TransactionBuilder {
@@ -2524,6 +2519,7 @@ mod tests {
         assert!(add_change_res.is_ok(), "{:?}", add_change_res.err());
     }
 
+    #[test]
     fn build_tx_pay_to_multisig() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
         let spend = root_key_15()
@@ -2638,8 +2634,6 @@ mod tests {
         auxiliary_data.set_native_scripts(&oneof_native_scripts);
         tx_builder.set_auxiliary_data(&auxiliary_data);
 
-
-        let body = tx_builder.build().unwrap();
 
         assert_eq!(tx_builder.outputs.len(), 1);
         assert_eq!(
@@ -3215,6 +3209,89 @@ mod tests {
 
         // Three policy IDs of 32 bytes each + 3 byte overhead
         assert_eq!(fee_increase_bytes, 99);
+    }
+
+    #[test]
+    fn total_input_with_mint_and_burn() {
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let policy_id1 = &PolicyID::from([0u8; 28]);
+        let policy_id2 = &PolicyID::from([1u8; 28]);
+        let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+
+        let ma_input1 = 100;
+        let ma_input2 = 200;
+        let ma_output1 = 60;
+
+        let multiassets = [ma_input1, ma_input2, ma_output1]
+            .iter()
+            .map(|input| {
+                let mut multiasset = MultiAsset::new();
+                multiasset.insert(policy_id1, &{
+                    let mut assets = Assets::new();
+                    assets.insert(&name, &to_bignum(*input));
+                    assets
+                });
+                multiasset.insert(policy_id2, &{
+                    let mut assets = Assets::new();
+                    assets.insert(&name, &to_bignum(*input));
+                    assets
+                });
+                multiasset
+            })
+            .collect::<Vec<MultiAsset>>();
+
+        for (multiasset, ada) in multiassets
+            .iter()
+            .zip([100u64, 100, 100].iter().cloned().map(to_bignum))
+        {
+            let mut input_amount = Value::new(&ada);
+            input_amount.set_multiasset(multiasset);
+
+            tx_builder.add_key_input(
+                &&spend.to_raw_key().hash(),
+                &TransactionInput::new(&genesis_id(), 0),
+                &input_amount,
+            );
+        }
+
+        let total_input_before_mint = tx_builder.get_total_input().unwrap();
+
+        assert_eq!(total_input_before_mint.coin, to_bignum(300));
+        let ma1 = total_input_before_mint.multiasset.unwrap();
+        assert_eq!(ma1.get(policy_id1).unwrap().get(&name).unwrap(), to_bignum(360));
+        assert_eq!(ma1.get(policy_id2).unwrap().get(&name).unwrap(), to_bignum(360));
+
+        tx_builder.add_mint_asset(policy_id1, &name, Int::new_i32(40));
+        tx_builder.add_mint_asset(policy_id2, &name, Int::new_i32(-40));
+
+        let total_input_after_mint = tx_builder.get_total_input().unwrap();
+
+        assert_eq!(total_input_after_mint.coin, to_bignum(300));
+        let ma2 = total_input_after_mint.multiasset.unwrap();
+        assert_eq!(ma2.get(policy_id1).unwrap().get(&name).unwrap(), to_bignum(400));
+        assert_eq!(ma2.get(policy_id2).unwrap().get(&name).unwrap(), to_bignum(320));
     }
 }
 

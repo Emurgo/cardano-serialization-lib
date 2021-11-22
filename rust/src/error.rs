@@ -1,5 +1,4 @@
-use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
-use std::io::{BufRead, Seek, Write};
+use cbor_event::{self};
 use crate::chain_crypto;
 use super::*;
 
