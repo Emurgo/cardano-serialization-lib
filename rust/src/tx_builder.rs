@@ -1735,8 +1735,6 @@ mod tests {
 
     #[test]
     fn build_tx_with_native_assets_change() {
-        let minimum_utxo_value = to_bignum(1);
-        let coins_per_utxo_word = to_bignum(1);
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
         let spend = root_key_15()
             .derive(harden(1852))
@@ -1844,7 +1842,6 @@ mod tests {
 
     #[test]
     fn build_tx_with_native_assets_change_and_purification() {
-        let minimum_utxo_value = to_bignum(1);
         let coin_per_utxo_word = to_bignum(1);
         // Prefer pure change!
         let mut tx_builder = create_tx_builder_with_fee_and_pure_change(&create_linear_fee(0, 1));
@@ -1972,7 +1969,6 @@ mod tests {
 
     #[test]
     fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
-        let minimum_utxo_value = to_bignum(10);
         // Prefer pure change!
         let mut tx_builder = create_tx_builder_with_fee_and_pure_change(&create_linear_fee(1, 1));
         let spend = root_key_15()
@@ -3303,20 +3299,6 @@ mod tests {
             .derive(harden(1815))
             .derive(harden(0))
             .derive(0)
-            .derive(0)
-            .to_public();
-        let change_key = root_key_15()
-            .derive(harden(1852))
-            .derive(harden(1815))
-            .derive(harden(0))
-            .derive(1)
-            .derive(0)
-            .to_public();
-        let stake = root_key_15()
-            .derive(harden(1852))
-            .derive(harden(1815))
-            .derive(harden(0))
-            .derive(2)
             .derive(0)
             .to_public();
 
