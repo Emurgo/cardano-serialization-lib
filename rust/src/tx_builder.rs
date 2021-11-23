@@ -128,7 +128,7 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
 
 fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     let full_tx = fake_full_tx(tx_builder, tx_builder.build()?)?;
-    fees::min_fee(&full_tx, &tx_builder.fee_algo)
+    fees::min_fee(&full_tx, &tx_builder.config.fee_algo)
 }
 
 
@@ -154,13 +154,94 @@ pub enum CoinSelectionStrategyCIP2 {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
-pub struct TransactionBuilder {
-    coins_per_utxo_word: BigNum,
-    pool_deposit: BigNum,
-    key_deposit: BigNum,
-    max_value_size: u32,
-    max_tx_size: u32,
+pub struct TransactionBuilderConfig {
     fee_algo: fees::LinearFee,
+    pool_deposit: BigNum,      // protocol parameter
+    key_deposit: BigNum,       // protocol parameter
+    max_value_size: u32,       // protocol parameter
+    max_tx_size: u32,          // protocol parameter
+    coins_per_utxo_word: Coin, // protocol parameter
+    prefer_pure_change: bool,
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
+pub struct TransactionBuilderConfigBuilder {
+    fee_algo: Option<fees::LinearFee>,
+    pool_deposit: Option<BigNum>,      // protocol parameter
+    key_deposit: Option<BigNum>,       // protocol parameter
+    max_value_size: Option<u32>,       // protocol parameter
+    max_tx_size: Option<u32>,          // protocol parameter
+    coins_per_utxo_word: Option<Coin>, // protocol parameter
+    prefer_pure_change: bool,
+}
+
+#[wasm_bindgen]
+impl TransactionBuilderConfigBuilder {
+    pub fn new() -> Self {
+        Self {
+            fee_algo: None,
+            pool_deposit: None,
+            key_deposit: None,
+            max_value_size: None,
+            max_tx_size: None,
+            coins_per_utxo_word: None,
+            prefer_pure_change: false,
+        }
+    }
+
+    pub fn fee_algo(mut self, fee_algo: fees::LinearFee) -> Self {
+        self.fee_algo = Some(fee_algo);
+        self
+    }
+
+    pub fn pool_deposit(mut self, pool_deposit: BigNum) -> Self {
+        self.pool_deposit = Some(pool_deposit);
+        self
+    }
+
+    pub fn key_deposit(mut self, key_deposit: BigNum) -> Self {
+        self.key_deposit = Some(key_deposit);
+        self
+    }
+
+    pub fn max_value_size(mut self, max_value_size: u32) -> Self {
+        self.max_value_size = Some(max_value_size);
+        self
+    }
+
+    pub fn max_tx_size(mut self, max_tx_size: u32) -> Self {
+        self.max_tx_size = Some(max_tx_size);
+        self
+    }
+
+    pub fn coins_per_utxo_word(mut self, coins_per_utxo_word: Coin) -> Self {
+        self.coins_per_utxo_word = Some(coins_per_utxo_word);
+        self
+    }
+
+    pub fn prefer_pure_change(mut self, prefer_pure_change: bool) -> Self {
+        self.prefer_pure_change = prefer_pure_change;
+        self
+    }
+
+    pub fn build(self) -> Result<TransactionBuilderConfig, JsError> {
+        Ok(TransactionBuilderConfig {
+            fee_algo: self.fee_algo.ok_or(JsError::from_str("uninitialized field: fee_algo"))?,
+            pool_deposit: self.pool_deposit.ok_or(JsError::from_str("uninitialized field: pool_deposit"))?,
+            key_deposit: self.key_deposit.ok_or(JsError::from_str("uninitialized field: key_deposit"))?,
+            max_value_size: self.max_value_size.ok_or(JsError::from_str("uninitialized field: max_value_size"))?,
+            max_tx_size: self.max_tx_size.ok_or(JsError::from_str("uninitialized field: max_tx_size"))?,
+            coins_per_utxo_word: self.coins_per_utxo_word.ok_or(JsError::from_str("uninitialized field: coins_per_utxo_word"))?,
+            prefer_pure_change: self.prefer_pure_change,
+        })
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
+pub struct TransactionBuilder {
+    config: TransactionBuilderConfig,
     inputs: Vec<TxBuilderInput>,
     outputs: TransactionOutputs,
     fee: Option<Coin>,
@@ -172,7 +253,6 @@ pub struct TransactionBuilder {
     input_types: MockWitnessSet,
     mint: Option<Mint>,
     inputs_auto_added: bool,
-    prefer_pure_change: bool,
 }
 
 #[wasm_bindgen]
@@ -416,25 +496,32 @@ impl TransactionBuilder {
         address: &Address,
         multiasset: &MultiAsset,
     ) -> Result<(), JsError> {
-        let min_possible_coin = min_pure_ada(&self.coins_per_utxo_word)?;
+        let min_possible_coin = min_pure_ada(&self.config.coins_per_utxo_word)?;
         let mut value = Value::new(&min_possible_coin);
         value.set_multiasset(multiasset);
-        let required_coin =
-            min_ada_required(&value, false, &self.coins_per_utxo_word)?;
+        let required_coin = min_ada_required(
+            &value,
+            false,
+            &self.config.coins_per_utxo_word,
+        )?;
         self.add_output_coin_and_asset(address, &required_coin, multiasset)
     }
 
     /// Add explicit output via a TransactionOutput object
     pub fn add_output(&mut self, output: &TransactionOutput) -> Result<(), JsError> {
         let value_size = output.amount.to_bytes().len();
-        if value_size > self.max_value_size as usize {
+        if value_size > self.config.max_value_size as usize {
             return Err(JsError::from_str(&format!(
                 "Maximum value size of {} exceeded. Found: {}",
-                self.max_value_size,
+                self.config.max_value_size,
                 value_size
             )));
         }
-        let min_ada = min_ada_required(&output.amount(), false, &self.coins_per_utxo_word)?;
+        let min_ada = min_ada_required(
+            &output.amount(),
+            false,
+            &self.config.coins_per_utxo_word,
+        )?;
         if output.amount().coin() < min_ada {
             Err(JsError::from_str(&format!(
                 "Value {} less than the minimum UTXO value {}",
@@ -614,27 +701,9 @@ impl TransactionBuilder {
         self.add_output_asset_and_min_required_coin(address, &multiasset)
     }
 
-    /// If set to true, add_change_if_needed will try
-    /// to put pure Coin in a separate output from assets
-    pub fn set_prefer_pure_change(&mut self, prefer_pure_change: bool) {
-        self.prefer_pure_change = prefer_pure_change;
-    }
-
-    pub fn new(
-        linear_fee: &fees::LinearFee,
-        pool_deposit: &BigNum, // protocol parameter
-        key_deposit: &BigNum,  // protocol parameter
-        max_value_size: u32, // protocol parameter
-        max_tx_size: u32, // protocol parameter
-        coins_per_utxo_word: &Coin, // protocol parameter
-    ) -> Self {
+    pub fn new(cfg: &TransactionBuilderConfig) -> Self {
         Self {
-            coins_per_utxo_word: coins_per_utxo_word.clone(),
-            key_deposit: key_deposit.clone(),
-            pool_deposit: pool_deposit.clone(),
-            max_value_size,
-            max_tx_size,
-            fee_algo: linear_fee.clone(),
+            config: cfg.clone(),
             inputs: Vec::new(),
             outputs: TransactionOutputs::new(),
             fee: None,
@@ -650,7 +719,6 @@ impl TransactionBuilder {
             validity_start_interval: None,
             mint: None,
             inputs_auto_added: false,
-            prefer_pure_change: false,
         }
     }
 
@@ -668,8 +736,8 @@ impl TransactionBuilder {
         internal_get_implicit_input(
             &self.withdrawals,
             &self.certs,
-            &self.pool_deposit,
-            &self.key_deposit,
+            &self.config.pool_deposit,
+            &self.config.key_deposit,
         )
     }
 
@@ -702,8 +770,8 @@ impl TransactionBuilder {
     pub fn get_deposit(&self) -> Result<Coin, JsError> {
         internal_get_deposit(
             &self.certs,
-            &self.pool_deposit,
-            &self.key_deposit,
+            &self.config.pool_deposit,
+            &self.config.key_deposit,
         )
     }
 
@@ -793,9 +861,13 @@ impl TransactionBuilder {
                     let mut new_fee = fee.clone();
                     // we might need multiple change outputs for cases where the change has many asset types
                     // which surpass the max UTXO size limit
-                    let minimum_utxo_val = min_pure_ada(&self.coins_per_utxo_word)?;
+                    let minimum_utxo_val = min_pure_ada(&self.config.coins_per_utxo_word)?;
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
-                        let nft_change = pack_nfts_for_change(self.max_value_size, address, &change_left)?;
+                        let nft_change = pack_nfts_for_change(
+                            self.config.max_value_size,
+                            address,
+                            &change_left,
+                        )?;
                         if nft_change.len() == 0 {
                             // this likely should never happen
                             return Err(JsError::from_str("NFTs too large for change output"));
@@ -803,7 +875,11 @@ impl TransactionBuilder {
                         // we only add the minimum needed (for now) to cover this output
                         let mut change_value = Value::new(&Coin::zero());
                         change_value.set_multiasset(&nft_change);
-                        let min_ada = min_ada_required(&change_value, false, &self.coins_per_utxo_word)?;
+                        let min_ada = min_ada_required(
+                            &change_value,
+                            false,
+                            &self.config.coins_per_utxo_word,
+                        )?;
                         change_value.set_coin(&min_ada);
                         let change_output = TransactionOutput::new(address, &change_value);
                         // increase fee
@@ -818,7 +894,7 @@ impl TransactionBuilder {
                     change_left = change_left.checked_sub(&Value::new(&new_fee))?;
                     // add potentially a separate pure ADA change output
                     let left_above_minimum = change_left.coin.compare(&minimum_utxo_val) > 0;
-                    if self.prefer_pure_change && left_above_minimum {
+                    if self.config.prefer_pure_change && left_above_minimum {
                         let pure_output = TransactionOutput::new(address, &change_left);
                         let additional_fee = self.fee_for_output(&pure_output)?;
                         let potential_pure_value = change_left.checked_sub(&Value::new(&additional_fee))?;
@@ -836,7 +912,11 @@ impl TransactionBuilder {
                     }
                     Ok(true)
                 } else {
-                    let min_ada = min_ada_required(&change_estimator, false, &self.coins_per_utxo_word)?;
+                    let min_ada = min_ada_required(
+                        &change_estimator,
+                        false,
+                        &self.config.coins_per_utxo_word,
+                    )?;
                     // no-asset case so we have no problem burning the rest if there is no other option
                     fn burn_extra(builder: &mut TransactionBuilder, burn_amount: &BigNum) -> Result<bool, JsError> {
                         // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
@@ -919,10 +999,10 @@ impl TransactionBuilder {
     /// You can use `get_auxiliary_date` or `build_tx`
     pub fn build(&self) -> Result<TransactionBody, JsError> {
         let (body, full_tx_size) = self.build_and_size()?;
-        if full_tx_size > self.max_tx_size as usize {
+        if full_tx_size > self.config.max_tx_size as usize {
             Err(JsError::from_str(&format!(
                 "Maximum transaction size of {} exceeded. Found: {}",
-                self.max_tx_size,
+                self.config.max_tx_size,
                 full_tx_size
             )))
         } else {
@@ -1008,14 +1088,16 @@ mod tests {
         max_val_size: u32,
         coins_per_utxo_word: u64,
     ) -> TransactionBuilder {
-        TransactionBuilder::new(
-            linear_fee,
-            &to_bignum(pool_deposit),
-            &to_bignum(key_deposit),
-            max_val_size,
-            MAX_TX_SIZE,
-            &to_bignum(coins_per_utxo_word)
-        )
+        let cfg = TransactionBuilderConfigBuilder::new()
+            .fee_algo(linear_fee.clone())
+            .pool_deposit(to_bignum(pool_deposit))
+            .key_deposit(to_bignum(key_deposit))
+            .max_value_size(max_val_size)
+            .max_tx_size(MAX_TX_SIZE)
+            .coins_per_utxo_word(to_bignum(coins_per_utxo_word))
+            .build()
+            .unwrap();
+        TransactionBuilder::new(&cfg)
     }
 
     fn create_tx_builder(
@@ -1042,6 +1124,19 @@ mod tests {
 
     fn create_tx_builder_with_fee(linear_fee: &LinearFee) -> TransactionBuilder {
         create_tx_builder(linear_fee, 1, 1, 1)
+    }
+
+    fn create_tx_builder_with_fee_and_pure_change(linear_fee: &LinearFee) -> TransactionBuilder {
+        TransactionBuilder::new(&TransactionBuilderConfigBuilder::new()
+            .fee_algo(linear_fee.clone())
+            .pool_deposit(to_bignum(1))
+            .key_deposit(to_bignum(1))
+            .max_value_size(MAX_VALUE_SIZE)
+            .max_tx_size(MAX_TX_SIZE)
+            .coins_per_utxo_word(to_bignum(1))
+            .prefer_pure_change(true)
+            .build()
+            .unwrap())
     }
 
     fn create_tx_builder_with_key_deposit(deposit: u64) -> TransactionBuilder {
@@ -1640,8 +1735,6 @@ mod tests {
 
     #[test]
     fn build_tx_with_native_assets_change() {
-        let minimum_utxo_value = to_bignum(1);
-        let coins_per_utxo_word = to_bignum(1);
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
         let spend = root_key_15()
             .derive(harden(1852))
@@ -1749,11 +1842,9 @@ mod tests {
 
     #[test]
     fn build_tx_with_native_assets_change_and_purification() {
-        let minimum_utxo_value = to_bignum(1);
         let coin_per_utxo_word = to_bignum(1);
-        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
         // Prefer pure change!
-        tx_builder.set_prefer_pure_change(true);
+        let mut tx_builder = create_tx_builder_with_fee_and_pure_change(&create_linear_fee(0, 1));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -1878,10 +1969,8 @@ mod tests {
 
     #[test]
     fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
-        let minimum_utxo_value = to_bignum(10);
-        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 1));
         // Prefer pure change!
-        tx_builder.set_prefer_pure_change(true);
+        let mut tx_builder = create_tx_builder_with_fee_and_pure_change(&create_linear_fee(1, 1));
         let spend = root_key_15()
             .derive(harden(1852))
             .derive(harden(1815))
@@ -2454,14 +2543,16 @@ mod tests {
     fn tx_builder_cip2_random_improve_when_using_all_available_inputs() {
         // we have a = 1 to test increasing fees when more inputs are added
         let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &Coin::zero(),
-            &to_bignum(0),
-            9999,
-            9999,
-            &to_bignum(0),
-        );
+        let cfg = TransactionBuilderConfigBuilder::new()
+            .fee_algo(linear_fee)
+            .pool_deposit(to_bignum(0))
+            .key_deposit(to_bignum(0))
+            .max_value_size(9999)
+            .max_tx_size(9999)
+            .coins_per_utxo_word(Coin::zero())
+            .build()
+            .unwrap();
+        let mut tx_builder = TransactionBuilder::new(&cfg);
         const COST: u64 = 1000;
         tx_builder.add_output(&TransactionOutput::new(
             &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
@@ -2479,14 +2570,16 @@ mod tests {
     fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
         // we have a = 1 to test increasing fees when more inputs are added
         let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &Coin::zero(),
-            &to_bignum(0),
-            9999,
-            9999,
-            &to_bignum(0),
-        );
+        let cfg = TransactionBuilderConfigBuilder::new()
+            .fee_algo(linear_fee)
+            .pool_deposit(to_bignum(0))
+            .key_deposit(to_bignum(0))
+            .max_value_size(9999)
+            .max_tx_size(9999)
+            .coins_per_utxo_word(Coin::zero())
+            .build()
+            .unwrap();
+        let mut tx_builder = TransactionBuilder::new(&cfg);
         const COST: u64 = 100;
         tx_builder.add_output(&TransactionOutput::new(
             &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
@@ -3168,7 +3261,7 @@ mod tests {
         mint.insert(&policy_id3, &mass);
 
         let mint_len = mint.to_bytes().len();
-        let fee_coefficient = tx_builder.fee_algo.coefficient();
+        let fee_coefficient = tx_builder.config.fee_algo.coefficient();
 
         let raw_mint_fee = fee_coefficient
             .checked_mul(&to_bignum(mint_len as u64))
@@ -3206,20 +3299,6 @@ mod tests {
             .derive(harden(1815))
             .derive(harden(0))
             .derive(0)
-            .derive(0)
-            .to_public();
-        let change_key = root_key_15()
-            .derive(harden(1852))
-            .derive(harden(1815))
-            .derive(harden(0))
-            .derive(1)
-            .derive(0)
-            .to_public();
-        let stake = root_key_15()
-            .derive(harden(1852))
-            .derive(harden(1815))
-            .derive(harden(0))
-            .derive(2)
             .derive(0)
             .to_public();
 

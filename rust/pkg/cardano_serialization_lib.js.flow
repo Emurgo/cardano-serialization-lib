@@ -268,6 +268,14 @@ declare export var NetworkIdKind: {|
 /**
  */
 
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ */
+
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
 |};
@@ -291,14 +299,6 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
-|};
-
-/**
- */
-
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
 |};
 
 /**
@@ -333,9 +333,9 @@ declare export var MetadataJsonSchema: {|
 /**
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
 |};
 
 /**
@@ -5244,29 +5244,10 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
-   * If set to true, add_change_if_needed will try
-   * to put pure Coin in a separate output from assets
-   * @param {boolean} prefer_pure_change
-   */
-  set_prefer_pure_change(prefer_pure_change: boolean): void;
-
-  /**
-   * @param {LinearFee} linear_fee
-   * @param {BigNum} pool_deposit
-   * @param {BigNum} key_deposit
-   * @param {number} max_value_size
-   * @param {number} max_tx_size
-   * @param {BigNum} coins_per_utxo_word
+   * @param {TransactionBuilderConfig} cfg
    * @returns {TransactionBuilder}
    */
-  static new(
-    linear_fee: LinearFee,
-    pool_deposit: BigNum,
-    key_deposit: BigNum,
-    max_value_size: number,
-    max_tx_size: number,
-    coins_per_utxo_word: BigNum
-  ): TransactionBuilder;
+  static new(cfg: TransactionBuilderConfig): TransactionBuilder;
 
   /**
    * does not include refunds or withdrawals
@@ -5339,6 +5320,72 @@ declare export class TransactionBuilder {
    * @returns {BigNum}
    */
   min_fee(): BigNum;
+}
+/**
+ */
+declare export class TransactionBuilderConfig {
+  free(): void;
+}
+/**
+ */
+declare export class TransactionBuilderConfigBuilder {
+  free(): void;
+
+  /**
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  static new(): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {LinearFee} fee_algo
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  fee_algo(fee_algo: LinearFee): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {BigNum} pool_deposit
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  pool_deposit(pool_deposit: BigNum): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {BigNum} key_deposit
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  key_deposit(key_deposit: BigNum): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {number} max_value_size
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  max_value_size(max_value_size: number): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {number} max_tx_size
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  max_tx_size(max_tx_size: number): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {BigNum} coins_per_utxo_word
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  coins_per_utxo_word(
+    coins_per_utxo_word: BigNum
+  ): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {boolean} prefer_pure_change
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  prefer_pure_change(
+    prefer_pure_change: boolean
+  ): TransactionBuilderConfigBuilder;
+
+  /**
+   * @returns {TransactionBuilderConfig}
+   */
+  build(): TransactionBuilderConfig;
 }
 /**
  */
