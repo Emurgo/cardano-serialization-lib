@@ -166,6 +166,13 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -188,13 +195,6 @@ declare export function decrypt_with_password(
   password: string,
   data: string
 ): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -294,6 +294,16 @@ declare export var RedeemerTagKind: {|
 |};
 
 /**
+ */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
  * Used to choosed the schema for a script JSON string
  */
 
@@ -320,14 +330,6 @@ declare export var MetadataJsonSchema: {|
   +NoConversions: 0, // 0
   +BasicConversions: 1, // 1
   +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
 |};
 
 /**
@@ -2594,22 +2596,44 @@ declare export class MultiAsset {
   static new(): MultiAsset;
 
   /**
+   * the number of unique policy IDs in the multiasset
    * @returns {number}
    */
   len(): number;
 
   /**
-   * @param {ScriptHash} key
-   * @param {Assets} value
+   * set (and replace if it exists) all assets with policy {policy_id} to a copy of {assets}
+   * @param {ScriptHash} policy_id
+   * @param {Assets} assets
    * @returns {Assets | void}
    */
-  insert(key: ScriptHash, value: Assets): Assets | void;
+  insert(policy_id: ScriptHash, assets: Assets): Assets | void;
 
   /**
-   * @param {ScriptHash} key
+   * all assets under {policy_id}, if any exist, or else None (undefined in JS)
+   * @param {ScriptHash} policy_id
    * @returns {Assets | void}
    */
-  get(key: ScriptHash): Assets | void;
+  get(policy_id: ScriptHash): Assets | void;
+
+  /**
+   * @param {ScriptHash} policy_id
+   * @param {AssetName} asset_name
+   * @param {BigNum} value
+   * @returns {BigNum | void}
+   */
+  set_asset(
+    policy_id: ScriptHash,
+    asset_name: AssetName,
+    value: BigNum
+  ): BigNum | void;
+
+  /**
+   * @param {ScriptHash} policy_id
+   * @param {AssetName} asset_name
+   * @returns {BigNum}
+   */
+  get_asset(policy_id: ScriptHash, asset_name: AssetName): BigNum;
 
   /**
    * @returns {ScriptHashes}
@@ -2618,6 +2642,7 @@ declare export class MultiAsset {
 
   /**
    * removes an asset from the list if the result is 0 or less
+   * does not modify this object, instead the result is returned
    * @param {MultiAsset} rhs_ma
    * @returns {MultiAsset}
    */
