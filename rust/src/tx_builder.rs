@@ -2,7 +2,6 @@ use super::*;
 use super::fees;
 use super::utils;
 use std::collections::{BTreeMap, BTreeSet};
-use derive_builder::Builder;
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
@@ -154,7 +153,7 @@ pub enum CoinSelectionStrategyCIP2 {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Builder, Debug)]
+#[derive(Clone, Debug)]
 pub struct TransactionBuilderConfig {
     fee_algo: fees::LinearFee,
     pool_deposit: BigNum,      // protocol parameter
@@ -162,8 +161,100 @@ pub struct TransactionBuilderConfig {
     max_value_size: u32,       // protocol parameter
     max_tx_size: u32,          // protocol parameter
     coins_per_utxo_word: Coin, // protocol parameter
-    #[builder(default = "false")]
     prefer_pure_change: bool,
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
+pub struct TransactionBuilderConfigBuilder {
+    fee_algo: Option<fees::LinearFee>,
+    pool_deposit: Option<BigNum>,      // protocol parameter
+    key_deposit: Option<BigNum>,       // protocol parameter
+    max_value_size: Option<u32>,       // protocol parameter
+    max_tx_size: Option<u32>,          // protocol parameter
+    coins_per_utxo_word: Option<Coin>, // protocol parameter
+    prefer_pure_change: bool,
+}
+
+impl Default for TransactionBuilderConfigBuilder {
+    fn default() -> Self {
+        Self {
+            fee_algo: None,
+            pool_deposit: None,
+            key_deposit: None,
+            max_value_size: None,
+            max_tx_size: None,
+            coins_per_utxo_word: None,
+            prefer_pure_change: false,
+        }
+    }
+}
+
+impl TransactionBuilderConfigBuilder {
+    pub fn fee_algo(&mut self, fee_algo: fees::LinearFee) -> &mut Self {
+        self.fee_algo = Some(fee_algo);
+        self
+    }
+
+    pub fn pool_deposit(&mut self, pool_deposit: BigNum) -> &mut Self {
+        self.pool_deposit = Some(pool_deposit);
+        self
+    }
+
+    pub fn key_deposit(&mut self, key_deposit: BigNum) -> &mut Self {
+        self.key_deposit = Some(key_deposit);
+        self
+    }
+
+    pub fn max_value_size(&mut self, max_value_size: u32) -> &mut Self {
+        self.max_value_size = Some(max_value_size);
+        self
+    }
+
+    pub fn max_tx_size(&mut self, max_tx_size: u32) -> &mut Self {
+        self.max_tx_size = Some(max_tx_size);
+        self
+    }
+
+    pub fn coins_per_utxo_word(&mut self, coins_per_utxo_word: Coin) -> &mut Self {
+        self.coins_per_utxo_word = Some(coins_per_utxo_word);
+        self
+    }
+
+    pub fn prefer_pure_change(&mut self, prefer_pure_change: bool) -> &mut Self {
+        self.prefer_pure_change = prefer_pure_change;
+        self
+    }
+
+    pub fn build(&self) -> Result<TransactionBuilderConfig, JsError> {
+        Ok(TransactionBuilderConfig {
+            fee_algo: match self.fee_algo {
+                Some(ref fee_algo) => fee_algo.clone(),
+                None => return Err(JsError::from_str("uninitialized field: fee_algo")),
+            },
+            pool_deposit: match self.pool_deposit {
+                Some(ref pool_deposit) => pool_deposit.clone(),
+                None => return Err(JsError::from_str("uninitialized field: pool_deposit")),
+            },
+            key_deposit: match self.key_deposit {
+                Some(ref key_deposit) => key_deposit.clone(),
+                None => return Err(JsError::from_str("uninitialized field: key_deposit")),
+            },
+            max_value_size: match self.max_value_size {
+                Some(max_value_size) => max_value_size,
+                None => return Err(JsError::from_str("uninitialized field: max_value_size")),
+            },
+            max_tx_size: match self.max_tx_size {
+                Some(max_tx_size) => max_tx_size,
+                None => return Err(JsError::from_str("uninitialized field: max_tx_size")),
+            },
+            coins_per_utxo_word: match self.coins_per_utxo_word {
+                Some(ref coins_per_utxo_word) => coins_per_utxo_word.clone(),
+                None => return Err(JsError::from_str("uninitialized field: coins_per_utxo_word")),
+            },
+            prefer_pure_change: self.prefer_pure_change,
+        })
+    }
 }
 
 #[wasm_bindgen]

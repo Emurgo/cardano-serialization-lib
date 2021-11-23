@@ -32,7 +32,6 @@ clear_on_drop = { version = "0.2", features = ["no_cc"] }
 itertools = "0.10.1"
 getrandom = { version = "0.2.3", features = ["js"] }
 rand = "0.8.4"
-derive_builder = "0.10.2"
 
 # non-wasm
 [target.'cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))'.dependencies]
