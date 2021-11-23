@@ -3,7 +3,6 @@ use hex::FromHex;
 use serde_json;
 use std::{collections::HashMap, io::{BufRead, Seek, Write}};
 use itertools::Itertools;
-use std::cmp;
 use std::ops::{Rem, Div, Sub};
 
 use super::*;
@@ -265,6 +264,7 @@ to_from_bytes!(Value);
 
 #[wasm_bindgen]
 impl Value {
+
     pub fn new(coin: &Coin) -> Value {
         Self {
             coin: coin.clone(),
@@ -272,8 +272,18 @@ impl Value {
         }
     }
 
+    pub fn new_from_assets(multiasset: &MultiAsset) -> Value {
+        match multiasset.0.is_empty() {
+            true => Value::zero(),
+            false => Self {
+                coin: Coin::zero(),
+                multiasset: Some(multiasset.clone()),
+            }
+        }
+    }
+
     pub fn zero() -> Value {
-        Value::new(&to_bignum(0))
+        Value::new(&Coin::zero())
     }
 
     pub fn is_zero(&self) -> bool {
@@ -346,7 +356,7 @@ impl Value {
         let coin = self.coin.checked_sub(&rhs_value.coin)?;
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                match (lhs_ma.sub(rhs_ma).len()) {
+                match lhs_ma.sub(rhs_ma).len() {
                     0 => None,
                     _ => Some(lhs_ma.sub(rhs_ma))
                 }
@@ -363,7 +373,7 @@ impl Value {
         let coin = self.coin.clamped_sub(&rhs_value.coin);
         let multiasset = match(&self.multiasset, &rhs_value.multiasset) {
             (Some(lhs_ma), Some(rhs_ma)) => {
-                match (lhs_ma.sub(rhs_ma).len()) {
+                match lhs_ma.sub(rhs_ma).len() {
                     0 => None,
                     _ => Some(lhs_ma.sub(rhs_ma))
                 }
@@ -487,6 +497,12 @@ impl Int {
         return self.0 >= 0
     }
 
+    /// BigNum can only contain unsigned u64 values
+    ///
+    /// This function will return the BigNum representation
+    /// only in case the underlying i128 value is positive.
+    ///
+    /// Otherwise nothing will be returned (undefined).
     pub fn as_positive(&self) -> Option<BigNum> {
         if self.is_positive() {
             Some(to_bignum(self.0 as u64))
@@ -495,6 +511,12 @@ impl Int {
         }
     }
 
+    /// BigNum can only contain unsigned u64 values
+    ///
+    /// This function will return the *absolute* BigNum representation
+    /// only in case the underlying i128 value is negative.
+    ///
+    /// Otherwise nothing will be returned (undefined).
     pub fn as_negative(&self) -> Option<BigNum> {
         if !self.is_positive() {
             Some(to_bignum((-self.0) as u64))
@@ -503,9 +525,36 @@ impl Int {
         }
     }
 
+    /// !!! DEPRECATED !!!
+    /// Returns an i32 value in case the underlying original i128 value is within the limits.
+    /// Otherwise will just return an empty value (undefined).
+    #[deprecated(
+        since = "10.0.0",
+        note = "Unsafe ignoring of possible boundary error and it's not clear from the function name. Use `as_i32_or_nothing`, `as_i32_or_fail`, or `to_str`"
+    )]
     pub fn as_i32(&self) -> Option<i32> {
+        self.as_i32_or_nothing()
+    }
+
+    /// Returns the underlying value converted to i32 if possible (within limits)
+    /// Otherwise will just return an empty value (undefined).
+    pub fn as_i32_or_nothing(&self) -> Option<i32> {
         use std::convert::TryFrom;
         i32::try_from(self.0).ok()
+    }
+
+    /// Returns the underlying value converted to i32 if possible (within limits)
+    /// JsError in case of out of boundary overflow
+    pub fn as_i32_or_fail(&self) -> Result<i32, JsError> {
+        use std::convert::TryFrom;
+        i32::try_from(self.0)
+            .map_err(|e| JsError::from_str(&format!("{}", e)))
+    }
+
+    /// Returns string representation of the underlying i128 value directly.
+    /// Might contain the minus sign (-) in case of negative value.
+    pub fn to_str(&self) -> String {
+        format!("{}", self.0)
     }
 }
 
@@ -987,7 +1036,7 @@ fn bundle_size(
             // converts bytes to 8-byte long words, rounding up
             fn roundup_bytes_to_words(b: usize) -> usize {
                 quot(b + 7, 8)
-            };
+            }
             constants.k0 + roundup_bytes_to_words(
                 (num_assets * constants.k1) + sum_asset_name_lengths +
                 (constants.k2 * sum_policy_id_lengths)
@@ -1229,8 +1278,6 @@ fn encode_template_to_native_script(
 
 #[cfg(test)]
 mod tests {
-    use hex::FromHex;
-
     use super::*;
 
     // this is what is used in mainnet
@@ -2122,7 +2169,7 @@ mod tests {
 
         assert_eq!(
             hex::encode(script_data_hash.to_bytes()),
-            "57240d358f8ab6128c4a66340271e4fec39b4971232add308f01a5809313adcf"
+            "4415e6667e6d6bbd992af5092d48e3c2ba9825200d0234d2470068f7f0f178b3"
         );
     }
 
@@ -2191,5 +2238,61 @@ mod tests {
             self_key.addr_keyhash(),
             Bip32PublicKey::from_bytes(&hex::decode(self_key_hex).unwrap()).unwrap().to_raw_key().hash()
         );
+    }
+
+    #[test]
+    fn int_to_str() {
+        assert_eq!(Int::new(&BigNum(u64::max_value())).to_str(), u64::max_value().to_string());
+        assert_eq!(Int::new(&BigNum(u64::min_value())).to_str(), u64::min_value().to_string());
+        assert_eq!(Int::new_negative(&BigNum(u64::max_value())).to_str(), (-(u64::max_value() as i128)).to_string());
+        assert_eq!(Int::new_negative(&BigNum(u64::min_value())).to_str(), (-(u64::min_value() as i128)).to_string());
+        assert_eq!(Int::new_i32(142).to_str(), "142");
+        assert_eq!(Int::new_i32(-142).to_str(), "-142");
+    }
+
+    #[test]
+    fn int_as_i32_or_nothing() {
+
+        let over_pos_i32 = (i32::max_value() as i64) + 1;
+        assert!(Int::new(&BigNum(over_pos_i32 as u64)).as_i32_or_nothing().is_none());
+
+        let valid_pos_i32 = i32::max_value() as i64;
+        assert_eq!(Int::new(&BigNum(valid_pos_i32 as u64)).as_i32_or_nothing().unwrap(), i32::max_value());
+
+        let over_neg_i32 = (i32::min_value() as i64) - 1;
+        assert!(Int::new_negative(&BigNum((-over_neg_i32) as u64)).as_i32_or_nothing().is_none());
+
+        let valid_neg_i32 = i32::min_value() as i64;
+        assert_eq!(Int::new_negative(&BigNum((-valid_neg_i32) as u64)).as_i32_or_nothing().unwrap(), i32::min_value());
+
+        assert!(Int::new(&BigNum(u64::max_value())).as_i32_or_nothing().is_none());
+        assert_eq!(Int::new(&BigNum(i32::max_value() as u64)).as_i32_or_nothing().unwrap(), i32::max_value());
+        assert_eq!(Int::new_negative(&BigNum(i32::max_value() as u64)).as_i32_or_nothing().unwrap(), -i32::max_value());
+
+        assert_eq!(Int::new_i32(42).as_i32_or_nothing().unwrap(), 42);
+        assert_eq!(Int::new_i32(-42).as_i32_or_nothing().unwrap(), -42);
+    }
+
+    #[test]
+    fn int_as_i32_or_fail() {
+
+        let over_pos_i32 = (i32::max_value() as i64) + 1;
+        assert!(Int::new(&BigNum(over_pos_i32 as u64)).as_i32_or_fail().is_err());
+
+        let valid_pos_i32 = i32::max_value() as i64;
+        assert_eq!(Int::new(&BigNum(valid_pos_i32 as u64)).as_i32_or_fail().unwrap(), i32::max_value());
+
+        let over_neg_i32 = (i32::min_value() as i64) - 1;
+        assert!(Int::new_negative(&BigNum((-over_neg_i32) as u64)).as_i32_or_fail().is_err());
+
+        let valid_neg_i32 = i32::min_value() as i64;
+        assert_eq!(Int::new_negative(&BigNum((-valid_neg_i32) as u64)).as_i32_or_fail().unwrap(), i32::min_value());
+
+        assert!(Int::new(&BigNum(u64::max_value())).as_i32_or_fail().is_err());
+        assert_eq!(Int::new(&BigNum(i32::max_value() as u64)).as_i32_or_fail().unwrap(), i32::max_value());
+        assert_eq!(Int::new_negative(&BigNum(i32::max_value() as u64)).as_i32_or_fail().unwrap(), -i32::max_value());
+
+        assert_eq!(Int::new_i32(42).as_i32_or_fail().unwrap(), 42);
+        assert_eq!(Int::new_i32(-42).as_i32_or_fail().unwrap(), -42);
     }
 }
