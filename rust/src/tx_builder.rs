@@ -178,7 +178,6 @@ pub struct TransactionBuilderConfigBuilder {
 
 #[wasm_bindgen]
 impl TransactionBuilderConfigBuilder {
-
     pub fn new() -> Self {
         Self {
             fee_algo: None,
@@ -191,50 +190,49 @@ impl TransactionBuilderConfigBuilder {
         }
     }
 
-    pub fn fee_algo(&mut self, fee_algo: fees::LinearFee) -> Self {
+    pub fn fee_algo(mut self, fee_algo: fees::LinearFee) -> Self {
         self.fee_algo = Some(fee_algo);
-        self.clone()
+        self
     }
 
-    pub fn pool_deposit(&mut self, pool_deposit: BigNum) -> Self {
+    pub fn pool_deposit(mut self, pool_deposit: BigNum) -> Self {
         self.pool_deposit = Some(pool_deposit);
-        self.clone()
+        self
     }
 
-    pub fn key_deposit(&mut self, key_deposit: BigNum) -> Self {
+    pub fn key_deposit(mut self, key_deposit: BigNum) -> Self {
         self.key_deposit = Some(key_deposit);
-        self.clone()
+        self
     }
 
-    pub fn max_value_size(&mut self, max_value_size: u32) -> Self {
+    pub fn max_value_size(mut self, max_value_size: u32) -> Self {
         self.max_value_size = Some(max_value_size);
-        self.clone()
+        self
     }
 
-    pub fn max_tx_size(&mut self, max_tx_size: u32) -> Self {
+    pub fn max_tx_size(mut self, max_tx_size: u32) -> Self {
         self.max_tx_size = Some(max_tx_size);
-        self.clone()
+        self
     }
 
-    pub fn coins_per_utxo_word(&mut self, coins_per_utxo_word: Coin) -> Self {
+    pub fn coins_per_utxo_word(mut self, coins_per_utxo_word: Coin) -> Self {
         self.coins_per_utxo_word = Some(coins_per_utxo_word);
-        self.clone()
+        self
     }
 
-    pub fn prefer_pure_change(&mut self, prefer_pure_change: bool) -> Self {
+    pub fn prefer_pure_change(mut self, prefer_pure_change: bool) -> Self {
         self.prefer_pure_change = prefer_pure_change;
-        self.clone()
+        self
     }
 
-    pub fn build(&self) -> Result<TransactionBuilderConfig, JsError> {
-        let cfg = self.clone();
+    pub fn build(self) -> Result<TransactionBuilderConfig, JsError> {
         Ok(TransactionBuilderConfig {
-            fee_algo: cfg.fee_algo.ok_or(JsError::from_str("uninitialized field: fee_algo"))?,
-            pool_deposit: cfg.pool_deposit.ok_or(JsError::from_str("uninitialized field: pool_deposit"))?,
-            key_deposit: cfg.key_deposit.ok_or(JsError::from_str("uninitialized field: key_deposit"))?,
-            max_value_size: cfg.max_value_size.ok_or(JsError::from_str("uninitialized field: max_value_size"))?,
-            max_tx_size: cfg.max_tx_size.ok_or(JsError::from_str("uninitialized field: max_tx_size"))?,
-            coins_per_utxo_word: cfg.coins_per_utxo_word.ok_or(JsError::from_str("uninitialized field: coins_per_utxo_word"))?,
+            fee_algo: self.fee_algo.ok_or(JsError::from_str("uninitialized field: fee_algo"))?,
+            pool_deposit: self.pool_deposit.ok_or(JsError::from_str("uninitialized field: pool_deposit"))?,
+            key_deposit: self.key_deposit.ok_or(JsError::from_str("uninitialized field: key_deposit"))?,
+            max_value_size: self.max_value_size.ok_or(JsError::from_str("uninitialized field: max_value_size"))?,
+            max_tx_size: self.max_tx_size.ok_or(JsError::from_str("uninitialized field: max_tx_size"))?,
+            coins_per_utxo_word: self.coins_per_utxo_word.ok_or(JsError::from_str("uninitialized field: coins_per_utxo_word"))?,
             prefer_pure_change: self.prefer_pure_change,
         })
     }
