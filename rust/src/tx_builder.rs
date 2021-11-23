@@ -176,8 +176,10 @@ pub struct TransactionBuilderConfigBuilder {
     prefer_pure_change: bool,
 }
 
-impl Default for TransactionBuilderConfigBuilder {
-    fn default() -> Self {
+#[wasm_bindgen]
+impl TransactionBuilderConfigBuilder {
+
+    pub fn new() -> Self {
         Self {
             fee_algo: None,
             pool_deposit: None,
@@ -188,42 +190,40 @@ impl Default for TransactionBuilderConfigBuilder {
             prefer_pure_change: false,
         }
     }
-}
 
-impl TransactionBuilderConfigBuilder {
-    pub fn fee_algo(&mut self, fee_algo: fees::LinearFee) -> &mut Self {
+    pub fn fee_algo(&mut self, fee_algo: fees::LinearFee) -> Self {
         self.fee_algo = Some(fee_algo);
-        self
+        self.clone()
     }
 
-    pub fn pool_deposit(&mut self, pool_deposit: BigNum) -> &mut Self {
+    pub fn pool_deposit(&mut self, pool_deposit: BigNum) -> Self {
         self.pool_deposit = Some(pool_deposit);
-        self
+        self.clone()
     }
 
-    pub fn key_deposit(&mut self, key_deposit: BigNum) -> &mut Self {
+    pub fn key_deposit(&mut self, key_deposit: BigNum) -> Self {
         self.key_deposit = Some(key_deposit);
-        self
+        self.clone()
     }
 
-    pub fn max_value_size(&mut self, max_value_size: u32) -> &mut Self {
+    pub fn max_value_size(&mut self, max_value_size: u32) -> Self {
         self.max_value_size = Some(max_value_size);
-        self
+        self.clone()
     }
 
-    pub fn max_tx_size(&mut self, max_tx_size: u32) -> &mut Self {
+    pub fn max_tx_size(&mut self, max_tx_size: u32) -> Self {
         self.max_tx_size = Some(max_tx_size);
-        self
+        self.clone()
     }
 
-    pub fn coins_per_utxo_word(&mut self, coins_per_utxo_word: Coin) -> &mut Self {
+    pub fn coins_per_utxo_word(&mut self, coins_per_utxo_word: Coin) -> Self {
         self.coins_per_utxo_word = Some(coins_per_utxo_word);
-        self
+        self.clone()
     }
 
-    pub fn prefer_pure_change(&mut self, prefer_pure_change: bool) -> &mut Self {
+    pub fn prefer_pure_change(&mut self, prefer_pure_change: bool) -> Self {
         self.prefer_pure_change = prefer_pure_change;
-        self
+        self.clone()
     }
 
     pub fn build(&self) -> Result<TransactionBuilderConfig, JsError> {
@@ -1090,7 +1090,7 @@ mod tests {
         max_val_size: u32,
         coins_per_utxo_word: u64,
     ) -> TransactionBuilder {
-        let cfg = TransactionBuilderConfigBuilder::default()
+        let cfg = TransactionBuilderConfigBuilder::new()
             .fee_algo(linear_fee.clone())
             .pool_deposit(to_bignum(pool_deposit))
             .key_deposit(to_bignum(key_deposit))
@@ -1129,7 +1129,7 @@ mod tests {
     }
 
     fn create_tx_builder_with_fee_and_pure_change(linear_fee: &LinearFee) -> TransactionBuilder {
-        TransactionBuilder::new(&TransactionBuilderConfigBuilder::default()
+        TransactionBuilder::new(&TransactionBuilderConfigBuilder::new()
             .fee_algo(linear_fee.clone())
             .pool_deposit(to_bignum(1))
             .key_deposit(to_bignum(1))
@@ -2549,7 +2549,7 @@ mod tests {
     fn tx_builder_cip2_random_improve_when_using_all_available_inputs() {
         // we have a = 1 to test increasing fees when more inputs are added
         let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
-        let cfg = TransactionBuilderConfigBuilder::default()
+        let cfg = TransactionBuilderConfigBuilder::new()
             .fee_algo(linear_fee)
             .pool_deposit(to_bignum(0))
             .key_deposit(to_bignum(0))
@@ -2576,7 +2576,7 @@ mod tests {
     fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
         // we have a = 1 to test increasing fees when more inputs are added
         let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
-        let cfg = TransactionBuilderConfigBuilder::default()
+        let cfg = TransactionBuilderConfigBuilder::new()
             .fee_algo(linear_fee)
             .pool_deposit(to_bignum(0))
             .key_deposit(to_bignum(0))
