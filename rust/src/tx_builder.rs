@@ -190,50 +190,58 @@ impl TransactionBuilderConfigBuilder {
         }
     }
 
-    pub fn fee_algo(mut self, fee_algo: &fees::LinearFee) -> Self {
-        self.fee_algo = Some(fee_algo.clone());
-        self
+    pub fn fee_algo(&self, fee_algo: &fees::LinearFee) -> Self {
+        let mut cfg = self.clone();
+        cfg.fee_algo = Some(fee_algo.clone());
+        cfg
     }
 
-    pub fn coins_per_utxo_word(mut self, coins_per_utxo_word: &Coin) -> Self {
-        self.coins_per_utxo_word = Some(coins_per_utxo_word.clone());
-        self
+    pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {
+        let mut cfg = self.clone();
+        cfg.coins_per_utxo_word = Some(coins_per_utxo_word.clone());
+        cfg
     }
 
-    pub fn pool_deposit(mut self, pool_deposit: &BigNum) -> Self {
-        self.pool_deposit = Some(pool_deposit.clone());
-        self
+    pub fn pool_deposit(&self, pool_deposit: &BigNum) -> Self {
+        let mut cfg = self.clone();
+        cfg.pool_deposit = Some(pool_deposit.clone());
+        cfg
     }
 
-    pub fn key_deposit(mut self, key_deposit: &BigNum) -> Self {
-        self.key_deposit = Some(key_deposit.clone());
-        self
+    pub fn key_deposit(&self, key_deposit: &BigNum) -> Self {
+        let mut cfg = self.clone();
+        cfg.key_deposit = Some(key_deposit.clone());
+        cfg
     }
 
-    pub fn max_value_size(mut self, max_value_size: u32) -> Self {
-        self.max_value_size = Some(max_value_size);
-        self
+    pub fn max_value_size(&self, max_value_size: u32) -> Self {
+        let mut cfg = self.clone();
+        cfg.max_value_size = Some(max_value_size);
+        cfg
     }
 
-    pub fn max_tx_size(mut self, max_tx_size: u32) -> Self {
-        self.max_tx_size = Some(max_tx_size);
-        self
+    pub fn max_tx_size(&self, max_tx_size: u32) -> Self {
+        let mut cfg = self.clone();
+        cfg.max_tx_size = Some(max_tx_size);
+        cfg
     }
 
-    pub fn prefer_pure_change(mut self, prefer_pure_change: bool) -> Self {
-        self.prefer_pure_change = prefer_pure_change;
-        self
+    pub fn prefer_pure_change(&self, prefer_pure_change: bool) -> Self {
+        let mut cfg = self.clone();
+        cfg.prefer_pure_change = prefer_pure_change;
+        cfg
     }
 
-    pub fn build(self) -> Result<TransactionBuilderConfig, JsError> {
+    pub fn build(&self) -> Result<TransactionBuilderConfig, JsError> {
+        let cfg = self.clone();
         Ok(TransactionBuilderConfig {
-            fee_algo: self.fee_algo.ok_or(JsError::from_str("uninitialized field: fee_algo"))?,
-            pool_deposit: self.pool_deposit.ok_or(JsError::from_str("uninitialized field: pool_deposit"))?,
-            key_deposit: self.key_deposit.ok_or(JsError::from_str("uninitialized field: key_deposit"))?,
-            max_value_size: self.max_value_size.ok_or(JsError::from_str("uninitialized field: max_value_size"))?,
-            max_tx_size: self.max_tx_size.ok_or(JsError::from_str("uninitialized field: max_tx_size"))?,
-            coins_per_utxo_word: self.coins_per_utxo_word.ok_or(JsError::from_str("uninitialized field: coins_per_utxo_word"))?,
-            prefer_pure_change: self.prefer_pure_change,
+            fee_algo: cfg.fee_algo.ok_or(JsError::from_str("uninitialized field: fee_algo"))?,
+            pool_deposit: cfg.pool_deposit.ok_or(JsError::from_str("uninitialized field: pool_deposit"))?,
+            key_deposit: cfg.key_deposit.ok_or(JsError::from_str("uninitialized field: key_deposit"))?,
+            max_value_size: cfg.max_value_size.ok_or(JsError::from_str("uninitialized field: max_value_size"))?,
+            max_tx_size: cfg.max_tx_size.ok_or(JsError::from_str("uninitialized field: max_tx_size"))?,
+            coins_per_utxo_word: cfg.coins_per_utxo_word.ok_or(JsError::from_str("uninitialized field: coins_per_utxo_word"))?,
+            prefer_pure_change: cfg.prefer_pure_change,
         })
     }
 }
@@ -2848,12 +2856,12 @@ mod tests {
         let max_value_size = 100; // super low max output size to test with fewer assets
         let mut tx_builder = TransactionBuilder::new(
             &TransactionBuilderConfigBuilder::new()
-                .fee_algo(linear_fee)
-                .pool_deposit(to_bignum(0))
-                .key_deposit(to_bignum(0))
+                .fee_algo(&linear_fee)
+                .pool_deposit(&to_bignum(0))
+                .key_deposit(&to_bignum(0))
                 .max_value_size(max_value_size)
                 .max_tx_size(MAX_TX_SIZE)
-                .coins_per_utxo_word(to_bignum(1))
+                .coins_per_utxo_word(&to_bignum(1))
                 .prefer_pure_change(true)
                 .build()
                 .unwrap()
