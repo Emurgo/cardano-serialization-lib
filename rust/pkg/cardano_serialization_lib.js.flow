@@ -5343,6 +5343,14 @@ declare export class TransactionBuilderConfigBuilder {
   fee_algo(fee_algo: LinearFee): TransactionBuilderConfigBuilder;
 
   /**
+   * @param {BigNum} coins_per_utxo_word
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  coins_per_utxo_word(
+    coins_per_utxo_word: BigNum
+  ): TransactionBuilderConfigBuilder;
+
+  /**
    * @param {BigNum} pool_deposit
    * @returns {TransactionBuilderConfigBuilder}
    */
@@ -5365,14 +5373,6 @@ declare export class TransactionBuilderConfigBuilder {
    * @returns {TransactionBuilderConfigBuilder}
    */
   max_tx_size(max_tx_size: number): TransactionBuilderConfigBuilder;
-
-  /**
-   * @param {BigNum} coins_per_utxo_word
-   * @returns {TransactionBuilderConfigBuilder}
-   */
-  coins_per_utxo_word(
-    coins_per_utxo_word: BigNum
-  ): TransactionBuilderConfigBuilder;
 
   /**
    * @param {boolean} prefer_pure_change
