@@ -190,18 +190,23 @@ impl TransactionBuilderConfigBuilder {
         }
     }
 
-    pub fn fee_algo(mut self, fee_algo: fees::LinearFee) -> Self {
-        self.fee_algo = Some(fee_algo);
+    pub fn fee_algo(mut self, fee_algo: &fees::LinearFee) -> Self {
+        self.fee_algo = Some(fee_algo.clone());
         self
     }
 
-    pub fn pool_deposit(mut self, pool_deposit: BigNum) -> Self {
-        self.pool_deposit = Some(pool_deposit);
+    pub fn coins_per_utxo_word(mut self, coins_per_utxo_word: &Coin) -> Self {
+        self.coins_per_utxo_word = Some(coins_per_utxo_word.clone());
         self
     }
 
-    pub fn key_deposit(mut self, key_deposit: BigNum) -> Self {
-        self.key_deposit = Some(key_deposit);
+    pub fn pool_deposit(mut self, pool_deposit: &BigNum) -> Self {
+        self.pool_deposit = Some(pool_deposit.clone());
+        self
+    }
+
+    pub fn key_deposit(mut self, key_deposit: &BigNum) -> Self {
+        self.key_deposit = Some(key_deposit.clone());
         self
     }
 
@@ -212,11 +217,6 @@ impl TransactionBuilderConfigBuilder {
 
     pub fn max_tx_size(mut self, max_tx_size: u32) -> Self {
         self.max_tx_size = Some(max_tx_size);
-        self
-    }
-
-    pub fn coins_per_utxo_word(mut self, coins_per_utxo_word: Coin) -> Self {
-        self.coins_per_utxo_word = Some(coins_per_utxo_word);
         self
     }
 
@@ -1089,12 +1089,12 @@ mod tests {
         coins_per_utxo_word: u64,
     ) -> TransactionBuilder {
         let cfg = TransactionBuilderConfigBuilder::new()
-            .fee_algo(linear_fee.clone())
-            .pool_deposit(to_bignum(pool_deposit))
-            .key_deposit(to_bignum(key_deposit))
+            .fee_algo(linear_fee)
+            .pool_deposit(&to_bignum(pool_deposit))
+            .key_deposit(&to_bignum(key_deposit))
             .max_value_size(max_val_size)
             .max_tx_size(MAX_TX_SIZE)
-            .coins_per_utxo_word(to_bignum(coins_per_utxo_word))
+            .coins_per_utxo_word(&to_bignum(coins_per_utxo_word))
             .build()
             .unwrap();
         TransactionBuilder::new(&cfg)
@@ -1128,12 +1128,12 @@ mod tests {
 
     fn create_tx_builder_with_fee_and_pure_change(linear_fee: &LinearFee) -> TransactionBuilder {
         TransactionBuilder::new(&TransactionBuilderConfigBuilder::new()
-            .fee_algo(linear_fee.clone())
-            .pool_deposit(to_bignum(1))
-            .key_deposit(to_bignum(1))
+            .fee_algo(linear_fee)
+            .pool_deposit(&to_bignum(1))
+            .key_deposit(&to_bignum(1))
             .max_value_size(MAX_VALUE_SIZE)
             .max_tx_size(MAX_TX_SIZE)
-            .coins_per_utxo_word(to_bignum(1))
+            .coins_per_utxo_word(&to_bignum(1))
             .prefer_pure_change(true)
             .build()
             .unwrap())
@@ -2544,12 +2544,12 @@ mod tests {
         // we have a = 1 to test increasing fees when more inputs are added
         let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
         let cfg = TransactionBuilderConfigBuilder::new()
-            .fee_algo(linear_fee)
-            .pool_deposit(to_bignum(0))
-            .key_deposit(to_bignum(0))
+            .fee_algo(&linear_fee)
+            .pool_deposit(&to_bignum(0))
+            .key_deposit(&to_bignum(0))
             .max_value_size(9999)
             .max_tx_size(9999)
-            .coins_per_utxo_word(Coin::zero())
+            .coins_per_utxo_word(&Coin::zero())
             .build()
             .unwrap();
         let mut tx_builder = TransactionBuilder::new(&cfg);
@@ -2571,12 +2571,12 @@ mod tests {
         // we have a = 1 to test increasing fees when more inputs are added
         let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
         let cfg = TransactionBuilderConfigBuilder::new()
-            .fee_algo(linear_fee)
-            .pool_deposit(to_bignum(0))
-            .key_deposit(to_bignum(0))
+            .fee_algo(&linear_fee)
+            .pool_deposit(&to_bignum(0))
+            .key_deposit(&to_bignum(0))
             .max_value_size(9999)
             .max_tx_size(9999)
-            .coins_per_utxo_word(Coin::zero())
+            .coins_per_utxo_word(&Coin::zero())
             .build()
             .unwrap();
         let mut tx_builder = TransactionBuilder::new(&cfg);
