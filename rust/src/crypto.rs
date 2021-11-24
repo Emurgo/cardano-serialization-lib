@@ -588,7 +588,7 @@ impl Deserialize for BootstrapWitness {
 }
 
 impl DeserializeEmbeddedGroup for BootstrapWitness {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, _: cbor_event::Len) -> Result<Self, DeserializeError> {
         let vkey = (|| -> Result<_, DeserializeError> {
             Ok(Vkey::deserialize(raw)?)
         })().map_err(|e| e.annotate("vkey"))?;
@@ -953,7 +953,6 @@ impl cbor_event::se::Serialize for Nonce {
 
 impl Deserialize for Nonce {
     fn deserialize<R: std::io::BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        use std::convert::TryInto;
         (|| -> Result<Self, DeserializeError> {
             let len = raw.array()?;
             let hash = match raw.unsigned_integer()? {
