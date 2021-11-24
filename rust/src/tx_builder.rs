@@ -2847,14 +2847,17 @@ mod tests {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
         let max_value_size = 100; // super low max output size to test with fewer assets
         let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &to_bignum(0),
-            &to_bignum(0),
-            max_value_size,
-            MAX_TX_SIZE,
-            &to_bignum(1),
+            &TransactionBuilderConfigBuilder::new()
+                .fee_algo(linear_fee)
+                .pool_deposit(to_bignum(0))
+                .key_deposit(to_bignum(0))
+                .max_value_size(max_value_size)
+                .max_tx_size(MAX_TX_SIZE)
+                .coins_per_utxo_word(to_bignum(1))
+                .prefer_pure_change(true)
+                .build()
+                .unwrap()
         );
-        tx_builder.set_prefer_pure_change(true);
 
         let policy_id = PolicyID::from([0u8; 28]);
         let names = [
