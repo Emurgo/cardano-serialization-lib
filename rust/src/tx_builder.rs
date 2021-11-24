@@ -2639,14 +2639,7 @@ mod tests {
     fn tx_builder_cip2_largest_first_multiasset() {
         // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &Coin::zero(),
-            &to_bignum(0),
-            9999,
-            9999,
-            &to_bignum(0),
-        );
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
         let pid1 = PolicyID::from([1u8; 28]);
         let pid2 = PolicyID::from([2u8; 28]);
         let asset_name1 = AssetName::new(vec![1u8; 8]).unwrap();
@@ -2751,14 +2744,7 @@ mod tests {
     #[test]
     fn tx_builder_cip2_random_improve_multiasset() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
-        let mut tx_builder = TransactionBuilder::new(
-            &linear_fee,
-            &Coin::zero(),
-            &to_bignum(0),
-            9999,
-            9999,
-            &to_bignum(0),
-        );
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
         let pid1 = PolicyID::from([1u8; 28]);
         let pid2 = PolicyID::from([2u8; 28]);
         let asset_name1 = AssetName::new(vec![1u8; 8]).unwrap();
@@ -2819,6 +2805,19 @@ mod tests {
         let input6 = make_input(6u8, Value::new(&to_bignum(400)));
         available_inputs.add(&input6);
         available_inputs.add(&make_input(7u8, Value::new(&to_bignum(100))));
+
+        let mut input8 = make_input(8u8, Value::new(&to_bignum(10)));
+        let mut ma8 = MultiAsset::new();
+        ma8.set_asset(&pid2, &asset_name2, to_bignum(10));
+        input8.output.amount.multiasset = Some(ma8);
+        available_inputs.add(&input8);
+
+        let mut input9 = make_input(9u8, Value::new(&to_bignum(10)));
+        let mut ma9 = MultiAsset::new();
+        ma9.set_asset(&pid2, &asset_name3, to_bignum(10));
+        input9.output.amount.multiasset = Some(ma9);
+        available_inputs.add(&input9);
+
         tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImproveMultiAsset).unwrap();
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
         let change_added = tx_builder.add_change_if_needed(&change_addr).unwrap();

@@ -340,20 +340,6 @@ declare export var MetadataJsonSchema: {|
   +DetailedSchema: 2, // 2
 |};
 
-/**
- */
-
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|}
-
-/**
- */
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-|};
 
 /**
  */
