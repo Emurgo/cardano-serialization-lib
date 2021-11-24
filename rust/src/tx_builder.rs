@@ -814,9 +814,25 @@ impl TransactionBuilder {
                 }
                 let change_estimator = input_total.checked_sub(&output_total)?;
                 if has_assets(change_estimator.multiasset()) {
-                    fn pack_nfts_for_change(max_value_size: u32, change_address: &Address, change_estimator: &Value) -> Result<MultiAsset, JsError> {
+                    fn will_adding_asset_make_output_overflow(output: &TransactionOutput, current_assets: &Assets, asset_to_add: (PolicyID, AssetName, BigNum), max_value_size: u32) -> bool {
+                        let (policy, asset_name, value) = asset_to_add;
+                        let mut current_assets_clone = current_assets.clone();
+                        current_assets_clone.insert(&asset_name, &value);
+                        let mut amount_clone = output.amount.clone();
+                        let mut val = Value::new(&Coin::zero());
+                        let mut ma = MultiAsset::new();
+
+                        ma.insert(&policy, &current_assets_clone);
+                        val.set_multiasset(&ma);
+                        amount_clone = amount_clone.checked_add(&val).unwrap();
+
+                        amount_clone.to_bytes().len() > max_value_size as usize
+                    }
+                    fn pack_nfts_for_change(max_value_size: u32, change_address: &Address, change_estimator: &Value) -> Result<Vec<MultiAsset>, JsError> {
                         // we insert the entire available ADA temporarily here since that could potentially impact the size
                         // as it could be 1, 2 3 or 4 bytes for Coin.
+                        let mut change_assets: Vec<MultiAsset> = Vec::new();
+
                         let mut base_coin = Value::new(&change_estimator.coin());
                         base_coin.set_multiasset(&MultiAsset::new());
                         let mut output = TransactionOutput::new(change_address, &base_coin);
@@ -844,18 +860,53 @@ impl TransactionBuilder {
                             // performance becomes an issue.
                             //let extra_bytes = policy.to_bytes().len() + assets.to_bytes().len() + 2 + cbor_len_diff;
                             //if bytes_used + extra_bytes <= max_value_size as usize {
-                            let old_amount = output.amount.clone();
+                            let mut old_amount = output.amount.clone();
                             let mut val = Value::new(&Coin::zero());
                             let mut next_nft = MultiAsset::new();
-                            next_nft.insert(policy, assets);
+
+                            let asset_names = assets.keys();
+                            let mut rebuilt_assets = Assets::new();
+                            for n in 0..asset_names.len() {
+                                let asset_name = asset_names.get(n);
+                                let value = assets.get(&asset_name).unwrap();
+
+                                if will_adding_asset_make_output_overflow(&output, &rebuilt_assets, (policy.clone(), asset_name.clone(), value), max_value_size) {
+                                    // if we got here, this means we will run into a overflow error,
+                                    // so we want to split into multiple outputs, for that we...
+
+                                    // 1. insert the current assets as they are, as this won't overflow
+                                    next_nft.insert(policy, &rebuilt_assets);
+                                    val.set_multiasset(&next_nft);
+                                    output.amount = output.amount.checked_add(&val)?;
+                                    change_assets.push(output.amount.multiasset().unwrap());
+
+                                    // 2. create a new output with the base coin value as zero
+                                    base_coin = Value::new(&Coin::zero());
+                                    base_coin.set_multiasset(&MultiAsset::new());
+                                    output = TransactionOutput::new(change_address, &base_coin);
+
+                                    // 3. continue building the new output from the asset we stopped
+                                    old_amount = output.amount.clone();
+                                    val = Value::new(&Coin::zero());
+                                    next_nft = MultiAsset::new();
+
+                                    rebuilt_assets = Assets::new();
+                                }
+
+                                rebuilt_assets.insert(&asset_name, &value);
+                            }
+
+                            next_nft.insert(policy, &rebuilt_assets);
                             val.set_multiasset(&next_nft);
                             output.amount = output.amount.checked_add(&val)?;
+
                             if output.amount.to_bytes().len() > max_value_size as usize {
                                 output.amount = old_amount;
                                 break;
                             }
                         }
-                        Ok(output.amount.multiasset().unwrap())
+                        change_assets.push(output.amount.multiasset().unwrap());
+                        Ok(change_assets)
                     }
                     let mut change_left = input_total.checked_sub(&output_total)?;
                     let mut new_fee = fee.clone();
@@ -863,33 +914,27 @@ impl TransactionBuilder {
                     // which surpass the max UTXO size limit
                     let minimum_utxo_val = min_pure_ada(&self.config.coins_per_utxo_word)?;
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
-                        let nft_change = pack_nfts_for_change(
-                            self.config.max_value_size,
-                            address,
-                            &change_left,
-                        )?;
-                        if nft_change.len() == 0 {
+                        let nft_changes = pack_nfts_for_change(self.config.max_value_size, address, &change_left)?;
+                        if nft_changes.len() == 0 {
                             // this likely should never happen
                             return Err(JsError::from_str("NFTs too large for change output"));
                         }
                         // we only add the minimum needed (for now) to cover this output
                         let mut change_value = Value::new(&Coin::zero());
-                        change_value.set_multiasset(&nft_change);
-                        let min_ada = min_ada_required(
-                            &change_value,
-                            false,
-                            &self.config.coins_per_utxo_word,
-                        )?;
-                        change_value.set_coin(&min_ada);
-                        let change_output = TransactionOutput::new(address, &change_value);
-                        // increase fee
-                        let fee_for_change = self.fee_for_output(&change_output)?;
-                        new_fee = new_fee.checked_add(&fee_for_change)?;
-                        if change_left.coin() < min_ada.checked_add(&new_fee)? {
-                            return Err(JsError::from_str("Not enough ADA leftover to include non-ADA assets in a change address"));
+                        for nft_change in nft_changes.iter() {
+                            change_value.set_multiasset(&nft_change);
+                            let min_ada = min_ada_required(&change_value, false, &self.config.coins_per_utxo_word)?;
+                            change_value.set_coin(&min_ada);
+                            let change_output = TransactionOutput::new(address, &change_value);
+                            // increase fee
+                            let fee_for_change = self.fee_for_output(&change_output)?;
+                            new_fee = new_fee.checked_add(&fee_for_change)?;
+                            if change_left.coin() < min_ada.checked_add(&new_fee)? {
+                                return Err(JsError::from_str("Not enough ADA leftover to include non-ADA assets in a change address"));
+                            }
+                            change_left = change_left.checked_sub(&change_value)?;
+                            self.add_output(&change_output)?;
                         }
-                        change_left = change_left.checked_sub(&change_value)?;
-                        self.add_output(&change_output)?;
                     }
                     change_left = change_left.checked_sub(&Value::new(&new_fee))?;
                     // add potentially a separate pure ADA change output
@@ -2797,6 +2842,100 @@ mod tests {
         assert_eq!(_deser_t.body().auxiliary_data_hash.unwrap(), utils::hash_auxiliary_data(&auxiliary_data));
     }
 
+    #[test]
+    fn add_change_splits_change_into_multiple_outputs_when_nfts_overflow_output_size() {
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
+        let max_value_size = 100; // super low max output size to test with fewer assets
+        let mut tx_builder = TransactionBuilder::new(
+            &TransactionBuilderConfigBuilder::new()
+                .fee_algo(linear_fee)
+                .pool_deposit(to_bignum(0))
+                .key_deposit(to_bignum(0))
+                .max_value_size(max_value_size)
+                .max_tx_size(MAX_TX_SIZE)
+                .coins_per_utxo_word(to_bignum(1))
+                .prefer_pure_change(true)
+                .build()
+                .unwrap()
+        );
+
+        let policy_id = PolicyID::from([0u8; 28]);
+        let names = [
+            AssetName::new(vec![99u8; 32]).unwrap(),
+            AssetName::new(vec![0u8, 1, 2, 3]).unwrap(),
+            AssetName::new(vec![4u8, 5, 6, 7]).unwrap(),
+            AssetName::new(vec![5u8, 5, 6, 7]).unwrap(),
+            AssetName::new(vec![6u8, 5, 6, 7]).unwrap(),
+        ];
+        let assets = names
+            .iter()
+            .fold(Assets::new(), |mut a, name| {
+                a.insert(&name, &to_bignum(500));
+                a
+            });
+        let mut multiasset = MultiAsset::new();
+        multiasset.insert(&policy_id, &assets);
+
+        let mut input_value = Value::new(&to_bignum(300));
+        input_value.set_multiasset(&multiasset);
+
+        tx_builder.add_input(
+            &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3").unwrap().to_address(),
+            &TransactionInput::new(
+                &genesis_id(),
+                0
+            ),
+            &input_value
+        );
+
+        let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap().to_address();
+        let output_amount = Value::new(&to_bignum(50));
+
+        tx_builder
+            .add_output(&TransactionOutput::new(&output_addr, &output_amount))
+            .unwrap();
+
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+
+        let add_change_result = tx_builder.add_change_if_needed(&change_addr);
+        assert!(add_change_result.is_ok());
+        assert_eq!(tx_builder.outputs.len(), 4);
+
+        let change1 = tx_builder.outputs.get(1);
+        let change2 = tx_builder.outputs.get(2);
+        let change3 = tx_builder.outputs.get(3);
+
+        assert_eq!(change1.address, change_addr);
+        assert_eq!(change1.address, change2.address);
+        assert_eq!(change1.address, change3.address);
+
+        assert_eq!(change1.amount.coin, to_bignum(45));
+        assert_eq!(change2.amount.coin, to_bignum(42));
+        assert_eq!(change3.amount.coin, to_bignum(162));
+
+        assert!(change1.amount.multiasset.is_some());
+        assert!(change2.amount.multiasset.is_some());
+        assert!(change3.amount.multiasset.is_none()); // purified
+
+        let masset1 = change1.amount.multiasset.unwrap();
+        let masset2 = change2.amount.multiasset.unwrap();
+
+        assert_eq!(masset1.keys().len(), 1);
+        assert_eq!(masset1.keys(), masset2.keys());
+
+        let asset1 = masset1.get(&policy_id).unwrap();
+        let asset2 = masset2.get(&policy_id).unwrap();
+        assert_eq!(asset1.len(), 4);
+        assert_eq!(asset2.len(), 1);
+
+        names.iter().for_each(|name| {
+            let v1 = asset1.get(name);
+            let v2 = asset2.get(name);
+            assert_ne!(v1.is_some(), v2.is_some());
+            assert_eq!(v1.or(v2).unwrap(), to_bignum(500));
+        });
+    }
+
     fn create_json_metadatum_string() -> String {
         String::from("{ \"qwe\": 123 }")
     }
@@ -3359,5 +3498,6 @@ mod tests {
         assert_eq!(ma2.get(policy_id1).unwrap().get(&name).unwrap(), to_bignum(400));
         assert_eq!(ma2.get(policy_id2).unwrap().get(&name).unwrap(), to_bignum(320));
     }
+
 }
 
