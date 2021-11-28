@@ -3481,67 +3481,59 @@ mod tests {
         assert_eq!(asset.get(&name).unwrap(), to_bignum(1234));
     }
 
+    #[test]
+    fn add_mint_includes_witnesses_into_fee_estimation() {
+        let mut tx_builder = create_reallistic_tx_builder();
 
-    // #[test]
-    // fn add_mint_includes_witnesses_into_fee_estimation() {
-    //     let mut tx_builder = create_reallistic_tx_builder();
-    //
-    //     let original_tx_fee = tx_builder.min_fee().unwrap();
-    //     assert_eq!(original_tx_fee, to_bignum(156217));
-    //
-    //     let policy_id1 = PolicyID::from([0u8; 28]);
-    //     let policy_id2 = PolicyID::from([1u8; 28]);
-    //     let policy_id3 = PolicyID::from([2u8; 28]);
-    //     let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
-    //     let name2 = AssetName::new(vec![1u8, 1, 2, 3]).unwrap();
-    //     let name3 = AssetName::new(vec![2u8, 1, 2, 3]).unwrap();
-    //     let name4 = AssetName::new(vec![3u8, 1, 2, 3]).unwrap();
-    //     let amount = Int::new_i32(1234);
-    //
-    //     let mut mint = Mint::new();
-    //     mint.insert(
-    //         &policy_id1,
-    //         &MintAssets::new_from_entry(&name1, amount.clone()),
-    //     );
-    //     mint.insert(
-    //         &policy_id2,
-    //         &MintAssets::new_from_entry(&name2, amount.clone()),
-    //     );
-    //     // Third policy with two asset names
-    //     let mut mass = MintAssets::new_from_entry(&name3, amount.clone());
-    //     mass.insert(&name4, amount.clone());
-    //     mint.insert(&policy_id3, &mass);
-    //
-    //     let mint_len = mint.to_bytes().len();
-    //     let fee_coefficient = tx_builder.config.fee_algo.coefficient();
-    //
-    //     let raw_mint_fee = fee_coefficient
-    //         .checked_mul(&to_bignum(mint_len as u64))
-    //         .unwrap();
-    //
-    //     assert_eq!(raw_mint_fee, to_bignum(5544));
-    //
-    //     tx_builder.set_mint(&mint);
-    //
-    //     let new_tx_fee = tx_builder.min_fee().unwrap();
-    //
-    //     let fee_diff_from_adding_mint =
-    //         new_tx_fee.checked_sub(&original_tx_fee)
-    //         .unwrap();
-    //
-    //     let witness_fee_increase =
-    //         fee_diff_from_adding_mint.checked_sub(&raw_mint_fee)
-    //         .unwrap();
-    //
-    //     assert_eq!(witness_fee_increase, to_bignum(4356));
-    //
-    //     let fee_increase_bytes = from_bignum(&witness_fee_increase)
-    //         .checked_div(from_bignum(&fee_coefficient))
-    //         .unwrap();
-    //
-    //     // Three policy IDs of 32 bytes each + 3 byte overhead
-    //     assert_eq!(fee_increase_bytes, 99);
-    // }
+        let original_tx_fee = tx_builder.min_fee().unwrap();
+        assert_eq!(original_tx_fee, to_bignum(156217));
+
+        let (mint_script1, policy_id1) = mint_script_and_policy(0);
+        let (mint_script2, policy_id2) = mint_script_and_policy(1);
+        let (mint_script3, policy_id3) = mint_script_and_policy(2);
+
+        let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+        let name2 = AssetName::new(vec![1u8, 1, 2, 3]).unwrap();
+        let name3 = AssetName::new(vec![2u8, 1, 2, 3]).unwrap();
+        let name4 = AssetName::new(vec![3u8, 1, 2, 3]).unwrap();
+        let amount = Int::new_i32(1234);
+
+        tx_builder.add_mint_asset(&mint_script1, &name1, amount.clone());
+        tx_builder.add_mint_asset(&mint_script2, &name2, amount.clone());
+        tx_builder.add_mint_asset(&mint_script3, &name3, amount.clone());
+        tx_builder.add_mint_asset(&mint_script3, &name4, amount.clone());
+
+        let mint = tx_builder.get_mint().unwrap();
+
+        let mint_len = mint.to_bytes().len();
+
+        let fee_coefficient = tx_builder.config.fee_algo.coefficient();
+
+        let raw_mint_fee = fee_coefficient
+            .checked_mul(&to_bignum(mint_len as u64))
+            .unwrap();
+
+        assert_eq!(raw_mint_fee, to_bignum(5544));
+
+        let new_tx_fee = tx_builder.min_fee().unwrap();
+
+        let fee_diff_from_adding_mint =
+            new_tx_fee.checked_sub(&original_tx_fee)
+            .unwrap();
+
+        let witness_fee_increase =
+            fee_diff_from_adding_mint.checked_sub(&raw_mint_fee)
+            .unwrap();
+
+        assert_eq!(witness_fee_increase, to_bignum(4356));
+
+        let fee_increase_bytes = from_bignum(&witness_fee_increase)
+            .checked_div(from_bignum(&fee_coefficient))
+            .unwrap();
+
+        // Three pubkey scripts of 32 bytes each + 3 byte overhead
+        assert_eq!(fee_increase_bytes, 99);
+    }
 
     #[test]
     fn total_input_with_mint_and_burn() {
