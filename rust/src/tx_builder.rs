@@ -57,17 +57,18 @@ fn fake_key_hash(x: u8) -> Ed25519KeyHash {
 // for use in calculating the size of the final Transaction
 fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Result<Transaction, JsError> {
     let fake_key_root = fake_private_key();
+    let raw_key = fake_key_root.to_raw_key();
+    let fake_vkey_witness = Vkeywitness::new(
+        &Vkey::new(&raw_key.to_public()),
+        &raw_key.sign([1u8; 100].as_ref())
+    );
     // recall: this includes keys for input, certs and withdrawals
     let vkeys = match tx_builder.input_types.vkeys.len() {
         0 => None,
         x => {
             let mut result = Vkeywitnesses::new();
-            let raw_key = fake_key_root.to_raw_key();
             for _i in 0..x {
-                result.add(&Vkeywitness::new(
-                    &Vkey::new(&raw_key.to_public()),
-                    &raw_key.sign([1u8; 100].as_ref())
-                ));
+                result.add(&fake_vkey_witness.clone());
             }
             Some(result)
         },
@@ -94,18 +95,24 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
-    let full_script_keys = match &tx_builder.mint_scripts {
-        None => script_keys,
+    let (full_vkeys, full_script_keys) = match &tx_builder.mint_scripts {
+        None => (vkeys, script_keys),
         Some(witness_scripts) => {
+            let mut vw = vkeys
+                .map(|x| { x.clone() })
+                .unwrap_or(Vkeywitnesses::new());
             let mut ns = script_keys
-                .map(|sk| { sk.clone() })
+                .map(|x| { x.clone() })
                 .unwrap_or(NativeScripts::new());
-            witness_scripts.0.iter().for_each(|s| { ns.add(s); });
-            Some(ns)
+            witness_scripts.0.iter().for_each(|s| {
+                vw.add(&fake_vkey_witness.clone());
+                ns.add(s);
+            });
+            (Some(vw), Some(ns))
         }
     };
     let witness_set = TransactionWitnessSet {
-        vkeys: vkeys,
+        vkeys: full_vkeys,
         native_scripts: full_script_keys,
         bootstraps: bootstrap_keys,
         // TODO: plutus support?
@@ -3193,12 +3200,18 @@ mod tests {
         assert_eq!(result_asset.get(&create_asset_name()).unwrap(), Int::new_i32(1234));
     }
 
-    fn mint_script_and_policy(x: u8) -> (NativeScript, PolicyID) {
+    fn mint_script_and_policy_and_hash(x: u8) -> (NativeScript, PolicyID, Ed25519KeyHash) {
+        let hash = fake_key_hash(x);
         let mint_script = NativeScript::new_script_pubkey(
-            &ScriptPubkey::new(&fake_key_hash(x))
+            &ScriptPubkey::new(&hash)
         );
         let policy_id = mint_script.hash(ScriptHashNamespace::NativeScript);
-        (mint_script, policy_id)
+        (mint_script, policy_id, hash)
+    }
+
+    fn mint_script_and_policy(x: u8) -> (NativeScript, PolicyID) {
+        let (m, p, _) = mint_script_and_policy_and_hash(x);
+        (m, p)
     }
 
     #[test]
@@ -3483,14 +3496,14 @@ mod tests {
 
     #[test]
     fn add_mint_includes_witnesses_into_fee_estimation() {
+
         let mut tx_builder = create_reallistic_tx_builder();
 
-        let original_tx_fee = tx_builder.min_fee().unwrap();
-        assert_eq!(original_tx_fee, to_bignum(156217));
+        let hash0 = fake_key_hash(0);
 
-        let (mint_script1, policy_id1) = mint_script_and_policy(0);
-        let (mint_script2, policy_id2) = mint_script_and_policy(1);
-        let (mint_script3, policy_id3) = mint_script_and_policy(2);
+        let (mint_script1, policy_id1, hash1) = mint_script_and_policy_and_hash(1);
+        let (mint_script2, policy_id2, hash2) = mint_script_and_policy_and_hash(2);
+        let (mint_script3, policy_id3, hash3) = mint_script_and_policy_and_hash(3);
 
         let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
         let name2 = AssetName::new(vec![1u8, 1, 2, 3]).unwrap();
@@ -3498,14 +3511,36 @@ mod tests {
         let name4 = AssetName::new(vec![3u8, 1, 2, 3]).unwrap();
         let amount = Int::new_i32(1234);
 
+        // One input from unrelated address
+        tx_builder.add_key_input(
+            &hash0,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(10_000_000)),
+        );
+
+        // One input from same address as mint
+        tx_builder.add_key_input(
+            &hash1,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(10_000_000)),
+        );
+
+        // Original tx fee now assumes two VKey signatures for two inputs
+        let original_tx_fee = tx_builder.min_fee().unwrap();
+        assert_eq!(original_tx_fee, to_bignum(168361));
+
+        // Add minting four assets from three different policies
         tx_builder.add_mint_asset(&mint_script1, &name1, amount.clone());
         tx_builder.add_mint_asset(&mint_script2, &name2, amount.clone());
         tx_builder.add_mint_asset(&mint_script3, &name3, amount.clone());
         tx_builder.add_mint_asset(&mint_script3, &name4, amount.clone());
 
         let mint = tx_builder.get_mint().unwrap();
-
         let mint_len = mint.to_bytes().len();
+
+        let mint_scripts = tx_builder.get_witness_set();
+        let mint_scripts_len = mint_scripts.to_bytes().len()
+            - TransactionWitnessSet::new().to_bytes().len();
 
         let fee_coefficient = tx_builder.config.fee_algo.coefficient();
 
@@ -3513,26 +3548,36 @@ mod tests {
             .checked_mul(&to_bignum(mint_len as u64))
             .unwrap();
 
+        let raw_mint_script_fee = fee_coefficient
+            .checked_mul(&to_bignum(mint_scripts_len as u64))
+            .unwrap();
+
         assert_eq!(raw_mint_fee, to_bignum(5544));
+        assert_eq!(raw_mint_script_fee, to_bignum(4312));
 
         let new_tx_fee = tx_builder.min_fee().unwrap();
 
-        let fee_diff_from_adding_mint =
-            new_tx_fee.checked_sub(&original_tx_fee)
+        let fee_diff_from_adding_mint = new_tx_fee
+            .checked_sub(&original_tx_fee)
             .unwrap();
 
-        let witness_fee_increase =
-            fee_diff_from_adding_mint.checked_sub(&raw_mint_fee)
-            .unwrap();
+        let witness_fee_increase = fee_diff_from_adding_mint
+            .checked_sub(&raw_mint_fee).unwrap()
+            .checked_sub(&raw_mint_script_fee).unwrap();
 
-        assert_eq!(witness_fee_increase, to_bignum(4356));
+        assert_eq!(witness_fee_increase, to_bignum(13376));
 
         let fee_increase_bytes = from_bignum(&witness_fee_increase)
             .checked_div(from_bignum(&fee_coefficient))
             .unwrap();
 
-        // Three pubkey scripts of 32 bytes each + 3 byte overhead
-        assert_eq!(fee_increase_bytes, 99);
+        // Three vkey witnesses 96 bytes each (32 byte pubkey + 64 byte signature)
+        // Plus 16 bytes overhead for CBOR wrappers
+        // This is happening because we have three different minting policies
+        // and we are assuming each one needs a separate signature even tho
+        // they might refer to the same address with another policy or one of the inputs
+        // <TODO:FEE_ESTIMATION_IMPROVE>
+        assert_eq!(fee_increase_bytes, 304);
     }
 
     #[test]
