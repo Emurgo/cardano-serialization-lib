@@ -3536,6 +3536,47 @@ mod tests {
     }
 
     #[test]
+    fn fee_estimation_fails_on_missing_mint_scripts() {
+        let mut tx_builder = create_reallistic_tx_builder();
+
+        // No error estimating fee without mint
+        assert!(tx_builder.min_fee().is_ok());
+
+        let (mint_script1, policy_id1) = mint_script_and_policy(0);
+        let (mint_script2, policy_id2) = mint_script_and_policy(1);
+
+        let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+        let amount = Int::new_i32(1234);
+
+        let mut mint = Mint::new();
+        mint.insert(
+            &policy_id1,
+            &MintAssets::new_from_entry(&name1, amount.clone()),
+        );
+
+        tx_builder.set_mint(&mint);
+
+        // Mint exists but no witness scripts at all present
+        let est1 = tx_builder.min_fee();
+        assert!(est1.is_err());
+        assert!(est1.err().unwrap().to_string().contains("witness scripts are not provided"));
+
+        tx_builder.add_mint_asset(&mint_script2, &name1, amount.clone());
+
+        // Now two different policies are minted but only one witness script is present
+        let est2 = tx_builder.min_fee();
+        assert!(est2.is_err());
+        assert!(est2.err().unwrap().to_string().contains(&format!("{:?}", hex::encode(policy_id1.to_bytes()))));
+
+        let mut scripts = tx_builder.get_mint_scripts().unwrap();
+        scripts.add(&mint_script1);
+        tx_builder.set_mint_scripts(&scripts);
+
+        let est3 = tx_builder.min_fee();
+        assert!(est3.is_ok())
+    }
+
+    #[test]
     fn total_input_with_mint_and_burn() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
         let spend = root_key_15()
