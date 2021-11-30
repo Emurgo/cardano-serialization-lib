@@ -130,6 +130,13 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -164,13 +171,6 @@ declare export function decode_metadatum_to_json_str(
   metadatum: TransactionMetadatum,
   schema: number
 ): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  * @param {string} password
@@ -268,14 +268,6 @@ declare export var NetworkIdKind: {|
 /**
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
 |};
@@ -299,16 +291,6 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
-|};
-
-/**
- */
-
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-  +LargestFirstMultiAsset: 2, // 2
-  +RandomImproveMultiAsset: 3, // 3
 |};
 
 /**
@@ -340,6 +322,23 @@ declare export var MetadataJsonSchema: {|
   +DetailedSchema: 2, // 2
 |};
 
+/**
+ */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
 
 /**
  */
@@ -2644,6 +2643,8 @@ declare export class MultiAsset {
   get(policy_id: ScriptHash): Assets | void;
 
   /**
+   * sets the asset {asset_name} to {value} under policy {policy_id}
+   * returns the previous amount if it was set, or else None (undefined in JS)
    * @param {ScriptHash} policy_id
    * @param {AssetName} asset_name
    * @param {BigNum} value
@@ -2656,6 +2657,8 @@ declare export class MultiAsset {
   ): BigNum | void;
 
   /**
+   * returns the amount of asset {asset_name} under policy {policy_id}
+   * If such an asset does not exist, 0 is returned.
    * @param {ScriptHash} policy_id
    * @param {AssetName} asset_name
    * @returns {BigNum}
@@ -2663,6 +2666,7 @@ declare export class MultiAsset {
   get_asset(policy_id: ScriptHash, asset_name: AssetName): BigNum;
 
   /**
+   * returns all policy IDs used by assets in this multiasset
    * @returns {ScriptHashes}
    */
   keys(): ScriptHashes;
