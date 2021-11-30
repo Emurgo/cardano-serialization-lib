@@ -46,12 +46,6 @@ fn fake_private_key() -> Bip32PrivateKey {
     ).unwrap()
 }
 
-fn fake_key_hash(x: u8) -> Ed25519KeyHash {
-    Ed25519KeyHash::from_bytes(
-        vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
-    ).unwrap()
-}
-
 // tx_body must be the result of building from tx_builder
 // constructs the rest of the Transaction using fake witness data of the correct length
 // for use in calculating the size of the final Transaction
@@ -1168,6 +1162,12 @@ mod tests {
         // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
         let entropy = [0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12];
         Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
+    }
+
+    fn fake_key_hash(x: u8) -> Ed25519KeyHash {
+        Ed25519KeyHash::from_bytes(
+            vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
+        ).unwrap()
     }
 
     fn harden(index: u32) -> u32 {
@@ -3501,9 +3501,9 @@ mod tests {
 
         let hash0 = fake_key_hash(0);
 
-        let (mint_script1, policy_id1, hash1) = mint_script_and_policy_and_hash(1);
-        let (mint_script2, policy_id2, hash2) = mint_script_and_policy_and_hash(2);
-        let (mint_script3, policy_id3, hash3) = mint_script_and_policy_and_hash(3);
+        let (mint_script1, _, hash1) = mint_script_and_policy_and_hash(1);
+        let (mint_script2, _, _) = mint_script_and_policy_and_hash(2);
+        let (mint_script3, _, _) = mint_script_and_policy_and_hash(3);
 
         let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
         let name2 = AssetName::new(vec![1u8, 1, 2, 3]).unwrap();
@@ -3588,7 +3588,7 @@ mod tests {
         assert!(tx_builder.min_fee().is_ok());
 
         let (mint_script1, policy_id1) = mint_script_and_policy(0);
-        let (mint_script2, policy_id2) = mint_script_and_policy(1);
+        let (mint_script2, _) = mint_script_and_policy(1);
 
         let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
         let amount = Int::new_i32(1234);
