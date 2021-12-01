@@ -46,20 +46,31 @@ fn fake_private_key() -> Bip32PrivateKey {
     ).unwrap()
 }
 
+fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
+    let input_hashes = &tx_builder.input_types.vkeys;
+    match &tx_builder.mint_scripts {
+        None => input_hashes.len(),
+        Some(scripts) => {
+            // Union all input keys with minting keys
+            input_hashes.union(&get_all_pubkeys_from_scripts(scripts)).count()
+        }
+    }
+}
+
 // tx_body must be the result of building from tx_builder
 // constructs the rest of the Transaction using fake witness data of the correct length
 // for use in calculating the size of the final Transaction
 fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Result<Transaction, JsError> {
     let fake_key_root = fake_private_key();
-    let raw_key = fake_key_root.to_raw_key();
-    let fake_vkey_witness = Vkeywitness::new(
-        &Vkey::new(&raw_key.to_public()),
-        &raw_key.sign([1u8; 100].as_ref())
-    );
     // recall: this includes keys for input, certs and withdrawals
-    let vkeys = match tx_builder.input_types.vkeys.len() {
+    let vkeys = match count_needed_vkeys(tx_builder) {
         0 => None,
         x => {
+            let raw_key = fake_key_root.to_raw_key();
+            let fake_vkey_witness = Vkeywitness::new(
+                &Vkey::new(&raw_key.to_public()),
+                &raw_key.sign([1u8; 100].as_ref())
+            );
             let mut result = Vkeywitnesses::new();
             for _i in 0..x {
                 result.add(&fake_vkey_witness.clone());
@@ -89,24 +100,20 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
-    let (full_vkeys, full_script_keys) = match &tx_builder.mint_scripts {
-        None => (vkeys, script_keys),
+    let full_script_keys = match &tx_builder.mint_scripts {
+        None => script_keys,
         Some(witness_scripts) => {
-            let mut vw = vkeys
-                .map(|x| { x.clone() })
-                .unwrap_or(Vkeywitnesses::new());
             let mut ns = script_keys
                 .map(|x| { x.clone() })
                 .unwrap_or(NativeScripts::new());
             witness_scripts.0.iter().for_each(|s| {
-                vw.add(&fake_vkey_witness.clone());
                 ns.add(s);
             });
-            (Some(vw), Some(ns))
+            Some(ns)
         }
     };
     let witness_set = TransactionWitnessSet {
-        vkeys: full_vkeys,
+        vkeys,
         native_scripts: full_script_keys,
         bootstraps: bootstrap_keys,
         // TODO: plutus support?
@@ -3565,19 +3572,18 @@ mod tests {
             .checked_sub(&raw_mint_fee).unwrap()
             .checked_sub(&raw_mint_script_fee).unwrap();
 
-        assert_eq!(witness_fee_increase, to_bignum(13376));
+        assert_eq!(witness_fee_increase, to_bignum(8932));
 
         let fee_increase_bytes = from_bignum(&witness_fee_increase)
             .checked_div(from_bignum(&fee_coefficient))
             .unwrap();
 
-        // Three vkey witnesses 96 bytes each (32 byte pubkey + 64 byte signature)
-        // Plus 16 bytes overhead for CBOR wrappers
+        // Two vkey witnesses 96 bytes each (32 byte pubkey + 64 byte signature)
+        // Plus 11 bytes overhead for CBOR wrappers
         // This is happening because we have three different minting policies
-        // and we are assuming each one needs a separate signature even tho
-        // they might refer to the same address with another policy or one of the inputs
-        // <TODO:FEE_ESTIMATION_IMPROVE>
-        assert_eq!(fee_increase_bytes, 304);
+        // but the same key-hash from one of them is already also used in inputs
+        // so no suplicate witness signature is require for that one
+        assert_eq!(fee_increase_bytes, 203);
     }
 
     #[test]
