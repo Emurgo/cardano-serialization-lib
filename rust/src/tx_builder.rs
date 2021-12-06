@@ -129,20 +129,32 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
     })
 }
 
+fn assert_required_mint_scripts(mint: &Mint, maybe_mint_scripts: Option<&NativeScripts>) -> Result<(), JsError> {
+    if let Some(mint_scripts) = maybe_mint_scripts {
+        let witness_hashes: HashSet<ScriptHash> = witness_scripts.0.iter().map(|script| {
+            script.hash(ScriptHashNamespace::NativeScript)
+        }).collect();
+        for mint_hash in mint.keys().0.iter() {
+            if !witness_hashes.contains(mint_hash) {
+                return Err(JsError::from_str(
+                    &format!(
+                        "No witness script is found for mint policy '{:?}'! Script is required!",
+                        hex::encode(mint_hash.to_bytes()),
+                    ))
+                );
+            }
+        }
+    } else {
+        return Err(JsError::from_str(
+            "Mint is present in the builder, but witness scripts are not provided!",
+        ));
+    }
+    Ok(())
+}
+
 fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     if let Some(mint) = tx_builder.mint.as_ref() {
-        if let Some(witness_scripts) = tx_builder.mint_scripts.as_ref() {
-            let witness_hashes: HashSet<ScriptHash> = witness_scripts.0.iter().map(|script| {
-                script.hash(ScriptHashNamespace::NativeScript)
-            }).collect();
-            for mint_hash in mint.keys().0.iter() {
-                if !witness_hashes.contains(mint_hash) {
-                    return Err(JsError::from_str(&format!("No witness script is found for mint policy '{:?}'! Impossible to estimate fee", hex::encode(mint_hash.to_bytes()))));
-                }
-            }
-        } else {
-            return Err(JsError::from_str("Impossible to estimate fee if mint is present in the builder, but witness scripts are not provided!"));
-        }
+        assert_required_mint_scripts(mint, tx_builder.mint_scripts.as_ref())?;
     }
     let full_tx = fake_full_tx(tx_builder, tx_builder.build()?)?;
     fees::min_fee(&full_tx, &tx_builder.config.fee_algo)
@@ -654,25 +666,19 @@ impl TransactionBuilder {
         Ok(())
     }
 
-    /// Set explicit Mint object to this builder
-    /// it will replace any previously existing mint
-    /// NOTE! If you use `set_mint` manually - you must use `set_mint_scripts`
-    /// to provide matching policy scripts or min-fee calculation will be rejected!
-    pub fn set_mint(&mut self, mint: &Mint) {
+    /// Set explicit Mint object and the required witnesses to this builder
+    /// it will replace any previously existing mint and mint scripts
+    /// NOTE! Error will be returned in case a mint policy does not have a matching script
+    pub fn set_mint(&mut self, mint: &Mint, mint_scripts: &NativeScripts) -> Result<(), JsError> {
+        assert_required_mint_scripts(mint, Some(mint_scripts))?;
         self.mint = Some(mint.clone());
+        self.mint_scripts = Some(mint_scripts.clone());
+        Ok(())
     }
 
     /// Returns a copy of the current mint state in the builder
     pub fn get_mint(&self) -> Option<Mint> {
         self.mint.clone()
-    }
-
-    /// Set explicit witness set to this builder
-    /// It will replace any previously existing witnesses
-    /// NOTE! Use carefully! If you are using `set_mint` - then you must be using
-    /// this setter as well to be able to calculate fee automatically!
-    pub fn set_mint_scripts(&mut self, mint_scripts: &NativeScripts) {
-        self.mint_scripts = Some(mint_scripts.clone());
     }
 
     /// Returns a copy of the current mint witness scripts in the builder
@@ -683,7 +689,16 @@ impl TransactionBuilder {
     fn _set_mint_asset(&mut self, policy_id: &PolicyID, policy_script: &NativeScript, mint_assets: &MintAssets) {
         let mut mint = self.mint.as_ref().cloned().unwrap_or(Mint::new());
         let is_new_policy = mint.insert(&policy_id, mint_assets).is_none();
-        self.set_mint(&mint);
+        let mint_scripts = {
+            let mut witness_scripts = self.mint_scripts.as_ref().cloned()
+                .unwrap_or(NativeScripts::new());
+            if is_new_policy {
+                // If policy has not been encountered before - insert the script into witnesses
+                witness_scripts.add(&policy_script.clone());
+            }
+            witness_scripts
+        };
+        self.set_mint(&mint, &mint_scripts);
         if is_new_policy {
             // If policy has not been encountered before - insert the script into witnesses
             let mut witness_scripts = self.mint_scripts.as_ref().cloned()
