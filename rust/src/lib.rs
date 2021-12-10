@@ -46,6 +46,7 @@ pub mod metadata;
 pub mod plutus;
 pub mod serialization;
 pub mod tx_builder;
+pub mod constants;
 pub mod typed_bytes;
 pub mod emip3;
 #[macro_use]

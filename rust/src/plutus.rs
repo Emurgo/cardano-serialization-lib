@@ -118,6 +118,7 @@ to_from_bytes!(CostModel);
 
 #[wasm_bindgen]
 impl CostModel {
+
     pub fn new() -> Self {
         let mut costs = Vec::with_capacity(COST_MODEL_OP_COUNT);
         for _ in 0 .. COST_MODEL_OP_COUNT {
@@ -143,9 +144,19 @@ impl CostModel {
     }
 }
 
+impl From<[i32; 166]> for CostModel {
+    fn from(values: [i32; 166]) -> Self {
+        CostModel(values.iter().map(|x| { Int::new_i32(*x).clone() }).collect())
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Costmdls(std::collections::BTreeMap<Language, CostModel>);
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct LanguageViewEncoding(pub(crate) Vec<u8>);
 
 to_from_bytes!(Costmdls);
 
@@ -171,7 +182,7 @@ impl Costmdls {
         Languages(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<_>>())
     }
 
-    pub(crate) fn language_views_encoding(&self) -> Vec<u8> {
+    pub(crate) fn language_views_encoding(&self) -> LanguageViewEncoding {
         let mut serializer = Serializer::new_vec();
         let mut keys_bytes: Vec<(Language, Vec<u8>)> = self.0.iter().map(|(k, _v)| (k.clone(), k.to_bytes())).collect();
         // keys must be in canonical ordering first
@@ -195,7 +206,7 @@ impl Costmdls {
         }
         let out = serializer.finalize();
         println!("language_views = {}", hex::encode(out.clone()));
-        out
+        LanguageViewEncoding(out)
     }
 }
 

@@ -62,6 +62,8 @@ declare export function hash_transaction(
 declare export function hash_plutus_data(plutus_data: PlutusData): DataHash;
 
 /**
+ * Produces the hash of the script data.
+ * Same as `hash_script_data2`, but uses `Costmdls` parameter for calculations.
  * @param {Redeemers} redeemers
  * @param {Costmdls} cost_models
  * @param {PlutusList | void} datums
@@ -70,6 +72,20 @@ declare export function hash_plutus_data(plutus_data: PlutusData): DataHash;
 declare export function hash_script_data(
   redeemers: Redeemers,
   cost_models: Costmdls,
+  datums?: PlutusList
+): ScriptDataHash;
+
+/**
+ * Produces the hash of the script data.
+ * Same as `hash_script_data`, but uses `LanguageViewEncoding` parameter for calculations.
+ * @param {Redeemers} redeemers
+ * @param {LanguageViewEncoding} language_views_encoding
+ * @param {PlutusList | void} datums
+ * @returns {ScriptDataHash}
+ */
+declare export function hash_script_data2(
+  redeemers: Redeemers,
+  language_views_encoding: LanguageViewEncoding,
   datums?: PlutusList
 ): ScriptDataHash;
 
@@ -197,6 +213,24 @@ declare export function decrypt_with_password(
 declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
+ * The function accepts the number of the "current" epoch and returns the
+ * default Plutus cost-models object to be used in that epoch
+ * @param {number} _epoch
+ * @returns {Costmdls}
+ */
+declare export function plutus_default_cost_models(_epoch: number): Costmdls;
+
+/**
+ * The function accepts the number of the "current" epoch and returns the
+ * default Plutus language-views-encoding object to be used in that epoch
+ * @param {number} _epoch
+ * @returns {LanguageViewEncoding}
+ */
+declare export function plutus_default_language_views_encoding(
+  _epoch: number
+): LanguageViewEncoding;
+
+/**
  */
 
 declare export var CertificateKind: {|
@@ -268,14 +302,6 @@ declare export var NetworkIdKind: {|
 /**
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
 |};
@@ -299,6 +325,14 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
 |};
 
 /**
@@ -2177,6 +2211,11 @@ declare export class Language {
    * @returns {number}
    */
   kind(): number;
+}
+/**
+ */
+declare export class LanguageViewEncoding {
+  free(): void;
 }
 /**
  */

@@ -895,8 +895,22 @@ pub fn hash_transaction(tx_body: &TransactionBody) -> TransactionHash {
 pub fn hash_plutus_data(plutus_data: &PlutusData) -> DataHash {
     DataHash::from(blake2b256(&plutus_data.to_bytes()))
 }
+
+/// Produces the hash of the script data.
+/// Same as `hash_script_data2`, but uses `Costmdls` parameter for calculations.
 #[wasm_bindgen]
 pub fn hash_script_data(redeemers: &Redeemers, cost_models: &Costmdls, datums: Option<PlutusList>) -> ScriptDataHash {
+    hash_script_data2(redeemers, &cost_models.language_views_encoding(), datums)
+}
+
+/// Produces the hash of the script data.
+/// Same as `hash_script_data`, but uses `LanguageViewEncoding` parameter for calculations.
+#[wasm_bindgen]
+pub fn hash_script_data2(
+    redeemers: &Redeemers,
+    language_views_encoding: &LanguageViewEncoding,
+    datums: Option<PlutusList>,
+) -> ScriptDataHash {
     /*
     ; script data format:
     ; [ redeemers | datums | language views ]
@@ -909,7 +923,7 @@ pub fn hash_script_data(redeemers: &Redeemers, cost_models: &Costmdls, datums: O
     if let Some(d) = &datums {
         buf.extend(d.to_bytes());
     }
-    buf.extend(cost_models.language_views_encoding());
+    buf.extend(&language_views_encoding.0);
     ScriptDataHash::from(blake2b256(&buf))
 }
 
