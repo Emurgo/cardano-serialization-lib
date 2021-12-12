@@ -47,10 +47,23 @@ fn fake_private_key() -> Bip32PrivateKey {
 }
 
 fn fake_key_hash() -> Ed25519KeyHash {
-    Ed25519KeyHash::from_bytes(
-        vec![142, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
+    Ed25519KeyHash::from(
+        [142, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
+    )
+}
+
+fn fake_raw_key_sig() -> Ed25519Signature {
+    Ed25519Signature::from_bytes(
+        vec![36, 248, 153, 211, 155, 23, 253, 93, 102, 193, 146, 196, 181, 13, 52, 62, 66, 247, 35, 91, 48, 80, 76, 138, 231, 97, 159, 147, 200, 40, 220, 109, 206, 69, 104, 221, 105, 23, 124, 85, 24, 40, 73, 45, 119, 122, 103, 39, 253, 102, 194, 251, 204, 189, 168, 194, 174, 237, 146, 3, 44, 153, 121, 10]
     ).unwrap()
 }
+
+fn fake_raw_key_public() -> PublicKey {
+    PublicKey::from_bytes(
+        &[207, 118, 57, 154, 33, 13, 232, 114, 14, 159, 168, 148, 228, 94, 65, 226, 154, 181, 37, 227, 11, 196, 2, 128, 28, 7, 98, 80, 209, 88, 91, 205]
+    ).unwrap()
+}
+
 
 // tx_body must be the result of building from tx_builder
 // constructs the rest of the Transaction using fake witness data of the correct length
@@ -58,17 +71,18 @@ fn fake_key_hash() -> Ed25519KeyHash {
 fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Result<Transaction, JsError> {
     let fake_key_root = fake_private_key();
     let fake_key_hash = fake_key_hash();
+    let raw_key_public = fake_raw_key_public();
+    let fake_sig = fake_raw_key_sig();
 
     // recall: this includes keys for input, certs and withdrawals
     let vkeys = match tx_builder.input_types.vkeys.len() {
         0 => None,
         x => {
             let mut result = Vkeywitnesses::new();
-            let raw_key = fake_key_root.to_raw_key();
             for _i in 0..x {
                 result.add(&Vkeywitness::new(
-                    &Vkey::new(&raw_key.to_public()),
-                    &raw_key.sign([1u8; 100].as_ref())
+                    &Vkey::new(&raw_key_public),
+                    &fake_sig
                 ));
             }
             Some(result)
@@ -88,7 +102,7 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             for addr in &tx_builder.input_types.bootstraps {
                 // picking icarus over daedalus for fake witness generation shouldn't matter
                 result.add(&make_icarus_bootstrap_witness(
-                    &hash_transaction(&body),
+                    &TransactionHash::from([0u8; TransactionHash::BYTE_COUNT]),
                     &ByronAddress::from_bytes(addr.clone()).unwrap(),
                     &fake_key_root
                 ));
