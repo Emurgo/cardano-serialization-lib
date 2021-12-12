@@ -34,6 +34,7 @@ use cbor_event::{
     se::{Serialize, Serializer},
 };
 
+pub mod traits;
 pub mod address;
 pub mod chain_core;
 pub mod chain_crypto;
@@ -59,6 +60,7 @@ use metadata::*;
 use utils::*;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
+use crate::traits::NoneOrEmpty;
 
 type DeltaCoin = Int;
 
@@ -1732,6 +1734,21 @@ impl NativeScripts {
 
     pub fn add(&mut self, elem: &NativeScript) {
         self.0.push(elem.clone());
+    }
+}
+
+impl From<Vec<NativeScript>> for NativeScripts {
+    fn from(scripts: Vec<NativeScript>) -> Self {
+        scripts.iter().fold(NativeScripts::new(), |mut scripts, s| {
+            scripts.add(s);
+            scripts
+        })
+    }
+}
+
+impl NoneOrEmpty for NativeScripts {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 

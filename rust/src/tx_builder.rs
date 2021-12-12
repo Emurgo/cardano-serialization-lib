@@ -130,24 +130,24 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
 }
 
 fn assert_required_mint_scripts(mint: &Mint, maybe_mint_scripts: Option<&NativeScripts>) -> Result<(), JsError> {
-    if let Some(mint_scripts) = maybe_mint_scripts {
-        let witness_hashes: HashSet<ScriptHash> = witness_scripts.0.iter().map(|script| {
-            script.hash(ScriptHashNamespace::NativeScript)
-        }).collect();
-        for mint_hash in mint.keys().0.iter() {
-            if !witness_hashes.contains(mint_hash) {
-                return Err(JsError::from_str(
-                    &format!(
-                        "No witness script is found for mint policy '{:?}'! Script is required!",
-                        hex::encode(mint_hash.to_bytes()),
-                    ))
-                );
-            }
-        }
-    } else {
+    if maybe_mint_scripts.is_none_or_empty() {
         return Err(JsError::from_str(
             "Mint is present in the builder, but witness scripts are not provided!",
         ));
+    }
+    let mint_scripts = maybe_mint_scripts.unwrap();
+    let witness_hashes: HashSet<ScriptHash> = mint_scripts.0.iter().map(|script| {
+        script.hash(ScriptHashNamespace::NativeScript)
+    }).collect();
+    for mint_hash in mint.keys().0.iter() {
+        if !witness_hashes.contains(mint_hash) {
+            return Err(JsError::from_str(
+                &format!(
+                    "No witness script is found for mint policy '{:?}'! Script is required!",
+                    hex::encode(mint_hash.to_bytes()),
+                ))
+            );
+        }
     }
     Ok(())
 }
@@ -698,14 +698,8 @@ impl TransactionBuilder {
             }
             witness_scripts
         };
-        self.set_mint(&mint, &mint_scripts);
-        if is_new_policy {
-            // If policy has not been encountered before - insert the script into witnesses
-            let mut witness_scripts = self.mint_scripts.as_ref().cloned()
-                .unwrap_or(NativeScripts::new());
-            witness_scripts.add(&policy_script.clone());
-            self.set_mint_scripts(&witness_scripts);
-        }
+        self.mint = Some(mint.clone());
+        self.mint_scripts = Some(mint_scripts.clone());
     }
 
     /// Add a mint entry to this builder using a PolicyID and MintAssets object
@@ -3260,10 +3254,13 @@ mod tests {
     fn set_mint_asset_with_existing_mint() {
         let mut tx_builder = create_default_tx_builder();
 
-        let (_, policy_id1) = mint_script_and_policy(0);
+        let (mint_script1, policy_id1) = mint_script_and_policy(0);
         let (mint_script2, policy_id2) = mint_script_and_policy(1);
 
-        tx_builder.set_mint(&create_mint_with_one_asset(&policy_id1));
+        tx_builder.set_mint(
+            &create_mint_with_one_asset(&policy_id1),
+            &NativeScripts::from(vec![mint_script1.clone()]),
+        ).unwrap();
 
         tx_builder.set_mint_asset(&mint_script2, &create_mint_asset());
 
@@ -3278,8 +3275,9 @@ mod tests {
         assert_mint_asset(&mint, &policy_id2);
 
         // Only second script is present in the scripts
-        assert_eq!(mint_scripts.len(), 1);
-        assert_eq!(mint_scripts.get(0), mint_script2);
+        assert_eq!(mint_scripts.len(), 2);
+        assert_eq!(mint_scripts.get(0), mint_script1);
+        assert_eq!(mint_scripts.get(1), mint_script2);
     }
 
     #[test]
@@ -3307,10 +3305,13 @@ mod tests {
     fn add_mint_asset_with_existing_mint() {
         let mut tx_builder = create_default_tx_builder();
 
-        let (_, policy_id1) = mint_script_and_policy(0);
+        let (mint_script1, policy_id1) = mint_script_and_policy(0);
         let (mint_script2, policy_id2) = mint_script_and_policy(1);
 
-        tx_builder.set_mint(&create_mint_with_one_asset(&policy_id1));
+        tx_builder.set_mint(
+            &create_mint_with_one_asset(&policy_id1),
+            &NativeScripts::from(vec![mint_script1.clone()]),
+        ).unwrap();
         tx_builder.add_mint_asset(&mint_script2, &create_asset_name(), Int::new_i32(1234));
 
         assert!(tx_builder.mint.is_some());
@@ -3323,9 +3324,9 @@ mod tests {
         assert_mint_asset(&mint, &policy_id1);
         assert_mint_asset(&mint, &policy_id2);
 
-        // Only second script is present in the scripts
-        assert_eq!(mint_scripts.len(), 1);
-        assert_eq!(mint_scripts.get(0), mint_script2);
+        assert_eq!(mint_scripts.len(), 2);
+        assert_eq!(mint_scripts.get(0), mint_script1);
+        assert_eq!(mint_scripts.get(1), mint_script2);
     }
 
     #[test]
@@ -3620,26 +3621,43 @@ mod tests {
             &MintAssets::new_from_entry(&name1, amount.clone()),
         );
 
-        tx_builder.set_mint(&mint);
+        tx_builder.set_mint(
+            &mint,
+            &NativeScripts::from(vec![mint_script1]),
+        ).unwrap();
 
-        // Mint exists but no witness scripts at all present
         let est1 = tx_builder.min_fee();
-        assert!(est1.is_err());
-        assert!(est1.err().unwrap().to_string().contains("witness scripts are not provided"));
+        assert!(est1.is_ok());
 
         tx_builder.add_mint_asset(&mint_script2, &name1, amount.clone());
 
-        // Now two different policies are minted but only one witness script is present
         let est2 = tx_builder.min_fee();
-        assert!(est2.is_err());
-        assert!(est2.err().unwrap().to_string().contains(&format!("{:?}", hex::encode(policy_id1.to_bytes()))));
+        assert!(est2.is_ok());
 
-        let mut scripts = tx_builder.get_mint_scripts().unwrap();
-        scripts.add(&mint_script1);
-        tx_builder.set_mint_scripts(&scripts);
+        // Remove one mint script
+        tx_builder.mint_scripts =
+            Some(NativeScripts::from(vec![tx_builder.mint_scripts.unwrap().get(1)]));
 
+        // Now two different policies are minted but only one witness script is present
         let est3 = tx_builder.min_fee();
-        assert!(est3.is_ok())
+        assert!(est3.is_err());
+        assert!(est3.err().unwrap().to_string().contains(&format!("{:?}", hex::encode(policy_id1.to_bytes()))));
+
+        // Remove all mint scripts
+        tx_builder.mint_scripts = Some(NativeScripts::new());
+
+        // Mint exists but no witness scripts at all present
+        let est4 = tx_builder.min_fee();
+        assert!(est4.is_err());
+        assert!(est4.err().unwrap().to_string().contains("witness scripts are not provided"));
+
+        // Remove all mint scripts
+        tx_builder.mint_scripts = None;
+
+        // Mint exists but no witness scripts at all present
+        let est5 = tx_builder.min_fee();
+        assert!(est5.is_err());
+        assert!(est5.err().unwrap().to_string().contains("witness scripts are not provided"));
     }
 
     #[test]
