@@ -15,23 +15,29 @@ const PLUTUS_DEFAULT_COST_MODELS: [(Epoch, [i32; 166], &str); 1] = [
     ),
 ];
 
-/// The function accepts the number of the "current" epoch and returns the
-/// default Plutus cost-models object to be used in that epoch
 #[wasm_bindgen]
-pub fn plutus_default_cost_models(_epoch: Epoch) -> Costmdls {
-    let mut res = Costmdls::new();
-    res.insert(
-        &Language::new_plutus_v1(),
-        &CostModel::from(PLUTUS_DEFAULT_COST_MODELS[0].1),
-    );
-    res
-}
+pub struct Constants();
 
-/// The function accepts the number of the "current" epoch and returns the
-/// default Plutus language-views-encoding object to be used in that epoch
 #[wasm_bindgen]
-pub fn plutus_default_language_views_encoding(_epoch: Epoch) -> LanguageViewEncoding {
-    LanguageViewEncoding(hex::decode(PLUTUS_DEFAULT_COST_MODELS[0].2).unwrap())
+impl Constants {
+
+    /// The function accepts the number of the "current" epoch and returns the
+    /// default Plutus cost-models object to be used in that epoch
+    pub fn plutus_default_cost_models(_epoch: Epoch) -> Costmdls {
+        let mut res = Costmdls::new();
+        res.insert(
+            &Language::new_plutus_v1(),
+            &CostModel::from(PLUTUS_DEFAULT_COST_MODELS[0].1),
+        );
+        res
+    }
+
+    /// The function accepts the number of the "current" epoch and returns the
+    /// default Plutus language-views-encoding object to be used in that epoch
+    #[wasm_bindgen]
+    pub fn plutus_default_language_views_encoding(_epoch: Epoch) -> LanguageViewEncoding {
+        LanguageViewEncoding(hex::decode(PLUTUS_DEFAULT_COST_MODELS[0].2).unwrap())
+    }
 }
 
 #[cfg(test)]
@@ -41,11 +47,11 @@ mod tests {
     #[test]
     pub fn cost_model_test() {
         assert_eq!(
-            plutus_default_cost_models(0).language_views_encoding(),
-            plutus_default_language_views_encoding(0),
+            Constants::plutus_default_cost_models(0).language_views_encoding(),
+            Constants::plutus_default_language_views_encoding(0),
         );
         assert_eq!(
-            hex::encode(plutus_default_cost_models(0).language_views_encoding().0),
+            hex::encode(Constants::plutus_default_cost_models(0).language_views_encoding().0),
             PLUTUS_DEFAULT_COST_MODELS[0].2,
         );
     }
