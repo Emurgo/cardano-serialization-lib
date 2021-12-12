@@ -37,28 +37,52 @@ fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519Key
     }
 }
 
+fn fake_private_key() -> Bip32PrivateKey {
+    Bip32PrivateKey::from_bytes(
+        &[0xb8, 0xf2, 0xbe, 0xce, 0x9b, 0xdf, 0xe2, 0xb0, 0x28, 0x2f, 0x5b, 0xad, 0x70, 0x55, 0x62, 0xac, 0x99, 0x6e, 0xfb, 0x6a, 0xf9, 0x6b, 0x64, 0x8f,
+            0x44, 0x45, 0xec, 0x44, 0xf4, 0x7a, 0xd9, 0x5c, 0x10, 0xe3, 0xd7, 0x2f, 0x26, 0xed, 0x07, 0x54, 0x22, 0xa3, 0x6e, 0xd8, 0x58, 0x5c, 0x74, 0x5a,
+            0x0e, 0x11, 0x50, 0xbc, 0xce, 0xba, 0x23, 0x57, 0xd0, 0x58, 0x63, 0x69, 0x91, 0xf3, 0x8a, 0x37, 0x91, 0xe2, 0x48, 0xde, 0x50, 0x9c, 0x07, 0x0d,
+            0x81, 0x2a, 0xb2, 0xfd, 0xa5, 0x78, 0x60, 0xac, 0x87, 0x6b, 0xc4, 0x89, 0x19, 0x2c, 0x1e, 0xf4, 0xce, 0x25, 0x3c, 0x19, 0x7e, 0xe2, 0x19, 0xa4]
+    ).unwrap()
+}
+
+fn fake_key_hash() -> Ed25519KeyHash {
+    Ed25519KeyHash::from(
+        [142, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
+    )
+}
+
+fn fake_raw_key_sig() -> Ed25519Signature {
+    Ed25519Signature::from_bytes(
+        vec![36, 248, 153, 211, 155, 23, 253, 93, 102, 193, 146, 196, 181, 13, 52, 62, 66, 247, 35, 91, 48, 80, 76, 138, 231, 97, 159, 147, 200, 40, 220, 109, 206, 69, 104, 221, 105, 23, 124, 85, 24, 40, 73, 45, 119, 122, 103, 39, 253, 102, 194, 251, 204, 189, 168, 194, 174, 237, 146, 3, 44, 153, 121, 10]
+    ).unwrap()
+}
+
+fn fake_raw_key_public() -> PublicKey {
+    PublicKey::from_bytes(
+        &[207, 118, 57, 154, 33, 13, 232, 114, 14, 159, 168, 148, 228, 94, 65, 226, 154, 181, 37, 227, 11, 196, 2, 128, 28, 7, 98, 80, 209, 88, 91, 205]
+    ).unwrap()
+}
+
+
 // tx_body must be the result of building from tx_builder
 // constructs the rest of the Transaction using fake witness data of the correct length
 // for use in calculating the size of the final Transaction
 fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Result<Transaction, JsError> {
-    // bytes for Bip32: art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
-    let fake_key_root = Bip32PrivateKey::from_bytes(
-        &[0xb8, 0xf2, 0xbe, 0xce, 0x9b, 0xdf, 0xe2, 0xb0, 0x28, 0x2f, 0x5b, 0xad, 0x70, 0x55, 0x62, 0xac, 0x99, 0x6e, 0xfb, 0x6a, 0xf9, 0x6b, 0x64, 0x8f,
-          0x44, 0x45, 0xec, 0x44, 0xf4, 0x7a, 0xd9, 0x5c, 0x10, 0xe3, 0xd7, 0x2f, 0x26, 0xed, 0x07, 0x54, 0x22, 0xa3, 0x6e, 0xd8, 0x58, 0x5c, 0x74, 0x5a,
-          0x0e, 0x11, 0x50, 0xbc, 0xce, 0xba, 0x23, 0x57, 0xd0, 0x58, 0x63, 0x69, 0x91, 0xf3, 0x8a, 0x37, 0x91, 0xe2, 0x48, 0xde, 0x50, 0x9c, 0x07, 0x0d,
-          0x81, 0x2a, 0xb2, 0xfd, 0xa5, 0x78, 0x60, 0xac, 0x87, 0x6b, 0xc4, 0x89, 0x19, 0x2c, 0x1e, 0xf4, 0xce, 0x25, 0x3c, 0x19, 0x7e, 0xe2, 0x19, 0xa4]
-    ).unwrap();
+    let fake_key_root = fake_private_key();
+    let fake_key_hash = fake_key_hash();
+    let raw_key_public = fake_raw_key_public();
+    let fake_sig = fake_raw_key_sig();
 
     // recall: this includes keys for input, certs and withdrawals
     let vkeys = match tx_builder.input_types.vkeys.len() {
         0 => None,
         x => {
             let mut result = Vkeywitnesses::new();
-            let raw_key = fake_key_root.to_raw_key();
             for _i in 0..x {
                 result.add(&Vkeywitness::new(
-                    &Vkey::new(&raw_key.to_public()),
-                    &raw_key.sign([1u8; 100].as_ref())
+                    &Vkey::new(&raw_key_public),
+                    &fake_sig
                 ));
             }
             Some(result)
@@ -78,7 +102,7 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             for addr in &tx_builder.input_types.bootstraps {
                 // picking icarus over daedalus for fake witness generation shouldn't matter
                 result.add(&make_icarus_bootstrap_witness(
-                    &hash_transaction(&body),
+                    &TransactionHash::from([0u8; TransactionHash::BYTE_COUNT]),
                     &ByronAddress::from_bytes(addr.clone()).unwrap(),
                     &fake_key_root
                 ));
@@ -170,7 +194,7 @@ impl TransactionBuilder {
         });
         self.input_types.bootstraps.insert(hash.to_bytes());
     }
-    
+
     pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) {
         match &BaseAddress::from_address(address) {
             Some(addr) => {
@@ -1291,7 +1315,7 @@ mod tests {
             ),
             &Value::new(&to_bignum(2_400_000))
         );
-        
+
         tx_builder.set_ttl(1);
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
@@ -1335,7 +1359,7 @@ mod tests {
             ),
             &input_value
         );
-        
+
         tx_builder.set_ttl(1);
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
