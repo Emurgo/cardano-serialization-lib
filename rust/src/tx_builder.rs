@@ -46,12 +46,6 @@ fn fake_private_key() -> Bip32PrivateKey {
     ).unwrap()
 }
 
-fn fake_key_hash() -> Ed25519KeyHash {
-    Ed25519KeyHash::from(
-        [142, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
-    )
-}
-
 fn fake_raw_key_sig() -> Ed25519Signature {
     Ed25519Signature::from_bytes(
         vec![36, 248, 153, 211, 155, 23, 253, 93, 102, 193, 146, 196, 181, 13, 52, 62, 66, 247, 35, 91, 48, 80, 76, 138, 231, 97, 159, 147, 200, 40, 220, 109, 206, 69, 104, 221, 105, 23, 124, 85, 24, 40, 73, 45, 119, 122, 103, 39, 253, 102, 194, 251, 204, 189, 168, 194, 174, 237, 146, 3, 44, 153, 121, 10]
@@ -80,7 +74,6 @@ fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
 // for use in calculating the size of the final Transaction
 fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Result<Transaction, JsError> {
     let fake_key_root = fake_private_key();
-    let fake_key_hash = fake_key_hash();
     let raw_key_public = fake_raw_key_public();
     let fake_sig = fake_raw_key_sig();
 
@@ -88,7 +81,6 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
     let vkeys = match count_needed_vkeys(tx_builder) {
         0 => None,
         x => {
-            let raw_key = fake_key_root.to_raw_key();
             let fake_vkey_witness = Vkeywitness::new(
                 &Vkey::new(&raw_key_public),
                 &fake_sig
