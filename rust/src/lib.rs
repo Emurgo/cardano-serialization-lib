@@ -224,6 +224,7 @@ impl Certificates {
 }
 
 pub type RequiredSigners = Ed25519KeyHashes;
+pub type RequiredSignersSet = BTreeSet<Ed25519KeyHash>;
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -2770,33 +2771,37 @@ impl NetworkId {
     }
 }
 
-pub fn get_all_pubkeys_from_script(script: &NativeScript) -> BTreeSet<Ed25519KeyHash> {
-    match &script.0 {
-        NativeScriptEnum::ScriptPubkey(spk) => {
-            let mut set = BTreeSet::new();
-            set.insert(spk.addr_keyhash());
-            set
-        },
-        NativeScriptEnum::ScriptAll(all) => {
-            get_all_pubkeys_from_scripts(&all.native_scripts)
-        },
-        NativeScriptEnum::ScriptAny(any) => {
-            get_all_pubkeys_from_scripts(&any.native_scripts)
-        },
-        NativeScriptEnum::ScriptNOfK(ofk) => {
-            get_all_pubkeys_from_scripts(&ofk.native_scripts)
-        },
-        _ => BTreeSet::new(),
+impl From<&NativeScript> for RequiredSignersSet {
+    fn from(script: &NativeScript) -> Self {
+        match &script.0 {
+            NativeScriptEnum::ScriptPubkey(spk) => {
+                let mut set = BTreeSet::new();
+                set.insert(spk.addr_keyhash());
+                set
+            },
+            NativeScriptEnum::ScriptAll(all) => {
+                RequiredSignersSet::from(&all.native_scripts)
+            },
+            NativeScriptEnum::ScriptAny(any) => {
+                RequiredSignersSet::from(&any.native_scripts)
+            },
+            NativeScriptEnum::ScriptNOfK(ofk) => {
+                RequiredSignersSet::from(&ofk.native_scripts)
+            },
+            _ => BTreeSet::new(),
+        }
     }
 }
 
-pub fn get_all_pubkeys_from_scripts(scripts: &NativeScripts) -> BTreeSet<Ed25519KeyHash> {
-    scripts.0.iter().fold(BTreeSet::new(), |mut set, s| {
-        get_all_pubkeys_from_script(s).iter().for_each(|pk| {
-            set.insert(pk.clone());
-        });
-        set
-    })
+impl From<&NativeScripts> for RequiredSignersSet {
+    fn from(scripts: &NativeScripts) -> Self {
+        scripts.0.iter().fold(BTreeSet::new(), |mut set, s| {
+            RequiredSignersSet::from(s).iter().for_each(|pk| {
+                set.insert(pk.clone());
+            });
+            set
+        })
+    }
 }
 
 #[cfg(test)]
@@ -2999,18 +3004,18 @@ mod tests {
         let keyhash2 = keyhash(2);
         let keyhash3 = keyhash(3);
 
-        let pks1 = get_all_pubkeys_from_script(&pkscript(&keyhash1));
+        let pks1 = RequiredSignersSet::from(&pkscript(&keyhash1));
         assert_eq!(pks1.len(), 1);
         assert!(pks1.contains(&keyhash1));
 
-        let pks2 = get_all_pubkeys_from_script(
+        let pks2 = RequiredSignersSet::from(
             &NativeScript::new_timelock_start(
                 &TimelockStart::new(123),
             ),
         );
         assert_eq!(pks2.len(), 0);
 
-        let pks3 = get_all_pubkeys_from_script(
+        let pks3 = RequiredSignersSet::from(
             &NativeScript::new_script_all(
                 &ScriptAll::new(&scripts_vec(vec![
                     &pkscript(&keyhash1),
@@ -3022,7 +3027,7 @@ mod tests {
         assert!(pks3.contains(&keyhash1));
         assert!(pks3.contains(&keyhash2));
 
-        let pks4 = get_all_pubkeys_from_script(
+        let pks4 = RequiredSignersSet::from(
             &NativeScript::new_script_any(
                 &ScriptAny::new(&scripts_vec(vec![
                     &NativeScript::new_script_n_of_k(&ScriptNOfK::new(

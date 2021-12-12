@@ -64,7 +64,7 @@ fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
         None => input_hashes.len(),
         Some(scripts) => {
             // Union all input keys with minting keys
-            input_hashes.union(&get_all_pubkeys_from_scripts(scripts)).count()
+            input_hashes.union(&RequiredSignersSet::from(scripts)).count()
         }
     }
 }
