@@ -5177,28 +5177,19 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
-   * Set explicit Mint object to this builder
-   * it will replace any previously existing mint
-   * NOTE! If you use `set_mint` manually - you must use `set_mint_scripts`
-   * to provide matching policy scripts or min-fee calculation will be rejected!
+   * Set explicit Mint object and the required witnesses to this builder
+   * it will replace any previously existing mint and mint scripts
+   * NOTE! Error will be returned in case a mint policy does not have a matching script
    * @param {Mint} mint
+   * @param {NativeScripts} mint_scripts
    */
-  set_mint(mint: Mint): void;
+  set_mint(mint: Mint, mint_scripts: NativeScripts): void;
 
   /**
    * Returns a copy of the current mint state in the builder
    * @returns {Mint | void}
    */
   get_mint(): Mint | void;
-
-  /**
-   * Set explicit witness set to this builder
-   * It will replace any previously existing witnesses
-   * NOTE! Use carefully! If you are using `set_mint` - then you must be using
-   * this setter as well to be able to calculate fee automatically!
-   * @param {NativeScripts} mint_scripts
-   */
-  set_mint_scripts(mint_scripts: NativeScripts): void;
 
   /**
    * Returns a copy of the current mint witness scripts in the builder
