@@ -50,7 +50,11 @@ macro_rules! from_hex {
         #[wasm_bindgen]
         impl $name {
             pub fn from_hex($data: &str) -> Result<$name, JsError> {
-                Ok($body?)
+                match hex::decode($data) {
+                    Ok(_) => Ok($body?),
+                    Err(e) => Err(JsError::from_str(&e.to_string()))
+                }
+                
             }
         }
         // non-wasm exposed DeserializeError return
