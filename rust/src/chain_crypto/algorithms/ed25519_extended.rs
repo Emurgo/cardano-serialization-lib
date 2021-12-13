@@ -1,4 +1,6 @@
-use crate::chain_crypto::key::{AsymmetricKey, AsymmetricPublicKey, SecretKeyError, SecretKeySizeStatic};
+use crate::chain_crypto::key::{
+    AsymmetricKey, AsymmetricPublicKey, SecretKeyError, SecretKeySizeStatic,
+};
 use crate::chain_crypto::sign::SigningAlgorithm;
 
 use super::ed25519 as ei;

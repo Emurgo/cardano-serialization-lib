@@ -26,7 +26,7 @@ pub fn try_from_bech32_to_bytes<B: Bech32>(bech32_str: &str) -> Result<Vec<u8>> 
     if hrp != B::BECH32_HRP {
         return Err(Error::HrpInvalid {
             expected: B::BECH32_HRP,
-            actual: hrp
+            actual: hrp,
         });
     }
     Vec::<u8>::from_base32(&bech32_data).map_err(Into::into)
