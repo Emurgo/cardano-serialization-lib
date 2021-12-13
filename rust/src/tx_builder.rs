@@ -304,7 +304,6 @@ pub struct TransactionBuilder {
     input_types: MockWitnessSet,
     mint: Option<Mint>,
     mint_scripts: Option<NativeScripts>,
-    inputs_auto_added: bool,
 }
 
 #[wasm_bindgen]
@@ -807,7 +806,6 @@ impl TransactionBuilder {
             validity_start_interval: None,
             mint: None,
             mint_scripts: None,
-            inputs_auto_added: false,
         }
     }
 
