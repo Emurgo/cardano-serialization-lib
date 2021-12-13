@@ -282,8 +282,10 @@ impl Address {
     }
 
     pub fn from_hex(hex_str : &str) -> Result<Address, JsError> {
-        let data: Vec<u8> = hex::decode(hex_str).unwrap();
-        Ok(Self::from_bytes_impl(data.as_ref())?)
+        match hex::decode(hex_str) {
+            Ok(data) => Ok(Self::from_bytes_impl(data.as_ref())?),
+            Err(e) =>  Err(JsError::from_str(&e.to_string())) 
+        }   
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

@@ -135,8 +135,10 @@ impl Bip32PrivateKey {
     }
 
     pub fn from_hex(hex_str : &str) -> Result<Bip32PrivateKey, JsError> {
-        let data: Vec<u8> = hex::decode(hex_str).unwrap();
-        Ok(Self::from_bytes(data.as_ref())?)
+           match hex::decode(hex_str) {
+            Ok(data) => Ok(Self::from_bytes(data.as_ref())?),
+            Err(e) =>  Err(JsError::from_str(&e.to_string())) 
+        }  
     }
 }
 
@@ -210,8 +212,10 @@ impl Bip32PublicKey {
     }
 
     pub fn from_hex(hex_str : &str) -> Result<Bip32PublicKey, JsError> {
-        let data: Vec<u8> = hex::decode(hex_str).unwrap();
-        Ok(Self::from_bytes(data.as_ref())?)
+        match hex::decode(hex_str) {
+            Ok(data) => Ok(Self::from_bytes(data.as_ref())?),
+            Err(e) =>  Err(JsError::from_str(&e.to_string())) 
+        }  
     }
 }
 
@@ -303,7 +307,10 @@ impl PrivateKey {
     }
 
     pub fn from_hex(hex_str: &str) -> Result<PrivateKey, JsError> {
-        let data: Vec<u8> = hex::decode(hex_str).unwrap();
+        let data : Vec<u8> = match hex::decode(hex_str) {
+            Ok(d) => d,
+            Err(e) => return Err(JsError::from_str(&e.to_string())) 
+        };
         let data_slice : &[u8] = data.as_slice();
         crypto::SecretKey::from_binary(data_slice)
         .map(key::EitherEd25519SecretKey::Normal)
@@ -367,8 +374,10 @@ impl PublicKey {
     }
 
     pub fn from_hex(hex_str : &str) -> Result<PublicKey, JsError> {
-        let data: Vec<u8> = hex::decode(hex_str).unwrap();
-        Ok(Self::from_bytes(data.as_ref())?)
+        match hex::decode(hex_str) {
+            Ok(data) => Ok(Self::from_bytes(data.as_ref())?),
+            Err(e) =>  Err(JsError::from_str(&e.to_string())) 
+        }
     }    
 }
 
@@ -813,8 +822,10 @@ macro_rules! impl_hash_type {
             }
         
             pub fn from_hex(hex_str: &str) -> Result<$name, JsError> {
-                let data: Vec<u8> = hex::decode(hex_str).unwrap();
-                Ok(Self::from_bytes(data)?)
+                 match hex::decode(hex_str) {
+                    Ok(data) => Ok(Self::from_bytes(data)?),
+                    Err(e) =>  Err(JsError::from_str(&e.to_string())) 
+                }
             }
 
         }
