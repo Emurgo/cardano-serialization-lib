@@ -276,6 +276,16 @@ from_bytes!(Address, data, {
 // other CBOR types
 #[wasm_bindgen]
 impl Address {
+
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.to_bytes())
+    }
+
+    pub fn from_hex(hex_str : &str) -> Result<Address, JsError> {
+        let data: Vec<u8> = hex::decode(hex_str).unwrap();
+        Ok(Self::from_bytes_impl(data.as_ref())?)
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         match &self.0 {

@@ -129,6 +129,15 @@ impl Bip32PrivateKey {
         const XPRV_SIZE: usize = 96;
         self.0.as_ref()[ED25519_PRIVATE_KEY_LENGTH..XPRV_SIZE].to_vec()
     }
+
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.as_bytes())
+    }
+
+    pub fn from_hex(hex_str : &str) -> Result<Bip32PrivateKey, JsError> {
+        let data: Vec<u8> = hex::decode(hex_str).unwrap();
+        Ok(Self::from_bytes(data.as_ref())?)
+    }
 }
 
 #[wasm_bindgen]
@@ -194,6 +203,15 @@ impl Bip32PublicKey {
         const ED25519_PUBLIC_KEY_LENGTH: usize = 32;
         const XPUB_SIZE: usize = 64;
         self.0.as_ref()[ED25519_PUBLIC_KEY_LENGTH..XPUB_SIZE].to_vec()
+    }
+
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.as_bytes())
+    }
+
+    pub fn from_hex(hex_str : &str) -> Result<Bip32PublicKey, JsError> {
+        let data: Vec<u8> = hex::decode(hex_str).unwrap();
+        Ok(Self::from_bytes(data.as_ref())?)
     }
 }
 
@@ -279,6 +297,23 @@ impl PrivateKey {
     pub fn sign(&self, message: &[u8]) -> Ed25519Signature {
         Ed25519Signature(self.0.sign(&message.to_vec()))
     }
+
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.as_bytes())
+    }
+
+    pub fn from_hex(hex_str: &str) -> Result<PrivateKey, JsError> {
+        let data: Vec<u8> = hex::decode(hex_str).unwrap();
+        let data_slice : &[u8] = data.as_slice();
+        crypto::SecretKey::from_binary(data_slice)
+        .map(key::EitherEd25519SecretKey::Normal)
+        .or_else(|_| {
+            crypto::SecretKey::from_binary(data_slice)
+            .map(key::EitherEd25519SecretKey::Extended)
+        })
+        .map(PrivateKey)
+        .map_err(|_| JsError::from_str("Invalid secret key"))
+    }
 }
 
 /// ED25519 key used as public key
@@ -326,6 +361,15 @@ impl PublicKey {
     pub fn hash(&self) -> Ed25519KeyHash {
         Ed25519KeyHash::from(blake2b224(self.as_bytes().as_ref()))
     }
+
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.as_bytes())
+    }
+
+    pub fn from_hex(hex_str : &str) -> Result<PublicKey, JsError> {
+        let data: Vec<u8> = hex::decode(hex_str).unwrap();
+        Ok(Self::from_bytes(data.as_ref())?)
+    }    
 }
 
 #[wasm_bindgen]
@@ -763,6 +807,16 @@ macro_rules! impl_hash_type {
                 let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data).unwrap();
                 Ok(Self::from_bytes(data)?)
             }
+            
+            pub fn to_hex(&self) -> Result<String, JsError> {
+                Ok(hex::encode(self.to_bytes()))
+            }
+        
+            pub fn from_hex(hex_str: &str) -> Result<$name, JsError> {
+                let data: Vec<u8> = hex::decode(hex_str).unwrap();
+                Ok(Self::from_bytes(data)?)
+            }
+
         }
 
         // hash types are the only types in this library to not expect the entire CBOR structure.
