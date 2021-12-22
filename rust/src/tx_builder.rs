@@ -1,7 +1,7 @@
 use super::*;
 use super::fees;
 use super::utils;
-use super::output_builder::{TransactionOutputBuilder, TransactionOutputAmountBuilder};
+use super::output_builder::{TransactionOutputAmountBuilder};
 use std::collections::{BTreeMap, BTreeSet};
 
 // comes from witsVKeyNeeded in the Ledger spec
@@ -1095,6 +1095,7 @@ impl TransactionBuilder {
 mod tests {
     use super::*;
     use fees::*;
+    use super::output_builder::{TransactionOutputBuilder};
 
     const MAX_VALUE_SIZE: u32 = 4000;
     const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
