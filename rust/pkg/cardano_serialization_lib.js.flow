@@ -5053,44 +5053,6 @@ declare export class TransactionBuilder {
   ): BigNum;
 
   /**
-   * Add output by specifying the Address and Value
-   * @param {Address} address
-   * @param {Value} amount
-   */
-  add_output_amount(address: Address, amount: Value): void;
-
-  /**
-   * Add output by specifying the Address and Coin (BigNum)
-   * Output will have no additional assets
-   * @param {Address} address
-   * @param {BigNum} coin
-   */
-  add_output_coin(address: Address, coin: BigNum): void;
-
-  /**
-   * Add output by specifying the Address, the Coin (BigNum), and the MultiAsset
-   * @param {Address} address
-   * @param {BigNum} coin
-   * @param {MultiAsset} multiasset
-   */
-  add_output_coin_and_asset(
-    address: Address,
-    coin: BigNum,
-    multiasset: MultiAsset
-  ): void;
-
-  /**
-   * Add output by specifying the Address and the MultiAsset
-   * The output will be set to contain the minimum required amount of Coin
-   * @param {Address} address
-   * @param {MultiAsset} multiasset
-   */
-  add_output_asset_and_min_required_coin(
-    address: Address,
-    multiasset: MultiAsset
-  ): void;
-
-  /**
    * Add explicit output via a TransactionOutput object
    * @param {TransactionOutput} output
    */
@@ -5214,14 +5176,14 @@ declare export class TransactionBuilder {
    * @param {ScriptHash} policy_id
    * @param {AssetName} asset_name
    * @param {Int} amount
-   * @param {Address} address
+   * @param {TransactionOutputAmountBuilder} output_builder
    * @param {BigNum} output_coin
    */
   add_mint_asset_and_output(
     policy_id: ScriptHash,
     asset_name: AssetName,
     amount: Int,
-    address: Address,
+    output_builder: TransactionOutputAmountBuilder,
     output_coin: BigNum
   ): void;
 
@@ -5234,13 +5196,13 @@ declare export class TransactionBuilder {
    * @param {ScriptHash} policy_id
    * @param {AssetName} asset_name
    * @param {Int} amount
-   * @param {Address} address
+   * @param {TransactionOutputAmountBuilder} output_builder
    */
   add_mint_asset_and_output_min_required_coin(
     policy_id: ScriptHash,
     asset_name: AssetName,
     amount: Int,
-    address: Address
+    output_builder: TransactionOutputAmountBuilder
   ): void;
 
   /**
@@ -5640,6 +5602,80 @@ declare export class TransactionOutput {
    * @returns {TransactionOutput}
    */
   static new(address: Address, amount: Value): TransactionOutput;
+}
+/**
+ */
+declare export class TransactionOutputAmountBuilder {
+  free(): void;
+
+  /**
+   * @param {Value} amount
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_value(amount: Value): TransactionOutputAmountBuilder;
+
+  /**
+   * @param {BigNum} coin
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_coin(coin: BigNum): TransactionOutputAmountBuilder;
+
+  /**
+   * @param {BigNum} coin
+   * @param {MultiAsset} multiasset
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_coin_and_asset(
+    coin: BigNum,
+    multiasset: MultiAsset
+  ): TransactionOutputAmountBuilder;
+
+  /**
+   * @param {BigNum} coins_per_utxo_word
+   * @param {MultiAsset} multiasset
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_asset_and_min_required_coin(
+    coins_per_utxo_word: BigNum,
+    multiasset: MultiAsset
+  ): TransactionOutputAmountBuilder;
+
+  /**
+   * @returns {TransactionOutput}
+   */
+  build(): TransactionOutput;
+}
+/**
+ * We introduce a builder-pattern format for creating transaction outputs
+ * This is because:
+ * 1. Some fields (i.e. data hash) are optional, and we can't easily expose Option<> in WASM
+ * 2. Some fields like amounts have many ways it could be set (some depending on other field values being known)
+ * 3. Easier to adapt as the output format gets more complicated in future Cardano releases
+ */
+declare export class TransactionOutputBuilder {
+  free(): void;
+
+  /**
+   * @returns {TransactionOutputBuilder}
+   */
+  static new(): TransactionOutputBuilder;
+
+  /**
+   * @param {Address} address
+   * @returns {TransactionOutputBuilder}
+   */
+  with_address(address: Address): TransactionOutputBuilder;
+
+  /**
+   * @param {DataHash} data_hash
+   * @returns {TransactionOutputBuilder}
+   */
+  with_data_hash(data_hash: DataHash): TransactionOutputBuilder;
+
+  /**
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  next(): TransactionOutputAmountBuilder;
 }
 /**
  */
