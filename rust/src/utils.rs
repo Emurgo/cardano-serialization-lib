@@ -929,19 +929,7 @@ pub fn internal_get_implicit_input(
                 |acc, ref withdrawal_amt| acc.checked_add(&withdrawal_amt)
             )?,
     };
-    let certificate_refund = match &certs {
-        None => to_bignum(0),
-        Some(certs) => certs.0
-            .iter()
-            .try_fold(
-                to_bignum(0),
-                |acc, ref cert| match &cert.0 {
-                    CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&pool_deposit),
-                    CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&key_deposit),
-                    _ => Ok(acc),
-                }
-            )?
-    };
+    let certificate_refund = internal_get_deposit(&certs, &pool_deposit, &key_deposit)?;
 
     Ok(Value::new(&withdrawal_sum.checked_add(&certificate_refund)?))
 }
