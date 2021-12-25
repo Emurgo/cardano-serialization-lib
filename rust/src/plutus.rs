@@ -278,7 +278,7 @@ impl Language {
     }
 
     pub fn new_plutus_v2() -> Self {
-        Self(LanguageKind::PlutusV1)
+        Self(LanguageKind::PlutusV2)
     }
 
     pub fn kind(&self) -> LanguageKind {
