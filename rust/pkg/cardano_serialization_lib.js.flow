@@ -4183,7 +4183,7 @@ declare export class Relays {
 }
 /**
  */
-declare export class RequiredSignatureSet {
+declare export class RequiredWitnessSet {
   free(): void;
 
   /**
@@ -4247,14 +4247,14 @@ declare export class RequiredSignatureSet {
   add_redeemer_tag(redeemer: RedeemerWitnessKey): void;
 
   /**
-   * @param {RequiredSignatureSet} requirements
+   * @param {RequiredWitnessSet} requirements
    */
-  add_all(requirements: RequiredSignatureSet): void;
+  add_all(requirements: RequiredWitnessSet): void;
 
   /**
-   * @returns {RequiredSignatureSet}
+   * @returns {RequiredWitnessSet}
    */
-  static new(): RequiredSignatureSet;
+  static new(): RequiredWitnessSet;
 }
 /**
  */
@@ -5970,14 +5970,9 @@ declare export class TransactionWitnessSetBuilder {
   add_redeemer(redeemer: Redeemer): void;
 
   /**
-   * @param {RequiredSignatureSet} required_sigs
+   * @param {RequiredWitnessSet} required_wits
    */
-  set_required_sigs(required_sigs: RequiredSignatureSet): void;
-
-  /**
-   * @returns {RequiredSignatureSet}
-   */
-  get_required_sigs(): RequiredSignatureSet;
+  set_required_wits(required_wits: RequiredWitnessSet): void;
 
   /**
    * @returns {TransactionWitnessSetBuilder}
@@ -5987,9 +5982,7 @@ declare export class TransactionWitnessSetBuilder {
   /**
    * @param {TransactionWitnessSet} wit_set
    */
-  static add_existing(
-    wit_set: TransactionWitnessSet
-  ): void;
+  add_existing(wit_set: TransactionWitnessSet): void;
 
   /**
    * @returns {TransactionWitnessSet}

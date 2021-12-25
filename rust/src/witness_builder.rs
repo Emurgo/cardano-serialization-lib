@@ -30,7 +30,7 @@ impl RedeemerWitnessKey {
 
 #[wasm_bindgen]
 #[derive(Clone)]
-pub struct RequiredSignatureSet {
+pub struct RequiredWitnessSet {
     vkeys: HashSet<Vkey>,
     bootstraps: HashSet<Vkey>,
     native_scripts: HashSet<ScriptHash>,
@@ -40,7 +40,7 @@ pub struct RequiredSignatureSet {
 }
 
 #[wasm_bindgen]
-impl RequiredSignatureSet {
+impl RequiredWitnessSet {
     pub fn add_vkey(&mut self, vkey: &Vkeywitness) {
         self.add_vkey_key(&vkey.vkey());
     }
@@ -84,7 +84,7 @@ impl RequiredSignatureSet {
         self.redeemers.insert(redeemer.clone());
     }
 
-    pub fn add_all(&mut self, requirements: &RequiredSignatureSet) {
+    pub fn add_all(&mut self, requirements: &RequiredWitnessSet) {
         self.vkeys.extend(requirements.vkeys.iter().cloned());
         self.bootstraps.extend(requirements.bootstraps.iter().cloned());
         self.native_scripts.extend(requirements.native_scripts.iter().cloned());
@@ -137,8 +137,8 @@ pub struct TransactionWitnessSetBuilder {
     plutus_data: HashMap<DataHash, PlutusData>,
     redeemers: HashMap<RedeemerWitnessKey, Redeemer>,
 
-    // signatures that need to be added for the build function to succeed
-    required_sigs: RequiredSignatureSet,
+    // witnesses that need to be added for the build function to succeed
+    required_wits: RequiredWitnessSet,
 }
 
 #[wasm_bindgen]
@@ -171,12 +171,8 @@ impl TransactionWitnessSetBuilder {
         );
     }
 
-    pub fn set_required_sigs(&mut self, required_sigs: &RequiredSignatureSet) {
-        self.required_sigs = required_sigs.clone()
-    }
-
-    pub fn get_required_sigs(&self) -> RequiredSignatureSet {
-        self.required_sigs.clone()
+    pub fn set_required_wits(&mut self, required_wits: &RequiredWitnessSet) {
+        self.required_wits = required_wits.clone()
     }
 
     pub fn new() -> Self {
@@ -187,7 +183,7 @@ impl TransactionWitnessSetBuilder {
             plutus_scripts: HashMap::new(),
             plutus_data: HashMap::new(),
             redeemers: HashMap::new(),
-            required_sigs: RequiredSignatureSet::new(),
+            required_wits: RequiredWitnessSet::new(),
         }
     }
 
@@ -220,35 +216,35 @@ impl TransactionWitnessSetBuilder {
 
     pub fn build(&self) -> Result<TransactionWitnessSet, JsError> {
         let mut result = TransactionWitnessSet::new();
-        let mut remaining_sigs = self.required_sigs.clone();
+        let mut remaining_wits = self.required_wits.clone();
         
         if self.vkeys.len() > 0 {
             result.set_vkeys(&Vkeywitnesses(self.vkeys.values().cloned().collect()));
-            self.vkeys.keys().for_each(|key| { remaining_sigs.vkeys.remove(key); });
+            self.vkeys.keys().for_each(|key| { remaining_wits.vkeys.remove(key); });
         }
         if self.bootstraps.len() > 0 {
             result.set_bootstraps(&BootstrapWitnesses(self.bootstraps.values().cloned().collect()));
-            self.bootstraps.keys().for_each(|key| { remaining_sigs.bootstraps.remove(key); });
+            self.bootstraps.keys().for_each(|key| { remaining_wits.bootstraps.remove(key); });
         }
         if self.native_scripts.len() > 0 {
             result.set_native_scripts(&NativeScripts(self.native_scripts.values().cloned().collect()));
-            self.native_scripts.keys().for_each(|hash| { remaining_sigs.native_scripts.remove(hash); });
+            self.native_scripts.keys().for_each(|hash| { remaining_wits.native_scripts.remove(hash); });
         }
         if self.plutus_scripts.len() > 0 {
             result.set_plutus_scripts(&PlutusScripts(self.plutus_scripts.values().cloned().collect()));
-            self.plutus_scripts.keys().for_each(|hash| { remaining_sigs.plutus_scripts.remove(hash); });
+            self.plutus_scripts.keys().for_each(|hash| { remaining_wits.plutus_scripts.remove(hash); });
         }
         if self.plutus_data.len() > 0 {
             result.set_plutus_data(&PlutusList(self.plutus_data.values().cloned().collect()));
-            self.plutus_data.keys().for_each(|hash| { remaining_sigs.plutus_data.remove(hash); });
+            self.plutus_data.keys().for_each(|hash| { remaining_wits.plutus_data.remove(hash); });
         }
         if self.redeemers.len() > 0 {
             result.set_redeemers(&Redeemers(self.redeemers.values().cloned().collect()));
-            self.redeemers.keys().for_each(|key| { remaining_sigs.redeemers.remove(key); });
+            self.redeemers.keys().for_each(|key| { remaining_wits.redeemers.remove(key); });
         }
 
-        if remaining_sigs.len() > 0 {
-            return Err(JsError::from_str(&format!("Missing following witnesses:\n{}", remaining_sigs.to_str())))
+        if remaining_wits.len() > 0 {
+            return Err(JsError::from_str(&format!("Missing following witnesses:\n{}", remaining_wits.to_str())))
         }
 
         Ok(result)
@@ -374,12 +370,12 @@ mod tests {
     fn requirement_test() {
         let mut builder = TransactionWitnessSetBuilder::new();
 
-        let mut required_sigs = RequiredSignatureSet::new();
-        required_sigs.add_vkey_key(&Vkey::new(&fake_raw_key_public(0)));
-        required_sigs.add_native_script(&NativeScript::new_timelock_start(
+        let mut required_wits = RequiredWitnessSet::new();
+        required_wits.add_vkey_key(&Vkey::new(&fake_raw_key_public(0)));
+        required_wits.add_native_script(&NativeScript::new_timelock_start(
             &TimelockStart::new(2),
         ));
-        builder.set_required_sigs(&required_sigs);
+        builder.set_required_wits(&required_wits);
 
         // add a different element
         builder.add_vkey(&Vkeywitness::new(
