@@ -15,6 +15,10 @@ to_from_bytes!(PlutusScript);
 
 #[wasm_bindgen]
 impl PlutusScript {
+    pub fn hash(&self, namespace: ScriptHashNamespace) -> ScriptHash {
+        hash_script(namespace, self.to_bytes())
+    }
+
     pub fn new(bytes: Vec<u8>) -> PlutusScript {
         Self(bytes)
     }
@@ -26,7 +30,7 @@ impl PlutusScript {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusScripts(Vec<PlutusScript>);
+pub struct PlutusScripts(pub (crate) Vec<PlutusScript>);
 
 to_from_bytes!(PlutusScripts);
 
@@ -258,6 +262,7 @@ impl ExUnits {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum LanguageKind {
     PlutusV1,
+    PlutusV2,
 }
 
 #[wasm_bindgen]
@@ -269,6 +274,10 @@ to_from_bytes!(Language);
 #[wasm_bindgen]
 impl Language {
     pub fn new_plutus_v1() -> Self {
+        Self(LanguageKind::PlutusV1)
+    }
+
+    pub fn new_plutus_v2() -> Self {
         Self(LanguageKind::PlutusV1)
     }
 
@@ -424,7 +433,7 @@ impl PlutusData {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusList(Vec<PlutusData>);
+pub struct PlutusList(pub (crate) Vec<PlutusData>);
 
 to_from_bytes!(PlutusList);
 
@@ -487,7 +496,7 @@ impl Redeemer {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub enum RedeemerTagKind {
     Spend,
     Mint,
@@ -496,7 +505,7 @@ pub enum RedeemerTagKind {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct RedeemerTag(RedeemerTagKind);
 
 to_from_bytes!(RedeemerTag);
@@ -526,7 +535,7 @@ impl RedeemerTag {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Redeemers(Vec<Redeemer>);
+pub struct Redeemers(pub (crate) Vec<Redeemer>);
 
 to_from_bytes!(Redeemers);
 
@@ -831,6 +840,9 @@ impl cbor_event::se::Serialize for Language {
         match self.0 {
             LanguageKind::PlutusV1 => {
                 serializer.write_unsigned_integer(0u64)
+            },
+            LanguageKind::PlutusV2 => {
+                serializer.write_unsigned_integer(1u64)
             },
         }
     }

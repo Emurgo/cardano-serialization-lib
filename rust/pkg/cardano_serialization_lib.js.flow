@@ -251,10 +251,13 @@ declare export var NativeScriptKind: {|
  * This is because you could have a language where the same bytes have different semantics
  * So this avoids scripts in different languages mapping to the same hash
  * Note that the enum value here is different than the enum value for deciding the cost model of a script
+ * https://github.com/input-output-hk/cardano-ledger/blob/9c3b4737b13b30f71529e76c5330f403165e28a6/eras/alonzo/impl/src/Cardano/Ledger/Alonzo.hs#L127
  */
 
 declare export var ScriptHashNamespace: {|
   +NativeScript: 0, // 0
+  +PlutusV1: 1, // 1
+  +PlutusV2: 2, // 2
 |};
 
 /**
@@ -278,6 +281,7 @@ declare export var StakeCredKind: {|
 
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
 |};
 
 /**
@@ -2174,6 +2178,11 @@ declare export class Language {
   static new_plutus_v1(): Language;
 
   /**
+   * @returns {Language}
+   */
+  static new_plutus_v2(): Language;
+
+  /**
    * @returns {number}
    */
   kind(): number;
@@ -3114,6 +3123,12 @@ declare export class PlutusScript {
    * @returns {PlutusScript}
    */
   static from_bytes(bytes: Uint8Array): PlutusScript;
+
+  /**
+   * @param {number} namespace
+   * @returns {ScriptHash}
+   */
+  hash(namespace: number): ScriptHash;
 
   /**
    * @param {Uint8Array} bytes
@@ -5820,6 +5835,60 @@ declare export class TransactionWitnessSet {
    * @returns {TransactionWitnessSet}
    */
   static new(): TransactionWitnessSet;
+}
+/**
+ * Builder de-duplicates witnesses as they are added
+ */
+declare export class TransactionWitnessSetBuilder {
+  free(): void;
+
+  /**
+   * @param {Vkeywitness} vkey
+   */
+  add_vkey(vkey: Vkeywitness): void;
+
+  /**
+   * @param {BootstrapWitness} bootstrap
+   */
+  add_bootstrap(bootstrap: BootstrapWitness): void;
+
+  /**
+   * @param {NativeScript} native_script
+   */
+  add_native_script(native_script: NativeScript): void;
+
+  /**
+   * @param {PlutusScript} plutus_script
+   */
+  add_plutus_script(plutus_script: PlutusScript): void;
+
+  /**
+   * @param {PlutusData} plutus_datum
+   */
+  add_plutus_datum(plutus_datum: PlutusData): void;
+
+  /**
+   * @param {Redeemer} redeemer
+   */
+  add_redeemer(redeemer: Redeemer): void;
+
+  /**
+   * @returns {TransactionWitnessSetBuilder}
+   */
+  static new(): TransactionWitnessSetBuilder;
+
+  /**
+   * @param {TransactionWitnessSet} wit_set
+   * @returns {TransactionWitnessSetBuilder}
+   */
+  static from_existing(
+    wit_set: TransactionWitnessSet
+  ): TransactionWitnessSetBuilder;
+
+  /**
+   * @returns {TransactionWitnessSet}
+   */
+  build(): TransactionWitnessSet;
 }
 /**
  */

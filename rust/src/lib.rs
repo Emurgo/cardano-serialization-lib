@@ -50,6 +50,7 @@ pub mod typed_bytes;
 pub mod emip3;
 #[macro_use]
 pub mod utils;
+pub mod witness_builder;
 
 use address::*;
 use crypto::*;
@@ -1613,24 +1614,10 @@ pub struct NativeScript(NativeScriptEnum);
 
 to_from_bytes!(NativeScript);
 
-/// Each new language uses a different namespace for hashing its script
-/// This is because you could have a language where the same bytes have different semantics
-/// So this avoids scripts in different languages mapping to the same hash
-/// Note that the enum value here is different than the enum value for deciding the cost model of a script
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum ScriptHashNamespace {
-    NativeScript,
-    // TODO: do we need to update this for Plutus?
-}
-
 #[wasm_bindgen]
 impl NativeScript {
     pub fn hash(&self, namespace: ScriptHashNamespace) -> ScriptHash {
-        let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
-        bytes.extend_from_slice(&vec![namespace as u8]);
-        bytes.extend_from_slice(&self.to_bytes());
-        ScriptHash::from(blake2b224(bytes.as_ref()))
+        hash_script(namespace, self.to_bytes())
     }
 
     pub fn new_script_pubkey(script_pubkey: &ScriptPubkey) -> Self {
