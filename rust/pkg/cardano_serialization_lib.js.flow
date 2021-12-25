@@ -4033,6 +4033,28 @@ declare export class RedeemerTag {
 }
 /**
  */
+declare export class RedeemerWitnessKey {
+  free(): void;
+
+  /**
+   * @returns {RedeemerTag}
+   */
+  tag(): RedeemerTag;
+
+  /**
+   * @returns {BigNum}
+   */
+  index(): BigNum;
+
+  /**
+   * @param {RedeemerTag} tag
+   * @param {BigNum} index
+   * @returns {RedeemerWitnessKey}
+   */
+  static new(tag: RedeemerTag, index: BigNum): RedeemerWitnessKey;
+}
+/**
+ */
 declare export class Redeemers {
   free(): void;
 
@@ -4158,6 +4180,81 @@ declare export class Relays {
    * @param {Relay} elem
    */
   add(elem: Relay): void;
+}
+/**
+ */
+declare export class RequiredSignatureSet {
+  free(): void;
+
+  /**
+   * @param {Vkeywitness} vkey
+   */
+  add_vkey(vkey: Vkeywitness): void;
+
+  /**
+   * @param {Vkey} vkey
+   */
+  add_vkey_key(vkey: Vkey): void;
+
+  /**
+   * @param {BootstrapWitness} bootstrap
+   */
+  add_bootstrap(bootstrap: BootstrapWitness): void;
+
+  /**
+   * @param {Vkey} bootstrap
+   */
+  add_bootstrap_key(bootstrap: Vkey): void;
+
+  /**
+   * @param {NativeScript} native_script
+   */
+  add_native_script(native_script: NativeScript): void;
+
+  /**
+   * @param {ScriptHash} native_script
+   */
+  add_native_script_hash(native_script: ScriptHash): void;
+
+  /**
+   * @param {PlutusScript} plutus_script
+   */
+  add_plutus_script(plutus_script: PlutusScript): void;
+
+  /**
+   * @param {ScriptHash} plutus_script
+   */
+  add_plutus_hash(plutus_script: ScriptHash): void;
+
+  /**
+   * @param {PlutusData} plutus_datum
+   */
+  add_plutus_datum(plutus_datum: PlutusData): void;
+
+  /**
+   * @param {DataHash} plutus_datum
+   */
+  add_plutus_datum_hash(plutus_datum: DataHash): void;
+
+  /**
+   * @param {Redeemer} redeemer
+   */
+  add_redeemer(redeemer: Redeemer): void;
+
+  /**
+   * @param {RedeemerWitnessKey} redeemer
+   */
+  add_redeemer_tag(redeemer: RedeemerWitnessKey): void;
+
+  /**
+   * @param {RequiredSignatureSet} requirements
+   */
+  add_all(requirements: RequiredSignatureSet): void;
+
+  /**
+   * @returns {RequiredSignatureSet}
+   */
+  static new(): RequiredSignatureSet;
 }
 /**
  */
@@ -5873,17 +5970,26 @@ declare export class TransactionWitnessSetBuilder {
   add_redeemer(redeemer: Redeemer): void;
 
   /**
+   * @param {RequiredSignatureSet} required_sigs
+   */
+  set_required_sigs(required_sigs: RequiredSignatureSet): void;
+
+  /**
+   * @returns {RequiredSignatureSet}
+   */
+  get_required_sigs(): RequiredSignatureSet;
+
+  /**
    * @returns {TransactionWitnessSetBuilder}
    */
   static new(): TransactionWitnessSetBuilder;
 
   /**
    * @param {TransactionWitnessSet} wit_set
-   * @returns {TransactionWitnessSetBuilder}
    */
-  static from_existing(
+  static add_existing(
     wit_set: TransactionWitnessSet
-  ): TransactionWitnessSetBuilder;
+  ): void;
 
   /**
    * @returns {TransactionWitnessSet}
