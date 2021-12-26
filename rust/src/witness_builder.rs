@@ -171,8 +171,8 @@ impl TransactionWitnessSetBuilder {
         );
     }
 
-    pub fn set_required_wits(&mut self, required_wits: &RequiredWitnessSet) {
-        self.required_wits = required_wits.clone()
+    pub fn add_required_wits(&mut self, required_wits: &RequiredWitnessSet) {
+        self.required_wits.add_all(&required_wits)
     }
 
     pub fn new() -> Self {
@@ -375,7 +375,7 @@ mod tests {
         required_wits.add_native_script(&NativeScript::new_timelock_start(
             &TimelockStart::new(2),
         ));
-        builder.set_required_wits(&required_wits);
+        builder.add_required_wits(&required_wits);
 
         // add a different element
         builder.add_vkey(&Vkeywitness::new(

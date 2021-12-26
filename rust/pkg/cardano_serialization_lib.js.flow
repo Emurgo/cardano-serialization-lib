@@ -5972,7 +5972,7 @@ declare export class TransactionWitnessSetBuilder {
   /**
    * @param {RequiredWitnessSet} required_wits
    */
-  set_required_wits(required_wits: RequiredWitnessSet): void;
+  add_required_wits(required_wits: RequiredWitnessSet): void;
 
   /**
    * @returns {TransactionWitnessSetBuilder}
