@@ -4197,6 +4197,11 @@ declare export class RequiredWitnessSet {
   add_vkey_key(vkey: Vkey): void;
 
   /**
+   * @param {Ed25519KeyHash} hash
+   */
+  add_vkey_key_hash(hash: Ed25519KeyHash): void;
+
+  /**
    * @param {BootstrapWitness} bootstrap
    */
   add_bootstrap(bootstrap: BootstrapWitness): void;
@@ -4205,6 +4210,11 @@ declare export class RequiredWitnessSet {
    * @param {Vkey} bootstrap
    */
   add_bootstrap_key(bootstrap: Vkey): void;
+
+  /**
+   * @param {Ed25519KeyHash} hash
+   */
+  add_bootstrap_key_hash(hash: Ed25519KeyHash): void;
 
   /**
    * @param {NativeScript} native_script

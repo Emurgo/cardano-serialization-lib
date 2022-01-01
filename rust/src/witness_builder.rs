@@ -31,8 +31,11 @@ impl RedeemerWitnessKey {
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct RequiredWitnessSet {
-    vkeys: HashSet<Vkey>,
-    bootstraps: HashSet<Vkey>,
+    // note: the real key type for these is Vkey
+    // but cryptographically these should be equivalent and Ed25519KeyHash is more flexible
+    vkeys: HashSet<Ed25519KeyHash>,
+    bootstraps: HashSet<Ed25519KeyHash>,
+
     native_scripts: HashSet<ScriptHash>,
     plutus_scripts: HashSet<ScriptHash>,
     plutus_data: HashSet<DataHash>,
@@ -45,14 +48,20 @@ impl RequiredWitnessSet {
         self.add_vkey_key(&vkey.vkey());
     }
     pub fn add_vkey_key(&mut self, vkey: &Vkey) {
-        self.vkeys.insert(vkey.clone());
+        self.add_vkey_key_hash(&vkey.public_key().hash());
+    }
+    pub fn add_vkey_key_hash(&mut self, hash: &Ed25519KeyHash) {
+        self.vkeys.insert(hash.clone());
     }
 
     pub fn add_bootstrap(&mut self, bootstrap: &BootstrapWitness) {
         self.add_bootstrap_key(&bootstrap.vkey());
     }
     pub fn add_bootstrap_key(&mut self, bootstrap: &Vkey) {
-        self.bootstraps.insert(bootstrap.clone());
+        self.add_bootstrap_key_hash(&bootstrap.public_key().hash());
+    }
+    pub fn add_bootstrap_key_hash(&mut self, hash: &Ed25519KeyHash) {
+        self.bootstraps.insert(hash.clone());
     }
 
     pub fn add_native_script(&mut self, native_script: &NativeScript) {
@@ -63,7 +72,6 @@ impl RequiredWitnessSet {
     }
 
     pub fn add_plutus_script(&mut self, plutus_script: &PlutusScript) {
-        // TODO: don't assume PlutusV1 and instead somehow calculate this
         self.add_plutus_hash(&plutus_script.hash(ScriptHashNamespace::PlutusV1));
     }
     pub fn add_plutus_hash(&mut self, plutus_script: &ScriptHash) {
@@ -156,7 +164,6 @@ impl TransactionWitnessSetBuilder {
     }
 
     pub fn add_plutus_script(&mut self, plutus_script: &PlutusScript) {
-        // TODO: don't assume PlutusV1 and instead somehow calculate this
         self.plutus_scripts.insert(plutus_script.hash(ScriptHashNamespace::PlutusV1), plutus_script.clone());
     }
 
@@ -220,11 +227,11 @@ impl TransactionWitnessSetBuilder {
         
         if self.vkeys.len() > 0 {
             result.set_vkeys(&Vkeywitnesses(self.vkeys.values().cloned().collect()));
-            self.vkeys.keys().for_each(|key| { remaining_wits.vkeys.remove(key); });
+            self.vkeys.keys().for_each(|key| { remaining_wits.vkeys.remove(&key.public_key().hash()); });
         }
         if self.bootstraps.len() > 0 {
             result.set_bootstraps(&BootstrapWitnesses(self.bootstraps.values().cloned().collect()));
-            self.bootstraps.keys().for_each(|key| { remaining_wits.bootstraps.remove(key); });
+            self.bootstraps.keys().for_each(|key| { remaining_wits.bootstraps.remove(&key.public_key().hash()); });
         }
         if self.native_scripts.len() > 0 {
             result.set_native_scripts(&NativeScripts(self.native_scripts.values().cloned().collect()));
@@ -367,7 +374,7 @@ mod tests {
     // once we have mock data for them
 
     #[test]
-    fn requirement_test() {
+    fn requirement_test_fail() {
         let mut builder = TransactionWitnessSetBuilder::new();
 
         let mut required_wits = RequiredWitnessSet::new();
@@ -383,7 +390,23 @@ mod tests {
             &fake_raw_key_sig(1)
         ));
 
-        assert!(builder.build().is_err()
-        );
+        assert!(builder.build().is_err());
+    }
+
+    #[test]
+    fn requirement_test_pass() {
+        let mut builder = TransactionWitnessSetBuilder::new();
+
+        let mut required_wits = RequiredWitnessSet::new();
+        required_wits.add_vkey_key(&Vkey::new(&fake_raw_key_public(0)));
+        builder.add_required_wits(&required_wits);
+
+        // add a different element
+        builder.add_vkey(&Vkeywitness::new(
+            &Vkey::new(&fake_raw_key_public(0)),
+            &fake_raw_key_sig(0)
+        ));
+
+        assert!(builder.build().is_ok());
     }
 }
