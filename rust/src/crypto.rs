@@ -229,6 +229,25 @@ impl PrivateKey {
             .map_err(|e| JsError::from_str(&format!("{}", e)))
     }
 
+    /// Get private key from its bech32 representation
+    /// ```javascript
+    /// PrivateKey.from_bech32(&#39;ed25519_sk1ahfetf02qwwg4dkq7mgp4a25lx5vh9920cr5wnxmpzz9906qvm8qwvlts0&#39;);
+    /// ```
+    /// For an extended 25519 key
+    /// ```javascript
+    /// PrivateKey.from_bech32(&#39;ed25519e_sk1gqwl4szuwwh6d0yk3nsqcc6xxc3fpvjlevgwvt60df59v8zd8f8prazt8ln3lmz096ux3xvhhvm3ca9wj2yctdh3pnw0szrma07rt5gl748fp&#39;);
+    /// ```
+    pub fn from_bech32(bech32_str: &str) -> Result<PrivateKey, JsError> {
+        crypto::SecretKey::try_from_bech32_str(&bech32_str)
+            .map(key::EitherEd25519SecretKey::Extended)
+            .or_else(|_| {
+                crypto::SecretKey::try_from_bech32_str(&bech32_str)
+                    .map(key::EitherEd25519SecretKey::Normal)
+            })
+            .map(PrivateKey)
+            .map_err(|_| JsError::from_str("Invalid secret key"))
+    }
+
     pub fn to_bech32(&self) -> String {
         match self.0 {
             key::EitherEd25519SecretKey::Normal(ref secret) => secret.to_bech32_str(),
@@ -569,7 +588,7 @@ impl Deserialize for BootstrapWitness {
 }
 
 impl DeserializeEmbeddedGroup for BootstrapWitness {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, len: cbor_event::Len) -> Result<Self, DeserializeError> {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(raw: &mut Deserializer<R>, _: cbor_event::Len) -> Result<Self, DeserializeError> {
         let vkey = (|| -> Result<_, DeserializeError> {
             Ok(Vkey::deserialize(raw)?)
         })().map_err(|e| e.annotate("vkey"))?;
@@ -934,7 +953,6 @@ impl cbor_event::se::Serialize for Nonce {
 
 impl Deserialize for Nonce {
     fn deserialize<R: std::io::BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        use std::convert::TryInto;
         (|| -> Result<Self, DeserializeError> {
             let len = raw.array()?;
             let hash = match raw.unsigned_integer()? {
@@ -1087,5 +1105,23 @@ mod tests {
 
         let pub_chaincode = root_key.to_public().chaincode();
         assert_eq!(hex::encode(&pub_chaincode), "91e248de509c070d812ab2fda57860ac876bc489192c1ef4ce253c197ee219a4");
+    }
+
+    #[test]
+    fn private_key_from_bech32() {
+        let pk = PrivateKey::generate_ed25519().unwrap();
+        let pk_ext = PrivateKey::generate_ed25519extended().unwrap();
+
+        assert_eq!(
+            PrivateKey::from_bech32(&pk.to_bech32()).unwrap().as_bytes(),
+            pk.as_bytes(),
+        );
+        assert_eq!(
+            PrivateKey::from_bech32(&pk_ext.to_bech32()).unwrap().as_bytes(),
+            pk_ext.as_bytes(),
+        );
+
+        let er = PrivateKey::from_bech32("qwe");
+        assert!(er.is_err());
     }
 }
