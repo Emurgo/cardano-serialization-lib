@@ -1,6 +1,6 @@
 [package]
 name = "cardano-serialization-lib"
-version = "9.1.3"
+version = "9.1.4"
 edition = "2018"
 authors = ["EMURGO"]
 license = "MIT"
