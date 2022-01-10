@@ -194,7 +194,7 @@ impl TransactionBuilder {
         });
         self.input_types.bootstraps.insert(hash.to_bytes());
     }
-
+    
     pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) {
         match &BaseAddress::from_address(address) {
             Some(addr) => {
@@ -1315,7 +1315,7 @@ mod tests {
             ),
             &Value::new(&to_bignum(2_400_000))
         );
-
+        
         tx_builder.set_ttl(1);
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
@@ -1359,7 +1359,7 @@ mod tests {
             ),
             &input_value
         );
-
+        
         tx_builder.set_ttl(1);
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
