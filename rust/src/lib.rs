@@ -1950,6 +1950,8 @@ pub struct ProtocolParamUpdate {
     max_tx_ex_units: Option<ExUnits>,
     max_block_ex_units: Option<ExUnits>,
     max_value_size: Option<u32>,
+    collateral_percentage: Option<u32>,
+    max_collateral_inputs: Option<u32>,
 }
 
 to_from_bytes!(ProtocolParamUpdate);
@@ -2132,6 +2134,22 @@ impl ProtocolParamUpdate {
         self.max_value_size.clone()
     }
 
+    pub fn set_collateral_percentage(&mut self, collateral_percentage: u32) {
+        self.collateral_percentage = Some(collateral_percentage)
+    }
+
+    pub fn collateral_percentage(&self) -> Option<u32> {
+        self.collateral_percentage.clone()
+    }
+
+    pub fn set_max_collateral_inputs(&mut self, max_collateral_inputs: u32) {
+        self.max_collateral_inputs = Some(max_collateral_inputs)
+    }
+
+    pub fn max_collateral_inputs(&self) -> Option<u32> {
+        self.max_collateral_inputs.clone()
+    }
+
     pub fn new() -> Self {
         Self {
             minfee_a: None,
@@ -2156,6 +2174,8 @@ impl ProtocolParamUpdate {
             max_tx_ex_units: None,
             max_block_ex_units: None,
             max_value_size: None,
+            collateral_percentage: None,
+            max_collateral_inputs: None,
         }
     }
 }
