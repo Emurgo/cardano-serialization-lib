@@ -1142,6 +1142,10 @@ impl TransactionBuilder {
         }
     }
 
+    // This function should be producing the total witness-set
+    // that is created by the tx-builder itself,
+    // before the transaction is getting signed by the actual wallet.
+    // E.g. scripts or something else that has been used during the tx preparation
     fn get_witness_set(&self) -> TransactionWitnessSet {
         let mut wit = TransactionWitnessSet::new();
         if let Some(scripts) = self.mint_scripts.as_ref() {
