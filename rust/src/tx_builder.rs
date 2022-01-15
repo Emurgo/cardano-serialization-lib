@@ -711,7 +711,7 @@ impl TransactionBuilder {
             }
             witness_scripts
         };
-        self.mint = Some(mint.clone());
+        self.mint = Some(mint);
         self.mint_scripts = Some(mint_scripts.clone());
     }
 
