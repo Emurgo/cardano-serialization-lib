@@ -167,9 +167,13 @@ fn assert_required_mint_scripts(mint: &Mint, maybe_mint_scripts: Option<&NativeS
 }
 
 fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
-    if let Some(mint) = tx_builder.mint.as_ref() {
-        assert_required_mint_scripts(mint, tx_builder.mint_scripts.as_ref())?;
-    }
+    // Commented out for performance, `min_fee` is a critical function
+    // This was mostly added here as a paranoid step anyways
+    // If someone is using `set_mint` and `add_mint*` API function, everything is expected to be intact
+    // TODO: figure out if assert is needed here and a better way to do it maybe only once if mint doesn't change
+    // if let Some(mint) = tx_builder.mint.as_ref() {
+    //     assert_required_mint_scripts(mint, tx_builder.mint_scripts.as_ref())?;
+    // }
     let full_tx = fake_full_tx(tx_builder, tx_builder.build()?)?;
     fees::min_fee(&full_tx, &tx_builder.config.fee_algo)
 }
