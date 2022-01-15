@@ -305,18 +305,18 @@ impl TransactionBody {
         self.mint = Some(mint.clone())
     }
 
-    pub fn get_mint(&self) -> Option<Mint> {
+    pub fn mint(&self) -> Option<Mint> {
         self.mint.clone()
     }
 
     /// This function returns the mint value of the transaction
-    /// Use `get_mint` instead.
+    /// Use `.mint()` instead.
     #[deprecated(
         since = "10.0.0",
-        note = "Weird naming. Use `get_mint`"
+        note = "Weird naming. Use `.mint()`"
     )]
     pub fn multiassets(&self) -> Option<Mint> {
-        self.get_mint()
+        self.mint()
     }
 
     pub fn set_script_data_hash(&mut self, script_data_hash: &ScriptDataHash) {
