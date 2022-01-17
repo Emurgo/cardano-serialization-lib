@@ -3654,30 +3654,34 @@ mod tests {
         let est2 = tx_builder.min_fee();
         assert!(est2.is_ok());
 
-        // Remove one mint script
-        tx_builder.mint_scripts =
-            Some(NativeScripts::from(vec![tx_builder.mint_scripts.unwrap().get(1)]));
+        // Native script assertion has been commented out in `.min_fee`
+        // Until implemented in a more performant manner
+        // TODO: these test parts might be returned back when it's done
 
-        // Now two different policies are minted but only one witness script is present
-        let est3 = tx_builder.min_fee();
-        assert!(est3.is_err());
-        assert!(est3.err().unwrap().to_string().contains(&format!("{:?}", hex::encode(policy_id1.to_bytes()))));
-
-        // Remove all mint scripts
-        tx_builder.mint_scripts = Some(NativeScripts::new());
-
-        // Mint exists but no witness scripts at all present
-        let est4 = tx_builder.min_fee();
-        assert!(est4.is_err());
-        assert!(est4.err().unwrap().to_string().contains("witness scripts are not provided"));
-
-        // Remove all mint scripts
-        tx_builder.mint_scripts = None;
-
-        // Mint exists but no witness scripts at all present
-        let est5 = tx_builder.min_fee();
-        assert!(est5.is_err());
-        assert!(est5.err().unwrap().to_string().contains("witness scripts are not provided"));
+        // // Remove one mint script
+        // tx_builder.mint_scripts =
+        //     Some(NativeScripts::from(vec![tx_builder.mint_scripts.unwrap().get(1)]));
+        //
+        // // Now two different policies are minted but only one witness script is present
+        // let est3 = tx_builder.min_fee();
+        // assert!(est3.is_err());
+        // assert!(est3.err().unwrap().to_string().contains(&format!("{:?}", hex::encode(policy_id1.to_bytes()))));
+        //
+        // // Remove all mint scripts
+        // tx_builder.mint_scripts = Some(NativeScripts::new());
+        //
+        // // Mint exists but no witness scripts at all present
+        // let est4 = tx_builder.min_fee();
+        // assert!(est4.is_err());
+        // assert!(est4.err().unwrap().to_string().contains("witness scripts are not provided"));
+        //
+        // // Remove all mint scripts
+        // tx_builder.mint_scripts = None;
+        //
+        // // Mint exists but no witness scripts at all present
+        // let est5 = tx_builder.min_fee();
+        // assert!(est5.is_err());
+        // assert!(est5.err().unwrap().to_string().contains("witness scripts are not provided"));
     }
 
     #[test]
