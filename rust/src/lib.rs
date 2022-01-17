@@ -34,6 +34,7 @@ use cbor_event::{
     se::{Serialize, Serializer},
 };
 
+pub mod traits;
 pub mod address;
 pub mod chain_core;
 pub mod chain_crypto;
@@ -58,6 +59,8 @@ use plutus::*;
 use metadata::*;
 use utils::*;
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
+use crate::traits::NoneOrEmpty;
 
 type DeltaCoin = Int;
 
@@ -221,6 +224,7 @@ impl Certificates {
 }
 
 pub type RequiredSigners = Ed25519KeyHashes;
+pub type RequiredSignersSet = BTreeSet<Ed25519KeyHash>;
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -1744,6 +1748,21 @@ impl NativeScripts {
     }
 }
 
+impl From<Vec<NativeScript>> for NativeScripts {
+    fn from(scripts: Vec<NativeScript>) -> Self {
+        scripts.iter().fold(NativeScripts::new(), |mut scripts, s| {
+            scripts.add(s);
+            scripts
+        })
+    }
+}
+
+impl NoneOrEmpty for NativeScripts {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Update {
@@ -2782,6 +2801,39 @@ impl NetworkId {
     }
 }
 
+impl From<&NativeScript> for RequiredSignersSet {
+    fn from(script: &NativeScript) -> Self {
+        match &script.0 {
+            NativeScriptEnum::ScriptPubkey(spk) => {
+                let mut set = BTreeSet::new();
+                set.insert(spk.addr_keyhash());
+                set
+            },
+            NativeScriptEnum::ScriptAll(all) => {
+                RequiredSignersSet::from(&all.native_scripts)
+            },
+            NativeScriptEnum::ScriptAny(any) => {
+                RequiredSignersSet::from(&any.native_scripts)
+            },
+            NativeScriptEnum::ScriptNOfK(ofk) => {
+                RequiredSignersSet::from(&ofk.native_scripts)
+            },
+            _ => BTreeSet::new(),
+        }
+    }
+}
+
+impl From<&NativeScripts> for RequiredSignersSet {
+    fn from(scripts: &NativeScripts) -> Self {
+        scripts.0.iter().fold(BTreeSet::new(), |mut set, s| {
+            RequiredSignersSet::from(s).iter().for_each(|pk| {
+                set.insert(pk.clone());
+            });
+            set
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2962,5 +3014,78 @@ mod tests {
 
         assert_eq!(p_ass.get(&name1).unwrap(), amount1);
         assert_eq!(n_ass.get(&name1).unwrap(), amount1);
+    }
+
+    fn keyhash(x: u8) -> Ed25519KeyHash {
+        Ed25519KeyHash::from_bytes(vec![x, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244, 98, 246, 13, 33, 212, 128, 168, 136, 40]).unwrap()
+    }
+
+    fn pkscript(pk: &Ed25519KeyHash) -> NativeScript {
+        NativeScript::new_script_pubkey(&ScriptPubkey::new(pk))
+    }
+
+    fn scripts_vec(scripts: Vec<&NativeScript>) -> NativeScripts {
+        NativeScripts(scripts.iter().map(|s| { (*s).clone() }).collect())
+    }
+
+    #[test]
+    fn native_scripts_get_pubkeys() {
+        let keyhash1 = keyhash(1);
+        let keyhash2 = keyhash(2);
+        let keyhash3 = keyhash(3);
+
+        let pks1 = RequiredSignersSet::from(&pkscript(&keyhash1));
+        assert_eq!(pks1.len(), 1);
+        assert!(pks1.contains(&keyhash1));
+
+        let pks2 = RequiredSignersSet::from(
+            &NativeScript::new_timelock_start(
+                &TimelockStart::new(123),
+            ),
+        );
+        assert_eq!(pks2.len(), 0);
+
+        let pks3 = RequiredSignersSet::from(
+            &NativeScript::new_script_all(
+                &ScriptAll::new(&scripts_vec(vec![
+                    &pkscript(&keyhash1),
+                    &pkscript(&keyhash2),
+                ]))
+            ),
+        );
+        assert_eq!(pks3.len(), 2);
+        assert!(pks3.contains(&keyhash1));
+        assert!(pks3.contains(&keyhash2));
+
+        let pks4 = RequiredSignersSet::from(
+            &NativeScript::new_script_any(
+                &ScriptAny::new(&scripts_vec(vec![
+                    &NativeScript::new_script_n_of_k(&ScriptNOfK::new(
+                        1,
+                        &scripts_vec(vec![
+                            &NativeScript::new_timelock_start(&TimelockStart::new(132)),
+                            &pkscript(&keyhash3),
+                        ]),
+                    )),
+                    &NativeScript::new_script_all(&ScriptAll::new(
+                        &scripts_vec(vec![
+                            &NativeScript::new_timelock_expiry(&TimelockExpiry::new(132)),
+                            &pkscript(&keyhash1),
+                        ]),
+                    )),
+                    &NativeScript::new_script_any(&ScriptAny::new(
+                        &scripts_vec(vec![
+                            &pkscript(&keyhash1),
+                            &pkscript(&keyhash2),
+                            &pkscript(&keyhash3),
+                        ]),
+                    )),
+                ]))
+            ),
+        );
+        assert_eq!(pks4.len(), 3);
+        assert!(pks4.contains(&keyhash1));
+        assert!(pks4.contains(&keyhash2));
+        assert!(pks4.contains(&keyhash3));
     }
 }
