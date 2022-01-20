@@ -166,6 +166,13 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -188,13 +195,6 @@ declare export function decrypt_with_password(
   password: string,
   data: string
 ): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -268,14 +268,6 @@ declare export var NetworkIdKind: {|
 /**
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
 |};
@@ -328,6 +320,14 @@ declare export var MetadataJsonSchema: {|
   +NoConversions: 0, // 0
   +BasicConversions: 1, // 1
   +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
 |};
 
 /**
@@ -3116,12 +3116,17 @@ declare export class PlutusScript {
   static from_bytes(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
    * @param {Uint8Array} bytes
    * @returns {PlutusScript}
    */
   static new(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * The raw bytes of this compiled Plutus script.
+   * * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
    * @returns {Uint8Array}
    */
   bytes(): Uint8Array;
