@@ -695,35 +695,36 @@ impl BigInt {
 impl cbor_event::se::Serialize for BigInt {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         let (sign, u64_digits) = self.0.to_u64_digits();
-        // we use the uint/nint encodings to use a minimum of space
-        if u64_digits.len() == 1 {
-            match sign {
+        match u64_digits.len() {
+            0 => serializer.write_unsigned_integer(0),
+            // we use the uint/nint encodings to use a minimum of space
+            1 => match sign {
                 // uint
                 num_bigint::Sign::Plus |
-                num_bigint::Sign::NoSign => serializer.write_unsigned_integer(*u64_digits.first().unwrap())?,
+                num_bigint::Sign::NoSign => serializer.write_unsigned_integer(*u64_digits.first().unwrap()),
                 // nint
-                num_bigint::Sign::Minus => serializer.write_negative_integer(-(*u64_digits.first().unwrap() as i128) as i64)?,
-            };
-        } else {
-            let (sign, bytes) = self.0.to_bytes_be();
-            match sign {
-                // positive bigint
-                num_bigint::Sign::Plus |
-                num_bigint::Sign::NoSign => {
-                    serializer.write_tag(2u64)?;
-                    write_bounded_bytes(serializer, &bytes)?;
-                },
-                // negative bigint
-                num_bigint::Sign::Minus => {
-                    serializer.write_tag(3u64)?;
-                    use std::ops::Neg;
-                    // CBOR RFC defines this as the bytes of -n -1
-                    let adjusted = self.0.clone().neg().checked_sub(&num_bigint::BigInt::from(1u32)).unwrap().to_biguint().unwrap();
-                    write_bounded_bytes(serializer, &adjusted.to_bytes_be())?;
-                },
-            }
+                num_bigint::Sign::Minus => serializer.write_negative_integer(-(*u64_digits.first().unwrap() as i128) as i64),
+            },
+            _ => {
+                let (sign, bytes) = self.0.to_bytes_be();
+                match sign {
+                    // positive bigint
+                    num_bigint::Sign::Plus |
+                    num_bigint::Sign::NoSign => {
+                        serializer.write_tag(2u64)?;
+                        write_bounded_bytes(serializer, &bytes)
+                    },
+                    // negative bigint
+                    num_bigint::Sign::Minus => {
+                        serializer.write_tag(3u64)?;
+                        use std::ops::Neg;
+                        // CBOR RFC defines this as the bytes of -n -1
+                        let adjusted = self.0.clone().neg().checked_sub(&num_bigint::BigInt::from(1u32)).unwrap().to_biguint().unwrap();
+                        write_bounded_bytes(serializer, &adjusted.to_bytes_be())
+                    },
+                }
+            },
         }
-        Ok(serializer)
     }
 }
 
@@ -2045,6 +2046,7 @@ mod tests {
         let zero = BigInt::from_str("0").unwrap();
         let zero_rt = BigInt::from_bytes(zero.to_bytes()).unwrap();
         assert_eq!(zero.to_str(), zero_rt.to_str());
+        assert_eq!(zero.to_bytes(), vec![0x00]);
 
         let pos_small = BigInt::from_str("100").unwrap();
         let pos_small_rt = BigInt::from_bytes(pos_small.to_bytes()).unwrap();

@@ -1,7 +1,7 @@
 use super::*;
 use super::fees;
 use super::utils;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
@@ -46,12 +46,6 @@ fn fake_private_key() -> Bip32PrivateKey {
     ).unwrap()
 }
 
-fn fake_key_hash() -> Ed25519KeyHash {
-    Ed25519KeyHash::from(
-        [142, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
-    )
-}
-
 fn fake_raw_key_sig() -> Ed25519Signature {
     Ed25519Signature::from_bytes(
         vec![36, 248, 153, 211, 155, 23, 253, 93, 102, 193, 146, 196, 181, 13, 52, 62, 66, 247, 35, 91, 48, 80, 76, 138, 231, 97, 159, 147, 200, 40, 220, 109, 206, 69, 104, 221, 105, 23, 124, 85, 24, 40, 73, 45, 119, 122, 103, 39, 253, 102, 194, 251, 204, 189, 168, 194, 174, 237, 146, 3, 44, 153, 121, 10]
@@ -64,26 +58,36 @@ fn fake_raw_key_public() -> PublicKey {
     ).unwrap()
 }
 
+fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
+    let input_hashes = &tx_builder.input_types.vkeys;
+    match &tx_builder.mint_scripts {
+        None => input_hashes.len(),
+        Some(scripts) => {
+            // Union all input keys with minting keys
+            input_hashes.union(&RequiredSignersSet::from(scripts)).count()
+        }
+    }
+}
 
 // tx_body must be the result of building from tx_builder
 // constructs the rest of the Transaction using fake witness data of the correct length
 // for use in calculating the size of the final Transaction
 fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Result<Transaction, JsError> {
     let fake_key_root = fake_private_key();
-    let fake_key_hash = fake_key_hash();
     let raw_key_public = fake_raw_key_public();
     let fake_sig = fake_raw_key_sig();
 
     // recall: this includes keys for input, certs and withdrawals
-    let vkeys = match tx_builder.input_types.vkeys.len() {
+    let vkeys = match count_needed_vkeys(tx_builder) {
         0 => None,
         x => {
+            let fake_vkey_witness = Vkeywitness::new(
+                &Vkey::new(&raw_key_public),
+                &fake_sig
+            );
             let mut result = Vkeywitnesses::new();
             for _i in 0..x {
-                result.add(&Vkeywitness::new(
-                    &Vkey::new(&raw_key_public),
-                    &fake_sig
-                ));
+                result.add(&fake_vkey_witness.clone());
             }
             Some(result)
         },
@@ -110,21 +114,20 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
-    let full_script_keys = match &tx_builder.mint {
+    let full_script_keys = match &tx_builder.mint_scripts {
         None => script_keys,
-        Some(mint) => {
+        Some(witness_scripts) => {
             let mut ns = script_keys
-                .map(|sk| { sk.clone() })
+                .map(|x| { x.clone() })
                 .unwrap_or(NativeScripts::new());
-            let spk = ScriptPubkey::new(&fake_key_hash);
-            mint.keys().0.iter().for_each(|_p| {
-                ns.add(&NativeScript::new_script_pubkey(&spk));
+            witness_scripts.0.iter().for_each(|s| {
+                ns.add(s);
             });
             Some(ns)
         }
     };
     let witness_set = TransactionWitnessSet {
-        vkeys: vkeys,
+        vkeys,
         native_scripts: full_script_keys,
         bootstraps: bootstrap_keys,
         // TODO: plutus support?
@@ -140,7 +143,37 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
     })
 }
 
+fn assert_required_mint_scripts(mint: &Mint, maybe_mint_scripts: Option<&NativeScripts>) -> Result<(), JsError> {
+    if maybe_mint_scripts.is_none_or_empty() {
+        return Err(JsError::from_str(
+            "Mint is present in the builder, but witness scripts are not provided!",
+        ));
+    }
+    let mint_scripts = maybe_mint_scripts.unwrap();
+    let witness_hashes: HashSet<ScriptHash> = mint_scripts.0.iter().map(|script| {
+        script.hash(ScriptHashNamespace::NativeScript)
+    }).collect();
+    for mint_hash in mint.keys().0.iter() {
+        if !witness_hashes.contains(mint_hash) {
+            return Err(JsError::from_str(
+                &format!(
+                    "No witness script is found for mint policy '{:?}'! Script is required!",
+                    hex::encode(mint_hash.to_bytes()),
+                ))
+            );
+        }
+    }
+    Ok(())
+}
+
 fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
+    // Commented out for performance, `min_fee` is a critical function
+    // This was mostly added here as a paranoid step anyways
+    // If someone is using `set_mint` and `add_mint*` API function, everything is expected to be intact
+    // TODO: figure out if assert is needed here and a better way to do it maybe only once if mint doesn't change
+    // if let Some(mint) = tx_builder.mint.as_ref() {
+    //     assert_required_mint_scripts(mint, tx_builder.mint_scripts.as_ref())?;
+    // }
     let full_tx = fake_full_tx(tx_builder, tx_builder.build()?)?;
     fees::min_fee(&full_tx, &tx_builder.config.fee_algo)
 }
@@ -274,7 +307,7 @@ pub struct TransactionBuilder {
     validity_start_interval: Option<Slot>,
     input_types: MockWitnessSet,
     mint: Option<Mint>,
-    inputs_auto_added: bool,
+    mint_scripts: Option<NativeScripts>,
 }
 
 #[wasm_bindgen]
@@ -650,31 +683,65 @@ impl TransactionBuilder {
         Ok(())
     }
 
-    /// Set explicit Mint object to this builder
-    /// it will replace any previously existing mint
-    pub fn set_mint(&mut self, mint: &Mint) {
+    /// Set explicit Mint object and the required witnesses to this builder
+    /// it will replace any previously existing mint and mint scripts
+    /// NOTE! Error will be returned in case a mint policy does not have a matching script
+    pub fn set_mint(&mut self, mint: &Mint, mint_scripts: &NativeScripts) -> Result<(), JsError> {
+        assert_required_mint_scripts(mint, Some(mint_scripts))?;
         self.mint = Some(mint.clone());
+        self.mint_scripts = Some(mint_scripts.clone());
+        Ok(())
+    }
+
+    /// Returns a copy of the current mint state in the builder
+    pub fn get_mint(&self) -> Option<Mint> {
+        self.mint.clone()
+    }
+
+    /// Returns a copy of the current mint witness scripts in the builder
+    pub fn get_mint_scripts(&self) -> Option<NativeScripts> {
+        self.mint_scripts.clone()
+    }
+
+    fn _set_mint_asset(&mut self, policy_id: &PolicyID, policy_script: &NativeScript, mint_assets: &MintAssets) {
+        let mut mint = self.mint.as_ref().cloned().unwrap_or(Mint::new());
+        let is_new_policy = mint.insert(&policy_id, mint_assets).is_none();
+        let mint_scripts = {
+            let mut witness_scripts = self.mint_scripts.as_ref().cloned()
+                .unwrap_or(NativeScripts::new());
+            if is_new_policy {
+                // If policy has not been encountered before - insert the script into witnesses
+                witness_scripts.add(&policy_script.clone());
+            }
+            witness_scripts
+        };
+        self.mint = Some(mint);
+        self.mint_scripts = Some(mint_scripts.clone());
     }
 
     /// Add a mint entry to this builder using a PolicyID and MintAssets object
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any existing mint assets with the same PolicyID
-    pub fn set_mint_asset(&mut self, policy_id: &PolicyID, mint_assets: &MintAssets) {
-        let mut mint = self.mint.as_ref().cloned().unwrap_or(Mint::new());
-        mint.insert(policy_id, mint_assets);
-        self.set_mint(&mint);
+    pub fn set_mint_asset(&mut self, policy_script: &NativeScript, mint_assets: &MintAssets) {
+        let policy_id: PolicyID = policy_script.hash(ScriptHashNamespace::NativeScript);
+        self._set_mint_asset(&policy_id, policy_script, mint_assets);
+    }
+
+    fn _add_mint_asset(&mut self, policy_id: &PolicyID, policy_script: &NativeScript, asset_name: &AssetName, amount: Int) {
+        let mut asset = self.mint.as_ref()
+            .map(|m| { m.get(&policy_id).as_ref().cloned() })
+            .unwrap_or(None)
+            .unwrap_or(MintAssets::new());
+        asset.insert(asset_name, amount);
+        self._set_mint_asset(&policy_id, policy_script, &asset);
     }
 
     /// Add a mint entry to this builder using a PolicyID, AssetName, and Int object for amount
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any previous existing amount same PolicyID and AssetName
-    pub fn add_mint_asset(&mut self, policy_id: &PolicyID, asset_name: &AssetName, amount: Int) {
-        let mut asset = self.mint.as_ref()
-            .map(|m| { m.get(policy_id).as_ref().cloned() })
-            .unwrap_or(None)
-            .unwrap_or(MintAssets::new());
-        asset.insert(asset_name, amount);
-        self.set_mint_asset(policy_id, &asset);
+    pub fn add_mint_asset(&mut self, policy_script: &NativeScript, asset_name: &AssetName, amount: Int) {
+        let policy_id: PolicyID = policy_script.hash(ScriptHashNamespace::NativeScript);
+        self._add_mint_asset(&policy_id, policy_script, asset_name, amount);
     }
 
     /// Add a mint entry together with an output to this builder
@@ -683,7 +750,7 @@ impl TransactionBuilder {
     /// A new output will be added with the specified Address, the Coin value, and the minted asset
     pub fn add_mint_asset_and_output(
         &mut self,
-        policy_id: &PolicyID,
+        policy_script: &NativeScript,
         asset_name: &AssetName,
         amount: Int,
         address: &Address,
@@ -692,9 +759,10 @@ impl TransactionBuilder {
         if !amount.is_positive() {
             return Err(JsError::from_str("Output value must be positive!"));
         }
-        self.add_mint_asset(policy_id, asset_name, amount.clone());
+        let policy_id: PolicyID = policy_script.hash(ScriptHashNamespace::NativeScript);
+        self._add_mint_asset(&policy_id, policy_script, asset_name, amount.clone());
         let multiasset = Mint::new_from_entry(
-            policy_id,
+            &policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone())
         ).as_positive_multiasset();
         self.add_output_coin_and_asset(address, output_coin, &multiasset)
@@ -707,7 +775,7 @@ impl TransactionBuilder {
     /// The output will be set to contain the minimum required amount of Coin
     pub fn add_mint_asset_and_output_min_required_coin(
         &mut self,
-        policy_id: &PolicyID,
+        policy_script: &NativeScript,
         asset_name: &AssetName,
         amount: Int,
         address: &Address,
@@ -715,9 +783,10 @@ impl TransactionBuilder {
         if !amount.is_positive() {
             return Err(JsError::from_str("Output value must be positive!"));
         }
-        self.add_mint_asset(policy_id, asset_name, amount.clone());
+        let policy_id: PolicyID = policy_script.hash(ScriptHashNamespace::NativeScript);
+        self._add_mint_asset(&policy_id, policy_script, asset_name, amount.clone());
         let multiasset = Mint::new_from_entry(
-            policy_id,
+            &policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone())
         ).as_positive_multiasset();
         self.add_output_asset_and_min_required_coin(address, &multiasset)
@@ -740,7 +809,7 @@ impl TransactionBuilder {
             },
             validity_start_interval: None,
             mint: None,
-            inputs_auto_added: false,
+            mint_scripts: None,
         }
     }
 
@@ -1063,7 +1132,7 @@ impl TransactionBuilder {
 
     /// Returns object the body of the new transaction
     /// Auxiliary data itself is not included
-    /// You can use `get_auxiliary_date` or `build_tx`
+    /// You can use `get_auxiliary_data` or `build_tx`
     pub fn build(&self) -> Result<TransactionBody, JsError> {
         let (body, full_tx_size) = self.build_and_size()?;
         if full_tx_size > self.config.max_tx_size as usize {
@@ -1077,13 +1146,25 @@ impl TransactionBuilder {
         }
     }
 
+    // This function should be producing the total witness-set
+    // that is created by the tx-builder itself,
+    // before the transaction is getting signed by the actual wallet.
+    // E.g. scripts or something else that has been used during the tx preparation
+    fn get_witness_set(&self) -> TransactionWitnessSet {
+        let mut wit = TransactionWitnessSet::new();
+        if let Some(scripts) = self.mint_scripts.as_ref() {
+            wit.set_native_scripts(scripts);
+        }
+        wit
+    }
+
     /// Returns full Transaction object with the body and the auxiliary data
-    /// NOTE: witness_set is set to just empty set
+    /// NOTE: witness_set will contain all mint_scripts if any been added or set
     /// NOTE: is_valid set to true
     pub fn build_tx(&self) -> Result<Transaction, JsError> {
         Ok(Transaction {
             body: self.build()?,
-            witness_set: TransactionWitnessSet::new(),
+            witness_set: self.get_witness_set(),
             is_valid: true,
             auxiliary_data: self.auxiliary_data.clone(),
         })
@@ -1117,6 +1198,12 @@ mod tests {
         // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
         let entropy = [0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12];
         Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
+    }
+
+    fn fake_key_hash(x: u8) -> Ed25519KeyHash {
+        Ed25519KeyHash::from_bytes(
+            vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
+        ).unwrap()
     }
 
     fn harden(index: u32) -> u32 {
@@ -1670,12 +1757,12 @@ mod tests {
         )
         .to_address();
 
-        let policy_id = PolicyID::from([0u8; 28]);
+        let (min_script, policy_id) = mint_script_and_policy(0);
         let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
         let amount = to_bignum(1234);
 
         // Adding mint of the asset - which should work as an input
-        tx_builder.add_mint_asset(&policy_id, &name, Int::new(&amount));
+        tx_builder.add_mint_asset(&min_script, &name, Int::new(&amount));
 
         let mut ass = Assets::new();
         ass.insert(&name, &amount);
@@ -1753,14 +1840,14 @@ mod tests {
         )
         .to_address();
 
-        let policy_id = PolicyID::from([0u8; 28]);
+        let (min_script, policy_id) = mint_script_and_policy(0);
         let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
 
         let amount_minted = to_bignum(1000);
         let amount_sent = to_bignum(500);
 
         // Adding mint of the asset - which should work as an input
-        tx_builder.add_mint_asset(&policy_id, &name, Int::new(&amount_minted));
+        tx_builder.add_mint_asset(&min_script, &name, Int::new(&amount_minted));
 
         let mut ass = Assets::new();
         ass.insert(&name, &amount_sent);
@@ -3149,72 +3236,117 @@ mod tests {
         assert_eq!(result_asset.get(&create_asset_name()).unwrap(), Int::new_i32(1234));
     }
 
+    fn mint_script_and_policy_and_hash(x: u8) -> (NativeScript, PolicyID, Ed25519KeyHash) {
+        let hash = fake_key_hash(x);
+        let mint_script = NativeScript::new_script_pubkey(
+            &ScriptPubkey::new(&hash)
+        );
+        let policy_id = mint_script.hash(ScriptHashNamespace::NativeScript);
+        (mint_script, policy_id, hash)
+    }
+
+    fn mint_script_and_policy(x: u8) -> (NativeScript, PolicyID) {
+        let (m, p, _) = mint_script_and_policy_and_hash(x);
+        (m, p)
+    }
+
     #[test]
     fn set_mint_asset_with_empty_mint() {
         let mut tx_builder = create_default_tx_builder();
 
-        let policy_id = PolicyID::from([0u8; 28]);
-        tx_builder.set_mint_asset(&policy_id, &create_mint_asset());
+        let (mint_script, policy_id) = mint_script_and_policy(0);
+        tx_builder.set_mint_asset(&mint_script, &create_mint_asset());
 
         assert!(tx_builder.mint.is_some());
+        assert!(tx_builder.mint_scripts.is_some());
 
         let mint = tx_builder.mint.unwrap();
+        let mint_scripts = tx_builder.mint_scripts.unwrap();
 
         assert_eq!(mint.len(), 1);
         assert_mint_asset(&mint, &policy_id);
+
+        assert_eq!(mint_scripts.len(), 1);
+        assert_eq!(mint_scripts.get(0), mint_script);
     }
 
     #[test]
     fn set_mint_asset_with_existing_mint() {
         let mut tx_builder = create_default_tx_builder();
 
-        let policy_id1 = PolicyID::from([0u8; 28]);
-        tx_builder.set_mint(&create_mint_with_one_asset(&policy_id1));
+        let (mint_script1, policy_id1) = mint_script_and_policy(0);
+        let (mint_script2, policy_id2) = mint_script_and_policy(1);
 
-        let policy_id2 = PolicyID::from([1u8; 28]);
-        tx_builder.set_mint_asset(&policy_id2, &create_mint_asset());
+        tx_builder.set_mint(
+            &create_mint_with_one_asset(&policy_id1),
+            &NativeScripts::from(vec![mint_script1.clone()]),
+        ).unwrap();
+
+        tx_builder.set_mint_asset(&mint_script2, &create_mint_asset());
 
         assert!(tx_builder.mint.is_some());
+        assert!(tx_builder.mint_scripts.is_some());
 
         let mint = tx_builder.mint.unwrap();
+        let mint_scripts = tx_builder.mint_scripts.unwrap();
 
         assert_eq!(mint.len(), 2);
         assert_mint_asset(&mint, &policy_id1);
         assert_mint_asset(&mint, &policy_id2);
+
+        // Only second script is present in the scripts
+        assert_eq!(mint_scripts.len(), 2);
+        assert_eq!(mint_scripts.get(0), mint_script1);
+        assert_eq!(mint_scripts.get(1), mint_script2);
     }
 
     #[test]
     fn add_mint_asset_with_empty_mint() {
         let mut tx_builder = create_default_tx_builder();
 
-        let policy_id = PolicyID::from([0u8; 28]);
-        tx_builder.add_mint_asset(&policy_id, &create_asset_name(), Int::new_i32(1234));
+        let (mint_script, policy_id) = mint_script_and_policy(0);
+
+        tx_builder.add_mint_asset(&mint_script, &create_asset_name(), Int::new_i32(1234));
 
         assert!(tx_builder.mint.is_some());
+        assert!(tx_builder.mint_scripts.is_some());
 
         let mint = tx_builder.mint.unwrap();
+        let mint_scripts = tx_builder.mint_scripts.unwrap();
 
         assert_eq!(mint.len(), 1);
         assert_mint_asset(&mint, &policy_id);
+
+        assert_eq!(mint_scripts.len(), 1);
+        assert_eq!(mint_scripts.get(0), mint_script);
     }
 
     #[test]
     fn add_mint_asset_with_existing_mint() {
         let mut tx_builder = create_default_tx_builder();
 
-        let policy_id1 = PolicyID::from([0u8; 28]);
-        tx_builder.set_mint(&create_mint_with_one_asset(&policy_id1));
+        let (mint_script1, policy_id1) = mint_script_and_policy(0);
+        let (mint_script2, policy_id2) = mint_script_and_policy(1);
 
-        let policy_id2 = PolicyID::from([1u8; 28]);
-        tx_builder.add_mint_asset(&policy_id2, &create_asset_name(), Int::new_i32(1234));
+        tx_builder.set_mint(
+            &create_mint_with_one_asset(&policy_id1),
+            &NativeScripts::from(vec![mint_script1.clone()]),
+        ).unwrap();
+        tx_builder.add_mint_asset(&mint_script2, &create_asset_name(), Int::new_i32(1234));
 
         assert!(tx_builder.mint.is_some());
+        assert!(tx_builder.mint_scripts.is_some());
 
         let mint = tx_builder.mint.unwrap();
+        let mint_scripts = tx_builder.mint_scripts.unwrap();
 
         assert_eq!(mint.len(), 2);
         assert_mint_asset(&mint, &policy_id1);
         assert_mint_asset(&mint, &policy_id2);
+
+        assert_eq!(mint_scripts.len(), 2);
+        assert_eq!(mint_scripts.get(0), mint_script1);
+        assert_eq!(mint_scripts.get(1), mint_script2);
     }
 
     #[test]
@@ -3294,8 +3426,9 @@ mod tests {
     fn add_mint_asset_and_output() {
         let mut tx_builder = create_default_tx_builder();
 
-        let policy_id0 = PolicyID::from([0u8; 28]);
-        let policy_id1 = PolicyID::from([1u8; 28]);
+        let (mint_script0, policy_id0) = mint_script_and_policy(0);
+        let (mint_script1, policy_id1) = mint_script_and_policy(1);
+
         let name = create_asset_name();
         let amount = Int::new_i32(1234);
 
@@ -3303,10 +3436,10 @@ mod tests {
         let coin = to_bignum(100);
 
         // Add unrelated mint first to check it is NOT added to output later
-        tx_builder.add_mint_asset(&policy_id0, &name, amount.clone());
+        tx_builder.add_mint_asset(&mint_script0, &name, amount.clone());
 
         tx_builder.add_mint_asset_and_output(
-            &policy_id1,
+            &mint_script1,
             &name,
             amount.clone(),
             &address,
@@ -3314,13 +3447,19 @@ mod tests {
         ).unwrap();
 
         assert!(tx_builder.mint.is_some());
+        assert!(tx_builder.mint_scripts.is_some());
 
         let mint = tx_builder.mint.as_ref().unwrap();
+        let mint_scripts = tx_builder.mint_scripts.as_ref().unwrap();
 
         // Mint contains two entries
         assert_eq!(mint.len(), 2);
         assert_mint_asset(mint, &policy_id0);
         assert_mint_asset(mint, &policy_id1);
+
+        assert_eq!(mint_scripts.len(), 2);
+        assert_eq!(mint_scripts.get(0), mint_script0);
+        assert_eq!(mint_scripts.get(1), mint_script1);
 
         // One new output is created
         assert_eq!(tx_builder.outputs.len(), 1);
@@ -3345,31 +3484,39 @@ mod tests {
     fn add_mint_asset_and_min_required_coin() {
         let mut tx_builder = create_reallistic_tx_builder();
 
-        let policy_id0 = PolicyID::from([0u8; 28]);
-        let policy_id1 = PolicyID::from([1u8; 28]);
+        let (mint_script0, policy_id0) = mint_script_and_policy(0);
+        let (mint_script1, policy_id1) = mint_script_and_policy(1);
+
         let name = create_asset_name();
         let amount = Int::new_i32(1234);
 
         let address = byron_address();
 
         // Add unrelated mint first to check it is NOT added to output later
-        tx_builder.add_mint_asset(&policy_id0, &name, amount.clone());
+        tx_builder.add_mint_asset(&mint_script0, &name, amount.clone());
 
         tx_builder.add_mint_asset_and_output_min_required_coin(
-            &policy_id1,
+            &mint_script1,
             &name,
             amount.clone(),
             &address,
         ).unwrap();
 
         assert!(tx_builder.mint.is_some());
+        assert!(tx_builder.mint_scripts.is_some());
 
         let mint = tx_builder.mint.as_ref().unwrap();
+        let mint_scripts = tx_builder.mint_scripts.as_ref().unwrap();
 
         // Mint contains two entries
         assert_eq!(mint.len(), 2);
         assert_mint_asset(mint, &policy_id0);
         assert_mint_asset(mint, &policy_id1);
+
+
+        assert_eq!(mint_scripts.len(), 2);
+        assert_eq!(mint_scripts.get(0), mint_script0);
+        assert_eq!(mint_scripts.get(1), mint_script1);
 
         // One new output is created
         assert_eq!(tx_builder.outputs.len(), 1);
@@ -3390,21 +3537,102 @@ mod tests {
         assert_eq!(asset.get(&name).unwrap(), to_bignum(1234));
     }
 
-
     #[test]
     fn add_mint_includes_witnesses_into_fee_estimation() {
+
         let mut tx_builder = create_reallistic_tx_builder();
 
-        let original_tx_fee = tx_builder.min_fee().unwrap();
-        assert_eq!(original_tx_fee, to_bignum(156217));
+        let hash0 = fake_key_hash(0);
 
-        let policy_id1 = PolicyID::from([0u8; 28]);
-        let policy_id2 = PolicyID::from([1u8; 28]);
-        let policy_id3 = PolicyID::from([2u8; 28]);
+        let (mint_script1, _, hash1) = mint_script_and_policy_and_hash(1);
+        let (mint_script2, _, _) = mint_script_and_policy_and_hash(2);
+        let (mint_script3, _, _) = mint_script_and_policy_and_hash(3);
+
         let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
         let name2 = AssetName::new(vec![1u8, 1, 2, 3]).unwrap();
         let name3 = AssetName::new(vec![2u8, 1, 2, 3]).unwrap();
         let name4 = AssetName::new(vec![3u8, 1, 2, 3]).unwrap();
+        let amount = Int::new_i32(1234);
+
+        // One input from unrelated address
+        tx_builder.add_key_input(
+            &hash0,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(10_000_000)),
+        );
+
+        // One input from same address as mint
+        tx_builder.add_key_input(
+            &hash1,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(10_000_000)),
+        );
+
+        // Original tx fee now assumes two VKey signatures for two inputs
+        let original_tx_fee = tx_builder.min_fee().unwrap();
+        assert_eq!(original_tx_fee, to_bignum(168361));
+
+        // Add minting four assets from three different policies
+        tx_builder.add_mint_asset(&mint_script1, &name1, amount.clone());
+        tx_builder.add_mint_asset(&mint_script2, &name2, amount.clone());
+        tx_builder.add_mint_asset(&mint_script3, &name3, amount.clone());
+        tx_builder.add_mint_asset(&mint_script3, &name4, amount.clone());
+
+        let mint = tx_builder.get_mint().unwrap();
+        let mint_len = mint.to_bytes().len();
+
+        let mint_scripts = tx_builder.get_witness_set();
+        let mint_scripts_len = mint_scripts.to_bytes().len()
+            - TransactionWitnessSet::new().to_bytes().len();
+
+        let fee_coefficient = tx_builder.config.fee_algo.coefficient();
+
+        let raw_mint_fee = fee_coefficient
+            .checked_mul(&to_bignum(mint_len as u64))
+            .unwrap();
+
+        let raw_mint_script_fee = fee_coefficient
+            .checked_mul(&to_bignum(mint_scripts_len as u64))
+            .unwrap();
+
+        assert_eq!(raw_mint_fee, to_bignum(5544));
+        assert_eq!(raw_mint_script_fee, to_bignum(4312));
+
+        let new_tx_fee = tx_builder.min_fee().unwrap();
+
+        let fee_diff_from_adding_mint = new_tx_fee
+            .checked_sub(&original_tx_fee)
+            .unwrap();
+
+        let witness_fee_increase = fee_diff_from_adding_mint
+            .checked_sub(&raw_mint_fee).unwrap()
+            .checked_sub(&raw_mint_script_fee).unwrap();
+
+        assert_eq!(witness_fee_increase, to_bignum(8932));
+
+        let fee_increase_bytes = from_bignum(&witness_fee_increase)
+            .checked_div(from_bignum(&fee_coefficient))
+            .unwrap();
+
+        // Two vkey witnesses 96 bytes each (32 byte pubkey + 64 byte signature)
+        // Plus 11 bytes overhead for CBOR wrappers
+        // This is happening because we have three different minting policies
+        // but the same key-hash from one of them is already also used in inputs
+        // so no suplicate witness signature is require for that one
+        assert_eq!(fee_increase_bytes, 203);
+    }
+
+    #[test]
+    fn fee_estimation_fails_on_missing_mint_scripts() {
+        let mut tx_builder = create_reallistic_tx_builder();
+
+        // No error estimating fee without mint
+        assert!(tx_builder.min_fee().is_ok());
+
+        let (mint_script1, policy_id1) = mint_script_and_policy(0);
+        let (mint_script2, _) = mint_script_and_policy(1);
+
+        let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
         let amount = Int::new_i32(1234);
 
         let mut mint = Mint::new();
@@ -3412,44 +3640,48 @@ mod tests {
             &policy_id1,
             &MintAssets::new_from_entry(&name1, amount.clone()),
         );
-        mint.insert(
-            &policy_id2,
-            &MintAssets::new_from_entry(&name2, amount.clone()),
-        );
-        // Third policy with two asset names
-        let mut mass = MintAssets::new_from_entry(&name3, amount.clone());
-        mass.insert(&name4, amount.clone());
-        mint.insert(&policy_id3, &mass);
 
-        let mint_len = mint.to_bytes().len();
-        let fee_coefficient = tx_builder.config.fee_algo.coefficient();
+        tx_builder.set_mint(
+            &mint,
+            &NativeScripts::from(vec![mint_script1]),
+        ).unwrap();
 
-        let raw_mint_fee = fee_coefficient
-            .checked_mul(&to_bignum(mint_len as u64))
-            .unwrap();
+        let est1 = tx_builder.min_fee();
+        assert!(est1.is_ok());
 
-        assert_eq!(raw_mint_fee, to_bignum(5544));
+        tx_builder.add_mint_asset(&mint_script2, &name1, amount.clone());
 
-        tx_builder.set_mint(&mint);
+        let est2 = tx_builder.min_fee();
+        assert!(est2.is_ok());
 
-        let new_tx_fee = tx_builder.min_fee().unwrap();
+        // Native script assertion has been commented out in `.min_fee`
+        // Until implemented in a more performant manner
+        // TODO: these test parts might be returned back when it's done
 
-        let fee_diff_from_adding_mint =
-            new_tx_fee.checked_sub(&original_tx_fee)
-            .unwrap();
-
-        let witness_fee_increase =
-            fee_diff_from_adding_mint.checked_sub(&raw_mint_fee)
-            .unwrap();
-
-        assert_eq!(witness_fee_increase, to_bignum(4356));
-
-        let fee_increase_bytes = from_bignum(&witness_fee_increase)
-            .checked_div(from_bignum(&fee_coefficient))
-            .unwrap();
-
-        // Three policy IDs of 32 bytes each + 3 byte overhead
-        assert_eq!(fee_increase_bytes, 99);
+        // // Remove one mint script
+        // tx_builder.mint_scripts =
+        //     Some(NativeScripts::from(vec![tx_builder.mint_scripts.unwrap().get(1)]));
+        //
+        // // Now two different policies are minted but only one witness script is present
+        // let est3 = tx_builder.min_fee();
+        // assert!(est3.is_err());
+        // assert!(est3.err().unwrap().to_string().contains(&format!("{:?}", hex::encode(policy_id1.to_bytes()))));
+        //
+        // // Remove all mint scripts
+        // tx_builder.mint_scripts = Some(NativeScripts::new());
+        //
+        // // Mint exists but no witness scripts at all present
+        // let est4 = tx_builder.min_fee();
+        // assert!(est4.is_err());
+        // assert!(est4.err().unwrap().to_string().contains("witness scripts are not provided"));
+        //
+        // // Remove all mint scripts
+        // tx_builder.mint_scripts = None;
+        //
+        // // Mint exists but no witness scripts at all present
+        // let est5 = tx_builder.min_fee();
+        // assert!(est5.is_err());
+        // assert!(est5.err().unwrap().to_string().contains("witness scripts are not provided"));
     }
 
     #[test]
@@ -3463,8 +3695,9 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let policy_id1 = &PolicyID::from([0u8; 28]);
-        let policy_id2 = &PolicyID::from([1u8; 28]);
+        let (mint_script1, policy_id1) = mint_script_and_policy(0);
+        let (mint_script2, policy_id2) = mint_script_and_policy(1);
+
         let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
 
         let ma_input1 = 100;
@@ -3475,12 +3708,12 @@ mod tests {
             .iter()
             .map(|input| {
                 let mut multiasset = MultiAsset::new();
-                multiasset.insert(policy_id1, &{
+                multiasset.insert(&policy_id1, &{
                     let mut assets = Assets::new();
                     assets.insert(&name, &to_bignum(*input));
                     assets
                 });
-                multiasset.insert(policy_id2, &{
+                multiasset.insert(&policy_id2, &{
                     let mut assets = Assets::new();
                     assets.insert(&name, &to_bignum(*input));
                     assets
@@ -3507,18 +3740,18 @@ mod tests {
 
         assert_eq!(total_input_before_mint.coin, to_bignum(300));
         let ma1 = total_input_before_mint.multiasset.unwrap();
-        assert_eq!(ma1.get(policy_id1).unwrap().get(&name).unwrap(), to_bignum(360));
-        assert_eq!(ma1.get(policy_id2).unwrap().get(&name).unwrap(), to_bignum(360));
+        assert_eq!(ma1.get(&policy_id1).unwrap().get(&name).unwrap(), to_bignum(360));
+        assert_eq!(ma1.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(360));
 
-        tx_builder.add_mint_asset(policy_id1, &name, Int::new_i32(40));
-        tx_builder.add_mint_asset(policy_id2, &name, Int::new_i32(-40));
+        tx_builder.add_mint_asset(&mint_script1, &name, Int::new_i32(40));
+        tx_builder.add_mint_asset(&mint_script2, &name, Int::new_i32(-40));
 
         let total_input_after_mint = tx_builder.get_total_input().unwrap();
 
         assert_eq!(total_input_after_mint.coin, to_bignum(300));
         let ma2 = total_input_after_mint.multiasset.unwrap();
-        assert_eq!(ma2.get(policy_id1).unwrap().get(&name).unwrap(), to_bignum(400));
-        assert_eq!(ma2.get(policy_id2).unwrap().get(&name).unwrap(), to_bignum(320));
+        assert_eq!(ma2.get(&policy_id1).unwrap().get(&name).unwrap(), to_bignum(400));
+        assert_eq!(ma2.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(320));
     }
 
 }
