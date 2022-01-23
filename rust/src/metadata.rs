@@ -610,21 +610,26 @@ impl cbor_event::se::Serialize for MetadataMap {
 impl Deserialize for MetadataMap {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         let mut table = LinkedHashMap::new();
+        let mut entries: Vec<(TransactionMetadatum, TransactionMetadatum)> = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
-            while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
+            while match len { cbor_event::Len::Len(n) => entries.len() < n as usize, cbor_event::Len::Indefinite => true, } {
                 if raw.cbor_type()? == CBORType::Special {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
                 }
                 let key = TransactionMetadatum::deserialize(raw)?;
                 let value = TransactionMetadatum::deserialize(raw)?;
-                if table.insert(key.clone(), value).is_some() {
-                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
-                }
+                entries.push((key.clone(), value));
             }
             Ok(())
         })().map_err(|e| e.annotate("MetadataMap"))?;
+        entries.iter().for_each(|(k, v)| {
+            if table.insert(k.clone(), v.clone()).is_some() {
+                // Turns out this is totally possible on the actual blockchain
+                // return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from("some complicated/unsupported type"))).into());
+            }
+        });
         Ok(Self(table))
     }
 }
@@ -1065,5 +1070,11 @@ mod tests {
         aux_data.set_plutus_scripts(&plutus_scripts);
         let ad3_deser = AuxiliaryData::from_bytes(aux_data.to_bytes()).unwrap();
         assert_eq!(aux_data.to_bytes(), ad3_deser.to_bytes());
+    }
+
+    #[test]
+    fn metadatum_map_duplicate_keys() {
+        let bytes = hex::decode("a105a4781b232323232323232323232323232323232323232323232323232323827840232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323237840232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323236e232323232323232323232323232382a36f2323232323232323232323232323236a323030302d30312d303166232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323712323232323232323232323232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323a36f2323232323232323232323232323236a323030302d30312d303166232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323712323232323232323232323232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323752323232323232323232323232323232323232323236a323030302d30312d3031752323232323232323232323232323232323232323236a323030302d30312d3031").unwrap();
+        TransactionMetadatum::from_bytes(bytes).unwrap();
     }
 }

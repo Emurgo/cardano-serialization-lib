@@ -166,6 +166,13 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -188,13 +195,6 @@ declare export function decrypt_with_password(
   password: string,
   data: string
 ): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -268,14 +268,6 @@ declare export var NetworkIdKind: {|
 /**
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
 |};
@@ -328,6 +320,14 @@ declare export var MetadataJsonSchema: {|
   +NoConversions: 0, // 0
   +BasicConversions: 1, // 1
   +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
 |};
 
 /**
@@ -3781,6 +3781,26 @@ declare export class ProtocolParamUpdate {
   max_value_size(): number | void;
 
   /**
+   * @param {number} collateral_percentage
+   */
+  set_collateral_percentage(collateral_percentage: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  collateral_percentage(): number | void;
+
+  /**
+   * @param {number} max_collateral_inputs
+   */
+  set_max_collateral_inputs(max_collateral_inputs: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  max_collateral_inputs(): number | void;
+
+  /**
    * @returns {ProtocolParamUpdate}
    */
   static new(): ProtocolParamUpdate;
@@ -5177,31 +5197,45 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
-   * Set explicit Mint object to this builder
-   * it will replace any previously existing mint
+   * Set explicit Mint object and the required witnesses to this builder
+   * it will replace any previously existing mint and mint scripts
+   * NOTE! Error will be returned in case a mint policy does not have a matching script
    * @param {Mint} mint
+   * @param {NativeScripts} mint_scripts
    */
-  set_mint(mint: Mint): void;
+  set_mint(mint: Mint, mint_scripts: NativeScripts): void;
+
+  /**
+   * Returns a copy of the current mint state in the builder
+   * @returns {Mint | void}
+   */
+  get_mint(): Mint | void;
+
+  /**
+   * Returns a copy of the current mint witness scripts in the builder
+   * @returns {NativeScripts | void}
+   */
+  get_mint_scripts(): NativeScripts | void;
 
   /**
    * Add a mint entry to this builder using a PolicyID and MintAssets object
    * It will be securely added to existing or new Mint in this builder
    * It will replace any existing mint assets with the same PolicyID
-   * @param {ScriptHash} policy_id
+   * @param {NativeScript} policy_script
    * @param {MintAssets} mint_assets
    */
-  set_mint_asset(policy_id: ScriptHash, mint_assets: MintAssets): void;
+  set_mint_asset(policy_script: NativeScript, mint_assets: MintAssets): void;
 
   /**
    * Add a mint entry to this builder using a PolicyID, AssetName, and Int object for amount
    * It will be securely added to existing or new Mint in this builder
    * It will replace any previous existing amount same PolicyID and AssetName
-   * @param {ScriptHash} policy_id
+   * @param {NativeScript} policy_script
    * @param {AssetName} asset_name
    * @param {Int} amount
    */
   add_mint_asset(
-    policy_id: ScriptHash,
+    policy_script: NativeScript,
     asset_name: AssetName,
     amount: Int
   ): void;
@@ -5211,14 +5245,14 @@ declare export class TransactionBuilder {
    * Using a PolicyID, AssetName, Int for amount, Address, and Coin (BigNum) objects
    * The asset will be securely added to existing or new Mint in this builder
    * A new output will be added with the specified Address, the Coin value, and the minted asset
-   * @param {ScriptHash} policy_id
+   * @param {NativeScript} policy_script
    * @param {AssetName} asset_name
    * @param {Int} amount
    * @param {Address} address
    * @param {BigNum} output_coin
    */
   add_mint_asset_and_output(
-    policy_id: ScriptHash,
+    policy_script: NativeScript,
     asset_name: AssetName,
     amount: Int,
     address: Address,
@@ -5231,13 +5265,13 @@ declare export class TransactionBuilder {
    * The asset will be securely added to existing or new Mint in this builder
    * A new output will be added with the specified Address and the minted asset
    * The output will be set to contain the minimum required amount of Coin
-   * @param {ScriptHash} policy_id
+   * @param {NativeScript} policy_script
    * @param {AssetName} asset_name
    * @param {Int} amount
    * @param {Address} address
    */
   add_mint_asset_and_output_min_required_coin(
-    policy_id: ScriptHash,
+    policy_script: NativeScript,
     asset_name: AssetName,
     amount: Int,
     address: Address
@@ -5300,14 +5334,14 @@ declare export class TransactionBuilder {
   /**
    * Returns object the body of the new transaction
    * Auxiliary data itself is not included
-   * You can use `get_auxiliary_date` or `build_tx`
+   * You can use `get_auxiliary_data` or `build_tx`
    * @returns {TransactionBody}
    */
   build(): TransactionBody;
 
   /**
    * Returns full Transaction object with the body and the auxiliary data
-   * NOTE: witness_set is set to just empty set
+   * NOTE: witness_set will contain all mint_scripts if any been added or set
    * NOTE: is_valid set to true
    * @returns {Transaction}
    */
