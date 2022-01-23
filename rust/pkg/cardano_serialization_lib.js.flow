@@ -130,6 +130,13 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -336,6 +343,16 @@ declare export var StakeCredKind: {|
 declare export var CoinSelectionStrategyCIP2: {|
   +LargestFirst: 0, // 0
   +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
 |};
 
 /**
@@ -2620,30 +2637,58 @@ declare export class MultiAsset {
   static new(): MultiAsset;
 
   /**
+   * the number of unique policy IDs in the multiasset
    * @returns {number}
    */
   len(): number;
 
   /**
-   * @param {ScriptHash} key
-   * @param {Assets} value
+   * set (and replace if it exists) all assets with policy {policy_id} to a copy of {assets}
+   * @param {ScriptHash} policy_id
+   * @param {Assets} assets
    * @returns {Assets | void}
    */
-  insert(key: ScriptHash, value: Assets): Assets | void;
+  insert(policy_id: ScriptHash, assets: Assets): Assets | void;
 
   /**
-   * @param {ScriptHash} key
+   * all assets under {policy_id}, if any exist, or else None (undefined in JS)
+   * @param {ScriptHash} policy_id
    * @returns {Assets | void}
    */
-  get(key: ScriptHash): Assets | void;
+  get(policy_id: ScriptHash): Assets | void;
 
   /**
+   * sets the asset {asset_name} to {value} under policy {policy_id}
+   * returns the previous amount if it was set, or else None (undefined in JS)
+   * @param {ScriptHash} policy_id
+   * @param {AssetName} asset_name
+   * @param {BigNum} value
+   * @returns {BigNum | void}
+   */
+  set_asset(
+    policy_id: ScriptHash,
+    asset_name: AssetName,
+    value: BigNum
+  ): BigNum | void;
+
+  /**
+   * returns the amount of asset {asset_name} under policy {policy_id}
+   * If such an asset does not exist, 0 is returned.
+   * @param {ScriptHash} policy_id
+   * @param {AssetName} asset_name
+   * @returns {BigNum}
+   */
+  get_asset(policy_id: ScriptHash, asset_name: AssetName): BigNum;
+
+  /**
+   * returns all policy IDs used by assets in this multiasset
    * @returns {ScriptHashes}
    */
   keys(): ScriptHashes;
 
   /**
    * removes an asset from the list if the result is 0 or less
+   * does not modify this object, instead the result is returned
    * @param {MultiAsset} rhs_ma
    * @returns {MultiAsset}
    */
@@ -3116,12 +3161,17 @@ declare export class PlutusScript {
   static from_bytes(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
    * @param {Uint8Array} bytes
    * @returns {PlutusScript}
    */
   static new(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * The raw bytes of this compiled Plutus script.
+   * * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
    * @returns {Uint8Array}
    */
   bytes(): Uint8Array;
