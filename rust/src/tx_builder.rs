@@ -1045,7 +1045,7 @@ impl TransactionBuilder {
                 }
                 let change_estimator = input_total.checked_sub(&output_total)?;
                 if has_assets(change_estimator.multiasset()) {
-                    fn will_adding_asset_make_output_overflow(output: &TransactionOutput, current_assets: &Assets, asset_to_add: (PolicyID, AssetName, BigNum), max_value_size: u32) -> bool {
+                    fn will_adding_asset_make_output_overflow(output: &TransactionOutput, current_assets: &Assets, asset_to_add: (PolicyID, AssetName, BigNum), max_value_size: u32, coins_per_utxo_word: &Coin) -> bool {
                         let (policy, asset_name, value) = asset_to_add;
                         let mut current_assets_clone = current_assets.clone();
                         current_assets_clone.insert(&asset_name, &value);
@@ -1056,10 +1056,14 @@ impl TransactionBuilder {
                         ma.insert(&policy, &current_assets_clone);
                         val.set_multiasset(&ma);
                         amount_clone = amount_clone.checked_add(&val).unwrap();
+                        
+                        // calculate minADA for more precise max value size
+                        let min_ada = min_ada_required(&val, false, coins_per_utxo_word).unwrap();
+                        amount_clone.set_coin(&min_ada);
 
                         amount_clone.to_bytes().len() > max_value_size as usize
                     }
-                    fn pack_nfts_for_change(max_value_size: u32, change_address: &Address, change_estimator: &Value) -> Result<Vec<MultiAsset>, JsError> {
+                    fn pack_nfts_for_change(max_value_size: u32, coins_per_utxo_word: &Coin, change_address: &Address, change_estimator: &Value) -> Result<Vec<MultiAsset>, JsError> {
                         // we insert the entire available ADA temporarily here since that could potentially impact the size
                         // as it could be 1, 2 3 or 4 bytes for Coin.
                         let mut change_assets: Vec<MultiAsset> = Vec::new();
@@ -1101,7 +1105,7 @@ impl TransactionBuilder {
                                 let asset_name = asset_names.get(n);
                                 let value = assets.get(&asset_name).unwrap();
 
-                                if will_adding_asset_make_output_overflow(&output, &rebuilt_assets, (policy.clone(), asset_name.clone(), value), max_value_size) {
+                                if will_adding_asset_make_output_overflow(&output, &rebuilt_assets, (policy.clone(), asset_name.clone(), value), max_value_size, coins_per_utxo_word) {
                                     // if we got here, this means we will run into a overflow error,
                                     // so we want to split into multiple outputs, for that we...
 
@@ -1131,7 +1135,12 @@ impl TransactionBuilder {
                             val.set_multiasset(&next_nft);
                             output.amount = output.amount.checked_add(&val)?;
 
-                            if output.amount.to_bytes().len() > max_value_size as usize {
+                            // calculate minADA for more precise max value size
+                            let mut amount_clone = output.amount.clone();
+                            let min_ada = min_ada_required(&val, false, coins_per_utxo_word).unwrap();
+                            amount_clone.set_coin(&min_ada);
+
+                            if amount_clone.to_bytes().len() > max_value_size as usize {
                                 output.amount = old_amount;
                                 break;
                             }
@@ -1145,7 +1154,7 @@ impl TransactionBuilder {
                     // which surpass the max UTXO size limit
                     let minimum_utxo_val = min_pure_ada(&self.config.coins_per_utxo_word)?;
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
-                        let nft_changes = pack_nfts_for_change(self.config.max_value_size, address, &change_left)?;
+                        let nft_changes = pack_nfts_for_change(self.config.max_value_size, &self.config.coins_per_utxo_word, address, &change_left)?;
                         if nft_changes.len() == 0 {
                             // this likely should never happen
                             return Err(JsError::from_str("NFTs too large for change output"));
