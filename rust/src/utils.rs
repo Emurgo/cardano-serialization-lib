@@ -1010,9 +1010,9 @@ fn bundle_size(
     assets: &Value,
     constants: &OutputSizeConstants,
 ) -> usize {
-    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-mary.rst
+    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
     match &assets.multiasset {
-        None => 1, // Haskell codebase considers these size 1
+        None => 2, // coinSize according the minimum value function
         Some (assets) => {
             let num_assets = assets.0
                 .values()
@@ -1055,31 +1055,19 @@ pub fn min_ada_required(
     // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
     let data_hash_size = if has_data_hash { 10 } else { 0 }; // in words
     let utxo_entry_size_without_val = 27; // in words
-    if assets.multiasset.is_some() {
-        let size = bundle_size(
-            &assets,
-            &OutputSizeConstants {
-                k0: 6,
-                k1: 12,
-                k2: 1,
-            },
-        );
-        let words = to_bignum(utxo_entry_size_without_val)
-            .checked_add(&to_bignum(size as u64))?
-            .checked_add(&to_bignum(data_hash_size))?;
-        coins_per_utxo_word.checked_mul(&words)
-    } else {
-        // apparently this is accepted by mainnet despite being below the stated
-        // 1_000_000 ada only min utxo value, and in the mary era min utxo calculation
-        // it mentions we need to increase coin_size to 2 turning this into 29 instead of 27
-        // however we should investigate this further
-        let utxo_entry_size_without_val = 27; // in words
-        let coin_size = 2;
-        let ada_only_min_utxo_value = utxo_entry_size_without_val + coin_size;
-        let words = to_bignum(ada_only_min_utxo_value)
-            .checked_add(&to_bignum(data_hash_size))?;
-        coins_per_utxo_word.checked_mul(&words)
-    }
+
+    let size = bundle_size(
+        &assets,
+        &OutputSizeConstants {
+            k0: 6,
+            k1: 12,
+            k2: 1,
+        },
+    );
+    let words = to_bignum(utxo_entry_size_without_val)
+        .checked_add(&to_bignum(size as u64))?
+        .checked_add(&to_bignum(data_hash_size))?;
+    coins_per_utxo_word.checked_mul(&words)
 }
 
 pub fn min_pure_ada(coins_per_utxo_word: &BigNum) -> Result<BigNum, JsError> {
