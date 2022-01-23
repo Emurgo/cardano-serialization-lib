@@ -2642,6 +2642,14 @@ impl cbor_event::se::Serialize for ProtocolParamUpdate {
             serializer.write_unsigned_integer(22)?;
             field.serialize(serializer)?;
         }
+        if let Some(field) = &self.collateral_percentage {
+            serializer.write_unsigned_integer(23)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.max_collateral_inputs {
+            serializer.write_unsigned_integer(24)?;
+            field.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
@@ -2673,6 +2681,8 @@ impl Deserialize for ProtocolParamUpdate {
             let mut max_tx_ex_units = None;
             let mut max_block_ex_units = None;
             let mut max_value_size = None;
+            let mut collateral_percentage = None;
+            let mut max_collateral_inputs = None;
             let mut read = 0;
             while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
                 match raw.cbor_type()? {
@@ -2875,6 +2885,24 @@ impl Deserialize for ProtocolParamUpdate {
                                 Ok(u32::deserialize(raw)?)
                             })().map_err(|e| e.annotate("max_value_size"))?);
                         },
+                        23 =>  {
+                            if collateral_percentage.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(23)).into());
+                            }
+                            collateral_percentage = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(u32::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("collateral_percentage"))?);
+                        },
+                        24 =>  {
+                            if max_collateral_inputs.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(24)).into());
+                            }
+                            max_collateral_inputs = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(u32::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("max_collateral_inputs"))?);
+                        },
                         unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                     },
                     CBORType::Text => match raw.text()?.as_str() {
@@ -2915,6 +2943,8 @@ impl Deserialize for ProtocolParamUpdate {
                 max_tx_ex_units,
                 max_block_ex_units,
                 max_value_size,
+                collateral_percentage,
+                max_collateral_inputs,
             })
         })().map_err(|e| e.annotate("ProtocolParamUpdate"))
     }

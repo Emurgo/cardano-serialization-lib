@@ -34,6 +34,7 @@ use cbor_event::{
     se::{Serialize, Serializer},
 };
 
+pub mod traits;
 pub mod address;
 pub mod chain_core;
 pub mod chain_crypto;
@@ -59,6 +60,8 @@ use plutus::*;
 use metadata::*;
 use utils::*;
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
+use crate::traits::NoneOrEmpty;
 
 type DeltaCoin = Int;
 
@@ -222,6 +225,7 @@ impl Certificates {
 }
 
 pub type RequiredSigners = Ed25519KeyHashes;
+pub type RequiredSignersSet = BTreeSet<Ed25519KeyHash>;
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -306,8 +310,18 @@ impl TransactionBody {
         self.mint = Some(mint.clone())
     }
 
-    pub fn multiassets(&self) -> Option<Mint> {
+    pub fn mint(&self) -> Option<Mint> {
         self.mint.clone()
+    }
+
+    /// This function returns the mint value of the transaction
+    /// Use `.mint()` instead.
+    #[deprecated(
+        since = "10.0.0",
+        note = "Weird naming. Use `.mint()`"
+    )]
+    pub fn multiassets(&self) -> Option<Mint> {
+        self.mint()
     }
 
     pub fn set_script_data_hash(&mut self, script_data_hash: &ScriptDataHash) {
@@ -1735,6 +1749,21 @@ impl NativeScripts {
     }
 }
 
+impl From<Vec<NativeScript>> for NativeScripts {
+    fn from(scripts: Vec<NativeScript>) -> Self {
+        scripts.iter().fold(NativeScripts::new(), |mut scripts, s| {
+            scripts.add(s);
+            scripts
+        })
+    }
+}
+
+impl NoneOrEmpty for NativeScripts {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Update {
@@ -1932,6 +1961,8 @@ pub struct ProtocolParamUpdate {
     max_tx_ex_units: Option<ExUnits>,
     max_block_ex_units: Option<ExUnits>,
     max_value_size: Option<u32>,
+    collateral_percentage: Option<u32>,
+    max_collateral_inputs: Option<u32>,
 }
 
 to_from_bytes!(ProtocolParamUpdate);
@@ -2114,6 +2145,22 @@ impl ProtocolParamUpdate {
         self.max_value_size.clone()
     }
 
+    pub fn set_collateral_percentage(&mut self, collateral_percentage: u32) {
+        self.collateral_percentage = Some(collateral_percentage)
+    }
+
+    pub fn collateral_percentage(&self) -> Option<u32> {
+        self.collateral_percentage.clone()
+    }
+
+    pub fn set_max_collateral_inputs(&mut self, max_collateral_inputs: u32) {
+        self.max_collateral_inputs = Some(max_collateral_inputs)
+    }
+
+    pub fn max_collateral_inputs(&self) -> Option<u32> {
+        self.max_collateral_inputs.clone()
+    }
+
     pub fn new() -> Self {
         Self {
             minfee_a: None,
@@ -2138,6 +2185,8 @@ impl ProtocolParamUpdate {
             max_tx_ex_units: None,
             max_block_ex_units: None,
             max_value_size: None,
+            collateral_percentage: None,
+            max_collateral_inputs: None,
         }
     }
 }
@@ -2489,7 +2538,7 @@ pub type PolicyID = ScriptHash;
 pub type PolicyIDs = ScriptHashes;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Assets(pub (crate) std::collections::BTreeMap<AssetName, BigNum>);
 
 to_from_bytes!(Assets);
@@ -2529,23 +2578,40 @@ impl MultiAsset {
         Self(std::collections::BTreeMap::new())
     }
 
+    /// the number of unique policy IDs in the multiasset
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &PolicyID, value: &Assets) -> Option<Assets> {
-        self.0.insert(key.clone(), value.clone())
+    /// set (and replace if it exists) all assets with policy {policy_id} to a copy of {assets}
+    pub fn insert(&mut self, policy_id: &PolicyID, assets: &Assets) -> Option<Assets> {
+        self.0.insert(policy_id.clone(), assets.clone())
     }
 
-    pub fn get(&self, key: &PolicyID) -> Option<Assets> {
-        self.0.get(key).map(|v| v.clone())
+    /// all assets under {policy_id}, if any exist, or else None (undefined in JS)
+    pub fn get(&self, policy_id: &PolicyID) -> Option<Assets> {
+        self.0.get(policy_id).map(|v| v.clone())
     }
 
+    /// sets the asset {asset_name} to {value} under policy {policy_id}
+    /// returns the previous amount if it was set, or else None (undefined in JS)
+    pub fn set_asset(&mut self, policy_id: &PolicyID, asset_name: &AssetName, value: BigNum) -> Option<BigNum> {
+        self.0.entry(policy_id.clone()).or_default().insert(asset_name, &value)
+    }
+
+    /// returns the amount of asset {asset_name} under policy {policy_id}
+    /// If such an asset does not exist, 0 is returned.
+    pub fn get_asset(&self, policy_id: &PolicyID, asset_name: &AssetName) -> BigNum {
+        (|| self.0.get(policy_id)?.get(asset_name))().unwrap_or(BigNum::zero())
+    }
+
+    /// returns all policy IDs used by assets in this multiasset
     pub fn keys(&self) -> PolicyIDs {
         ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<PolicyID>>())
     }
 
     /// removes an asset from the list if the result is 0 or less
+    /// does not modify this object, instead the result is returned
     pub fn sub(&self, rhs_ma: &MultiAsset) -> MultiAsset {
         let mut lhs_ma = self.clone();
         for (policy, assets) in &rhs_ma.0 {
@@ -2753,6 +2819,39 @@ impl NetworkId {
     }
 }
 
+impl From<&NativeScript> for RequiredSignersSet {
+    fn from(script: &NativeScript) -> Self {
+        match &script.0 {
+            NativeScriptEnum::ScriptPubkey(spk) => {
+                let mut set = BTreeSet::new();
+                set.insert(spk.addr_keyhash());
+                set
+            },
+            NativeScriptEnum::ScriptAll(all) => {
+                RequiredSignersSet::from(&all.native_scripts)
+            },
+            NativeScriptEnum::ScriptAny(any) => {
+                RequiredSignersSet::from(&any.native_scripts)
+            },
+            NativeScriptEnum::ScriptNOfK(ofk) => {
+                RequiredSignersSet::from(&ofk.native_scripts)
+            },
+            _ => BTreeSet::new(),
+        }
+    }
+}
+
+impl From<&NativeScripts> for RequiredSignersSet {
+    fn from(scripts: &NativeScripts) -> Self {
+        scripts.0.iter().fold(BTreeSet::new(), |mut set, s| {
+            RequiredSignersSet::from(s).iter().for_each(|pk| {
+                set.insert(pk.clone());
+            });
+            set
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2933,5 +3032,78 @@ mod tests {
 
         assert_eq!(p_ass.get(&name1).unwrap(), amount1);
         assert_eq!(n_ass.get(&name1).unwrap(), amount1);
+    }
+
+    fn keyhash(x: u8) -> Ed25519KeyHash {
+        Ed25519KeyHash::from_bytes(vec![x, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244, 98, 246, 13, 33, 212, 128, 168, 136, 40]).unwrap()
+    }
+
+    fn pkscript(pk: &Ed25519KeyHash) -> NativeScript {
+        NativeScript::new_script_pubkey(&ScriptPubkey::new(pk))
+    }
+
+    fn scripts_vec(scripts: Vec<&NativeScript>) -> NativeScripts {
+        NativeScripts(scripts.iter().map(|s| { (*s).clone() }).collect())
+    }
+
+    #[test]
+    fn native_scripts_get_pubkeys() {
+        let keyhash1 = keyhash(1);
+        let keyhash2 = keyhash(2);
+        let keyhash3 = keyhash(3);
+
+        let pks1 = RequiredSignersSet::from(&pkscript(&keyhash1));
+        assert_eq!(pks1.len(), 1);
+        assert!(pks1.contains(&keyhash1));
+
+        let pks2 = RequiredSignersSet::from(
+            &NativeScript::new_timelock_start(
+                &TimelockStart::new(123),
+            ),
+        );
+        assert_eq!(pks2.len(), 0);
+
+        let pks3 = RequiredSignersSet::from(
+            &NativeScript::new_script_all(
+                &ScriptAll::new(&scripts_vec(vec![
+                    &pkscript(&keyhash1),
+                    &pkscript(&keyhash2),
+                ]))
+            ),
+        );
+        assert_eq!(pks3.len(), 2);
+        assert!(pks3.contains(&keyhash1));
+        assert!(pks3.contains(&keyhash2));
+
+        let pks4 = RequiredSignersSet::from(
+            &NativeScript::new_script_any(
+                &ScriptAny::new(&scripts_vec(vec![
+                    &NativeScript::new_script_n_of_k(&ScriptNOfK::new(
+                        1,
+                        &scripts_vec(vec![
+                            &NativeScript::new_timelock_start(&TimelockStart::new(132)),
+                            &pkscript(&keyhash3),
+                        ]),
+                    )),
+                    &NativeScript::new_script_all(&ScriptAll::new(
+                        &scripts_vec(vec![
+                            &NativeScript::new_timelock_expiry(&TimelockExpiry::new(132)),
+                            &pkscript(&keyhash1),
+                        ]),
+                    )),
+                    &NativeScript::new_script_any(&ScriptAny::new(
+                        &scripts_vec(vec![
+                            &pkscript(&keyhash1),
+                            &pkscript(&keyhash2),
+                            &pkscript(&keyhash3),
+                        ]),
+                    )),
+                ]))
+            ),
+        );
+        assert_eq!(pks4.len(), 3);
+        assert!(pks4.contains(&keyhash1));
+        assert!(pks4.contains(&keyhash2));
+        assert!(pks4.contains(&keyhash3));
     }
 }
