@@ -2537,7 +2537,7 @@ pub type PolicyID = ScriptHash;
 pub type PolicyIDs = ScriptHashes;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Assets(pub (crate) std::collections::BTreeMap<AssetName, BigNum>);
 
 to_from_bytes!(Assets);
@@ -2577,23 +2577,40 @@ impl MultiAsset {
         Self(std::collections::BTreeMap::new())
     }
 
+    /// the number of unique policy IDs in the multiasset
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &PolicyID, value: &Assets) -> Option<Assets> {
-        self.0.insert(key.clone(), value.clone())
+    /// set (and replace if it exists) all assets with policy {policy_id} to a copy of {assets}
+    pub fn insert(&mut self, policy_id: &PolicyID, assets: &Assets) -> Option<Assets> {
+        self.0.insert(policy_id.clone(), assets.clone())
     }
 
-    pub fn get(&self, key: &PolicyID) -> Option<Assets> {
-        self.0.get(key).map(|v| v.clone())
+    /// all assets under {policy_id}, if any exist, or else None (undefined in JS)
+    pub fn get(&self, policy_id: &PolicyID) -> Option<Assets> {
+        self.0.get(policy_id).map(|v| v.clone())
     }
 
+    /// sets the asset {asset_name} to {value} under policy {policy_id}
+    /// returns the previous amount if it was set, or else None (undefined in JS)
+    pub fn set_asset(&mut self, policy_id: &PolicyID, asset_name: &AssetName, value: BigNum) -> Option<BigNum> {
+        self.0.entry(policy_id.clone()).or_default().insert(asset_name, &value)
+    }
+
+    /// returns the amount of asset {asset_name} under policy {policy_id}
+    /// If such an asset does not exist, 0 is returned.
+    pub fn get_asset(&self, policy_id: &PolicyID, asset_name: &AssetName) -> BigNum {
+        (|| self.0.get(policy_id)?.get(asset_name))().unwrap_or(BigNum::zero())
+    }
+
+    /// returns all policy IDs used by assets in this multiasset
     pub fn keys(&self) -> PolicyIDs {
         ScriptHashes(self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<PolicyID>>())
     }
 
     /// removes an asset from the list if the result is 0 or less
+    /// does not modify this object, instead the result is returned
     pub fn sub(&self, rhs_ma: &MultiAsset) -> MultiAsset {
         let mut lhs_ma = self.clone();
         for (policy, assets) in &rhs_ma.0 {

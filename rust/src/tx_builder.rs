@@ -195,8 +195,14 @@ struct TxBuilderInput {
 
 #[wasm_bindgen]
 pub enum CoinSelectionStrategyCIP2 {
+    /// Performs CIP2's Largest First ada-only selection. Will error if outputs contain non-ADA assets.
     LargestFirst,
+    /// Performs CIP2's Random Improve ada-only selection. Will error if outputs contain non-ADA assets.
     RandomImprove,
+    /// Same as LargestFirst, but before adding ADA, will insert by largest-first for each asset type.
+    LargestFirstMultiAsset,
+    /// Same as RandomImprove, but before adding ADA, will insert by random-improve for each asset type.
+    RandomImproveMultiAsset,
 }
 
 #[wasm_bindgen]
@@ -320,7 +326,7 @@ impl TransactionBuilder {
     /// This function, diverging from CIP2, takes into account fees and will attempt to add additional
     /// inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
     pub fn add_inputs_from(&mut self, inputs: &TransactionUnspentOutputs, strategy: CoinSelectionStrategyCIP2) -> Result<(), JsError> {
-        let mut available_inputs = inputs.0.clone();
+        let available_inputs = &inputs.0.clone();
         let mut input_total = self.get_total_input()?;
         let mut output_total = self
             .get_explicit_output()?
@@ -328,105 +334,239 @@ impl TransactionBuilder {
             .checked_add(&Value::new(&self.min_fee()?))?;
         match strategy {
             CoinSelectionStrategyCIP2::LargestFirst => {
-                available_inputs.sort_by_key(|input| input.output.amount.coin);
-                // iterate in decreasing order of ADA-only value
-                for input in available_inputs.iter().rev() {
-                    if input_total >= output_total {
-                        break;
+                if self.outputs.0.iter().any(|output| output.amount.multiasset.is_some()) {
+                    return Err(JsError::from_str("Multiasset values not supported by LargestFirst. Please use LargestFirstMultiAsset"));
+                }
+                self.cip2_largest_first_by(
+                    available_inputs,
+                    &mut (0..available_inputs.len()).collect(),
+                    &mut input_total,
+                    &mut output_total,
+                    |value| Some(value.coin))?;
+            },
+            CoinSelectionStrategyCIP2::RandomImprove => {
+                if self.outputs.0.iter().any(|output| output.amount.multiasset.is_some()) {
+                    return Err(JsError::from_str("Multiasset values not supported by RandomImprove. Please use RandomImproveMultiAsset"));
+                }
+                use rand::Rng;
+                let mut rng = rand::thread_rng();
+                let mut available_indices = (0..available_inputs.len()).collect::<BTreeSet<usize>>();
+                self.cip2_random_improve_by(
+                    available_inputs,
+                    &mut available_indices,
+                    &mut input_total,
+                    &mut output_total,
+                    |value| Some(value.coin),
+                    &mut rng)?;
+                // Phase 3: add extra inputs needed for fees (not covered by CIP-2)
+                // We do this at the end because this new inputs won't be associated with
+                // a specific output, so the improvement algorithm we do above does not apply here.
+                while input_total.coin < output_total.coin {
+                    if available_indices.is_empty() {
+                        return Err(JsError::from_str("UTxO Balance Insufficient[x]"));
                     }
-                    // differing from CIP2, we include the needed fees in the targets instead of just output values
+                    let i = *available_indices.iter().nth(rng.gen_range(0..available_indices.len())).unwrap();
+                    available_indices.remove(&i);
+                    let input = &available_inputs[i];
                     let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
                     self.add_input(&input.output.address, &input.input, &input.output.amount);
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
-                if input_total < output_total {
-                    return Err(JsError::from_str("UTxO Balance Insufficient"));
-                }
             },
-            CoinSelectionStrategyCIP2::RandomImprove => {
-                fn add_random_input(
-                    s: &mut TransactionBuilder,
-                    rng: &mut rand::rngs::ThreadRng,
-                    available_inputs: &mut Vec<TransactionUnspentOutput>,
-                    input_total: &Value,
-                    output_total: &Value,
-                    added: &Value,
-                    needed: &Value
-                ) -> Result<(Value, Value, Value, Value, TransactionUnspentOutput), JsError> {
-                    let random_index = rng.gen_range(0..available_inputs.len());
-                    let input = available_inputs.swap_remove(random_index);
-                    // differing from CIP2, we include the needed fees in the targets instead of just output values
-                    let input_fee = s.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
-                    s.add_input(&input.output.address, &input.input, &input.output.amount);
-                    let new_input_total = input_total.checked_add(&input.output.amount)?;
-                    let new_output_total = output_total.checked_add(&Value::new(&input_fee))?;
-                    let new_needed = needed.checked_add(&Value::new(&input_fee))?;
-                    let new_added = added.checked_add(&input.output.amount)?;
-                    Ok((new_input_total, new_output_total, new_added, new_needed, input))
+            CoinSelectionStrategyCIP2::LargestFirstMultiAsset => {
+                // indices into {available_inputs} for inputs that contain {policy_id}:{asset_name}
+                let mut available_indices = (0..available_inputs.len()).collect::<Vec<usize>>();
+                // run largest-fist by each asset type
+                if let Some(ma) = output_total.multiasset.clone() {
+                    for (policy_id, assets) in ma.0.iter() {
+                        for (asset_name, asset_amount) in assets.0.iter() {
+                            self.cip2_largest_first_by(
+                                available_inputs,
+                                &mut available_indices,
+                                &mut input_total,
+                                &mut output_total,
+                                |value| value.multiasset.as_ref()?.get(policy_id)?.get(asset_name))?;
+                        }
+                    }
                 }
+                // add in remaining ADA
+                self.cip2_largest_first_by(
+                    available_inputs,
+                    &mut available_indices,
+                    &mut input_total,
+                    &mut output_total,
+                    |value| Some(value.coin))?;
+            },
+            CoinSelectionStrategyCIP2::RandomImproveMultiAsset => {
                 use rand::Rng;
-                if self.outputs.0.iter().any(|output| output.amount.multiasset.is_some()) {
-                    return Err(JsError::from_str("Multiasset values not supported by RandomImprove. Please use LargestFirst"));
-                }
-                // Phase 1: Random Selection
-                let mut associated_inputs: BTreeMap<TransactionOutput, Vec<TransactionUnspentOutput>> = BTreeMap::new();
                 let mut rng = rand::thread_rng();
-                let mut outputs = self.outputs.0.clone();
-                outputs.sort_by_key(|output| output.amount.coin);
-                for output in outputs.iter().rev() {
-                    let mut added = Value::new(&Coin::zero());
-                    let mut needed = output.amount.clone();
-                    while added < needed {
-                        if available_inputs.is_empty() {
-                            return Err(JsError::from_str("UTxO Balance Insufficient"));
-                        }
-                        let (new_input_total, new_output_total, new_added, new_needed, input) = add_random_input(self, &mut rng, &mut available_inputs, &input_total, &output_total, &added, &needed)?;
-                        input_total = new_input_total;
-                        output_total = new_output_total;
-                        added = new_added;
-                        needed = new_needed;
-                        associated_inputs.entry(output.clone()).or_default().push(input);
-                    }
-                }
-                if !available_inputs.is_empty() {
-                    // Phase 2: Improvement
-                    for output in outputs.iter_mut() {
-                        let associated = associated_inputs.get_mut(output).unwrap();
-                        for input in associated.iter_mut() {
-                            let random_index = rng.gen_range(0..available_inputs.len());
-                            let new_input = available_inputs.get_mut(random_index).unwrap();
-                            let cur = from_bignum(&input.output.amount.coin);
-                            let new = from_bignum(&new_input.output.amount.coin);
-                            let min = from_bignum(&output.amount.coin);
-                            let ideal = 2 * min;
-                            let max = 3 * min;
-                            let move_closer = (ideal as i128 - new as i128).abs() < (ideal as i128 - cur as i128).abs();
-                            let not_exceed_max = new < max;
-                            if move_closer && not_exceed_max {
-                                std::mem::swap(input, new_input);
-                            }
+                let mut available_indices = (0..available_inputs.len()).collect::<BTreeSet<usize>>();
+                // run random-improve by each asset type
+                if let Some(ma) = output_total.multiasset.clone() {
+                    for (policy_id, assets) in ma.0.iter() {
+                        for (asset_name, asset_amount) in assets.0.iter() {
+                            self.cip2_random_improve_by(
+                                available_inputs,
+                                &mut available_indices,
+                                &mut input_total,
+                                &mut output_total,
+                                |value| value.multiasset.as_ref()?.get(policy_id)?.get(asset_name),
+                                &mut rng)?;
                         }
                     }
                 }
-                // Phase 3: add extra inputs needed for fees
+                // add in remaining ADA
+                self.cip2_random_improve_by(
+                    available_inputs,
+                    &mut available_indices,
+                    &mut input_total,
+                    &mut output_total,
+                    |value| Some(value.coin),
+                    &mut rng)?;
+                // Phase 3: add extra inputs needed for fees (not covered by CIP-2)
                 // We do this at the end because this new inputs won't be associated with
                 // a specific output, so the improvement algorithm we do above does not apply here.
-                if input_total < output_total {
-                    let mut added = Value::new(&Coin::zero());
-                    let mut remaining_amount = output_total.checked_sub(&input_total)?;
-                    while added < remaining_amount {
-                        if available_inputs.is_empty() {
-                            return Err(JsError::from_str("UTxO Balance Insufficient"));
-                        }
-                        let (new_input_total, new_output_total, new_added, new_remaining_amount, _) = add_random_input(self, &mut rng, &mut available_inputs, &input_total, &output_total, &added, &remaining_amount)?;
-                        input_total = new_input_total;
-                        output_total = new_output_total;
-                        added = new_added;
-                        remaining_amount = new_remaining_amount;
+                while input_total.coin < output_total.coin {
+                    if available_indices.is_empty() {
+                        return Err(JsError::from_str("UTxO Balance Insufficient[x]"));
                     }
+                    let i = *available_indices.iter().nth(rng.gen_range(0..available_indices.len())).unwrap();
+                    available_indices.remove(&i);
+                    let input = &available_inputs[i];
+                    let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+                    self.add_input(&input.output.address, &input.input, &input.output.amount);
+                    input_total = input_total.checked_add(&input.output.amount)?;
+                    output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
             },
+        }
+
+        Ok(())
+    }
+
+    fn cip2_largest_first_by<F>(
+        &mut self,
+        available_inputs: &Vec<TransactionUnspentOutput>,
+        available_indices: &mut Vec<usize>,
+        input_total: &mut Value,
+        output_total: &mut Value,
+        by: F) -> Result<(), JsError>
+    where
+        F: Fn(&Value) -> Option<BigNum> {
+        let mut relevant_indices = available_indices.clone();
+        relevant_indices.retain(|i| by(&available_inputs[*i].output.amount).is_some());
+        // ordered in ascending order by predicate {by}
+        relevant_indices.sort_by_key(|i| by(&available_inputs[*i].output.amount).expect("filtered above"));
+
+        // iterate in decreasing order for predicate {by}
+        for i in relevant_indices.iter().rev() {
+            if by(input_total).unwrap_or(BigNum::zero()) >= by(output_total).expect("do not call on asset types that aren't in the output") {
+                break;
+            }
+            let input = &available_inputs[*i];
+            // differing from CIP2, we include the needed fees in the targets instead of just output values
+            let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+            self.add_input(&input.output.address, &input.input, &input.output.amount);
+            *input_total = input_total.checked_add(&input.output.amount)?;
+            *output_total = output_total.checked_add(&Value::new(&input_fee))?;
+            available_indices.swap_remove(available_indices.iter().position(|j| i == j).unwrap());
+        }
+
+        if by(input_total).unwrap_or(BigNum::zero()) < by(output_total).expect("do not call on asset types that aren't in the output") {
+            return Err(JsError::from_str("UTxO Balance Insufficient"));
+        }
+
+        Ok(())
+    }
+
+    fn cip2_random_improve_by<F>(
+        &mut self,
+        available_inputs: &Vec<TransactionUnspentOutput>,
+        available_indices: &mut BTreeSet<usize>,
+        input_total: &mut Value,
+        output_total: &mut Value,
+        by: F,
+        rng: &mut rand::rngs::ThreadRng) -> Result<(), JsError>
+    where
+        F: Fn(&Value) -> Option<BigNum> {
+        use rand::Rng;
+        // Phase 1: Random Selection
+        let mut relevant_indices = available_indices.iter()
+            .filter(|i| by(&available_inputs[**i].output.amount).is_some())
+            .cloned()
+            .collect::<Vec<usize>>();
+        let mut associated_indices: BTreeMap<TransactionOutput, Vec<usize>> = BTreeMap::new();
+        let mut outputs = self.outputs.0.iter()
+            .filter(|output| by(&output.amount).is_some())
+            .cloned()
+            .collect::<Vec<TransactionOutput>>();
+        outputs.sort_by_key(|output| by(&output.amount).expect("filtered above"));
+        for output in outputs.iter().rev() {
+            // TODO: how should we adapt this to inputs being associated when running for other assets?
+            // if we do these two phases for each asset and don't take into account the other runs for other assets
+            // then we over-add (and potentially fail if we don't have plenty of inputs)
+            // On the other hand, the improvement phase it difficult to determine if a change is an improvement
+            // if we're trying to improve for multiple assets at a time without knowing how important each input is
+            // e.g. maybe we have lots of asset A but not much of B
+            // For now I will just have this be entirely separarte per-asset but we might want to in a later commit
+            // consider the improvements separately and have it take some kind of dot product / distance for assets
+            // during the improvement phase and have the improvement phase target multiple asset types at once.
+            // One issue with that is how to scale in between differnet assets. We could maybe normalize them by
+            // dividing each asset type by the sum of the required asset type in all outputs.
+            // Another possibility for adapting this to multiasstes is when associating an input x for asset type a
+            // we try and subtract all other assets b != a from the outputs we're trying to cover.
+            // It might make sense to diverge further and not consider it per-output and to instead just match against
+            // the sum of all outputs as one single value.
+            let mut added = BigNum::zero();
+            let needed = by(&output.amount).unwrap();
+            while added < needed {
+                if relevant_indices.is_empty() {
+                    return Err(JsError::from_str("UTxO Balance Insufficient"));
+                }
+                let random_index = rng.gen_range(0..relevant_indices.len());
+                let i = relevant_indices.swap_remove(random_index);
+                available_indices.remove(&i);
+                let input = &available_inputs[i];
+                added = added.checked_add(&by(&input.output.amount).expect("do not call on asset types that aren't in the output"))?;
+                associated_indices.entry(output.clone()).or_default().push(i);
+            }
+        }
+        if !relevant_indices.is_empty() {
+            // Phase 2: Improvement
+            for output in outputs.iter_mut() {
+                let associated = associated_indices.get_mut(output).unwrap();
+                for i in associated.iter_mut() {
+                    let random_index = rng.gen_range(0..relevant_indices.len());
+                    let j: &mut usize = relevant_indices.get_mut(random_index).unwrap();
+                    let input = &available_inputs[*i];
+                    let new_input = &available_inputs[*j];
+                    let cur = from_bignum(&input.output.amount.coin);
+                    let new = from_bignum(&new_input.output.amount.coin);
+                    let min = from_bignum(&output.amount.coin);
+                    let ideal = 2 * min;
+                    let max = 3 * min;
+                    let move_closer = (ideal as i128 - new as i128).abs() < (ideal as i128 - cur as i128).abs();
+                    let not_exceed_max = new < max;
+                    if move_closer && not_exceed_max {
+                        std::mem::swap(i, j);
+                        available_indices.insert(*i);
+                        available_indices.remove(j);
+                    }
+                }
+            }
+        }
+
+        // after finalizing the improvement we need to actually add these results to the builder
+        for output in outputs.iter() {
+            let associated = associated_indices.get_mut(output).unwrap();
+            for i in associated_indices.get(output).unwrap().iter() {
+                let input = &available_inputs[*i];
+                let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+                self.add_input(&input.output.address, &input.input, &input.output.amount);
+                *input_total = input_total.checked_add(&input.output.amount)?;
+                *output_total = output_total.checked_add(&Value::new(&input_fee))?;
+            }
         }
 
         Ok(())
@@ -2647,6 +2787,201 @@ mod tests {
         // confirm order of only what is necessary
         assert_eq!(2u8, tx.inputs().get(0).transaction_id().0[0]);
         assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
+    }
+
+    #[test]
+    fn tx_builder_cip2_largest_first_multiasset() {
+        // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
+        let pid1 = PolicyID::from([1u8; 28]);
+        let pid2 = PolicyID::from([2u8; 28]);
+        let asset_name1 = AssetName::new(vec![1u8; 8]).unwrap();
+        let asset_name2 = AssetName::new(vec![2u8; 11]).unwrap();
+        let asset_name3 = AssetName::new(vec![3u8; 9]).unwrap();
+
+        let mut output_value = Value::new(&to_bignum(415));
+        let mut output_ma = MultiAsset::new();
+        output_ma.set_asset(&pid1, &asset_name1, to_bignum(5));
+        output_ma.set_asset(&pid1, &asset_name2, to_bignum(1));
+        output_ma.set_asset(&pid2, &asset_name2, to_bignum(2));
+        output_ma.set_asset(&pid2, &asset_name3, to_bignum(4));
+        output_value.set_multiasset(&output_ma);
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &output_value
+        )).unwrap();
+
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        // should not be taken
+        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
+
+        // should not be taken
+        let mut input1 = make_input(1u8, Value::new(&to_bignum(200)));
+        let mut ma1 = MultiAsset::new();
+        ma1.set_asset(&pid1, &asset_name1, to_bignum(10));
+        ma1.set_asset(&pid1, &asset_name2, to_bignum(1));
+        ma1.set_asset(&pid2, &asset_name2, to_bignum(2));
+        input1.output.amount.set_multiasset(&ma1);
+        available_inputs.add(&input1);
+
+        // taken first to satisfy pid1:asset_name1 (but also satisfies pid2:asset_name3)
+        let mut input2 = make_input(2u8, Value::new(&to_bignum(10)));
+        let mut ma2 = MultiAsset::new();
+        ma2.set_asset(&pid1, &asset_name1, to_bignum(20));
+        ma2.set_asset(&pid2, &asset_name3, to_bignum(4));
+        input2.output.amount.set_multiasset(&ma2);
+        available_inputs.add(&input2);
+
+        // taken second to satisfy pid1:asset_name2 (but also satisfies pid2:asset_name1)
+        let mut input3 = make_input(3u8, Value::new(&to_bignum(50)));
+        let mut ma3 = MultiAsset::new();
+        ma3.set_asset(&pid2, &asset_name1, to_bignum(5));
+        ma3.set_asset(&pid1, &asset_name2, to_bignum(15));
+        input3.output.amount.multiasset = Some(ma3);
+        available_inputs.add(&input3);
+
+        // should not be taken either
+        let mut input4 = make_input(4u8, Value::new(&to_bignum(10)));
+        let mut ma4 = MultiAsset::new();
+        ma4.set_asset(&pid1, &asset_name1, to_bignum(10));
+        ma4.set_asset(&pid1, &asset_name2, to_bignum(10));
+        input4.output.amount.multiasset = Some(ma4);
+        available_inputs.add(&input4);
+
+        // taken third to satisfy pid2:asset_name_2
+        let mut input5 = make_input(5u8, Value::new(&to_bignum(10)));
+        let mut ma5 = MultiAsset::new();
+        ma5.set_asset(&pid1, &asset_name2, to_bignum(10));
+        ma5.set_asset(&pid2, &asset_name2, to_bignum(3));
+        input5.output.amount.multiasset = Some(ma5);
+        available_inputs.add(&input5);
+
+        // should be taken to get enough ADA
+        let input6 = make_input(6u8, Value::new(&to_bignum(400)));
+        available_inputs.add(&input6);
+
+        // should not be taken
+        available_inputs.add(&make_input(7u8, Value::new(&to_bignum(100))));
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::LargestFirstMultiAsset).unwrap();
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+        let change_added = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert!(change_added);
+        let tx = tx_builder.build().unwrap();
+
+        assert_eq!(2, tx.outputs().len());
+        assert_eq!(4, tx.inputs().len());
+        // check order expected per-asset
+        assert_eq!(2u8, tx.inputs().get(0).transaction_id().0[0]);
+        assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
+        assert_eq!(5u8, tx.inputs().get(2).transaction_id().0[0]);
+        assert_eq!(6u8, tx.inputs().get(3).transaction_id().0[0]);
+
+        let change = tx.outputs().get(1).amount;
+        assert_eq!(from_bignum(&change.coin), 55);
+        let change_ma = change.multiasset().unwrap();
+        assert_eq!(15, from_bignum(&change_ma.get_asset(&pid1, &asset_name1)));
+        assert_eq!(24, from_bignum(&change_ma.get_asset(&pid1, &asset_name2)));
+        assert_eq!(1, from_bignum(&change_ma.get_asset(&pid2, &asset_name2)));
+        assert_eq!(0, from_bignum(&change_ma.get_asset(&pid2, &asset_name3)));
+        let expected_input = input2.output.amount
+            .checked_add(&input3.output.amount)
+            .unwrap()
+            .checked_add(&input5.output.amount)
+            .unwrap()
+            .checked_add(&input6.output.amount)
+            .unwrap();
+        let expected_change = expected_input.checked_sub(&output_value).unwrap();
+        assert_eq!(expected_change, change);
+    }
+
+    #[test]
+    fn tx_builder_cip2_random_improve_multiasset() {
+        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
+        let pid1 = PolicyID::from([1u8; 28]);
+        let pid2 = PolicyID::from([2u8; 28]);
+        let asset_name1 = AssetName::new(vec![1u8; 8]).unwrap();
+        let asset_name2 = AssetName::new(vec![2u8; 11]).unwrap();
+        let asset_name3 = AssetName::new(vec![3u8; 9]).unwrap();
+
+        let mut output_value = Value::new(&to_bignum(415));
+        let mut output_ma = MultiAsset::new();
+        output_ma.set_asset(&pid1, &asset_name1, to_bignum(5));
+        output_ma.set_asset(&pid1, &asset_name2, to_bignum(1));
+        output_ma.set_asset(&pid2, &asset_name2, to_bignum(2));
+        output_ma.set_asset(&pid2, &asset_name3, to_bignum(4));
+        output_value.set_multiasset(&output_ma);
+        tx_builder.add_output(&TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &output_value
+        )).unwrap();
+
+        let mut available_inputs = TransactionUnspentOutputs::new();
+        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
+
+        let mut input1 = make_input(1u8, Value::new(&to_bignum(200)));
+        let mut ma1 = MultiAsset::new();
+        ma1.set_asset(&pid1, &asset_name1, to_bignum(10));
+        ma1.set_asset(&pid1, &asset_name2, to_bignum(1));
+        ma1.set_asset(&pid2, &asset_name2, to_bignum(2));
+        input1.output.amount.set_multiasset(&ma1);
+        available_inputs.add(&input1);
+
+        let mut input2 = make_input(2u8, Value::new(&to_bignum(10)));
+        let mut ma2 = MultiAsset::new();
+        ma2.set_asset(&pid1, &asset_name1, to_bignum(20));
+        ma2.set_asset(&pid2, &asset_name3, to_bignum(4));
+        input2.output.amount.set_multiasset(&ma2);
+        available_inputs.add(&input2);
+
+        let mut input3 = make_input(3u8, Value::new(&to_bignum(50)));
+        let mut ma3 = MultiAsset::new();
+        ma3.set_asset(&pid2, &asset_name1, to_bignum(5));
+        ma3.set_asset(&pid1, &asset_name2, to_bignum(15));
+        input3.output.amount.multiasset = Some(ma3);
+        available_inputs.add(&input3);
+
+        let mut input4 = make_input(4u8, Value::new(&to_bignum(10)));
+        let mut ma4 = MultiAsset::new();
+        ma4.set_asset(&pid1, &asset_name1, to_bignum(10));
+        ma4.set_asset(&pid1, &asset_name2, to_bignum(10));
+        input4.output.amount.multiasset = Some(ma4);
+        available_inputs.add(&input4);
+
+        let mut input5 = make_input(5u8, Value::new(&to_bignum(10)));
+        let mut ma5 = MultiAsset::new();
+        ma5.set_asset(&pid1, &asset_name2, to_bignum(10));
+        ma5.set_asset(&pid2, &asset_name2, to_bignum(3));
+        input5.output.amount.multiasset = Some(ma5);
+        available_inputs.add(&input5);
+
+        let input6 = make_input(6u8, Value::new(&to_bignum(400)));
+        available_inputs.add(&input6);
+        available_inputs.add(&make_input(7u8, Value::new(&to_bignum(100))));
+
+        let mut input8 = make_input(8u8, Value::new(&to_bignum(10)));
+        let mut ma8 = MultiAsset::new();
+        ma8.set_asset(&pid2, &asset_name2, to_bignum(10));
+        input8.output.amount.multiasset = Some(ma8);
+        available_inputs.add(&input8);
+
+        let mut input9 = make_input(9u8, Value::new(&to_bignum(10)));
+        let mut ma9 = MultiAsset::new();
+        ma9.set_asset(&pid2, &asset_name3, to_bignum(10));
+        input9.output.amount.multiasset = Some(ma9);
+        available_inputs.add(&input9);
+
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImproveMultiAsset).unwrap();
+        let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
+        let change_added = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert!(change_added);
+        let tx = tx_builder.build().unwrap();
+
+        assert_eq!(2, tx.outputs().len());
+
+        let input_total = tx_builder.get_explicit_input().unwrap();
+        assert!(input_total >= output_value);
     }
 
     #[test]
