@@ -15,10 +15,19 @@ to_from_bytes!(PlutusScript);
 
 #[wasm_bindgen]
 impl PlutusScript {
+    /**
+     * Creates a new Plutus script from the RAW bytes of the compiled script.
+     * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+     * If you creating this from those you should use PlutusScript::from_bytes() instead.
+     */
     pub fn new(bytes: Vec<u8>) -> PlutusScript {
         Self(bytes)
     }
 
+    /**
+     * The raw bytes of this compiled Plutus script.
+     * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
+     */
     pub fn bytes(&self) -> Vec<u8> {
         self.0.clone()
     }

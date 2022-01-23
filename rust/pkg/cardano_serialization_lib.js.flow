@@ -3116,12 +3116,17 @@ declare export class PlutusScript {
   static from_bytes(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
    * @param {Uint8Array} bytes
    * @returns {PlutusScript}
    */
   static new(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * The raw bytes of this compiled Plutus script.
+   * * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
    * @returns {Uint8Array}
    */
   bytes(): Uint8Array;
