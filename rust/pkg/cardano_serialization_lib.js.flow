@@ -6,6 +6,42 @@
  */
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -130,56 +166,6 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
-): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -202,6 +188,13 @@ declare export function decrypt_with_password(
   password: string,
   data: string
 ): string;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -275,6 +268,14 @@ declare export var NetworkIdKind: {|
 /**
  */
 
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ */
+
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
 |};
@@ -301,15 +302,6 @@ declare export var RedeemerTagKind: {|
 |};
 
 /**
- * Used to choosed the schema for a script JSON string
- */
-
-declare export var ScriptSchema: {|
-  +Wallet: 0, // 0
-  +Node: 1, // 1
-|};
-
-/**
  */
 
 declare export var TransactionMetadatumKind: {|
@@ -330,11 +322,12 @@ declare export var MetadataJsonSchema: {|
 |};
 
 /**
+ * Used to choosed the schema for a script JSON string
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
 |};
 
 /**
@@ -345,14 +338,6 @@ declare export var CoinSelectionStrategyCIP2: {|
   +RandomImprove: 1, // 1
   +LargestFirstMultiAsset: 2, // 2
   +RandomImproveMultiAsset: 3, // 3
-|};
-
-/**
- */
-
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
 |};
 
 /**
@@ -3161,17 +3146,17 @@ declare export class PlutusScript {
   static from_bytes(bytes: Uint8Array): PlutusScript;
 
   /**
-   * * Creates a new Plutus script from the RAW bytes of the compiled script.
-   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
-   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
+   * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * If you creating this from those you should use PlutusScript::from_bytes() instead.
    * @param {Uint8Array} bytes
    * @returns {PlutusScript}
    */
   static new(bytes: Uint8Array): PlutusScript;
 
   /**
-   * * The raw bytes of this compiled Plutus script.
-   * * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
+   * The raw bytes of this compiled Plutus script.
+   * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
    * @returns {Uint8Array}
    */
   bytes(): Uint8Array;
@@ -4990,6 +4975,13 @@ declare export class TransactionBody {
   set_mint(mint: Mint): void;
 
   /**
+   * @returns {Mint | void}
+   */
+  mint(): Mint | void;
+
+  /**
+   * This function returns the mint value of the transaction
+   * Use `.mint()` instead.
    * @returns {Mint | void}
    */
   multiassets(): Mint | void;
