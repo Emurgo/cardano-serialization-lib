@@ -6,9 +6,11 @@ use super::*;
 
 use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 
+use schemars::JsonSchema;
+
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusScript(Vec<u8>);
 
 to_from_bytes!(PlutusScript);
@@ -25,7 +27,7 @@ impl PlutusScript {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusScripts(Vec<PlutusScript>);
 
 to_from_bytes!(PlutusScripts);
@@ -50,7 +52,7 @@ impl PlutusScripts {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct ConstrPlutusData {
     alternative: BigNum,
     data: PlutusList,
@@ -111,7 +113,7 @@ impl ConstrPlutusData {
 const COST_MODEL_OP_COUNT: usize = 166;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct CostModel(Vec<Int>);
 
 to_from_bytes!(CostModel);
@@ -144,7 +146,7 @@ impl CostModel {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Costmdls(std::collections::BTreeMap<Language, CostModel>);
 
 to_from_bytes!(Costmdls);
@@ -200,7 +202,7 @@ impl Costmdls {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct ExUnitPrices {
     mem_price: SubCoin,
     step_price: SubCoin,
@@ -227,7 +229,7 @@ impl ExUnitPrices {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct ExUnits {
     // TODO: should these be u32 or BigNum?
     mem: BigNum,
@@ -255,13 +257,13 @@ impl ExUnits {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub enum LanguageKind {
     PlutusV1,
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Language(LanguageKind);
 
 to_from_bytes!(Language);
@@ -278,7 +280,7 @@ impl Language {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Languages(Vec<Language>);
 
 #[wasm_bindgen]
@@ -301,7 +303,7 @@ impl Languages {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusMap(std::collections::BTreeMap<PlutusData, PlutusData>);
 
 to_from_bytes!(PlutusMap);
@@ -339,7 +341,7 @@ pub enum PlutusDataKind {
     Bytes,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 enum PlutusDataEnum {
     ConstrPlutusData(ConstrPlutusData),
     Map(PlutusMap),
@@ -349,7 +351,7 @@ enum PlutusDataEnum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusData(PlutusDataEnum);
 
 to_from_bytes!(PlutusData);
@@ -423,7 +425,7 @@ impl PlutusData {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusList(Vec<PlutusData>);
 
 to_from_bytes!(PlutusList);
@@ -448,7 +450,7 @@ impl PlutusList {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Redeemer {
     tag: RedeemerTag,
     index: BigNum,
@@ -487,7 +489,7 @@ impl Redeemer {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub enum RedeemerTagKind {
     Spend,
     Mint,
@@ -496,7 +498,7 @@ pub enum RedeemerTagKind {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct RedeemerTag(RedeemerTagKind);
 
 to_from_bytes!(RedeemerTag);
@@ -525,7 +527,7 @@ impl RedeemerTag {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Redeemers(Vec<Redeemer>);
 
 to_from_bytes!(Redeemers);

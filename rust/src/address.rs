@@ -64,7 +64,7 @@ impl NetworkInfo {
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 enum StakeCredType {
     Key(Ed25519KeyHash),
     Script(ScriptHash),
@@ -79,7 +79,7 @@ pub enum StakeCredKind {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct StakeCredential(StakeCredType);
 
 #[wasm_bindgen]
@@ -270,6 +270,30 @@ pub struct Address(AddrType);
 from_bytes!(Address, data, {
     Self::from_bytes_impl(data.as_ref())
 });
+
+impl serde::Serialize for Address {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let bech32 = self.to_bech32(None)
+            .map_err(|e| serde::ser::Error::custom(format!("to_bech32: {}", e)))?;
+        serializer.serialize_str(&bech32)
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for Address {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let bech32 = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        Address::from_bech32(&bech32)
+            .map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&bech32), &"bech32 address string"))
+    }
+}
+
+impl JsonSchema for Address {
+    fn schema_name() -> String { String::schema_name() }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
+}
 
 // to/from_bytes() are the raw encoding without a wrapping CBOR Bytes tag
 // while Serialize and Deserialize traits include that for inclusion with
@@ -555,7 +579,7 @@ impl EnterpriseAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct RewardAddress {
     network: u8,
     payment: StakeCredential,

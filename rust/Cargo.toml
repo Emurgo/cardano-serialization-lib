@@ -32,6 +32,8 @@ clear_on_drop = { version = "0.2", features = ["no_cc"] }
 itertools = "0.10.1"
 getrandom = { version = "0.2.3", features = ["js"] }
 rand = "0.8.4"
+schemars = "0.8.8"
+serde = { version = "1.0", features = ["derive"] }
 
 # non-wasm
 [target.'cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))'.dependencies]
@@ -53,3 +55,8 @@ quickcheck = "0.9.2"
 quickcheck_macros = "0.9.1"
 rand_os = "0.1"
 rand_chacha = "0.1"
+
+[build-dependencies]
+schemars = "0.8.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.57"

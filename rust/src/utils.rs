@@ -8,6 +8,8 @@ use std::ops::{Rem, Div, Sub};
 use super::*;
 use crate::error::{DeserializeError, DeserializeFailure};
 
+use schemars::JsonSchema;
+
 // JsError can't be used by non-wasm targets so we use this macro to expose
 // either a DeserializeError or a JsError error depending on if we're on a
 // wasm or a non-wasm target where JsError is not available (it panics!).
@@ -163,7 +165,7 @@ impl TransactionUnspentOutputs {
 // This is an unsigned type - no negative numbers.
 // Can be converted to/from plain rust 
 #[wasm_bindgen]
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct BigNum(u64);
 
 to_from_bytes!(BigNum);
@@ -254,7 +256,7 @@ pub fn from_bignum(val: &BigNum) -> u64 {
 pub type Coin = BigNum;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, /*Hash,*/ Ord, PartialEq)]
+#[derive(Clone, Debug, Eq, /*Hash,*/ Ord, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Value {
     pub (crate) coin: Coin,
     pub (crate) multiasset: Option<MultiAsset>,
@@ -476,7 +478,7 @@ impl Deserialize for Value {
 
 // CBOR has int = uint / nint
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Int(pub (crate) i128);
 
 #[wasm_bindgen]
@@ -666,6 +668,43 @@ pub (crate) fn read_bounded_bytes<R: BufRead + Seek>(raw: &mut Deserializer<R>) 
 pub struct BigInt(num_bigint::BigInt);
 
 to_from_bytes!(BigInt);
+
+impl serde::Serialize for BigInt {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&self.to_str())
+    }
+}
+/*
+impl<'de> serde::de::Visitor<'de> for BigInt {
+    type Value = BigInt;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("must be a string of characters between 0-9")
+    }
+
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        BigInt::from_str(s).map_err(|e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(s), &self))
+    }
+}*/
+
+impl <'de> serde::de::Deserialize<'de> for BigInt {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        BigInt::from_str(&s).map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"string rep of a big int"))
+    }
+}
+
+impl JsonSchema for BigInt {
+    fn schema_name() -> String { String::schema_name() }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+
+    fn is_referenceable() -> bool { String::is_referenceable() }
+}
 
 #[wasm_bindgen]
 impl BigInt {
@@ -2296,5 +2335,11 @@ mod tests {
 
         assert_eq!(Int::new_i32(42).as_i32_or_fail().unwrap(), 42);
         assert_eq!(Int::new_i32(-42).as_i32_or_fail().unwrap(), -42);
+    }
+
+    #[test]
+    fn foo() {
+        let json = serde_json::to_string(&one_policy_three_32_char_assets()).unwrap();
+        panic!(json);
     }
 }

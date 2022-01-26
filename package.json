@@ -32,7 +32,9 @@
     "type": "git",
     "url": "git+https://github.com/Emurgo/cardano-serialization-lib.git"
   },
-  "dependencies": {},
+  "dependencies": {
+    "json-schema-to-typescript": "^10.1.5"
+  },
   "devDependencies": {
     "flowgen": "1.11.0",
     "husky": "4.2.5",
