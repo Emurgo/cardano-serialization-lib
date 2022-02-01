@@ -40,7 +40,7 @@ noop_proc_macro = "0.3.0"
 
 # wasm
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
-wasm-bindgen = "=0.2.74"
+wasm-bindgen = "=0.2.78"
 rand_os = { version = "0.1", features = ["wasm-bindgen"] }
 js-sys = "=0.3.51"
 
