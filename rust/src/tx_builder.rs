@@ -96,7 +96,8 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
         0 => None,
         _x => {
             // TODO: figure out how to populate fake witnesses for these
-            return Err(JsError::from_str("Script inputs not supported yet"))
+            // return Err(JsError::from_str("Script inputs not supported yet"))
+            None
         },
     };
     let bootstrap_keys = match tx_builder.input_types.bootstraps.len() {
