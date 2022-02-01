@@ -898,19 +898,33 @@ pub fn hash_plutus_data(plutus_data: &PlutusData) -> DataHash {
 }
 #[wasm_bindgen]
 pub fn hash_script_data(redeemers: &Redeemers, cost_models: &Costmdls, datums: Option<PlutusList>) -> ScriptDataHash {
-    /*
-    ; script data format:
-    ; [ redeemers | datums | language views ]
-    ; The redeemers are exactly the data present in the transaction witness set.
-    ; Similarly for the datums, if present. If no datums are provided, the middle
-    ; field is an empty string.
-    */
     let mut buf = Vec::new();
-    buf.extend(redeemers.to_bytes());
-    if let Some(d) = &datums {
-        buf.extend(d.to_bytes());
+    if redeemers.len() == 0 && datums.is_some() {
+        /*
+        ; Finally, note that in the case that a transaction includes datums but does not
+        ; include any redeemers, the script data format becomes (in hex):
+        ; [ 80 | datums | A0 ]
+        ; corresponding to a CBOR empty list and an empty map (our apologies).
+        */
+        buf.push(0x80);
+        if let Some(d) = &datums {
+            buf.extend(d.to_bytes());
+        }
+        buf.push(0xA0);
+    } else {
+        /*
+        ; script data format:
+        ; [ redeemers | datums | language views ]
+        ; The redeemers are exactly the data present in the transaction witness set.
+        ; Similarly for the datums, if present. If no datums are provided, the middle
+        ; field is an empty string.
+        */
+        buf.extend(redeemers.to_bytes());
+        if let Some(d) = &datums {
+            buf.extend(d.to_bytes());
+        }
+        buf.extend(cost_models.language_views_encoding());
     }
-    buf.extend(cost_models.language_views_encoding());
     ScriptDataHash::from(blake2b256(&buf))
 }
 
