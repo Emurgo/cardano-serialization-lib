@@ -15,7 +15,7 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-cryptoxide = "0.3.2"
+cryptoxide = "0.4.2"
 cbor_event = "2.1.3"
 ed25519-bip32 = "0.3.2"
 sha2 = "^0.9"
