@@ -2,7 +2,7 @@ Cardano Serialization Lib
 =========================
 
 This is a library for serialization & deserialization of data structures
-used in Cardano’s Haskell implementation of Shelley along with useful
+used in Cardano’s Haskell implementation of Alonzo along with useful
 utility functions.
 
 How can I use this library
@@ -63,11 +63,14 @@ Original binary specifications
 
 Here are the location of the original `CDDL`_ specifications:
 
--  Byron: `link`_
+- Alonzo:
+   `link <https://github.com/input-output-hk/cardano-ledger/tree/master/eras/alonzo/test-suite/cddl-files>`__
 -  Shelley:
-   `link <https://github.com/input-output-hk/cardano-ledger-specs/tree/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files>`__
+   `link <https://github.com/input-output-hk/cardano-ledger/tree/master/eras/shelley/test-suite/cddl-files>`__
 -  Mary:
-   `link <https://github.com/input-output-hk/cardano-ledger-specs/tree/master/shelley-ma/shelley-ma-test/cddl-files>`__
+   `link <https://github.com/input-output-hk/cardano-ledger/tree/master/eras/shelley-ma/test-suite/cddl-files>`__
+-  Byron:
+   `link <https://github.com/input-output-hk/cardano-ledger/tree/master/eras/byron/cddl-spec>`__
 
 Building
 --------
