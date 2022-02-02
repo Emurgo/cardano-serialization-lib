@@ -58,7 +58,7 @@ dependencies = [
  "cbor_event",
  "cfg-if 1.0.0",
  "clear_on_drop",
- "cryptoxide",
+ "cryptoxide 0.3.3",
  "digest",
  "ed25519-bip32",
  "getrandom 0.2.3",
@@ -133,6 +133,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8c4fdc86023bc33b265f256ce8205329125b86c38a8a96e243a6a705b7230ec"
 
 [[package]]
+name = "cryptoxide"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "129eabb7b0b78644a3a7e7cf220714aba47463bb281f69fa7a71ca5d12564cca"
+
+[[package]]
 name = "digest"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -143,11 +149,11 @@ dependencies = [
 
 [[package]]
 name = "ed25519-bip32"
-version = "0.3.2"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8827180a2b511141fbe49141e50b31a8d542465e0fb572f81f36feea2addfe92"
+checksum = "cb588f93c0d91b2f668849fd6d030cddb0b2e31f105963be189da5acdf492a21"
 dependencies = [
- "cryptoxide",
+ "cryptoxide 0.4.2",
 ]
 
 [[package]]
