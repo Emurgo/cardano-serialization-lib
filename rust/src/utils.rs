@@ -681,6 +681,20 @@ impl BigInt {
         }
     }
 
+    pub fn as_int(&self) -> Option<Int> {
+        let (sign, u64_digits) = self.0.to_u64_digits();
+        let u64_digit = match u64_digits.len() {
+            0 => Some(to_bignum(0)),
+            1 => Some(to_bignum(*u64_digits.first().unwrap())),
+            _ => None,
+        }?;
+        match sign {
+            num_bigint::Sign::NoSign |
+            num_bigint::Sign::Plus => Some(Int::new(&u64_digit)),
+            num_bigint::Sign::Minus => Some(Int::new_negative(&u64_digit)),
+        }
+    }
+
     pub fn from_str(text: &str) -> Result<BigInt, JsError> {
         use std::str::FromStr;
         num_bigint::BigInt::from_str(text)
@@ -2305,5 +2319,20 @@ mod tests {
 
         assert_eq!(Int::new_i32(42).as_i32_or_fail().unwrap(), 42);
         assert_eq!(Int::new_i32(-42).as_i32_or_fail().unwrap(), -42);
+    }
+
+    #[test]
+    fn bigint_as_int() {
+        let zero = BigInt::from_str("0").unwrap();
+        let zero_int = zero.as_int().unwrap();
+        assert_eq!(zero_int.0, 0i128);
+
+        let pos = BigInt::from_str("1024").unwrap();
+        let pos_int = pos.as_int().unwrap();
+        assert_eq!(pos_int.0, 1024i128);
+
+        let neg = BigInt::from_str("-1024").unwrap();
+        let neg_int = neg.as_int().unwrap();
+        assert_eq!(neg_int.0, -1024i128);
     }
 }
