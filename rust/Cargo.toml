@@ -1,11 +1,11 @@
 [package]
 name = "cardano-serialization-lib"
-version = "9.1.2"
+version = "10.0.0-beta.9"
 edition = "2018"
 authors = ["EMURGO"]
 license = "MIT"
 description = "(De)serialization functions for the Cardano blockchain along with related utility functions"
-documentation = "https://docs.cardano.org/projects/cardano-serialization-lib/en/latest/"
+documentation = "https://docs.cardano.org/cardano-components/cardano-serialization-lib"
 repository = "https://github.com/Emurgo/cardano-serialization-lib"
 exclude = [
     "pkg/*",
@@ -40,7 +40,7 @@ noop_proc_macro = "0.3.0"
 
 # wasm
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
-wasm-bindgen = "=0.2.74"
+wasm-bindgen = "=0.2.78"
 rand_os = { version = "0.1", features = ["wasm-bindgen"] }
 js-sys = "=0.3.51"
 
