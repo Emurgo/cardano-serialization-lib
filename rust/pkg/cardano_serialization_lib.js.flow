@@ -6,42 +6,6 @@
  */
 
 /**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
-): string;
-
-/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -166,6 +130,42 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -247,17 +247,6 @@ declare export var NativeScriptKind: {|
 |};
 
 /**
- * Each new language uses a different namespace for hashing its script
- * This is because you could have a language where the same bytes have different semantics
- * So this avoids scripts in different languages mapping to the same hash
- * Note that the enum value here is different than the enum value for deciding the cost model of a script
- */
-
-declare export var ScriptHashNamespace: {|
-  +NativeScript: 0, // 0
-|};
-
-/**
  */
 
 declare export var NetworkIdKind: {|
@@ -278,6 +267,7 @@ declare export var StakeCredKind: {|
 
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
 |};
 
 /**
@@ -302,6 +292,29 @@ declare export var RedeemerTagKind: {|
 |};
 
 /**
+ * Each new language uses a different namespace for hashing its script
+ * This is because you could have a language where the same bytes have different semantics
+ * So this avoids scripts in different languages mapping to the same hash
+ * Note that the enum value here is different than the enum value for deciding the cost model of a script
+ * https://github.com/input-output-hk/cardano-ledger/blob/9c3b4737b13b30f71529e76c5330f403165e28a6/eras/alonzo/impl/src/Cardano/Ledger/Alonzo.hs#L127
+ */
+
+declare export var ScriptHashNamespace: {|
+  +NativeScript: 0, // 0
+  +PlutusV1: 1, // 1
+  +PlutusV2: 2, // 2
+|};
+
+/**
+ * Used to choose the schema for a script JSON string
+ */
+
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
+|};
+
+/**
  */
 
 declare export var TransactionMetadatumKind: {|
@@ -319,15 +332,6 @@ declare export var MetadataJsonSchema: {|
   +NoConversions: 0, // 0
   +BasicConversions: 1, // 1
   +DetailedSchema: 2, // 2
-|};
-
-/**
- * Used to choosed the schema for a script JSON string
- */
-
-declare export var ScriptSchema: {|
-  +Wallet: 0, // 0
-  +Node: 1, // 1
 |};
 
 /**
@@ -2176,6 +2180,11 @@ declare export class Language {
   static new_plutus_v1(): Language;
 
   /**
+   * @returns {Language}
+   */
+  static new_plutus_v2(): Language;
+
+  /**
    * @returns {number}
    */
   kind(): number;
@@ -3146,6 +3155,12 @@ declare export class PlutusScript {
   static from_bytes(bytes: Uint8Array): PlutusScript;
 
   /**
+   * @param {number} namespace
+   * @returns {ScriptHash}
+   */
+  hash(namespace: number): ScriptHash;
+
+  /**
    * Creates a new Plutus script from the RAW bytes of the compiled script.
    * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
    * If you creating this from those you should use PlutusScript::from_bytes() instead.
@@ -4073,6 +4088,28 @@ declare export class RedeemerTag {
 }
 /**
  */
+declare export class RedeemerWitnessKey {
+  free(): void;
+
+  /**
+   * @returns {RedeemerTag}
+   */
+  tag(): RedeemerTag;
+
+  /**
+   * @returns {BigNum}
+   */
+  index(): BigNum;
+
+  /**
+   * @param {RedeemerTag} tag
+   * @param {BigNum} index
+   * @returns {RedeemerWitnessKey}
+   */
+  static new(tag: RedeemerTag, index: BigNum): RedeemerWitnessKey;
+}
+/**
+ */
 declare export class Redeemers {
   free(): void;
 
@@ -4198,6 +4235,91 @@ declare export class Relays {
    * @param {Relay} elem
    */
   add(elem: Relay): void;
+}
+/**
+ */
+declare export class RequiredWitnessSet {
+  free(): void;
+
+  /**
+   * @param {Vkeywitness} vkey
+   */
+  add_vkey(vkey: Vkeywitness): void;
+
+  /**
+   * @param {Vkey} vkey
+   */
+  add_vkey_key(vkey: Vkey): void;
+
+  /**
+   * @param {Ed25519KeyHash} hash
+   */
+  add_vkey_key_hash(hash: Ed25519KeyHash): void;
+
+  /**
+   * @param {BootstrapWitness} bootstrap
+   */
+  add_bootstrap(bootstrap: BootstrapWitness): void;
+
+  /**
+   * @param {Vkey} bootstrap
+   */
+  add_bootstrap_key(bootstrap: Vkey): void;
+
+  /**
+   * @param {Ed25519KeyHash} hash
+   */
+  add_bootstrap_key_hash(hash: Ed25519KeyHash): void;
+
+  /**
+   * @param {NativeScript} native_script
+   */
+  add_native_script(native_script: NativeScript): void;
+
+  /**
+   * @param {ScriptHash} native_script
+   */
+  add_native_script_hash(native_script: ScriptHash): void;
+
+  /**
+   * @param {PlutusScript} plutus_script
+   */
+  add_plutus_script(plutus_script: PlutusScript): void;
+
+  /**
+   * @param {ScriptHash} plutus_script
+   */
+  add_plutus_hash(plutus_script: ScriptHash): void;
+
+  /**
+   * @param {PlutusData} plutus_datum
+   */
+  add_plutus_datum(plutus_datum: PlutusData): void;
+
+  /**
+   * @param {DataHash} plutus_datum
+   */
+  add_plutus_datum_hash(plutus_datum: DataHash): void;
+
+  /**
+   * @param {Redeemer} redeemer
+   */
+  add_redeemer(redeemer: Redeemer): void;
+
+  /**
+   * @param {RedeemerWitnessKey} redeemer
+   */
+  add_redeemer_tag(redeemer: RedeemerWitnessKey): void;
+
+  /**
+   * @param {RequiredWitnessSet} requirements
+   */
+  add_all(requirements: RequiredWitnessSet): void;
+
+  /**
+   * @returns {RequiredWitnessSet}
+   */
+  static new(): RequiredWitnessSet;
 }
 /**
  */
@@ -5932,6 +6054,62 @@ declare export class TransactionWitnessSet {
    * @returns {TransactionWitnessSet}
    */
   static new(): TransactionWitnessSet;
+}
+/**
+ * Builder de-duplicates witnesses as they are added
+ */
+declare export class TransactionWitnessSetBuilder {
+  free(): void;
+
+  /**
+   * @param {Vkeywitness} vkey
+   */
+  add_vkey(vkey: Vkeywitness): void;
+
+  /**
+   * @param {BootstrapWitness} bootstrap
+   */
+  add_bootstrap(bootstrap: BootstrapWitness): void;
+
+  /**
+   * @param {NativeScript} native_script
+   */
+  add_native_script(native_script: NativeScript): void;
+
+  /**
+   * @param {PlutusScript} plutus_script
+   */
+  add_plutus_script(plutus_script: PlutusScript): void;
+
+  /**
+   * @param {PlutusData} plutus_datum
+   */
+  add_plutus_datum(plutus_datum: PlutusData): void;
+
+  /**
+   * @param {Redeemer} redeemer
+   */
+  add_redeemer(redeemer: Redeemer): void;
+
+  /**
+   * @param {RequiredWitnessSet} required_wits
+   */
+  add_required_wits(required_wits: RequiredWitnessSet): void;
+
+  /**
+   * @returns {TransactionWitnessSetBuilder}
+   */
+  static new(): TransactionWitnessSetBuilder;
+
+  /**
+   * @param {TransactionWitnessSet} wit_set
+   */
+  add_existing(wit_set: TransactionWitnessSet): void;
+
+  /**
+   * @returns {TransactionWitnessSet}
+   */
+  build(): TransactionWitnessSet;
 }
 /**
  */

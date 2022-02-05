@@ -213,7 +213,7 @@ impl TransactionWitnessSetBuilder {
         };
         match &wit_set.plutus_data() {
             None => (),
-            Some(plutus_data) => plutus_data.0.iter().for_each(|plutus_datum| { self.add_plutus_datum(plutus_datum); } ),
+            Some(plutus_data) => plutus_data.elems.iter().for_each(|plutus_datum| { self.add_plutus_datum(plutus_datum); } ),
         };
         match &wit_set.redeemers() {
             None => (),
@@ -242,7 +242,10 @@ impl TransactionWitnessSetBuilder {
             self.plutus_scripts.keys().for_each(|hash| { remaining_wits.plutus_scripts.remove(hash); });
         }
         if self.plutus_data.len() > 0 {
-            result.set_plutus_data(&PlutusList(self.plutus_data.values().cloned().collect()));
+            result.set_plutus_data(&PlutusList {
+                elems: self.plutus_data.values().cloned().collect(),
+                definite_encoding: None,
+            });
             self.plutus_data.keys().for_each(|hash| { remaining_wits.plutus_data.remove(hash); });
         }
         if self.redeemers.len() > 0 {
