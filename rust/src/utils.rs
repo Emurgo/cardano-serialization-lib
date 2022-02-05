@@ -1084,10 +1084,10 @@ pub fn min_ada_required(
     coins_per_utxo_word.checked_mul(&words)
 }
 
-pub fn min_pure_ada(coins_per_utxo_word: &BigNum) -> Result<BigNum, JsError> {
+pub fn min_pure_ada(coins_per_utxo_word: &BigNum, has_data_hash: bool) -> Result<BigNum, JsError> {
     min_ada_required(
         &Value::new(&Coin::from_str("1000000")?),
-        false,
+        has_data_hash,
         coins_per_utxo_word,
     )
 }
