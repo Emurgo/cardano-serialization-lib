@@ -5707,13 +5707,13 @@ declare export class TransactionOutputAmountBuilder {
   ): TransactionOutputAmountBuilder;
 
   /**
-   * @param {BigNum} coins_per_utxo_word
    * @param {MultiAsset} multiasset
+   * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionOutputAmountBuilder}
    */
   with_asset_and_min_required_coin(
-    coins_per_utxo_word: BigNum,
-    multiasset: MultiAsset
+    multiasset: MultiAsset,
+    coins_per_utxo_word: BigNum
   ): TransactionOutputAmountBuilder;
 
   /**
