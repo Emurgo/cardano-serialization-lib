@@ -896,7 +896,7 @@ impl TransactionBuilder {
         ).as_positive_multiasset();
 
         self.add_output(&output_builder
-            .with_asset_and_min_required_coin(&self.config.coins_per_utxo_word, &multiasset)?
+            .with_asset_and_min_required_coin(&multiasset, &self.config.coins_per_utxo_word)?
             .build()?
         )
     }
@@ -3861,7 +3861,7 @@ mod tests {
             &TransactionOutputBuilder::new()
                 .with_address(&address)
                 .next().unwrap()
-                .with_asset_and_min_required_coin(&tx_builder.config.coins_per_utxo_word, &multiasset).unwrap()
+                .with_asset_and_min_required_coin(&multiasset, &tx_builder.config.coins_per_utxo_word).unwrap()
                 .build().unwrap()
             ).unwrap();
 
