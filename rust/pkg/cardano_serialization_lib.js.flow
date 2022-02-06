@@ -166,6 +166,13 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -188,13 +195,6 @@ declare export function decrypt_with_password(
   password: string,
   data: string
 ): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -5707,13 +5707,13 @@ declare export class TransactionOutputAmountBuilder {
   ): TransactionOutputAmountBuilder;
 
   /**
-   * @param {BigNum} coins_per_utxo_word
    * @param {MultiAsset} multiasset
+   * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionOutputAmountBuilder}
    */
   with_asset_and_min_required_coin(
-    coins_per_utxo_word: BigNum,
-    multiasset: MultiAsset
+    multiasset: MultiAsset,
+    coins_per_utxo_word: BigNum
   ): TransactionOutputAmountBuilder;
 
   /**
