@@ -382,7 +382,7 @@ impl TransactionBuilder {
                 // run largest-fist by each asset type
                 if let Some(ma) = output_total.multiasset.clone() {
                     for (policy_id, assets) in ma.0.iter() {
-                        for (asset_name, asset_amount) in assets.0.iter() {
+                        for (asset_name, _) in assets.0.iter() {
                             self.cip2_largest_first_by(
                                 available_inputs,
                                 &mut available_indices,
@@ -407,7 +407,7 @@ impl TransactionBuilder {
                 // run random-improve by each asset type
                 if let Some(ma) = output_total.multiasset.clone() {
                     for (policy_id, assets) in ma.0.iter() {
-                        for (asset_name, asset_amount) in assets.0.iter() {
+                        for (asset_name, _) in assets.0.iter() {
                             self.cip2_random_improve_by(
                                 available_inputs,
                                 &mut available_indices,
@@ -561,7 +561,6 @@ impl TransactionBuilder {
 
         // after finalizing the improvement we need to actually add these results to the builder
         for output in outputs.iter() {
-            let associated = associated_indices.get_mut(output).unwrap();
             for i in associated_indices.get(output).unwrap().iter() {
                 let input = &available_inputs[*i];
                 let input_fee = self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
