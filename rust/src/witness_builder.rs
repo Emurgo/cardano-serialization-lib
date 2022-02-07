@@ -145,7 +145,9 @@ pub struct TransactionWitnessSetBuilder {
     plutus_data: HashMap<DataHash, PlutusData>,
     redeemers: HashMap<RedeemerWitnessKey, Redeemer>,
 
-    // witnesses that need to be added for the build function to succeed
+    /// witnesses that need to be added for the build function to succeed
+    /// this allows checking that witnesses are present at build time (instead of when submitting to a node)
+    /// This is useful for APIs that can keep track of which witnesses will be required (like transaction builders)
     required_wits: RequiredWitnessSet,
 }
 
