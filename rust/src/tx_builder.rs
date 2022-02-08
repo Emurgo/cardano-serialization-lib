@@ -949,7 +949,8 @@ impl TransactionBuilder {
         }).unwrap_or((Value::zero(), Value::zero()))
     }
 
-    fn get_total_input(&self) -> Result<Value, JsError> {
+    /// Return explicit input plus implicit input plus mint minus burn
+    pub fn get_total_input(&self) -> Result<Value, JsError> {
         let (mint_value, burn_value) = self.get_mint_as_values();
         self.get_explicit_input()?
             .checked_add(&self.get_implicit_input()?)?

@@ -5300,6 +5300,12 @@ declare export class TransactionBuilder {
   get_implicit_input(): Value;
 
   /**
+   * Return explicit input plus implicit input plus mint minus burn
+   * @returns {Value}
+   */
+  get_total_input(): Value;
+
+  /**
    * does not include fee
    * @returns {Value}
    */
