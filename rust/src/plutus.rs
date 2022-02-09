@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PlutusScript(Vec<u8>);
 
 to_from_bytes!(PlutusScript);
@@ -24,6 +24,29 @@ impl PlutusScript {
     pub fn bytes(&self) -> Vec<u8> {
         self.0.clone()
     }
+}
+
+impl serde::Serialize for PlutusScript {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&hex::encode(&self.0))
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for PlutusScript {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        hex::decode(&s)
+            .map(|bytes| PlutusScript::new(bytes))
+            .map_err(|_err| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"PlutusScript as hex string e.g. F8AB28C2 (without CBOR bytes tag)"))
+    }
+}
+
+impl JsonSchema for PlutusScript {
+    fn schema_name() -> String { String::schema_name() }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
 }
 
 #[wasm_bindgen]

@@ -2,9 +2,11 @@ use std::fs;
 use std::path::Path;
 
 use cardano_serialization_lib::*;
-use cardano_serialization_lib::plutus::*;
 use cardano_serialization_lib::address::*;
 use cardano_serialization_lib::crypto::*;
+use cardano_serialization_lib::metadata::*;
+use cardano_serialization_lib::plutus::*;
+use cardano_serialization_lib::utils::*;
 
 //#[macro_export]
 macro_rules! gen_json_schema {
@@ -16,13 +18,13 @@ macro_rules! gen_json_schema {
 }
 
 fn main() {
-    let schemaPath = Path::new(&"schemas");
-    if !schemaPath.exists() {
-        fs::create_dir(schemaPath).unwrap();
+    let schema_path = Path::new(&"schemas");
+    if !schema_path.exists() {
+        fs::create_dir(schema_path).unwrap();
     }
     // lib.rs
     gen_json_schema!(UnitInterval);
-    //gen_json_schema!(Transaction);
+    gen_json_schema!(Transaction);
     gen_json_schema!(TransactionInputs);
     gen_json_schema!(TransactionOutputs);
     gen_json_schema!(Certificates);
@@ -73,13 +75,13 @@ fn main() {
     gen_json_schema!(ProtocolVersion);
     gen_json_schema!(ProtocolVersions);
     gen_json_schema!(ProtocolParamUpdate);
-    //gen_json_schema!(TransactionBodies);
-    //gen_json_schema!(TransactionWitnessSets);
-    //gen_json_schema!(AuxiliaryDataSet);
-    //gen_json_schema!(Block);
-    //gen_json_schema!(Header);
-    //gen_json_schema!(OperationalCert);
-    //gen_json_schema!(HeaderBody);
+    gen_json_schema!(TransactionBodies);
+    gen_json_schema!(TransactionWitnessSets);
+    gen_json_schema!(AuxiliaryDataSet);
+    gen_json_schema!(Block);
+    gen_json_schema!(Header);
+    gen_json_schema!(OperationalCert);
+    gen_json_schema!(HeaderBody);
     gen_json_schema!(AssetName);
     gen_json_schema!(AssetNames);
     gen_json_schema!(Assets);
@@ -131,4 +133,13 @@ fn main() {
     gen_json_schema!(RedeemerTag);
     gen_json_schema!(Redeemers);
     //gen_json_schema!(Strings);
+    // metadata.rs
+    gen_json_schema!(TransactionMetadatum);
+    gen_json_schema!(GeneralTransactionMetadata);
+    gen_json_schema!(AuxiliaryData);
+    // utils.rs
+    gen_json_schema!(BigNum);
+    gen_json_schema!(BigInt);
+    gen_json_schema!(Int);
+    gen_json_schema!(Value);
 }

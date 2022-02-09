@@ -19,6 +19,7 @@
     "js:publish-browser:beta": "npm run rust:build-browser && npm run js:prepublish && node ./scripts/publish-helper -browser && cd publish && npm publish --tag beta --access public",
     "js:publish-asm:prod": "npm run rust:build-asm && npm run js:prepublish && node ./scripts/publish-helper -asmjs && cd publish && npm publish --access public",
     "js:publish-asm:beta": "npm run rust:build-asm && npm run js:prepublish && node ./scripts/publish-helper -asmjs && cd publish && npm publish --tag beta --access public",
+    "js:ts-json-gen": "cd rust/json-gen && cargo +stable run && cd ../.. && node ./scripts/run-json2ts.js",
     "postinstall": "git submodule update --init --recursive && cd binaryen; cmake . && make"
   },
   "husky": {
@@ -32,12 +33,10 @@
     "type": "git",
     "url": "git+https://github.com/Emurgo/cardano-serialization-lib.git"
   },
-  "dependencies": {
-    "json-schema-to-typescript": "^10.1.5"
-  },
   "devDependencies": {
     "flowgen": "1.11.0",
     "husky": "4.2.5",
+    "json-schema-to-typescript": "^10.1.5",
     "rimraf": "3.0.2"
   }
 }

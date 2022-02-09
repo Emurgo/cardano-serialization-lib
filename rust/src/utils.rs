@@ -165,7 +165,7 @@ impl TransactionUnspentOutputs {
 // This is an unsigned type - no negative numbers.
 // Can be converted to/from plain rust 
 #[wasm_bindgen]
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BigNum(u64);
 
 to_from_bytes!(BigNum);
@@ -243,6 +243,27 @@ impl Deserialize for BigNum {
           Err(e) => Err(DeserializeError::new("BigNum", DeserializeFailure::CBOR(e))),
       }
   }
+}
+
+impl serde::Serialize for BigNum {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&self.to_str())
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for BigNum {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"string rep of a number"))
+    }
+}
+
+impl JsonSchema for BigNum {
+    fn schema_name() -> String { String::schema_name() }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
 }
 
 pub fn to_bignum(val: u64) -> BigNum {
@@ -478,7 +499,7 @@ impl Deserialize for Value {
 
 // CBOR has int = uint / nint
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Int(pub (crate) i128);
 
 #[wasm_bindgen]
@@ -558,6 +579,16 @@ impl Int {
     pub fn to_str(&self) -> String {
         format!("{}", self.0)
     }
+
+    // Create an Int from a standard rust string representation
+    pub fn from_str(string: &str) -> Result<Int, JsError> {
+        let x = string.parse::<i128>()
+            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))?;
+        if x.abs() > u64::MAX as i128 {
+            return Err(JsError::from_str(&format!("{} out of bounds. Value (without sign) must fit within 4 bytes limit of {}", x, u64::MAX)));
+        }
+        Ok(Self(x))
+    }
 }
 
 impl cbor_event::se::Serialize for Int {
@@ -580,6 +611,27 @@ impl Deserialize for Int {
             }
         })().map_err(|e| e.annotate("Int"))
     }
+}
+
+impl serde::Serialize for Int {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&self.to_str())
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for Int {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"string rep of a number"))
+    }
+}
+
+impl JsonSchema for Int {
+    fn schema_name() -> String { String::schema_name() }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
 }
 
 const BOUNDED_BYTES_CHUNK_SIZE: usize = 64;
@@ -675,21 +727,6 @@ impl serde::Serialize for BigInt {
         serializer.serialize_str(&self.to_str())
     }
 }
-/*
-impl<'de> serde::de::Visitor<'de> for BigInt {
-    type Value = BigInt;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("must be a string of characters between 0-9")
-    }
-
-    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        BigInt::from_str(s).map_err(|e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(s), &self))
-    }
-}*/
 
 impl <'de> serde::de::Deserialize<'de> for BigInt {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
@@ -702,7 +739,6 @@ impl <'de> serde::de::Deserialize<'de> for BigInt {
 impl JsonSchema for BigInt {
     fn schema_name() -> String { String::schema_name() }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
-
     fn is_referenceable() -> bool { String::is_referenceable() }
 }
 
@@ -2339,6 +2375,13 @@ mod tests {
 
     #[test]
     fn foo() {
+        /*let mut assets = Assets::new();
+        let mut ma = MultiAsset::new();
+        ma.insert(&ScriptHash::from_bytes(vec![255; 28]).unwrap(), &assets);
+        let json3 = serde_json::to_string(&ma).unwrap();
+        panic!(json3);
+        let json2 = serde_json::to_string(&ScriptHash::from_bytes(vec![255; 28]).unwrap()).unwrap();
+        panic!(json2);*/
         let json = serde_json::to_string(&one_policy_three_32_char_assets()).unwrap();
         panic!(json);
     }

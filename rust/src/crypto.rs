@@ -965,8 +965,34 @@ impl Deserialize for KESSignature {
                 return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(Self::BYTE_COUNT as u64, cbor_event::Len::Len(bytes.len() as u64), "hash length")).into());
             }
             Ok(KESSignature(bytes))
-        })().map_err(|e| e.annotate(stringify!($name)))
+        })().map_err(|e| e.annotate("KESSignature"))
     }
+}
+
+impl serde::Serialize for KESSignature {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&hex::encode(self.to_bytes()))
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for KESSignature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        if let Ok(hex_bytes) = hex::decode(s.clone()) {
+            if let Ok(sig) = KESSignature::from_bytes(hex_bytes) {
+                return Ok(sig);
+            }
+        }
+        Err(serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"hex bytes for KESSignature"))
+    }
+}
+
+impl JsonSchema for KESSignature {
+    fn schema_name() -> String { String::schema_name() }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
 }
 
 // Evolving nonce type (used for Update's crypto)
@@ -1062,7 +1088,7 @@ impl Deserialize for Nonce {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct VRFCert {
     output: Vec<u8>,
     proof: Vec<u8>,

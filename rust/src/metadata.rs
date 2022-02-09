@@ -219,6 +219,32 @@ impl TransactionMetadatum {
     }
 }
 
+impl serde::Serialize for TransactionMetadatum {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let json_str = decode_metadatum_to_json_str(self, MetadataJsonSchema::DetailedSchema)
+            .map_err(|e| serde::ser::Error::custom(e))?;
+        serializer.serialize_str(&json_str)
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for TransactionMetadatum {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        encode_json_str_to_metadatum(s.clone(), MetadataJsonSchema::DetailedSchema)
+            .map_err(|e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &format!("{}", e).as_str()))
+    }
+}
+
+// just for now we'll do json-in-json until I can figure this out better
+// TODO: maybe not generate this? or how do we do this?
+impl JsonSchema for TransactionMetadatum {
+    fn schema_name() -> String { String::schema_name() }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
+}
+
 pub type TransactionMetadatumLabel = BigNum;
 
 #[wasm_bindgen]
@@ -284,8 +310,33 @@ impl GeneralTransactionMetadata {
     }
 }
 
+impl serde::Serialize for GeneralTransactionMetadata {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let map = self.0.iter().collect::<std::collections::BTreeMap<_, _>>();
+        map.serialize(serializer)
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for GeneralTransactionMetadata {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let map = <std::collections::BTreeMap<_, _> as serde::de::Deserialize>::deserialize(deserializer)?;
+        Ok(Self(map.into_iter().collect()))
+    }
+}
+
+impl JsonSchema for GeneralTransactionMetadata {
+    fn schema_name() -> String { std::collections::BTreeMap::<TransactionMetadatumLabel, TransactionMetadatum>::schema_name() }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        std::collections::BTreeMap::<TransactionMetadatumLabel, TransactionMetadatum>::json_schema(gen)
+    }
+    fn is_referenceable() -> bool { std::collections::BTreeMap::<TransactionMetadatumLabel, TransactionMetadatum>::is_referenceable() }
+}
+
+
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct AuxiliaryData {
     metadata: Option<GeneralTransactionMetadata>,
     native_scripts: Option<NativeScripts>,
