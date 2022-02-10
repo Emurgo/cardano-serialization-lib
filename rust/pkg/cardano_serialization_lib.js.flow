@@ -2798,6 +2798,14 @@ declare export class NativeScript {
    * @returns {TimelockExpiry | void}
    */
   as_timelock_expiry(): TimelockExpiry | void;
+
+  /**
+   * Returns an array of unique Ed25519KeyHashes
+   * contained within this script recursively on any depth level.
+   * The order of the keys in the result is not determined in any way.
+   * @returns {Ed25519KeyHashes}
+   */
+  get_required_signers(): Ed25519KeyHashes;
 }
 /**
  */
