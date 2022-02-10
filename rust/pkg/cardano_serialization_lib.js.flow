@@ -2798,6 +2798,11 @@ declare export class NativeScript {
    * @returns {TimelockExpiry | void}
    */
   as_timelock_expiry(): TimelockExpiry | void;
+
+  /**
+   * @returns {Ed25519KeyHashes}
+   */
+  get_required_signers(): Ed25519KeyHashes;
 }
 /**
  */

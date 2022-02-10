@@ -1724,6 +1724,13 @@ impl NativeScript {
             _ => None,
         }
     }
+
+    pub fn get_required_signers(&self) -> RequiredSigners {
+        Ed25519KeyHashes(
+            RequiredSignersSet::from(self).iter()
+                .map(|k| { k.clone() }).collect()
+        )
+    }
 }
 
 #[wasm_bindgen]
