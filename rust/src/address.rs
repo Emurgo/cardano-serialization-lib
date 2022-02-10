@@ -6,13 +6,16 @@ use ed25519_bip32::XPub;
 // returns (Number represented, bytes read) if valid encoding
 // or None if decoding prematurely finished
 fn variable_nat_decode(bytes: &[u8]) -> Option<(u64, usize)> {
-    let mut output = 0u64;
+    let mut output = 0u128;
     let mut bytes_read = 0;
     for byte in bytes {
-        output = (output << 7) | (byte & 0x7F) as u64;
+        output = (output << 7) | (byte & 0x7F) as u128;
+        if output > u64::MAX.into() {
+            return None;
+        }
         bytes_read += 1;
         if (byte & 0x80) == 0 {
-            return Some((output, bytes_read));
+            return Some((output as u64, bytes_read));
         }
     }
     None
@@ -693,6 +696,12 @@ mod tests {
             let decoded = variable_nat_decode(&encoded).unwrap().0;
             assert_eq!(*case, decoded);
         }
+    }
+
+    #[test]
+    fn variable_nat_decode_too_big() {
+        let too_big = [129, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127];
+        assert_eq!(None, variable_nat_decode(&too_big));
     }
 
     #[test]
