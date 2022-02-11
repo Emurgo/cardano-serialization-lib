@@ -365,7 +365,7 @@ pub enum PlutusDataKind {
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
-enum PlutusDataEnum {
+pub enum PlutusDataEnum {
     ConstrPlutusData(ConstrPlutusData),
     Map(PlutusMap),
     List(PlutusList),

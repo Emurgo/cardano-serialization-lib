@@ -65,7 +65,7 @@ impl NetworkInfo {
 }
 
 #[derive(Debug, Clone, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
-enum StakeCredType {
+pub enum StakeCredType {
     Key(Ed25519KeyHash),
     Script(ScriptHash),
 }
@@ -579,7 +579,7 @@ impl EnterpriseAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RewardAddress {
     network: u8,
     payment: StakeCredential,
@@ -608,6 +608,34 @@ impl RewardAddress {
             _ => None,
         }
     }
+}
+
+impl serde::Serialize for RewardAddress {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let bech32 = self
+            .to_address()
+            .to_bech32(None)
+            .map_err(|e| serde::ser::Error::custom(format!("to_bech32: {}", e)))?;
+        serializer.serialize_str(&bech32)
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for RewardAddress {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let bech32 = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        match Address::from_bech32(&bech32).ok().map(|addr| RewardAddress::from_address(&addr)) {
+            Some(Some(ra)) => Ok(ra),
+            _ => Err(serde::de::Error::invalid_value(serde::de::Unexpected::Str(&bech32), &"bech32 reward address string")),
+        }
+    }
+}
+
+impl JsonSchema for RewardAddress {
+    fn schema_name() -> String { String::schema_name() }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
 }
 
 // needed since we treat RewardAccount like RewardAddress

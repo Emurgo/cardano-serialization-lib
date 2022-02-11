@@ -2373,16 +2373,4 @@ mod tests {
         assert_eq!(Int::new_i32(-42).as_i32_or_fail().unwrap(), -42);
     }
 
-    #[test]
-    fn foo() {
-        /*let mut assets = Assets::new();
-        let mut ma = MultiAsset::new();
-        ma.insert(&ScriptHash::from_bytes(vec![255; 28]).unwrap(), &assets);
-        let json3 = serde_json::to_string(&ma).unwrap();
-        panic!(json3);
-        let json2 = serde_json::to_string(&ScriptHash::from_bytes(vec![255; 28]).unwrap()).unwrap();
-        panic!(json2);*/
-        let json = serde_json::to_string(&one_policy_three_32_char_assets()).unwrap();
-        panic!(json);
-    }
 }

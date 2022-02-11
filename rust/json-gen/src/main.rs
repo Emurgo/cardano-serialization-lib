@@ -42,6 +42,7 @@ fn main() {
     gen_json_schema!(GenesisKeyDelegation);
     gen_json_schema!(MoveInstantaneousRewardsCert);
     gen_json_schema!(Certificate);
+    gen_json_schema!(CertificateEnum);
     gen_json_schema!(MIRPot);
     gen_json_schema!(MIRToStakeCredentials);
     gen_json_schema!(MoveInstantaneousReward);
@@ -55,6 +56,7 @@ fn main() {
     gen_json_schema!(SingleHostName);
     gen_json_schema!(MultiHostName);
     gen_json_schema!(Relay);
+    gen_json_schema!(RelayEnum);
     gen_json_schema!(PoolMetadata);
     gen_json_schema!(StakeCredentials);
     gen_json_schema!(RewardAddresses);
@@ -67,6 +69,7 @@ fn main() {
     gen_json_schema!(TimelockStart);
     gen_json_schema!(TimelockExpiry);
     gen_json_schema!(NativeScript);
+    gen_json_schema!(NativeScriptEnum);
     gen_json_schema!(NativeScripts);
     gen_json_schema!(Update);
     gen_json_schema!(GenesisHashes);
@@ -89,6 +92,7 @@ fn main() {
     gen_json_schema!(MintAssets);
     gen_json_schema!(Mint);
     gen_json_schema!(NetworkId);
+    gen_json_schema!(NetworkIdKind);
     // crypto.rs
     gen_json_schema!(PublicKey);
     gen_json_schema!(Vkey);
@@ -112,8 +116,10 @@ fn main() {
     gen_json_schema!(VRFVKey);
     gen_json_schema!(KESVKey);
     gen_json_schema!(Nonce);
+    gen_json_schema!(VRFCert);
     // address.rs
     gen_json_schema!(StakeCredential);
+    gen_json_schema!(StakeCredType);
     gen_json_schema!(Address);
     gen_json_schema!(RewardAddress);
     // plutus.rs
@@ -125,12 +131,16 @@ fn main() {
     gen_json_schema!(ExUnitPrices);
     gen_json_schema!(ExUnits);
     gen_json_schema!(Language);
+    gen_json_schema!(LanguageKind);
     gen_json_schema!(Languages);
     gen_json_schema!(PlutusMap);
     gen_json_schema!(PlutusData);
     gen_json_schema!(PlutusList);
+    gen_json_schema!(PlutusData);
+    gen_json_schema!(PlutusDataEnum);
     gen_json_schema!(Redeemer);
     gen_json_schema!(RedeemerTag);
+    gen_json_schema!(RedeemerTagKind);
     gen_json_schema!(Redeemers);
     //gen_json_schema!(Strings);
     // metadata.rs
