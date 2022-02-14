@@ -475,6 +475,13 @@ impl PlutusList {
         }
     }
 
+    pub(crate) fn clone_definite(&self) -> Self {
+        Self {
+            elems: self.elems.clone(),
+            definite_encoding: Some(true),
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.elems.len()
     }
