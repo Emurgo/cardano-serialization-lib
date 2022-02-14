@@ -475,7 +475,7 @@ impl PlutusList {
         }
     }
 
-    pub(crate) fn clone_definite(&self) -> Self {
+    pub(crate) fn clone_as_definite(&self) -> Self {
         Self {
             elems: self.elems.clone(),
             definite_encoding: Some(true),

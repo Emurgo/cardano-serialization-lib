@@ -921,7 +921,7 @@ pub fn hash_script_data(redeemers: &Redeemers, cost_models: &Costmdls, datums: O
         */
         buf.extend(redeemers.to_bytes());
         if let Some(d) = &datums {
-            buf.extend(d.clone_definite().to_bytes());
+            buf.extend(d.clone_as_definite().to_bytes());
         }
         buf.extend(cost_models.language_views_encoding());
     }
