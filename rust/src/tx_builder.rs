@@ -330,9 +330,7 @@ impl TransactionBuilder {
     pub fn add_inputs_from(&mut self, inputs: &TransactionUnspentOutputs, strategy: CoinSelectionStrategyCIP2) -> Result<(), JsError> {
         let available_inputs = &inputs.0.clone();
         let mut input_total = self.get_total_input()?;
-        let mut output_total = self
-            .get_explicit_output()?
-            .checked_add(&Value::new(&self.get_deposit()?))?
+        let mut output_total = self.get_total_output()?
             .checked_add(&Value::new(&self.min_fee()?))?;
         match strategy {
             CoinSelectionStrategyCIP2::LargestFirst => {
@@ -949,13 +947,20 @@ impl TransactionBuilder {
         }).unwrap_or((Value::zero(), Value::zero()))
     }
 
-    /// Return explicit input plus implicit input plus mint minus burn
+    /// Return explicit input plus implicit input plus mint
     pub fn get_total_input(&self) -> Result<Value, JsError> {
-        let (mint_value, burn_value) = self.get_mint_as_values();
+        let (mint_value, _) = self.get_mint_as_values();
         self.get_explicit_input()?
             .checked_add(&self.get_implicit_input()?)?
-            .checked_add(&mint_value)?
-            .checked_sub(&burn_value)
+            .checked_add(&mint_value)
+    }
+
+    /// Return explicit output plus deposit plus burn
+    pub fn get_total_output(&self) -> Result<Value, JsError> {
+        let (_, burn_value) = self.get_mint_as_values();
+        self.get_explicit_output()?
+            .checked_add(&Value::new(&self.get_deposit()?))?
+            .checked_add(&burn_value)
     }
 
     /// does not include fee
@@ -1000,10 +1005,7 @@ impl TransactionBuilder {
         let data_hash = None;
 
         let input_total = self.get_total_input()?;
-
-        let output_total = self
-            .get_explicit_output()?
-            .checked_add(&Value::new(&self.get_deposit()?))?;
+        let output_total = self.get_total_output()?;
 
         use std::cmp::Ordering;
         match &input_total.partial_cmp(&output_total.checked_add(&Value::new(&fee))?) {
@@ -4137,7 +4139,7 @@ mod tests {
     }
 
     #[test]
-    fn total_input_with_mint_and_burn() {
+    fn total_input_output_with_mint_and_burn() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
         let spend = root_key_15()
             .derive(harden(1852))
@@ -4188,22 +4190,41 @@ mod tests {
             );
         }
 
+        tx_builder.add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(&byron_address())
+                .next().unwrap()
+                .with_coin(&to_bignum(42))
+                .build().unwrap()
+        ).unwrap();
+
         let total_input_before_mint = tx_builder.get_total_input().unwrap();
+        let total_output_before_mint = tx_builder.get_total_output().unwrap();
 
         assert_eq!(total_input_before_mint.coin, to_bignum(300));
-        let ma1 = total_input_before_mint.multiasset.unwrap();
-        assert_eq!(ma1.get(&policy_id1).unwrap().get(&name).unwrap(), to_bignum(360));
-        assert_eq!(ma1.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(360));
+        assert_eq!(total_output_before_mint.coin, to_bignum(42));
+        let ma1_input = total_input_before_mint.multiasset.unwrap();
+        let ma1_output = total_output_before_mint.multiasset;
+        assert_eq!(ma1_input.get(&policy_id1).unwrap().get(&name).unwrap(), to_bignum(360));
+        assert_eq!(ma1_input.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(360));
+        assert!(ma1_output.is_none());
 
+        // Adding mint
         tx_builder.add_mint_asset(&mint_script1, &name, Int::new_i32(40));
+
+        // Adding burn
         tx_builder.add_mint_asset(&mint_script2, &name, Int::new_i32(-40));
 
         let total_input_after_mint = tx_builder.get_total_input().unwrap();
+        let total_output_after_mint = tx_builder.get_total_output().unwrap();
 
         assert_eq!(total_input_after_mint.coin, to_bignum(300));
-        let ma2 = total_input_after_mint.multiasset.unwrap();
-        assert_eq!(ma2.get(&policy_id1).unwrap().get(&name).unwrap(), to_bignum(400));
-        assert_eq!(ma2.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(320));
+        assert_eq!(total_output_before_mint.coin, to_bignum(42));
+        let ma2_input = total_input_after_mint.multiasset.unwrap();
+        let ma2_output = total_output_after_mint.multiasset.unwrap();
+        assert_eq!(ma2_input.get(&policy_id1).unwrap().get(&name).unwrap(), to_bignum(400));
+        assert_eq!(ma2_input.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(360));
+        assert_eq!(ma2_output.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(40));
     }
 
 }
