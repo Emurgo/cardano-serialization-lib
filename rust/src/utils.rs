@@ -908,7 +908,7 @@ pub fn hash_script_data(redeemers: &Redeemers, cost_models: &Costmdls, datums: O
         */
         buf.push(0x80);
         if let Some(d) = &datums {
-            buf.extend(d.to_bytes());
+            buf.extend(d.clone_as_definite().to_bytes());
         }
         buf.push(0xA0);
     } else {
