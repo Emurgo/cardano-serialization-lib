@@ -1272,12 +1272,12 @@ mod tests {
         // witness_set should have fixed length array
         let mut witness_set = TransactionWitnessSet::new();
         witness_set.set_plutus_data(&list);
-        assert_eq!("a1048101", hex::encode(witness_set.to_bytes()));
+        assert_eq!("a1049f01ff", hex::encode(witness_set.to_bytes()));
 
         list = PlutusList::new();
         list.add(&datum);
         witness_set.set_plutus_data(&list);
-        assert_eq!(format!("a10481{}", datum_cli), hex::encode(witness_set.to_bytes()));
+        assert_eq!(format!("a1049f{}ff", datum_cli), hex::encode(witness_set.to_bytes()));
     }
 
     #[test]

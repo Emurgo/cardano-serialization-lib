@@ -1806,10 +1806,7 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
         }
         if let Some(field) = &self.plutus_data {
             serializer.write_unsigned_integer(4)?;
-            serializer.write_array(cbor_event::Len::Len(field.len() as u64))?;
-            for i in 0..field.len() {
-              field.get(i).serialize(serializer)?;
-            }
+            field.serialize(serializer)?;
         }
         if let Some(field) = &self.redeemers {
             serializer.write_unsigned_integer(5)?;
