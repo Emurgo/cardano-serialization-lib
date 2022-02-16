@@ -5308,10 +5308,16 @@ declare export class TransactionBuilder {
   get_implicit_input(): Value;
 
   /**
-   * Return explicit input plus implicit input plus mint minus burn
+   * Return explicit input plus implicit input plus mint
    * @returns {Value}
    */
   get_total_input(): Value;
+
+  /**
+   * Return explicit output plus deposit plus burn
+   * @returns {Value}
+   */
+  get_total_output(): Value;
 
   /**
    * does not include fee
