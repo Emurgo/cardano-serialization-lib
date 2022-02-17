@@ -1,7 +1,9 @@
 use crate::chain_crypto::key::{
     AsymmetricKey, AsymmetricPublicKey, PublicKeyError, SecretKeyError, SecretKeySizeStatic,
 };
-use crate::chain_crypto::sign::{SignatureError, SigningAlgorithm, Verification, VerificationAlgorithm};
+use crate::chain_crypto::sign::{
+    SignatureError, SigningAlgorithm, Verification, VerificationAlgorithm,
+};
 
 use cryptoxide::digest::Digest;
 use cryptoxide::hmac::Hmac;
@@ -35,17 +37,15 @@ impl LegacyPriv {
         LegacyPriv(buf)
     }
 
-    pub fn inner_key(&self) -> [u8; ed25519::PRIVATE_KEY_LENGTH] {
-        let mut buf = [0; ed25519::PRIVATE_KEY_LENGTH];
-        buf[0..ed25519::PRIVATE_KEY_LENGTH]
-            .clone_from_slice(&self.0.as_ref()[0..ed25519::PRIVATE_KEY_LENGTH]);
+    pub fn inner_key(&self) -> [u8; ed25519::EXTENDED_KEY_LENGTH] {
+        let mut buf = [0; ed25519::EXTENDED_KEY_LENGTH];
+        buf.clone_from_slice(&self.0.as_ref()[0..ed25519::EXTENDED_KEY_LENGTH]);
         buf
     }
 
     pub fn chaincode(&self) -> [u8; CHAIN_CODE_SIZE] {
         let mut buf = [0; CHAIN_CODE_SIZE];
-        buf[0..CHAIN_CODE_SIZE]
-            .clone_from_slice(&self.0.as_ref()[ed25519::PRIVATE_KEY_LENGTH..XPRV_SIZE]);
+        buf.clone_from_slice(&self.0.as_ref()[ed25519::EXTENDED_KEY_LENGTH..XPRV_SIZE]);
         buf
     }
 }
@@ -94,7 +94,7 @@ impl AsymmetricKey for LegacyDaedalus {
 
     fn compute_public(key: &Self::Secret) -> <Self as AsymmetricPublicKey>::Public {
         let ed25519e = key.inner_key();
-        let pubkey = ed25519::to_public(&ed25519e);
+        let pubkey = ed25519::extended_to_public(&ed25519e);
         let chaincode = key.chaincode();
 
         let mut buf = [0; XPUB_SIZE];
