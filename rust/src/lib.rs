@@ -74,6 +74,8 @@ pub struct UnitInterval {
 
 to_from_bytes!(UnitInterval);
 
+to_from_json!(UnitInterval);
+
 #[wasm_bindgen]
 impl UnitInterval {
     pub fn numerator(&self) -> BigNum {
@@ -107,6 +109,8 @@ pub struct Transaction {
 }
 
 to_from_bytes!(Transaction);
+
+to_from_json!(Transaction);
 
 #[wasm_bindgen]
 impl Transaction {
@@ -155,6 +159,8 @@ pub struct TransactionInputs(Vec<TransactionInput>);
 
 to_from_bytes!(TransactionInputs);
 
+to_from_json!(TransactionInputs);
+
 #[wasm_bindgen]
 impl TransactionInputs {
     pub fn new() -> Self {
@@ -180,6 +186,8 @@ pub struct TransactionOutputs(Vec<TransactionOutput>);
 
 to_from_bytes!(TransactionOutputs);
 
+to_from_json!(TransactionOutputs);
+
 #[wasm_bindgen]
 impl TransactionOutputs {
     pub fn new() -> Self {
@@ -204,6 +212,8 @@ impl TransactionOutputs {
 pub struct Certificates(Vec<Certificate>);
 
 to_from_bytes!(Certificates);
+
+to_from_json!(Certificates);
 
 #[wasm_bindgen]
 impl Certificates {
@@ -247,6 +257,8 @@ pub struct TransactionBody {
 }
 
 to_from_bytes!(TransactionBody);
+
+to_from_json!(TransactionBody);
 
 #[wasm_bindgen]
 impl TransactionBody {
@@ -389,6 +401,8 @@ pub struct TransactionInput {
 
 to_from_bytes!(TransactionInput);
 
+to_from_json!(TransactionInput);
+
 #[wasm_bindgen]
 impl TransactionInput {
     pub fn transaction_id(&self) -> TransactionHash {
@@ -416,6 +430,8 @@ pub struct TransactionOutput {
 }
 
 to_from_bytes!(TransactionOutput);
+
+to_from_json!(TransactionOutput);
 
 #[wasm_bindgen]
 impl TransactionOutput {
@@ -452,6 +468,8 @@ pub struct StakeRegistration {
 
 to_from_bytes!(StakeRegistration);
 
+to_from_json!(StakeRegistration);
+
 #[wasm_bindgen]
 impl StakeRegistration {
     pub fn stake_credential(&self) -> StakeCredential {
@@ -472,6 +490,8 @@ pub struct StakeDeregistration {
 }
 
 to_from_bytes!(StakeDeregistration);
+
+to_from_json!(StakeDeregistration);
 
 #[wasm_bindgen]
 impl StakeDeregistration {
@@ -494,6 +514,8 @@ pub struct StakeDelegation {
 }
 
 to_from_bytes!(StakeDelegation);
+
+to_from_json!(StakeDelegation);
 
 #[wasm_bindgen]
 impl StakeDelegation {
@@ -519,6 +541,8 @@ pub struct Ed25519KeyHashes(Vec<Ed25519KeyHash>);
 
 to_from_bytes!(Ed25519KeyHashes);
 
+to_from_json!(Ed25519KeyHashes);
+
 #[wasm_bindgen]
 impl Ed25519KeyHashes {
     pub fn new() -> Self {
@@ -543,6 +567,8 @@ impl Ed25519KeyHashes {
 pub struct Relays(Vec<Relay>);
 
 to_from_bytes!(Relays);
+
+to_from_json!(Relays);
 
 #[wasm_bindgen]
 impl Relays {
@@ -578,6 +604,8 @@ pub struct PoolParams {
 }
 
 to_from_bytes!(PoolParams);
+
+to_from_json!(PoolParams);
 
 #[wasm_bindgen]
 impl PoolParams {
@@ -650,6 +678,8 @@ pub struct PoolRegistration {
 
 to_from_bytes!(PoolRegistration);
 
+to_from_json!(PoolRegistration);
+
 #[wasm_bindgen]
 impl PoolRegistration {
     pub fn pool_params(&self) -> PoolParams {
@@ -671,6 +701,8 @@ pub struct PoolRetirement {
 }
 
 to_from_bytes!(PoolRetirement);
+
+to_from_json!(PoolRetirement);
 
 #[wasm_bindgen]
 impl PoolRetirement {
@@ -699,6 +731,8 @@ pub struct GenesisKeyDelegation {
 }
 
 to_from_bytes!(GenesisKeyDelegation);
+
+to_from_json!(GenesisKeyDelegation);
 
 #[wasm_bindgen]
 impl GenesisKeyDelegation {
@@ -734,6 +768,8 @@ pub struct MoveInstantaneousRewardsCert {
 }
 
 to_from_bytes!(MoveInstantaneousRewardsCert);
+
+to_from_json!(MoveInstantaneousRewardsCert);
 
 #[wasm_bindgen]
 impl MoveInstantaneousRewardsCert {
@@ -776,6 +812,8 @@ pub enum CertificateEnum {
 pub struct Certificate(CertificateEnum);
 
 to_from_bytes!(Certificate);
+
+to_from_json!(Certificate);
 
 #[wasm_bindgen]
 impl Certificate {
@@ -909,6 +947,8 @@ pub struct MIRToStakeCredentials {
 
 to_from_bytes!(MIRToStakeCredentials);
 
+to_from_json!(MIRToStakeCredentials);
+
 #[wasm_bindgen]
 impl MIRToStakeCredentials {
     pub fn new() -> Self {
@@ -958,7 +998,7 @@ impl <'de> serde::de::Deserialize<'de> for MIRToStakeCredentials {
 }
 
 impl JsonSchema for MIRToStakeCredentials {
-    fn schema_name() -> String { std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::schema_name() }
+    fn schema_name() -> String { String::from("MIRToStakeCredentials") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
         std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::json_schema(gen)
     }
@@ -973,6 +1013,8 @@ pub struct MoveInstantaneousReward {
 }
 
 to_from_bytes!(MoveInstantaneousReward);
+
+to_from_json!(MoveInstantaneousReward);
 
 #[wasm_bindgen]
 impl MoveInstantaneousReward {
@@ -1024,6 +1066,8 @@ pub struct Ipv4([u8; 4]);
 
 to_from_bytes!(Ipv4);
 
+to_from_json!(Ipv4);
+
 #[wasm_bindgen]
 impl Ipv4 {
     pub fn new(data: Vec<u8>) -> Result<Ipv4, JsError> {
@@ -1051,6 +1095,8 @@ impl Ipv4 {
 pub struct Ipv6([u8; 16]);
 
 to_from_bytes!(Ipv6);
+
+to_from_json!(Ipv6);
 
 #[wasm_bindgen]
 impl Ipv6 {
@@ -1175,6 +1221,8 @@ pub struct SingleHostAddr {
 
 to_from_bytes!(SingleHostAddr);
 
+to_from_json!(SingleHostAddr);
+
 #[wasm_bindgen]
 impl SingleHostAddr {
     pub fn port(&self) -> Option<Port> {
@@ -1207,6 +1255,8 @@ pub struct SingleHostName {
 
 to_from_bytes!(SingleHostName);
 
+to_from_json!(SingleHostName);
+
 #[wasm_bindgen]
 impl SingleHostName {
     pub fn port(&self) -> Option<Port> {
@@ -1232,6 +1282,8 @@ pub struct MultiHostName {
 }
 
 to_from_bytes!(MultiHostName);
+
+to_from_json!(MultiHostName);
 
 #[wasm_bindgen]
 impl MultiHostName {
@@ -1264,6 +1316,8 @@ pub enum RelayEnum {
 pub struct Relay(RelayEnum);
 
 to_from_bytes!(Relay);
+
+to_from_json!(Relay);
 
 #[wasm_bindgen]
 impl Relay {
@@ -1318,6 +1372,8 @@ pub struct PoolMetadata {
 
 to_from_bytes!(PoolMetadata);
 
+to_from_json!(PoolMetadata);
+
 #[wasm_bindgen]
 impl PoolMetadata {
     pub fn url(&self) -> URL {
@@ -1341,6 +1397,8 @@ impl PoolMetadata {
 pub struct StakeCredentials(Vec<StakeCredential>);
 
 to_from_bytes!(StakeCredentials);
+
+to_from_json!(StakeCredentials);
 
 #[wasm_bindgen]
 impl StakeCredentials {
@@ -1367,6 +1425,8 @@ pub struct RewardAddresses(Vec<RewardAddress>);
 
 to_from_bytes!(RewardAddresses);
 
+to_from_json!(RewardAddresses);
+
 #[wasm_bindgen]
 impl RewardAddresses {
     pub fn new() -> Self {
@@ -1391,6 +1451,8 @@ impl RewardAddresses {
 pub struct Withdrawals(linked_hash_map::LinkedHashMap<RewardAddress, Coin>);
 
 to_from_bytes!(Withdrawals);
+
+to_from_json!(Withdrawals);
 
 #[wasm_bindgen]
 impl Withdrawals {
@@ -1437,7 +1499,7 @@ impl <'de> serde::de::Deserialize<'de> for Withdrawals {
 }
 
 impl JsonSchema for Withdrawals {
-    fn schema_name() -> String { std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::schema_name() }
+    fn schema_name() -> String { String::from("Withdrawals") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
         std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::json_schema(gen)
     }
@@ -1456,6 +1518,8 @@ pub struct TransactionWitnessSet {
 }
 
 to_from_bytes!(TransactionWitnessSet);
+
+to_from_json!(TransactionWitnessSet);
 
 #[wasm_bindgen]
 impl TransactionWitnessSet {
@@ -1527,6 +1591,8 @@ pub struct ScriptPubkey {
 
 to_from_bytes!(ScriptPubkey);
 
+to_from_json!(ScriptPubkey);
+
 #[wasm_bindgen]
 impl ScriptPubkey {
     pub fn addr_keyhash(&self) -> Ed25519KeyHash {
@@ -1547,6 +1613,8 @@ pub struct ScriptAll {
 }
 
 to_from_bytes!(ScriptAll);
+
+to_from_json!(ScriptAll);
 
 #[wasm_bindgen]
 impl ScriptAll {
@@ -1569,6 +1637,8 @@ pub struct ScriptAny {
 
 to_from_bytes!(ScriptAny);
 
+to_from_json!(ScriptAny);
+
 #[wasm_bindgen]
 impl ScriptAny {
     pub fn native_scripts(&self) -> NativeScripts {
@@ -1590,6 +1660,8 @@ pub struct ScriptNOfK {
 }
 
 to_from_bytes!(ScriptNOfK);
+
+to_from_json!(ScriptNOfK);
 
 #[wasm_bindgen]
 impl ScriptNOfK {
@@ -1617,6 +1689,8 @@ pub struct TimelockStart {
 
 to_from_bytes!(TimelockStart);
 
+to_from_json!(TimelockStart);
+
 #[wasm_bindgen]
 impl TimelockStart {
     pub fn slot(&self) -> Slot {
@@ -1637,6 +1711,8 @@ pub struct TimelockExpiry {
 }
 
 to_from_bytes!(TimelockExpiry);
+
+to_from_json!(TimelockExpiry);
 
 #[wasm_bindgen]
 impl TimelockExpiry {
@@ -1677,6 +1753,8 @@ pub enum NativeScriptEnum {
 pub struct NativeScript(NativeScriptEnum);
 
 to_from_bytes!(NativeScript);
+
+to_from_json!(NativeScript);
 
 /// Each new language uses a different namespace for hashing its script
 /// This is because you could have a language where the same bytes have different semantics
@@ -1823,6 +1901,8 @@ pub struct Update {
 
 to_from_bytes!(Update);
 
+to_from_json!(Update);
+
 #[wasm_bindgen]
 impl Update {
     pub fn proposed_protocol_parameter_updates(&self) -> ProposedProtocolParameterUpdates {
@@ -1850,6 +1930,8 @@ pub struct GenesisHashes(Vec<GenesisHash>);
 
 to_from_bytes!(GenesisHashes);
 
+to_from_json!(GenesisHashes);
+
 #[wasm_bindgen]
 impl GenesisHashes {
     pub fn new() -> Self {
@@ -1874,6 +1956,8 @@ impl GenesisHashes {
 pub struct ScriptHashes(pub (crate) Vec<ScriptHash>);
 
 to_from_bytes!(ScriptHashes);
+
+to_from_json!(ScriptHashes);
 
 #[wasm_bindgen]
 impl ScriptHashes {
@@ -1917,7 +2001,7 @@ impl <'de> serde::de::Deserialize<'de> for ProposedProtocolParameterUpdates {
 }
 
 impl JsonSchema for ProposedProtocolParameterUpdates {
-    fn schema_name() -> String { std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::schema_name() }
+    fn schema_name() -> String { String::from("ProposedProtocolParameterUpdates") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
         std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::json_schema(gen)
     }
@@ -1925,6 +2009,8 @@ impl JsonSchema for ProposedProtocolParameterUpdates {
 }
 
 to_from_bytes!(ProposedProtocolParameterUpdates);
+
+to_from_json!(ProposedProtocolParameterUpdates);
 
 #[wasm_bindgen]
 impl ProposedProtocolParameterUpdates {
@@ -1967,6 +2053,8 @@ pub struct ProtocolVersion {
 
 to_from_bytes!(ProtocolVersion);
 
+to_from_json!(ProtocolVersion);
+
 #[wasm_bindgen]
 impl ProtocolVersion {
     pub fn major(&self) -> u32 {
@@ -1987,6 +2075,8 @@ impl ProtocolVersion {
 pub struct ProtocolVersions(Vec<ProtocolVersion>);
 
 to_from_bytes!(ProtocolVersions);
+
+to_from_json!(ProtocolVersions);
 
 #[wasm_bindgen]
 impl ProtocolVersions {
@@ -2040,6 +2130,8 @@ pub struct ProtocolParamUpdate {
 }
 
 to_from_bytes!(ProtocolParamUpdate);
+
+to_from_json!(ProtocolParamUpdate);
 
 #[wasm_bindgen]
 impl ProtocolParamUpdate {
@@ -2271,6 +2363,8 @@ pub struct TransactionBodies(pub(crate) Vec<TransactionBody>);
 
 to_from_bytes!(TransactionBodies);
 
+to_from_json!(TransactionBodies);
+
 #[wasm_bindgen]
 impl TransactionBodies {
     pub fn new() -> Self {
@@ -2295,6 +2389,9 @@ impl TransactionBodies {
 pub struct TransactionWitnessSets(Vec<TransactionWitnessSet>);
 
 to_from_bytes!(TransactionWitnessSets);
+
+to_from_json!(TransactionWitnessSets);
+
 #[wasm_bindgen]
 impl TransactionWitnessSets {
     pub fn new() -> Self {
@@ -2360,7 +2457,7 @@ impl <'de> serde::de::Deserialize<'de> for AuxiliaryDataSet {
 }
 
 impl JsonSchema for AuxiliaryDataSet {
-    fn schema_name() -> String { std::collections::BTreeMap::<TransactionIndex, AuxiliaryData>::schema_name() }
+    fn schema_name() -> String { String::from("AuxiliaryDataSet") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
         std::collections::BTreeMap::<TransactionIndex, AuxiliaryData>::json_schema(gen)
     }
@@ -2378,6 +2475,8 @@ pub struct Block {
 }
 
 to_from_bytes!(Block);
+
+to_from_json!(Block);
 
 #[wasm_bindgen]
 impl Block {
@@ -2421,6 +2520,8 @@ pub struct Header {
 
 to_from_bytes!(Header);
 
+to_from_json!(Header);
+
 #[wasm_bindgen]
 impl Header {
     pub fn header_body(&self) -> HeaderBody {
@@ -2449,6 +2550,8 @@ pub struct OperationalCert {
 }
 
 to_from_bytes!(OperationalCert);
+
+to_from_json!(OperationalCert);
 
 #[wasm_bindgen]
 impl OperationalCert {
@@ -2495,6 +2598,8 @@ pub struct HeaderBody {
 }
 
 to_from_bytes!(HeaderBody);
+
+to_from_json!(HeaderBody);
 
 #[wasm_bindgen]
 impl HeaderBody {
@@ -2584,6 +2689,8 @@ impl PartialOrd for AssetName {
 
 to_from_bytes!(AssetName);
 
+to_from_json!(AssetName);
+
 #[wasm_bindgen]
 impl AssetName {
     pub fn new(name: Vec<u8>) -> Result<AssetName, JsError> {
@@ -2628,7 +2735,7 @@ impl <'de> serde::de::Deserialize<'de> for AssetName {
 }
 
 impl JsonSchema for AssetName {
-    fn schema_name() -> String { String::schema_name() }
+    fn schema_name() -> String { String::from("AssetName") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
     fn is_referenceable() -> bool { String::is_referenceable() }
 }
@@ -2638,6 +2745,8 @@ impl JsonSchema for AssetName {
 pub struct AssetNames(Vec<AssetName>);
 
 to_from_bytes!(AssetNames);
+
+to_from_json!(AssetNames);
 
 #[wasm_bindgen]
 impl AssetNames {
@@ -2667,6 +2776,8 @@ pub struct Assets(pub (crate) std::collections::BTreeMap<AssetName, BigNum>);
 
 to_from_bytes!(Assets);
 
+to_from_json!(Assets);
+
 #[wasm_bindgen]
 impl Assets {
     pub fn new() -> Self {
@@ -2695,6 +2806,8 @@ impl Assets {
 pub struct MultiAsset(pub (crate) std::collections::BTreeMap<PolicyID, Assets>);
 
 to_from_bytes!(MultiAsset);
+
+to_from_json!(MultiAsset);
 
 #[wasm_bindgen]
 impl MultiAsset {
@@ -2837,6 +2950,8 @@ pub struct Mint(std::collections::BTreeMap<PolicyID, MintAssets>);
 
 to_from_bytes!(Mint);
 
+to_from_json!(Mint);
+
 #[wasm_bindgen]
 impl Mint {
     pub fn new() -> Self {
@@ -2910,6 +3025,8 @@ pub enum NetworkIdKind {
 pub struct NetworkId(NetworkIdKind);
 
 to_from_bytes!(NetworkId);
+
+to_from_json!(NetworkId);
 
 #[wasm_bindgen]
 impl NetworkId {

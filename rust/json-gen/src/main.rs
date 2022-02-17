@@ -42,7 +42,7 @@ fn main() {
     gen_json_schema!(GenesisKeyDelegation);
     gen_json_schema!(MoveInstantaneousRewardsCert);
     gen_json_schema!(Certificate);
-    gen_json_schema!(CertificateEnum);
+    //gen_json_schema!(CertificateEnum);
     gen_json_schema!(MIRPot);
     gen_json_schema!(MIRToStakeCredentials);
     gen_json_schema!(MoveInstantaneousReward);
@@ -56,7 +56,7 @@ fn main() {
     gen_json_schema!(SingleHostName);
     gen_json_schema!(MultiHostName);
     gen_json_schema!(Relay);
-    gen_json_schema!(RelayEnum);
+    //gen_json_schema!(RelayEnum);
     gen_json_schema!(PoolMetadata);
     gen_json_schema!(StakeCredentials);
     gen_json_schema!(RewardAddresses);
@@ -69,7 +69,7 @@ fn main() {
     gen_json_schema!(TimelockStart);
     gen_json_schema!(TimelockExpiry);
     gen_json_schema!(NativeScript);
-    gen_json_schema!(NativeScriptEnum);
+    //gen_json_schema!(NativeScriptEnum);
     gen_json_schema!(NativeScripts);
     gen_json_schema!(Update);
     gen_json_schema!(GenesisHashes);
@@ -137,7 +137,7 @@ fn main() {
     gen_json_schema!(PlutusData);
     gen_json_schema!(PlutusList);
     gen_json_schema!(PlutusData);
-    gen_json_schema!(PlutusDataEnum);
+    //gen_json_schema!(PlutusDataEnum);
     gen_json_schema!(Redeemer);
     gen_json_schema!(RedeemerTag);
     gen_json_schema!(RedeemerTagKind);

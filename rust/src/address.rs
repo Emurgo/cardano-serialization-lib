@@ -123,6 +123,8 @@ impl StakeCredential {
 
 to_from_bytes!(StakeCredential);
 
+to_from_json!(StakeCredential);
+
 impl cbor_event::se::Serialize for StakeCredential {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
@@ -271,11 +273,13 @@ from_bytes!(Address, data, {
     Self::from_bytes_impl(data.as_ref())
 });
 
+to_from_json!(Address);
+
 impl serde::Serialize for Address {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: serde::Serializer {
         let bech32 = self.to_bech32(None)
-            .map_err(|e| serde::ser::Error::custom(format!("to_bech32: {}", e)))?;
+            .map_err(|e| serde::ser::Error::custom(format!("to_bech32: {:?}", e)))?;
         serializer.serialize_str(&bech32)
     }
 }
@@ -290,7 +294,7 @@ impl <'de> serde::de::Deserialize<'de> for Address {
 }
 
 impl JsonSchema for Address {
-    fn schema_name() -> String { String::schema_name() }
+    fn schema_name() -> String { String::from("Address") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
     fn is_referenceable() -> bool { String::is_referenceable() }
 }
@@ -616,7 +620,7 @@ impl serde::Serialize for RewardAddress {
         let bech32 = self
             .to_address()
             .to_bech32(None)
-            .map_err(|e| serde::ser::Error::custom(format!("to_bech32: {}", e)))?;
+            .map_err(|e| serde::ser::Error::custom(format!("to_bech32: {:?}", e)))?;
         serializer.serialize_str(&bech32)
     }
 }
@@ -633,7 +637,7 @@ impl <'de> serde::de::Deserialize<'de> for RewardAddress {
 }
 
 impl JsonSchema for RewardAddress {
-    fn schema_name() -> String { String::schema_name() }
+    fn schema_name() -> String { String::from("RewardAddress") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
     fn is_referenceable() -> bool { String::is_referenceable() }
 }

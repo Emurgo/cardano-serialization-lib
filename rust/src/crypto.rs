@@ -344,7 +344,7 @@ impl <'de> serde::de::Deserialize<'de> for PublicKey {
 }
 
 impl JsonSchema for PublicKey {
-    fn schema_name() -> String { String::schema_name() }
+    fn schema_name() -> String { String::from("PublicKey") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
     fn is_referenceable() -> bool { String::is_referenceable() }
 }
@@ -437,6 +437,8 @@ pub struct Vkeywitness {
 }
 
 to_from_bytes!(Vkeywitness);
+
+to_from_json!(Vkeywitness);
 
 #[wasm_bindgen]
 impl Vkeywitness {
@@ -551,6 +553,8 @@ pub struct BootstrapWitness {
 }
 
 to_from_bytes!(BootstrapWitness);
+
+to_from_json!(BootstrapWitness);
 
 #[wasm_bindgen]
 impl BootstrapWitness {
@@ -773,7 +777,7 @@ macro_rules! impl_signature {
         }
         
         impl JsonSchema for $name {
-            fn schema_name() -> String { String::schema_name() }
+            fn schema_name() -> String { String::from(stringify!($name)) }
             fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
             fn is_referenceable() -> bool { String::is_referenceable() }
         }
@@ -825,7 +829,7 @@ macro_rules! impl_hash_type {
 
             pub fn from_hex(hex: &str) -> Result<$name, JsError> {
                 let bytes = hex::decode(hex).map_err(|e| JsError::from_str(&format!("hex decode failed: {}", e)))?;
-                Self::from_bytes(bytes).map_err(|e| JsError::from_str(&format!("{}", e)))
+                Self::from_bytes(bytes).map_err(|e| JsError::from_str(&format!("{:?}", e)))
             }
         }
 
@@ -876,7 +880,7 @@ macro_rules! impl_hash_type {
         }
         
         impl JsonSchema for $name {
-            fn schema_name() -> String { String::schema_name() }
+            fn schema_name() -> String { String::from(stringify!($name)) }
             fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
             fn is_referenceable() -> bool { String::is_referenceable() }
         }
@@ -990,7 +994,7 @@ impl <'de> serde::de::Deserialize<'de> for KESSignature {
 }
 
 impl JsonSchema for KESSignature {
-    fn schema_name() -> String { String::schema_name() }
+    fn schema_name() -> String { String::from("KESSignature") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
     fn is_referenceable() -> bool { String::is_referenceable() }
 }
@@ -1099,6 +1103,8 @@ impl VRFCert {
 }
 
 to_from_bytes!(VRFCert);
+
+to_from_json!(VRFCert);
 
 #[wasm_bindgen]
 impl VRFCert {

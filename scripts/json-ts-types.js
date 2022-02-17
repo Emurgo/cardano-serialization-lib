@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const inputFile = fs.readFileSync('./test-any-input.ts', 'utf8').split(/\r?\n/);
+const inputFile = fs.readFileSync('./rust/pkg/cardano_serialization_lib.d.ts', 'utf8').split(/\r?\n/);
 //console.log(inputFile);
 let currentClass = null;
 for (let i = 0; i < inputFile.length; ++i) {
@@ -14,7 +14,7 @@ for (let i = 0; i < inputFile.length; ++i) {
   }
   //const toJson = /\sto_json\(\): any;/.exec(line);
   //console.log(toJson);
-  inputFile[i] = line.replace(/(\s?to_json\(\)\s?:\s?)(any)(;)/, `$1${currentClass}JSON$3`);
+  inputFile[i] = line.replace(/(\s?to_js_value\(\)\s?:\s?)(any)(;)/, `$1${currentClass}JSON$3`);
   if (line != inputFile[i]) {
     continue;
   }
@@ -25,9 +25,9 @@ for (let i = 0; i < inputFile.length; ++i) {
   //const m = /(\s?\*\s?\@returns\s\{)(any)(\})/.exec(line);
   //console.log(`${m} | ${line}`);
 }
-const jsonDefs = fs.readFileSync('./test-json-types.ts', 'utf8');
+const jsonDefs = fs.readFileSync('./rust/json-gen/output/json-types.d.ts', 'utf8');
 fs.writeFile(
-  './test-final-output.ts',
+  './rust/pkg/cardano_serialization_lib.d.ts',
   `${inputFile.join('\n')}\n${jsonDefs}`,
   (err) => {
     if (err != null) {

@@ -44,7 +44,7 @@ impl <'de> serde::de::Deserialize<'de> for PlutusScript {
 }
 
 impl JsonSchema for PlutusScript {
-    fn schema_name() -> String { String::schema_name() }
+    fn schema_name() -> String { String::from("PlutusScript") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
     fn is_referenceable() -> bool { String::is_referenceable() }
 }

@@ -69,6 +69,30 @@ macro_rules! to_from_bytes {
     }
 }
 
+#[macro_export]
+macro_rules! to_from_json {
+    ($name:ident) => {
+        #[wasm_bindgen]
+        impl $name {
+            pub fn to_json(&self) -> Result<String, JsError> {
+                serde_json::to_string_pretty(&self)
+                    .map_err(|e| JsError::from_str(&format!("to_json: {}", e)))
+            }
+
+            #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+            pub fn to_js_value(&self) -> Result<JsValue, JsError> {
+                JsValue::from_serde(&self)
+                    .map_err(|e| JsError::from_str(&format!("to_js_value: {}", e)))
+            }
+
+            pub fn from_json(json: &str) -> Result<$name, JsError> {
+                serde_json::from_str(json)
+                    .map_err(|e| JsError::from_str(&format!("from_json: {}", e)))
+            }
+        }
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionUnspentOutput {
@@ -261,7 +285,7 @@ impl <'de> serde::de::Deserialize<'de> for BigNum {
 }
 
 impl JsonSchema for BigNum {
-    fn schema_name() -> String { String::schema_name() }
+    fn schema_name() -> String { String::from("BigNum") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
     fn is_referenceable() -> bool { String::is_referenceable() }
 }
@@ -284,6 +308,8 @@ pub struct Value {
 }
 
 to_from_bytes!(Value);
+
+to_from_json!(Value);
 
 #[wasm_bindgen]
 impl Value {
@@ -629,7 +655,7 @@ impl <'de> serde::de::Deserialize<'de> for Int {
 }
 
 impl JsonSchema for Int {
-    fn schema_name() -> String { String::schema_name() }
+    fn schema_name() -> String { String::from("Int") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
     fn is_referenceable() -> bool { String::is_referenceable() }
 }
@@ -737,7 +763,7 @@ impl <'de> serde::de::Deserialize<'de> for BigInt {
 }
 
 impl JsonSchema for BigInt {
-    fn schema_name() -> String { String::schema_name() }
+    fn schema_name() -> String { String::from("BigInt") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
     fn is_referenceable() -> bool { String::is_referenceable() }
 }

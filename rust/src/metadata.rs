@@ -223,7 +223,7 @@ impl serde::Serialize for TransactionMetadatum {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: serde::Serializer {
         let json_str = decode_metadatum_to_json_str(self, MetadataJsonSchema::DetailedSchema)
-            .map_err(|e| serde::ser::Error::custom(e))?;
+            .map_err(|e| serde::ser::Error::custom(&format!("{:?}", e)))?;
         serializer.serialize_str(&json_str)
     }
 }
@@ -233,14 +233,14 @@ impl <'de> serde::de::Deserialize<'de> for TransactionMetadatum {
     D: serde::de::Deserializer<'de> {
         let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
         encode_json_str_to_metadatum(s.clone(), MetadataJsonSchema::DetailedSchema)
-            .map_err(|e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &format!("{}", e).as_str()))
+            .map_err(|e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &format!("{:?}", e).as_str()))
     }
 }
 
 // just for now we'll do json-in-json until I can figure this out better
 // TODO: maybe not generate this? or how do we do this?
 impl JsonSchema for TransactionMetadatum {
-    fn schema_name() -> String { String::schema_name() }
+    fn schema_name() -> String { String::from("TransactionMetadatum") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
     fn is_referenceable() -> bool { String::is_referenceable() }
 }
@@ -277,6 +277,8 @@ impl TransactionMetadatumLabels {
 pub struct GeneralTransactionMetadata(LinkedHashMap<TransactionMetadatumLabel, TransactionMetadatum>);
 
 to_from_bytes!(GeneralTransactionMetadata);
+
+to_from_json!(GeneralTransactionMetadata);
 
 #[wasm_bindgen]
 impl GeneralTransactionMetadata {
@@ -327,7 +329,7 @@ impl <'de> serde::de::Deserialize<'de> for GeneralTransactionMetadata {
 }
 
 impl JsonSchema for GeneralTransactionMetadata {
-    fn schema_name() -> String { std::collections::BTreeMap::<TransactionMetadatumLabel, TransactionMetadatum>::schema_name() }
+    fn schema_name() -> String { String::from("GeneralTransactionMetadata") }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
         std::collections::BTreeMap::<TransactionMetadatumLabel, TransactionMetadatum>::json_schema(gen)
     }
@@ -344,6 +346,8 @@ pub struct AuxiliaryData {
 }
 
 to_from_bytes!(AuxiliaryData);
+
+to_from_json!(AuxiliaryData);
 
 #[wasm_bindgen]
 impl AuxiliaryData {
