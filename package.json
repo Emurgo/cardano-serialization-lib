@@ -1,6 +1,6 @@
 {
   "name": "cardano-serialization-lib",
-  "version": "10.0.0-beta.9",
+  "version": "10.0.4",
   "description": "(De)serialization functions for the Cardano blockchain along with related utility functions",
   "scripts": {
     "rust:build-nodejs": "(rimraf ./rust/pkg && cd rust; wasm-pack build --target=nodejs; wasm-pack pack) && npm run js:flowgen",

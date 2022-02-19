@@ -166,6 +166,13 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -188,13 +195,6 @@ declare export function decrypt_with_password(
   password: string,
   data: string
 ): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -255,58 +255,7 @@ declare export var NetworkIdKind: {|
 |};
 
 /**
- */
-
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
-declare export var LanguageKind: {|
-  +PlutusV1: 0, // 0
-  +PlutusV2: 1, // 1
-|};
-
-/**
- */
-
-declare export var PlutusDataKind: {|
-  +ConstrPlutusData: 0, // 0
-  +Map: 1, // 1
-  +List: 2, // 2
-  +Integer: 3, // 3
-  +Bytes: 4, // 4
-|};
-
-/**
- */
-
-declare export var RedeemerTagKind: {|
-  +Spend: 0, // 0
-  +Mint: 1, // 1
-  +Cert: 2, // 2
-  +Reward: 3, // 3
-|};
-
-/**
- * Each new language uses a different namespace for hashing its script
- * This is because you could have a language where the same bytes have different semantics
- * So this avoids scripts in different languages mapping to the same hash
- * Note that the enum value here is different than the enum value for deciding the cost model of a script
- * https://github.com/input-output-hk/cardano-ledger/blob/9c3b4737b13b30f71529e76c5330f403165e28a6/eras/alonzo/impl/src/Cardano/Ledger/Alonzo.hs#L127
- */
-
-declare export var ScriptHashNamespace: {|
-  +NativeScript: 0, // 0
-  +PlutusV1: 1, // 1
-  +PlutusV2: 2, // 2
-|};
-
-/**
- * Used to choose the schema for a script JSON string
+ * Used to choosed the schema for a script JSON string
  */
 
 declare export var ScriptSchema: {|
@@ -342,6 +291,66 @@ declare export var CoinSelectionStrategyCIP2: {|
   +RandomImprove: 1, // 1
   +LargestFirstMultiAsset: 2, // 2
   +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ * Each new language uses a different namespace for hashing its script
+ * This is because you could have a language where the same bytes have different semantics
+ * So this avoids scripts in different languages mapping to the same hash
+ * Note that the enum value here is different than the enum value for deciding the cost model of a script
+ * https://github.com/input-output-hk/cardano-ledger/blob/9c3b4737b13b30f71529e76c5330f403165e28a6/eras/alonzo/impl/src/Cardano/Ledger/Alonzo.hs#L127
+ */
+
+declare export var ScriptHashNamespace: {|
+  +NativeScript: 0, // 0
+  +PlutusV1: 1, // 1
+  +PlutusV2: 2, // 2
+|};
+
+/**
+ * Used to choose the schema for a script JSON string
+ */
+
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ */
+
+declare export var LanguageKind: {|
+  +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
+|};
+
+/**
+ */
+
+declare export var PlutusDataKind: {|
+  +ConstrPlutusData: 0, // 0
+  +Map: 1, // 1
+  +List: 2, // 2
+  +Integer: 3, // 3
+  +Bytes: 4, // 4
+|};
+
+/**
+ */
+
+declare export var RedeemerTagKind: {|
+  +Spend: 0, // 0
+  +Mint: 1, // 1
+  +Cert: 2, // 2
+  +Reward: 3, // 3
 |};
 
 /**
@@ -2807,6 +2816,14 @@ declare export class NativeScript {
    * @returns {TimelockExpiry | void}
    */
   as_timelock_expiry(): TimelockExpiry | void;
+
+  /**
+   * Returns an array of unique Ed25519KeyHashes
+   * contained within this script recursively on any depth level.
+   * The order of the keys in the result is not determined in any way.
+   * @returns {Ed25519KeyHashes}
+   */
+  get_required_signers(): Ed25519KeyHashes;
 }
 /**
  */
@@ -3154,24 +3171,24 @@ declare export class PlutusScript {
    */
   static from_bytes(bytes: Uint8Array): PlutusScript;
 
-  /**
+  /** 
    * @param {number} namespace
    * @returns {ScriptHash}
    */
   hash(namespace: number): ScriptHash;
 
   /**
-   * Creates a new Plutus script from the RAW bytes of the compiled script.
-   * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
-   * If you creating this from those you should use PlutusScript::from_bytes() instead.
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
    * @param {Uint8Array} bytes
    * @returns {PlutusScript}
    */
   static new(bytes: Uint8Array): PlutusScript;
 
   /**
-   * The raw bytes of this compiled Plutus script.
-   * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
+   * * The raw bytes of this compiled Plutus script.
+   * * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
    * @returns {Uint8Array}
    */
   bytes(): Uint8Array;
@@ -5422,6 +5439,12 @@ declare export class TransactionBuilder {
   get_implicit_input(): Value;
 
   /**
+   * Return explicit input plus implicit input plus mint minus burn
+   * @returns {Value}
+   */
+  get_total_input(): Value;
+
+  /**
    * does not include fee
    * @returns {Value}
    */
@@ -5829,13 +5852,13 @@ declare export class TransactionOutputAmountBuilder {
   ): TransactionOutputAmountBuilder;
 
   /**
-   * @param {BigNum} coins_per_utxo_word
    * @param {MultiAsset} multiasset
+   * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionOutputAmountBuilder}
    */
   with_asset_and_min_required_coin(
-    coins_per_utxo_word: BigNum,
-    multiasset: MultiAsset
+    multiasset: MultiAsset,
+    coins_per_utxo_word: BigNum
   ): TransactionOutputAmountBuilder;
 
   /**

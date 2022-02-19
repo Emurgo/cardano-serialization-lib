@@ -76,7 +76,7 @@ impl TransactionOutputAmountBuilder {
         cfg
     }
 
-    pub fn with_asset_and_min_required_coin(&self, coins_per_utxo_word: &Coin, multiasset: &MultiAsset) -> Result<TransactionOutputAmountBuilder, JsError> {
+    pub fn with_asset_and_min_required_coin(&self, multiasset: &MultiAsset, coins_per_utxo_word: &Coin) -> Result<TransactionOutputAmountBuilder, JsError> {
         let min_possible_coin = min_pure_ada(&coins_per_utxo_word, self.data_hash.is_some())?;
         let mut value = Value::new(&min_possible_coin);
         value.set_multiasset(multiasset);

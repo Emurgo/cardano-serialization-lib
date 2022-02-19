@@ -1,4 +1,6 @@
-use crate::chain_crypto::key::{AsymmetricKey, AsymmetricPublicKey, SecretKeyError, SecretKeySizeStatic};
+use crate::chain_crypto::key::{
+    AsymmetricKey, AsymmetricPublicKey, SecretKeyError, SecretKeySizeStatic,
+};
 use crate::chain_crypto::sign::SigningAlgorithm;
 
 use super::ed25519 as ei;
@@ -12,7 +14,7 @@ use ed25519_bip32::{XPrv, XPRV_SIZE};
 pub struct Ed25519Extended;
 
 #[derive(Clone)]
-pub struct ExtendedPriv([u8; ed25519::PRIVATE_KEY_LENGTH]);
+pub struct ExtendedPriv([u8; ed25519::EXTENDED_KEY_LENGTH]);
 
 impl AsRef<[u8]> for ExtendedPriv {
     fn as_ref(&self) -> &[u8] {
@@ -22,7 +24,7 @@ impl AsRef<[u8]> for ExtendedPriv {
 
 impl ExtendedPriv {
     pub fn from_xprv(xprv: &XPrv) -> Self {
-        let mut buf = [0; ed25519::PRIVATE_KEY_LENGTH];
+        let mut buf = [0; ed25519::EXTENDED_KEY_LENGTH];
         xprv.get_extended_mut(&mut buf);
         ExtendedPriv(buf)
     }
@@ -39,22 +41,22 @@ impl AsymmetricKey for Ed25519Extended {
         rng.fill_bytes(&mut priv_bytes);
         let xprv = XPrv::normalize_bytes_force3rd(priv_bytes);
 
-        let mut out = [0u8; ed25519::PRIVATE_KEY_LENGTH];
+        let mut out = [0u8; ed25519::EXTENDED_KEY_LENGTH];
         xprv.get_extended_mut(&mut out);
         ExtendedPriv(out)
     }
 
     fn compute_public(key: &Self::Secret) -> <Self::PubAlg as AsymmetricPublicKey>::Public {
-        let pk = ed25519::to_public(&key.0);
+        let pk = ed25519::extended_to_public(&key.0);
         ei::Pub(pk)
     }
 
     fn secret_from_binary(data: &[u8]) -> Result<Self::Secret, SecretKeyError> {
-        if data.len() != ed25519::PRIVATE_KEY_LENGTH {
+        if data.len() != ed25519::EXTENDED_KEY_LENGTH {
             return Err(SecretKeyError::SizeInvalid);
         }
-        let mut buf = [0; ed25519::PRIVATE_KEY_LENGTH];
-        buf[0..ed25519::PRIVATE_KEY_LENGTH].clone_from_slice(data);
+        let mut buf = [0; ed25519::EXTENDED_KEY_LENGTH];
+        buf.clone_from_slice(data);
         // TODO structure check
         Ok(ExtendedPriv(buf))
     }
