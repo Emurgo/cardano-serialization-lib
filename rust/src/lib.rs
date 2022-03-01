@@ -44,6 +44,7 @@ pub mod fees;
 pub mod impl_mockchain;
 pub mod legacy_address;
 pub mod metadata;
+pub mod output_builder;
 pub mod plutus;
 pub mod serialization;
 pub mod tx_builder;
@@ -1722,6 +1723,16 @@ impl NativeScript {
             NativeScriptEnum::TimelockExpiry(x) => Some(x.clone()),
             _ => None,
         }
+    }
+
+    /// Returns an array of unique Ed25519KeyHashes
+    /// contained within this script recursively on any depth level.
+    /// The order of the keys in the result is not determined in any way.
+    pub fn get_required_signers(&self) -> Ed25519KeyHashes {
+        Ed25519KeyHashes(
+            RequiredSignersSet::from(self).iter()
+                .map(|k| { k.clone() }).collect()
+        )
     }
 }
 

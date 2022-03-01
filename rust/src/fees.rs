@@ -38,6 +38,7 @@ mod tests {
     use super::*;
     use crypto::*;
     use address::*;
+    use super::output_builder::TransactionOutputBuilder;
 
     // based off tx test vectors (https://gist.github.com/KtorZ/5a2089df0915f21aca368d12545ab230)
 
@@ -54,13 +55,16 @@ mod tests {
         ));
         let mut outputs = TransactionOutputs::new();
 
-        outputs.add(&TransactionOutput::new(
-            &Address::from_bytes(
-                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
-            )
-            .unwrap(),
-            &Value::new(&to_bignum(1)),
-        ));
+        outputs.add(
+            &TransactionOutputBuilder::new()
+                .with_address(
+                    &Address::from_bytes(
+                        hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
+                    ).unwrap())
+                .next().unwrap()
+                .with_coin(&to_bignum(1))
+                .build().unwrap()
+            );
         let body = TransactionBody::new(&inputs, &outputs, &to_bignum(94002), Some(10));
 
         let mut w = TransactionWitnessSet::new();
@@ -99,13 +103,16 @@ mod tests {
         ));
         let mut outputs = TransactionOutputs::new();
 
-        outputs.add(&TransactionOutput::new(
-            &Address::from_bytes(
-                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
-            )
-            .unwrap(),
-            &Value::new(&to_bignum(1)),
-        ));
+        outputs.add(
+            &TransactionOutputBuilder::new()
+                .with_address(
+                    &Address::from_bytes(
+                        hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
+                    ).unwrap())
+                .next().unwrap()
+                .with_coin(&to_bignum(1))
+                .build().unwrap()
+            );
         let body = TransactionBody::new(&inputs, &outputs, &to_bignum(112002), Some(10));
 
         let mut w = TransactionWitnessSet::new();
@@ -157,20 +164,27 @@ mod tests {
             7,
         ));
         let mut outputs = TransactionOutputs::new();
-        outputs.add(&TransactionOutput::new(
-            &Address::from_bytes(
-                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
-            )
-            .unwrap(),
-            &Value::new(&to_bignum(289)),
-        ));
-        outputs.add(&TransactionOutput::new(
-            &Address::from_bytes(
-                hex::decode("61bcd18fcffa797c16c007014e2b8553b8b9b1e94c507688726243d611").unwrap(),
-            )
-            .unwrap(),
-            &Value::new(&to_bignum(874551452)),
-        ));
+
+        outputs.add(
+            &TransactionOutputBuilder::new()
+                .with_address(
+                    &Address::from_bytes(
+                        hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
+                    ).unwrap())
+                .next().unwrap()
+                .with_coin(&to_bignum(289))
+                .build().unwrap()
+            );
+        outputs.add(
+            &TransactionOutputBuilder::new()
+                .with_address(
+                    &Address::from_bytes(
+                        hex::decode("61bcd18fcffa797c16c007014e2b8553b8b9b1e94c507688726243d611").unwrap(),
+                    ).unwrap())
+                .next().unwrap()
+                .with_coin(&to_bignum(874551452))
+                .build().unwrap()
+            );
         let body = TransactionBody::new(&inputs, &outputs, &to_bignum(183502), Some(999));
 
         let mut w = TransactionWitnessSet::new();
@@ -216,12 +230,16 @@ mod tests {
         ));
         let mut outputs = TransactionOutputs::new();
 
-        outputs.add(&TransactionOutput::new(
-            &Address::from_bytes(
-                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
-            ).unwrap(),
-            &Value::new(&to_bignum(1))
-        ));
+        outputs.add(
+            &TransactionOutputBuilder::new()
+                .with_address(
+                    &Address::from_bytes(
+                        hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
+                    ).unwrap())
+                .next().unwrap()
+                .with_coin(&to_bignum(1))
+                .build().unwrap()
+            );
         let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(266002), Some(10));
 
         let mut certs = Certificates::new();
@@ -445,12 +463,16 @@ mod tests {
         ));
         let mut outputs = TransactionOutputs::new();
 
-        outputs.add(&TransactionOutput::new(
-            &Address::from_bytes(
-                hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap()
-            ).unwrap(),
-            &Value::new(&to_bignum(1))
-        ));
+        outputs.add(
+            &TransactionOutputBuilder::new()
+                .with_address(
+                    &Address::from_bytes(
+                        hex::decode("611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c").unwrap(),
+                    ).unwrap())
+                .next().unwrap()
+                .with_coin(&to_bignum(1))
+                .build().unwrap()
+            );
         let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(162502), Some(10));
         let mut withdrawals = Withdrawals::new();
         withdrawals.insert(

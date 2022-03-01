@@ -1806,10 +1806,7 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
         }
         if let Some(field) = &self.plutus_data {
             serializer.write_unsigned_integer(4)?;
-            serializer.write_array(cbor_event::Len::Len(field.len() as u64))?;
-            for i in 0..field.len() {
-              field.get(i).serialize(serializer)?;
-            }
+            field.serialize(serializer)?;
         }
         if let Some(field) = &self.redeemers {
             serializer.write_unsigned_integer(5)?;
@@ -3507,7 +3504,11 @@ mod tests {
         let mut txos = TransactionOutputs::new();
         let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
         let val = &Value::new(&BigNum::from_str("435464757").unwrap());
-        let txo = TransactionOutput::new(&addr, &val);
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            data_hash: None,
+        };
         let mut txo_dh = txo.clone();
         txo_dh.set_data_hash(&DataHash::from([47u8; DataHash::BYTE_COUNT]));
         txos.add(&txo);

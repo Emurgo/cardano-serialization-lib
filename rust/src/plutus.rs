@@ -1535,12 +1535,12 @@ mod tests {
         // witness_set should have fixed length array
         let mut witness_set = TransactionWitnessSet::new();
         witness_set.set_plutus_data(&list);
-        assert_eq!("a1048101", hex::encode(witness_set.to_bytes()));
+        assert_eq!("a1049f01ff", hex::encode(witness_set.to_bytes()));
 
         list = PlutusList::new();
         list.add(&datum);
         witness_set.set_plutus_data(&list);
-        assert_eq!(format!("a10481{}", datum_cli), hex::encode(witness_set.to_bytes()));
+        assert_eq!(format!("a1049f{}ff", datum_cli), hex::encode(witness_set.to_bytes()));
     }
 
     #[test]
@@ -1633,5 +1633,33 @@ mod tests {
         let json2 = decode_plutus_datum_to_json_str(&datum, PlutusDatumSchema::DetailedSchema).unwrap();
         let datum2 = encode_json_str_to_plutus_datum(&json2, PlutusDatumSchema::DetailedSchema).unwrap();
         assert_eq!(datum, datum2);
+    }
+
+    pub fn test_cost_model() {
+        let arr = vec![
+            197209, 0, 1, 1, 396231, 621, 0, 1, 150000, 1000, 0, 1, 150000, 32,
+            2477736, 29175, 4, 29773, 100, 29773, 100, 29773, 100, 29773, 100, 29773,
+            100, 29773, 100, 100, 100, 29773, 100, 150000, 32, 150000, 32, 150000, 32,
+            150000, 1000, 0, 1, 150000, 32, 150000, 1000, 0, 8, 148000, 425507, 118,
+            0, 1, 1, 150000, 1000, 0, 8, 150000, 112536, 247, 1, 150000, 10000, 1,
+            136542, 1326, 1, 1000, 150000, 1000, 1, 150000, 32, 150000, 32, 150000,
+            32, 1, 1, 150000, 1, 150000, 4, 103599, 248, 1, 103599, 248, 1, 145276,
+            1366, 1, 179690, 497, 1, 150000, 32, 150000, 32, 150000, 32, 150000, 32,
+            150000, 32, 150000, 32, 148000, 425507, 118, 0, 1, 1, 61516, 11218, 0, 1,
+            150000, 32, 148000, 425507, 118, 0, 1, 1, 148000, 425507, 118, 0, 1, 1,
+            2477736, 29175, 4, 0, 82363, 4, 150000, 5000, 0, 1, 150000, 32, 197209, 0,
+            1, 1, 150000, 32, 150000, 32, 150000, 32, 150000, 32, 150000, 32, 150000,
+            32, 150000, 32, 3345831, 1, 1,
+        ];
+        let cm = arr.iter().fold((CostModel::new(), 0), |(mut cm, i), x| {
+            cm.set(i, &Int::new_i32(x.clone()));
+            (cm, i + 1)
+        }).0;
+        let mut cms = Costmdls::new();
+        cms.insert(&Language::new_plutus_v1(), &cm);
+        assert_eq!(
+            hex::encode(cms.language_views_encoding()),
+            "a141005901d59f1a000302590001011a00060bc719026d00011a000249f01903e800011a000249f018201a0025cea81971f70419744d186419744d186419744d186419744d186419744d186419744d18641864186419744d18641a000249f018201a000249f018201a000249f018201a000249f01903e800011a000249f018201a000249f01903e800081a000242201a00067e2318760001011a000249f01903e800081a000249f01a0001b79818f7011a000249f0192710011a0002155e19052e011903e81a000249f01903e8011a000249f018201a000249f018201a000249f0182001011a000249f0011a000249f0041a000194af18f8011a000194af18f8011a0002377c190556011a0002bdea1901f1011a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a000242201a00067e23187600010119f04c192bd200011a000249f018201a000242201a00067e2318760001011a000242201a00067e2318760001011a0025cea81971f704001a000141bb041a000249f019138800011a000249f018201a000302590001011a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a000249f018201a00330da70101ff"
+        );
     }
 }
