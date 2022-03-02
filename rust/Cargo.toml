@@ -31,7 +31,7 @@ num-bigint = "0.4.0"
 # feature or this one
 clear_on_drop = { version = "0.2", features = ["no_cc"] }
 itertools = "0.10.1"
-getrandom = { version = "0.2.3", features = ["js"] }
+getrandom = { version = "0.2.5", features = ["js"] }
 rand = "0.8.4"
 
 # non-wasm
