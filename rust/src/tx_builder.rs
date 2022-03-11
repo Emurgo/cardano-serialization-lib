@@ -742,6 +742,11 @@ impl TransactionBuilder {
         self.auxiliary_data = Some(auxiliary_data.clone())
     }
 
+    /// Set explicit native scripts via a NativeScripts object
+    pub fn set_native_scripts(&mut self, native_scripts: &NativeScripts) {
+        self.native_scripts = Some(native_scripts.clone())
+    }
+
     /// Set metadata using a GeneralTransactionMetadata object
     /// It will be set to the existing or new auxiliary data in this builder
     pub fn set_metadata(&mut self, metadata: &GeneralTransactionMetadata) {
@@ -790,7 +795,7 @@ impl TransactionBuilder {
     pub fn set_mint(&mut self, mint: &Mint, mint_scripts: &NativeScripts) -> Result<(), JsError> {
         assert_required_mint_scripts(mint, Some(mint_scripts))?;
         self.mint = Some(mint.clone());
-        self.native_scripts = Some(mint_scripts.clone());
+        self.set_native_scripts(mint_scripts);
         Ok(())
     }
 
@@ -817,7 +822,7 @@ impl TransactionBuilder {
             witness_scripts
         };
         self.mint = Some(mint);
-        self.native_scripts = Some(mint_scripts.clone());
+        self.set_native_scripts(&mint_scripts);
     }
 
     /// Add a mint entry to this builder using a PolicyID and MintAssets object
