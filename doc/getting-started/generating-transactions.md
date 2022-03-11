@@ -110,7 +110,7 @@ witnesses.set_bootstraps(bootstrapWitnesses);
 const transaction = CardanoWasm.Transaction.new(
     txBody,
     witnesses,
-    undefined, // transaction metadata
+    null, // transaction metadata
 );
 ```
 
