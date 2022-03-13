@@ -93,14 +93,6 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
-    let script_keys: Option<NativeScripts> = match tx_builder.input_types.scripts.len() {
-        0 => None,
-        _x => {
-            // TODO: figure out how to populate fake witnesses for these
-            // return Err(JsError::from_str("Script inputs not supported yet"))
-            None
-        },
-    };
     let bootstrap_keys = match tx_builder.input_types.bootstraps.len() {
         0 => None,
         _x => {
@@ -116,21 +108,9 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
-    let full_script_keys = match &tx_builder.native_scripts {
-        None => script_keys,
-        Some(witness_scripts) => {
-            let mut ns = script_keys
-                .map(|x| { x.clone() })
-                .unwrap_or(NativeScripts::new());
-            witness_scripts.0.iter().for_each(|s| {
-                ns.add(s);
-            });
-            Some(ns)
-        }
-    };
     let witness_set = TransactionWitnessSet {
         vkeys,
-        native_scripts: full_script_keys,
+        native_scripts: tx_builder.native_scripts.clone(),
         bootstraps: bootstrap_keys,
         // TODO: plutus support?
         plutus_scripts: None,
