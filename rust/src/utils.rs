@@ -1243,9 +1243,7 @@ fn encode_template_to_native_script(
         }
         serde_json::Value::Object(map) if map.contains_key("active_from") => {
             if let serde_json::Value::Number(active_from) = map.get("active_from").unwrap() {
-                if let Some(n) = active_from.as_u64() {
-                    let slot: u32 = n as u32;
-
+                if let Some(slot) = active_from.as_u64() {
                     let time_lock_start = TimelockStart::new(slot);
 
                     Ok(NativeScript::new_timelock_start(&time_lock_start))
@@ -1260,9 +1258,7 @@ fn encode_template_to_native_script(
         }
         serde_json::Value::Object(map) if map.contains_key("active_until") => {
             if let serde_json::Value::Number(active_until) = map.get("active_until").unwrap() {
-                if let Some(n) = active_until.as_u64() {
-                    let slot: u32 = n as u32;
-
+                if let Some(slot) = active_until.as_u64() {
                     let time_lock_expiry = TimelockExpiry::new(slot);
 
                     Ok(NativeScript::new_timelock_expiry(&time_lock_expiry))

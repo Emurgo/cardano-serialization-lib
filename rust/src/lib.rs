@@ -95,7 +95,7 @@ impl UnitInterval {
 type SubCoin = UnitInterval;
 type Rational = UnitInterval;
 type Epoch = u32;
-type Slot = u32;
+type Slot = u64;
 
 #[wasm_bindgen]
 #[derive(Clone)]
