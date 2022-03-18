@@ -1060,7 +1060,7 @@ mod tests {
         assert_eq!(aux_data.to_bytes(), ad1_deser.to_bytes());
         // mary shelley
         let mut native_scripts = NativeScripts::new();
-        native_scripts.add(&NativeScript::new_timelock_start(&TimelockStart::new(20)));
+        native_scripts.add(&NativeScript::new_timelock_start(&TimelockStart::new(20.into())));
         aux_data.set_native_scripts(&native_scripts);
         let ad2_deser = AuxiliaryData::from_bytes(aux_data.to_bytes()).unwrap();
         assert_eq!(aux_data.to_bytes(), ad2_deser.to_bytes());

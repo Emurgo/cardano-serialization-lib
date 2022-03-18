@@ -1484,7 +1484,7 @@ mod tests {
                 .with_coin(&to_bignum(29))
                 .build().unwrap()
             ).unwrap();
-        tx_builder.set_ttl(1000);
+        tx_builder.set_ttl(1000.into());
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
@@ -1542,7 +1542,7 @@ mod tests {
                 .with_coin(&to_bignum(880_000))
                 .build().unwrap()
             ).unwrap();
-        tx_builder.set_ttl(1000);
+        tx_builder.set_ttl(1000.into());
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
@@ -1589,7 +1589,7 @@ mod tests {
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&to_bignum(5_000_000))
         );
-        tx_builder.set_ttl(1000);
+        tx_builder.set_ttl(1000.into());
 
         let mut certs = Certificates::new();
         certs.add(&Certificate::new_stake_registration(&StakeRegistration::new(&stake_cred)));
@@ -1658,7 +1658,7 @@ mod tests {
                 .with_coin(&to_bignum(100))
                 .build().unwrap()
             ).unwrap();
-        tx_builder.set_ttl(0);
+        tx_builder.set_ttl(0.into());
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
@@ -1715,7 +1715,7 @@ mod tests {
                 .with_coin(&to_bignum(29))
                 .build().unwrap()
             ).unwrap();
-        tx_builder.set_ttl(0);
+        tx_builder.set_ttl(0.into());
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
@@ -1774,7 +1774,7 @@ mod tests {
                 .with_coin(&to_bignum(5))
                 .build().unwrap()
             ).unwrap();
-        tx_builder.set_ttl(0);
+        tx_builder.set_ttl(0.into());
 
         // add a cert which requires a deposit
         let mut certs = Certificates::new();
@@ -1847,7 +1847,7 @@ mod tests {
                 NetworkInfo::testnet().network_id(),
                 &spend_cred,
                 &Pointer::new(
-                    0,
+                    0.into(),
                     0,
                     0
                 )
@@ -2463,7 +2463,7 @@ mod tests {
                 .with_coin(&to_bignum(880_000))
                 .build().unwrap()
             ).unwrap();
-        tx_builder.set_ttl(1000);
+        tx_builder.set_ttl(1000.into());
 
         let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(NetworkInfo::testnet().network_id(), &change_cred, &stake_cred).to_address();
@@ -2502,7 +2502,7 @@ mod tests {
             &Value::new(&to_bignum(2_400_000))
         );
 
-        tx_builder.set_ttl(1);
+        tx_builder.set_ttl(1.into());
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
         let added_change = tx_builder.add_change_if_needed(
@@ -2541,7 +2541,7 @@ mod tests {
             &input_value
         );
 
-        tx_builder.set_ttl(1);
+        tx_builder.set_ttl(1.into());
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
         let added_change = tx_builder.add_change_if_needed(
@@ -2601,7 +2601,7 @@ mod tests {
                 .build().unwrap()
             ).unwrap();
 
-        tx_builder.set_ttl(1);
+        tx_builder.set_ttl(1.into());
 
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap();
         let added_change = tx_builder.add_change_if_needed(
@@ -3204,7 +3204,7 @@ mod tests {
                 .with_coin(&to_bignum(999_000))
                 .build().unwrap()
             ).unwrap();
-        tx_builder.set_ttl(1000);
+        tx_builder.set_ttl(1000.into());
         tx_builder.set_fee(&to_bignum(1_000));
 
         assert_eq!(tx_builder.outputs.len(),1);
@@ -3276,7 +3276,7 @@ mod tests {
                 .with_coin(&to_bignum(999_000))
                 .build().unwrap()
             ).unwrap();
-        tx_builder.set_ttl(1000);
+        tx_builder.set_ttl(1000.into());
         tx_builder.set_fee(&to_bignum(1_000));
 
         let mut auxiliary_data = AuxiliaryData::new();
@@ -3337,7 +3337,7 @@ mod tests {
                 .with_coin(&to_bignum(999_000))
                 .build().unwrap()
             ).unwrap();
-        tx_builder.set_ttl(1000);
+        tx_builder.set_ttl(1000.into());
         tx_builder.set_fee(&to_bignum(1_000));
 
         let mut auxiliary_data = AuxiliaryData::new();
@@ -3494,7 +3494,7 @@ mod tests {
         let mut nats = NativeScripts::new();
         nats.add(
             &NativeScript::new_timelock_start(
-                &TimelockStart::new(123),
+                &TimelockStart::new(123.into()),
             ),
         );
         aux.set_native_scripts(&nats);
