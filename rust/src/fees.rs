@@ -65,7 +65,7 @@ mod tests {
                 .with_coin(&to_bignum(1))
                 .build().unwrap()
             );
-        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(94002), Some(10));
+        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(94002), Some(10.into()));
 
         let mut w = TransactionWitnessSet::new();
         let mut vkw = Vkeywitnesses::new();
@@ -113,7 +113,7 @@ mod tests {
                 .with_coin(&to_bignum(1))
                 .build().unwrap()
             );
-        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(112002), Some(10));
+        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(112002), Some(10.into()));
 
         let mut w = TransactionWitnessSet::new();
         let mut bootstrap_wits = BootstrapWitnesses::new();
@@ -185,7 +185,7 @@ mod tests {
                 .with_coin(&to_bignum(874551452))
                 .build().unwrap()
             );
-        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(183502), Some(999));
+        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(183502), Some(999.into()));
 
         let mut w = TransactionWitnessSet::new();
         let mut vkw = Vkeywitnesses::new();
@@ -240,7 +240,7 @@ mod tests {
                 .with_coin(&to_bignum(1))
                 .build().unwrap()
             );
-        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(266002), Some(10));
+        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(266002), Some(10.into()));
 
         let mut certs = Certificates::new();
 
@@ -473,7 +473,7 @@ mod tests {
                 .with_coin(&to_bignum(1))
                 .build().unwrap()
             );
-        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(162502), Some(10));
+        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(162502), Some(10.into()));
         let mut withdrawals = Withdrawals::new();
         withdrawals.insert(
             &RewardAddress::from_address(&Address::from_bytes(

@@ -95,7 +95,7 @@ impl UnitInterval {
 type SubCoin = UnitInterval;
 type Rational = UnitInterval;
 type Epoch = u32;
-type Slot = u32;
+type Slot = BigNum;
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -3068,7 +3068,7 @@ mod tests {
 
         let pks2 = RequiredSignersSet::from(
             &NativeScript::new_timelock_start(
-                &TimelockStart::new(123),
+                &TimelockStart::new(123.into()),
             ),
         );
         assert_eq!(pks2.len(), 0);
@@ -3091,13 +3091,13 @@ mod tests {
                     &NativeScript::new_script_n_of_k(&ScriptNOfK::new(
                         1,
                         &scripts_vec(vec![
-                            &NativeScript::new_timelock_start(&TimelockStart::new(132)),
+                            &NativeScript::new_timelock_start(&TimelockStart::new(132.into())),
                             &pkscript(&keyhash3),
                         ]),
                     )),
                     &NativeScript::new_script_all(&ScriptAll::new(
                         &scripts_vec(vec![
-                            &NativeScript::new_timelock_expiry(&TimelockExpiry::new(132)),
+                            &NativeScript::new_timelock_expiry(&TimelockExpiry::new(132.into())),
                             &pkscript(&keyhash1),
                         ]),
                     )),

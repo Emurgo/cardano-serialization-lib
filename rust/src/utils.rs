@@ -228,6 +228,18 @@ impl BigNum {
     }
 }
 
+impl From<BigNum> for u64 {
+    fn from(big_num: BigNum) -> Self {
+        big_num.0
+    }
+}
+
+impl From<u64> for BigNum {
+    fn from(n: u64) -> Self {
+        Self(n)
+    }
+}
+
 impl cbor_event::se::Serialize for BigNum {
   fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
       serializer.write_unsigned_integer(self.0)
@@ -243,6 +255,8 @@ impl Deserialize for BigNum {
   }
 }
 
+// This is not idiomatic rust, we should favor the new From
+// implementations. So that we can convert between these with .into()
 pub fn to_bignum(val: u64) -> BigNum {
     BigNum(val)
 }
@@ -1243,10 +1257,8 @@ fn encode_template_to_native_script(
         }
         serde_json::Value::Object(map) if map.contains_key("active_from") => {
             if let serde_json::Value::Number(active_from) = map.get("active_from").unwrap() {
-                if let Some(n) = active_from.as_u64() {
-                    let slot: u32 = n as u32;
-
-                    let time_lock_start = TimelockStart::new(slot);
+                if let Some(slot) = active_from.as_u64() {
+                    let time_lock_start = TimelockStart::new(slot.into());
 
                     Ok(NativeScript::new_timelock_start(&time_lock_start))
                 } else {
@@ -1260,10 +1272,8 @@ fn encode_template_to_native_script(
         }
         serde_json::Value::Object(map) if map.contains_key("active_until") => {
             if let serde_json::Value::Number(active_until) = map.get("active_until").unwrap() {
-                if let Some(n) = active_until.as_u64() {
-                    let slot: u32 = n as u32;
-
-                    let time_lock_expiry = TimelockExpiry::new(slot);
+                if let Some(slot) = active_until.as_u64() {
+                    let time_lock_expiry = TimelockExpiry::new(slot.into());
 
                     Ok(NativeScript::new_timelock_expiry(&time_lock_expiry))
                 } else {
@@ -2227,7 +2237,7 @@ mod tests {
             Bip32PublicKey::from_bytes(&hex::decode(cosigner0_hex).unwrap()).unwrap().to_raw_key().hash()
         );
         let all_1 = all.get(1).as_timelock_start().unwrap();
-        assert_eq!(all_1.slot(), 120);
+        assert_eq!(all_1.slot(), 120.into());
         let any = from.get(1).as_script_any().unwrap().native_scripts();
         assert_eq!(all.len(), 2);
         let any_0 = any.get(0).as_script_pubkey().unwrap();
@@ -2236,7 +2246,7 @@ mod tests {
             Bip32PublicKey::from_bytes(&hex::decode(cosigner1_hex).unwrap()).unwrap().to_raw_key().hash()
         );
         let any_1 = any.get(1).as_timelock_expiry().unwrap();
-        assert_eq!(any_1.slot(), 1000);
+        assert_eq!(any_1.slot(), 1000.into());
         let self_key = from.get(2).as_script_pubkey().unwrap();
         assert_eq!(
             self_key.addr_keyhash(),
