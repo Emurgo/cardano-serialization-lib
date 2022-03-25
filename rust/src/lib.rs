@@ -1920,32 +1920,6 @@ impl ProtocolVersion {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct ProtocolVersions(Vec<ProtocolVersion>);
-
-to_from_bytes!(ProtocolVersions);
-
-#[wasm_bindgen]
-impl ProtocolVersions {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> ProtocolVersion {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &ProtocolVersion) {
-        self.0.push(elem.clone());
-    }
-}
-
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ProtocolParamUpdate {
     minfee_a: Option<Coin>,
     minfee_b: Option<Coin>,
@@ -1963,7 +1937,7 @@ pub struct ProtocolParamUpdate {
     // decentralization constant
     d: Option<UnitInterval>,
     extra_entropy: Option<Nonce>,
-    protocol_version: Option<ProtocolVersions>,
+    protocol_version: Option<ProtocolVersion>,
     min_pool_cost: Option<Coin>,
     ada_per_utxo_byte: Option<Coin>,
     cost_models: Option<Costmdls>,
@@ -2091,11 +2065,11 @@ impl ProtocolParamUpdate {
         self.extra_entropy.clone()
     }
 
-    pub fn set_protocol_version(&mut self, protocol_version: &ProtocolVersions) {
+    pub fn set_protocol_version(&mut self, protocol_version: &ProtocolVersion) {
         self.protocol_version = Some(protocol_version.clone())
     }
 
-    pub fn protocol_version(&self) -> Option<ProtocolVersions> {
+    pub fn protocol_version(&self) -> Option<ProtocolVersion> {
         self.protocol_version.clone()
     }
 
