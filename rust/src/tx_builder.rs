@@ -1846,7 +1846,7 @@ mod tests {
             &PointerAddress::new(
                 NetworkInfo::testnet().network_id(),
                 &spend_cred,
-                &Pointer::new(
+                &Pointer::new_bignum(
                     &to_bignum(0),
                     &to_bignum(0),
                     &to_bignum(0)

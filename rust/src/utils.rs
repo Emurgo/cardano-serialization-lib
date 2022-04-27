@@ -2,6 +2,7 @@ use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 use hex::FromHex;
 use serde_json;
 use std::{collections::HashMap, io::{BufRead, Seek, Write}};
+use std::convert::{TryFrom};
 use itertools::Itertools;
 use std::ops::{Rem, Div, Sub};
 
@@ -225,6 +226,24 @@ impl BigNum {
             std::cmp::Ordering::Less => -1,
             std::cmp::Ordering::Greater => 1,
         }
+    }
+}
+
+impl TryFrom<BigNum> for u32 {
+    type Error = JsError;
+
+    fn try_from(value: BigNum) -> Result<Self, Self::Error> {
+        if value.0 > u32::MAX.into() {
+            Err(JsError::from_str(&format!("Value {} is bigger than max u32 {}", value.0, u32::MAX)))
+        } else {
+            Ok(value.0 as u32)
+        }
+    }
+}
+
+impl From<u32> for BigNum {
+    fn from(value: u32) -> Self {
+        return BigNum(value.into())
     }
 }
 
