@@ -1905,6 +1905,11 @@ declare export class HeaderBody {
   slot(): number;
 
   /**
+   * @returns {BigNum}
+   */
+  slot_bignun(): BigNum;
+
+  /**
    * @returns {BlockHash | void}
    */
   prev_hash(): BlockHash | void;
@@ -1966,6 +1971,34 @@ declare export class HeaderBody {
   static new(
     block_number: number,
     slot: number,
+    prev_hash: BlockHash | void,
+    issuer_vkey: Vkey,
+    vrf_vkey: VRFVKey,
+    nonce_vrf: VRFCert,
+    leader_vrf: VRFCert,
+    block_body_size: number,
+    block_body_hash: BlockHash,
+    operational_cert: OperationalCert,
+    protocol_version: ProtocolVersion
+  ): HeaderBody;
+
+  /**
+   * @param {number} block_number
+   * @param {BigNum} slot
+   * @param {BlockHash | void} prev_hash
+   * @param {Vkey} issuer_vkey
+   * @param {VRFVKey} vrf_vkey
+   * @param {VRFCert} nonce_vrf
+   * @param {VRFCert} leader_vrf
+   * @param {number} block_body_size
+   * @param {BlockHash} block_body_hash
+   * @param {OperationalCert} operational_cert
+   * @param {ProtocolVersion} protocol_version
+   * @returns {HeaderBody}
+   */
+  static new_bignum(
+    block_number: number,
+    slot: BigNum,
     prev_hash: BlockHash | void,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
@@ -3220,6 +3253,18 @@ declare export class Pointer {
   static new(slot: number, tx_index: number, cert_index: number): Pointer;
 
   /**
+   * @param {BigNum} slot
+   * @param {BigNum} tx_index
+   * @param {BigNum} cert_index
+   * @returns {Pointer}
+   */
+  static new_bignum(
+    slot: BigNum,
+    tx_index: BigNum,
+    cert_index: BigNum
+  ): Pointer;
+
+  /**
    * @returns {number}
    */
   slot(): number;
@@ -3233,6 +3278,21 @@ declare export class Pointer {
    * @returns {number}
    */
   cert_index(): number;
+
+  /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
+
+  /**
+   * @returns {BigNum}
+   */
+  tx_index_bignum(): BigNum;
+
+  /**
+   * @returns {BigNum}
+   */
+  cert_index_bignum(): BigNum;
 }
 /**
  */
@@ -4769,6 +4829,11 @@ declare export class TimelockExpiry {
   slot(): number;
 
   /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
+
+  /**
    * @param {number} slot
    * @returns {TimelockExpiry}
    */
@@ -4796,10 +4861,21 @@ declare export class TimelockStart {
   slot(): number;
 
   /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
+
+  /**
    * @param {number} slot
    * @returns {TimelockStart}
    */
   static new(slot: number): TimelockStart;
+
+  /**
+   * @param {BigNum} slot
+   * @returns {TimelockStart}
+   */
+  static new_bignum(slot: BigNum): TimelockStart;
 }
 /**
  */
@@ -4928,6 +5004,11 @@ declare export class TransactionBody {
   ttl(): number | void;
 
   /**
+   * @returns {BigNum | void}
+   */
+  ttl_bignum(): BigNum | void;
+
+  /**
    * @param {Certificates} certs
    */
   set_certs(certs: Certificates): void;
@@ -4971,6 +5052,16 @@ declare export class TransactionBody {
    * @param {number} validity_start_interval
    */
   set_validity_start_interval(validity_start_interval: number): void;
+
+  /**
+   * @param {BigNum} validity_start_interval
+   */
+  set_validity_start_interval_bignum(validity_start_interval: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  validity_start_interval_bignum(): BigNum | void;
 
   /**
    * @returns {number | void}
@@ -5046,6 +5137,20 @@ declare export class TransactionBody {
     outputs: TransactionOutputs,
     fee: BigNum,
     ttl?: number
+  ): TransactionBody;
+
+  /**
+   * @param {TransactionInputs} inputs
+   * @param {TransactionOutputs} outputs
+   * @param {BigNum} fee
+   * @param {BigNum | void} ttl
+   * @returns {TransactionBody}
+   */
+  static new_bignum(
+    inputs: TransactionInputs,
+    outputs: TransactionOutputs,
+    fee: BigNum,
+    ttl?: BigNum
   ): TransactionBody;
 }
 /**
@@ -5146,9 +5251,19 @@ declare export class TransactionBuilder {
   set_ttl(ttl: number): void;
 
   /**
+   * @param {BigNum} ttl
+   */
+  set_ttl_bignum(ttl: BigNum): void;
+
+  /**
    * @param {number} validity_start_interval
    */
   set_validity_start_interval(validity_start_interval: number): void;
+
+  /**
+   * @param {BigNum} validity_start_interval
+   */
+  set_validity_start_interval_bignum(validity_start_interval: BigNum): void;
 
   /**
    * @param {Certificates} certs
