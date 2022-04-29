@@ -308,11 +308,11 @@ pub struct TransactionBuilder {
     inputs: Vec<TxBuilderInput>,
     outputs: TransactionOutputs,
     fee: Option<Coin>,
-    ttl: Option<Slot>, // absolute slot number
+    ttl: Option<SlotBigNum>, // absolute slot number
     certs: Option<Certificates>,
     withdrawals: Option<Withdrawals>,
     auxiliary_data: Option<AuxiliaryData>,
-    validity_start_interval: Option<Slot>,
+    validity_start_interval: Option<SlotBigNum>,
     input_types: MockWitnessSet,
     mint: Option<Mint>,
     mint_scripts: Option<NativeScripts>,
@@ -710,11 +710,21 @@ impl TransactionBuilder {
         self.fee = Some(fee.clone())
     }
 
-    pub fn set_ttl(&mut self, ttl: Slot) {
+    //TODO: add deprecated
+    pub fn set_ttl(&mut self, ttl: Slot32) {
+        self.ttl = Some(ttl.into())
+    }
+
+    pub fn set_ttl_bignum(&mut self, ttl: SlotBigNum) {
         self.ttl = Some(ttl)
     }
 
-    pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot) {
+    //TODO: add deprecateed
+    pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot32) {
+        self.validity_start_interval = Some(validity_start_interval.into())
+    }
+
+    pub fn set_validity_start_interval_bignum(&mut self, validity_start_interval: SlotBigNum) {
         self.validity_start_interval = Some(validity_start_interval)
     }
 

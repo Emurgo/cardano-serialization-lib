@@ -618,7 +618,8 @@ pub struct Pointer {
 
 #[wasm_bindgen]
 impl Pointer {
-    pub fn new(slot: &Slot, tx_index: &Slot, cert_index: &Slot) -> Self {
+
+    pub fn new(slot: &Slot32, tx_index: &TransactionIndex, cert_index: &CertificateIndex) -> Self {
         Self {
             slot: slot.clone().into(),
             tx_index: tx_index.clone().into(),
@@ -626,7 +627,7 @@ impl Pointer {
         }
     }
 
-    pub fn new_bignum(slot: &BigNum, tx_index: &BigNum, cert_index: &BigNum) -> Self {
+    pub fn new_bignum(slot: &SlotBigNum, tx_index: &BigNum, cert_index: &BigNum) -> Self {
         Self {
             slot: slot.clone(),
             tx_index: tx_index.clone(),

@@ -2246,7 +2246,7 @@ mod tests {
             Bip32PublicKey::from_bytes(&hex::decode(cosigner0_hex).unwrap()).unwrap().to_raw_key().hash()
         );
         let all_1 = all.get(1).as_timelock_start().unwrap();
-        assert_eq!(all_1.slot(), 120);
+        assert_eq!(all_1.slot().unwrap(), 120);
         let any = from.get(1).as_script_any().unwrap().native_scripts();
         assert_eq!(all.len(), 2);
         let any_0 = any.get(0).as_script_pubkey().unwrap();
@@ -2255,7 +2255,7 @@ mod tests {
             Bip32PublicKey::from_bytes(&hex::decode(cosigner1_hex).unwrap()).unwrap().to_raw_key().hash()
         );
         let any_1 = any.get(1).as_timelock_expiry().unwrap();
-        assert_eq!(any_1.slot(), 1000);
+        assert_eq!(any_1.slot().unwrap(), 1000);
         let self_key = from.get(2).as_script_pubkey().unwrap();
         assert_eq!(
             self_key.addr_keyhash(),

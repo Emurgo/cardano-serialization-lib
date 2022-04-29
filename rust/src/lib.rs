@@ -95,7 +95,8 @@ impl UnitInterval {
 type SubCoin = UnitInterval;
 type Rational = UnitInterval;
 type Epoch = u32;
-type Slot = u32;
+type Slot32 = u32;
+type SlotBigNum = BigNum;
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -233,12 +234,12 @@ pub struct TransactionBody {
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
     fee: Coin,
-    ttl: Option<Slot>,
+    ttl: Option<SlotBigNum>,
     certs: Option<Certificates>,
     withdrawals: Option<Withdrawals>,
     update: Option<Update>,
     auxiliary_data_hash: Option<AuxiliaryDataHash>,
-    validity_start_interval: Option<Slot>,
+    validity_start_interval: Option<SlotBigNum>,
     mint: Option<Mint>,
     script_data_hash: Option<ScriptDataHash>,
     collateral: Option<TransactionInputs>,
@@ -262,7 +263,18 @@ impl TransactionBody {
         self.fee.clone()
     }
 
-    pub fn ttl(&self) -> Option<Slot> {
+    //TODO: add deprecated
+    pub fn ttl(&self) -> Result<Option<Slot32>, JsError> {
+        match self.ttl {
+            Some(ttl) =>
+                match ttl.try_into() {
+                    Ok(ttl32) => Ok(Some(ttl32)),
+                    Err(err) =>  Err(err)},
+            None => Ok(None)
+        }
+    }
+
+    pub fn ttl_bignum(&self) -> Option<SlotBigNum> {
         self.ttl
     }
 
@@ -298,12 +310,29 @@ impl TransactionBody {
         self.auxiliary_data_hash.clone()
     }
 
-    pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot) {
+    //TODO: add deprecated
+    pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot32) {
+        self.validity_start_interval = Some(validity_start_interval.into())
+    }
+
+    pub fn set_validity_start_interval_bignum(&mut self, validity_start_interval: SlotBigNum) {
         self.validity_start_interval = Some(validity_start_interval)
     }
 
-    pub fn validity_start_interval(&self) -> Option<Slot> {
+    pub fn validity_start_interval_bignum(&self) -> Option<SlotBigNum> {
         self.validity_start_interval.clone()
+    }
+
+    //TODO: add deprecated
+    pub fn validity_start_interval(&self) -> Result<Option<Slot32>, JsError> {
+        match self.validity_start_interval.clone() {
+            Some(interval) => match interval.try_into()
+            {
+                Ok(internal32) => Ok(Some(internal32)),
+                Err(err) => Err(err)
+            },
+            None => Ok(None)
+        }
     }
 
     pub fn set_mint(&mut self, mint: &Mint) {
@@ -356,16 +385,17 @@ impl TransactionBody {
         self.network_id.clone()
     }
 
+    //TODO: add new for bignum
     pub fn new(
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
         fee: &Coin,
-        ttl: Option<Slot>) -> Self {
+        ttl: Option<Slot32>) -> Self {
         Self {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
             fee: fee.clone(),
-            ttl: ttl,
+            ttl: match ttl.clone() { Some(ttl32) => Some(ttl32.into()), None => None},
             certs: None,
             withdrawals: None,
             update: None,
@@ -1562,18 +1592,32 @@ impl ScriptNOfK {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TimelockStart {
-    slot: Slot,
+    slot: SlotBigNum,
 }
 
 to_from_bytes!(TimelockStart);
 
 #[wasm_bindgen]
 impl TimelockStart {
-    pub fn slot(&self) -> Slot {
+
+    //TODO add deprecated
+    pub fn slot(&self) -> Result<Slot32, JsError> {
+        self.slot.try_into()
+    }
+
+
+    pub fn slot_bignum(&self) -> SlotBigNum{
         self.slot
     }
 
-    pub fn new(slot: Slot) -> Self {
+    //TODO add deprecated
+    pub fn new(slot: Slot32) -> Self  {
+        Self {
+            slot: slot.into(),
+        }
+    }
+
+    pub fn new_bignum(slot: SlotBigNum) -> Self {
         Self {
             slot,
         }
@@ -1583,20 +1627,25 @@ impl TimelockStart {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TimelockExpiry {
-    slot: Slot,
+    slot: SlotBigNum,
 }
 
 to_from_bytes!(TimelockExpiry);
 
 #[wasm_bindgen]
 impl TimelockExpiry {
-    pub fn slot(&self) -> Slot {
+    pub fn slot(&self) -> Result<Slot32, JsError> {
+        self.slot.try_into()
+    }
+
+    pub fn slot_bignum(&self) -> SlotBigNum {
         self.slot
     }
 
-    pub fn new(slot: Slot) -> Self {
+    //TODO: Add new for bignum
+    pub fn new(slot: Slot32) -> Self {
         Self {
-            slot,
+            slot: (slot.into())
         }
     }
 }
@@ -2394,7 +2443,7 @@ impl OperationalCert {
 #[derive(Clone)]
 pub struct HeaderBody {
     block_number: u32,
-    slot: Slot,
+    slot: SlotBigNum,
     prev_hash: Option<BlockHash>,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
@@ -2414,7 +2463,12 @@ impl HeaderBody {
         self.block_number.clone()
     }
 
-    pub fn slot(&self) -> Slot {
+    //TODO: add deprecated
+    pub fn slot(&self) -> Result<Slot32, JsError> {
+        self.slot.clone().try_into()
+    }
+
+    pub fn slot_bignun(&self) -> SlotBigNum {
         self.slot.clone()
     }
 
@@ -2454,10 +2508,27 @@ impl HeaderBody {
         self.protocol_version.clone()
     }
 
-    pub fn new(block_number: u32, slot: Slot, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+    //TODO add deprecated
+    pub fn new(block_number: u32, slot: Slot32, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
         Self {
             block_number: block_number,
-            slot: slot,
+            slot: slot.clone().into(),
+            prev_hash: prev_hash.clone(),
+            issuer_vkey: issuer_vkey.clone(),
+            vrf_vkey: vrf_vkey.clone(),
+            nonce_vrf: nonce_vrf.clone(),
+            leader_vrf: leader_vrf.clone(),
+            block_body_size: block_body_size,
+            block_body_hash: block_body_hash.clone(),
+            operational_cert: operational_cert.clone(),
+            protocol_version: protocol_version.clone(),
+        }
+    }
+
+    pub fn new_bignum(block_number: u32, slot: SlotBigNum, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+        Self {
+            block_number: block_number,
+            slot: slot.clone(),
             prev_hash: prev_hash.clone(),
             issuer_vkey: issuer_vkey.clone(),
             vrf_vkey: vrf_vkey.clone(),
