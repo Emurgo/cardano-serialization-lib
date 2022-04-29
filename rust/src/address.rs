@@ -619,11 +619,11 @@ pub struct Pointer {
 #[wasm_bindgen]
 impl Pointer {
 
-    pub fn new(slot: &Slot32, tx_index: &TransactionIndex, cert_index: &CertificateIndex) -> Self {
+    pub fn new(slot: Slot32, tx_index: TransactionIndex, cert_index: CertificateIndex) -> Self {
         Self {
-            slot: slot.clone().into(),
-            tx_index: tx_index.clone().into(),
-            cert_index: cert_index.clone().into(),
+            slot: slot.into(),
+            tx_index: tx_index.into(),
+            cert_index: cert_index.into(),
         }
     }
 
