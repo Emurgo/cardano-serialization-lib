@@ -385,7 +385,7 @@ impl TransactionBody {
         self.network_id.clone()
     }
 
-    //TODO: add new for bignum
+    //TODO: add deprecated
     pub fn new(
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
@@ -395,7 +395,33 @@ impl TransactionBody {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
             fee: fee.clone(),
-            ttl: match ttl.clone() { Some(ttl32) => Some(ttl32.into()), None => None},
+            ttl: match ttl.clone() {
+                Some(ttl32) => Some(ttl32.into()),
+                None => None
+            },
+            certs: None,
+            withdrawals: None,
+            update: None,
+            auxiliary_data_hash: None,
+            validity_start_interval: None,
+            mint: None,
+            script_data_hash: None,
+            collateral: None,
+            required_signers: None,
+            network_id: None,
+        }
+    }
+
+    pub fn new_bignum(
+        inputs: &TransactionInputs,
+        outputs: &TransactionOutputs,
+        fee: &Coin,
+        ttl: Option<SlotBigNum>) -> Self {
+        Self {
+            inputs: inputs.clone(),
+            outputs: outputs.clone(),
+            fee: fee.clone(),
+            ttl: ttl.clone(),
             certs: None,
             withdrawals: None,
             update: None,
