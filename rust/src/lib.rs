@@ -263,7 +263,14 @@ impl TransactionBody {
         self.fee.clone()
     }
 
-    //TODO: add deprecated
+
+    /// !!! DEPRECATED !!!
+    /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+    /// Otherwise will just return JsError.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Possible boundary error. Use ttl_bignum instead"
+    )]
     pub fn ttl(&self) -> Result<Option<Slot32>, JsError> {
         match self.ttl {
             Some(ttl) =>
@@ -310,7 +317,12 @@ impl TransactionBody {
         self.auxiliary_data_hash.clone()
     }
 
-    //TODO: add deprecated
+    /// !!! DEPRECATED !!!
+    /// Set validity_start_interval value.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use set_validity_start_interval_bignum instead."
+    )]
     pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot32) {
         self.validity_start_interval = Some(validity_start_interval.into())
     }
@@ -323,7 +335,13 @@ impl TransactionBody {
         self.validity_start_interval.clone()
     }
 
-    //TODO: add deprecated
+    /// !!! DEPRECATED !!!
+    /// Returns a Option<Slot32> (u32) value in case the underlying original Option<BigNum> (u64) value is within the limits.
+    /// Otherwise will just return JsError.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Possible boundary error. Use validity_start_interval_bignum instead"
+    )]
     pub fn validity_start_interval(&self) -> Result<Option<Slot32>, JsError> {
         match self.validity_start_interval.clone() {
             Some(interval) => match interval.try_into()
@@ -385,7 +403,12 @@ impl TransactionBody {
         self.network_id.clone()
     }
 
-    //TODO: add deprecated
+    /// !!! DEPRECATED !!!
+    /// Returns a new TransactionBody.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use new_bignum instead."
+    )]
     pub fn new(
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
@@ -1626,7 +1649,13 @@ to_from_bytes!(TimelockStart);
 #[wasm_bindgen]
 impl TimelockStart {
 
-    //TODO add deprecated
+    /// !!! DEPRECATED !!!
+    /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+    /// Otherwise will just return JsError.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Possible boundary error. Use slot_bignum instead"
+    )]
     pub fn slot(&self) -> Result<Slot32, JsError> {
         self.slot.try_into()
     }
@@ -1636,7 +1665,12 @@ impl TimelockStart {
         self.slot
     }
 
-    //TODO add deprecated
+    /// !!! DEPRECATED !!!
+    /// Returns a new TimelockStart from Slot32 (u32) value.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Underlying value capacity (BigNum u64) bigger then Slot32. Use new_bignum instead."
+    )]
     pub fn new(slot: Slot32) -> Self  {
         Self {
             slot: slot.into(),
@@ -1668,7 +1702,12 @@ impl TimelockExpiry {
         self.slot
     }
 
-    //TODO: deprecated
+    /// !!! DEPRECATED !!!
+    /// Returns a new TimelockExpiry from Slot32 (u32) value.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Underlying value capacity (BigNum u64) bigger then Slot32. Use new_bignum instead."
+    )]
     pub fn new(slot: Slot32) -> Self {
         Self {
             slot: (slot.into())
@@ -2495,7 +2534,14 @@ impl HeaderBody {
         self.block_number.clone()
     }
 
-    //TODO: add deprecated
+
+    /// !!! DEPRECATED !!!
+    /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+    /// Otherwise will just return JsError.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Possible boundary error. Use slot_bignum instead"
+    )]
     pub fn slot(&self) -> Result<Slot32, JsError> {
         self.slot.clone().try_into()
     }
@@ -2540,7 +2586,12 @@ impl HeaderBody {
         self.protocol_version.clone()
     }
 
-    //TODO add deprecated
+    /// !!! DEPRECATED !!!
+    /// Returns a new HeaderBody.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use new_bignum instead."
+    )]
     pub fn new(block_number: u32, slot: Slot32, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
         Self {
             block_number: block_number,

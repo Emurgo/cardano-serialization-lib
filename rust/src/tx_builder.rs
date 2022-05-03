@@ -710,7 +710,12 @@ impl TransactionBuilder {
         self.fee = Some(fee.clone())
     }
 
-    //TODO: add deprecated
+    /// !!! DEPRECATED !!!
+    /// Set ttl value.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use set_ttl_bignum instead."
+    )]
     pub fn set_ttl(&mut self, ttl: Slot32) {
         self.ttl = Some(ttl.into())
     }
@@ -719,7 +724,12 @@ impl TransactionBuilder {
         self.ttl = Some(ttl)
     }
 
-    //TODO: add deprecateed
+    /// !!! DEPRECATED !!!
+    /// Set validity_start_interval value.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Underlying value capacity of validity_start_interval (BigNum u64) bigger then Slot32. Use set_validity_start_interval_bignum instead."
+    )]
     pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot32) {
         self.validity_start_interval = Some(validity_start_interval.into())
     }
