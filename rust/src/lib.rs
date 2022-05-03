@@ -439,7 +439,7 @@ impl TransactionBody {
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
         fee: &Coin,
-        ttl: &Option<SlotBigNum>) -> Self {
+        ttl: Option<SlotBigNum>) -> Self {
         Self {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
