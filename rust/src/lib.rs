@@ -1668,10 +1668,16 @@ impl TimelockExpiry {
         self.slot
     }
 
-    //TODO: Add new for bignum
+    //TODO: deprecated
     pub fn new(slot: Slot32) -> Self {
         Self {
             slot: (slot.into())
+        }
+    }
+
+    pub fn new_bignum(slot: BigNum) -> Self {
+        Self {
+            slot
         }
     }
 }
