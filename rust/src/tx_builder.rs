@@ -720,8 +720,8 @@ impl TransactionBuilder {
         self.ttl = Some(ttl.into())
     }
 
-    pub fn set_ttl_bignum(&mut self, ttl: SlotBigNum) {
-        self.ttl = Some(ttl)
+    pub fn set_ttl_bignum(&mut self, ttl: &SlotBigNum) {
+        self.ttl = Some(ttl.clone())
     }
 
     /// !!! DEPRECATED !!!
@@ -735,7 +735,7 @@ impl TransactionBuilder {
     }
 
     pub fn set_validity_start_interval_bignum(&mut self, validity_start_interval: SlotBigNum) {
-        self.validity_start_interval = Some(validity_start_interval)
+        self.validity_start_interval = Some(validity_start_interval.clone())
     }
 
     pub fn set_certs(&mut self, certs: &Certificates) {
