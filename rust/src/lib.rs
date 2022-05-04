@@ -1687,7 +1687,7 @@ impl TimelockStart {
         }
     }
 
-    pub fn new_bignum(slot: &SlotBigNum) -> Self {
+    pub fn new_timelockstart(slot: &SlotBigNum) -> Self {
         Self {
             slot: slot.clone(),
         }
@@ -1724,7 +1724,7 @@ impl TimelockExpiry {
         }
     }
 
-    pub fn new_bignum(slot: &SlotBigNum) -> Self {
+    pub fn new_timelockexpiry(slot: &SlotBigNum) -> Self {
         Self {
             slot : slot.clone()
         }
@@ -2618,7 +2618,7 @@ impl HeaderBody {
         }
     }
 
-    pub fn new_bignum(block_number: u32, slot: &SlotBigNum, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+    pub fn new_headerbody(block_number: u32, slot: &SlotBigNum, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
         Self {
             block_number: block_number,
             slot: slot.clone(),

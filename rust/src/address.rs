@@ -627,7 +627,7 @@ impl Pointer {
         }
     }
 
-    pub fn new_bignum(slot: &SlotBigNum, tx_index: &BigNum, cert_index: &BigNum) -> Self {
+    pub fn new_pointer(slot: &SlotBigNum, tx_index: &BigNum, cert_index: &BigNum) -> Self {
         Self {
             slot: slot.clone(),
             tx_index: tx_index.clone(),

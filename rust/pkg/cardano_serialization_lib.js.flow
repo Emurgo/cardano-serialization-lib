@@ -5030,6 +5030,15 @@ declare export class TransactionBody {
   ttl_bignum(): BigNum | void;
 
   /**
+   * @param {BigNum} ttl
+   */
+  set_ttl(ttl: BigNum): void;
+
+  /**
+   */
+  remove_ttl(): void;
+
+  /**
    * @param {Certificates} certs
    */
   set_certs(certs: Certificates): void;
@@ -5168,17 +5177,18 @@ declare export class TransactionBody {
   ): TransactionBody;
 
   /**
+   * Returns a new TransactionBody.
+   * In the new version of "new" we removed optional ttl for support it by wasm_bingen.
+   * Your can use "set_ttl" and "remove_ttl" to set a new value for ttl or set it as None.
    * @param {TransactionInputs} inputs
    * @param {TransactionOutputs} outputs
    * @param {BigNum} fee
-   * @param {BigNum | void} ttl
    * @returns {TransactionBody}
    */
-  static new_bignum(
+  static new_tx_body(
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
-    fee: BigNum,
-    ttl?: BigNum
+    fee: BigNum
   ): TransactionBody;
 }
 /**
