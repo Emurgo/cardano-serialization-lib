@@ -2001,7 +2001,7 @@ declare export class HeaderBody {
    * @param {ProtocolVersion} protocol_version
    * @returns {HeaderBody}
    */
-  static new_bignum(
+  static new_headerbody(
     block_number: number,
     slot: BigNum,
     prev_hash: BlockHash | void,
@@ -3263,7 +3263,7 @@ declare export class Pointer {
    * @param {BigNum} cert_index
    * @returns {Pointer}
    */
-  static new_bignum(
+  static new_pointer(
     slot: BigNum,
     tx_index: BigNum,
     cert_index: BigNum
@@ -4850,7 +4850,7 @@ declare export class TimelockExpiry {
    * @param {BigNum} slot
    * @returns {TimelockExpiry}
    */
-  static new_bignum(slot: BigNum): TimelockExpiry;
+  static new_timelockexpiry(slot: BigNum): TimelockExpiry;
 }
 /**
  */
@@ -4893,7 +4893,7 @@ declare export class TimelockStart {
    * @param {BigNum} slot
    * @returns {TimelockStart}
    */
-  static new_bignum(slot: BigNum): TimelockStart;
+  static new_timelockstart(slot: BigNum): TimelockStart;
 }
 /**
  */
