@@ -285,6 +285,14 @@ impl TransactionBody {
         self.ttl
     }
 
+    pub fn set_ttl(&mut self, ttl: &SlotBigNum) {
+        self.ttl = Some(ttl.clone())
+    }
+
+    pub fn remove_ttl(&mut self) {
+        self.ttl = None
+    }
+
     pub fn set_certs(&mut self, certs: &Certificates) {
         self.certs = Some(certs.clone())
     }
@@ -407,7 +415,7 @@ impl TransactionBody {
     /// Returns a new TransactionBody.
     #[deprecated(
     since = "11.0.0",
-    note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use new_bignum instead."
+    note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use new_tx_body instead."
     )]
     pub fn new(
         inputs: &TransactionInputs,
@@ -435,16 +443,18 @@ impl TransactionBody {
         }
     }
 
-    pub fn new_bignum(
+    /// Returns a new TransactionBody.
+    /// In the new version of "new" we removed optional ttl for support it by wasm_bingen.
+    /// Your can use "set_ttl" and "remove_ttl" to set a new value for ttl or set it as None.
+    pub fn new_tx_body(
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
-        fee: &Coin,
-        ttl: Option<SlotBigNum>) -> Self {
+        fee: &Coin) -> Self {
         Self {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
             fee: fee.clone(),
-            ttl: ttl.clone(),
+            ttl: None,
             certs: None,
             withdrawals: None,
             update: None,
