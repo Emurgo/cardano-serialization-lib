@@ -395,7 +395,7 @@ impl Address {
                         PointerAddress::new(
                             network,
                             &payment_cred,
-                             &Pointer::new_bignum(
+                             &Pointer::new_pointer(
                                 &to_bignum(slot),
                                 &to_bignum(tx_index),
                                 &to_bignum(cert_index))))
@@ -741,7 +741,7 @@ mod tests {
         let ptr = PointerAddress::new(
             25,
             &StakeCredential::from_keyhash(&Ed25519KeyHash::from([23; Ed25519KeyHash::BYTE_COUNT])),
-            &Pointer::new_bignum(&to_bignum(2354556573), &to_bignum(127), &to_bignum(0)));
+            &Pointer::new_pointer(&to_bignum(2354556573), &to_bignum(127), &to_bignum(0)));
         let addr = ptr.to_address();
         let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -857,9 +857,9 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new_bignum(&to_bignum(1), &to_bignum(2), &to_bignum(3))).to_address();
+        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3))).to_address();
         assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspqgpsqe70et");
-        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new_bignum(&to_bignum(24157), &to_bignum(177), &to_bignum(42))).to_address();
+        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42))).to_address();
         assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1gx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2w8lunk");
     }
 
@@ -913,9 +913,9 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new_bignum(&to_bignum(1), &to_bignum(2), &to_bignum(3))).to_address();
+        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3))).to_address();
         assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsdhdyc0");
-        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new_bignum(&to_bignum(24157), &to_bignum(177), &to_bignum(42))).to_address();
+        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42))).to_address();
         assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1g9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5evph3wczvf2kd5vam");
     }
 
@@ -996,9 +996,9 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new_bignum(&to_bignum(1), &to_bignum(2), &to_bignum(3))).to_address();
+        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3))).to_address();
         assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgps5mee0p");
-        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new_bignum(&to_bignum(24157), &to_bignum(177), &to_bignum(42))).to_address();
+        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42))).to_address();
         assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1gyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnyph3wczvf2dqflgt");
     }
 
