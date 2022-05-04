@@ -1900,6 +1900,9 @@ declare export class HeaderBody {
   block_number(): number;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+   * Otherwise will just return JsError.
    * @returns {number}
    */
   slot(): number;
@@ -1955,6 +1958,8 @@ declare export class HeaderBody {
   protocol_version(): ProtocolVersion;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a new HeaderBody.
    * @param {number} block_number
    * @param {number} slot
    * @param {BlockHash | void} prev_hash
@@ -4834,10 +4839,18 @@ declare export class TimelockExpiry {
   slot_bignum(): BigNum;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a new TimelockExpiry from Slot32 (u32) value.
    * @param {number} slot
    * @returns {TimelockExpiry}
    */
   static new(slot: number): TimelockExpiry;
+
+  /**
+   * @param {BigNum} slot
+   * @returns {TimelockExpiry}
+   */
+  static new_bignum(slot: BigNum): TimelockExpiry;
 }
 /**
  */
@@ -4856,6 +4869,9 @@ declare export class TimelockStart {
   static from_bytes(bytes: Uint8Array): TimelockStart;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+   * Otherwise will just return JsError.
    * @returns {number}
    */
   slot(): number;
@@ -4866,6 +4882,8 @@ declare export class TimelockStart {
   slot_bignum(): BigNum;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a new TimelockStart from Slot32 (u32) value.
    * @param {number} slot
    * @returns {TimelockStart}
    */
@@ -4999,6 +5017,9 @@ declare export class TransactionBody {
   fee(): BigNum;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+   * Otherwise will just return JsError.
    * @returns {number | void}
    */
   ttl(): number | void;
@@ -5049,6 +5070,8 @@ declare export class TransactionBody {
   auxiliary_data_hash(): AuxiliaryDataHash | void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Set validity_start_interval value.
    * @param {number} validity_start_interval
    */
   set_validity_start_interval(validity_start_interval: number): void;
@@ -5064,6 +5087,9 @@ declare export class TransactionBody {
   validity_start_interval_bignum(): BigNum | void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a Option<Slot32> (u32) value in case the underlying original Option<BigNum> (u64) value is within the limits.
+   * Otherwise will just return JsError.
    * @returns {number | void}
    */
   validity_start_interval(): number | void;
@@ -5126,6 +5152,8 @@ declare export class TransactionBody {
   network_id(): NetworkId | void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a new TransactionBody.
    * @param {TransactionInputs} inputs
    * @param {TransactionOutputs} outputs
    * @param {BigNum} fee
@@ -5246,6 +5274,8 @@ declare export class TransactionBuilder {
   set_fee(fee: BigNum): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Set ttl value.
    * @param {number} ttl
    */
   set_ttl(ttl: number): void;
@@ -5256,6 +5286,8 @@ declare export class TransactionBuilder {
   set_ttl_bignum(ttl: BigNum): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Set validity_start_interval value.
    * @param {number} validity_start_interval
    */
   set_validity_start_interval(validity_start_interval: number): void;
