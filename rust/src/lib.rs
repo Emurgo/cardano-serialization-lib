@@ -2556,7 +2556,7 @@ impl HeaderBody {
         self.slot.clone().try_into()
     }
 
-    pub fn slot_bignun(&self) -> SlotBigNum {
+    pub fn slot_bignum(&self) -> SlotBigNum {
         self.slot.clone()
     }
 

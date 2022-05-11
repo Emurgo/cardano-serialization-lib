@@ -1910,7 +1910,7 @@ declare export class HeaderBody {
   /**
    * @returns {BigNum}
    */
-  slot_bignun(): BigNum;
+  slot_bignum(): BigNum;
 
   /**
    * @returns {BlockHash | void}
