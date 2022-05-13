@@ -1,12 +1,13 @@
 [package]
 name = "cardano-serialization-lib"
-version = "9.1.2"
+version = "10.0.4"
 edition = "2018"
 authors = ["EMURGO"]
 license = "MIT"
 description = "(De)serialization functions for the Cardano blockchain along with related utility functions"
-documentation = "https://docs.cardano.org/projects/cardano-serialization-lib/en/latest/"
+documentation = "https://docs.cardano.org/cardano-components/cardano-serialization-lib"
 repository = "https://github.com/Emurgo/cardano-serialization-lib"
+readme="../README.md"
 exclude = [
     "pkg/*",
 ]
@@ -15,9 +16,9 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-cryptoxide = "0.3.2"
+cryptoxide = "0.4.2"
 cbor_event = "2.1.3"
-ed25519-bip32 = "0.3.2"
+ed25519-bip32 = "0.4.1"
 sha2 = "^0.9"
 digest = "^0.9"
 bech32 = "0.7.2"
@@ -40,7 +41,7 @@ noop_proc_macro = "0.3.0"
 
 # wasm
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
-wasm-bindgen = "=0.2.74"
+wasm-bindgen = "=0.2.78"
 rand_os = { version = "0.1", features = ["wasm-bindgen"] }
 js-sys = "=0.3.51"
 

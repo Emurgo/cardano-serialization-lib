@@ -166,6 +166,13 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -188,13 +195,6 @@ declare export function decrypt_with_password(
   password: string,
   data: string
 ): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
  */
@@ -266,42 +266,6 @@ declare export var NetworkIdKind: {|
 |};
 
 /**
- */
-
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
-declare export var LanguageKind: {|
-  +PlutusV1: 0, // 0
-|};
-
-/**
- */
-
-declare export var PlutusDataKind: {|
-  +ConstrPlutusData: 0, // 0
-  +Map: 1, // 1
-  +List: 2, // 2
-  +Integer: 3, // 3
-  +Bytes: 4, // 4
-|};
-
-/**
- */
-
-declare export var RedeemerTagKind: {|
-  +Spend: 0, // 0
-  +Mint: 1, // 1
-  +Cert: 2, // 2
-  +Reward: 3, // 3
-|};
-
-/**
  * Used to choosed the schema for a script JSON string
  */
 
@@ -336,6 +300,44 @@ declare export var MetadataJsonSchema: {|
 declare export var CoinSelectionStrategyCIP2: {|
   +LargestFirst: 0, // 0
   +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ */
+
+declare export var LanguageKind: {|
+  +PlutusV1: 0, // 0
+|};
+
+/**
+ */
+
+declare export var PlutusDataKind: {|
+  +ConstrPlutusData: 0, // 0
+  +Map: 1, // 1
+  +List: 2, // 2
+  +Integer: 3, // 3
+  +Bytes: 4, // 4
+|};
+
+/**
+ */
+
+declare export var RedeemerTagKind: {|
+  +Spend: 0, // 0
+  +Mint: 1, // 1
+  +Cert: 2, // 2
+  +Reward: 3, // 3
 |};
 
 /**
@@ -2620,30 +2622,58 @@ declare export class MultiAsset {
   static new(): MultiAsset;
 
   /**
+   * the number of unique policy IDs in the multiasset
    * @returns {number}
    */
   len(): number;
 
   /**
-   * @param {ScriptHash} key
-   * @param {Assets} value
+   * set (and replace if it exists) all assets with policy {policy_id} to a copy of {assets}
+   * @param {ScriptHash} policy_id
+   * @param {Assets} assets
    * @returns {Assets | void}
    */
-  insert(key: ScriptHash, value: Assets): Assets | void;
+  insert(policy_id: ScriptHash, assets: Assets): Assets | void;
 
   /**
-   * @param {ScriptHash} key
+   * all assets under {policy_id}, if any exist, or else None (undefined in JS)
+   * @param {ScriptHash} policy_id
    * @returns {Assets | void}
    */
-  get(key: ScriptHash): Assets | void;
+  get(policy_id: ScriptHash): Assets | void;
 
   /**
+   * sets the asset {asset_name} to {value} under policy {policy_id}
+   * returns the previous amount if it was set, or else None (undefined in JS)
+   * @param {ScriptHash} policy_id
+   * @param {AssetName} asset_name
+   * @param {BigNum} value
+   * @returns {BigNum | void}
+   */
+  set_asset(
+    policy_id: ScriptHash,
+    asset_name: AssetName,
+    value: BigNum
+  ): BigNum | void;
+
+  /**
+   * returns the amount of asset {asset_name} under policy {policy_id}
+   * If such an asset does not exist, 0 is returned.
+   * @param {ScriptHash} policy_id
+   * @param {AssetName} asset_name
+   * @returns {BigNum}
+   */
+  get_asset(policy_id: ScriptHash, asset_name: AssetName): BigNum;
+
+  /**
+   * returns all policy IDs used by assets in this multiasset
    * @returns {ScriptHashes}
    */
   keys(): ScriptHashes;
 
   /**
    * removes an asset from the list if the result is 0 or less
+   * does not modify this object, instead the result is returned
    * @param {MultiAsset} rhs_ma
    * @returns {MultiAsset}
    */
@@ -2768,6 +2798,14 @@ declare export class NativeScript {
    * @returns {TimelockExpiry | void}
    */
   as_timelock_expiry(): TimelockExpiry | void;
+
+  /**
+   * Returns an array of unique Ed25519KeyHashes
+   * contained within this script recursively on any depth level.
+   * The order of the keys in the result is not determined in any way.
+   * @returns {Ed25519KeyHashes}
+   */
+  get_required_signers(): Ed25519KeyHashes;
 }
 /**
  */
@@ -3116,12 +3154,17 @@ declare export class PlutusScript {
   static from_bytes(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
    * @param {Uint8Array} bytes
    * @returns {PlutusScript}
    */
   static new(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * The raw bytes of this compiled Plutus script.
+   * * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
    * @returns {Uint8Array}
    */
   bytes(): Uint8Array;
@@ -3779,6 +3822,26 @@ declare export class ProtocolParamUpdate {
    * @returns {number | void}
    */
   max_value_size(): number | void;
+
+  /**
+   * @param {number} collateral_percentage
+   */
+  set_collateral_percentage(collateral_percentage: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  collateral_percentage(): number | void;
+
+  /**
+   * @param {number} max_collateral_inputs
+   */
+  set_max_collateral_inputs(max_collateral_inputs: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  max_collateral_inputs(): number | void;
 
   /**
    * @returns {ProtocolParamUpdate}
@@ -4922,6 +4985,13 @@ declare export class TransactionBody {
   /**
    * @returns {Mint | void}
    */
+  mint(): Mint | void;
+
+  /**
+   * This function returns the mint value of the transaction
+   * Use `.mint()` instead.
+   * @returns {Mint | void}
+   */
   multiassets(): Mint | void;
 
   /**
@@ -5053,44 +5123,6 @@ declare export class TransactionBuilder {
   ): BigNum;
 
   /**
-   * Add output by specifying the Address and Value
-   * @param {Address} address
-   * @param {Value} amount
-   */
-  add_output_amount(address: Address, amount: Value): void;
-
-  /**
-   * Add output by specifying the Address and Coin (BigNum)
-   * Output will have no additional assets
-   * @param {Address} address
-   * @param {BigNum} coin
-   */
-  add_output_coin(address: Address, coin: BigNum): void;
-
-  /**
-   * Add output by specifying the Address, the Coin (BigNum), and the MultiAsset
-   * @param {Address} address
-   * @param {BigNum} coin
-   * @param {MultiAsset} multiasset
-   */
-  add_output_coin_and_asset(
-    address: Address,
-    coin: BigNum,
-    multiasset: MultiAsset
-  ): void;
-
-  /**
-   * Add output by specifying the Address and the MultiAsset
-   * The output will be set to contain the minimum required amount of Coin
-   * @param {Address} address
-   * @param {MultiAsset} multiasset
-   */
-  add_output_asset_and_min_required_coin(
-    address: Address,
-    multiasset: MultiAsset
-  ): void;
-
-  /**
    * Add explicit output via a TransactionOutput object
    * @param {TransactionOutput} output
    */
@@ -5177,31 +5209,45 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
-   * Set explicit Mint object to this builder
-   * it will replace any previously existing mint
+   * Set explicit Mint object and the required witnesses to this builder
+   * it will replace any previously existing mint and mint scripts
+   * NOTE! Error will be returned in case a mint policy does not have a matching script
    * @param {Mint} mint
+   * @param {NativeScripts} mint_scripts
    */
-  set_mint(mint: Mint): void;
+  set_mint(mint: Mint, mint_scripts: NativeScripts): void;
+
+  /**
+   * Returns a copy of the current mint state in the builder
+   * @returns {Mint | void}
+   */
+  get_mint(): Mint | void;
+
+  /**
+   * Returns a copy of the current mint witness scripts in the builder
+   * @returns {NativeScripts | void}
+   */
+  get_mint_scripts(): NativeScripts | void;
 
   /**
    * Add a mint entry to this builder using a PolicyID and MintAssets object
    * It will be securely added to existing or new Mint in this builder
    * It will replace any existing mint assets with the same PolicyID
-   * @param {ScriptHash} policy_id
+   * @param {NativeScript} policy_script
    * @param {MintAssets} mint_assets
    */
-  set_mint_asset(policy_id: ScriptHash, mint_assets: MintAssets): void;
+  set_mint_asset(policy_script: NativeScript, mint_assets: MintAssets): void;
 
   /**
    * Add a mint entry to this builder using a PolicyID, AssetName, and Int object for amount
    * It will be securely added to existing or new Mint in this builder
    * It will replace any previous existing amount same PolicyID and AssetName
-   * @param {ScriptHash} policy_id
+   * @param {NativeScript} policy_script
    * @param {AssetName} asset_name
    * @param {Int} amount
    */
   add_mint_asset(
-    policy_id: ScriptHash,
+    policy_script: NativeScript,
     asset_name: AssetName,
     amount: Int
   ): void;
@@ -5211,17 +5257,17 @@ declare export class TransactionBuilder {
    * Using a PolicyID, AssetName, Int for amount, Address, and Coin (BigNum) objects
    * The asset will be securely added to existing or new Mint in this builder
    * A new output will be added with the specified Address, the Coin value, and the minted asset
-   * @param {ScriptHash} policy_id
+   * @param {NativeScript} policy_script
    * @param {AssetName} asset_name
    * @param {Int} amount
-   * @param {Address} address
+   * @param {TransactionOutputAmountBuilder} output_builder
    * @param {BigNum} output_coin
    */
   add_mint_asset_and_output(
-    policy_id: ScriptHash,
+    policy_script: NativeScript,
     asset_name: AssetName,
     amount: Int,
-    address: Address,
+    output_builder: TransactionOutputAmountBuilder,
     output_coin: BigNum
   ): void;
 
@@ -5231,16 +5277,16 @@ declare export class TransactionBuilder {
    * The asset will be securely added to existing or new Mint in this builder
    * A new output will be added with the specified Address and the minted asset
    * The output will be set to contain the minimum required amount of Coin
-   * @param {ScriptHash} policy_id
+   * @param {NativeScript} policy_script
    * @param {AssetName} asset_name
    * @param {Int} amount
-   * @param {Address} address
+   * @param {TransactionOutputAmountBuilder} output_builder
    */
   add_mint_asset_and_output_min_required_coin(
-    policy_id: ScriptHash,
+    policy_script: NativeScript,
     asset_name: AssetName,
     amount: Int,
-    address: Address
+    output_builder: TransactionOutputAmountBuilder
   ): void;
 
   /**
@@ -5260,6 +5306,12 @@ declare export class TransactionBuilder {
    * @returns {Value}
    */
   get_implicit_input(): Value;
+
+  /**
+   * Return explicit input plus implicit input plus mint minus burn
+   * @returns {Value}
+   */
+  get_total_input(): Value;
 
   /**
    * does not include fee
@@ -5300,14 +5352,14 @@ declare export class TransactionBuilder {
   /**
    * Returns object the body of the new transaction
    * Auxiliary data itself is not included
-   * You can use `get_auxiliary_date` or `build_tx`
+   * You can use `get_auxiliary_data` or `build_tx`
    * @returns {TransactionBody}
    */
   build(): TransactionBody;
 
   /**
    * Returns full Transaction object with the body and the auxiliary data
-   * NOTE: witness_set is set to just empty set
+   * NOTE: witness_set will contain all mint_scripts if any been added or set
    * NOTE: is_valid set to true
    * @returns {Transaction}
    */
@@ -5640,6 +5692,80 @@ declare export class TransactionOutput {
    * @returns {TransactionOutput}
    */
   static new(address: Address, amount: Value): TransactionOutput;
+}
+/**
+ */
+declare export class TransactionOutputAmountBuilder {
+  free(): void;
+
+  /**
+   * @param {Value} amount
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_value(amount: Value): TransactionOutputAmountBuilder;
+
+  /**
+   * @param {BigNum} coin
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_coin(coin: BigNum): TransactionOutputAmountBuilder;
+
+  /**
+   * @param {BigNum} coin
+   * @param {MultiAsset} multiasset
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_coin_and_asset(
+    coin: BigNum,
+    multiasset: MultiAsset
+  ): TransactionOutputAmountBuilder;
+
+  /**
+   * @param {MultiAsset} multiasset
+   * @param {BigNum} coins_per_utxo_word
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_asset_and_min_required_coin(
+    multiasset: MultiAsset,
+    coins_per_utxo_word: BigNum
+  ): TransactionOutputAmountBuilder;
+
+  /**
+   * @returns {TransactionOutput}
+   */
+  build(): TransactionOutput;
+}
+/**
+ * We introduce a builder-pattern format for creating transaction outputs
+ * This is because:
+ * 1. Some fields (i.e. data hash) are optional, and we can't easily expose Option<> in WASM
+ * 2. Some fields like amounts have many ways it could be set (some depending on other field values being known)
+ * 3. Easier to adapt as the output format gets more complicated in future Cardano releases
+ */
+declare export class TransactionOutputBuilder {
+  free(): void;
+
+  /**
+   * @returns {TransactionOutputBuilder}
+   */
+  static new(): TransactionOutputBuilder;
+
+  /**
+   * @param {Address} address
+   * @returns {TransactionOutputBuilder}
+   */
+  with_address(address: Address): TransactionOutputBuilder;
+
+  /**
+   * @param {DataHash} data_hash
+   * @returns {TransactionOutputBuilder}
+   */
+  with_data_hash(data_hash: DataHash): TransactionOutputBuilder;
+
+  /**
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  next(): TransactionOutputAmountBuilder;
 }
 /**
  */
