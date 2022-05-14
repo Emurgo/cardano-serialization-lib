@@ -582,6 +582,8 @@ impl Deserialize for Int {
     }
 }
 
+/// TODO: this function can be removed in case `cbor_event` library ever gets a fix on their side
+/// See https://github.com/Emurgo/cardano-serialization-lib/pull/392
 fn read_nint<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result <i128, DeserializeError> {
     let found = raw.cbor_type()?;
     if found != cbor_event::Type::NegativeInteger {
