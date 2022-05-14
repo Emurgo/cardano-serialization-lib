@@ -1080,4 +1080,11 @@ mod tests {
         assert_eq!(u64::MAX, from_bignum(&ptr.tx_index));
         assert_eq!(u64::MAX, from_bignum(&ptr.cert_index));
     }
+
+    #[test]
+    fn point_address_old() {
+        let p1 = Pointer::new(10, 20, 30);
+        let p2 = Pointer::new_pointer(&to_bignum(10), &to_bignum(20), &to_bignum(30));
+        assert_eq!(p1, p2);
+    }
 }
