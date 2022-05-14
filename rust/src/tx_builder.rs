@@ -1232,7 +1232,7 @@ impl TransactionBuilder {
                     }
                 }
             }
-            None => Err(JsError::from_str("missing input for some native asset")),
+            None => Err(JsError::from_str("missing input or output for some native asset")),
         }
     }
 
