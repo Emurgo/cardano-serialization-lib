@@ -268,7 +268,7 @@ impl TransactionBody {
     /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
     /// Otherwise will just return JsError.
     #[deprecated(
-    since = "11.0.0",
+    since = "10.1.0",
     note = "Possible boundary error. Use ttl_bignum instead"
     )]
     pub fn ttl(&self) -> Result<Option<Slot32>, JsError> {
@@ -328,7 +328,7 @@ impl TransactionBody {
     /// !!! DEPRECATED !!!
     /// Set validity_start_interval value.
     #[deprecated(
-    since = "11.0.0",
+    since = "10.1.0",
     note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use set_validity_start_interval_bignum instead."
     )]
     pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot32) {
@@ -347,7 +347,7 @@ impl TransactionBody {
     /// Returns a Option<Slot32> (u32) value in case the underlying original Option<BigNum> (u64) value is within the limits.
     /// Otherwise will just return JsError.
     #[deprecated(
-    since = "11.0.0",
+    since = "10.1.0",
     note = "Possible boundary error. Use validity_start_interval_bignum instead"
     )]
     pub fn validity_start_interval(&self) -> Result<Option<Slot32>, JsError> {
@@ -414,7 +414,7 @@ impl TransactionBody {
     /// !!! DEPRECATED !!!
     /// Returns a new TransactionBody.
     #[deprecated(
-    since = "11.0.0",
+    since = "10.1.0",
     note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use new_tx_body instead."
     )]
     pub fn new(
@@ -1663,7 +1663,7 @@ impl TimelockStart {
     /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
     /// Otherwise will just return JsError.
     #[deprecated(
-    since = "11.0.0",
+    since = "10.1.0",
     note = "Possible boundary error. Use slot_bignum instead"
     )]
     pub fn slot(&self) -> Result<Slot32, JsError> {
@@ -1678,7 +1678,7 @@ impl TimelockStart {
     /// !!! DEPRECATED !!!
     /// Returns a new TimelockStart from Slot32 (u32) value.
     #[deprecated(
-    since = "11.0.0",
+    since = "10.1.0",
     note = "Underlying value capacity (BigNum u64) bigger then Slot32. Use new_bignum instead."
     )]
     pub fn new(slot: Slot32) -> Self  {
@@ -1715,7 +1715,7 @@ impl TimelockExpiry {
     /// !!! DEPRECATED !!!
     /// Returns a new TimelockExpiry from Slot32 (u32) value.
     #[deprecated(
-    since = "11.0.0",
+    since = "10.1.0",
     note = "Underlying value capacity (BigNum u64) bigger then Slot32. Use new_bignum instead."
     )]
     pub fn new(slot: Slot32) -> Self {
@@ -2549,7 +2549,7 @@ impl HeaderBody {
     /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
     /// Otherwise will just return JsError.
     #[deprecated(
-    since = "11.0.0",
+    since = "10.1.0",
     note = "Possible boundary error. Use slot_bignum instead"
     )]
     pub fn slot(&self) -> Result<Slot32, JsError> {
@@ -2599,7 +2599,7 @@ impl HeaderBody {
     /// !!! DEPRECATED !!!
     /// Returns a new HeaderBody.
     #[deprecated(
-    since = "11.0.0",
+    since = "10.1.0",
     note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use new_bignum instead."
     )]
     pub fn new(block_number: u32, slot: Slot32, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
