@@ -25,17 +25,19 @@ Fees are automatically calculated and sent to a change address in the example.
 
 ```javascript
 // instantiate the tx builder with the Cardano protocol parameters - these may change later on
-const txBuilder = CardanoWasm.TransactionBuilder.new(
-    // all of these are taken from the mainnet genesis settings
-    // linear fee parameters (a*size + b)
-    CardanoWasm.LinearFee.new(CardanoWasm.BigNum.from_str('44'), CardanoWasm.BigNum.from_str('155381')),
-    // minimum utxo value
-    CardanoWasm.BigNum.from_str('1000000'),
-    // pool deposit
-    CardanoWasm.BigNum.from_str('500000000'),
-    // key deposit
-    CardanoWasm.BigNum.from_str('2000000')
+const linearFee = CardanoWasm.LinearFee.new(
+    CardanoWasm.BigNum.from_str('44'),
+    CardanoWasm.BigNum.from_str('155381')
 );
+const txBuilderCfg = CardanoWasm.TransactionBuilderConfigBuilder.new()
+    .fee_algo(linearFee)
+    .pool_deposit(CardanoWasm.BigNum.from_str('500000000'))
+    .key_deposit(CardanoWasm.BigNum.from_str('2000000'))
+    .max_value_size(4000)
+    .max_tx_size(8000)
+    .coins_per_utxo_word(CardanoWasm.BigNum.from_str('34482'))
+    .build();
+const txBuilder = CardanoWasm.TransactionBuilder.new(txBuilderCfg);
 
 // add a keyhash input - for ADA held in a Shelley-era normal address (Base, Enterprise, Pointer)
 const prvKey = CardanoWasm.PrivateKey.from_bech32("ed25519e_sk16rl5fqqf4mg27syjzjrq8h3vq44jnnv52mvyzdttldszjj7a64xtmjwgjtfy25lu0xmv40306lj9pcqpa6slry9eh3mtlqvfjz93vuq0grl80");
@@ -80,7 +82,7 @@ txBuilder.add_output(
 txBuilder.set_ttl(410021);
 
 // calculate the min fee required and send any change to an address
-txBuilder.add_change_if_needed(shelleyChangeAddress)
+txBuilder.add_change_if_needed(shelleyChangeAddress);
 
 // once the transaction is ready, we build it to get the tx body without witnesses
 const txBody = txBuilder.build();
@@ -88,14 +90,19 @@ const txHash = CardanoWasm.hash_transaction(txBody);
 const witnesses = CardanoWasm.TransactionWitnessSet.new();
 
 // add keyhash witnesses
-const vkeyWitnesses = CardanoWasm.VkeyWitnesses.new();
+const vkeyWitnesses = CardanoWasm.Vkeywitnesses.new();
 const vkeyWitness = CardanoWasm.make_vkey_witness(txHash, prvKey);
 vkeyWitnesses.add(vkeyWitness);
 witnesses.set_vkeys(vkeyWitnesses);
 
 // add bootstrap (Byron-era) witnesses
+const cip1852Account = CardanoWasm.Bip32PrivateKey.from_bech32('xprv1hretan5mml3tq2p0twkhq4tz4jvka7m2l94kfr6yghkyfar6m9wppc7h9unw6p65y23kakzct3695rs32z7vaw3r2lg9scmfj8ec5du3ufydu5yuquxcz24jlkjhsc9vsa4ufzge9s00fn398svhacse5su2awrw');
 const bootstrapWitnesses = CardanoWasm.BootstrapWitnesses.new();
-const bootstrapWitness = CardanoWasm.make_icarus_bootstrap_witness(txHash,byronAddress,getCip1852Account());
+const bootstrapWitness = CardanoWasm.make_icarus_bootstrap_witness(
+    txHash,
+    byronAddress,
+    cip1852Account,
+);
 bootstrapWitnesses.add(bootstrapWitness);
 witnesses.set_bootstraps(bootstrapWitnesses);
 
