@@ -1959,7 +1959,8 @@ declare export class HeaderBody {
 
   /**
    * !!! DEPRECATED !!!
-   * Returns a new HeaderBody.
+   * This constructor uses outdated slot number format.
+   * Use `.new_headerbody` instead
    * @param {number} block_number
    * @param {number} slot
    * @param {BlockHash | void} prev_hash
@@ -4854,7 +4855,8 @@ declare export class TimelockExpiry {
 
   /**
    * !!! DEPRECATED !!!
-   * Returns a new TimelockExpiry from Slot32 (u32) value.
+   * This constructor uses outdated slot number format.
+   * Use `.new_timelockexpiry` instead
    * @param {number} slot
    * @returns {TimelockExpiry}
    */

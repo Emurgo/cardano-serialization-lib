@@ -1717,7 +1717,8 @@ impl TimelockExpiry {
     }
 
     /// !!! DEPRECATED !!!
-    /// Returns a new TimelockExpiry from Slot32 (u32) value.
+    /// This constructor uses outdated slot number format.
+    /// Use `.new_timelockexpiry` instead
     #[deprecated(
     since = "10.1.0",
     note = "Underlying value capacity (BigNum u64) bigger then Slot32. Use new_bignum instead."
@@ -2601,7 +2602,8 @@ impl HeaderBody {
     }
 
     /// !!! DEPRECATED !!!
-    /// Returns a new HeaderBody.
+    /// This constructor uses outdated slot number format.
+    /// Use `.new_headerbody` instead
     #[deprecated(
     since = "10.1.0",
     note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use new_bignum instead."
