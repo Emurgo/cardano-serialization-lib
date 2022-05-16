@@ -412,7 +412,8 @@ impl TransactionBody {
     }
 
     /// !!! DEPRECATED !!!
-    /// Returns a new TransactionBody.
+    /// This constructor uses outdated slot number format for the ttl value.
+    /// Use `.new_tx_body` and then `.set_ttl` instead
     #[deprecated(
     since = "10.1.0",
     note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use new_tx_body instead."
