@@ -1677,7 +1677,8 @@ impl TimelockStart {
     }
 
     /// !!! DEPRECATED !!!
-    /// Returns a new TimelockStart from Slot32 (u32) value.
+    /// This constructor uses outdated slot number format.
+    /// Use `.new_timelockstart` instead.
     #[deprecated(
     since = "10.1.0",
     note = "Underlying value capacity (BigNum u64) bigger then Slot32. Use new_bignum instead."
