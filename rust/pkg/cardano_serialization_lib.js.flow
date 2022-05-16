@@ -1902,7 +1902,7 @@ declare export class HeaderBody {
   /**
    * !!! DEPRECATED !!!
    * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
-   * Otherwise will just return JsError.
+   * Otherwise will just raise an error.
    * @returns {number}
    */
   slot(): number;
@@ -2019,6 +2019,17 @@ declare export class HeaderBody {
  */
 declare export class Int {
   free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Int}
+   */
+  static from_bytes(bytes: Uint8Array): Int;
 
   /**
    * @param {BigNum} x
@@ -4871,7 +4882,8 @@ declare export class TimelockStart {
   /**
    * !!! DEPRECATED !!!
    * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
-   * Otherwise will just return JsError.
+   * Otherwise will just raise an error.
+   * Use `.slot_bignum` instead
    * @returns {number}
    */
   slot(): number;
@@ -4883,7 +4895,8 @@ declare export class TimelockStart {
 
   /**
    * !!! DEPRECATED !!!
-   * Returns a new TimelockStart from Slot32 (u32) value.
+   * This constructor uses outdated slot number format.
+   * Use `.new_timelockstart` instead.
    * @param {number} slot
    * @returns {TimelockStart}
    */
@@ -5019,7 +5032,7 @@ declare export class TransactionBody {
   /**
    * !!! DEPRECATED !!!
    * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
-   * Otherwise will just return JsError.
+   * Otherwise will just raise an error.
    * @returns {number | void}
    */
   ttl(): number | void;
@@ -5080,7 +5093,7 @@ declare export class TransactionBody {
 
   /**
    * !!! DEPRECATED !!!
-   * Set validity_start_interval value.
+   * Uses outdated slot number format.
    * @param {number} validity_start_interval
    */
   set_validity_start_interval(validity_start_interval: number): void;
@@ -5098,7 +5111,8 @@ declare export class TransactionBody {
   /**
    * !!! DEPRECATED !!!
    * Returns a Option<Slot32> (u32) value in case the underlying original Option<BigNum> (u64) value is within the limits.
-   * Otherwise will just return JsError.
+   * Otherwise will just raise an error.
+   * Use `.validity_start_interval_bignum` instead.
    * @returns {number | void}
    */
   validity_start_interval(): number | void;
@@ -5162,7 +5176,8 @@ declare export class TransactionBody {
 
   /**
    * !!! DEPRECATED !!!
-   * Returns a new TransactionBody.
+   * This constructor uses outdated slot number format for the ttl value.
+   * Use `.new_tx_body` and then `.set_ttl` instead
    * @param {TransactionInputs} inputs
    * @param {TransactionOutputs} outputs
    * @param {BigNum} fee
@@ -5297,7 +5312,7 @@ declare export class TransactionBuilder {
 
   /**
    * !!! DEPRECATED !!!
-   * Set validity_start_interval value.
+   * Uses outdated slot number format.
    * @param {number} validity_start_interval
    */
   set_validity_start_interval(validity_start_interval: number): void;

@@ -266,7 +266,7 @@ impl TransactionBody {
 
     /// !!! DEPRECATED !!!
     /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
-    /// Otherwise will just return JsError.
+    /// Otherwise will just raise an error.
     #[deprecated(
     since = "10.1.0",
     note = "Possible boundary error. Use ttl_bignum instead"
@@ -326,7 +326,7 @@ impl TransactionBody {
     }
 
     /// !!! DEPRECATED !!!
-    /// Set validity_start_interval value.
+    /// Uses outdated slot number format.
     #[deprecated(
     since = "10.1.0",
     note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use set_validity_start_interval_bignum instead."
@@ -2551,7 +2551,7 @@ impl HeaderBody {
 
     /// !!! DEPRECATED !!!
     /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
-    /// Otherwise will just return JsError.
+    /// Otherwise will just raise an error.
     #[deprecated(
     since = "10.1.0",
     note = "Possible boundary error. Use slot_bignum instead"

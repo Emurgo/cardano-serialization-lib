@@ -725,7 +725,7 @@ impl TransactionBuilder {
     }
 
     /// !!! DEPRECATED !!!
-    /// Set validity_start_interval value.
+    /// Uses outdated slot number format.
     #[deprecated(
     since = "10.1.0",
     note = "Underlying value capacity of validity_start_interval (BigNum u64) bigger then Slot32. Use set_validity_start_interval_bignum instead."
