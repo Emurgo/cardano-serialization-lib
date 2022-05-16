@@ -3261,6 +3261,9 @@ declare export class Pointer {
   free(): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format for the ttl value, tx_index and cert_index.
+   * Use `.new_pointer` instead
    * @param {number} slot
    * @param {number} tx_index
    * @param {number} cert_index

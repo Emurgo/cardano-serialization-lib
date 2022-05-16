@@ -619,6 +619,13 @@ pub struct Pointer {
 #[wasm_bindgen]
 impl Pointer {
 
+    /// !!! DEPRECATED !!!
+    /// This constructor uses outdated slot number format for the ttl value, tx_index and cert_index.
+    /// Use `.new_pointer` instead
+    #[deprecated(
+    since = "10.1.0",
+    note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use new_pointer instead."
+    )]
     pub fn new(slot: Slot32, tx_index: TransactionIndex, cert_index: CertificateIndex) -> Self {
         Self {
             slot: slot.into(),
