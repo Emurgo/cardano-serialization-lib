@@ -241,6 +241,12 @@ impl TryFrom<BigNum> for u32 {
     }
 }
 
+impl From<u64> for BigNum {
+    fn from(value: u64) -> Self {
+        return BigNum(value)
+    }
+}
+
 impl From<u32> for BigNum {
     fn from(value: u32) -> Self {
         return BigNum(value.into())
@@ -1288,9 +1294,9 @@ fn encode_template_to_native_script(
         serde_json::Value::Object(map) if map.contains_key("active_from") => {
             if let serde_json::Value::Number(active_from) = map.get("active_from").unwrap() {
                 if let Some(n) = active_from.as_u64() {
-                    let slot: u32 = n as u32;
+                    let slot: SlotBigNum = n.into();
 
-                    let time_lock_start = TimelockStart::new(slot);
+                    let time_lock_start = TimelockStart::new_timelockstart(&slot);
 
                     Ok(NativeScript::new_timelock_start(&time_lock_start))
                 } else {
@@ -1305,9 +1311,9 @@ fn encode_template_to_native_script(
         serde_json::Value::Object(map) if map.contains_key("active_until") => {
             if let serde_json::Value::Number(active_until) = map.get("active_until").unwrap() {
                 if let Some(n) = active_until.as_u64() {
-                    let slot: u32 = n as u32;
+                    let slot: SlotBigNum = n.into();
 
-                    let time_lock_expiry = TimelockExpiry::new(slot);
+                    let time_lock_expiry = TimelockExpiry::new_timelockexpiry(&slot);
 
                     Ok(NativeScript::new_timelock_expiry(&time_lock_expiry))
                 } else {
