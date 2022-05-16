@@ -345,7 +345,8 @@ impl TransactionBody {
 
     /// !!! DEPRECATED !!!
     /// Returns a Option<Slot32> (u32) value in case the underlying original Option<BigNum> (u64) value is within the limits.
-    /// Otherwise will just return JsError.
+    /// Otherwise will just raise an error.
+    /// Use `.validity_start_interval_bignum` instead.
     #[deprecated(
     since = "10.1.0",
     note = "Possible boundary error. Use validity_start_interval_bignum instead"
@@ -1662,7 +1663,8 @@ impl TimelockStart {
 
     /// !!! DEPRECATED !!!
     /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
-    /// Otherwise will just return JsError.
+    /// Otherwise will just raise an error.
+    /// Use `.slot_bignum` instead 
     #[deprecated(
     since = "10.1.0",
     note = "Possible boundary error. Use slot_bignum instead"
