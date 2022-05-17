@@ -3,6 +3,7 @@ use super::fees;
 use super::utils;
 use super::output_builder::{TransactionOutputAmountBuilder};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use linked_hash_map::LinkedHashMap;
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
@@ -93,14 +94,6 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
-    let script_keys: Option<NativeScripts> = match tx_builder.input_types.scripts.len() {
-        0 => None,
-        _x => {
-            // TODO: figure out how to populate fake witnesses for these
-            // return Err(JsError::from_str("Script inputs not supported yet"))
-            None
-        },
-    };
     let bootstrap_keys = match tx_builder.input_types.bootstraps.len() {
         0 => None,
         _x => {
@@ -116,26 +109,21 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
-    let full_script_keys = match &tx_builder.mint_scripts {
-        None => script_keys,
-        Some(witness_scripts) => {
-            let mut ns = script_keys
-                .map(|x| { x.clone() })
-                .unwrap_or(NativeScripts::new());
-            witness_scripts.0.iter().for_each(|s| {
-                ns.add(s);
-            });
-            Some(ns)
+    let (plutus_scripts, plutus_data, redeemers) = {
+        if let Some(s) = tx_builder.get_plutus_input_scripts() {
+            let (s, d, r) = s.collect();
+            (Some(s), Some(d), Some(r))
+        } else {
+            (None, None, None)
         }
     };
     let witness_set = TransactionWitnessSet {
         vkeys,
-        native_scripts: full_script_keys,
+        native_scripts: tx_builder.get_combined_native_scripts(),
         bootstraps: bootstrap_keys,
-        // TODO: plutus support?
-        plutus_scripts: None,
-        plutus_data: None,
-        redeemers: None,
+        plutus_scripts,
+        plutus_data,
+        redeemers,
     };
     Ok(Transaction {
         body,
@@ -152,9 +140,8 @@ fn assert_required_mint_scripts(mint: &Mint, maybe_mint_scripts: Option<&NativeS
         ));
     }
     let mint_scripts = maybe_mint_scripts.unwrap();
-    let witness_hashes: HashSet<ScriptHash> = mint_scripts.0.iter().map(|script| {
-        script.hash(ScriptHashNamespace::NativeScript)
-    }).collect();
+    let witness_hashes: HashSet<ScriptHash> = mint_scripts.0.iter()
+        .map(|script| { script.hash() }).collect();
     for mint_hash in mint.keys().0.iter() {
         if !witness_hashes.contains(mint_hash) {
             return Err(JsError::from_str(
@@ -181,11 +168,80 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
 }
 
 
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct PlutusWitnesses(Vec<PlutusWitness>);
+
+#[wasm_bindgen]
+impl PlutusWitnesses {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> PlutusWitness {
+        self.0[index].clone()
+    }
+
+    pub fn add(&mut self, elem: &PlutusWitness) {
+        self.0.push(elem.clone());
+    }
+
+    fn collect(&self) -> (PlutusScripts, PlutusList, Redeemers) {
+        let mut s = PlutusScripts::new();
+        let mut d = PlutusList::new();
+        let mut r = Redeemers::new();
+        self.0.iter().for_each(|w| {
+            s.add(&w.script);
+            d.add(&w.datum);
+            r.add(&w.redeemer);
+        });
+        (s, d, r)
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct PlutusWitness {
+    script: PlutusScript,
+    datum: PlutusData,
+    redeemer: Redeemer,
+}
+
+#[wasm_bindgen]
+impl PlutusWitness {
+
+    pub fn new(script: PlutusScript, datum: PlutusData, redeemer: Redeemer) -> Self {
+        Self { script, datum, redeemer }
+    }
+
+    pub fn script(&self) -> PlutusScript {
+        self.script.clone()
+    }
+
+    pub fn datum(&self) -> PlutusData {
+        self.datum.clone()
+    }
+
+    pub fn redeemer(&self) -> Redeemer {
+        self.redeemer.clone()
+    }
+}
+
+#[derive(Clone, Debug)]
+enum WitnessType {
+    NativeScriptWitness(NativeScript),
+    PlutusScriptWitness(PlutusWitness),
+}
+
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
 #[derive(Clone, Debug)]
 struct MockWitnessSet {
     vkeys: BTreeSet<Ed25519KeyHash>,
-    scripts: BTreeSet<ScriptHash>,
+    scripts: LinkedHashMap<ScriptHash, Option<WitnessType>>,
     bootstraps: BTreeSet<Vec<u8>>,
 }
 
@@ -305,7 +361,7 @@ impl TransactionBuilderConfigBuilder {
 #[derive(Clone, Debug)]
 pub struct TransactionBuilder {
     config: TransactionBuilderConfig,
-    inputs: Vec<TxBuilderInput>,
+    inputs: Vec<(TxBuilderInput, Option<ScriptHash>)>,
     outputs: TransactionOutputs,
     fee: Option<Coin>,
     ttl: Option<Slot>, // absolute slot number
@@ -316,6 +372,7 @@ pub struct TransactionBuilder {
     input_types: MockWitnessSet,
     mint: Option<Mint>,
     mint_scripts: Option<NativeScripts>,
+    script_data_hash: Option<ScriptDataHash>,
 }
 
 #[wasm_bindgen]
@@ -575,27 +632,64 @@ impl TransactionBuilder {
     /// 1) mock witnesses have different lengths depending on the type which changes the expecting fee
     /// 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
     pub fn add_key_input(&mut self, hash: &Ed25519KeyHash, input: &TransactionInput, amount: &Value) {
-        self.inputs.push(TxBuilderInput {
+        let inp = TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
-        });
+        };
+        self.inputs.push((inp, None));
         self.input_types.vkeys.insert(hash.clone());
     }
+
+    /// This method adds the input to the builder BUT leaves a missing spot for the witness native script
+    ///
+    /// After adding the input with this method, use `.add_required_native_input_scripts`
+    /// and `.add_required_plutus_input_scripts` to add the witness scripts
+    ///
+    /// Or instead use `.add_native_script_input` and `.add_plutus_script_input`
+    /// to add inputs right along with the script, instead of the script hash
     pub fn add_script_input(&mut self, hash: &ScriptHash, input: &TransactionInput, amount: &Value) {
-        self.inputs.push(TxBuilderInput {
+        let inp = TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
-        });
-        self.input_types.scripts.insert(hash.clone());
+        };
+        self.inputs.push((inp, Some(hash.clone())));
+        if !self.input_types.scripts.contains_key(hash) {
+            self.input_types.scripts.insert(hash.clone(), None);
+        }
     }
+
+    /// This method will add the input to the builder and also register the required native script witness
+    pub fn add_native_script_input(&mut self, script: &NativeScript, input: &TransactionInput, amount: &Value) {
+        let hash = script.hash();
+        self.add_script_input(&hash, input, amount);
+        self.input_types.scripts.insert(
+            hash,
+            Some(WitnessType::NativeScriptWitness(script.clone())),
+        );
+    }
+
+    /// This method will add the input to the builder and also register the required plutus witness
+    pub fn add_plutus_script_input(&mut self, witness: &PlutusWitness, input: &TransactionInput, amount: &Value) {
+        let hash = witness.script.hash();
+        self.add_script_input(&hash, input, amount);
+        self.input_types.scripts.insert(
+            hash,
+            Some(WitnessType::PlutusScriptWitness(witness.clone())),
+        );
+    }
+
     pub fn add_bootstrap_input(&mut self, hash: &ByronAddress, input: &TransactionInput, amount: &Value) {
-        self.inputs.push(TxBuilderInput {
+        let inp = TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
-        });
+        };
+        self.inputs.push((inp, None));
         self.input_types.bootstraps.insert(hash.to_bytes());
     }
 
+    /// Note that for script inputs this method will use underlying generic `.add_script_input`
+    /// which leaves a required empty spot for the script witness (or witnesses in case of Plutus).
+    /// You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.
     pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) {
         match &BaseAddress::from_address(address) {
             Some(addr) => {
@@ -642,6 +736,68 @@ impl TransactionBuilder {
             },
             None => (),
         }
+    }
+
+    /// Returns the number of still missing input scripts (either native or plutus)
+    /// Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
+    pub fn count_missing_input_scripts(&self) -> usize {
+        self.input_types.scripts.values().filter(|s| { s.is_none() }).count()
+    }
+
+    /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
+    /// Any scripts that don't match any of the previously added inputs will be ignored
+    /// Returns the number of remaining required missing witness scripts
+    /// Use `.count_missing_input_scripts` to find the number of still missing scripts
+    pub fn add_required_native_input_scripts(&mut self, scripts: &NativeScripts) -> usize {
+        scripts.0.iter().for_each(|s: &NativeScript| {
+            let hash = s.hash();
+            if self.input_types.scripts.contains_key(&hash) {
+                self.input_types.scripts.insert(
+                    hash,
+                    Some(WitnessType::NativeScriptWitness(s.clone())),
+                );
+            }
+        });
+        self.count_missing_input_scripts()
+    }
+
+    /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
+    /// Any scripts that don't match any of the previously added inputs will be ignored
+    /// Returns the number of remaining required missing witness scripts
+    /// Use `.count_missing_input_scripts` to find the number of still missing scripts
+    pub fn add_required_plutus_input_scripts(&mut self, scripts: &PlutusWitnesses) -> usize {
+        scripts.0.iter().for_each(|s: &PlutusWitness| {
+            let hash = s.script.hash();
+            if self.input_types.scripts.contains_key(&hash) {
+                self.input_types.scripts.insert(
+                    hash,
+                    Some(WitnessType::PlutusScriptWitness(s.clone())),
+                );
+            }
+        });
+        self.count_missing_input_scripts()
+    }
+
+    /// Returns a copy of the current script input witness scripts in the builder
+    pub fn get_native_input_scripts(&self) -> Option<NativeScripts> {
+        let mut scripts = NativeScripts::new();
+        self.input_types.scripts.values().for_each(|option| {
+            if let Some(WitnessType::NativeScriptWitness(s)) = option {
+                scripts.add(&s);
+            }
+        });
+        if scripts.len() > 0 { Some(scripts) } else { None }
+    }
+
+    /// Returns a copy of the current plutus input witness scripts in the builder
+    pub fn get_plutus_input_scripts(&self) -> Option<PlutusWitnesses> {
+        let mut scripts = PlutusWitnesses::new();
+        self.input_types.scripts.values().for_each(|option| {
+            if let Some(WitnessType::PlutusScriptWitness(s)) = option {
+                scripts.add(&s);
+            }
+        });
+        if scripts.len() > 0 { Some(scripts) } else { None }
     }
 
     /// calculates how much the fee would increase if you added a given output
@@ -822,7 +978,7 @@ impl TransactionBuilder {
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any existing mint assets with the same PolicyID
     pub fn set_mint_asset(&mut self, policy_script: &NativeScript, mint_assets: &MintAssets) {
-        let policy_id: PolicyID = policy_script.hash(ScriptHashNamespace::NativeScript);
+        let policy_id: PolicyID = policy_script.hash();
         self._set_mint_asset(&policy_id, policy_script, mint_assets);
     }
 
@@ -839,7 +995,7 @@ impl TransactionBuilder {
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any previous existing amount same PolicyID and AssetName
     pub fn add_mint_asset(&mut self, policy_script: &NativeScript, asset_name: &AssetName, amount: Int) {
-        let policy_id: PolicyID = policy_script.hash(ScriptHashNamespace::NativeScript);
+        let policy_id: PolicyID = policy_script.hash();
         self._add_mint_asset(&policy_id, policy_script, asset_name, amount);
     }
 
@@ -858,7 +1014,7 @@ impl TransactionBuilder {
         if !amount.is_positive() {
             return Err(JsError::from_str("Output value must be positive!"));
         }
-        let policy_id: PolicyID = policy_script.hash(ScriptHashNamespace::NativeScript);
+        let policy_id: PolicyID = policy_script.hash();
         self._add_mint_asset(&policy_id, policy_script, asset_name, amount.clone());
         let multiasset = Mint::new_from_entry(
             &policy_id,
@@ -886,7 +1042,7 @@ impl TransactionBuilder {
         if !amount.is_positive() {
             return Err(JsError::from_str("Output value must be positive!"));
         }
-        let policy_id: PolicyID = policy_script.hash(ScriptHashNamespace::NativeScript);
+        let policy_id: PolicyID = policy_script.hash();
         self._add_mint_asset(&policy_id, policy_script, asset_name, amount.clone());
         let multiasset = Mint::new_from_entry(
             &policy_id,
@@ -911,12 +1067,13 @@ impl TransactionBuilder {
             auxiliary_data: None,
             input_types: MockWitnessSet {
                 vkeys: BTreeSet::new(),
-                scripts: BTreeSet::new(),
+                scripts: LinkedHashMap::new(),
                 bootstraps: BTreeSet::new(),
             },
             validity_start_interval: None,
             mint: None,
             mint_scripts: None,
+            script_data_hash: None,
         }
     }
 
@@ -924,7 +1081,7 @@ impl TransactionBuilder {
     pub fn get_explicit_input(&self) -> Result<Value, JsError> {
         self.inputs
             .iter()
-            .try_fold(Value::zero(), |acc, ref tx_builder_input| {
+            .try_fold(Value::zero(), |acc, (ref tx_builder_input, _)| {
                 acc.checked_add(&tx_builder_input.amount)
             })
     }
@@ -1238,10 +1395,40 @@ impl TransactionBuilder {
         }
     }
 
+    /// This method will calculate the script hash data
+    /// using the plutus datums and redeemers already present in the builder
+    /// along with the provided cost model, and will register the calculated value
+    /// in the builder to be used when building the tx body.
+    /// In case there are no plutus input witnesses present - nothing will change
+    /// You can set specific hash value using `.set_script_data_hash`
+    pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) {
+        if let Some(pw) = self.get_plutus_input_scripts() {
+            let (_, datums, redeemers) = pw.collect();
+            self.script_data_hash =
+                Some(hash_script_data(&redeemers, cost_models, Some(datums)));
+        }
+    }
+
+    /// Sets the specified hash value.
+    /// Alternatively you can use `.calc_script_data_hash` to calculate the hash automatically.
+    /// Or use `.remove_script_data_hash` to delete the previously set value
+    pub fn set_script_data_hash(&mut self, hash: &ScriptDataHash) {
+        self.script_data_hash = Some(hash.clone());
+    }
+
+    /// Deletes any previously set plutus data hash value.
+    /// Use `.set_script_data_hash` or `.calc_script_data_hash` to set it.
+    pub fn remove_script_data_hash(&mut self) {
+        self.script_data_hash = None;
+    }
+
     fn build_and_size(&self) -> Result<(TransactionBody, usize), JsError> {
         let fee = self.fee.ok_or_else(|| JsError::from_str("Fee not specified"))?;
+        // <TODO: sort inputs>
+        let inputs = self.inputs.iter()
+            .map(|(ref tx_builder_input, _)| tx_builder_input.input.clone()).collect();
         let built = TransactionBody {
-            inputs: TransactionInputs(self.inputs.iter().map(|ref tx_builder_input| tx_builder_input.input.clone()).collect()),
+            inputs: TransactionInputs(inputs),
             outputs: self.outputs.clone(),
             fee: fee,
             ttl: self.ttl,
@@ -1254,8 +1441,7 @@ impl TransactionBuilder {
             },
             validity_start_interval: self.validity_start_interval,
             mint: self.mint.clone(),
-            // TODO: update for use with Alonzo
-            script_data_hash: None,
+            script_data_hash: self.script_data_hash.clone(),
             collateral: None,
             required_signers: None,
             network_id: None,
@@ -1290,14 +1476,31 @@ impl TransactionBuilder {
         }
     }
 
+    fn get_combined_native_scripts(&self) -> Option<NativeScripts> {
+        let mut ns = NativeScripts::new();
+        if let Some(input_scripts) = self.get_native_input_scripts() {
+            input_scripts.0.iter().for_each(|s| { ns.add(s); });
+        }
+        if let Some(mint_scripts) = &self.mint_scripts {
+            mint_scripts.0.iter().for_each(|s| { ns.add(s); });
+        }
+        if ns.len() > 0 { Some(ns) } else { None }
+    }
+
     // This function should be producing the total witness-set
     // that is created by the tx-builder itself,
     // before the transaction is getting signed by the actual wallet.
     // E.g. scripts or something else that has been used during the tx preparation
     fn get_witness_set(&self) -> TransactionWitnessSet {
         let mut wit = TransactionWitnessSet::new();
-        if let Some(scripts) = self.mint_scripts.as_ref() {
-            wit.set_native_scripts(scripts);
+        if let Some(scripts) = self.get_combined_native_scripts() {
+            wit.set_native_scripts(&scripts);
+        }
+        if let Some(pw) = self.get_plutus_input_scripts() {
+            let (scripts, datums, redeemers) = pw.collect();
+            wit.set_plutus_scripts(&scripts);
+            wit.set_plutus_data(&datums);
+            wit.set_redeemers(&redeemers);
         }
         wit
     }
@@ -1305,7 +1508,18 @@ impl TransactionBuilder {
     /// Returns full Transaction object with the body and the auxiliary data
     /// NOTE: witness_set will contain all mint_scripts if any been added or set
     /// NOTE: is_valid set to true
+    /// NOTE: Will fail in case there are any script inputs added with no corresponding witness
     pub fn build_tx(&self) -> Result<Transaction, JsError> {
+        if self.count_missing_input_scripts() > 0 {
+            return Err(JsError::from_str(
+                "There are some script inputs added that don't have the corresponding script provided as a witness!",
+            ));
+        }
+        self.build_tx_unsafe()
+    }
+
+    /// Similar to `.build_tx()` but will NOT fail in case there are missing script witnesses
+    pub fn build_tx_unsafe(&self) -> Result<Transaction, JsError> {
         Ok(Transaction {
             body: self.build()?,
             witness_set: self.get_witness_set(),
@@ -3671,11 +3885,11 @@ mod tests {
         let mint_script = NativeScript::new_script_pubkey(
             &ScriptPubkey::new(&hash)
         );
-        let policy_id = mint_script.hash(ScriptHashNamespace::NativeScript);
+        let policy_id = mint_script.hash();
         (mint_script, policy_id, hash)
     }
 
-    fn mint_script_and_policy(x: u8) -> (NativeScript, PolicyID) {
+    fn mint_script_and_policy(x: u8) -> (NativeScript, ScriptHash) {
         let (m, p, _) = mint_script_and_policy_and_hash(x);
         (m, p)
     }
@@ -4227,5 +4441,188 @@ mod tests {
         assert_eq!(ma2_output.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(40));
     }
 
+    fn create_base_address_from_script_hash(sh: &ScriptHash) -> Address {
+        BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &StakeCredential::from_scripthash(sh),
+            &StakeCredential::from_keyhash(&fake_key_hash(0))
+        ).to_address()
+    }
+
+    #[test]
+    fn test_set_input_scripts() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        let (script1, hash1) = mint_script_and_policy(0);
+        let (script2, hash2) = mint_script_and_policy(1);
+        let (script3, _hash3) = mint_script_and_policy(2);
+        // Trying to set native scripts to the builder
+        let rem0 = tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![script1.clone(), script2.clone(), script3.clone()]),
+        );
+        assert_eq!(rem0, 0);
+        let missing0 = tx_builder.count_missing_input_scripts();
+        assert_eq!(missing0, 0);
+        // Adding two script inputs using script1 and script2 hashes
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&hash1),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&hash2),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        // Setting a non-matching script will not change anything
+        let rem1 = tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![script3.clone()]),
+        );
+        assert_eq!(rem1, 2);
+        let missing1 = tx_builder.count_missing_input_scripts();
+        assert_eq!(missing1, 2);
+        // Setting one of the required scripts leaves one to be required
+        let rem2 = tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![script1.clone(), script3.clone()]),
+        );
+        assert_eq!(rem2, 1);
+        let missing2 = tx_builder.count_missing_input_scripts();
+        assert_eq!(missing2, 1);
+        // Setting one non-required script again does not change anything
+        // But shows the state has changed
+        let rem3 = tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![script3.clone()]),
+        );
+        assert_eq!(rem3, 1);
+        let missing3 = tx_builder.count_missing_input_scripts();
+        assert_eq!(missing3, 1);
+        // Setting two required scripts will show both of them added
+        // And the remainder required is zero
+        let rem4 = tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![script1.clone(), script2.clone()]),
+        );
+        assert_eq!(rem4, 0);
+        let missing4 = tx_builder.count_missing_input_scripts();
+        assert_eq!(missing4, 0);
+        // Setting empty scripts does not change anything
+        // But shows the state has changed
+        let rem5 = tx_builder.add_required_native_input_scripts(
+            &NativeScripts::new()
+        );
+        assert_eq!(rem5, 0);
+    }
+
+    #[test]
+    fn test_add_native_script_input() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        let (script1, _hash1) = mint_script_and_policy(0);
+        let (script2, _hash2) = mint_script_and_policy(1);
+        let (script3, hash3) = mint_script_and_policy(2);
+        // Adding two script inputs directly with their witness
+        tx_builder.add_native_script_input(
+            &script1,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        tx_builder.add_native_script_input(
+            &script2,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        // Adding one script input indirectly via hash3 address
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&hash3),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        // Checking missing input scripts shows one
+        // Because first two inputs already have their witness
+        let missing1 = tx_builder.count_missing_input_scripts();
+        assert_eq!(missing1, 1);
+        // Setting the required script leaves none to be required`
+        let rem1 = tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![script3.clone()]),
+        );
+        assert_eq!(rem1, 0);
+        let missing2 = tx_builder.count_missing_input_scripts();
+        assert_eq!(missing2, 0);
+    }
+
+    fn unsafe_tx_len(b: &TransactionBuilder) -> usize {
+        b.build_tx_unsafe().unwrap().to_bytes().len()
+    }
+
+    #[test]
+    fn test_native_input_scripts_are_added_to_the_witnesses() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        let (script1, _hash1) = mint_script_and_policy(0);
+        let (script2, hash2) = mint_script_and_policy(1);
+        tx_builder.set_fee(&to_bignum(42));
+        tx_builder.add_native_script_input(
+            &script1,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        let tx_len_before_new_script_input = unsafe_tx_len(&tx_builder);
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&hash2),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        let tx_len_after_new_script_input = unsafe_tx_len(&tx_builder);
+        // Tx size increased cuz input is added even without the witness
+        assert!(tx_len_after_new_script_input > tx_len_before_new_script_input);
+        tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![script2.clone()]),
+        );
+        let tx_len_after_adding_script_witness = unsafe_tx_len(&tx_builder);
+        // Tx size increased cuz the witness is added to the witnesses
+        assert!(tx_len_after_adding_script_witness > tx_len_after_new_script_input);
+        tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![script1.clone(), script2.clone()]),
+        );
+        let tx_len_after_adding_script_witness_again = unsafe_tx_len(&tx_builder);
+        // Tx size did not change because calling to add same witnesses again doesn't change anything
+        assert!(tx_len_after_adding_script_witness == tx_len_after_adding_script_witness_again);
+        let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
+        assert!(tx.witness_set.native_scripts.is_some());
+        let native_scripts = tx.witness_set.native_scripts.unwrap();
+        assert_eq!(native_scripts.len(), 2);
+        assert_eq!(native_scripts.get(0), script1);
+        assert_eq!(native_scripts.get(1), script2);
+    }
+
+    #[test]
+    fn test_building_with_missing_witness_script_fails() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        let (script1, _hash1) = mint_script_and_policy(0);
+        let (script2, hash2) = mint_script_and_policy(1);
+        tx_builder.set_fee(&to_bignum(42));
+        // Ok to build before any inputs
+        assert!(tx_builder.build_tx().is_ok());
+        // Adding native script input which adds the witness right away
+        tx_builder.add_native_script_input(
+            &script1,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        // Ok to build when witness is added along with the input
+        assert!(tx_builder.build_tx().is_ok());
+        // Adding script input without the witness
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&hash2),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000))
+        );
+        // Not ok to build when missing a witness
+        assert!(tx_builder.build_tx().is_err());
+        // Can force to build using unsafe
+        assert!(tx_builder.build_tx_unsafe().is_ok());
+        // Adding the missing witness script
+        tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![script2.clone()]),
+        );
+        // Ok to build when all witnesses are added
+        assert!(tx_builder.build_tx().is_ok());
+    }
 }
 

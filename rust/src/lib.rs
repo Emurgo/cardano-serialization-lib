@@ -1636,14 +1636,14 @@ to_from_bytes!(NativeScript);
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ScriptHashNamespace {
     NativeScript,
-    // TODO: do we need to update this for Plutus?
+    PlutusScript,
 }
 
 #[wasm_bindgen]
 impl NativeScript {
-    pub fn hash(&self, namespace: ScriptHashNamespace) -> ScriptHash {
+    pub fn hash(&self) -> ScriptHash {
         let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
-        bytes.extend_from_slice(&vec![namespace as u8]);
+        bytes.extend_from_slice(&vec![ScriptHashNamespace::NativeScript as u8]);
         bytes.extend_from_slice(&self.to_bytes());
         ScriptHash::from(blake2b224(bytes.as_ref()))
     }
@@ -2873,7 +2873,7 @@ mod tests {
 
         let script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&keyhash));
 
-        let script_hash = script.hash(ScriptHashNamespace::NativeScript);
+        let script_hash = script.hash();
 
         assert_eq!(hex::encode(&script_hash.to_bytes()), "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f");
     }
