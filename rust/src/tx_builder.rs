@@ -308,11 +308,11 @@ pub struct TransactionBuilder {
     inputs: Vec<TxBuilderInput>,
     outputs: TransactionOutputs,
     fee: Option<Coin>,
-    ttl: Option<Slot>, // absolute slot number
+    ttl: Option<SlotBigNum>, // absolute slot number
     certs: Option<Certificates>,
     withdrawals: Option<Withdrawals>,
     auxiliary_data: Option<AuxiliaryData>,
-    validity_start_interval: Option<Slot>,
+    validity_start_interval: Option<SlotBigNum>,
     input_types: MockWitnessSet,
     mint: Option<Mint>,
     mint_scripts: Option<NativeScripts>,
@@ -710,12 +710,32 @@ impl TransactionBuilder {
         self.fee = Some(fee.clone())
     }
 
-    pub fn set_ttl(&mut self, ttl: Slot) {
-        self.ttl = Some(ttl)
+    /// !!! DEPRECATED !!!
+    /// Set ttl value.
+    #[deprecated(
+    since = "10.1.0",
+    note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use set_ttl_bignum instead."
+    )]
+    pub fn set_ttl(&mut self, ttl: Slot32) {
+        self.ttl = Some(ttl.into())
     }
 
-    pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot) {
-        self.validity_start_interval = Some(validity_start_interval)
+    pub fn set_ttl_bignum(&mut self, ttl: &SlotBigNum) {
+        self.ttl = Some(ttl.clone())
+    }
+
+    /// !!! DEPRECATED !!!
+    /// Uses outdated slot number format.
+    #[deprecated(
+    since = "10.1.0",
+    note = "Underlying value capacity of validity_start_interval (BigNum u64) bigger then Slot32. Use set_validity_start_interval_bignum instead."
+    )]
+    pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot32) {
+        self.validity_start_interval = Some(validity_start_interval.into())
+    }
+
+    pub fn set_validity_start_interval_bignum(&mut self, validity_start_interval: SlotBigNum) {
+        self.validity_start_interval = Some(validity_start_interval.clone())
     }
 
     pub fn set_certs(&mut self, certs: &Certificates) {
@@ -1846,7 +1866,7 @@ mod tests {
             &PointerAddress::new(
                 NetworkInfo::testnet().network_id(),
                 &spend_cred,
-                &Pointer::new(
+                &Pointer::new_pointer(
                     &to_bignum(0),
                     &to_bignum(0),
                     &to_bignum(0)

@@ -2,6 +2,7 @@ use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 use hex::FromHex;
 use serde_json;
 use std::{collections::HashMap, io::{BufRead, Seek, Write}};
+use std::convert::{TryFrom};
 use itertools::Itertools;
 use std::ops::{Rem, Div, Sub};
 
@@ -225,6 +226,30 @@ impl BigNum {
             std::cmp::Ordering::Less => -1,
             std::cmp::Ordering::Greater => 1,
         }
+    }
+}
+
+impl TryFrom<BigNum> for u32 {
+    type Error = JsError;
+
+    fn try_from(value: BigNum) -> Result<Self, Self::Error> {
+        if value.0 > u32::MAX.into() {
+            Err(JsError::from_str(&format!("Value {} is bigger than max u32 {}", value.0, u32::MAX)))
+        } else {
+            Ok(value.0 as u32)
+        }
+    }
+}
+
+impl From<u64> for BigNum {
+    fn from(value: u64) -> Self {
+        return BigNum(value)
+    }
+}
+
+impl From<u32> for BigNum {
+    fn from(value: u32) -> Self {
+        return BigNum(value.into())
     }
 }
 
@@ -1269,9 +1294,9 @@ fn encode_template_to_native_script(
         serde_json::Value::Object(map) if map.contains_key("active_from") => {
             if let serde_json::Value::Number(active_from) = map.get("active_from").unwrap() {
                 if let Some(n) = active_from.as_u64() {
-                    let slot: u32 = n as u32;
+                    let slot: SlotBigNum = n.into();
 
-                    let time_lock_start = TimelockStart::new(slot);
+                    let time_lock_start = TimelockStart::new_timelockstart(&slot);
 
                     Ok(NativeScript::new_timelock_start(&time_lock_start))
                 } else {
@@ -1286,9 +1311,9 @@ fn encode_template_to_native_script(
         serde_json::Value::Object(map) if map.contains_key("active_until") => {
             if let serde_json::Value::Number(active_until) = map.get("active_until").unwrap() {
                 if let Some(n) = active_until.as_u64() {
-                    let slot: u32 = n as u32;
+                    let slot: SlotBigNum = n.into();
 
-                    let time_lock_expiry = TimelockExpiry::new(slot);
+                    let time_lock_expiry = TimelockExpiry::new_timelockexpiry(&slot);
 
                     Ok(NativeScript::new_timelock_expiry(&time_lock_expiry))
                 } else {
@@ -2251,7 +2276,7 @@ mod tests {
             Bip32PublicKey::from_bytes(&hex::decode(cosigner0_hex).unwrap()).unwrap().to_raw_key().hash()
         );
         let all_1 = all.get(1).as_timelock_start().unwrap();
-        assert_eq!(all_1.slot(), 120);
+        assert_eq!(all_1.slot().unwrap(), 120);
         let any = from.get(1).as_script_any().unwrap().native_scripts();
         assert_eq!(all.len(), 2);
         let any_0 = any.get(0).as_script_pubkey().unwrap();
@@ -2260,7 +2285,7 @@ mod tests {
             Bip32PublicKey::from_bytes(&hex::decode(cosigner1_hex).unwrap()).unwrap().to_raw_key().hash()
         );
         let any_1 = any.get(1).as_timelock_expiry().unwrap();
-        assert_eq!(any_1.slot(), 1000);
+        assert_eq!(any_1.slot().unwrap(), 1000);
         let self_key = from.get(2).as_script_pubkey().unwrap();
         assert_eq!(
             self_key.addr_keyhash(),
