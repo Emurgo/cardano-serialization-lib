@@ -1901,9 +1901,17 @@ declare export class HeaderBody {
   block_number(): number;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+   * Otherwise will just raise an error.
    * @returns {number}
    */
   slot(): number;
+
+  /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
 
   /**
    * @returns {BlockHash | void}
@@ -1951,6 +1959,9 @@ declare export class HeaderBody {
   protocol_version(): ProtocolVersion;
 
   /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format.
+   * Use `.new_headerbody` instead
    * @param {number} block_number
    * @param {number} slot
    * @param {BlockHash | void} prev_hash
@@ -1967,6 +1978,34 @@ declare export class HeaderBody {
   static new(
     block_number: number,
     slot: number,
+    prev_hash: BlockHash | void,
+    issuer_vkey: Vkey,
+    vrf_vkey: VRFVKey,
+    nonce_vrf: VRFCert,
+    leader_vrf: VRFCert,
+    block_body_size: number,
+    block_body_hash: BlockHash,
+    operational_cert: OperationalCert,
+    protocol_version: ProtocolVersion
+  ): HeaderBody;
+
+  /**
+   * @param {number} block_number
+   * @param {BigNum} slot
+   * @param {BlockHash | void} prev_hash
+   * @param {Vkey} issuer_vkey
+   * @param {VRFVKey} vrf_vkey
+   * @param {VRFCert} nonce_vrf
+   * @param {VRFCert} leader_vrf
+   * @param {number} block_body_size
+   * @param {BlockHash} block_body_hash
+   * @param {OperationalCert} operational_cert
+   * @param {ProtocolVersion} protocol_version
+   * @returns {HeaderBody}
+   */
+  static new_headerbody(
+    block_number: number,
+    slot: BigNum,
     prev_hash: BlockHash | void,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
@@ -3286,12 +3325,27 @@ declare export class Pointer {
   free(): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format for the ttl value, tx_index and cert_index.
+   * Use `.new_pointer` instead
    * @param {number} slot
    * @param {number} tx_index
    * @param {number} cert_index
    * @returns {Pointer}
    */
   static new(slot: number, tx_index: number, cert_index: number): Pointer;
+
+  /**
+   * @param {BigNum} slot
+   * @param {BigNum} tx_index
+   * @param {BigNum} cert_index
+   * @returns {Pointer}
+   */
+  static new_pointer(
+    slot: BigNum,
+    tx_index: BigNum,
+    cert_index: BigNum
+  ): Pointer;
 
   /**
    * @returns {number}
@@ -3307,6 +3361,21 @@ declare export class Pointer {
    * @returns {number}
    */
   cert_index(): number;
+
+  /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
+
+  /**
+   * @returns {BigNum}
+   */
+  tx_index_bignum(): BigNum;
+
+  /**
+   * @returns {BigNum}
+   */
+  cert_index_bignum(): BigNum;
 }
 /**
  */
@@ -4843,10 +4912,24 @@ declare export class TimelockExpiry {
   slot(): number;
 
   /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
+
+  /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format.
+   * Use `.new_timelockexpiry` instead
    * @param {number} slot
    * @returns {TimelockExpiry}
    */
   static new(slot: number): TimelockExpiry;
+
+  /**
+   * @param {BigNum} slot
+   * @returns {TimelockExpiry}
+   */
+  static new_timelockexpiry(slot: BigNum): TimelockExpiry;
 }
 /**
  */
@@ -4865,15 +4948,33 @@ declare export class TimelockStart {
   static from_bytes(bytes: Uint8Array): TimelockStart;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+   * Otherwise will just raise an error.
+   * Use `.slot_bignum` instead
    * @returns {number}
    */
   slot(): number;
 
   /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
+
+  /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format.
+   * Use `.new_timelockstart` instead.
    * @param {number} slot
    * @returns {TimelockStart}
    */
   static new(slot: number): TimelockStart;
+
+  /**
+   * @param {BigNum} slot
+   * @returns {TimelockStart}
+   */
+  static new_timelockstart(slot: BigNum): TimelockStart;
 }
 /**
  */
@@ -4997,9 +5098,26 @@ declare export class TransactionBody {
   fee(): BigNum;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+   * Otherwise will just raise an error.
    * @returns {number | void}
    */
   ttl(): number | void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  ttl_bignum(): BigNum | void;
+
+  /**
+   * @param {BigNum} ttl
+   */
+  set_ttl(ttl: BigNum): void;
+
+  /**
+   */
+  remove_ttl(): void;
 
   /**
    * @param {Certificates} certs
@@ -5042,11 +5160,27 @@ declare export class TransactionBody {
   auxiliary_data_hash(): AuxiliaryDataHash | void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Uses outdated slot number format.
    * @param {number} validity_start_interval
    */
   set_validity_start_interval(validity_start_interval: number): void;
 
   /**
+   * @param {BigNum} validity_start_interval
+   */
+  set_validity_start_interval_bignum(validity_start_interval: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  validity_start_interval_bignum(): BigNum | void;
+
+  /**
+   * !!! DEPRECATED !!!
+   * Returns a Option<Slot32> (u32) value in case the underlying original Option<BigNum> (u64) value is within the limits.
+   * Otherwise will just raise an error.
+   * Use `.validity_start_interval_bignum` instead.
    * @returns {number | void}
    */
   validity_start_interval(): number | void;
@@ -5109,6 +5243,9 @@ declare export class TransactionBody {
   network_id(): NetworkId | void;
 
   /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format for the ttl value.
+   * Use `.new_tx_body` and then `.set_ttl` instead
    * @param {TransactionInputs} inputs
    * @param {TransactionOutputs} outputs
    * @param {BigNum} fee
@@ -5120,6 +5257,21 @@ declare export class TransactionBody {
     outputs: TransactionOutputs,
     fee: BigNum,
     ttl?: number
+  ): TransactionBody;
+
+  /**
+   * Returns a new TransactionBody.
+   * In the new version of "new" we removed optional ttl for support it by wasm_bingen.
+   * Your can use "set_ttl" and "remove_ttl" to set a new value for ttl or set it as None.
+   * @param {TransactionInputs} inputs
+   * @param {TransactionOutputs} outputs
+   * @param {BigNum} fee
+   * @returns {TransactionBody}
+   */
+  static new_tx_body(
+    inputs: TransactionInputs,
+    outputs: TransactionOutputs,
+    fee: BigNum
   ): TransactionBody;
 }
 /**
@@ -5288,14 +5440,28 @@ declare export class TransactionBuilder {
   set_fee(fee: BigNum): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Set ttl value.
    * @param {number} ttl
    */
   set_ttl(ttl: number): void;
 
   /**
+   * @param {BigNum} ttl
+   */
+  set_ttl_bignum(ttl: BigNum): void;
+
+  /**
+   * !!! DEPRECATED !!!
+   * Uses outdated slot number format.
    * @param {number} validity_start_interval
    */
   set_validity_start_interval(validity_start_interval: number): void;
+
+  /**
+   * @param {BigNum} validity_start_interval
+   */
+  set_validity_start_interval_bignum(validity_start_interval: BigNum): void;
 
   /**
    * @param {Certificates} certs
