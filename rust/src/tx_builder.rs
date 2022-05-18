@@ -1608,6 +1608,7 @@ impl TransactionBuilder {
 mod tests {
     use super::*;
     use fees::*;
+    use crate::tx_builder_constants::TxBuilderConstants;
     use super::output_builder::{TransactionOutputBuilder};
 
     const MAX_VALUE_SIZE: u32 = 4000;
@@ -1626,11 +1627,11 @@ mod tests {
     }
 
     fn fake_bytes(x: u8) -> Vec<u8> {
-        vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
+        vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100, 1, 2, 3, 4]
     }
 
     fn fake_key_hash(x: u8) -> Ed25519KeyHash {
-        Ed25519KeyHash::from_bytes(fake_bytes(x)).unwrap()
+        Ed25519KeyHash::from_bytes((&fake_bytes(x)[0..28]).to_vec()).unwrap()
     }
 
     fn harden(index: u32) -> u32 {
@@ -4796,6 +4797,83 @@ mod tests {
         assert_eq!(redeems.len(), 2);
         assert_eq!(redeems.get(0), redeemer1);
         assert_eq!(redeems.get(1), redeemer2);
+    }
+
+    #[test]
+    fn test_existing_plutus_scripts_require_data_hash() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let (script1, _) = plutus_script_and_hash(0);
+        let datum = PlutusData::new_bytes(fake_bytes(1));
+        let redeemer_datum = PlutusData::new_bytes(fake_bytes(2));
+        let redeemer = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &redeemer_datum,
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(&script1, &datum, &redeemer),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        // Using SAFE `.build_tx`
+        let res = tx_builder.build_tx();
+        assert!(res.is_err());
+        if let Err(e) = res {
+            assert!(e.as_string().unwrap().contains("script data hash"));
+        }
+
+        // Setting script data hash removes the error
+        tx_builder.set_script_data_hash(
+            &ScriptDataHash::from_bytes(fake_bytes(42)).unwrap(),
+        );
+        // Using SAFE `.build_tx`
+        let res2 = tx_builder.build_tx();
+        assert!(res2.is_ok());
+
+        // Removing script data hash will cause error again
+        tx_builder.remove_script_data_hash();
+        // Using SAFE `.build_tx`
+        let res3 = tx_builder.build_tx();
+        assert!(res3.is_err());
+    }
+
+    #[test]
+    fn test_calc_script_hash_data() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let (script1, _) = plutus_script_and_hash(0);
+        let datum = PlutusData::new_bytes(fake_bytes(1));
+        let redeemer_datum = PlutusData::new_bytes(fake_bytes(2));
+        let redeemer = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &redeemer_datum,
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(&script1, &datum, &redeemer),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        // Setting script data hash removes the error
+        tx_builder.calc_script_data_hash(
+            &TxBuilderConstants::plutus_default_cost_models(),
+        );
+
+        // Using SAFE `.build_tx`
+        let res2 = tx_builder.build_tx();
+        assert!(res2.is_ok());
+
+        let data_hash = hash_script_data(
+            &Redeemers::from(vec![redeemer.clone()]),
+            &TxBuilderConstants::plutus_default_cost_models(),
+            Some(PlutusList::from(vec![datum])),
+        );
+        assert_eq!(tx_builder.script_data_hash.unwrap(), data_hash);
     }
 }
 

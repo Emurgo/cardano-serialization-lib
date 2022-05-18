@@ -161,6 +161,12 @@ impl CostModel {
     }
 }
 
+impl From<[i32; 166]> for CostModel {
+    fn from(values: [i32; 166]) -> Self {
+        CostModel(values.iter().map(|x| { Int::new_i32(*x).clone() }).collect())
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Costmdls(std::collections::BTreeMap<Language, CostModel>);
@@ -498,6 +504,12 @@ impl PlutusList {
     }
 }
 
+impl From<Vec<PlutusData>> for PlutusList {
+    fn from(elems: Vec<PlutusData>) -> Self {
+        Self { elems, definite_encoding: None }
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Redeemer {
@@ -606,6 +618,12 @@ impl Redeemers {
 
     pub fn add(&mut self, elem: &Redeemer) {
         self.0.push(elem.clone());
+    }
+}
+
+impl From<Vec<Redeemer>> for Redeemers {
+    fn from(values: Vec<Redeemer>) -> Self {
+        Self(values)
     }
 }
 

@@ -48,6 +48,7 @@ pub mod output_builder;
 pub mod plutus;
 pub mod serialization;
 pub mod tx_builder;
+pub mod tx_builder_constants;
 pub mod typed_bytes;
 pub mod emip3;
 #[macro_use]

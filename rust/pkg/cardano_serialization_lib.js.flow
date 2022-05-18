@@ -6338,6 +6338,16 @@ declare export class TransactionWitnessSets {
 }
 /**
  */
+declare export class TxBuilderConstants {
+  free(): void;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_default_cost_models(): Costmdls;
+}
+/**
+ */
 declare export class URL {
   free(): void;
 
