@@ -35,7 +35,7 @@ impl PlutusScript {
     pub fn hash(&self) -> ScriptHash {
         let mut bytes = Vec::with_capacity(self.0.len() + 1);
         bytes.extend_from_slice(&vec![
-            ScriptHashNamespace::PlutusScript.scrip_hash_prefix(),
+            ScriptHashNamespace::PlutusScript as u8,
         ]);
         bytes.extend_from_slice(&self.0);
         ScriptHash::from(blake2b224(bytes.as_ref()))

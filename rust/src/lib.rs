@@ -1771,17 +1771,8 @@ to_from_bytes!(NativeScript);
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ScriptHashNamespace {
-    NativeScript,
-    PlutusScript,
-}
-
-impl ScriptHashNamespace {
-    pub fn scrip_hash_prefix(&self) -> u8 {
-        match self {
-            ScriptHashNamespace::NativeScript => 0 as u8,
-            ScriptHashNamespace::PlutusScript => 1 as u8,
-        }
-    }
+    NativeScript = 0,
+    PlutusScript = 1,
 }
 
 #[wasm_bindgen]
@@ -1790,7 +1781,7 @@ impl NativeScript {
     pub fn hash(&self) -> ScriptHash {
         let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
         bytes.extend_from_slice(&vec![
-            ScriptHashNamespace::NativeScript.scrip_hash_prefix(),
+            ScriptHashNamespace::NativeScript as u8,
         ]);
         bytes.extend_from_slice(&self.to_bytes());
         ScriptHash::from(blake2b224(bytes.as_ref()))
