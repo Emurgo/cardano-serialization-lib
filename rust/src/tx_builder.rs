@@ -4875,5 +4875,74 @@ mod tests {
         );
         assert_eq!(tx_builder.script_data_hash.unwrap(), data_hash);
     }
+
+    #[test]
+    fn test_plutus_witness_redeemer_index_auto_changing() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let (script1, _) = plutus_script_and_hash(0);
+        let (script2, _) = plutus_script_and_hash(1);
+        let datum1 = PlutusData::new_bytes(fake_bytes(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+
+        // Creating redeemers with indexes ZERO
+        let redeemer1 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes(20)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        let redeemer2 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes(21)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+
+        // Add a regular NON-script input first
+        tx_builder.add_input(
+            &byron_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        // Adding two plutus inputs then
+        // both have redeemers with index ZERO
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(&script1, &datum1, &redeemer1),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(&script2, &datum2, &redeemer2),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        // Calc the script data hash
+        tx_builder.calc_script_data_hash(
+            &TxBuilderConstants::plutus_default_cost_models(),
+        );
+
+        let tx: Transaction = tx_builder.build_tx().unwrap();
+        assert!(tx.witness_set.redeemers.is_some());
+        let redeems = tx.witness_set.redeemers.unwrap();
+        assert_eq!(redeems.len(), 2);
+
+        fn compare_redeems(r1: Redeemer, r2: Redeemer) {
+            assert_eq!(r1.tag(), r2.tag());
+            assert_eq!(r1.data(), r2.data());
+            assert_eq!(r1.ex_units(), r2.ex_units());
+        }
+
+        compare_redeems(redeems.get(0), redeemer1);
+        compare_redeems(redeems.get(1), redeemer2);
+
+        // Note the redeemers from the result transaction are equal with source redeemers
+        // In everything EXCEPT the index field, the indexes have changed to 1 and 2
+        // To match the position of their corresponding input
+        assert_eq!(redeems.get(0).index(), to_bignum(1));
+        assert_eq!(redeems.get(1).index(), to_bignum(2));
+    }
 }
 
