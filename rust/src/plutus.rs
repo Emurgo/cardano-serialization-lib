@@ -533,6 +533,15 @@ impl Redeemer {
             ex_units: ex_units.clone(),
         }
     }
+
+    pub(crate) fn clone_with_index(&self, index: &BigNum) -> Self {
+        Self {
+            tag: self.tag.clone(),
+            index: index.clone(),
+            data: self.data.clone(),
+            ex_units: self.ex_units.clone(),
+        }
+    }
 }
 
 #[wasm_bindgen]

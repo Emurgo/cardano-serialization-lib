@@ -5403,7 +5403,8 @@ declare export class TransactionBuilder {
   get_native_input_scripts(): NativeScripts | void;
 
   /**
-   * Returns a copy of the current plutus input witness scripts in the builder
+   * Returns a copy of the current plutus input witness scripts in the builder.
+   * NOTE: each plutus witness will be cloned with a specific corresponding input index
    * @returns {PlutusWitnesses | void}
    */
   get_plutus_input_scripts(): PlutusWitnesses | void;

@@ -229,6 +229,14 @@ impl PlutusWitness {
     pub fn redeemer(&self) -> Redeemer {
         self.redeemer.clone()
     }
+
+    fn clone_with_redeemer_index(&self, index: &BigNum) -> Self {
+        Self {
+            script: self.script.clone(),
+            datum: self.datum.clone(),
+            redeemer: self.redeemer.clone_with_index(index),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -789,12 +797,33 @@ impl TransactionBuilder {
         if scripts.len() > 0 { Some(scripts) } else { None }
     }
 
-    /// Returns a copy of the current plutus input witness scripts in the builder
+    /// Returns a copy of the current plutus input witness scripts in the builder.
+    /// NOTE: each plutus witness will be cloned with a specific corresponding input index
     pub fn get_plutus_input_scripts(&self) -> Option<PlutusWitnesses> {
+        /*
+         * === EXPLANATION ===
+         * The `Redeemer` object contains the `.index` field which is supposed to point
+         * exactly to the index of the corresponding input in the inputs array. We want to
+         * simplify and automate this as much as possible for the user to not have to care about it.
+         *
+         * For this we store the script hash along with the input, when it was registered, and
+         * now we create a map of script hashes to their input indexes.
+         *
+         * The registered witnesses are then each cloned with the new correct redeemer input index.
+         */
+        let script_hash_index_map: BTreeMap<&ScriptHash, BigNum> = self.inputs.iter().enumerate()
+            .fold(BTreeMap::new(), |mut m, (i, (_, hash_option))| {
+                if let Some(hash) = hash_option {
+                    m.insert(hash, to_bignum(i as u64));
+                }
+                m
+            });
         let mut scripts = PlutusWitnesses::new();
-        self.input_types.scripts.values().for_each(|option| {
+        self.input_types.scripts.iter().for_each(|(hash, option)| {
             if let Some(WitnessType::PlutusScriptWitness(s)) = option {
-                scripts.add(&s);
+                if let Some(idx) = script_hash_index_map.get(&hash) {
+                    scripts.add(&s.clone_with_redeemer_index(&idx));
+                }
             }
         });
         if scripts.len() > 0 { Some(scripts) } else { None }
@@ -1444,13 +1473,12 @@ impl TransactionBuilder {
 
     fn build_and_size(&self) -> Result<(TransactionBody, usize), JsError> {
         let fee = self.fee.ok_or_else(|| JsError::from_str("Fee not specified"))?;
-        // <TODO: sort inputs>
         let inputs = self.inputs.iter()
             .map(|(ref tx_builder_input, _)| tx_builder_input.input.clone()).collect();
         let built = TransactionBody {
             inputs: TransactionInputs(inputs),
             outputs: self.outputs.clone(),
-            fee: fee,
+            fee,
             ttl: self.ttl,
             certs: self.certs.clone(),
             withdrawals: self.withdrawals.clone(),
@@ -1533,6 +1561,11 @@ impl TransactionBuilder {
         if self.count_missing_input_scripts() > 0 {
             return Err(JsError::from_str(
                 "There are some script inputs added that don't have the corresponding script provided as a witness!",
+            ));
+        }
+        if self.script_data_hash.is_none() && self.get_plutus_input_scripts().is_some() {
+            return Err(JsError::from_str(
+                "Plutus inputs are present, but script data hash is not specified",
             ));
         }
         self.build_tx_unsafe()
