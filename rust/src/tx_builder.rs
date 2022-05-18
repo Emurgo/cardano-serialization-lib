@@ -203,6 +203,15 @@ impl PlutusWitnesses {
     }
 }
 
+impl From<Vec<PlutusWitness>> for PlutusWitnesses {
+    fn from(scripts: Vec<PlutusWitness>) -> Self {
+        scripts.iter().fold(PlutusWitnesses::new(), |mut scripts, s| {
+            scripts.add(s);
+            scripts
+        })
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PlutusWitness {
@@ -214,8 +223,12 @@ pub struct PlutusWitness {
 #[wasm_bindgen]
 impl PlutusWitness {
 
-    pub fn new(script: PlutusScript, datum: PlutusData, redeemer: Redeemer) -> Self {
-        Self { script, datum, redeemer }
+    pub fn new(script: &PlutusScript, datum: &PlutusData, redeemer: &Redeemer) -> Self {
+        Self {
+            script: script.clone(),
+            datum: datum.clone(),
+            redeemer: redeemer.clone(),
+        }
     }
 
     pub fn script(&self) -> PlutusScript {
@@ -1612,10 +1625,12 @@ mod tests {
         Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
     }
 
+    fn fake_bytes(x: u8) -> Vec<u8> {
+        vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
+    }
+
     fn fake_key_hash(x: u8) -> Ed25519KeyHash {
-        Ed25519KeyHash::from_bytes(
-            vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100]
-        ).unwrap()
+        Ed25519KeyHash::from_bytes(fake_bytes(x)).unwrap()
     }
 
     fn harden(index: u32) -> u32 {
@@ -3947,6 +3962,11 @@ mod tests {
         (m, p)
     }
 
+    fn plutus_script_and_hash(x: u8) -> (PlutusScript, ScriptHash) {
+        let s = PlutusScript::new(fake_bytes(x));
+        (s.clone(), s.hash())
+    }
+
     #[test]
     fn set_mint_asset_with_empty_mint() {
         let mut tx_builder = create_default_tx_builder();
@@ -4676,6 +4696,106 @@ mod tests {
         );
         // Ok to build when all witnesses are added
         assert!(tx_builder.build_tx().is_ok());
+    }
+
+    #[test]
+    fn test_adding_plutus_script_input() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        let (script1, _) = plutus_script_and_hash(0);
+        let datum = PlutusData::new_bytes(fake_bytes(1));
+        let redeemer_datum = PlutusData::new_bytes(fake_bytes(2));
+        let redeemer = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &redeemer_datum,
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(&script1, &datum, &redeemer),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        tx_builder.set_fee(&to_bignum(42));
+        // There are no missing script witnesses
+        assert_eq!(tx_builder.count_missing_input_scripts(), 0);
+        let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
+        assert!(tx.witness_set.plutus_scripts.is_some());
+        assert_eq!(tx.witness_set.plutus_scripts.unwrap().get(0), script1);
+        assert!(tx.witness_set.plutus_data.is_some());
+        assert_eq!(tx.witness_set.plutus_data.unwrap().get(0), datum);
+        assert!(tx.witness_set.redeemers.is_some());
+        assert_eq!(tx.witness_set.redeemers.unwrap().get(0), redeemer);
+    }
+
+    #[test]
+    fn test_adding_plutus_script_witnesses() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let (script1, hash1) = plutus_script_and_hash(0);
+        let (script2, hash2) = plutus_script_and_hash(1);
+        let (script3, hash3) = plutus_script_and_hash(3);
+        let datum1 = PlutusData::new_bytes(fake_bytes(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        let redeemer1 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes(20)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        let redeemer2 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(1),
+            &PlutusData::new_bytes(fake_bytes(21)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&hash1),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&hash2),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        // There are TWO missing script witnesses
+        assert_eq!(tx_builder.count_missing_input_scripts(), 2);
+        // Calling to add two plutus witnesses, one of which is irrelevant
+        tx_builder.add_required_plutus_input_scripts(
+            &PlutusWitnesses::from(vec![
+                PlutusWitness::new(&script1, &datum1, &redeemer1),
+                PlutusWitness::new(&script3, &datum2, &redeemer2),
+            ]),
+        );
+        // There is now ONE missing script witnesses
+        assert_eq!(tx_builder.count_missing_input_scripts(), 1);
+        // Calling to add the one remaining relevant plutus witness now
+        tx_builder.add_required_plutus_input_scripts(
+            &PlutusWitnesses::from(vec![
+                PlutusWitness::new(&script2, &datum2, &redeemer2),
+            ]),
+        );
+        // There is now no missing script witnesses
+        assert_eq!(tx_builder.count_missing_input_scripts(), 0);
+        let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
+        // Check there are two correct scripts
+        assert!(tx.witness_set.plutus_scripts.is_some());
+        let pscripts = tx.witness_set.plutus_scripts.unwrap();
+        assert_eq!(pscripts.len(), 2);
+        assert_eq!(pscripts.get(0), script1);
+        assert_eq!(pscripts.get(1), script2);
+        // Check there are two correct datums
+        assert!(tx.witness_set.plutus_data.is_some());
+        let datums = tx.witness_set.plutus_data.unwrap();
+        assert_eq!(datums.len(), 2);
+        assert_eq!(datums.get(0), datum1);
+        assert_eq!(datums.get(1), datum2);
+        // Check there are two correct redeemers
+        assert!(tx.witness_set.redeemers.is_some());
+        let redeems = tx.witness_set.redeemers.unwrap();
+        assert_eq!(redeems.len(), 2);
+        assert_eq!(redeems.get(0), redeemer1);
+        assert_eq!(redeems.get(1), redeemer2);
     }
 }
 
