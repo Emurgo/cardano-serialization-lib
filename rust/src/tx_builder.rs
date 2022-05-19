@@ -253,7 +253,7 @@ impl PlutusWitness {
 }
 
 #[derive(Clone, Debug)]
-enum WitnessType {
+enum ScriptWitnessType {
     NativeScriptWitness(NativeScript),
     PlutusScriptWitness(PlutusWitness),
 }
@@ -262,7 +262,7 @@ enum WitnessType {
 #[derive(Clone, Debug)]
 struct MockWitnessSet {
     vkeys: BTreeSet<Ed25519KeyHash>,
-    scripts: LinkedHashMap<ScriptHash, Option<WitnessType>>,
+    scripts: LinkedHashMap<ScriptHash, Option<ScriptWitnessType>>,
     bootstraps: BTreeSet<Vec<u8>>,
 }
 
@@ -685,7 +685,7 @@ impl TransactionBuilder {
         self.add_script_input(&hash, input, amount);
         self.input_types.scripts.insert(
             hash,
-            Some(WitnessType::NativeScriptWitness(script.clone())),
+            Some(ScriptWitnessType::NativeScriptWitness(script.clone())),
         );
     }
 
@@ -695,7 +695,7 @@ impl TransactionBuilder {
         self.add_script_input(&hash, input, amount);
         self.input_types.scripts.insert(
             hash,
-            Some(WitnessType::PlutusScriptWitness(witness.clone())),
+            Some(ScriptWitnessType::PlutusScriptWitness(witness.clone())),
         );
     }
 
@@ -775,7 +775,7 @@ impl TransactionBuilder {
             if self.input_types.scripts.contains_key(&hash) {
                 self.input_types.scripts.insert(
                     hash,
-                    Some(WitnessType::NativeScriptWitness(s.clone())),
+                    Some(ScriptWitnessType::NativeScriptWitness(s.clone())),
                 );
             }
         });
@@ -792,7 +792,7 @@ impl TransactionBuilder {
             if self.input_types.scripts.contains_key(&hash) {
                 self.input_types.scripts.insert(
                     hash,
-                    Some(WitnessType::PlutusScriptWitness(s.clone())),
+                    Some(ScriptWitnessType::PlutusScriptWitness(s.clone())),
                 );
             }
         });
@@ -803,7 +803,7 @@ impl TransactionBuilder {
     pub fn get_native_input_scripts(&self) -> Option<NativeScripts> {
         let mut scripts = NativeScripts::new();
         self.input_types.scripts.values().for_each(|option| {
-            if let Some(WitnessType::NativeScriptWitness(s)) = option {
+            if let Some(ScriptWitnessType::NativeScriptWitness(s)) = option {
                 scripts.add(&s);
             }
         });
@@ -833,7 +833,7 @@ impl TransactionBuilder {
             });
         let mut scripts = PlutusWitnesses::new();
         self.input_types.scripts.iter().for_each(|(hash, option)| {
-            if let Some(WitnessType::PlutusScriptWitness(s)) = option {
+            if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = option {
                 if let Some(idx) = script_hash_index_map.get(&hash) {
                     scripts.add(&s.clone_with_redeemer_index(&idx));
                 }
