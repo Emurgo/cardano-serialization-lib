@@ -1068,7 +1068,7 @@ mod tests {
         let oneof_native_script = NativeScript::new_script_n_of_k(&ScriptNOfK::new(1, &pubkey_native_scripts));
 
         let script_hash = ScriptHash::from_bytes(
-            oneof_native_script.hash(ScriptHashNamespace::NativeScript).to_bytes()
+            oneof_native_script.hash().to_bytes()
         ).unwrap();
 
         let spend_cred = StakeCredential::from_scripthash(&script_hash);

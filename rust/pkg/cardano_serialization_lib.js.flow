@@ -255,6 +255,7 @@ declare export var NativeScriptKind: {|
 
 declare export var ScriptHashNamespace: {|
   +NativeScript: 0, // 0
+  +PlutusScript: 1, // 1
 |};
 
 /**
@@ -2773,10 +2774,9 @@ declare export class NativeScript {
   static from_bytes(bytes: Uint8Array): NativeScript;
 
   /**
-   * @param {number} namespace
    * @returns {ScriptHash}
    */
-  hash(namespace: number): ScriptHash;
+  hash(): ScriptHash;
 
   /**
    * @param {ScriptPubkey} script_pubkey
@@ -3218,6 +3218,11 @@ declare export class PlutusScript {
    * @returns {Uint8Array}
    */
   bytes(): Uint8Array;
+
+  /**
+   * @returns {ScriptHash}
+   */
+  hash(): ScriptHash;
 }
 /**
  */
@@ -3255,6 +3260,64 @@ declare export class PlutusScripts {
    * @param {PlutusScript} elem
    */
   add(elem: PlutusScript): void;
+}
+/**
+ */
+declare export class PlutusWitness {
+  free(): void;
+
+  /**
+   * @param {PlutusScript} script
+   * @param {PlutusData} datum
+   * @param {Redeemer} redeemer
+   * @returns {PlutusWitness}
+   */
+  static new(
+    script: PlutusScript,
+    datum: PlutusData,
+    redeemer: Redeemer
+  ): PlutusWitness;
+
+  /**
+   * @returns {PlutusScript}
+   */
+  script(): PlutusScript;
+
+  /**
+   * @returns {PlutusData}
+   */
+  datum(): PlutusData;
+
+  /**
+   * @returns {Redeemer}
+   */
+  redeemer(): Redeemer;
+}
+/**
+ */
+declare export class PlutusWitnesses {
+  free(): void;
+
+  /**
+   * @returns {PlutusWitnesses}
+   */
+  static new(): PlutusWitnesses;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {PlutusWitness}
+   */
+  get(index: number): PlutusWitness;
+
+  /**
+   * @param {PlutusWitness} elem
+   */
+  add(elem: PlutusWitness): void;
 }
 /**
  */
@@ -5244,12 +5307,43 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
+   * This method adds the input to the builder BUT leaves a missing spot for the witness native script
+   *
+   * After adding the input with this method, use `.add_required_native_input_scripts`
+   * and `.add_required_plutus_input_scripts` to add the witness scripts
+   *
+   * Or instead use `.add_native_script_input` and `.add_plutus_script_input`
+   * to add inputs right along with the script, instead of the script hash
    * @param {ScriptHash} hash
    * @param {TransactionInput} input
    * @param {Value} amount
    */
   add_script_input(
     hash: ScriptHash,
+    input: TransactionInput,
+    amount: Value
+  ): void;
+
+  /**
+   * This method will add the input to the builder and also register the required native script witness
+   * @param {NativeScript} script
+   * @param {TransactionInput} input
+   * @param {Value} amount
+   */
+  add_native_script_input(
+    script: NativeScript,
+    input: TransactionInput,
+    amount: Value
+  ): void;
+
+  /**
+   * This method will add the input to the builder and also register the required plutus witness
+   * @param {PlutusWitness} witness
+   * @param {TransactionInput} input
+   * @param {Value} amount
+   */
+  add_plutus_script_input(
+    witness: PlutusWitness,
     input: TransactionInput,
     amount: Value
   ): void;
@@ -5266,11 +5360,54 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
+   * Note that for script inputs this method will use underlying generic `.add_script_input`
+   * which leaves a required empty spot for the script witness (or witnesses in case of Plutus).
+   * You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.
    * @param {Address} address
    * @param {TransactionInput} input
    * @param {Value} amount
    */
   add_input(address: Address, input: TransactionInput, amount: Value): void;
+
+  /**
+   * Returns the number of still missing input scripts (either native or plutus)
+   * Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
+   * @returns {number}
+   */
+  count_missing_input_scripts(): number;
+
+  /**
+   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
+   * Any scripts that don't match any of the previously added inputs will be ignored
+   * Returns the number of remaining required missing witness scripts
+   * Use `.count_missing_input_scripts` to find the number of still missing scripts
+   * @param {NativeScripts} scripts
+   * @returns {number}
+   */
+  add_required_native_input_scripts(scripts: NativeScripts): number;
+
+  /**
+   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
+   * Any scripts that don't match any of the previously added inputs will be ignored
+   * Returns the number of remaining required missing witness scripts
+   * Use `.count_missing_input_scripts` to find the number of still missing scripts
+   * @param {PlutusWitnesses} scripts
+   * @returns {number}
+   */
+  add_required_plutus_input_scripts(scripts: PlutusWitnesses): number;
+
+  /**
+   * Returns a copy of the current script input witness scripts in the builder
+   * @returns {NativeScripts | void}
+   */
+  get_native_input_scripts(): NativeScripts | void;
+
+  /**
+   * Returns a copy of the current plutus input witness scripts in the builder.
+   * NOTE: each plutus witness will be cloned with a specific corresponding input index
+   * @returns {PlutusWitnesses | void}
+   */
+  get_plutus_input_scripts(): PlutusWitnesses | void;
 
   /**
    * calculates how much the fee would increase if you added a given output
@@ -5523,6 +5660,31 @@ declare export class TransactionBuilder {
   add_change_if_needed(address: Address): boolean;
 
   /**
+   * This method will calculate the script hash data
+   * using the plutus datums and redeemers already present in the builder
+   * along with the provided cost model, and will register the calculated value
+   * in the builder to be used when building the tx body.
+   * In case there are no plutus input witnesses present - nothing will change
+   * You can set specific hash value using `.set_script_data_hash`
+   * @param {Costmdls} cost_models
+   */
+  calc_script_data_hash(cost_models: Costmdls): void;
+
+  /**
+   * Sets the specified hash value.
+   * Alternatively you can use `.calc_script_data_hash` to calculate the hash automatically.
+   * Or use `.remove_script_data_hash` to delete the previously set value
+   * @param {ScriptDataHash} hash
+   */
+  set_script_data_hash(hash: ScriptDataHash): void;
+
+  /**
+   * Deletes any previously set plutus data hash value.
+   * Use `.set_script_data_hash` or `.calc_script_data_hash` to set it.
+   */
+  remove_script_data_hash(): void;
+
+  /**
    * @returns {number}
    */
   full_size(): number;
@@ -5544,9 +5706,16 @@ declare export class TransactionBuilder {
    * Returns full Transaction object with the body and the auxiliary data
    * NOTE: witness_set will contain all mint_scripts if any been added or set
    * NOTE: is_valid set to true
+   * NOTE: Will fail in case there are any script inputs added with no corresponding witness
    * @returns {Transaction}
    */
   build_tx(): Transaction;
+
+  /**
+   * Similar to `.build_tx()` but will NOT fail in case there are missing script witnesses
+   * @returns {Transaction}
+   */
+  build_tx_unsafe(): Transaction;
 
   /**
    * warning: sum of all parts of a transaction must equal 0. You cannot just set the fee to the min value and forget about it
@@ -6166,6 +6335,16 @@ declare export class TransactionWitnessSets {
    * @param {TransactionWitnessSet} elem
    */
   add(elem: TransactionWitnessSet): void;
+}
+/**
+ */
+declare export class TxBuilderConstants {
+  free(): void;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_default_cost_models(): Costmdls;
 }
 /**
  */
