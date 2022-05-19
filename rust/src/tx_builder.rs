@@ -4944,5 +4944,111 @@ mod tests {
         assert_eq!(redeems.get(0).index(), to_bignum(1));
         assert_eq!(redeems.get(1).index(), to_bignum(2));
     }
+
+    #[test]
+    fn test_native_and_plutus_scripts_together() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let (pscript1, _) = plutus_script_and_hash(0);
+        let (pscript2, phash2) = plutus_script_and_hash(1);
+        let (nscript1, _) = mint_script_and_policy(0);
+        let (nscript2, nhash2) = mint_script_and_policy(1);
+        let datum1 = PlutusData::new_bytes(fake_bytes(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        // Creating redeemers with indexes ZERO
+        let redeemer1 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes(20)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        let redeemer2 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes(21)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+
+        // Add one plutus input directly with witness
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(&pscript1, &datum1, &redeemer1),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        // Add one native input directly with witness
+        tx_builder.add_native_script_input(
+            &nscript1,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        // Add one plutus input generically without witness
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&phash2),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        // Add one native input generically without witness
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&nhash2),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        // There are two missing script witnesses
+        assert_eq!(tx_builder.count_missing_input_scripts(), 2);
+
+        let remaining1 = tx_builder.add_required_plutus_input_scripts(
+            &PlutusWitnesses::from(vec![
+                PlutusWitness::new(&pscript2, &datum2, &redeemer2),
+            ]),
+        );
+
+        // There is one missing script witness now
+        assert_eq!(remaining1, 1);
+        assert_eq!(tx_builder.count_missing_input_scripts(), 1);
+
+        let remaining2 = tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![nscript2.clone()]),
+        );
+
+        // There are no missing script witnesses now
+        assert_eq!(remaining2, 0);
+        assert_eq!(tx_builder.count_missing_input_scripts(), 0);
+
+        tx_builder.calc_script_data_hash(
+            &TxBuilderConstants::plutus_default_cost_models(),
+        );
+
+        let tx: Transaction = tx_builder.build_tx().unwrap();
+
+        let wits = tx.witness_set;
+        assert!(wits.native_scripts.is_some());
+        assert!(wits.plutus_scripts.is_some());
+        assert!(wits.plutus_data.is_some());
+        assert!(wits.redeemers.is_some());
+
+        let nscripts = wits.native_scripts.unwrap();
+        assert_eq!(nscripts.len(), 2);
+        assert_eq!(nscripts.get(0), nscript1);
+        assert_eq!(nscripts.get(1), nscript2);
+
+        let pscripts = wits.plutus_scripts.unwrap();
+        assert_eq!(pscripts.len(), 2);
+        assert_eq!(pscripts.get(0), pscript1);
+        assert_eq!(pscripts.get(1), pscript2);
+
+        let datums = wits.plutus_data.unwrap();
+        assert_eq!(datums.len(), 2);
+        assert_eq!(datums.get(0), datum1);
+        assert_eq!(datums.get(1), datum2);
+
+        let redeems = wits.redeemers.unwrap();
+        assert_eq!(redeems.len(), 2);
+        assert_eq!(redeems.get(0), redeemer1);
+
+        // The second plutus input redeemer index has automatically changed to 2
+        // because it was added on the third position
+        assert_eq!(redeems.get(1), redeemer2.clone_with_index(&to_bignum(2)));
+    }
 }
 
