@@ -6,13 +6,16 @@ use ed25519_bip32::XPub;
 // returns (Number represented, bytes read) if valid encoding
 // or None if decoding prematurely finished
 fn variable_nat_decode(bytes: &[u8]) -> Option<(u64, usize)> {
-    let mut output = 0u64;
+    let mut output = 0u128;
     let mut bytes_read = 0;
     for byte in bytes {
-        output = (output << 7) | (byte & 0x7F) as u64;
+        output = (output << 7) | (byte & 0x7F) as u128;
+        if output > u64::MAX.into() {
+            return None;
+        }
         bytes_read += 1;
         if (byte & 0x80) == 0 {
-            return Some((output, bytes_read));
+            return Some((output as u64, bytes_read));
         }
     }
     None
@@ -321,9 +324,9 @@ impl Address {
                                | (ptr.network & 0xF);
                 buf.push(header);
                 buf.extend(ptr.payment.to_raw_bytes());
-                buf.extend(variable_nat_encode(ptr.stake.slot.into()));
-                buf.extend(variable_nat_encode(ptr.stake.tx_index.into()));
-                buf.extend(variable_nat_encode(ptr.stake.cert_index.into()));
+                buf.extend(variable_nat_encode(from_bignum(&ptr.stake.slot)));
+                buf.extend(variable_nat_encode(from_bignum(&ptr.stake.tx_index)));
+                buf.extend(variable_nat_encode(from_bignum(&ptr.stake.cert_index)));
             },
             AddrType::Enterprise(enterprise) => {
                 let header: u8 = 0b0110_0000
@@ -420,10 +423,10 @@ impl Address {
                         PointerAddress::new(
                             network,
                             &payment_cred,
-                            &Pointer::new(
-                                slot.try_into().map_err(|_| DeserializeError::new("Address.Pointer.slot", DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32)))?,
-                                tx_index.try_into().map_err(|_| DeserializeError::new("Address.Pointer.tx_index", DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32)))?,
-                                cert_index.try_into().map_err(|_| DeserializeError::new("Address.Pointer.cert_index", DeserializeFailure::CBOR(cbor_event::Error::ExpectedU32)))?)))
+                             &Pointer::new_pointer(
+                                &to_bignum(slot),
+                                &to_bignum(tx_index),
+                                &to_bignum(cert_index))))
                 },
                 // enterprise
                 0b0110 | 0b0111 => {
@@ -664,30 +667,58 @@ impl Deserialize for RewardAddress {
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Pointer {
-    slot: Slot,
-    tx_index: TransactionIndex,
-    cert_index: CertificateIndex,
+    slot: BigNum,
+    tx_index: BigNum,
+    cert_index: BigNum,
 }
 
 #[wasm_bindgen]
 impl Pointer {
-    pub fn new(slot: Slot, tx_index: TransactionIndex, cert_index: CertificateIndex) -> Self {
+
+    /// !!! DEPRECATED !!!
+    /// This constructor uses outdated slot number format for the ttl value, tx_index and cert_index.
+    /// Use `.new_pointer` instead
+    #[deprecated(
+    since = "10.1.0",
+    note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use new_pointer instead."
+    )]
+    pub fn new(slot: Slot32, tx_index: TransactionIndex, cert_index: CertificateIndex) -> Self {
         Self {
-            slot,
-            tx_index,
-            cert_index,
+            slot: slot.into(),
+            tx_index: tx_index.into(),
+            cert_index: cert_index.into(),
         }
     }
 
-    pub fn slot(&self) -> Slot {
+    pub fn new_pointer(slot: &SlotBigNum, tx_index: &BigNum, cert_index: &BigNum) -> Self {
+        Self {
+            slot: slot.clone(),
+            tx_index: tx_index.clone(),
+            cert_index: cert_index.clone(),
+        }
+    }
+
+    pub fn slot(&self) -> Result<u32, JsError> {
+        self.slot.clone().try_into()
+    }
+
+    pub fn tx_index(&self) -> Result<u32, JsError> {
+        self.tx_index.clone().try_into()
+    }
+
+    pub fn cert_index(&self) -> Result<u32, JsError> {
+        self.cert_index.clone().try_into()
+    }
+
+    pub fn slot_bignum(&self) -> BigNum {
         self.slot.clone()
     }
 
-    pub fn tx_index(&self) -> TransactionIndex {
+    pub fn tx_index_bignum(&self) -> BigNum {
         self.tx_index.clone()
     }
 
-    pub fn cert_index(&self) -> CertificateIndex {
+    pub fn cert_index_bignum(&self) -> BigNum {
         self.cert_index.clone()
     }
 }
@@ -752,6 +783,12 @@ mod tests {
     }
 
     #[test]
+    fn variable_nat_decode_too_big() {
+        let too_big = [129, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127];
+        assert_eq!(None, variable_nat_decode(&too_big));
+    }
+
+    #[test]
     fn base_serialize_consistency() {
         let base = BaseAddress::new(
             5,
@@ -767,7 +804,7 @@ mod tests {
         let ptr = PointerAddress::new(
             25,
             &StakeCredential::from_keyhash(&Ed25519KeyHash::from([23; Ed25519KeyHash::BYTE_COUNT])),
-            &Pointer::new(2354556573, 127, 0));
+            &Pointer::new_pointer(&to_bignum(2354556573), &to_bignum(127), &to_bignum(0)));
         let addr = ptr.to_address();
         let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
         assert_eq!(addr.to_bytes(), addr2.to_bytes());
@@ -883,9 +920,9 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new(1, 2, 3)).to_address();
+        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3))).to_address();
         assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1gz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspqgpsqe70et");
-        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42))).to_address();
         assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1gx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2w8lunk");
     }
 
@@ -939,9 +976,9 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new(1, 2, 3)).to_address();
+        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3))).to_address();
         assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1gpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5egpqgpsdhdyc0");
-        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42))).to_address();
         assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1g9u5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5evph3wczvf2kd5vam");
     }
 
@@ -1022,9 +1059,9 @@ mod tests {
             .derive(0)
             .to_public();
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new(1, 2, 3)).to_address();
+        let addr_net_0 = PointerAddress::new(NetworkInfo::testnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3))).to_address();
         assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1gqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqpqgps5mee0p");
-        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new(24157, 177, 42)).to_address();
+        let addr_net_3 = PointerAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42))).to_address();
         assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1gyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnyph3wczvf2dqflgt");
     }
 
@@ -1087,7 +1124,7 @@ mod tests {
         let oneof_native_script = NativeScript::new_script_n_of_k(&ScriptNOfK::new(1, &pubkey_native_scripts));
 
         let script_hash = ScriptHash::from_bytes(
-            oneof_native_script.hash(ScriptHashNamespace::NativeScript).to_bytes()
+            oneof_native_script.hash().to_bytes()
         ).unwrap();
 
         let spend_cred = StakeCredential::from_scripthash(&script_hash);
@@ -1096,5 +1133,21 @@ mod tests {
         assert_eq!(addr_net_0.to_bech32(None).unwrap(), "addr_test1xr0de0mz3m9xmgtlmqqzu06s0uvfsczskdec8k7v4jhr7077mjlk9rk2dkshlkqq9cl4qlccnps9pvmns0duet9w8uls8flvxc");
         let addr_net_3 = BaseAddress::new(NetworkInfo::mainnet().network_id(), &spend_cred, &stake_cred).to_address();
         assert_eq!(addr_net_3.to_bech32(None).unwrap(), "addr1x80de0mz3m9xmgtlmqqzu06s0uvfsczskdec8k7v4jhr7077mjlk9rk2dkshlkqq9cl4qlccnps9pvmns0duet9w8ulsylzv28");
+    }
+
+    #[test]
+    fn pointer_address_big() {
+        let addr = Address::from_bech32("addr_test1grqe6lg9ay8wkcu5k5e38lne63c80h3nq6xxhqfmhewf645pllllllllllll7lupllllllllllll7lupllllllllllll7lc9wayvj").unwrap();
+        let ptr = PointerAddress::from_address(&addr).unwrap().stake;
+        assert_eq!(u64::MAX, from_bignum(&ptr.slot));
+        assert_eq!(u64::MAX, from_bignum(&ptr.tx_index));
+        assert_eq!(u64::MAX, from_bignum(&ptr.cert_index));
+    }
+
+    #[test]
+    fn point_address_old() {
+        let p1 = Pointer::new(10, 20, 30);
+        let p2 = Pointer::new_pointer(&to_bignum(10), &to_bignum(20), &to_bignum(30));
+        assert_eq!(p1, p2);
     }
 }

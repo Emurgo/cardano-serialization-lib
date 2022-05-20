@@ -48,6 +48,7 @@ pub mod output_builder;
 pub mod plutus;
 pub mod serialization;
 pub mod tx_builder;
+pub mod tx_builder_constants;
 pub mod typed_bytes;
 pub mod emip3;
 #[macro_use]
@@ -98,7 +99,8 @@ impl UnitInterval {
 type SubCoin = UnitInterval;
 type Rational = UnitInterval;
 type Epoch = u32;
-type Slot = u32;
+type Slot32 = u32;
+type SlotBigNum = BigNum;
 
 #[wasm_bindgen]
 #[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
@@ -244,12 +246,12 @@ pub struct TransactionBody {
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
     fee: Coin,
-    ttl: Option<Slot>,
+    ttl: Option<SlotBigNum>,
     certs: Option<Certificates>,
     withdrawals: Option<Withdrawals>,
     update: Option<Update>,
     auxiliary_data_hash: Option<AuxiliaryDataHash>,
-    validity_start_interval: Option<Slot>,
+    validity_start_interval: Option<SlotBigNum>,
     mint: Option<Mint>,
     script_data_hash: Option<ScriptDataHash>,
     collateral: Option<TransactionInputs>,
@@ -275,8 +277,34 @@ impl TransactionBody {
         self.fee.clone()
     }
 
-    pub fn ttl(&self) -> Option<Slot> {
+
+    /// !!! DEPRECATED !!!
+    /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+    /// Otherwise will just raise an error.
+    #[deprecated(
+    since = "10.1.0",
+    note = "Possible boundary error. Use ttl_bignum instead"
+    )]
+    pub fn ttl(&self) -> Result<Option<Slot32>, JsError> {
+        match self.ttl {
+            Some(ttl) =>
+                match ttl.try_into() {
+                    Ok(ttl32) => Ok(Some(ttl32)),
+                    Err(err) =>  Err(err)},
+            None => Ok(None)
+        }
+    }
+
+    pub fn ttl_bignum(&self) -> Option<SlotBigNum> {
         self.ttl
+    }
+
+    pub fn set_ttl(&mut self, ttl: &SlotBigNum) {
+        self.ttl = Some(ttl.clone())
+    }
+
+    pub fn remove_ttl(&mut self) {
+        self.ttl = None
     }
 
     pub fn set_certs(&mut self, certs: &Certificates) {
@@ -311,12 +339,41 @@ impl TransactionBody {
         self.auxiliary_data_hash.clone()
     }
 
-    pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot) {
-        self.validity_start_interval = Some(validity_start_interval)
+    /// !!! DEPRECATED !!!
+    /// Uses outdated slot number format.
+    #[deprecated(
+    since = "10.1.0",
+    note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use set_validity_start_interval_bignum instead."
+    )]
+    pub fn set_validity_start_interval(&mut self, validity_start_interval: Slot32) {
+        self.validity_start_interval = Some(validity_start_interval.into())
     }
 
-    pub fn validity_start_interval(&self) -> Option<Slot> {
+    pub fn set_validity_start_interval_bignum(&mut self, validity_start_interval: SlotBigNum) {
+        self.validity_start_interval = Some(validity_start_interval.clone())
+    }
+
+    pub fn validity_start_interval_bignum(&self) -> Option<SlotBigNum> {
         self.validity_start_interval.clone()
+    }
+
+    /// !!! DEPRECATED !!!
+    /// Returns a Option<Slot32> (u32) value in case the underlying original Option<BigNum> (u64) value is within the limits.
+    /// Otherwise will just raise an error.
+    /// Use `.validity_start_interval_bignum` instead.
+    #[deprecated(
+    since = "10.1.0",
+    note = "Possible boundary error. Use validity_start_interval_bignum instead"
+    )]
+    pub fn validity_start_interval(&self) -> Result<Option<Slot32>, JsError> {
+        match self.validity_start_interval.clone() {
+            Some(interval) => match interval.try_into()
+            {
+                Ok(internal32) => Ok(Some(internal32)),
+                Err(err) => Err(err)
+            },
+            None => Ok(None)
+        }
     }
 
     pub fn set_mint(&mut self, mint: &Mint) {
@@ -369,16 +426,51 @@ impl TransactionBody {
         self.network_id.clone()
     }
 
+    /// !!! DEPRECATED !!!
+    /// This constructor uses outdated slot number format for the ttl value.
+    /// Use `.new_tx_body` and then `.set_ttl` instead
+    #[deprecated(
+    since = "10.1.0",
+    note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use new_tx_body instead."
+    )]
     pub fn new(
         inputs: &TransactionInputs,
         outputs: &TransactionOutputs,
         fee: &Coin,
-        ttl: Option<Slot>) -> Self {
+        ttl: Option<Slot32>) -> Self {
         Self {
             inputs: inputs.clone(),
             outputs: outputs.clone(),
             fee: fee.clone(),
-            ttl: ttl,
+            ttl: match ttl.clone() {
+                Some(ttl32) => Some(ttl32.into()),
+                None => None
+            },
+            certs: None,
+            withdrawals: None,
+            update: None,
+            auxiliary_data_hash: None,
+            validity_start_interval: None,
+            mint: None,
+            script_data_hash: None,
+            collateral: None,
+            required_signers: None,
+            network_id: None,
+        }
+    }
+
+    /// Returns a new TransactionBody.
+    /// In the new version of "new" we removed optional ttl for support it by wasm_bingen.
+    /// Your can use "set_ttl" and "remove_ttl" to set a new value for ttl or set it as None.
+    pub fn new_tx_body(
+        inputs: &TransactionInputs,
+        outputs: &TransactionOutputs,
+        fee: &Coin) -> Self {
+        Self {
+            inputs: inputs.clone(),
+            outputs: outputs.clone(),
+            fee: fee.clone(),
+            ttl: None,
             certs: None,
             withdrawals: None,
             update: None,
@@ -1685,7 +1777,7 @@ impl ScriptNOfK {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TimelockStart {
-    slot: Slot,
+    slot: SlotBigNum,
 }
 
 to_from_bytes!(TimelockStart);
@@ -1694,13 +1786,40 @@ to_from_json!(TimelockStart);
 
 #[wasm_bindgen]
 impl TimelockStart {
-    pub fn slot(&self) -> Slot {
+
+    /// !!! DEPRECATED !!!
+    /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+    /// Otherwise will just raise an error.
+    /// Use `.slot_bignum` instead 
+    #[deprecated(
+    since = "10.1.0",
+    note = "Possible boundary error. Use slot_bignum instead"
+    )]
+    pub fn slot(&self) -> Result<Slot32, JsError> {
+        self.slot.try_into()
+    }
+
+
+    pub fn slot_bignum(&self) -> SlotBigNum{
         self.slot
     }
 
-    pub fn new(slot: Slot) -> Self {
+    /// !!! DEPRECATED !!!
+    /// This constructor uses outdated slot number format.
+    /// Use `.new_timelockstart` instead.
+    #[deprecated(
+    since = "10.1.0",
+    note = "Underlying value capacity (BigNum u64) bigger then Slot32. Use new_bignum instead."
+    )]
+    pub fn new(slot: Slot32) -> Self  {
         Self {
-            slot,
+            slot: slot.into(),
+        }
+    }
+
+    pub fn new_timelockstart(slot: &SlotBigNum) -> Self {
+        Self {
+            slot: slot.clone(),
         }
     }
 }
@@ -1708,7 +1827,7 @@ impl TimelockStart {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TimelockExpiry {
-    slot: Slot,
+    slot: SlotBigNum,
 }
 
 to_from_bytes!(TimelockExpiry);
@@ -1717,13 +1836,30 @@ to_from_json!(TimelockExpiry);
 
 #[wasm_bindgen]
 impl TimelockExpiry {
-    pub fn slot(&self) -> Slot {
+    pub fn slot(&self) -> Result<Slot32, JsError> {
+        self.slot.try_into()
+    }
+
+    pub fn slot_bignum(&self) -> SlotBigNum {
         self.slot
     }
 
-    pub fn new(slot: Slot) -> Self {
+    /// !!! DEPRECATED !!!
+    /// This constructor uses outdated slot number format.
+    /// Use `.new_timelockexpiry` instead
+    #[deprecated(
+    since = "10.1.0",
+    note = "Underlying value capacity (BigNum u64) bigger then Slot32. Use new_bignum instead."
+    )]
+    pub fn new(slot: Slot32) -> Self {
         Self {
-            slot,
+            slot: (slot.into())
+        }
+    }
+
+    pub fn new_timelockexpiry(slot: &SlotBigNum) -> Self {
+        Self {
+            slot : slot.clone()
         }
     }
 }
@@ -1764,15 +1900,18 @@ to_from_json!(NativeScript);
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ScriptHashNamespace {
-    NativeScript,
-    // TODO: do we need to update this for Plutus?
+    NativeScript = 0,
+    PlutusScript = 1,
 }
 
 #[wasm_bindgen]
 impl NativeScript {
-    pub fn hash(&self, namespace: ScriptHashNamespace) -> ScriptHash {
+
+    pub fn hash(&self) -> ScriptHash {
         let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
-        bytes.extend_from_slice(&vec![namespace as u8]);
+        bytes.extend_from_slice(&vec![
+            ScriptHashNamespace::NativeScript as u8,
+        ]);
         bytes.extend_from_slice(&self.to_bytes());
         ScriptHash::from(blake2b224(bytes.as_ref()))
     }
@@ -2596,7 +2735,7 @@ impl OperationalCert {
 #[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct HeaderBody {
     block_number: u32,
-    slot: Slot,
+    slot: SlotBigNum,
     prev_hash: Option<BlockHash>,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
@@ -2618,7 +2757,19 @@ impl HeaderBody {
         self.block_number.clone()
     }
 
-    pub fn slot(&self) -> Slot {
+
+    /// !!! DEPRECATED !!!
+    /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+    /// Otherwise will just raise an error.
+    #[deprecated(
+    since = "10.1.0",
+    note = "Possible boundary error. Use slot_bignum instead"
+    )]
+    pub fn slot(&self) -> Result<Slot32, JsError> {
+        self.slot.clone().try_into()
+    }
+
+    pub fn slot_bignum(&self) -> SlotBigNum {
         self.slot.clone()
     }
 
@@ -2658,10 +2809,33 @@ impl HeaderBody {
         self.protocol_version.clone()
     }
 
-    pub fn new(block_number: u32, slot: Slot, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+    /// !!! DEPRECATED !!!
+    /// This constructor uses outdated slot number format.
+    /// Use `.new_headerbody` instead
+    #[deprecated(
+    since = "10.1.0",
+    note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use new_bignum instead."
+    )]
+    pub fn new(block_number: u32, slot: Slot32, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
         Self {
             block_number: block_number,
-            slot: slot,
+            slot: slot.clone().into(),
+            prev_hash: prev_hash.clone(),
+            issuer_vkey: issuer_vkey.clone(),
+            vrf_vkey: vrf_vkey.clone(),
+            nonce_vrf: nonce_vrf.clone(),
+            leader_vrf: leader_vrf.clone(),
+            block_body_size: block_body_size,
+            block_body_hash: block_body_hash.clone(),
+            operational_cert: operational_cert.clone(),
+            protocol_version: protocol_version.clone(),
+        }
+    }
+
+    pub fn new_headerbody(block_number: u32, slot: &SlotBigNum, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+        Self {
+            block_number: block_number,
+            slot: slot.clone(),
             prev_hash: prev_hash.clone(),
             issuer_vkey: issuer_vkey.clone(),
             vrf_vkey: vrf_vkey.clone(),
@@ -3115,7 +3289,7 @@ mod tests {
 
         let script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&keyhash));
 
-        let script_hash = script.hash(ScriptHashNamespace::NativeScript);
+        let script_hash = script.hash();
 
         assert_eq!(hex::encode(&script_hash.to_bytes()), "187b8d3ddcb24013097c003da0b8d8f7ddcf937119d8f59dccd05a0f");
     }
