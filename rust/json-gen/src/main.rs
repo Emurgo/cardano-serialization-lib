@@ -7,6 +7,7 @@ use cardano_serialization_lib::crypto::*;
 use cardano_serialization_lib::metadata::*;
 use cardano_serialization_lib::plutus::*;
 use cardano_serialization_lib::utils::*;
+use cardano_serialization_lib::tx_builder::*;
 
 //#[macro_export]
 macro_rules! gen_json_schema {
@@ -152,4 +153,8 @@ fn main() {
     gen_json_schema!(BigInt);
     gen_json_schema!(Int);
     gen_json_schema!(Value);
+
+    // tx_builder.rs
+    gen_json_schema!(PlutusWitness);
+    gen_json_schema!(PlutusWitnesses);
 }

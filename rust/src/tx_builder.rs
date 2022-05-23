@@ -169,8 +169,10 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
 
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusWitnesses(Vec<PlutusWitness>);
+
+to_from_json!(PlutusWitnesses);
 
 #[wasm_bindgen]
 impl PlutusWitnesses {
@@ -213,12 +215,14 @@ impl From<Vec<PlutusWitness>> for PlutusWitnesses {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusWitness {
     script: PlutusScript,
     datum: PlutusData,
     redeemer: Redeemer,
 }
+
+to_from_json!(PlutusWitness);
 
 #[wasm_bindgen]
 impl PlutusWitness {
