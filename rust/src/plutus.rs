@@ -844,7 +844,6 @@ pub fn decode_plutus_datum_to_json_str(datum: &PlutusData, schema: PlutusDatumSc
 
 pub fn decode_plutus_datum_to_json_value(datum: &PlutusData, schema: PlutusDatumSchema) -> Result<serde_json::Value, JsError> {
     use serde_json::Value;
-    use std::convert::TryFrom;
     let (type_tag, json_value) = match &datum.datum {
         PlutusDataEnum::ConstrPlutusData(constr) => {
             let mut obj = serde_json::map::Map::with_capacity(2);
