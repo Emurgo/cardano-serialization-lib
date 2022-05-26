@@ -50,7 +50,7 @@ impl PlutusWitness {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusWitnesses(Vec<PlutusWitness>);
+pub struct PlutusWitnesses(pub(crate) Vec<PlutusWitness>);
 
 #[wasm_bindgen]
 impl PlutusWitnesses {

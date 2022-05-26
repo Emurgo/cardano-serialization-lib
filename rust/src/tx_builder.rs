@@ -115,7 +115,7 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
         },
     };
     let (plutus_scripts, plutus_data, redeemers) = {
-        if let Some(s) = tx_builder.get_plutus_input_scripts() {
+        if let Some(s) = tx_builder.get_combined_plutus_scripts() {
             let (s, d, r) = s.collect();
             (Some(s), Some(d), Some(r))
         } else {
@@ -1331,13 +1331,27 @@ impl TransactionBuilder {
 
     fn get_combined_native_scripts(&self) -> Option<NativeScripts> {
         let mut ns = NativeScripts::new();
-        if let Some(input_scripts) = self.get_native_input_scripts() {
+        if let Some(input_scripts) = self.inputs.get_native_input_scripts() {
+            input_scripts.0.iter().for_each(|s| { ns.add(s); });
+        }
+        if let Some(input_scripts) = self.collateral.get_native_input_scripts() {
             input_scripts.0.iter().for_each(|s| { ns.add(s); });
         }
         if let Some(mint_scripts) = &self.mint_scripts {
             mint_scripts.0.iter().for_each(|s| { ns.add(s); });
         }
         if ns.len() > 0 { Some(ns) } else { None }
+    }
+
+    fn get_combined_plutus_scripts(&self) -> Option<PlutusWitnesses> {
+        let mut res = PlutusWitnesses::new();
+        if let Some(scripts) = self.inputs.get_plutus_input_scripts() {
+            scripts.0.iter().for_each(|s| { res.add(s); })
+        }
+        if let Some(scripts) = self.collateral.get_plutus_input_scripts() {
+            scripts.0.iter().for_each(|s| { res.add(s); })
+        }
+        if res.len() > 0 { Some(res) } else { None }
     }
 
     // This function should be producing the total witness-set
@@ -4598,10 +4612,21 @@ mod tests {
         assert_eq!(redeems.get(1), redeemer2);
     }
 
+    fn create_collateral() -> TxInputsBuilder {
+        let mut collateral_builder = TxInputsBuilder::new();
+        collateral_builder.add_input(
+            &byron_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        collateral_builder
+    }
+
     #[test]
     fn test_existing_plutus_scripts_require_data_hash() {
         let mut tx_builder = create_reallistic_tx_builder();
         tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
         let (script1, _) = plutus_script_and_hash(0);
         let datum = PlutusData::new_bytes(fake_bytes(1));
         let redeemer_datum = PlutusData::new_bytes(fake_bytes(2));
@@ -4643,6 +4668,8 @@ mod tests {
     fn test_calc_script_hash_data() {
         let mut tx_builder = create_reallistic_tx_builder();
         tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
+
         let (script1, _) = plutus_script_and_hash(0);
         let datum = PlutusData::new_bytes(fake_bytes(1));
         let redeemer_datum = PlutusData::new_bytes(fake_bytes(2));
@@ -4679,6 +4706,7 @@ mod tests {
     fn test_plutus_witness_redeemer_index_auto_changing() {
         let mut tx_builder = create_reallistic_tx_builder();
         tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
         let (script1, _) = plutus_script_and_hash(0);
         let (script2, _) = plutus_script_and_hash(1);
         let datum1 = PlutusData::new_bytes(fake_bytes(10));
@@ -4748,6 +4776,7 @@ mod tests {
     fn test_native_and_plutus_scripts_together() {
         let mut tx_builder = create_reallistic_tx_builder();
         tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
         let (pscript1, _) = plutus_script_and_hash(0);
         let (pscript2, phash2) = plutus_script_and_hash(1);
         let (nscript1, _) = mint_script_and_policy(0);
