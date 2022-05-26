@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 mod tx_inputs_builder;
 
 use super::*;
@@ -6,8 +8,8 @@ use super::utils;
 use super::output_builder::TransactionOutputAmountBuilder;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use linked_hash_map::LinkedHashMap;
-use tx_inputs_builder::{MockWitnessSet, PlutusWitness, PlutusWitnesses, ScriptWitnessType};
-use crate::tx_builder::tx_inputs_builder::{TxBuilderInput, TxInputsBuilder};
+use tx_inputs_builder::{PlutusWitness, PlutusWitnesses};
+use crate::tx_builder::tx_inputs_builder::TxInputsBuilder;
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSignersSet {
@@ -1363,7 +1365,7 @@ impl TransactionBuilder {
         if let Some(scripts) = self.get_combined_native_scripts() {
             wit.set_native_scripts(&scripts);
         }
-        if let Some(pw) = self.get_plutus_input_scripts() {
+        if let Some(pw) = self.get_combined_plutus_scripts() {
             let (scripts, datums, redeemers) = pw.collect();
             wit.set_plutus_scripts(&scripts);
             wit.set_plutus_data(&datums);
@@ -4328,6 +4330,14 @@ mod tests {
         assert_eq!(ma2_output.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(40));
     }
 
+    fn create_base_address(x: u8) -> Address {
+        BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &StakeCredential::from_keyhash(&fake_key_hash(x)),
+            &StakeCredential::from_keyhash(&fake_key_hash(0))
+        ).to_address()
+    }
+
     fn create_base_address_from_script_hash(sh: &ScriptHash) -> Address {
         BaseAddress::new(
             NetworkInfo::testnet().network_id(),
@@ -4877,6 +4887,146 @@ mod tests {
         // The second plutus input redeemer index has automatically changed to 2
         // because it was added on the third position
         assert_eq!(redeems.get(1), redeemer2.clone_with_index(&to_bignum(2)));
+    }
+
+    #[test]
+    fn test_regular_and_collateral_inputs_same_keyhash() {
+
+        let mut input_builder = TxInputsBuilder::new();
+        let mut collateral_builder = TxInputsBuilder::new();
+
+        // Add a single input of both kinds with the SAME keyhash
+        input_builder.add_input(
+            &create_base_address(0),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        collateral_builder.add_input(
+            &create_base_address(0),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        fn get_fake_vkeys_count(i: &TxInputsBuilder, c: &TxInputsBuilder) -> usize {
+            let mut tx_builder = create_reallistic_tx_builder();
+            tx_builder.set_fee(&to_bignum(42));
+            tx_builder.set_inputs(i);
+            tx_builder.set_collateral(c);
+            let tx: Transaction = fake_full_tx(&tx_builder, tx_builder.build().unwrap()).unwrap();
+            tx.witness_set.vkeys.unwrap().len()
+        }
+
+        // There's only one fake witness in the builder
+        // because a regular and a collateral inputs both use the same keyhash
+        assert_eq!(get_fake_vkeys_count(&input_builder, &collateral_builder), 1);
+
+        // Add a new input of each kind with DIFFERENT keyhashes
+        input_builder.add_input(
+            &create_base_address(1),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        collateral_builder.add_input(
+            &create_base_address(2),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+
+        // There are now three fake witnesses in the builder
+        // because all three unique keyhashes got combined
+        assert_eq!(get_fake_vkeys_count(&input_builder, &collateral_builder), 3);
+    }
+
+    #[test]
+    fn test_regular_and_collateral_inputs_together() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let (pscript1, _) = plutus_script_and_hash(0);
+        let (pscript2, _) = plutus_script_and_hash(1);
+        let (nscript1, _) = mint_script_and_policy(0);
+        let (nscript2, _) = mint_script_and_policy(1);
+        let datum1 = PlutusData::new_bytes(fake_bytes(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        // Creating redeemers with indexes ZERO
+        let redeemer1 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes(20)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        let redeemer2 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes(21)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+
+        let mut input_builder = TxInputsBuilder::new();
+        let mut collateral_builder = TxInputsBuilder::new();
+
+        input_builder.add_native_script_input(
+            &nscript1,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        collateral_builder.add_native_script_input(
+            &nscript2,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        input_builder.add_plutus_script_input(
+            &PlutusWitness::new(
+                &pscript1,
+                &datum1,
+                &redeemer1,
+            ),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        collateral_builder.add_plutus_script_input(
+            &PlutusWitness::new(
+                &pscript2,
+                &datum2,
+                &redeemer2,
+            ),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        tx_builder.set_inputs(&input_builder);
+        tx_builder.set_collateral(&collateral_builder);
+
+        tx_builder.calc_script_data_hash(
+            &TxBuilderConstants::plutus_default_cost_models(),
+        );
+
+        let w: &TransactionWitnessSet = &tx_builder.build_tx().unwrap().witness_set;
+
+        assert!(w.native_scripts.is_some());
+        let nscripts = w.native_scripts.as_ref().unwrap();
+        assert_eq!(nscripts.len(), 2);
+        assert_eq!(nscripts.get(0), nscript1);
+        assert_eq!(nscripts.get(1), nscript2);
+
+        assert!(w.plutus_scripts.is_some());
+        let pscripts = w.plutus_scripts.as_ref().unwrap();
+        assert_eq!(pscripts.len(), 2);
+        assert_eq!(pscripts.get(0), pscript1);
+        assert_eq!(pscripts.get(1), pscript2);
+
+        assert!(w.plutus_data.is_some());
+        let datums = w.plutus_data.as_ref().unwrap();
+        assert_eq!(datums.len(), 2);
+        assert_eq!(datums.get(0), datum1);
+        assert_eq!(datums.get(1), datum2);
+
+        assert!(w.redeemers.is_some());
+        let redeemers = w.redeemers.as_ref().unwrap();
+        assert_eq!(redeemers.len(), 2);
+        assert_eq!(redeemers.get(0), redeemer1.clone_with_index(&to_bignum(1)));
+        assert_eq!(redeemers.get(1), redeemer2.clone_with_index(&to_bignum(1)));
     }
 }
 

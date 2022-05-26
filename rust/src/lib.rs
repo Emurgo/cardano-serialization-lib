@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "with-bench", feature(test))]
+#![allow(deprecated)]
 
 #[macro_use]
 extern crate cfg_if;
