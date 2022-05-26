@@ -1368,10 +1368,17 @@ impl TransactionBuilder {
                 "There are some script inputs added that don't have the corresponding script provided as a witness!",
             ));
         }
-        if self.script_data_hash.is_none() && self.get_plutus_input_scripts().is_some() {
-            return Err(JsError::from_str(
-                "Plutus inputs are present, but script data hash is not specified",
-            ));
+        if self.get_plutus_input_scripts().is_some() {
+            if self.script_data_hash.is_none() {
+                return Err(JsError::from_str(
+                    "Plutus inputs are present, but script data hash is not specified",
+                ));
+            }
+            if self.collateral.len() == 0 {
+                return Err(JsError::from_str(
+                    "Plutus inputs are present, but no collateral inputs are added",
+                ));
+            }
         }
         self.build_tx_unsafe()
     }
