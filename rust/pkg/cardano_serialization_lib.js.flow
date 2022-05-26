@@ -255,6 +255,7 @@ declare export var NativeScriptKind: {|
 
 declare export var ScriptHashNamespace: {|
   +NativeScript: 0, // 0
+  +PlutusScript: 1, // 1
 |};
 
 /**
@@ -1900,9 +1901,17 @@ declare export class HeaderBody {
   block_number(): number;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+   * Otherwise will just raise an error.
    * @returns {number}
    */
   slot(): number;
+
+  /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
 
   /**
    * @returns {BlockHash | void}
@@ -1950,6 +1959,9 @@ declare export class HeaderBody {
   protocol_version(): ProtocolVersion;
 
   /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format.
+   * Use `.new_headerbody` instead
    * @param {number} block_number
    * @param {number} slot
    * @param {BlockHash | void} prev_hash
@@ -1976,11 +1988,50 @@ declare export class HeaderBody {
     operational_cert: OperationalCert,
     protocol_version: ProtocolVersion
   ): HeaderBody;
+
+  /**
+   * @param {number} block_number
+   * @param {BigNum} slot
+   * @param {BlockHash | void} prev_hash
+   * @param {Vkey} issuer_vkey
+   * @param {VRFVKey} vrf_vkey
+   * @param {VRFCert} nonce_vrf
+   * @param {VRFCert} leader_vrf
+   * @param {number} block_body_size
+   * @param {BlockHash} block_body_hash
+   * @param {OperationalCert} operational_cert
+   * @param {ProtocolVersion} protocol_version
+   * @returns {HeaderBody}
+   */
+  static new_headerbody(
+    block_number: number,
+    slot: BigNum,
+    prev_hash: BlockHash | void,
+    issuer_vkey: Vkey,
+    vrf_vkey: VRFVKey,
+    nonce_vrf: VRFCert,
+    leader_vrf: VRFCert,
+    block_body_size: number,
+    block_body_hash: BlockHash,
+    operational_cert: OperationalCert,
+    protocol_version: ProtocolVersion
+  ): HeaderBody;
 }
 /**
  */
 declare export class Int {
   free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Int}
+   */
+  static from_bytes(bytes: Uint8Array): Int;
 
   /**
    * @param {BigNum} x
@@ -2723,10 +2774,9 @@ declare export class NativeScript {
   static from_bytes(bytes: Uint8Array): NativeScript;
 
   /**
-   * @param {number} namespace
    * @returns {ScriptHash}
    */
-  hash(namespace: number): ScriptHash;
+  hash(): ScriptHash;
 
   /**
    * @param {ScriptPubkey} script_pubkey
@@ -3168,6 +3218,11 @@ declare export class PlutusScript {
    * @returns {Uint8Array}
    */
   bytes(): Uint8Array;
+
+  /**
+   * @returns {ScriptHash}
+   */
+  hash(): ScriptHash;
 }
 /**
  */
@@ -3208,16 +3263,89 @@ declare export class PlutusScripts {
 }
 /**
  */
+declare export class PlutusWitness {
+  free(): void;
+
+  /**
+   * @param {PlutusScript} script
+   * @param {PlutusData} datum
+   * @param {Redeemer} redeemer
+   * @returns {PlutusWitness}
+   */
+  static new(
+    script: PlutusScript,
+    datum: PlutusData,
+    redeemer: Redeemer
+  ): PlutusWitness;
+
+  /**
+   * @returns {PlutusScript}
+   */
+  script(): PlutusScript;
+
+  /**
+   * @returns {PlutusData}
+   */
+  datum(): PlutusData;
+
+  /**
+   * @returns {Redeemer}
+   */
+  redeemer(): Redeemer;
+}
+/**
+ */
+declare export class PlutusWitnesses {
+  free(): void;
+
+  /**
+   * @returns {PlutusWitnesses}
+   */
+  static new(): PlutusWitnesses;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {PlutusWitness}
+   */
+  get(index: number): PlutusWitness;
+
+  /**
+   * @param {PlutusWitness} elem
+   */
+  add(elem: PlutusWitness): void;
+}
+/**
+ */
 declare export class Pointer {
   free(): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format for the ttl value, tx_index and cert_index.
+   * Use `.new_pointer` instead
    * @param {number} slot
    * @param {number} tx_index
    * @param {number} cert_index
    * @returns {Pointer}
    */
   static new(slot: number, tx_index: number, cert_index: number): Pointer;
+
+  /**
+   * @param {BigNum} slot
+   * @param {BigNum} tx_index
+   * @param {BigNum} cert_index
+   * @returns {Pointer}
+   */
+  static new_pointer(
+    slot: BigNum,
+    tx_index: BigNum,
+    cert_index: BigNum
+  ): Pointer;
 
   /**
    * @returns {number}
@@ -3233,6 +3361,21 @@ declare export class Pointer {
    * @returns {number}
    */
   cert_index(): number;
+
+  /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
+
+  /**
+   * @returns {BigNum}
+   */
+  tx_index_bignum(): BigNum;
+
+  /**
+   * @returns {BigNum}
+   */
+  cert_index_bignum(): BigNum;
 }
 /**
  */
@@ -4769,10 +4912,24 @@ declare export class TimelockExpiry {
   slot(): number;
 
   /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
+
+  /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format.
+   * Use `.new_timelockexpiry` instead
    * @param {number} slot
    * @returns {TimelockExpiry}
    */
   static new(slot: number): TimelockExpiry;
+
+  /**
+   * @param {BigNum} slot
+   * @returns {TimelockExpiry}
+   */
+  static new_timelockexpiry(slot: BigNum): TimelockExpiry;
 }
 /**
  */
@@ -4791,15 +4948,33 @@ declare export class TimelockStart {
   static from_bytes(bytes: Uint8Array): TimelockStart;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+   * Otherwise will just raise an error.
+   * Use `.slot_bignum` instead
    * @returns {number}
    */
   slot(): number;
 
   /**
+   * @returns {BigNum}
+   */
+  slot_bignum(): BigNum;
+
+  /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format.
+   * Use `.new_timelockstart` instead.
    * @param {number} slot
    * @returns {TimelockStart}
    */
   static new(slot: number): TimelockStart;
+
+  /**
+   * @param {BigNum} slot
+   * @returns {TimelockStart}
+   */
+  static new_timelockstart(slot: BigNum): TimelockStart;
 }
 /**
  */
@@ -4923,9 +5098,26 @@ declare export class TransactionBody {
   fee(): BigNum;
 
   /**
+   * !!! DEPRECATED !!!
+   * Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
+   * Otherwise will just raise an error.
    * @returns {number | void}
    */
   ttl(): number | void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  ttl_bignum(): BigNum | void;
+
+  /**
+   * @param {BigNum} ttl
+   */
+  set_ttl(ttl: BigNum): void;
+
+  /**
+   */
+  remove_ttl(): void;
 
   /**
    * @param {Certificates} certs
@@ -4968,11 +5160,27 @@ declare export class TransactionBody {
   auxiliary_data_hash(): AuxiliaryDataHash | void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Uses outdated slot number format.
    * @param {number} validity_start_interval
    */
   set_validity_start_interval(validity_start_interval: number): void;
 
   /**
+   * @param {BigNum} validity_start_interval
+   */
+  set_validity_start_interval_bignum(validity_start_interval: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  validity_start_interval_bignum(): BigNum | void;
+
+  /**
+   * !!! DEPRECATED !!!
+   * Returns a Option<Slot32> (u32) value in case the underlying original Option<BigNum> (u64) value is within the limits.
+   * Otherwise will just raise an error.
+   * Use `.validity_start_interval_bignum` instead.
    * @returns {number | void}
    */
   validity_start_interval(): number | void;
@@ -5035,6 +5243,9 @@ declare export class TransactionBody {
   network_id(): NetworkId | void;
 
   /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format for the ttl value.
+   * Use `.new_tx_body` and then `.set_ttl` instead
    * @param {TransactionInputs} inputs
    * @param {TransactionOutputs} outputs
    * @param {BigNum} fee
@@ -5046,6 +5257,21 @@ declare export class TransactionBody {
     outputs: TransactionOutputs,
     fee: BigNum,
     ttl?: number
+  ): TransactionBody;
+
+  /**
+   * Returns a new TransactionBody.
+   * In the new version of "new" we removed optional ttl for support it by wasm_bingen.
+   * Your can use "set_ttl" and "remove_ttl" to set a new value for ttl or set it as None.
+   * @param {TransactionInputs} inputs
+   * @param {TransactionOutputs} outputs
+   * @param {BigNum} fee
+   * @returns {TransactionBody}
+   */
+  static new_tx_body(
+    inputs: TransactionInputs,
+    outputs: TransactionOutputs,
+    fee: BigNum
   ): TransactionBody;
 }
 /**
@@ -5081,12 +5307,43 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
+   * This method adds the input to the builder BUT leaves a missing spot for the witness native script
+   *
+   * After adding the input with this method, use `.add_required_native_input_scripts`
+   * and `.add_required_plutus_input_scripts` to add the witness scripts
+   *
+   * Or instead use `.add_native_script_input` and `.add_plutus_script_input`
+   * to add inputs right along with the script, instead of the script hash
    * @param {ScriptHash} hash
    * @param {TransactionInput} input
    * @param {Value} amount
    */
   add_script_input(
     hash: ScriptHash,
+    input: TransactionInput,
+    amount: Value
+  ): void;
+
+  /**
+   * This method will add the input to the builder and also register the required native script witness
+   * @param {NativeScript} script
+   * @param {TransactionInput} input
+   * @param {Value} amount
+   */
+  add_native_script_input(
+    script: NativeScript,
+    input: TransactionInput,
+    amount: Value
+  ): void;
+
+  /**
+   * This method will add the input to the builder and also register the required plutus witness
+   * @param {PlutusWitness} witness
+   * @param {TransactionInput} input
+   * @param {Value} amount
+   */
+  add_plutus_script_input(
+    witness: PlutusWitness,
     input: TransactionInput,
     amount: Value
   ): void;
@@ -5103,11 +5360,54 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
+   * Note that for script inputs this method will use underlying generic `.add_script_input`
+   * which leaves a required empty spot for the script witness (or witnesses in case of Plutus).
+   * You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.
    * @param {Address} address
    * @param {TransactionInput} input
    * @param {Value} amount
    */
   add_input(address: Address, input: TransactionInput, amount: Value): void;
+
+  /**
+   * Returns the number of still missing input scripts (either native or plutus)
+   * Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
+   * @returns {number}
+   */
+  count_missing_input_scripts(): number;
+
+  /**
+   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
+   * Any scripts that don't match any of the previously added inputs will be ignored
+   * Returns the number of remaining required missing witness scripts
+   * Use `.count_missing_input_scripts` to find the number of still missing scripts
+   * @param {NativeScripts} scripts
+   * @returns {number}
+   */
+  add_required_native_input_scripts(scripts: NativeScripts): number;
+
+  /**
+   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
+   * Any scripts that don't match any of the previously added inputs will be ignored
+   * Returns the number of remaining required missing witness scripts
+   * Use `.count_missing_input_scripts` to find the number of still missing scripts
+   * @param {PlutusWitnesses} scripts
+   * @returns {number}
+   */
+  add_required_plutus_input_scripts(scripts: PlutusWitnesses): number;
+
+  /**
+   * Returns a copy of the current script input witness scripts in the builder
+   * @returns {NativeScripts | void}
+   */
+  get_native_input_scripts(): NativeScripts | void;
+
+  /**
+   * Returns a copy of the current plutus input witness scripts in the builder.
+   * NOTE: each plutus witness will be cloned with a specific corresponding input index
+   * @returns {PlutusWitnesses | void}
+   */
+  get_plutus_input_scripts(): PlutusWitnesses | void;
 
   /**
    * calculates how much the fee would increase if you added a given output
@@ -5141,14 +5441,28 @@ declare export class TransactionBuilder {
   set_fee(fee: BigNum): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Set ttl value.
    * @param {number} ttl
    */
   set_ttl(ttl: number): void;
 
   /**
+   * @param {BigNum} ttl
+   */
+  set_ttl_bignum(ttl: BigNum): void;
+
+  /**
+   * !!! DEPRECATED !!!
+   * Uses outdated slot number format.
    * @param {number} validity_start_interval
    */
   set_validity_start_interval(validity_start_interval: number): void;
+
+  /**
+   * @param {BigNum} validity_start_interval
+   */
+  set_validity_start_interval_bignum(validity_start_interval: BigNum): void;
 
   /**
    * @param {Certificates} certs
@@ -5308,10 +5622,16 @@ declare export class TransactionBuilder {
   get_implicit_input(): Value;
 
   /**
-   * Return explicit input plus implicit input plus mint minus burn
+   * Return explicit input plus implicit input plus mint
    * @returns {Value}
    */
   get_total_input(): Value;
+
+  /**
+   * Return explicit output plus deposit plus burn
+   * @returns {Value}
+   */
+  get_total_output(): Value;
 
   /**
    * does not include fee
@@ -5340,6 +5660,31 @@ declare export class TransactionBuilder {
   add_change_if_needed(address: Address): boolean;
 
   /**
+   * This method will calculate the script hash data
+   * using the plutus datums and redeemers already present in the builder
+   * along with the provided cost model, and will register the calculated value
+   * in the builder to be used when building the tx body.
+   * In case there are no plutus input witnesses present - nothing will change
+   * You can set specific hash value using `.set_script_data_hash`
+   * @param {Costmdls} cost_models
+   */
+  calc_script_data_hash(cost_models: Costmdls): void;
+
+  /**
+   * Sets the specified hash value.
+   * Alternatively you can use `.calc_script_data_hash` to calculate the hash automatically.
+   * Or use `.remove_script_data_hash` to delete the previously set value
+   * @param {ScriptDataHash} hash
+   */
+  set_script_data_hash(hash: ScriptDataHash): void;
+
+  /**
+   * Deletes any previously set plutus data hash value.
+   * Use `.set_script_data_hash` or `.calc_script_data_hash` to set it.
+   */
+  remove_script_data_hash(): void;
+
+  /**
    * @returns {number}
    */
   full_size(): number;
@@ -5361,9 +5706,16 @@ declare export class TransactionBuilder {
    * Returns full Transaction object with the body and the auxiliary data
    * NOTE: witness_set will contain all mint_scripts if any been added or set
    * NOTE: is_valid set to true
+   * NOTE: Will fail in case there are any script inputs added with no corresponding witness
    * @returns {Transaction}
    */
   build_tx(): Transaction;
+
+  /**
+   * Similar to `.build_tx()` but will NOT fail in case there are missing script witnesses
+   * @returns {Transaction}
+   */
+  build_tx_unsafe(): Transaction;
 
   /**
    * warning: sum of all parts of a transaction must equal 0. You cannot just set the fee to the min value and forget about it
@@ -5983,6 +6335,16 @@ declare export class TransactionWitnessSets {
    * @param {TransactionWitnessSet} elem
    */
   add(elem: TransactionWitnessSet): void;
+}
+/**
+ */
+declare export class TxBuilderConstants {
+  free(): void;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_default_cost_models(): Costmdls;
 }
 /**
  */
