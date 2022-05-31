@@ -112,6 +112,10 @@ pub struct TxInputsBuilder {
     input_types: MockWitnessSet,
 }
 
+pub(crate) fn get_bootstraps(inputs: &TxInputsBuilder) -> BTreeSet<Vec<u8>> {
+    inputs.input_types.bootstraps.clone()
+}
+
 #[wasm_bindgen]
 impl TxInputsBuilder {
 
@@ -327,26 +331,12 @@ impl TxInputsBuilder {
         self.inputs.len()
     }
 
-    pub fn required_signers(&self) -> RequiredSignersSet {
-        let mut set = self.input_types.vkeys.clone();
-        self.input_types.scripts.values().for_each(|swt: &Option<ScriptWitnessType>| {
-            if let Some(ScriptWitnessType::NativeScriptWitness(s)) = swt {
-                RequiredSignersSet::from(s).iter().for_each(|k| { set.insert(k.clone()); });
-            }
-        });
-        set
-    }
-
     pub fn add_required_signer(&mut self, key: &Ed25519KeyHash) {
         self.input_types.vkeys.insert(key.clone());
     }
 
-    pub fn add_required_signers(&mut self, keys: &RequiredSignersSet) {
-        keys.iter().for_each(|k| self.add_required_signer(k));
-    }
-
-    pub(crate) fn bootstraps(&self) -> BTreeSet<Vec<u8>> {
-        self.input_types.bootstraps.clone()
+    pub fn add_required_signers(&mut self, keys: &RequiredSigners) {
+        keys.0.iter().for_each(|k| self.add_required_signer(k));
     }
 
     pub fn inputs(&self) -> TransactionInputs {
@@ -358,5 +348,17 @@ impl TxInputsBuilder {
 
     pub fn inputs_option(&self) -> Option<TransactionInputs> {
         if self.len() > 0 { Some(self.inputs()) } else { None }
+    }
+}
+
+impl From<&TxInputsBuilder> for RequiredSignersSet {
+    fn from(inputs: &TxInputsBuilder) -> Self {
+        let mut set = inputs.input_types.vkeys.clone();
+        inputs.input_types.scripts.values().for_each(|swt: &Option<ScriptWitnessType>| {
+            if let Some(ScriptWitnessType::NativeScriptWitness(s)) = swt {
+                RequiredSignersSet::from(s).iter().for_each(|k| { set.insert(k.clone()); });
+            }
+        });
+        set
     }
 }

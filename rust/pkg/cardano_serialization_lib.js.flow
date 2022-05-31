@@ -173,6 +173,26 @@ declare export function decode_metadatum_to_json_str(
 declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
+ * @param {ExUnits} ex_units
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function calculate_ex_units_ceil_cost(
+  ex_units: ExUnits,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
+
+/**
+ * @param {Transaction} tx
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function min_script_fee(
+  tx: Transaction,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
+
+/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -663,6 +683,34 @@ declare export class BigInt {
    * @returns {string}
    */
   to_str(): string;
+
+  /**
+   * @param {BigInt} other
+   * @returns {BigInt}
+   */
+  add(other: BigInt): BigInt;
+
+  /**
+   * @param {BigInt} other
+   * @returns {BigInt}
+   */
+  mul(other: BigInt): BigInt;
+
+  /**
+   * @returns {BigInt}
+   */
+  static one(): BigInt;
+
+  /**
+   * @returns {BigInt}
+   */
+  increment(): BigInt;
+
+  /**
+   * @param {BigInt} other
+   * @returns {BigInt}
+   */
+  div_ceil(other: BigInt): BigInt;
 }
 /**
  */
@@ -4258,6 +4306,11 @@ declare export class Redeemers {
    * @param {Redeemer} elem
    */
   add(elem: Redeemer): void;
+
+  /**
+   * @returns {ExUnits}
+   */
+  total_ex_units(): ExUnits;
 }
 /**
  */
@@ -5293,6 +5346,16 @@ declare export class TransactionBuilder {
   add_inputs_from(inputs: TransactionUnspentOutputs, strategy: number): void;
 
   /**
+   * @param {TxInputsBuilder} inputs
+   */
+  set_inputs(inputs: TxInputsBuilder): void;
+
+  /**
+   * @param {TxInputsBuilder} collateral
+   */
+  set_collateral(collateral: TxInputsBuilder): void;
+
+  /**
    * We have to know what kind of inputs these are to know what kind of mock witnesses to create since
    * 1) mock witnesses have different lengths depending on the type which changes the expecting fee
    * 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
@@ -5753,6 +5816,12 @@ declare export class TransactionBuilderConfigBuilder {
   coins_per_utxo_word(
     coins_per_utxo_word: BigNum
   ): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {ExUnitPrices} ex_unit_prices
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  ex_unit_prices(ex_unit_prices: ExUnitPrices): TransactionBuilderConfigBuilder;
 
   /**
    * @param {BigNum} pool_deposit
@@ -6345,6 +6414,158 @@ declare export class TxBuilderConstants {
    * @returns {Costmdls}
    */
   static plutus_default_cost_models(): Costmdls;
+}
+/**
+ */
+declare export class TxInputsBuilder {
+  free(): void;
+
+  /**
+   * @returns {TxInputsBuilder}
+   */
+  static new(): TxInputsBuilder;
+
+  /**
+   * We have to know what kind of inputs these are to know what kind of mock witnesses to create since
+   * 1) mock witnesses have different lengths depending on the type which changes the expecting fee
+   * 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
+   * @param {Ed25519KeyHash} hash
+   * @param {TransactionInput} input
+   * @param {Value} amount
+   */
+  add_key_input(
+    hash: Ed25519KeyHash,
+    input: TransactionInput,
+    amount: Value
+  ): void;
+
+  /**
+   * This method adds the input to the builder BUT leaves a missing spot for the witness native script
+   *
+   * After adding the input with this method, use `.add_required_native_input_scripts`
+   * and `.add_required_plutus_input_scripts` to add the witness scripts
+   *
+   * Or instead use `.add_native_script_input` and `.add_plutus_script_input`
+   * to add inputs right along with the script, instead of the script hash
+   * @param {ScriptHash} hash
+   * @param {TransactionInput} input
+   * @param {Value} amount
+   */
+  add_script_input(
+    hash: ScriptHash,
+    input: TransactionInput,
+    amount: Value
+  ): void;
+
+  /**
+   * This method will add the input to the builder and also register the required native script witness
+   * @param {NativeScript} script
+   * @param {TransactionInput} input
+   * @param {Value} amount
+   */
+  add_native_script_input(
+    script: NativeScript,
+    input: TransactionInput,
+    amount: Value
+  ): void;
+
+  /**
+   * This method will add the input to the builder and also register the required plutus witness
+   * @param {PlutusWitness} witness
+   * @param {TransactionInput} input
+   * @param {Value} amount
+   */
+  add_plutus_script_input(
+    witness: PlutusWitness,
+    input: TransactionInput,
+    amount: Value
+  ): void;
+
+  /**
+   * @param {ByronAddress} hash
+   * @param {TransactionInput} input
+   * @param {Value} amount
+   */
+  add_bootstrap_input(
+    hash: ByronAddress,
+    input: TransactionInput,
+    amount: Value
+  ): void;
+
+  /**
+   * Note that for script inputs this method will use underlying generic `.add_script_input`
+   * which leaves a required empty spot for the script witness (or witnesses in case of Plutus).
+   * You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.
+   * @param {Address} address
+   * @param {TransactionInput} input
+   * @param {Value} amount
+   */
+  add_input(address: Address, input: TransactionInput, amount: Value): void;
+
+  /**
+   * Returns the number of still missing input scripts (either native or plutus)
+   * Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
+   * @returns {number}
+   */
+  count_missing_input_scripts(): number;
+
+  /**
+   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
+   * Any scripts that don't match any of the previously added inputs will be ignored
+   * Returns the number of remaining required missing witness scripts
+   * Use `.count_missing_input_scripts` to find the number of still missing scripts
+   * @param {NativeScripts} scripts
+   * @returns {number}
+   */
+  add_required_native_input_scripts(scripts: NativeScripts): number;
+
+  /**
+   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
+   * Any scripts that don't match any of the previously added inputs will be ignored
+   * Returns the number of remaining required missing witness scripts
+   * Use `.count_missing_input_scripts` to find the number of still missing scripts
+   * @param {PlutusWitnesses} scripts
+   * @returns {number}
+   */
+  add_required_plutus_input_scripts(scripts: PlutusWitnesses): number;
+
+  /**
+   * Returns a copy of the current script input witness scripts in the builder
+   * @returns {NativeScripts | void}
+   */
+  get_native_input_scripts(): NativeScripts | void;
+
+  /**
+   * Returns a copy of the current plutus input witness scripts in the builder.
+   * NOTE: each plutus witness will be cloned with a specific corresponding input index
+   * @returns {PlutusWitnesses | void}
+   */
+  get_plutus_input_scripts(): PlutusWitnesses | void;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {Ed25519KeyHash} key
+   */
+  add_required_signer(key: Ed25519KeyHash): void;
+
+  /**
+   * @param {Ed25519KeyHashes} keys
+   */
+  add_required_signers(keys: Ed25519KeyHashes): void;
+
+  /**
+   * @returns {TransactionInputs}
+   */
+  inputs(): TransactionInputs;
+
+  /**
+   * @returns {TransactionInputs | void}
+   */
+  inputs_option(): TransactionInputs | void;
 }
 /**
  */

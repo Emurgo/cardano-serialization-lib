@@ -729,7 +729,7 @@ impl BigInt {
         }
     }
 
-    pub fn from_str(text: &str) -> Result<Self, JsError> {
+    pub fn from_str(text: &str) -> Result<BigInt, JsError> {
         use std::str::FromStr;
         num_bigint::BigInt::from_str(text)
             .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
@@ -740,24 +740,24 @@ impl BigInt {
         self.0.to_string()
     }
 
-    pub fn add(&self, other: &Self) -> Self {
+    pub fn add(&self, other: &BigInt) -> BigInt {
         Self(&self.0 + &other.0)
     }
 
-    pub fn mul(&self, other: &Self) -> Self {
+    pub fn mul(&self, other: &BigInt) -> BigInt {
         Self(&self.0 * &other.0)
     }
 
-    pub fn one() -> Self {
+    pub fn one() -> BigInt {
         use std::str::FromStr;
         Self(num_bigint::BigInt::from_str("1").unwrap())
     }
 
-    pub fn increment(&self) -> Self {
+    pub fn increment(&self) -> BigInt {
         self.add(&Self::one())
     }
 
-    pub fn div_ceil(&self, other: &Self) -> Self {
+    pub fn div_ceil(&self, other: &BigInt) -> BigInt {
         use num_integer::Integer;
         let (res, rem) = self.0.div_rem(&other.0);
         let result = Self(res);

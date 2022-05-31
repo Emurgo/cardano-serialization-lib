@@ -9,36 +9,36 @@ use super::output_builder::TransactionOutputAmountBuilder;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use linked_hash_map::LinkedHashMap;
 use tx_inputs_builder::{PlutusWitness, PlutusWitnesses};
-use crate::tx_builder::tx_inputs_builder::TxInputsBuilder;
+use crate::tx_builder::tx_inputs_builder::{get_bootstraps, TxInputsBuilder};
 
 // comes from witsVKeyNeeded in the Ledger spec
-fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSignersSet {
-    let mut set = RequiredSignersSet::new();
+fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
+    let mut set = RequiredSigners::new();
     match &cert_enum.0 {
         // stake key registrations do not require a witness
         CertificateEnum::StakeRegistration(_cert) => {},
         CertificateEnum::StakeDeregistration(cert) => {
-            set.insert(cert.stake_credential().to_keyhash().unwrap());
+            set.add(&cert.stake_credential().to_keyhash().unwrap());
         },
         CertificateEnum::StakeDelegation(cert) => {
-            set.insert(cert.stake_credential().to_keyhash().unwrap());
+            set.add(&cert.stake_credential().to_keyhash().unwrap());
         },
         CertificateEnum::PoolRegistration(cert) => {
             for owner in &cert.pool_params().pool_owners().0 {
-                set.insert(owner.clone());
+                set.add(&owner.clone());
             }
-            set.insert(
-                Ed25519KeyHash::from_bytes(cert.pool_params().operator().to_bytes()).unwrap()
+            set.add(
+                &Ed25519KeyHash::from_bytes(cert.pool_params().operator().to_bytes()).unwrap()
             );
         },
         CertificateEnum::PoolRetirement(cert) => {
-            set.insert(
-                Ed25519KeyHash::from_bytes(cert.pool_keyhash().to_bytes()).unwrap()
+            set.add(
+                &Ed25519KeyHash::from_bytes(cert.pool_keyhash().to_bytes()).unwrap()
             );
         },
         CertificateEnum::GenesisKeyDelegation(cert) => {
-            set.insert(
-                Ed25519KeyHash::from_bytes(cert.genesis_delegate_hash().to_bytes()).unwrap()
+            set.add(
+                &Ed25519KeyHash::from_bytes(cert.genesis_delegate_hash().to_bytes()).unwrap()
             );
         },
         // not witness as there is no single core node or genesis key that posts the certificate
@@ -69,8 +69,8 @@ fn fake_raw_key_public() -> PublicKey {
 }
 
 fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
-    let mut input_hashes: RequiredSignersSet = tx_builder.inputs.required_signers();
-    input_hashes.extend(tx_builder.collateral.required_signers());
+    let mut input_hashes: RequiredSignersSet = RequiredSignersSet::from(&tx_builder.inputs);
+    input_hashes.extend(RequiredSignersSet::from(&tx_builder.collateral));
     if let Some(scripts) = &tx_builder.mint_scripts {
         input_hashes.extend(RequiredSignersSet::from(scripts));
     }
@@ -100,7 +100,7 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
-    let bootstraps = &tx_builder.inputs.bootstraps();
+    let bootstraps = get_bootstraps(&tx_builder.inputs);
     let bootstrap_keys = match bootstraps.len() {
         0 => None,
         _x => {
