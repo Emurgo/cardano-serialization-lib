@@ -195,6 +195,7 @@ pub struct TransactionBuilderConfig {
     max_value_size: u32,       // protocol parameter
     max_tx_size: u32,          // protocol parameter
     coins_per_utxo_word: Coin, // protocol parameter
+    ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     prefer_pure_change: bool,
 }
 
@@ -207,6 +208,7 @@ pub struct TransactionBuilderConfigBuilder {
     max_value_size: Option<u32>,       // protocol parameter
     max_tx_size: Option<u32>,          // protocol parameter
     coins_per_utxo_word: Option<Coin>, // protocol parameter
+    ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     prefer_pure_change: bool,
 }
 
@@ -220,6 +222,7 @@ impl TransactionBuilderConfigBuilder {
             max_value_size: None,
             max_tx_size: None,
             coins_per_utxo_word: None,
+            ex_unit_prices: None,
             prefer_pure_change: false,
         }
     }
@@ -233,6 +236,12 @@ impl TransactionBuilderConfigBuilder {
     pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {
         let mut cfg = self.clone();
         cfg.coins_per_utxo_word = Some(coins_per_utxo_word.clone());
+        cfg
+    }
+
+    pub fn ex_unit_prices(&self, ex_unit_prices: &ExUnitPrices) -> Self {
+        let mut cfg = self.clone();
+        cfg.ex_unit_prices = Some(ex_unit_prices.clone());
         cfg
     }
 
@@ -267,7 +276,7 @@ impl TransactionBuilderConfigBuilder {
     }
 
     pub fn build(&self) -> Result<TransactionBuilderConfig, JsError> {
-        let cfg = self.clone();
+        let cfg: Self = self.clone();
         Ok(TransactionBuilderConfig {
             fee_algo: cfg.fee_algo.ok_or(JsError::from_str("uninitialized field: fee_algo"))?,
             pool_deposit: cfg.pool_deposit.ok_or(JsError::from_str("uninitialized field: pool_deposit"))?,
@@ -275,6 +284,7 @@ impl TransactionBuilderConfigBuilder {
             max_value_size: cfg.max_value_size.ok_or(JsError::from_str("uninitialized field: max_value_size"))?,
             max_tx_size: cfg.max_tx_size.ok_or(JsError::from_str("uninitialized field: max_tx_size"))?,
             coins_per_utxo_word: cfg.coins_per_utxo_word.ok_or(JsError::from_str("uninitialized field: coins_per_utxo_word"))?,
+            ex_unit_prices: cfg.ex_unit_prices,
             prefer_pure_change: cfg.prefer_pure_change,
         })
     }
