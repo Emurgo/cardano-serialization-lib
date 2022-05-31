@@ -768,8 +768,7 @@ impl BigInt {
         use num_integer::Integer;
         let (res, rem) = self.0.div_rem(&other.0);
         let result = Self(res);
-        let no_remainder = rem.sign() == num_bigint::Sign::NoSign;
-        if no_remainder { result } else { result.increment() }
+        if Self(rem).is_zero() { result } else { result.increment() }
     }
 }
 
