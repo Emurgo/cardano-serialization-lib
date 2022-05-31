@@ -171,7 +171,19 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     //     assert_required_mint_scripts(mint, tx_builder.mint_scripts.as_ref())?;
     // }
     let full_tx = fake_full_tx(tx_builder, tx_builder.build()?)?;
-    fees::min_fee(&full_tx, &tx_builder.config.fee_algo)
+    let fee: Coin = fees::min_fee(&full_tx, &tx_builder.config.fee_algo)?;
+    if let Some(ex_unit_prices) = &tx_builder.config.ex_unit_prices {
+        let script_fee: Coin = fees::min_script_fee(&full_tx, &ex_unit_prices)?;
+        return fee.checked_add(&script_fee);
+    }
+    if tx_builder.has_plutus_inputs() {
+        return Err(
+            JsError::from_str(
+                "Plutus inputs are present but ex unit prices are missing in the config!"
+            )
+        );
+    }
+    Ok(fee)
 }
 
 #[wasm_bindgen]
@@ -1384,6 +1396,10 @@ impl TransactionBuilder {
         wit
     }
 
+    fn has_plutus_inputs(&self) -> bool {
+        self.inputs.get_plutus_input_scripts().is_some()
+    }
+
     /// Returns full Transaction object with the body and the auxiliary data
     /// NOTE: witness_set will contain all mint_scripts if any been added or set
     /// NOTE: is_valid set to true
@@ -1394,7 +1410,7 @@ impl TransactionBuilder {
                 "There are some script inputs added that don't have the corresponding script provided as a witness!",
             ));
         }
-        if self.get_plutus_input_scripts().is_some() {
+        if self.has_plutus_inputs() {
             if self.script_data_hash.is_none() {
                 return Err(JsError::from_str(
                     "Plutus inputs are present, but script data hash is not specified",
