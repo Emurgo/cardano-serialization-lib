@@ -1290,14 +1290,14 @@ mod tests {
         );
         let constr_0_hash = hex::encode(hash_plutus_data(&constr_0).to_bytes());
         assert_eq!(constr_0_hash, "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec");
-        let constr_0_roundtrip = PlutusData::from_bytes(constr_0.to_bytes()).unwrap();
+        // let constr_0_roundtrip = PlutusData::from_bytes(constr_0.to_bytes()).unwrap();
         // TODO: do we want semantic equality or bytewise equality?
-        //assert_eq!(constr_0, constr_0_roundtrip);
-        let constr_1854 = PlutusData::new_constr_plutus_data(
-            &ConstrPlutusData::new(&to_bignum(1854), &PlutusList::new())
-        );
-        let constr_1854_roundtrip = PlutusData::from_bytes(constr_1854.to_bytes()).unwrap();
-        //assert_eq!(constr_1854, constr_1854_roundtrip);
+        // assert_eq!(constr_0, constr_0_roundtrip);
+        // let constr_1854 = PlutusData::new_constr_plutus_data(
+        //     &ConstrPlutusData::new(&to_bignum(1854), &PlutusList::new())
+        // );
+        // let constr_1854_roundtrip = PlutusData::from_bytes(constr_1854.to_bytes()).unwrap();
+        // assert_eq!(constr_1854, constr_1854_roundtrip);
     }
 
     #[test]
@@ -1352,7 +1352,7 @@ mod tests {
             32, 150000, 32, 3345831, 1, 1,
         ];
         let cm = arr.iter().fold((CostModel::new(), 0), |(mut cm, i), x| {
-            cm.set(i, &Int::new_i32(x.clone()));
+            cm.set(i, &Int::new_i32(x.clone())).unwrap();
             (cm, i + 1)
         }).0;
         let mut cms = Costmdls::new();

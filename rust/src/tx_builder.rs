@@ -2995,7 +2995,6 @@ mod tests {
     #[test]
     fn tx_builder_cip2_largest_first_multiasset() {
         // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
         let pid1 = PolicyID::from([1u8; 28]);
         let pid2 = PolicyID::from([2u8; 28]);
@@ -3100,7 +3099,6 @@ mod tests {
 
     #[test]
     fn tx_builder_cip2_random_improve_multiasset() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
         let pid1 = PolicyID::from([1u8; 28]);
         let pid2 = PolicyID::from([2u8; 28]);
@@ -4589,7 +4587,7 @@ mod tests {
         tx_builder.set_fee(&to_bignum(42));
         let (script1, hash1) = plutus_script_and_hash(0);
         let (script2, hash2) = plutus_script_and_hash(1);
-        let (script3, hash3) = plutus_script_and_hash(3);
+        let (script3, _hash3) = plutus_script_and_hash(3);
         let datum1 = PlutusData::new_bytes(fake_bytes(10));
         let datum2 = PlutusData::new_bytes(fake_bytes(11));
         let redeemer1 = Redeemer::new(
@@ -5112,6 +5110,7 @@ mod tests {
         assert_eq!(calc_fee_with_ex_units(0, 0), to_bignum(173509));
         assert_eq!(calc_fee_with_ex_units(10000, 0), to_bignum(174174));
         assert_eq!(calc_fee_with_ex_units(0, 10000000), to_bignum(174406));
+        assert_eq!(calc_fee_with_ex_units(10000, 10000000), to_bignum(175071));
     }
 }
 
