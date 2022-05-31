@@ -33,6 +33,50 @@ pub fn min_fee(tx: &Transaction, linear_fee: &LinearFee) -> Result<Coin, JsError
         .checked_add(&linear_fee.constant())
 }
 
+#[wasm_bindgen]
+pub fn calculate_ex_units_ceil_cost(
+    ex_units: &ExUnits,
+    ex_unit_prices: &ExUnitPrices,
+) -> Result<Coin, JsError> {
+    type Ratio = (BigInt, BigInt);
+    fn mult(sc: &SubCoin, x: &BigNum) -> Result<Ratio, JsError> {
+        let n: BigInt = BigInt::from_str(&sc.numerator.to_str())?;
+        let d: BigInt = BigInt::from_str(&sc.denominator.to_str())?;
+        let m: BigInt = BigInt::from_str(&x.to_str())?;
+        Ok((n.mul(&m), d))
+    }
+    fn sum(a: &Ratio, b: &Ratio) -> Ratio {
+        // Ratio Addition: a/x + b/y = ((a*y) + (b*x))/(x*y)
+        let (a_num, a_denum) = &a;
+        let (b_num, b_denum) = &b;
+        let a_num_fixed = &a_num.mul(b_denum);
+        let b_num_fixed = &b_num.mul(a_denum);
+        let a_b_num_sum = a_num_fixed.add(b_num_fixed);
+        let common_denum = a_denum.mul(b_denum);
+        (a_b_num_sum, common_denum)
+    }
+    let mem_ratio: Ratio = mult(&ex_unit_prices.mem_price(), &ex_units.mem())?;
+    let steps_ratio: Ratio = mult(&ex_unit_prices.step_price(), &ex_units.steps())?;
+    let (total_num, total_denum) = sum(&mem_ratio, &steps_ratio);
+    match total_num.div_ceil(&total_denum).as_u64() {
+        Some(coin) => Ok(coin),
+        _ => Err(JsError::from_str(&format!(
+            "Failed to calculate ceil from ratio {}/{}",
+            total_num.to_str(),
+            total_denum.to_str(),
+        )))
+    }
+}
+
+#[wasm_bindgen]
+pub fn min_script_fee(tx: &Transaction, ex_unit_prices: &ExUnitPrices) -> Result<Coin, JsError> {
+    if let Some(redeemers) = &tx.witness_set.redeemers {
+        let total_ex_units: ExUnits = redeemers.total_ex_units()?;
+        return calculate_ex_units_ceil_cost(&total_ex_units, ex_unit_prices);
+    }
+    Ok(Coin::zero())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -515,6 +559,51 @@ mod tests {
         assert_eq!(
             min_fee(&signed_tx, &linear_fee).unwrap().to_str(),
             "163002" // todo: compare to Haskell fee to make sure the diff is not too big
+        );
+    }
+
+    fn exunits(mem: u64, steps: u64) -> ExUnits {
+        ExUnits::new(&to_bignum(mem), &to_bignum(steps))
+    }
+
+    fn subcoin(num: u64, denum: u64) -> SubCoin {
+        SubCoin::new(&to_bignum(num), &to_bignum(denum))
+    }
+
+    fn exunit_prices(mem_prices: (u64, u64), step_prices: (u64, u64)) -> ExUnitPrices {
+        ExUnitPrices::new(
+            &subcoin(mem_prices.0, mem_prices.1),
+            &subcoin(step_prices.0, step_prices.1),
+        )
+    }
+
+    fn _calculate_ex_units_ceil_cost(mem: u64, steps: u64, mem_prices: (u64, u64), step_prices: (u64, u64)) -> Coin {
+        let ex_units = exunits(mem, steps);
+        let ex_unit_prices = exunit_prices(mem_prices, step_prices);
+        calculate_ex_units_ceil_cost(&ex_units, &ex_unit_prices).unwrap()
+    }
+
+    #[test]
+    fn test_calc_ex_units_cost() {
+        // 10 * (2/1) + 20 * (3/1) = 10 * 2 + 20 * 3 = 20 + 60
+        assert_eq!(
+            _calculate_ex_units_ceil_cost(10, 20, (2, 1), (3, 1)),
+            to_bignum(80),
+        );
+        // 22 * (12/6) + 33 * (33/11) = 22 * 2 + 33 * 3 = 44 + 99 = 143
+        assert_eq!(
+            _calculate_ex_units_ceil_cost(22, 33, (12, 6), (33, 11)),
+            to_bignum(143),
+        );
+        // 10 * (5/7) + 20 * (9/13) = 50/7 + 180/13 = 650/91 + 1260/91 = 1910/91 = ceil(20.98) = 21
+        assert_eq!(
+            _calculate_ex_units_ceil_cost(10, 20, (5, 7), (9, 13)),
+            to_bignum(21),
+        );
+        // 22 * (7/5) + 33 * (13/9) = 154/5 + 429/9 = 1386/45 + 2145/45 = 3531/45 = ceil(78.46) = 79
+        assert_eq!(
+            _calculate_ex_units_ceil_cost(22, 33, (7, 5), (13, 9)),
+            to_bignum(79),
         );
     }
 }
