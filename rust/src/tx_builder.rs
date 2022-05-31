@@ -1518,6 +1518,12 @@ mod tests {
             .max_value_size(max_val_size)
             .max_tx_size(MAX_TX_SIZE)
             .coins_per_utxo_word(&to_bignum(coins_per_utxo_word))
+            .ex_unit_prices(
+                &ExUnitPrices::new(
+                    &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
+                    &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+                ),
+            )
             .build()
             .unwrap();
         TransactionBuilder::new(&cfg)
@@ -5053,6 +5059,59 @@ mod tests {
         assert_eq!(redeemers.len(), 2);
         assert_eq!(redeemers.get(0), redeemer1.clone_with_index(&to_bignum(1)));
         assert_eq!(redeemers.get(1), redeemer2.clone_with_index(&to_bignum(1)));
+    }
+
+    #[test]
+    fn test_ex_unit_costs_are_added_to_the_fees() {
+
+        fn calc_fee_with_ex_units(mem: u64, step: u64) -> Coin {
+            let mut input_builder = TxInputsBuilder::new();
+            let mut collateral_builder = TxInputsBuilder::new();
+
+            // Add a single input of both kinds with the SAME keyhash
+            input_builder.add_input(
+                &create_base_address(0),
+                &TransactionInput::new(&genesis_id(), 0),
+                &Value::new(&to_bignum(1_000_000)),
+            );
+            collateral_builder.add_input(
+                &create_base_address(0),
+                &TransactionInput::new(&genesis_id(), 0),
+                &Value::new(&to_bignum(1_000_000)),
+            );
+
+            let (pscript1, _) = plutus_script_and_hash(0);
+            let datum1 = PlutusData::new_bytes(fake_bytes(10));
+            let redeemer1 = Redeemer::new(
+                &RedeemerTag::new_spend(),
+                &to_bignum(0),
+                &PlutusData::new_bytes(fake_bytes(20)),
+                &ExUnits::new(&to_bignum(mem), &to_bignum(step)),
+            );
+            input_builder.add_plutus_script_input(
+                &PlutusWitness::new(
+                    &pscript1,
+                    &datum1,
+                    &redeemer1,
+                ),
+                &TransactionInput::new(&genesis_id(), 0),
+                &Value::new(&to_bignum(1_000_000)),
+            );
+
+            let mut tx_builder = create_reallistic_tx_builder();
+            tx_builder.set_inputs(&input_builder);
+            tx_builder.set_collateral(&collateral_builder);
+
+            tx_builder.add_change_if_needed(
+                &create_base_address(42),
+            ).unwrap();
+
+            tx_builder.get_fee_if_set().unwrap()
+        }
+
+        assert_eq!(calc_fee_with_ex_units(0, 0), to_bignum(173509));
+        assert_eq!(calc_fee_with_ex_units(10000, 0), to_bignum(174174));
+        assert_eq!(calc_fee_with_ex_units(0, 10000000), to_bignum(174406));
     }
 }
 

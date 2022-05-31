@@ -49,6 +49,12 @@ pub fn calculate_ex_units_ceil_cost(
         // Ratio Addition: a/x + b/y = ((a*y) + (b*x))/(x*y)
         let (a_num, a_denum) = &a;
         let (b_num, b_denum) = &b;
+        if a_num.is_zero() {
+            return b.clone();
+        }
+        if b_num.is_zero() {
+            return a.clone();
+        }
         let a_num_fixed = &a_num.mul(b_denum);
         let b_num_fixed = &b_num.mul(a_denum);
         let a_b_num_sum = a_num_fixed.add(b_num_fixed);

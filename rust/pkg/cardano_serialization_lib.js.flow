@@ -669,6 +669,11 @@ declare export class BigInt {
   static from_bytes(bytes: Uint8Array): BigInt;
 
   /**
+   * @returns {boolean}
+   */
+  is_zero(): boolean;
+
+  /**
    * @returns {BigNum | void}
    */
   as_u64(): BigNum | void;

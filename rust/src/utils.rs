@@ -4,6 +4,7 @@ use serde_json;
 use std::{collections::HashMap, io::{BufRead, Seek, Write}};
 use std::convert::{TryFrom};
 use itertools::Itertools;
+use num_bigint::Sign;
 use std::ops::{Rem, Div, Sub};
 
 use super::*;
@@ -718,12 +719,18 @@ to_from_bytes!(BigInt);
 
 #[wasm_bindgen]
 impl BigInt {
+
+    pub fn is_zero(&self) -> bool {
+        self.0.sign() == Sign::NoSign
+    }
+
     pub fn as_u64(&self) -> Option<BigNum> {
         let (sign, u64_digits) = self.0.to_u64_digits();
         if sign == num_bigint::Sign::Minus {
             return None;
         }
         match u64_digits.len() {
+            0 => Some(to_bignum(0)),
             1 => Some(to_bignum(*u64_digits.first().unwrap())),
             _ => None,
         }
