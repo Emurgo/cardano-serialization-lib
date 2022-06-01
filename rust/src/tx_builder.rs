@@ -1282,7 +1282,7 @@ impl TransactionBuilder {
     /// In case there are no plutus input witnesses present - nothing will change
     /// You can set specific hash value using `.set_script_data_hash`
     pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) {
-        if let Some(pw) = self.get_plutus_input_scripts() {
+        if let Some(pw) = self.inputs.get_plutus_input_scripts() {
             let (_, datums, redeemers) = pw.collect();
             self.script_data_hash =
                 Some(hash_script_data(&redeemers, cost_models, Some(datums)));

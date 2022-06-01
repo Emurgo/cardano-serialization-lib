@@ -387,11 +387,22 @@ to_from_bytes!(PlutusData);
 
 #[wasm_bindgen]
 impl PlutusData {
+
     pub fn new_constr_plutus_data(constr_plutus_data: &ConstrPlutusData) -> Self {
         Self {
             datum: PlutusDataEnum::ConstrPlutusData(constr_plutus_data.clone()),
             original_bytes: None,
         }
+    }
+
+    /// Same as `.new_constr_plutus_data` but creates constr with empty data list
+    pub fn new_empty_constr_plutus_data(alternative: &BigNum) -> Self {
+        Self::new_constr_plutus_data(
+            &ConstrPlutusData::new(
+                alternative,
+                &PlutusList::new(),
+            ),
+        )
     }
 
     pub fn new_map(map: &PlutusMap) -> Self {
@@ -1398,5 +1409,18 @@ mod tests {
         assert_ex_units(&r.total_ex_units().unwrap(), 30, 300);
         r.add(&redeemer_with_ex_units(&to_bignum(30), &to_bignum(300)));
         assert_ex_units(&r.total_ex_units().unwrap(), 60, 600);
+    }
+
+    #[test]
+    fn test_empty_constr_data() {
+        assert_eq!(
+            PlutusData::new_empty_constr_plutus_data(&BigNum::one()),
+            PlutusData::new_constr_plutus_data(
+                &ConstrPlutusData::new(
+                    &BigNum::from_str("1").unwrap(),
+                    &PlutusList::new(),
+                ),
+            ),
+        )
     }
 }

@@ -188,6 +188,10 @@ impl BigNum {
         Self(0)
     }
 
+    pub fn one() -> Self {
+        Self(1)
+    }
+
     pub fn is_zero(&self) -> bool {
         self.0 == 0
     }

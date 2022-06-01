@@ -750,6 +750,11 @@ declare export class BigNum {
   static zero(): BigNum;
 
   /**
+   * @returns {BigNum}
+   */
+  static one(): BigNum;
+
+  /**
    * @returns {boolean}
    */
   is_zero(): boolean;
@@ -3104,6 +3109,13 @@ declare export class PlutusData {
   static new_constr_plutus_data(
     constr_plutus_data: ConstrPlutusData
   ): PlutusData;
+
+  /**
+   * Same as `.new_constr_plutus_data` but creates constr with empty data list
+   * @param {BigNum} alternative
+   * @returns {PlutusData}
+   */
+  static new_empty_constr_plutus_data(alternative: BigNum): PlutusData;
 
   /**
    * @param {PlutusMap} map
