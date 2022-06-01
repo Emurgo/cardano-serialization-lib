@@ -2918,9 +2918,13 @@ mod tests {
         assert!(tx_builder.add_change_if_needed(&change_addr).is_err())
     }
 
+    fn fake_tx_hash(input_hash_byte: u8) -> TransactionHash {
+        TransactionHash::from([input_hash_byte; 32])
+    }
+
     fn make_input(input_hash_byte: u8, value: Value) -> TransactionUnspentOutput {
         TransactionUnspentOutput::new(
-            &TransactionInput::new(&TransactionHash::from([input_hash_byte; 32]), 0),
+            &TransactionInput::new(&fake_tx_hash(input_hash_byte), 0),
             &TransactionOutputBuilder::new()
                 .with_address(&Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap())
                 .next().unwrap()
@@ -2956,11 +2960,10 @@ mod tests {
         assert_eq!(2, tx.outputs().len());
         assert_eq!(3, tx.inputs().len());
         // confirm order of only what is necessary
-        assert_eq!(2u8, tx.inputs().get(0).transaction_id().0[0]);
-        assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
-        assert_eq!(1u8, tx.inputs().get(2).transaction_id().0[0]);
+        assert_eq!(1u8, tx.inputs().get(0).transaction_id().0[0]);
+        assert_eq!(2u8, tx.inputs().get(1).transaction_id().0[0]);
+        assert_eq!(3u8, tx.inputs().get(2).transaction_id().0[0]);
     }
-
 
     #[test]
     fn tx_builder_cip2_largest_first_static_fees() {
@@ -5111,6 +5114,75 @@ mod tests {
         assert_eq!(calc_fee_with_ex_units(10000, 0), to_bignum(174174));
         assert_eq!(calc_fee_with_ex_units(0, 10000000), to_bignum(174406));
         assert_eq!(calc_fee_with_ex_units(10000, 10000000), to_bignum(175071));
+    }
+
+    #[test]
+    fn test_script_inputs_ordering() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let (nscript1, _) = mint_script_and_policy(0);
+        let (pscript1, _) = plutus_script_and_hash(0);
+        let (pscript2, _) = plutus_script_and_hash(1);
+        let datum1 = PlutusData::new_bytes(fake_bytes(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        // Creating redeemers with indexes ZERO
+        let pdata1 = PlutusData::new_bytes(fake_bytes(20));
+        let pdata2 = PlutusData::new_bytes(fake_bytes(21));
+        let redeemer1 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &pdata1,
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        let redeemer2 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &pdata2,
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(
+                &pscript1,
+                &datum1,
+                &redeemer1,
+            ),
+            &TransactionInput::new(&fake_tx_hash(3), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        tx_builder.add_native_script_input(
+            &nscript1,
+            &TransactionInput::new(&fake_tx_hash(1), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(
+                &pscript2,
+                &datum2,
+                &redeemer2,
+            ),
+            &TransactionInput::new(&fake_tx_hash(2), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
+
+        let ins = tx.body.inputs;
+        assert_eq!(ins.len(), 3);
+        assert_eq!(ins.get(0).transaction_id.0[0], 1);
+        assert_eq!(ins.get(1).transaction_id.0[0], 2);
+        assert_eq!(ins.get(2).transaction_id.0[0], 3);
+
+        let r: Redeemers = tx.witness_set.redeemers.unwrap();
+        assert_eq!(r.len(), 2);
+
+        // Redeemer1 now has the index 2 even tho the input was added first
+        assert_eq!(r.get(0).data(), pdata1);
+        assert_eq!(r.get(0).index(), to_bignum(2));
+
+        // Redeemer1 now has the index 1 even tho the input was added last
+        assert_eq!(r.get(1).data(), pdata2);
+        assert_eq!(r.get(1).index(), to_bignum(1));
     }
 }
 

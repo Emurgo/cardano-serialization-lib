@@ -130,6 +130,11 @@ impl TxInputsBuilder {
         }
     }
 
+    fn push_input(&mut self, e: (TxBuilderInput, Option<ScriptHash>)) {
+        self.inputs.push(e);
+        self.inputs.sort_by(|(a, _), (b, _)| a.input.cmp(&b.input));
+    }
+
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
     /// 1) mock witnesses have different lengths depending on the type which changes the expecting fee
     /// 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
@@ -138,7 +143,7 @@ impl TxInputsBuilder {
             input: input.clone(),
             amount: amount.clone(),
         };
-        self.inputs.push((inp, None));
+        self.push_input((inp, None));
         self.input_types.vkeys.insert(hash.clone());
     }
 
@@ -154,7 +159,7 @@ impl TxInputsBuilder {
             input: input.clone(),
             amount: amount.clone(),
         };
-        self.inputs.push((inp, Some(hash.clone())));
+        self.push_input((inp, Some(hash.clone())));
         if !self.input_types.scripts.contains_key(hash) {
             self.input_types.scripts.insert(hash.clone(), None);
         }
@@ -185,7 +190,7 @@ impl TxInputsBuilder {
             input: input.clone(),
             amount: amount.clone(),
         };
-        self.inputs.push((inp, None));
+        self.push_input((inp, None));
         self.input_types.bootstraps.insert(hash.to_bytes());
     }
 
