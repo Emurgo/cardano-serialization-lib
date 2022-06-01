@@ -5147,7 +5147,7 @@ mod tests {
                 &datum1,
                 &redeemer1,
             ),
-            &TransactionInput::new(&fake_tx_hash(3), 0),
+            &TransactionInput::new(&fake_tx_hash(2), 1),
             &Value::new(&to_bignum(1_000_000)),
         );
         tx_builder.add_native_script_input(
@@ -5171,7 +5171,9 @@ mod tests {
         assert_eq!(ins.len(), 3);
         assert_eq!(ins.get(0).transaction_id.0[0], 1);
         assert_eq!(ins.get(1).transaction_id.0[0], 2);
-        assert_eq!(ins.get(2).transaction_id.0[0], 3);
+        assert_eq!(ins.get(1).index, 0);
+        assert_eq!(ins.get(2).transaction_id.0[0], 2);
+        assert_eq!(ins.get(2).index, 1);
 
         let r: Redeemers = tx.witness_set.redeemers.unwrap();
         assert_eq!(r.len(), 2);
