@@ -318,6 +318,7 @@ pub struct TransactionBuilder {
     mint: Option<Mint>,
     mint_scripts: Option<NativeScripts>,
     script_data_hash: Option<ScriptDataHash>,
+    required_signers: Ed25519KeyHashes,
 }
 
 #[wasm_bindgen]
@@ -954,6 +955,7 @@ impl TransactionBuilder {
             mint: None,
             mint_scripts: None,
             script_data_hash: None,
+            required_signers: Ed25519KeyHashes::new(),
         }
     }
 
@@ -1302,6 +1304,10 @@ impl TransactionBuilder {
         self.script_data_hash = None;
     }
 
+    pub fn add_required_signer(&mut self, key: &Ed25519KeyHash) {
+        self.required_signers.add(key);
+    }
+
     fn build_and_size(&self) -> Result<(TransactionBody, usize), JsError> {
         let fee = self.fee.ok_or_else(|| JsError::from_str("Fee not specified"))?;
         let built = TransactionBody {
@@ -1320,7 +1326,7 @@ impl TransactionBuilder {
             mint: self.mint.clone(),
             script_data_hash: self.script_data_hash.clone(),
             collateral: self.collateral.inputs_option(),
-            required_signers: None,
+            required_signers: self.required_signers.to_option(),
             network_id: None,
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
@@ -1971,7 +1977,7 @@ mod tests {
                 &spend_cred,
                 &stake_cred
             ).to_address(),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000))
         );
         tx_builder.add_input(
@@ -1984,14 +1990,14 @@ mod tests {
                     &to_bignum(0)
                 )
             ).to_address(),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 2),
             &Value::new(&to_bignum(1_000_000))
         );
         tx_builder.add_input(
             &ByronAddress::icarus_from_key(
                 &spend, NetworkInfo::testnet().protocol_magic()
             ).to_address(),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 3),
             &Value::new(&to_bignum(1_000_000))
         );
 
@@ -2226,16 +2232,17 @@ mod tests {
             })
             .collect::<Vec<MultiAsset>>();
 
-        for (multiasset, ada) in multiassets
+        for (i, (multiasset, ada)) in multiassets
             .iter()
             .zip([100u64, 100].iter().cloned().map(to_bignum))
+            .enumerate()
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
 
             tx_builder.add_key_input(
                 &&spend.to_raw_key().hash(),
-                &TransactionInput::new(&genesis_id(), 0),
+                &TransactionInput::new(&genesis_id(), i as u32),
                 &input_amount,
             );
         }
@@ -2339,16 +2346,17 @@ mod tests {
             })
             .collect::<Vec<MultiAsset>>();
 
-        for (multiasset, ada) in multiassets
+        for (i, (multiasset, ada)) in multiassets
             .iter()
             .zip([100u64, 100].iter().cloned().map(to_bignum))
+            .enumerate()
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
 
             tx_builder.add_key_input(
                 &&spend.to_raw_key().hash(),
-                &TransactionInput::new(&genesis_id(), 0),
+                &TransactionInput::new(&genesis_id(), i as u32),
                 &input_amount,
             );
         }
@@ -2469,16 +2477,17 @@ mod tests {
             })
             .collect::<Vec<MultiAsset>>();
 
-        for (multiasset, ada) in multiassets
+        for (i, (multiasset, ada)) in multiassets
             .iter()
             .zip([300u64, 300].iter().cloned().map(to_bignum))
+            .enumerate()
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
 
             tx_builder.add_key_input(
                 &&spend.to_raw_key().hash(),
-                &TransactionInput::new(&genesis_id(), 0),
+                &TransactionInput::new(&genesis_id(), i as u32),
                 &input_amount,
             );
         }
@@ -4154,7 +4163,7 @@ mod tests {
         // One input from same address as mint
         tx_builder.add_key_input(
             &hash1,
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(10_000_000)),
         );
 
@@ -4312,16 +4321,17 @@ mod tests {
             })
             .collect::<Vec<MultiAsset>>();
 
-        for (multiasset, ada) in multiassets
+        for (i, (multiasset, ada)) in multiassets
             .iter()
             .zip([100u64, 100, 100].iter().cloned().map(to_bignum))
+            .enumerate()
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
 
             tx_builder.add_key_input(
                 &&spend.to_raw_key().hash(),
-                &TransactionInput::new(&genesis_id(), 0),
+                &TransactionInput::new(&genesis_id(), i as u32),
                 &input_amount,
             );
         }
@@ -4495,7 +4505,7 @@ mod tests {
         let tx_len_before_new_script_input = unsafe_tx_len(&tx_builder);
         tx_builder.add_input(
             &create_base_address_from_script_hash(&hash2),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000))
         );
         let tx_len_after_new_script_input = unsafe_tx_len(&tx_builder);
@@ -4612,7 +4622,7 @@ mod tests {
         );
         tx_builder.add_input(
             &create_base_address_from_script_hash(&hash2),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000)),
         );
         // There are TWO missing script witnesses
@@ -4780,12 +4790,12 @@ mod tests {
         // both have redeemers with index ZERO
         tx_builder.add_plutus_script_input(
             &PlutusWitness::new(&script1, &datum1, &redeemer1),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000)),
         );
         tx_builder.add_plutus_script_input(
             &PlutusWitness::new(&script2, &datum2, &redeemer2),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 2),
             &Value::new(&to_bignum(1_000_000)),
         );
 
@@ -4849,19 +4859,19 @@ mod tests {
         // Add one native input directly with witness
         tx_builder.add_native_script_input(
             &nscript1,
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000)),
         );
         // Add one plutus input generically without witness
         tx_builder.add_input(
             &create_base_address_from_script_hash(&phash2),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 2),
             &Value::new(&to_bignum(1_000_000)),
         );
         // Add one native input generically without witness
         tx_builder.add_input(
             &create_base_address_from_script_hash(&nhash2),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 3),
             &Value::new(&to_bignum(1_000_000)),
         );
 
@@ -5005,7 +5015,7 @@ mod tests {
         );
         collateral_builder.add_native_script_input(
             &nscript2,
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000)),
         );
 
@@ -5015,7 +5025,7 @@ mod tests {
                 &datum1,
                 &redeemer1,
             ),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 2),
             &Value::new(&to_bignum(1_000_000)),
         );
         collateral_builder.add_plutus_script_input(
@@ -5024,7 +5034,7 @@ mod tests {
                 &datum2,
                 &redeemer2,
             ),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 3),
             &Value::new(&to_bignum(1_000_000)),
         );
 
@@ -5077,7 +5087,7 @@ mod tests {
             );
             collateral_builder.add_input(
                 &create_base_address(0),
-                &TransactionInput::new(&genesis_id(), 0),
+                &TransactionInput::new(&genesis_id(), 1),
                 &Value::new(&to_bignum(1_000_000)),
             );
 
@@ -5095,7 +5105,7 @@ mod tests {
                     &datum1,
                     &redeemer1,
                 ),
-                &TransactionInput::new(&genesis_id(), 0),
+                &TransactionInput::new(&genesis_id(), 2),
                 &Value::new(&to_bignum(1_000_000)),
             );
 
@@ -5185,6 +5195,31 @@ mod tests {
         // Redeemer1 now has the index 1 even tho the input was added last
         assert_eq!(r.get(1).data(), pdata2);
         assert_eq!(r.get(1).index(), to_bignum(1));
+    }
+
+    #[test]
+    fn test_required_signers() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let tx1: TransactionBody = tx_builder.build().unwrap();
+        assert!(tx1.required_signers.is_none());
+
+        let s1 = fake_key_hash(1);
+        let s2 = fake_key_hash(22);
+        let s3 = fake_key_hash(133);
+
+        tx_builder.add_required_signer(&s1);
+        tx_builder.add_required_signer(&s3);
+        tx_builder.add_required_signer(&s2);
+
+        let tx1: TransactionBody = tx_builder.build().unwrap();
+        assert!(tx1.required_signers.is_some());
+
+        let rs: RequiredSigners = tx1.required_signers.unwrap();
+        assert_eq!(rs.len(), 3);
+        assert_eq!(rs.get(0), s1);
+        assert_eq!(rs.get(1), s3);
+        assert_eq!(rs.get(2), s2);
     }
 }
 

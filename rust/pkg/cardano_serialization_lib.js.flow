@@ -1591,6 +1591,11 @@ declare export class Ed25519KeyHashes {
    * @param {Ed25519KeyHash} elem
    */
   add(elem: Ed25519KeyHash): void;
+
+  /**
+   * @returns {Ed25519KeyHashes | void}
+   */
+  to_option(): Ed25519KeyHashes | void;
 }
 /**
  */
@@ -5763,6 +5768,11 @@ declare export class TransactionBuilder {
    * Use `.set_script_data_hash` or `.calc_script_data_hash` to set it.
    */
   remove_script_data_hash(): void;
+
+  /**
+   * @param {Ed25519KeyHash} key
+   */
+  add_required_signer(key: Ed25519KeyHash): void;
 
   /**
    * @returns {number}

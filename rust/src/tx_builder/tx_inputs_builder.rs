@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug)]
 pub(crate) struct TxBuilderInput {
@@ -108,7 +109,7 @@ pub struct MockWitnessSet {
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TxInputsBuilder {
-    inputs: Vec<(TxBuilderInput, Option<ScriptHash>)>,
+    inputs: BTreeMap<TransactionInput, (TxBuilderInput, Option<ScriptHash>)>,
     input_types: MockWitnessSet,
 }
 
@@ -121,7 +122,7 @@ impl TxInputsBuilder {
 
     pub fn new() -> Self {
         Self {
-            inputs: Vec::new(),
+            inputs: BTreeMap::new(),
             input_types: MockWitnessSet {
                 vkeys: BTreeSet::new(),
                 scripts: LinkedHashMap::new(),
@@ -131,8 +132,7 @@ impl TxInputsBuilder {
     }
 
     fn push_input(&mut self, e: (TxBuilderInput, Option<ScriptHash>)) {
-        self.inputs.push(e);
-        self.inputs.sort_by(|(a, _), (b, _)| a.input.cmp(&b.input));
+        self.inputs.insert(e.0.input.clone(), e);
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -310,7 +310,7 @@ impl TxInputsBuilder {
          *
          * The registered witnesses are then each cloned with the new correct redeemer input index.
          */
-        let script_hash_index_map: BTreeMap<&ScriptHash, BigNum> = self.inputs.iter().enumerate()
+        let script_hash_index_map: BTreeMap<&ScriptHash, BigNum> = self.inputs.values().enumerate()
             .fold(BTreeMap::new(), |mut m, (i, (_, hash_option))| {
                 if let Some(hash) = hash_option {
                     m.insert(hash, to_bignum(i as u64));
@@ -329,7 +329,7 @@ impl TxInputsBuilder {
     }
 
     pub(crate) fn iter(&self) -> impl std::iter::Iterator<Item = &TxBuilderInput> + '_ {
-        self.inputs.iter().map(|(i, _)| i)
+        self.inputs.values().map(|(i, _)| i)
     }
 
     pub fn len(&self) -> usize {
@@ -346,7 +346,7 @@ impl TxInputsBuilder {
 
     pub fn inputs(&self) -> TransactionInputs {
         TransactionInputs(
-            self.inputs.iter()
+            self.inputs.values()
                 .map(|(ref tx_builder_input, _)| tx_builder_input.input.clone()).collect()
         )
     }

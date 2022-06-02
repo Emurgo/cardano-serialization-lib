@@ -629,6 +629,10 @@ impl Ed25519KeyHashes {
     pub fn add(&mut self, elem: &Ed25519KeyHash) {
         self.0.push(elem.clone());
     }
+
+    pub fn to_option(&self) -> Option<Ed25519KeyHashes> {
+        if self.len() > 0 { Some(self.clone()) } else { None }
+    }
 }
 
 #[wasm_bindgen]
