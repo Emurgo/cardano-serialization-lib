@@ -71,6 +71,7 @@ fn fake_raw_key_public() -> PublicKey {
 fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
     let mut input_hashes: RequiredSignersSet = RequiredSignersSet::from(&tx_builder.inputs);
     input_hashes.extend(RequiredSignersSet::from(&tx_builder.collateral));
+    input_hashes.extend(RequiredSignersSet::from(&tx_builder.required_signers));
     if let Some(scripts) = &tx_builder.mint_scripts {
         input_hashes.extend(RequiredSignersSet::from(scripts));
     }
@@ -5221,5 +5222,49 @@ mod tests {
         assert_eq!(rs.get(1), s3);
         assert_eq!(rs.get(2), s2);
     }
+
+    #[test]
+    fn test_required_signers_are_added_to_the_witness_estimate() {
+
+        fn count_fake_witnesses_with_required_signers(keys: &Ed25519KeyHashes) -> usize {
+            let mut tx_builder = create_reallistic_tx_builder();
+            tx_builder.set_fee(&to_bignum(42));
+            tx_builder.add_input(
+                &create_base_address(0),
+                &TransactionInput::new(&fake_tx_hash(0), 0),
+                &Value::new(&to_bignum(10_000_000)),
+            );
+
+            keys.0.iter().for_each(|k| {
+                tx_builder.add_required_signer(k);
+            });
+
+            let tx: Transaction = fake_full_tx(&tx_builder, tx_builder.build().unwrap()).unwrap();
+            tx.witness_set.vkeys.unwrap().len()
+        }
+
+        assert_eq!(count_fake_witnesses_with_required_signers(
+            &Ed25519KeyHashes::new(),
+        ), 1);
+
+        assert_eq!(count_fake_witnesses_with_required_signers(
+            &Ed25519KeyHashes::from_vec(vec![fake_key_hash(1)]),
+        ), 2);
+
+        assert_eq!(count_fake_witnesses_with_required_signers(
+            &Ed25519KeyHashes::from_vec(vec![fake_key_hash(1), fake_key_hash(2)]),
+        ), 3);
+
+        // This case still produces only 3 fake signatures, because the same key is already used in the input address
+        assert_eq!(count_fake_witnesses_with_required_signers(
+            &Ed25519KeyHashes::from_vec(vec![fake_key_hash(1), fake_key_hash(2), fake_key_hash(0)]),
+        ), 3);
+
+        // When a different key is used - 4 fake witnesses are produced
+        assert_eq!(count_fake_witnesses_with_required_signers(
+            &Ed25519KeyHashes::from_vec(vec![fake_key_hash(1), fake_key_hash(2), fake_key_hash(3)]),
+        ), 4);
+    }
+
 }
 

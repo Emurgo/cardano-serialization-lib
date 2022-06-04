@@ -230,6 +230,15 @@ impl Certificates {
 pub type RequiredSigners = Ed25519KeyHashes;
 pub type RequiredSignersSet = BTreeSet<Ed25519KeyHash>;
 
+impl From<&Ed25519KeyHashes> for RequiredSignersSet {
+    fn from(keys: &Ed25519KeyHashes) -> Self {
+        keys.0.iter().fold(BTreeSet::new(), |mut set, k| {
+            set.insert(k.clone());
+            set
+        })
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct TransactionBody {
@@ -614,8 +623,13 @@ to_from_bytes!(Ed25519KeyHashes);
 
 #[wasm_bindgen]
 impl Ed25519KeyHashes {
+
     pub fn new() -> Self {
         Self(Vec::new())
+    }
+
+    pub(crate) fn from_vec(vec: Vec<Ed25519KeyHash>) -> Self {
+        Self(vec)
     }
 
     pub fn len(&self) -> usize {
