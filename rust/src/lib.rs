@@ -628,10 +628,6 @@ impl Ed25519KeyHashes {
         Self(Vec::new())
     }
 
-    pub(crate) fn from_vec(vec: Vec<Ed25519KeyHash>) -> Self {
-        Self(vec)
-    }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }

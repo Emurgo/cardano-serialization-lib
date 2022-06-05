@@ -5248,21 +5248,21 @@ mod tests {
         ), 1);
 
         assert_eq!(count_fake_witnesses_with_required_signers(
-            &Ed25519KeyHashes::from_vec(vec![fake_key_hash(1)]),
+            &Ed25519KeyHashes(vec![fake_key_hash(1)]),
         ), 2);
 
         assert_eq!(count_fake_witnesses_with_required_signers(
-            &Ed25519KeyHashes::from_vec(vec![fake_key_hash(1), fake_key_hash(2)]),
+            &Ed25519KeyHashes(vec![fake_key_hash(1), fake_key_hash(2)]),
         ), 3);
 
         // This case still produces only 3 fake signatures, because the same key is already used in the input address
         assert_eq!(count_fake_witnesses_with_required_signers(
-            &Ed25519KeyHashes::from_vec(vec![fake_key_hash(1), fake_key_hash(2), fake_key_hash(0)]),
+            &Ed25519KeyHashes(vec![fake_key_hash(1), fake_key_hash(2), fake_key_hash(0)]),
         ), 3);
 
         // When a different key is used - 4 fake witnesses are produced
         assert_eq!(count_fake_witnesses_with_required_signers(
-            &Ed25519KeyHashes::from_vec(vec![fake_key_hash(1), fake_key_hash(2), fake_key_hash(3)]),
+            &Ed25519KeyHashes(vec![fake_key_hash(1), fake_key_hash(2), fake_key_hash(3)]),
         ), 4);
     }
 
