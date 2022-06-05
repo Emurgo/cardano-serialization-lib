@@ -4,6 +4,7 @@ use serde_json;
 use std::{collections::HashMap, io::{BufRead, Seek, Write}};
 use std::convert::{TryFrom};
 use itertools::Itertools;
+use num_bigint::Sign;
 use std::ops::{Rem, Div, Sub};
 
 use super::*;
@@ -187,6 +188,10 @@ impl BigNum {
         Self(0)
     }
 
+    pub fn one() -> Self {
+        Self(1)
+    }
+
     pub fn is_zero(&self) -> bool {
         self.0 == 0
     }
@@ -273,6 +278,11 @@ pub fn to_bignum(val: u64) -> BigNum {
 }
 pub fn from_bignum(val: &BigNum) -> u64 {
     val.0
+}
+
+
+pub fn to_bigint(val: u64) -> BigInt {
+    BigInt::from_str(&val.to_string()).unwrap()
 }
 
 // Specifies an amount of ADA in terms of lovelace
@@ -713,12 +723,18 @@ to_from_bytes!(BigInt);
 
 #[wasm_bindgen]
 impl BigInt {
+
+    pub fn is_zero(&self) -> bool {
+        self.0.sign() == Sign::NoSign
+    }
+
     pub fn as_u64(&self) -> Option<BigNum> {
         let (sign, u64_digits) = self.0.to_u64_digits();
         if sign == num_bigint::Sign::Minus {
             return None;
         }
         match u64_digits.len() {
+            0 => Some(to_bignum(0)),
             1 => Some(to_bignum(*u64_digits.first().unwrap())),
             _ => None,
         }
@@ -728,11 +744,35 @@ impl BigInt {
         use std::str::FromStr;
         num_bigint::BigInt::from_str(text)
             .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
-            .map(BigInt)
+            .map(Self)
     }
 
     pub fn to_str(&self) -> String {
         self.0.to_string()
+    }
+
+    pub fn add(&self, other: &BigInt) -> BigInt {
+        Self(&self.0 + &other.0)
+    }
+
+    pub fn mul(&self, other: &BigInt) -> BigInt {
+        Self(&self.0 * &other.0)
+    }
+
+    pub fn one() -> BigInt {
+        use std::str::FromStr;
+        Self(num_bigint::BigInt::from_str("1").unwrap())
+    }
+
+    pub fn increment(&self) -> BigInt {
+        self.add(&Self::one())
+    }
+
+    pub fn div_ceil(&self, other: &BigInt) -> BigInt {
+        use num_integer::Integer;
+        let (res, rem) = self.0.div_rem(&other.0);
+        let result = Self(res);
+        if Self(rem).is_zero() { result } else { result.increment() }
     }
 }
 
@@ -2365,5 +2405,61 @@ mod tests {
         let y = Int::from_bytes(bytes_y.clone()).unwrap();
         assert_eq!(y.to_str(), "-18446744073709551616");
         assert_eq!(bytes_y, y.to_bytes());
+    }
+
+    #[test]
+    fn test_bigint_add() {
+        assert_eq!(
+            to_bigint(10).add(&to_bigint(20)),
+            to_bigint(30),
+        );
+        assert_eq!(
+            to_bigint(500).add(&to_bigint(800)),
+            to_bigint(1300),
+        );
+    }
+
+    #[test]
+    fn test_bigint_mul() {
+        assert_eq!(
+            to_bigint(10).mul(&to_bigint(20)),
+            to_bigint(200),
+        );
+        assert_eq!(
+            to_bigint(500).mul(&to_bigint(800)),
+            to_bigint(400000),
+        );
+        assert_eq!(
+            to_bigint(12).mul(&to_bigint(22)),
+            to_bigint(264),
+        );
+    }
+
+    #[test]
+    fn test_bigint_div_ceil() {
+        assert_eq!(
+            to_bigint(20).div_ceil(&to_bigint(10)),
+            to_bigint(2),
+        );
+        assert_eq!(
+            to_bigint(20).div_ceil(&to_bigint(2)),
+            to_bigint(10),
+        );
+        assert_eq!(
+            to_bigint(21).div_ceil(&to_bigint(2)),
+            to_bigint(11),
+        );
+        assert_eq!(
+            to_bigint(6).div_ceil(&to_bigint(3)),
+            to_bigint(2),
+        );
+        assert_eq!(
+            to_bigint(5).div_ceil(&to_bigint(3)),
+            to_bigint(2),
+        );
+        assert_eq!(
+            to_bigint(7).div_ceil(&to_bigint(3)),
+            to_bigint(3),
+        );
     }
 }

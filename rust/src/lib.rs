@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "with-bench", feature(test))]
+#![allow(deprecated)]
 
 #[macro_use]
 extern crate cfg_if;
@@ -228,6 +229,15 @@ impl Certificates {
 
 pub type RequiredSigners = Ed25519KeyHashes;
 pub type RequiredSignersSet = BTreeSet<Ed25519KeyHash>;
+
+impl From<&Ed25519KeyHashes> for RequiredSignersSet {
+    fn from(keys: &Ed25519KeyHashes) -> Self {
+        keys.0.iter().fold(BTreeSet::new(), |mut set, k| {
+            set.insert(k.clone());
+            set
+        })
+    }
+}
 
 #[wasm_bindgen]
 #[derive(Clone)]
@@ -613,6 +623,7 @@ to_from_bytes!(Ed25519KeyHashes);
 
 #[wasm_bindgen]
 impl Ed25519KeyHashes {
+
     pub fn new() -> Self {
         Self(Vec::new())
     }
@@ -627,6 +638,10 @@ impl Ed25519KeyHashes {
 
     pub fn add(&mut self, elem: &Ed25519KeyHash) {
         self.0.push(elem.clone());
+    }
+
+    pub fn to_option(&self) -> Option<Ed25519KeyHashes> {
+        if self.len() > 0 { Some(self.clone()) } else { None }
     }
 }
 

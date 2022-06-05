@@ -1,42 +1,50 @@
+#![allow(deprecated)]
+
+mod tx_inputs_builder;
+
 use super::*;
 use super::fees;
 use super::utils;
-use super::output_builder::{TransactionOutputAmountBuilder};
+use super::output_builder::TransactionOutputAmountBuilder;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use linked_hash_map::LinkedHashMap;
+use tx_inputs_builder::{PlutusWitness, PlutusWitnesses};
+use crate::tx_builder::tx_inputs_builder::{get_bootstraps, TxInputsBuilder};
 
 // comes from witsVKeyNeeded in the Ledger spec
-fn witness_keys_for_cert(cert_enum: &Certificate, keys: &mut BTreeSet<Ed25519KeyHash>) {
+fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
+    let mut set = RequiredSigners::new();
     match &cert_enum.0 {
         // stake key registrations do not require a witness
         CertificateEnum::StakeRegistration(_cert) => {},
         CertificateEnum::StakeDeregistration(cert) => {
-            keys.insert(cert.stake_credential().to_keyhash().unwrap());
+            set.add(&cert.stake_credential().to_keyhash().unwrap());
         },
         CertificateEnum::StakeDelegation(cert) => {
-            keys.insert(cert.stake_credential().to_keyhash().unwrap());
+            set.add(&cert.stake_credential().to_keyhash().unwrap());
         },
         CertificateEnum::PoolRegistration(cert) => {
             for owner in &cert.pool_params().pool_owners().0 {
-                keys.insert(owner.clone());
+                set.add(&owner.clone());
             }
-            keys.insert(
-                Ed25519KeyHash::from_bytes(cert.pool_params().operator().to_bytes()).unwrap()
+            set.add(
+                &Ed25519KeyHash::from_bytes(cert.pool_params().operator().to_bytes()).unwrap()
             );
         },
         CertificateEnum::PoolRetirement(cert) => {
-            keys.insert(
-                Ed25519KeyHash::from_bytes(cert.pool_keyhash().to_bytes()).unwrap()
+            set.add(
+                &Ed25519KeyHash::from_bytes(cert.pool_keyhash().to_bytes()).unwrap()
             );
         },
         CertificateEnum::GenesisKeyDelegation(cert) => {
-            keys.insert(
-                Ed25519KeyHash::from_bytes(cert.genesis_delegate_hash().to_bytes()).unwrap()
+            set.add(
+                &Ed25519KeyHash::from_bytes(cert.genesis_delegate_hash().to_bytes()).unwrap()
             );
         },
         // not witness as there is no single core node or genesis key that posts the certificate
         CertificateEnum::MoveInstantaneousRewardsCert(_cert) => {},
     }
+    set
 }
 
 fn fake_private_key() -> Bip32PrivateKey {
@@ -61,14 +69,13 @@ fn fake_raw_key_public() -> PublicKey {
 }
 
 fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
-    let input_hashes = &tx_builder.input_types.vkeys;
-    match &tx_builder.mint_scripts {
-        None => input_hashes.len(),
-        Some(scripts) => {
-            // Union all input keys with minting keys
-            input_hashes.union(&RequiredSignersSet::from(scripts)).count()
-        }
+    let mut input_hashes: RequiredSignersSet = RequiredSignersSet::from(&tx_builder.inputs);
+    input_hashes.extend(RequiredSignersSet::from(&tx_builder.collateral));
+    input_hashes.extend(RequiredSignersSet::from(&tx_builder.required_signers));
+    if let Some(scripts) = &tx_builder.mint_scripts {
+        input_hashes.extend(RequiredSignersSet::from(scripts));
     }
+    input_hashes.len()
 }
 
 // tx_body must be the result of building from tx_builder
@@ -94,11 +101,12 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
             Some(result)
         },
     };
-    let bootstrap_keys = match tx_builder.input_types.bootstraps.len() {
+    let bootstraps = get_bootstraps(&tx_builder.inputs);
+    let bootstrap_keys = match bootstraps.len() {
         0 => None,
         _x => {
             let mut result = BootstrapWitnesses::new();
-            for addr in &tx_builder.input_types.bootstraps {
+            for addr in bootstraps {
                 // picking icarus over daedalus for fake witness generation shouldn't matter
                 result.add(&make_icarus_bootstrap_witness(
                     &TransactionHash::from([0u8; TransactionHash::BYTE_COUNT]),
@@ -110,7 +118,7 @@ fn fake_full_tx(tx_builder: &TransactionBuilder, body: TransactionBody) -> Resul
         },
     };
     let (plutus_scripts, plutus_data, redeemers) = {
-        if let Some(s) = tx_builder.get_plutus_input_scripts() {
+        if let Some(s) = tx_builder.get_combined_plutus_scripts() {
             let (s, d, r) = s.collect();
             (Some(s), Some(d), Some(r))
         } else {
@@ -164,112 +172,19 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     //     assert_required_mint_scripts(mint, tx_builder.mint_scripts.as_ref())?;
     // }
     let full_tx = fake_full_tx(tx_builder, tx_builder.build()?)?;
-    fees::min_fee(&full_tx, &tx_builder.config.fee_algo)
-}
-
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusWitnesses(Vec<PlutusWitness>);
-
-#[wasm_bindgen]
-impl PlutusWitnesses {
-    pub fn new() -> Self {
-        Self(Vec::new())
+    let fee: Coin = fees::min_fee(&full_tx, &tx_builder.config.fee_algo)?;
+    if let Some(ex_unit_prices) = &tx_builder.config.ex_unit_prices {
+        let script_fee: Coin = fees::min_script_fee(&full_tx, &ex_unit_prices)?;
+        return fee.checked_add(&script_fee);
     }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
+    if tx_builder.has_plutus_inputs() {
+        return Err(
+            JsError::from_str(
+                "Plutus inputs are present but ex unit prices are missing in the config!"
+            )
+        );
     }
-
-    pub fn get(&self, index: usize) -> PlutusWitness {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &PlutusWitness) {
-        self.0.push(elem.clone());
-    }
-
-    fn collect(&self) -> (PlutusScripts, PlutusList, Redeemers) {
-        let mut s = PlutusScripts::new();
-        let mut d = PlutusList::new();
-        let mut r = Redeemers::new();
-        self.0.iter().for_each(|w| {
-            s.add(&w.script);
-            d.add(&w.datum);
-            r.add(&w.redeemer);
-        });
-        (s, d, r)
-    }
-}
-
-impl From<Vec<PlutusWitness>> for PlutusWitnesses {
-    fn from(scripts: Vec<PlutusWitness>) -> Self {
-        scripts.iter().fold(PlutusWitnesses::new(), |mut scripts, s| {
-            scripts.add(s);
-            scripts
-        })
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusWitness {
-    script: PlutusScript,
-    datum: PlutusData,
-    redeemer: Redeemer,
-}
-
-#[wasm_bindgen]
-impl PlutusWitness {
-
-    pub fn new(script: &PlutusScript, datum: &PlutusData, redeemer: &Redeemer) -> Self {
-        Self {
-            script: script.clone(),
-            datum: datum.clone(),
-            redeemer: redeemer.clone(),
-        }
-    }
-
-    pub fn script(&self) -> PlutusScript {
-        self.script.clone()
-    }
-
-    pub fn datum(&self) -> PlutusData {
-        self.datum.clone()
-    }
-
-    pub fn redeemer(&self) -> Redeemer {
-        self.redeemer.clone()
-    }
-
-    fn clone_with_redeemer_index(&self, index: &BigNum) -> Self {
-        Self {
-            script: self.script.clone(),
-            datum: self.datum.clone(),
-            redeemer: self.redeemer.clone_with_index(index),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-enum ScriptWitnessType {
-    NativeScriptWitness(NativeScript),
-    PlutusScriptWitness(PlutusWitness),
-}
-
-// We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
-#[derive(Clone, Debug)]
-struct MockWitnessSet {
-    vkeys: BTreeSet<Ed25519KeyHash>,
-    scripts: LinkedHashMap<ScriptHash, Option<ScriptWitnessType>>,
-    bootstraps: BTreeSet<Vec<u8>>,
-}
-
-#[derive(Clone, Debug)]
-struct TxBuilderInput {
-    input: TransactionInput,
-    amount: Value, // we need to keep track of the amount in the inputs for input selection
+    Ok(fee)
 }
 
 #[wasm_bindgen]
@@ -293,6 +208,7 @@ pub struct TransactionBuilderConfig {
     max_value_size: u32,       // protocol parameter
     max_tx_size: u32,          // protocol parameter
     coins_per_utxo_word: Coin, // protocol parameter
+    ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     prefer_pure_change: bool,
 }
 
@@ -305,6 +221,7 @@ pub struct TransactionBuilderConfigBuilder {
     max_value_size: Option<u32>,       // protocol parameter
     max_tx_size: Option<u32>,          // protocol parameter
     coins_per_utxo_word: Option<Coin>, // protocol parameter
+    ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     prefer_pure_change: bool,
 }
 
@@ -318,6 +235,7 @@ impl TransactionBuilderConfigBuilder {
             max_value_size: None,
             max_tx_size: None,
             coins_per_utxo_word: None,
+            ex_unit_prices: None,
             prefer_pure_change: false,
         }
     }
@@ -331,6 +249,12 @@ impl TransactionBuilderConfigBuilder {
     pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {
         let mut cfg = self.clone();
         cfg.coins_per_utxo_word = Some(coins_per_utxo_word.clone());
+        cfg
+    }
+
+    pub fn ex_unit_prices(&self, ex_unit_prices: &ExUnitPrices) -> Self {
+        let mut cfg = self.clone();
+        cfg.ex_unit_prices = Some(ex_unit_prices.clone());
         cfg
     }
 
@@ -365,7 +289,7 @@ impl TransactionBuilderConfigBuilder {
     }
 
     pub fn build(&self) -> Result<TransactionBuilderConfig, JsError> {
-        let cfg = self.clone();
+        let cfg: Self = self.clone();
         Ok(TransactionBuilderConfig {
             fee_algo: cfg.fee_algo.ok_or(JsError::from_str("uninitialized field: fee_algo"))?,
             pool_deposit: cfg.pool_deposit.ok_or(JsError::from_str("uninitialized field: pool_deposit"))?,
@@ -373,6 +297,7 @@ impl TransactionBuilderConfigBuilder {
             max_value_size: cfg.max_value_size.ok_or(JsError::from_str("uninitialized field: max_value_size"))?,
             max_tx_size: cfg.max_tx_size.ok_or(JsError::from_str("uninitialized field: max_tx_size"))?,
             coins_per_utxo_word: cfg.coins_per_utxo_word.ok_or(JsError::from_str("uninitialized field: coins_per_utxo_word"))?,
+            ex_unit_prices: cfg.ex_unit_prices,
             prefer_pure_change: cfg.prefer_pure_change,
         })
     }
@@ -382,7 +307,8 @@ impl TransactionBuilderConfigBuilder {
 #[derive(Clone, Debug)]
 pub struct TransactionBuilder {
     config: TransactionBuilderConfig,
-    inputs: Vec<(TxBuilderInput, Option<ScriptHash>)>,
+    inputs: TxInputsBuilder,
+    collateral: TxInputsBuilder,
     outputs: TransactionOutputs,
     fee: Option<Coin>,
     ttl: Option<SlotBigNum>, // absolute slot number
@@ -390,10 +316,10 @@ pub struct TransactionBuilder {
     withdrawals: Option<Withdrawals>,
     auxiliary_data: Option<AuxiliaryData>,
     validity_start_interval: Option<SlotBigNum>,
-    input_types: MockWitnessSet,
     mint: Option<Mint>,
     mint_scripts: Option<NativeScripts>,
     script_data_hash: Option<ScriptDataHash>,
+    required_signers: Ed25519KeyHashes,
 }
 
 #[wasm_bindgen]
@@ -649,16 +575,20 @@ impl TransactionBuilder {
         Ok(())
     }
 
+    pub fn set_inputs(&mut self, inputs: &TxInputsBuilder) {
+        self.inputs = inputs.clone();
+    }
+
+    pub fn set_collateral(&mut self, collateral: &TxInputsBuilder) {
+        self.collateral = collateral.clone();
+    }
+
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
     /// 1) mock witnesses have different lengths depending on the type which changes the expecting fee
     /// 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn add_key_input(&mut self, hash: &Ed25519KeyHash, input: &TransactionInput, amount: &Value) {
-        let inp = TxBuilderInput {
-            input: input.clone(),
-            amount: amount.clone(),
-        };
-        self.inputs.push((inp, None));
-        self.input_types.vkeys.insert(hash.clone());
+        self.inputs.add_key_input(hash, input, amount);
     }
 
     /// This method adds the input to the builder BUT leaves a missing spot for the witness native script
@@ -668,178 +598,72 @@ impl TransactionBuilder {
     ///
     /// Or instead use `.add_native_script_input` and `.add_plutus_script_input`
     /// to add inputs right along with the script, instead of the script hash
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn add_script_input(&mut self, hash: &ScriptHash, input: &TransactionInput, amount: &Value) {
-        let inp = TxBuilderInput {
-            input: input.clone(),
-            amount: amount.clone(),
-        };
-        self.inputs.push((inp, Some(hash.clone())));
-        if !self.input_types.scripts.contains_key(hash) {
-            self.input_types.scripts.insert(hash.clone(), None);
-        }
+        self.inputs.add_script_input(hash, input, amount);
     }
 
     /// This method will add the input to the builder and also register the required native script witness
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn add_native_script_input(&mut self, script: &NativeScript, input: &TransactionInput, amount: &Value) {
-        let hash = script.hash();
-        self.add_script_input(&hash, input, amount);
-        self.input_types.scripts.insert(
-            hash,
-            Some(ScriptWitnessType::NativeScriptWitness(script.clone())),
-        );
+        self.inputs.add_native_script_input(script, input, amount);
     }
 
     /// This method will add the input to the builder and also register the required plutus witness
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn add_plutus_script_input(&mut self, witness: &PlutusWitness, input: &TransactionInput, amount: &Value) {
-        let hash = witness.script.hash();
-        self.add_script_input(&hash, input, amount);
-        self.input_types.scripts.insert(
-            hash,
-            Some(ScriptWitnessType::PlutusScriptWitness(witness.clone())),
-        );
+        self.inputs.add_plutus_script_input(witness, input, amount);
     }
 
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn add_bootstrap_input(&mut self, hash: &ByronAddress, input: &TransactionInput, amount: &Value) {
-        let inp = TxBuilderInput {
-            input: input.clone(),
-            amount: amount.clone(),
-        };
-        self.inputs.push((inp, None));
-        self.input_types.bootstraps.insert(hash.to_bytes());
+        self.inputs.add_bootstrap_input(hash, input, amount);
     }
 
     /// Note that for script inputs this method will use underlying generic `.add_script_input`
     /// which leaves a required empty spot for the script witness (or witnesses in case of Plutus).
     /// You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) {
-        match &BaseAddress::from_address(address) {
-            Some(addr) => {
-                match &addr.payment_cred().to_keyhash() {
-                    Some(hash) => return self.add_key_input(hash, input, amount),
-                    None => (),
-                }
-                match &addr.payment_cred().to_scripthash() {
-                    Some(hash) => return self.add_script_input(hash, input, amount),
-                    None => (),
-                }
-            },
-            None => (),
-        }
-        match &EnterpriseAddress::from_address(address) {
-            Some(addr) => {
-                match &addr.payment_cred().to_keyhash() {
-                    Some(hash) => return self.add_key_input(hash, input, amount),
-                    None => (),
-                }
-                match &addr.payment_cred().to_scripthash() {
-                    Some(hash) => return self.add_script_input(hash, input, amount),
-                    None => (),
-                }
-            },
-            None => (),
-        }
-        match &PointerAddress::from_address(address) {
-            Some(addr) => {
-                match &addr.payment_cred().to_keyhash() {
-                    Some(hash) => return self.add_key_input(hash, input, amount),
-                    None => (),
-                }
-                match &addr.payment_cred().to_scripthash() {
-                    Some(hash) => return self.add_script_input(hash, input, amount),
-                    None => (),
-                }
-            },
-            None => (),
-        }
-        match &ByronAddress::from_address(address) {
-            Some(addr) => {
-                return self.add_bootstrap_input(addr, input, amount);
-            },
-            None => (),
-        }
+        self.inputs.add_input(address, input, amount);
     }
 
     /// Returns the number of still missing input scripts (either native or plutus)
     /// Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn count_missing_input_scripts(&self) -> usize {
-        self.input_types.scripts.values().filter(|s| { s.is_none() }).count()
+        self.inputs.count_missing_input_scripts()
     }
 
     /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
     /// Any scripts that don't match any of the previously added inputs will be ignored
     /// Returns the number of remaining required missing witness scripts
     /// Use `.count_missing_input_scripts` to find the number of still missing scripts
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn add_required_native_input_scripts(&mut self, scripts: &NativeScripts) -> usize {
-        scripts.0.iter().for_each(|s: &NativeScript| {
-            let hash = s.hash();
-            if self.input_types.scripts.contains_key(&hash) {
-                self.input_types.scripts.insert(
-                    hash,
-                    Some(ScriptWitnessType::NativeScriptWitness(s.clone())),
-                );
-            }
-        });
-        self.count_missing_input_scripts()
+        self.inputs.add_required_native_input_scripts(scripts)
     }
 
     /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
     /// Any scripts that don't match any of the previously added inputs will be ignored
     /// Returns the number of remaining required missing witness scripts
     /// Use `.count_missing_input_scripts` to find the number of still missing scripts
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn add_required_plutus_input_scripts(&mut self, scripts: &PlutusWitnesses) -> usize {
-        scripts.0.iter().for_each(|s: &PlutusWitness| {
-            let hash = s.script.hash();
-            if self.input_types.scripts.contains_key(&hash) {
-                self.input_types.scripts.insert(
-                    hash,
-                    Some(ScriptWitnessType::PlutusScriptWitness(s.clone())),
-                );
-            }
-        });
-        self.count_missing_input_scripts()
+        self.inputs.add_required_plutus_input_scripts(scripts)
     }
 
     /// Returns a copy of the current script input witness scripts in the builder
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn get_native_input_scripts(&self) -> Option<NativeScripts> {
-        let mut scripts = NativeScripts::new();
-        self.input_types.scripts.values().for_each(|option| {
-            if let Some(ScriptWitnessType::NativeScriptWitness(s)) = option {
-                scripts.add(&s);
-            }
-        });
-        if scripts.len() > 0 { Some(scripts) } else { None }
+        self.inputs.get_native_input_scripts()
     }
 
     /// Returns a copy of the current plutus input witness scripts in the builder.
     /// NOTE: each plutus witness will be cloned with a specific corresponding input index
+    #[deprecated(since = "10.2.0", note="Use `.set_inputs`")]
     pub fn get_plutus_input_scripts(&self) -> Option<PlutusWitnesses> {
-        /*
-         * === EXPLANATION ===
-         * The `Redeemer` object contains the `.index` field which is supposed to point
-         * exactly to the index of the corresponding input in the inputs array. We want to
-         * simplify and automate this as much as possible for the user to not have to care about it.
-         *
-         * For this we store the script hash along with the input, when it was registered, and
-         * now we create a map of script hashes to their input indexes.
-         *
-         * The registered witnesses are then each cloned with the new correct redeemer input index.
-         */
-        let script_hash_index_map: BTreeMap<&ScriptHash, BigNum> = self.inputs.iter().enumerate()
-            .fold(BTreeMap::new(), |mut m, (i, (_, hash_option))| {
-                if let Some(hash) = hash_option {
-                    m.insert(hash, to_bignum(i as u64));
-                }
-                m
-            });
-        let mut scripts = PlutusWitnesses::new();
-        self.input_types.scripts.iter().for_each(|(hash, option)| {
-            if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = option {
-                if let Some(idx) = script_hash_index_map.get(&hash) {
-                    scripts.add(&s.clone_with_redeemer_index(&idx));
-                }
-            }
-        });
-        if scripts.len() > 0 { Some(scripts) } else { None }
+        self.inputs.get_plutus_input_scripts()
     }
 
     /// calculates how much the fee would increase if you added a given output
@@ -937,14 +761,14 @@ impl TransactionBuilder {
     pub fn set_certs(&mut self, certs: &Certificates) {
         self.certs = Some(certs.clone());
         for cert in &certs.0 {
-            witness_keys_for_cert(cert, &mut self.input_types.vkeys);
+            self.inputs.add_required_signers(&witness_keys_for_cert(cert))
         };
     }
 
     pub fn set_withdrawals(&mut self, withdrawals: &Withdrawals) {
         self.withdrawals = Some(withdrawals.clone());
         for (withdrawal, _coin) in &withdrawals.0 {
-            self.input_types.vkeys.insert(withdrawal.payment_cred().to_keyhash().unwrap().clone());
+            self.inputs.add_required_signer(&withdrawal.payment_cred().to_keyhash().unwrap())
         };
     }
 
@@ -1120,22 +944,19 @@ impl TransactionBuilder {
     pub fn new(cfg: &TransactionBuilderConfig) -> Self {
         Self {
             config: cfg.clone(),
-            inputs: Vec::new(),
+            inputs: TxInputsBuilder::new(),
+            collateral: TxInputsBuilder::new(),
             outputs: TransactionOutputs::new(),
             fee: None,
             ttl: None,
             certs: None,
             withdrawals: None,
             auxiliary_data: None,
-            input_types: MockWitnessSet {
-                vkeys: BTreeSet::new(),
-                scripts: LinkedHashMap::new(),
-                bootstraps: BTreeSet::new(),
-            },
             validity_start_interval: None,
             mint: None,
             mint_scripts: None,
             script_data_hash: None,
+            required_signers: Ed25519KeyHashes::new(),
         }
     }
 
@@ -1143,7 +964,7 @@ impl TransactionBuilder {
     pub fn get_explicit_input(&self) -> Result<Value, JsError> {
         self.inputs
             .iter()
-            .try_fold(Value::zero(), |acc, (ref tx_builder_input, _)| {
+            .try_fold(Value::zero(), |acc, ref tx_builder_input| {
                 acc.checked_add(&tx_builder_input.amount)
             })
     }
@@ -1464,7 +1285,7 @@ impl TransactionBuilder {
     /// In case there are no plutus input witnesses present - nothing will change
     /// You can set specific hash value using `.set_script_data_hash`
     pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) {
-        if let Some(pw) = self.get_plutus_input_scripts() {
+        if let Some(pw) = self.inputs.get_plutus_input_scripts() {
             let (_, datums, redeemers) = pw.collect();
             self.script_data_hash =
                 Some(hash_script_data(&redeemers, cost_models, Some(datums)));
@@ -1484,12 +1305,14 @@ impl TransactionBuilder {
         self.script_data_hash = None;
     }
 
+    pub fn add_required_signer(&mut self, key: &Ed25519KeyHash) {
+        self.required_signers.add(key);
+    }
+
     fn build_and_size(&self) -> Result<(TransactionBody, usize), JsError> {
         let fee = self.fee.ok_or_else(|| JsError::from_str("Fee not specified"))?;
-        let inputs = self.inputs.iter()
-            .map(|(ref tx_builder_input, _)| tx_builder_input.input.clone()).collect();
         let built = TransactionBody {
-            inputs: TransactionInputs(inputs),
+            inputs: self.inputs.inputs(),
             outputs: self.outputs.clone(),
             fee,
             ttl: self.ttl,
@@ -1503,8 +1326,8 @@ impl TransactionBuilder {
             validity_start_interval: self.validity_start_interval,
             mint: self.mint.clone(),
             script_data_hash: self.script_data_hash.clone(),
-            collateral: None,
-            required_signers: None,
+            collateral: self.collateral.inputs_option(),
+            required_signers: self.required_signers.to_option(),
             network_id: None,
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
@@ -1539,13 +1362,27 @@ impl TransactionBuilder {
 
     fn get_combined_native_scripts(&self) -> Option<NativeScripts> {
         let mut ns = NativeScripts::new();
-        if let Some(input_scripts) = self.get_native_input_scripts() {
+        if let Some(input_scripts) = self.inputs.get_native_input_scripts() {
+            input_scripts.0.iter().for_each(|s| { ns.add(s); });
+        }
+        if let Some(input_scripts) = self.collateral.get_native_input_scripts() {
             input_scripts.0.iter().for_each(|s| { ns.add(s); });
         }
         if let Some(mint_scripts) = &self.mint_scripts {
             mint_scripts.0.iter().for_each(|s| { ns.add(s); });
         }
         if ns.len() > 0 { Some(ns) } else { None }
+    }
+
+    fn get_combined_plutus_scripts(&self) -> Option<PlutusWitnesses> {
+        let mut res = PlutusWitnesses::new();
+        if let Some(scripts) = self.inputs.get_plutus_input_scripts() {
+            scripts.0.iter().for_each(|s| { res.add(s); })
+        }
+        if let Some(scripts) = self.collateral.get_plutus_input_scripts() {
+            scripts.0.iter().for_each(|s| { res.add(s); })
+        }
+        if res.len() > 0 { Some(res) } else { None }
     }
 
     // This function should be producing the total witness-set
@@ -1557,13 +1394,17 @@ impl TransactionBuilder {
         if let Some(scripts) = self.get_combined_native_scripts() {
             wit.set_native_scripts(&scripts);
         }
-        if let Some(pw) = self.get_plutus_input_scripts() {
+        if let Some(pw) = self.get_combined_plutus_scripts() {
             let (scripts, datums, redeemers) = pw.collect();
             wit.set_plutus_scripts(&scripts);
             wit.set_plutus_data(&datums);
             wit.set_redeemers(&redeemers);
         }
         wit
+    }
+
+    fn has_plutus_inputs(&self) -> bool {
+        self.inputs.get_plutus_input_scripts().is_some()
     }
 
     /// Returns full Transaction object with the body and the auxiliary data
@@ -1576,10 +1417,17 @@ impl TransactionBuilder {
                 "There are some script inputs added that don't have the corresponding script provided as a witness!",
             ));
         }
-        if self.script_data_hash.is_none() && self.get_plutus_input_scripts().is_some() {
-            return Err(JsError::from_str(
-                "Plutus inputs are present, but script data hash is not specified",
-            ));
+        if self.has_plutus_inputs() {
+            if self.script_data_hash.is_none() {
+                return Err(JsError::from_str(
+                    "Plutus inputs are present, but script data hash is not specified",
+                ));
+            }
+            if self.collateral.len() == 0 {
+                return Err(JsError::from_str(
+                    "Plutus inputs are present, but no collateral inputs are added",
+                ));
+            }
         }
         self.build_tx_unsafe()
     }
@@ -1609,7 +1457,7 @@ mod tests {
     use super::*;
     use fees::*;
     use crate::tx_builder_constants::TxBuilderConstants;
-    use super::output_builder::{TransactionOutputBuilder};
+    use super::output_builder::TransactionOutputBuilder;
 
     const MAX_VALUE_SIZE: u32 = 4000;
     const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
@@ -1677,6 +1525,12 @@ mod tests {
             .max_value_size(max_val_size)
             .max_tx_size(MAX_TX_SIZE)
             .coins_per_utxo_word(&to_bignum(coins_per_utxo_word))
+            .ex_unit_prices(
+                &ExUnitPrices::new(
+                    &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
+                    &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+                ),
+            )
             .build()
             .unwrap();
         TransactionBuilder::new(&cfg)
@@ -2124,7 +1978,7 @@ mod tests {
                 &spend_cred,
                 &stake_cred
             ).to_address(),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000))
         );
         tx_builder.add_input(
@@ -2137,14 +1991,14 @@ mod tests {
                     &to_bignum(0)
                 )
             ).to_address(),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 2),
             &Value::new(&to_bignum(1_000_000))
         );
         tx_builder.add_input(
             &ByronAddress::icarus_from_key(
                 &spend, NetworkInfo::testnet().protocol_magic()
             ).to_address(),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 3),
             &Value::new(&to_bignum(1_000_000))
         );
 
@@ -2379,16 +2233,17 @@ mod tests {
             })
             .collect::<Vec<MultiAsset>>();
 
-        for (multiasset, ada) in multiassets
+        for (i, (multiasset, ada)) in multiassets
             .iter()
             .zip([100u64, 100].iter().cloned().map(to_bignum))
+            .enumerate()
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
 
             tx_builder.add_key_input(
                 &&spend.to_raw_key().hash(),
-                &TransactionInput::new(&genesis_id(), 0),
+                &TransactionInput::new(&genesis_id(), i as u32),
                 &input_amount,
             );
         }
@@ -2492,16 +2347,17 @@ mod tests {
             })
             .collect::<Vec<MultiAsset>>();
 
-        for (multiasset, ada) in multiassets
+        for (i, (multiasset, ada)) in multiassets
             .iter()
             .zip([100u64, 100].iter().cloned().map(to_bignum))
+            .enumerate()
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
 
             tx_builder.add_key_input(
                 &&spend.to_raw_key().hash(),
-                &TransactionInput::new(&genesis_id(), 0),
+                &TransactionInput::new(&genesis_id(), i as u32),
                 &input_amount,
             );
         }
@@ -2622,16 +2478,17 @@ mod tests {
             })
             .collect::<Vec<MultiAsset>>();
 
-        for (multiasset, ada) in multiassets
+        for (i, (multiasset, ada)) in multiassets
             .iter()
             .zip([300u64, 300].iter().cloned().map(to_bignum))
+            .enumerate()
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
 
             tx_builder.add_key_input(
                 &&spend.to_raw_key().hash(),
-                &TransactionInput::new(&genesis_id(), 0),
+                &TransactionInput::new(&genesis_id(), i as u32),
                 &input_amount,
             );
         }
@@ -3071,9 +2928,13 @@ mod tests {
         assert!(tx_builder.add_change_if_needed(&change_addr).is_err())
     }
 
+    fn fake_tx_hash(input_hash_byte: u8) -> TransactionHash {
+        TransactionHash::from([input_hash_byte; 32])
+    }
+
     fn make_input(input_hash_byte: u8, value: Value) -> TransactionUnspentOutput {
         TransactionUnspentOutput::new(
-            &TransactionInput::new(&TransactionHash::from([input_hash_byte; 32]), 0),
+            &TransactionInput::new(&fake_tx_hash(input_hash_byte), 0),
             &TransactionOutputBuilder::new()
                 .with_address(&Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap())
                 .next().unwrap()
@@ -3109,11 +2970,10 @@ mod tests {
         assert_eq!(2, tx.outputs().len());
         assert_eq!(3, tx.inputs().len());
         // confirm order of only what is necessary
-        assert_eq!(2u8, tx.inputs().get(0).transaction_id().0[0]);
-        assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
-        assert_eq!(1u8, tx.inputs().get(2).transaction_id().0[0]);
+        assert_eq!(1u8, tx.inputs().get(0).transaction_id().0[0]);
+        assert_eq!(2u8, tx.inputs().get(1).transaction_id().0[0]);
+        assert_eq!(3u8, tx.inputs().get(2).transaction_id().0[0]);
     }
-
 
     #[test]
     fn tx_builder_cip2_largest_first_static_fees() {
@@ -3148,7 +3008,6 @@ mod tests {
     #[test]
     fn tx_builder_cip2_largest_first_multiasset() {
         // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
         let pid1 = PolicyID::from([1u8; 28]);
         let pid2 = PolicyID::from([2u8; 28]);
@@ -3253,7 +3112,6 @@ mod tests {
 
     #[test]
     fn tx_builder_cip2_random_improve_multiasset() {
-        let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(0));
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
         let pid1 = PolicyID::from([1u8; 28]);
         let pid2 = PolicyID::from([2u8; 28]);
@@ -4306,7 +4164,7 @@ mod tests {
         // One input from same address as mint
         tx_builder.add_key_input(
             &hash1,
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(10_000_000)),
         );
 
@@ -4464,16 +4322,17 @@ mod tests {
             })
             .collect::<Vec<MultiAsset>>();
 
-        for (multiasset, ada) in multiassets
+        for (i, (multiasset, ada)) in multiassets
             .iter()
             .zip([100u64, 100, 100].iter().cloned().map(to_bignum))
+            .enumerate()
         {
             let mut input_amount = Value::new(&ada);
             input_amount.set_multiasset(multiasset);
 
             tx_builder.add_key_input(
                 &&spend.to_raw_key().hash(),
-                &TransactionInput::new(&genesis_id(), 0),
+                &TransactionInput::new(&genesis_id(), i as u32),
                 &input_amount,
             );
         }
@@ -4513,6 +4372,14 @@ mod tests {
         assert_eq!(ma2_input.get(&policy_id1).unwrap().get(&name).unwrap(), to_bignum(400));
         assert_eq!(ma2_input.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(360));
         assert_eq!(ma2_output.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(40));
+    }
+
+    fn create_base_address(x: u8) -> Address {
+        BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &StakeCredential::from_keyhash(&fake_key_hash(x)),
+            &StakeCredential::from_keyhash(&fake_key_hash(0))
+        ).to_address()
     }
 
     fn create_base_address_from_script_hash(sh: &ScriptHash) -> Address {
@@ -4639,7 +4506,7 @@ mod tests {
         let tx_len_before_new_script_input = unsafe_tx_len(&tx_builder);
         tx_builder.add_input(
             &create_base_address_from_script_hash(&hash2),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000))
         );
         let tx_len_after_new_script_input = unsafe_tx_len(&tx_builder);
@@ -4734,7 +4601,7 @@ mod tests {
         tx_builder.set_fee(&to_bignum(42));
         let (script1, hash1) = plutus_script_and_hash(0);
         let (script2, hash2) = plutus_script_and_hash(1);
-        let (script3, hash3) = plutus_script_and_hash(3);
+        let (script3, _hash3) = plutus_script_and_hash(3);
         let datum1 = PlutusData::new_bytes(fake_bytes(10));
         let datum2 = PlutusData::new_bytes(fake_bytes(11));
         let redeemer1 = Redeemer::new(
@@ -4756,7 +4623,7 @@ mod tests {
         );
         tx_builder.add_input(
             &create_base_address_from_script_hash(&hash2),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000)),
         );
         // There are TWO missing script witnesses
@@ -4799,10 +4666,21 @@ mod tests {
         assert_eq!(redeems.get(1), redeemer2);
     }
 
+    fn create_collateral() -> TxInputsBuilder {
+        let mut collateral_builder = TxInputsBuilder::new();
+        collateral_builder.add_input(
+            &byron_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        collateral_builder
+    }
+
     #[test]
     fn test_existing_plutus_scripts_require_data_hash() {
         let mut tx_builder = create_reallistic_tx_builder();
         tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
         let (script1, _) = plutus_script_and_hash(0);
         let datum = PlutusData::new_bytes(fake_bytes(1));
         let redeemer_datum = PlutusData::new_bytes(fake_bytes(2));
@@ -4844,6 +4722,8 @@ mod tests {
     fn test_calc_script_hash_data() {
         let mut tx_builder = create_reallistic_tx_builder();
         tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
+
         let (script1, _) = plutus_script_and_hash(0);
         let datum = PlutusData::new_bytes(fake_bytes(1));
         let redeemer_datum = PlutusData::new_bytes(fake_bytes(2));
@@ -4880,6 +4760,7 @@ mod tests {
     fn test_plutus_witness_redeemer_index_auto_changing() {
         let mut tx_builder = create_reallistic_tx_builder();
         tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
         let (script1, _) = plutus_script_and_hash(0);
         let (script2, _) = plutus_script_and_hash(1);
         let datum1 = PlutusData::new_bytes(fake_bytes(10));
@@ -4910,12 +4791,12 @@ mod tests {
         // both have redeemers with index ZERO
         tx_builder.add_plutus_script_input(
             &PlutusWitness::new(&script1, &datum1, &redeemer1),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000)),
         );
         tx_builder.add_plutus_script_input(
             &PlutusWitness::new(&script2, &datum2, &redeemer2),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 2),
             &Value::new(&to_bignum(1_000_000)),
         );
 
@@ -4949,6 +4830,7 @@ mod tests {
     fn test_native_and_plutus_scripts_together() {
         let mut tx_builder = create_reallistic_tx_builder();
         tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
         let (pscript1, _) = plutus_script_and_hash(0);
         let (pscript2, phash2) = plutus_script_and_hash(1);
         let (nscript1, _) = mint_script_and_policy(0);
@@ -4978,19 +4860,19 @@ mod tests {
         // Add one native input directly with witness
         tx_builder.add_native_script_input(
             &nscript1,
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 1),
             &Value::new(&to_bignum(1_000_000)),
         );
         // Add one plutus input generically without witness
         tx_builder.add_input(
             &create_base_address_from_script_hash(&phash2),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 2),
             &Value::new(&to_bignum(1_000_000)),
         );
         // Add one native input generically without witness
         tx_builder.add_input(
             &create_base_address_from_script_hash(&nhash2),
-            &TransactionInput::new(&genesis_id(), 0),
+            &TransactionInput::new(&genesis_id(), 3),
             &Value::new(&to_bignum(1_000_000)),
         );
 
@@ -5050,5 +4932,339 @@ mod tests {
         // because it was added on the third position
         assert_eq!(redeems.get(1), redeemer2.clone_with_index(&to_bignum(2)));
     }
+
+    #[test]
+    fn test_regular_and_collateral_inputs_same_keyhash() {
+
+        let mut input_builder = TxInputsBuilder::new();
+        let mut collateral_builder = TxInputsBuilder::new();
+
+        // Add a single input of both kinds with the SAME keyhash
+        input_builder.add_input(
+            &create_base_address(0),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        collateral_builder.add_input(
+            &create_base_address(0),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        fn get_fake_vkeys_count(i: &TxInputsBuilder, c: &TxInputsBuilder) -> usize {
+            let mut tx_builder = create_reallistic_tx_builder();
+            tx_builder.set_fee(&to_bignum(42));
+            tx_builder.set_inputs(i);
+            tx_builder.set_collateral(c);
+            let tx: Transaction = fake_full_tx(&tx_builder, tx_builder.build().unwrap()).unwrap();
+            tx.witness_set.vkeys.unwrap().len()
+        }
+
+        // There's only one fake witness in the builder
+        // because a regular and a collateral inputs both use the same keyhash
+        assert_eq!(get_fake_vkeys_count(&input_builder, &collateral_builder), 1);
+
+        // Add a new input of each kind with DIFFERENT keyhashes
+        input_builder.add_input(
+            &create_base_address(1),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        collateral_builder.add_input(
+            &create_base_address(2),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+
+        // There are now three fake witnesses in the builder
+        // because all three unique keyhashes got combined
+        assert_eq!(get_fake_vkeys_count(&input_builder, &collateral_builder), 3);
+    }
+
+    #[test]
+    fn test_regular_and_collateral_inputs_together() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let (pscript1, _) = plutus_script_and_hash(0);
+        let (pscript2, _) = plutus_script_and_hash(1);
+        let (nscript1, _) = mint_script_and_policy(0);
+        let (nscript2, _) = mint_script_and_policy(1);
+        let datum1 = PlutusData::new_bytes(fake_bytes(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        // Creating redeemers with indexes ZERO
+        let redeemer1 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes(20)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        let redeemer2 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes(21)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+
+        let mut input_builder = TxInputsBuilder::new();
+        let mut collateral_builder = TxInputsBuilder::new();
+
+        input_builder.add_native_script_input(
+            &nscript1,
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        collateral_builder.add_native_script_input(
+            &nscript2,
+            &TransactionInput::new(&genesis_id(), 1),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        input_builder.add_plutus_script_input(
+            &PlutusWitness::new(
+                &pscript1,
+                &datum1,
+                &redeemer1,
+            ),
+            &TransactionInput::new(&genesis_id(), 2),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        collateral_builder.add_plutus_script_input(
+            &PlutusWitness::new(
+                &pscript2,
+                &datum2,
+                &redeemer2,
+            ),
+            &TransactionInput::new(&genesis_id(), 3),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        tx_builder.set_inputs(&input_builder);
+        tx_builder.set_collateral(&collateral_builder);
+
+        tx_builder.calc_script_data_hash(
+            &TxBuilderConstants::plutus_default_cost_models(),
+        );
+
+        let w: &TransactionWitnessSet = &tx_builder.build_tx().unwrap().witness_set;
+
+        assert!(w.native_scripts.is_some());
+        let nscripts = w.native_scripts.as_ref().unwrap();
+        assert_eq!(nscripts.len(), 2);
+        assert_eq!(nscripts.get(0), nscript1);
+        assert_eq!(nscripts.get(1), nscript2);
+
+        assert!(w.plutus_scripts.is_some());
+        let pscripts = w.plutus_scripts.as_ref().unwrap();
+        assert_eq!(pscripts.len(), 2);
+        assert_eq!(pscripts.get(0), pscript1);
+        assert_eq!(pscripts.get(1), pscript2);
+
+        assert!(w.plutus_data.is_some());
+        let datums = w.plutus_data.as_ref().unwrap();
+        assert_eq!(datums.len(), 2);
+        assert_eq!(datums.get(0), datum1);
+        assert_eq!(datums.get(1), datum2);
+
+        assert!(w.redeemers.is_some());
+        let redeemers = w.redeemers.as_ref().unwrap();
+        assert_eq!(redeemers.len(), 2);
+        assert_eq!(redeemers.get(0), redeemer1.clone_with_index(&to_bignum(1)));
+        assert_eq!(redeemers.get(1), redeemer2.clone_with_index(&to_bignum(1)));
+    }
+
+    #[test]
+    fn test_ex_unit_costs_are_added_to_the_fees() {
+
+        fn calc_fee_with_ex_units(mem: u64, step: u64) -> Coin {
+            let mut input_builder = TxInputsBuilder::new();
+            let mut collateral_builder = TxInputsBuilder::new();
+
+            // Add a single input of both kinds with the SAME keyhash
+            input_builder.add_input(
+                &create_base_address(0),
+                &TransactionInput::new(&genesis_id(), 0),
+                &Value::new(&to_bignum(1_000_000)),
+            );
+            collateral_builder.add_input(
+                &create_base_address(0),
+                &TransactionInput::new(&genesis_id(), 1),
+                &Value::new(&to_bignum(1_000_000)),
+            );
+
+            let (pscript1, _) = plutus_script_and_hash(0);
+            let datum1 = PlutusData::new_bytes(fake_bytes(10));
+            let redeemer1 = Redeemer::new(
+                &RedeemerTag::new_spend(),
+                &to_bignum(0),
+                &PlutusData::new_bytes(fake_bytes(20)),
+                &ExUnits::new(&to_bignum(mem), &to_bignum(step)),
+            );
+            input_builder.add_plutus_script_input(
+                &PlutusWitness::new(
+                    &pscript1,
+                    &datum1,
+                    &redeemer1,
+                ),
+                &TransactionInput::new(&genesis_id(), 2),
+                &Value::new(&to_bignum(1_000_000)),
+            );
+
+            let mut tx_builder = create_reallistic_tx_builder();
+            tx_builder.set_inputs(&input_builder);
+            tx_builder.set_collateral(&collateral_builder);
+
+            tx_builder.add_change_if_needed(
+                &create_base_address(42),
+            ).unwrap();
+
+            tx_builder.get_fee_if_set().unwrap()
+        }
+
+        assert_eq!(calc_fee_with_ex_units(0, 0), to_bignum(173509));
+        assert_eq!(calc_fee_with_ex_units(10000, 0), to_bignum(174174));
+        assert_eq!(calc_fee_with_ex_units(0, 10000000), to_bignum(174406));
+        assert_eq!(calc_fee_with_ex_units(10000, 10000000), to_bignum(175071));
+    }
+
+    #[test]
+    fn test_script_inputs_ordering() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let (nscript1, _) = mint_script_and_policy(0);
+        let (pscript1, _) = plutus_script_and_hash(0);
+        let (pscript2, _) = plutus_script_and_hash(1);
+        let datum1 = PlutusData::new_bytes(fake_bytes(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        // Creating redeemers with indexes ZERO
+        let pdata1 = PlutusData::new_bytes(fake_bytes(20));
+        let pdata2 = PlutusData::new_bytes(fake_bytes(21));
+        let redeemer1 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &pdata1,
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        let redeemer2 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &pdata2,
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(
+                &pscript1,
+                &datum1,
+                &redeemer1,
+            ),
+            &TransactionInput::new(&fake_tx_hash(2), 1),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        tx_builder.add_native_script_input(
+            &nscript1,
+            &TransactionInput::new(&fake_tx_hash(1), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(
+                &pscript2,
+                &datum2,
+                &redeemer2,
+            ),
+            &TransactionInput::new(&fake_tx_hash(2), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
+
+        let ins = tx.body.inputs;
+        assert_eq!(ins.len(), 3);
+        assert_eq!(ins.get(0).transaction_id.0[0], 1);
+        assert_eq!(ins.get(1).transaction_id.0[0], 2);
+        assert_eq!(ins.get(1).index, 0);
+        assert_eq!(ins.get(2).transaction_id.0[0], 2);
+        assert_eq!(ins.get(2).index, 1);
+
+        let r: Redeemers = tx.witness_set.redeemers.unwrap();
+        assert_eq!(r.len(), 2);
+
+        // Redeemer1 now has the index 2 even tho the input was added first
+        assert_eq!(r.get(0).data(), pdata1);
+        assert_eq!(r.get(0).index(), to_bignum(2));
+
+        // Redeemer1 now has the index 1 even tho the input was added last
+        assert_eq!(r.get(1).data(), pdata2);
+        assert_eq!(r.get(1).index(), to_bignum(1));
+    }
+
+    #[test]
+    fn test_required_signers() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        let tx1: TransactionBody = tx_builder.build().unwrap();
+        assert!(tx1.required_signers.is_none());
+
+        let s1 = fake_key_hash(1);
+        let s2 = fake_key_hash(22);
+        let s3 = fake_key_hash(133);
+
+        tx_builder.add_required_signer(&s1);
+        tx_builder.add_required_signer(&s3);
+        tx_builder.add_required_signer(&s2);
+
+        let tx1: TransactionBody = tx_builder.build().unwrap();
+        assert!(tx1.required_signers.is_some());
+
+        let rs: RequiredSigners = tx1.required_signers.unwrap();
+        assert_eq!(rs.len(), 3);
+        assert_eq!(rs.get(0), s1);
+        assert_eq!(rs.get(1), s3);
+        assert_eq!(rs.get(2), s2);
+    }
+
+    #[test]
+    fn test_required_signers_are_added_to_the_witness_estimate() {
+
+        fn count_fake_witnesses_with_required_signers(keys: &Ed25519KeyHashes) -> usize {
+            let mut tx_builder = create_reallistic_tx_builder();
+            tx_builder.set_fee(&to_bignum(42));
+            tx_builder.add_input(
+                &create_base_address(0),
+                &TransactionInput::new(&fake_tx_hash(0), 0),
+                &Value::new(&to_bignum(10_000_000)),
+            );
+
+            keys.0.iter().for_each(|k| {
+                tx_builder.add_required_signer(k);
+            });
+
+            let tx: Transaction = fake_full_tx(&tx_builder, tx_builder.build().unwrap()).unwrap();
+            tx.witness_set.vkeys.unwrap().len()
+        }
+
+        assert_eq!(count_fake_witnesses_with_required_signers(
+            &Ed25519KeyHashes::new(),
+        ), 1);
+
+        assert_eq!(count_fake_witnesses_with_required_signers(
+            &Ed25519KeyHashes(vec![fake_key_hash(1)]),
+        ), 2);
+
+        assert_eq!(count_fake_witnesses_with_required_signers(
+            &Ed25519KeyHashes(vec![fake_key_hash(1), fake_key_hash(2)]),
+        ), 3);
+
+        // This case still produces only 3 fake signatures, because the same key is already used in the input address
+        assert_eq!(count_fake_witnesses_with_required_signers(
+            &Ed25519KeyHashes(vec![fake_key_hash(1), fake_key_hash(2), fake_key_hash(0)]),
+        ), 3);
+
+        // When a different key is used - 4 fake witnesses are produced
+        assert_eq!(count_fake_witnesses_with_required_signers(
+            &Ed25519KeyHashes(vec![fake_key_hash(1), fake_key_hash(2), fake_key_hash(3)]),
+        ), 4);
+    }
+
 }
 
