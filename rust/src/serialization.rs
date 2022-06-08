@@ -232,7 +232,7 @@ impl Deserialize for Certificates {
 
 impl cbor_event::se::Serialize for TransactionBody {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(3 + match &self.ttl { Some(_) => 1, None => 0 } + match &self.certs { Some(_) => 1, None => 0 } + match &self.withdrawals { Some(_) => 1, None => 0 } + match &self.update { Some(_) => 1, None => 0 } + match &self.auxiliary_data_hash { Some(_) => 1, None => 0 } + match &self.validity_start_interval { Some(_) => 1, None => 0 } + match &self.mint { Some(_) => 1, None => 0 } + match &self.script_data_hash { Some(_) => 1, None => 0 } + match &self.collateral { Some(_) => 1, None => 0 } + match &self.required_signers { Some(_) => 1, None => 0 } + match &self.network_id { Some(_) => 1, None => 0 }))?;
+        serializer.write_map(cbor_event::Len::Len(3 + opt64(&self.ttl) + opt64(&self.certs) + opt64(&self.withdrawals) + opt64(&self.update) + opt64(&self.auxiliary_data_hash) + opt64(&self.validity_start_interval) + opt64(&self.mint) + opt64(&self.script_data_hash) + opt64(&self.collateral) + opt64(&self.required_signers) + opt64(&self.network_id) + opt64(&self.collateral_return) + opt64(&self.total_collateral)))?;
         serializer.write_unsigned_integer(0)?;
         self.inputs.serialize(serializer)?;
         serializer.write_unsigned_integer(1)?;
@@ -281,6 +281,14 @@ impl cbor_event::se::Serialize for TransactionBody {
         }
         if let Some(field) = &self.network_id {
             serializer.write_unsigned_integer(15)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.collateral_return {
+            serializer.write_unsigned_integer(16)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.total_collateral {
+            serializer.write_unsigned_integer(17)?;
             field.serialize(serializer)?;
         }
         Ok(serializer)
@@ -441,6 +449,7 @@ impl Deserialize for TransactionBody {
                                 return Err(DeserializeFailure::DuplicateKey(Key::Uint(16)).into());
                             }
                             collateral_return = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
                                 Ok(TransactionOutput::deserialize(raw)?)
                             })().map_err(|e| e.annotate("collateral_return"))?);
                         },
@@ -449,6 +458,7 @@ impl Deserialize for TransactionBody {
                                 return Err(DeserializeFailure::DuplicateKey(Key::Uint(17)).into());
                             }
                             total_collateral = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
                                 Ok(Coin::deserialize(raw)?)
                             })().map_err(|e| e.annotate("total_collateral"))?);
                         },
