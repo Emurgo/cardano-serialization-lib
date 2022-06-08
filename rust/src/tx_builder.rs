@@ -869,11 +869,8 @@ impl TransactionBuilder {
                 value_size
             )));
         }
-        let min_ada = min_ada_required(
-            &output.amount(),
-            output.data_hash.is_some(),
-            &self.config.coins_per_utxo_word,
-        )?;
+        let calc = MinOutputAdaCalculator::new(&output, &self.config.coins_per_utxo_word);
+        let min_ada = calc.calculate_ada()?;
         if output.amount().coin() < min_ada {
             Err(JsError::from_str(&format!(
                 "Value {} less than the minimum UTXO value {}",
@@ -1219,9 +1216,10 @@ impl TransactionBuilder {
             }
         }?;
 
-        // note: can't add data_hash to change
+        // note: can't add plutus data or data hash and script to change
         // because we don't know how many change outputs will need to be created
-        let data_hash = None;
+        let plutus_data: Option<DataOption> = None;
+        let script_ref: Option<ScriptRef> = None;
 
         let input_total = self.get_total_input()?;
         let output_total = self.get_total_output()?;
@@ -1240,7 +1238,7 @@ impl TransactionBuilder {
                 }
                 let change_estimator = input_total.checked_sub(&output_total)?;
                 if has_assets(change_estimator.multiasset()) {
-                    fn will_adding_asset_make_output_overflow(output: &TransactionOutput, current_assets: &Assets, asset_to_add: (PolicyID, AssetName, BigNum), max_value_size: u32, coins_per_utxo_word: &Coin) -> bool {
+                    fn will_adding_asset_make_output_overflow(output: &TransactionOutput, current_assets: &Assets, asset_to_add: (PolicyID, AssetName, BigNum), max_value_size: u32, coins_per_utxo_word: &Coin) -> Result<bool, JsError> {
                         let (policy, asset_name, value) = asset_to_add;
                         let mut current_assets_clone = current_assets.clone();
                         current_assets_clone.insert(&asset_name, &value);
@@ -1250,15 +1248,17 @@ impl TransactionBuilder {
 
                         ma.insert(&policy, &current_assets_clone);
                         val.set_multiasset(&ma);
-                        amount_clone = amount_clone.checked_add(&val).unwrap();
+                        amount_clone = amount_clone.checked_add(&val)?;
 
                         // calculate minADA for more precise max value size
-                        let min_ada = min_ada_required(&val, false, coins_per_utxo_word).unwrap();
+                        let mut calc = MinOutputAdaCalculator::new_empty(coins_per_utxo_word)?;
+                        calc.set_amount(&val);
+                        let min_ada = calc.calculate_ada()?;
                         amount_clone.set_coin(&min_ada);
 
-                        amount_clone.to_bytes().len() > max_value_size as usize
+                        Ok(amount_clone.to_bytes().len() > max_value_size as usize)
                     }
-                    fn pack_nfts_for_change(max_value_size: u32, coins_per_utxo_word: &Coin, change_address: &Address, change_estimator: &Value, data_hash: Option<DataHash>) -> Result<Vec<MultiAsset>, JsError> {
+                    fn pack_nfts_for_change(max_value_size: u32, coins_per_utxo_word: &Coin, change_address: &Address, change_estimator: &Value, plutus_data: &Option<DataOption>, script_ref: &Option<ScriptRef>) -> Result<Vec<MultiAsset>, JsError> {
                         // we insert the entire available ADA temporarily here since that could potentially impact the size
                         // as it could be 1, 2 3 or 4 bytes for Coin.
                         let mut change_assets: Vec<MultiAsset> = Vec::new();
@@ -1268,7 +1268,8 @@ impl TransactionBuilder {
                         let mut output = TransactionOutput {
                             address: change_address.clone(),
                             amount: base_coin.clone(),
-                            data_hash: data_hash.clone(),
+                            data: plutus_data.clone(),
+                            script_ref: script_ref.clone()
                         };
                         // If this becomes slow on large TXs we can optimize it like the following
                         // to avoid cloning + reserializing the entire output.
@@ -1304,7 +1305,7 @@ impl TransactionBuilder {
                                 let asset_name = asset_names.get(n);
                                 let value = assets.get(&asset_name).unwrap();
 
-                                if will_adding_asset_make_output_overflow(&output, &rebuilt_assets, (policy.clone(), asset_name.clone(), value), max_value_size, coins_per_utxo_word) {
+                                if will_adding_asset_make_output_overflow(&output, &rebuilt_assets, (policy.clone(), asset_name.clone(), value), max_value_size, coins_per_utxo_word)? {
                                     // if we got here, this means we will run into a overflow error,
                                     // so we want to split into multiple outputs, for that we...
 
@@ -1320,7 +1321,8 @@ impl TransactionBuilder {
                                     output = TransactionOutput {
                                         address: change_address.clone(),
                                         amount: base_coin.clone(),
-                                        data_hash: data_hash.clone(),
+                                        data: plutus_data.clone(),
+                                        script_ref: script_ref.clone()
                                     };
 
                                     // 3. continue building the new output from the asset we stopped
@@ -1340,7 +1342,9 @@ impl TransactionBuilder {
 
                             // calculate minADA for more precise max value size
                             let mut amount_clone = output.amount.clone();
-                            let min_ada = min_ada_required(&val, false, coins_per_utxo_word).unwrap();
+                            let mut calc = MinOutputAdaCalculator::new_empty(coins_per_utxo_word)?;
+                            calc.set_amount(&val);
+                            let min_ada = calc.calculate_ada()?;
                             amount_clone.set_coin(&min_ada);
 
                             if amount_clone.to_bytes().len() > max_value_size as usize {
@@ -1355,9 +1359,19 @@ impl TransactionBuilder {
                     let mut new_fee = fee.clone();
                     // we might need multiple change outputs for cases where the change has many asset types
                     // which surpass the max UTXO size limit
-                    let minimum_utxo_val = min_pure_ada(&self.config.coins_per_utxo_word, data_hash.is_some())?;
+                    let mut calc = MinOutputAdaCalculator::new_empty(&self.config.coins_per_utxo_word)?;
+                    if let Some(data) = &plutus_data {
+                        match data {
+                            DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
+                            DataOption::Data(datum) => calc.set_data(datum),
+                        };
+                    }
+                    if let Some(script_ref) = &script_ref {
+                        calc.set_script_ref(script_ref);
+                    }
+                    let minimum_utxo_val = calc.calculate_ada()?;
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
-                        let nft_changes = pack_nfts_for_change(self.config.max_value_size, &self.config.coins_per_utxo_word, address, &change_left, data_hash.clone())?;
+                        let nft_changes = pack_nfts_for_change(self.config.max_value_size, &self.config.coins_per_utxo_word, address, &change_left, &plutus_data.clone(), &script_ref.clone())?;
                         if nft_changes.len() == 0 {
                             // this likely should never happen
                             return Err(JsError::from_str("NFTs too large for change output"));
@@ -1366,12 +1380,24 @@ impl TransactionBuilder {
                         let mut change_value = Value::new(&Coin::zero());
                         for nft_change in nft_changes.iter() {
                             change_value.set_multiasset(&nft_change);
-                            let min_ada = min_ada_required(&change_value, data_hash.is_some(), &self.config.coins_per_utxo_word)?;
+                            let mut calc = MinOutputAdaCalculator::new_empty(&self.config.coins_per_utxo_word)?;
+                            calc.set_amount(&change_value);
+                            if let Some(data) = &plutus_data {
+                                match data {
+                                    DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
+                                    DataOption::Data(datum) => calc.set_data(datum),
+                                };
+                            }
+                            if let Some(script_ref) = &script_ref {
+                                calc.set_script_ref(script_ref);
+                            }
+                            let min_ada = calc.calculate_ada()?;
                             change_value.set_coin(&min_ada);
                             let change_output = TransactionOutput {
                                 address: address.clone(),
                                 amount: change_value.clone(),
-                                data_hash: data_hash.clone(),
+                                data: plutus_data.clone(),
+                                script_ref: script_ref.clone()
                             };
                             // increase fee
                             let fee_for_change = self.fee_for_output(&change_output)?;
@@ -1390,7 +1416,8 @@ impl TransactionBuilder {
                         let pure_output = TransactionOutput {
                             address: address.clone(),
                             amount: change_left.clone(),
-                            data_hash: data_hash.clone(),
+                            data: plutus_data.clone(),
+                            script_ref: script_ref.clone()
                         };
                         let additional_fee = self.fee_for_output(&pure_output)?;
                         let potential_pure_value = change_left.checked_sub(&Value::new(&additional_fee))?;
@@ -1401,7 +1428,8 @@ impl TransactionBuilder {
                             self.add_output(&TransactionOutput {
                                 address: address.clone(),
                                 amount: potential_pure_value.clone(),
-                                data_hash: data_hash.clone(),
+                                data: plutus_data.clone(),
+                                script_ref: script_ref.clone()
                             })?;
                         }
                     }
@@ -1412,11 +1440,19 @@ impl TransactionBuilder {
                     }
                     Ok(true)
                 } else {
-                    let min_ada = min_ada_required(
-                        &change_estimator,
-                        data_hash.is_some(),
-                        &self.config.coins_per_utxo_word,
-                    )?;
+                    let mut calc = MinOutputAdaCalculator::new_empty(&self.config.coins_per_utxo_word)?;
+                    calc.set_amount(&change_estimator);
+                    if let Some(data) = &plutus_data {
+                        match data {
+                            DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
+                            DataOption::Data(datum) => calc.set_data(datum),
+                        };
+                    }
+                    if let Some(script_ref) = &script_ref {
+                        calc.set_script_ref(script_ref);
+                    }
+                    let min_ada = calc.calculate_ada()?;
+
                     // no-asset case so we have no problem burning the rest if there is no other option
                     fn burn_extra(builder: &mut TransactionBuilder, burn_amount: &BigNum) -> Result<bool, JsError> {
                         // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
@@ -1430,7 +1466,8 @@ impl TransactionBuilder {
                             let fee_for_change = self.fee_for_output(&TransactionOutput {
                                 address: address.clone(),
                                 amount: change_estimator.clone(),
-                                data_hash: data_hash.clone(),
+                                data: plutus_data.clone(),
+                                script_ref: script_ref.clone()
                             })?;
 
                             let new_fee = fee.checked_add(&fee_for_change)?;
@@ -1443,7 +1480,8 @@ impl TransactionBuilder {
                                     self.add_output(&TransactionOutput {
                                         address: address.clone(),
                                         amount: change_estimator.checked_sub(&Value::new(&new_fee.clone()))?,
-                                        data_hash: data_hash.clone(),
+                                        data: plutus_data.clone(),
+                                        script_ref: script_ref.clone()
                                     })?;
 
                                     Ok(true)

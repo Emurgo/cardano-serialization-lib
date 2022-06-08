@@ -2468,6 +2468,57 @@ declare export class MetadataMap {
 }
 /**
  */
+declare export class MinOutputAdaCalculator {
+  free(): void;
+
+  /**
+   * @param {TransactionOutput} output
+   * @param {BigNum} coins_per_utxo_word
+   * @returns {MinOutputAdaCalculator}
+   */
+  static new(
+    output: TransactionOutput,
+    coins_per_utxo_word: BigNum
+  ): MinOutputAdaCalculator;
+
+  /**
+   * @param {BigNum} coins_per_utxo_word
+   * @returns {MinOutputAdaCalculator}
+   */
+  static new_empty(coins_per_utxo_word: BigNum): MinOutputAdaCalculator;
+
+  /**
+   * @param {Address} address
+   */
+  set_address(address: Address): void;
+
+  /**
+   * @param {PlutusData} data
+   */
+  set_data(data: PlutusData): void;
+
+  /**
+   * @param {DataHash} data_hash
+   */
+  set_data_hash(data_hash: DataHash): void;
+
+  /**
+   * @param {Value} amount
+   */
+  set_amount(amount: Value): void;
+
+  /**
+   * @param {ScriptRef} script_ref
+   */
+  set_script_ref(script_ref: ScriptRef): void;
+
+  /**
+   * @returns {BigNum}
+   */
+  calculate_ada(): BigNum;
+}
+/**
+ */
 declare export class Mint {
   free(): void;
 
@@ -4624,6 +4675,34 @@ declare export class ScriptPubkey {
 }
 /**
  */
+declare export class ScriptRef {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ScriptRef}
+   */
+  static from_bytes(bytes: Uint8Array): ScriptRef;
+
+  /**
+   * @param {NativeScript} native_script
+   * @returns {ScriptRef}
+   */
+  static new_native_script(native_script: NativeScript): ScriptRef;
+
+  /**
+   * @param {PlutusScript} plutus_script
+   * @returns {ScriptRef}
+   */
+  static new_plutus_script(plutus_script: PlutusScript): ScriptRef;
+}
+/**
+ */
 declare export class SingleHostAddr {
   free(): void;
 
@@ -6034,6 +6113,26 @@ declare export class TransactionOutput {
   data_hash(): DataHash | void;
 
   /**
+   * @returns {PlutusData | void}
+   */
+  data(): PlutusData | void;
+
+  /**
+   * @returns {ScriptRef | void}
+   */
+  script_ref(): ScriptRef | void;
+
+  /**
+   * @param {ScriptRef} script_ref
+   */
+  set_script_ref(script_ref: ScriptRef): void;
+
+  /**
+   * @param {PlutusData} data
+   */
+  set_data(data: PlutusData): void;
+
+  /**
    * @param {DataHash} data_hash
    */
   set_data_hash(data_hash: DataHash): void;
@@ -6073,6 +6172,7 @@ declare export class TransactionOutputAmountBuilder {
   ): TransactionOutputAmountBuilder;
 
   /**
+   * double ada calculation need to check if it redundant
    * @param {MultiAsset} multiasset
    * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionOutputAmountBuilder}
@@ -6113,6 +6213,18 @@ declare export class TransactionOutputBuilder {
    * @returns {TransactionOutputBuilder}
    */
   with_data_hash(data_hash: DataHash): TransactionOutputBuilder;
+
+  /**
+   * @param {PlutusData} data
+   * @returns {TransactionOutputBuilder}
+   */
+  with_data(data: PlutusData): TransactionOutputBuilder;
+
+  /**
+   * @param {ScriptRef} script_ref
+   * @returns {TransactionOutputBuilder}
+   */
+  with_script(script_ref: ScriptRef): TransactionOutputBuilder;
 
   /**
    * @returns {TransactionOutputAmountBuilder}

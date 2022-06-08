@@ -9,63 +9,15 @@ use std::ops::{Rem, Div, Sub};
 use super::*;
 use crate::error::{DeserializeError, DeserializeFailure};
 
-// JsError can't be used by non-wasm targets so we use this macro to expose
-// either a DeserializeError or a JsError error depending on if we're on a
-// wasm or a non-wasm target where JsError is not available (it panics!).
-// Note: wasm-bindgen doesn't support macros inside impls, so we have to wrap these
-//       in their own impl and invoke the invoke the macro from global scope.
-// TODO: possibly write s generic version of this for other usages (e.g. PrivateKey, etc)
-#[macro_export]
-macro_rules! from_bytes {
-    // Custom from_bytes() code
-    ($name:ident, $data: ident, $body:block) => {
-        // wasm-exposed JsError return - JsError panics when used outside wasm
-        #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-        #[wasm_bindgen]
-        impl $name {
-            pub fn from_bytes($data: Vec<u8>) -> Result<$name, JsError> {
-                Ok($body?)
-            }
-        }
-        // non-wasm exposed DeserializeError return
-        #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
-        impl $name {
-            pub fn from_bytes($data: Vec<u8>) -> Result<$name, DeserializeError> $body
-        }
-    };
-    // Uses Deserialize trait to auto-generate one
-    ($name:ident) => {
-        from_bytes!($name, bytes, {
-            let mut raw = Deserializer::from(std::io::Cursor::new(bytes));
-            Self::deserialize(&mut raw)
-        });
-    };
+pub fn to_bytes<T: cbor_event::se::Serialize>(data_item: &T) -> Vec<u8> {
+    let mut buf = Serializer::new_vec();
+    data_item.serialize(&mut buf).unwrap();
+    buf.finalize()
 }
 
-// There's no need to do wasm vs non-wasm as this call can't fail but
-// this is here just to provide a default Serialize-based impl
-// Note: Once again you can't use macros in impls with wasm-bindgen
-//       so make sure you invoke this outside of one
-#[macro_export]
-macro_rules! to_bytes {
-    ($name:ident) => {
-        #[wasm_bindgen]
-        impl $name {
-            pub fn to_bytes(&self) -> Vec<u8> {
-                let mut buf = Serializer::new_vec();
-                self.serialize(&mut buf).unwrap();
-                buf.finalize()
-            }
-        }
-    }
-}
-
-#[macro_export]
-macro_rules! to_from_bytes {
-    ($name:ident) => {
-        to_bytes!($name);
-        from_bytes!($name);
-    }
+pub fn from_bytes<T: Deserialize>(data: &Vec<u8>) -> Result<T, DeserializeError>{
+    let mut raw = Deserializer::from(std::io::Cursor::new(data));
+    T::deserialize(&mut raw)
 }
 
 #[wasm_bindgen]
@@ -1111,6 +1063,66 @@ fn bundle_size(
 }
 
 #[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MinOutputAdaCalculator {
+    output: TransactionOutput,
+    coins_per_utxo_word: BigNum,
+}
+
+#[wasm_bindgen]
+impl MinOutputAdaCalculator {
+
+    pub fn new(output: &TransactionOutput, coins_per_utxo_word: &BigNum) -> Self {
+        Self{
+            output: output.clone(),
+            coins_per_utxo_word: coins_per_utxo_word.clone()
+        }
+    }
+
+    pub fn new_empty(coins_per_utxo_word: &BigNum) -> Result<MinOutputAdaCalculator, JsError> {
+        Ok(Self{
+            output: MinOutputAdaCalculator::create_fake_output()?,
+            coins_per_utxo_word: coins_per_utxo_word.clone()
+        })
+    }
+
+    pub fn set_address(&mut self, address: &Address) {
+        self.output.address = address.clone();
+    }
+
+    pub fn set_data(&mut self, data: &PlutusData) {
+        self.output.data = Some(DataOption::Data(data.clone()));
+    }
+
+    pub fn set_data_hash(&mut self, data_hash: &DataHash) {
+        self.output.data = Some(DataOption::DataHash(data_hash.clone()));
+    }
+
+    pub fn set_amount(&mut self, amount: &Value) {
+        self.output.amount = amount.clone();
+    }
+
+    pub fn set_script_ref(&mut self, script_ref: &ScriptRef) {
+        self.output.script_ref = Some(script_ref.clone());
+    }
+
+    pub fn calculate_ada(&self) -> Result<BigNum, JsError> {
+        //TODO: add code
+        min_ada_required(
+            &self.output.amount,
+            self.output.data.is_some(),
+            &self.coins_per_utxo_word)
+    }
+
+    fn create_fake_output() -> Result<TransactionOutput, JsError> {
+        Ok(TransactionOutput::new(
+            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
+            &Value::new(&Coin::from_str("1000000")?)))
+        //TODO: add code, change address
+    }
+}
+
+#[wasm_bindgen]
 pub fn min_ada_required(
     assets: &Value,
     has_data_hash: bool, // whether the output includes a data hash
@@ -1132,14 +1144,6 @@ pub fn min_ada_required(
         .checked_add(&to_bignum(size as u64))?
         .checked_add(&to_bignum(data_hash_size))?;
     coins_per_utxo_word.checked_mul(&words)
-}
-
-pub fn min_pure_ada(coins_per_utxo_word: &BigNum, has_data_hash: bool) -> Result<BigNum, JsError> {
-    min_ada_required(
-        &Value::new(&Coin::from_str("1000000")?),
-        has_data_hash,
-        coins_per_utxo_word,
-    )
 }
 
 /// Used to choosed the schema for a script JSON string

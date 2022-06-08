@@ -53,6 +53,7 @@ pub mod typed_bytes;
 pub mod emip3;
 #[macro_use]
 pub mod utils;
+mod serialization_marcos;
 
 use address::*;
 use crypto::*;
@@ -504,7 +505,8 @@ impl TransactionInput {
 pub struct TransactionOutput {
     address: Address,
     pub (crate) amount: Value,
-    data_hash: Option<DataHash>,
+    data : Option<DataOption>,
+    script_ref: Option<ScriptRef>
 }
 
 to_from_bytes!(TransactionOutput);
@@ -520,18 +522,47 @@ impl TransactionOutput {
     }
 
     pub fn data_hash(&self) -> Option<DataHash> {
-        self.data_hash.clone()
+        match self.data.clone() {
+            Some(optional_data) => match optional_data {
+                DataOption::DataHash(data_hash) => Some(data_hash),
+                DataOption::Data(_) => None
+            }
+            None => None
+        }
+    }
+
+    pub fn data(&self) -> Option<PlutusData> {
+        match self.data.clone() {
+            Some(optional_data) => match optional_data {
+                DataOption::DataHash(_) => None,
+                DataOption::Data(plutus_data) => Some(plutus_data)
+            }
+            None => None
+        }
+    }
+
+    pub fn script_ref(&self) -> Option<ScriptRef> {
+        self.script_ref.clone()
+    }
+
+    pub fn set_script_ref(&mut self, script_ref: &ScriptRef) {
+        self.script_ref = Some(script_ref.clone());
+    }
+
+    pub fn set_data(&mut self, data: &PlutusData) {
+        self.data = Some(DataOption::Data(data.clone()));
     }
 
     pub fn set_data_hash(&mut self, data_hash: &DataHash) {
-        self.data_hash = Some(data_hash.clone());
+        self.data = Some(DataOption::DataHash(data_hash.clone()));
     }
 
     pub fn new(address: &Address, amount: &Value) -> Self {
         Self {
             address: address.clone(),
             amount: amount.clone(),
-            data_hash: None,
+            data: None,
+            script_ref: None
         }
     }
 }
@@ -1756,6 +1787,38 @@ enum NativeScriptEnum {
     ScriptNOfK(ScriptNOfK),
     TimelockStart(TimelockStart),
     TimelockExpiry(TimelockExpiry),
+}
+
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ScriptRefEnum {
+    NativeScript(NativeScript),
+    PlutusScriptV1(PlutusScript),
+    PlutusScriptV2(PlutusScript),
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ScriptRef(ScriptRefEnum);
+
+to_from_bytes!(ScriptRef);
+
+#[wasm_bindgen]
+impl ScriptRef {
+
+    pub fn new_native_script(native_script: &NativeScript) -> Self {
+        Self(ScriptRefEnum::NativeScript(native_script.clone()))
+    }
+
+    pub fn new_plutus_script(plutus_script: &PlutusScript) -> Self {
+        //TODO add choose right plutus script after updating type
+        Self(ScriptRefEnum::PlutusScriptV1(plutus_script.clone()))
+    }
+}
+
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub enum DataOption {
+    DataHash(DataHash),
+    Data(PlutusData)
 }
 
 #[wasm_bindgen]

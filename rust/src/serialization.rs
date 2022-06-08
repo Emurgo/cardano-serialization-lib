@@ -526,11 +526,43 @@ impl DeserializeEmbeddedGroup for TransactionInput {
 
 impl cbor_event::se::Serialize for TransactionOutput {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(if self.data_hash.is_some() { 3 } else { 2 }))?;
-        self.address.serialize(serializer)?;
-        self.amount.serialize(serializer)?;
-        if let Some(data_hash) = &self.data_hash {
-            data_hash.serialize(serializer)?;
+        match (&self.data, &self.script_ref) {
+            //post alonzo output
+            (Some(DataOption::Data(_)), _) | (_, Some(_)) => {
+                let mut map_len = 2;
+                if let Some(_) = &self.data {
+                    map_len += 1;
+                }
+                if let Some(_) = &self.script_ref {
+                    map_len += 1;
+                }
+                serializer.write_map(cbor_event::Len::Len(map_len))?;
+                serializer.write_unsigned_integer(0)?;
+                self.address.serialize(serializer)?;
+                serializer.write_unsigned_integer(1)?;
+                self.amount.serialize(serializer)?;
+                if let Some(field) = &self.data {
+                    serializer.write_unsigned_integer(2)?;
+                    field.serialize(serializer)?;
+                }
+                if let Some(field) = &self.script_ref {
+                    serializer.write_unsigned_integer(3)?;
+                    field.serialize(serializer)?;
+                }
+            }
+            //lagacy output
+            _ => {
+                let data_hash = match &self.data {
+                    Some(DataOption::DataHash(data_hash)) => Some(data_hash),
+                    _ => None,
+                };
+                serializer.write_array(cbor_event::Len::Len(if data_hash.is_some() { 3 } else { 2 }))?;
+                self.address.serialize(serializer)?;
+                self.amount.serialize(serializer)?;
+                if let Some(pure_data_hash) = data_hash {
+                    pure_data_hash.serialize(serializer)?;
+                }
+            }
         }
         Ok(serializer)
     }
@@ -541,16 +573,22 @@ impl cbor_event::se::Serialize for TransactionOutput {
 impl Deserialize for TransactionOutput {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+            match raw.cbor_type()? {
+                CBORType::Array => {
+                    let len = raw.array()?;
+                    let ret = Self::deserialize_as_embedded_group(raw, len);
+                    match len {
+                        cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                        cbor_event::Len::Indefinite => match raw.special()? {
+                            CBORSpecial::Break => /* it's ok */(),
+                            _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                        },
+                    }
+                    ret
                 },
+                CBORType::Map => deserialize_as_postalonzo_output(raw),
+                cbor_type  => Err(DeserializeFailure::UnexpectedKeyType(cbor_type).into())
             }
-            ret
         })().map_err(|e| e.annotate("TransactionOutput"))
     }
 }
@@ -580,7 +618,7 @@ impl DeserializeEmbeddedGroup for TransactionOutput {
                 let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
                 let bytes = raw.bytes().unwrap();
                 if bytes.len() == DataHash::BYTE_COUNT {
-                    Some(DataHash(bytes[..DataHash::BYTE_COUNT].try_into().unwrap()))
+                    Some(DataOption::DataHash(DataHash(bytes[..DataHash::BYTE_COUNT].try_into().unwrap())))
                 } else {
                     // This is an address of the next output in sequence, which luckily is > 32 bytes so there's no confusion
                     // Go to previous place in array then carry on
@@ -596,8 +634,219 @@ impl DeserializeEmbeddedGroup for TransactionOutput {
         Ok(TransactionOutput {
             address,
             amount,
-            data_hash,
+            data: data_hash,
+            script_ref : None
         })
+    }
+}
+
+fn deserialize_as_postalonzo_output<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<TransactionOutput, DeserializeError>  {
+    (|| -> Result<_, DeserializeError> {
+        let len = raw.map()?;
+        let mut read_len = CBORReadLen::new(len);
+        read_len.read_elems(3)?;
+        let mut address = None;
+        let mut amount = None;
+        let mut data = None;
+        let mut script_ref = None;
+        let mut read = 0;
+        while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
+            match raw.cbor_type()? {
+                CBORType::UnsignedInteger => match raw.unsigned_integer()? {
+                    0 =>  {
+                        if address.is_some() {
+                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(0)).into());
+                        }
+                        address = Some((|| -> Result<_, DeserializeError> {
+                            Ok(Address::deserialize(raw)?)
+                        })().map_err(|e| e.annotate("address"))?);
+                    },
+                    1 =>  {
+                        if amount.is_some() {
+                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(1)).into());
+                        }
+                        amount = Some((|| -> Result<_, DeserializeError> {
+                            Ok(Value::deserialize(raw)?)
+                        })().map_err(|e| e.annotate("amount"))?);
+                    },
+                    2 =>  {
+                        if data.is_some() {
+                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
+                        }
+                        data = Some((|| -> Result<_, DeserializeError> {
+                            Ok(DataOption::deserialize(raw)?)
+                        })().map_err(|e| e.annotate("data"))?);
+                    },
+                    3 =>  {
+                        if script_ref.is_some() {
+                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
+                        }
+                        script_ref = Some((|| -> Result<_, DeserializeError> {
+                            Ok(ScriptRef::deserialize(raw)?)
+                        })().map_err(|e| e.annotate("script_ref"))?);
+                    },
+                    unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
+                },
+                other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
+            }
+            read += 1;
+        }
+        let address = match address {
+            Some(x) => x,
+            None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(0)).into()),
+        };
+        let amount = match amount {
+            Some(x) => x,
+            None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(1)).into()),
+        };
+
+        read_len.finish()?;
+        Ok(TransactionOutput {
+            address,
+            amount,
+            data,
+            script_ref
+        })
+    })().map_err(|e| e.annotate("TransactionOutput"))
+}
+
+impl Deserialize for DataOption {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            if let cbor_event::Len::Len(n) = len {
+                if n != 2 {
+                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(2, len, "[id, datum_or_hash]")).into())
+                }
+            }
+            let datum = match raw.unsigned_integer()? {
+                0 => DataOption::DataHash(DataHash::deserialize(raw)?),
+                1 => {
+                    match raw.tag()? {
+                        //bytes string tag
+                        24 => {
+                            let data = (|| -> Result<_, DeserializeError> {
+                                Ok(from_bytes(&raw.bytes()?)?)
+                            })().map_err(|e| e.annotate("PlutusData"))?;
+                            DataOption::Data(data)
+                        },
+                        tag => {
+                            return Err(DeserializeFailure::TagMismatch {
+                                found: tag,
+                                expected: 24,
+                            }.into());
+                        }
+                    }
+                }
+                n => return Err(DeserializeFailure::FixedValueMismatch {
+                    found: Key::Uint(n),
+                    expected: Key::Uint(0),
+                }.into()),
+            };
+            if let cbor_event::Len::Indefinite = len {
+                if raw.special()? != CBORSpecial::Break {
+                    return Err(DeserializeFailure::EndingBreakMissing.into());
+                }
+            }
+            Ok(datum)
+        })().map_err(|e| e.annotate("DataOption"))
+    }
+}
+
+impl cbor_event::se::Serialize for DataOption {
+    fn serialize<'a, W: Write + Sized>(&self, serializer: &'a mut Serializer<W>) -> cbor_event::Result<&'a mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(2))?;
+        match &self {
+            DataOption::DataHash(data_hash) => {
+                serializer.write_unsigned_integer(0)?;
+                data_hash.serialize(serializer)?;
+            },
+            DataOption::Data(data) => {
+                serializer.write_unsigned_integer(1)?;
+                let bytes = data.to_bytes();
+                serializer.write_tag(24)?
+                    .write_bytes(&bytes)?;
+            }
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for ScriptRefEnum {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            if let cbor_event::Len::Len(n) = len {
+                if n != 2 {
+                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(2, len, "[id, native_or_putus_script]")).into())
+                }
+            }
+            let script_ref = match raw.unsigned_integer()? {
+                0 => ScriptRefEnum::NativeScript(NativeScript::deserialize(raw)?),
+                1 => ScriptRefEnum::PlutusScriptV1(PlutusScript::deserialize(raw)?),
+                //TODO: add plutus v2 tag
+                2 => ScriptRefEnum::PlutusScriptV2(PlutusScript::deserialize(raw)?),
+                n => return Err(DeserializeFailure::FixedValueMismatch {
+                    found: Key::Uint(n),
+                    expected: Key::Uint(0),
+                }.into()),
+            };
+            if let cbor_event::Len::Indefinite = len {
+                if raw.special()? != CBORSpecial::Break {
+                    return Err(DeserializeFailure::EndingBreakMissing.into());
+                }
+            }
+            Ok(script_ref)
+        })().map_err(|e| e.annotate("ScriptRefEnum"))
+    }
+}
+
+impl cbor_event::se::Serialize for ScriptRefEnum {
+    fn serialize<'a, W: Write + Sized>(&self, serializer: &'a mut Serializer<W>) -> cbor_event::Result<&'a mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(2))?;
+        match &self {
+            ScriptRefEnum::NativeScript(native_script) => {
+                serializer.write_unsigned_integer(0)?;
+                native_script.serialize(serializer)?;
+            },
+            ScriptRefEnum::PlutusScriptV1(plutus_script_v1) => {
+                serializer.write_unsigned_integer(1)?;
+                plutus_script_v1.serialize(serializer)?;
+            },
+            ScriptRefEnum::PlutusScriptV2(plutus_script_v2) => {
+                serializer.write_unsigned_integer(2)?;
+                plutus_script_v2.serialize(serializer)?;
+            }
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for ScriptRef {
+    fn deserialize<R: BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            match raw.tag()? {
+                //bytes string tag
+                24 => {
+                    Ok(ScriptRef(from_bytes(&raw.bytes()?)?))
+                }
+                tag => {
+                    return Err(DeserializeFailure::TagMismatch {
+                        found: tag,
+                        expected: 24,
+                    }.into());
+                }
+            }
+        })().map_err(|e| e.annotate("ScriptRef"))
+    }
+}
+
+impl cbor_event::se::Serialize for ScriptRef {
+    fn serialize<'a, W: Write + Sized>(&self, serializer: &'a mut Serializer<W>) -> cbor_event::Result<&'a mut Serializer<W>> {
+        let bytes = to_bytes(&self.0);
+        serializer.write_tag(24)?
+            .write_bytes(&bytes)?;
+        Ok(serializer)
     }
 }
 
@@ -1265,7 +1514,8 @@ impl cbor_event::se::Serialize for MIRToStakeCredentials {
 impl Deserialize for MIRToStakeCredentials {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let mut table = linked_hash_map::LinkedHashMap::new();let len = raw.map()?;
+            let mut table = linked_hash_map::LinkedHashMap::new();
+            let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
                 if raw.cbor_type()? == CBORType::Special {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
@@ -3507,7 +3757,8 @@ mod tests {
         let txo = TransactionOutput {
             address: addr.clone(),
             amount: val.clone(),
-            data_hash: None,
+            data: None,
+            script_ref: None
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_data_hash(&DataHash::from([47u8; DataHash::BYTE_COUNT]));
