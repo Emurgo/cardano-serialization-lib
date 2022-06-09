@@ -1329,6 +1329,9 @@ impl TransactionBuilder {
             collateral: self.collateral.inputs_option(),
             required_signers: self.required_signers.to_option(),
             network_id: None,
+            // <todo:implement_fields>
+            collateral_return: None,
+            total_collateral: None,
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;
@@ -1456,6 +1459,7 @@ impl TransactionBuilder {
 mod tests {
     use super::*;
     use fees::*;
+    use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value};
     use crate::tx_builder_constants::TxBuilderConstants;
     use super::output_builder::TransactionOutputBuilder;
 
@@ -1472,14 +1476,6 @@ mod tests {
         // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
         let entropy = [0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4, 0xd8, 0x09, 0x7c, 0x64, 0x12];
         Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
-    }
-
-    fn fake_bytes(x: u8) -> Vec<u8> {
-        vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100, 1, 2, 3, 4]
-    }
-
-    fn fake_key_hash(x: u8) -> Ed25519KeyHash {
-        Ed25519KeyHash::from_bytes((&fake_bytes(x)[0..28]).to_vec()).unwrap()
     }
 
     fn harden(index: u32) -> u32 {
@@ -2928,13 +2924,9 @@ mod tests {
         assert!(tx_builder.add_change_if_needed(&change_addr).is_err())
     }
 
-    fn fake_tx_hash(input_hash_byte: u8) -> TransactionHash {
-        TransactionHash::from([input_hash_byte; 32])
-    }
-
     fn make_input(input_hash_byte: u8, value: Value) -> TransactionUnspentOutput {
         TransactionUnspentOutput::new(
-            &TransactionInput::new(&fake_tx_hash(input_hash_byte), 0),
+            &fake_tx_input(input_hash_byte),
             &TransactionOutputBuilder::new()
                 .with_address(&Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap())
                 .next().unwrap()
@@ -3822,7 +3814,7 @@ mod tests {
     }
 
     fn plutus_script_and_hash(x: u8) -> (PlutusScript, ScriptHash) {
-        let s = PlutusScript::new(fake_bytes(x));
+        let s = PlutusScript::new(fake_bytes_32(x));
         (s.clone(), s.hash())
     }
 
@@ -4374,14 +4366,6 @@ mod tests {
         assert_eq!(ma2_output.get(&policy_id2).unwrap().get(&name).unwrap(), to_bignum(40));
     }
 
-    fn create_base_address(x: u8) -> Address {
-        BaseAddress::new(
-            NetworkInfo::testnet().network_id(),
-            &StakeCredential::from_keyhash(&fake_key_hash(x)),
-            &StakeCredential::from_keyhash(&fake_key_hash(0))
-        ).to_address()
-    }
-
     fn create_base_address_from_script_hash(sh: &ScriptHash) -> Address {
         BaseAddress::new(
             NetworkInfo::testnet().network_id(),
@@ -4570,8 +4554,8 @@ mod tests {
     fn test_adding_plutus_script_input() {
         let mut tx_builder = create_reallistic_tx_builder();
         let (script1, _) = plutus_script_and_hash(0);
-        let datum = PlutusData::new_bytes(fake_bytes(1));
-        let redeemer_datum = PlutusData::new_bytes(fake_bytes(2));
+        let datum = PlutusData::new_bytes(fake_bytes_32(1));
+        let redeemer_datum = PlutusData::new_bytes(fake_bytes_32(2));
         let redeemer = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
@@ -4602,18 +4586,18 @@ mod tests {
         let (script1, hash1) = plutus_script_and_hash(0);
         let (script2, hash2) = plutus_script_and_hash(1);
         let (script3, _hash3) = plutus_script_and_hash(3);
-        let datum1 = PlutusData::new_bytes(fake_bytes(10));
-        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
         let redeemer1 = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
-            &PlutusData::new_bytes(fake_bytes(20)),
+            &PlutusData::new_bytes(fake_bytes_32(20)),
             &ExUnits::new(&to_bignum(1), &to_bignum(2)),
         );
         let redeemer2 = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(1),
-            &PlutusData::new_bytes(fake_bytes(21)),
+            &PlutusData::new_bytes(fake_bytes_32(21)),
             &ExUnits::new(&to_bignum(1), &to_bignum(2)),
         );
         tx_builder.add_input(
@@ -4682,8 +4666,8 @@ mod tests {
         tx_builder.set_fee(&to_bignum(42));
         tx_builder.set_collateral(&create_collateral());
         let (script1, _) = plutus_script_and_hash(0);
-        let datum = PlutusData::new_bytes(fake_bytes(1));
-        let redeemer_datum = PlutusData::new_bytes(fake_bytes(2));
+        let datum = PlutusData::new_bytes(fake_bytes_32(1));
+        let redeemer_datum = PlutusData::new_bytes(fake_bytes_32(2));
         let redeemer = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
@@ -4705,7 +4689,7 @@ mod tests {
 
         // Setting script data hash removes the error
         tx_builder.set_script_data_hash(
-            &ScriptDataHash::from_bytes(fake_bytes(42)).unwrap(),
+            &ScriptDataHash::from_bytes(fake_bytes_32(42)).unwrap(),
         );
         // Using SAFE `.build_tx`
         let res2 = tx_builder.build_tx();
@@ -4725,8 +4709,8 @@ mod tests {
         tx_builder.set_collateral(&create_collateral());
 
         let (script1, _) = plutus_script_and_hash(0);
-        let datum = PlutusData::new_bytes(fake_bytes(1));
-        let redeemer_datum = PlutusData::new_bytes(fake_bytes(2));
+        let datum = PlutusData::new_bytes(fake_bytes_32(1));
+        let redeemer_datum = PlutusData::new_bytes(fake_bytes_32(2));
         let redeemer = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
@@ -4763,20 +4747,20 @@ mod tests {
         tx_builder.set_collateral(&create_collateral());
         let (script1, _) = plutus_script_and_hash(0);
         let (script2, _) = plutus_script_and_hash(1);
-        let datum1 = PlutusData::new_bytes(fake_bytes(10));
-        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
 
         // Creating redeemers with indexes ZERO
         let redeemer1 = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
-            &PlutusData::new_bytes(fake_bytes(20)),
+            &PlutusData::new_bytes(fake_bytes_32(20)),
             &ExUnits::new(&to_bignum(1), &to_bignum(2)),
         );
         let redeemer2 = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
-            &PlutusData::new_bytes(fake_bytes(21)),
+            &PlutusData::new_bytes(fake_bytes_32(21)),
             &ExUnits::new(&to_bignum(1), &to_bignum(2)),
         );
 
@@ -4835,19 +4819,19 @@ mod tests {
         let (pscript2, phash2) = plutus_script_and_hash(1);
         let (nscript1, _) = mint_script_and_policy(0);
         let (nscript2, nhash2) = mint_script_and_policy(1);
-        let datum1 = PlutusData::new_bytes(fake_bytes(10));
-        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
         // Creating redeemers with indexes ZERO
         let redeemer1 = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
-            &PlutusData::new_bytes(fake_bytes(20)),
+            &PlutusData::new_bytes(fake_bytes_32(20)),
             &ExUnits::new(&to_bignum(1), &to_bignum(2)),
         );
         let redeemer2 = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
-            &PlutusData::new_bytes(fake_bytes(21)),
+            &PlutusData::new_bytes(fake_bytes_32(21)),
             &ExUnits::new(&to_bignum(1), &to_bignum(2)),
         );
 
@@ -4941,12 +4925,12 @@ mod tests {
 
         // Add a single input of both kinds with the SAME keyhash
         input_builder.add_input(
-            &create_base_address(0),
+            &fake_base_address(0),
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&to_bignum(1_000_000)),
         );
         collateral_builder.add_input(
-            &create_base_address(0),
+            &fake_base_address(0),
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&to_bignum(1_000_000)),
         );
@@ -4966,12 +4950,12 @@ mod tests {
 
         // Add a new input of each kind with DIFFERENT keyhashes
         input_builder.add_input(
-            &create_base_address(1),
+            &fake_base_address(1),
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&to_bignum(1_000_000)),
         );
         collateral_builder.add_input(
-            &create_base_address(2),
+            &fake_base_address(2),
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&to_bignum(1_000_000)),
         );
@@ -4990,19 +4974,19 @@ mod tests {
         let (pscript2, _) = plutus_script_and_hash(1);
         let (nscript1, _) = mint_script_and_policy(0);
         let (nscript2, _) = mint_script_and_policy(1);
-        let datum1 = PlutusData::new_bytes(fake_bytes(10));
-        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
         // Creating redeemers with indexes ZERO
         let redeemer1 = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
-            &PlutusData::new_bytes(fake_bytes(20)),
+            &PlutusData::new_bytes(fake_bytes_32(20)),
             &ExUnits::new(&to_bignum(1), &to_bignum(2)),
         );
         let redeemer2 = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
-            &PlutusData::new_bytes(fake_bytes(21)),
+            &PlutusData::new_bytes(fake_bytes_32(21)),
             &ExUnits::new(&to_bignum(1), &to_bignum(2)),
         );
 
@@ -5082,22 +5066,22 @@ mod tests {
 
             // Add a single input of both kinds with the SAME keyhash
             input_builder.add_input(
-                &create_base_address(0),
+                &fake_base_address(0),
                 &TransactionInput::new(&genesis_id(), 0),
                 &Value::new(&to_bignum(1_000_000)),
             );
             collateral_builder.add_input(
-                &create_base_address(0),
+                &fake_base_address(0),
                 &TransactionInput::new(&genesis_id(), 1),
                 &Value::new(&to_bignum(1_000_000)),
             );
 
             let (pscript1, _) = plutus_script_and_hash(0);
-            let datum1 = PlutusData::new_bytes(fake_bytes(10));
+            let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
             let redeemer1 = Redeemer::new(
                 &RedeemerTag::new_spend(),
                 &to_bignum(0),
-                &PlutusData::new_bytes(fake_bytes(20)),
+                &PlutusData::new_bytes(fake_bytes_32(20)),
                 &ExUnits::new(&to_bignum(mem), &to_bignum(step)),
             );
             input_builder.add_plutus_script_input(
@@ -5115,7 +5099,7 @@ mod tests {
             tx_builder.set_collateral(&collateral_builder);
 
             tx_builder.add_change_if_needed(
-                &create_base_address(42),
+                &fake_base_address(42),
             ).unwrap();
 
             tx_builder.get_fee_if_set().unwrap()
@@ -5134,11 +5118,11 @@ mod tests {
         let (nscript1, _) = mint_script_and_policy(0);
         let (pscript1, _) = plutus_script_and_hash(0);
         let (pscript2, _) = plutus_script_and_hash(1);
-        let datum1 = PlutusData::new_bytes(fake_bytes(10));
-        let datum2 = PlutusData::new_bytes(fake_bytes(11));
+        let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
         // Creating redeemers with indexes ZERO
-        let pdata1 = PlutusData::new_bytes(fake_bytes(20));
-        let pdata2 = PlutusData::new_bytes(fake_bytes(21));
+        let pdata1 = PlutusData::new_bytes(fake_bytes_32(20));
+        let pdata2 = PlutusData::new_bytes(fake_bytes_32(21));
         let redeemer1 = Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(0),
@@ -5158,13 +5142,13 @@ mod tests {
                 &datum1,
                 &redeemer1,
             ),
-            &TransactionInput::new(&fake_tx_hash(2), 1),
-            &Value::new(&to_bignum(1_000_000)),
+            &fake_tx_input2(2, 1),
+            &fake_value(),
         );
         tx_builder.add_native_script_input(
             &nscript1,
-            &TransactionInput::new(&fake_tx_hash(1), 0),
-            &Value::new(&to_bignum(1_000_000)),
+            &fake_tx_input2(1, 0),
+            &fake_value(),
         );
         tx_builder.add_plutus_script_input(
             &PlutusWitness::new(
@@ -5172,8 +5156,8 @@ mod tests {
                 &datum2,
                 &redeemer2,
             ),
-            &TransactionInput::new(&fake_tx_hash(2), 0),
-            &Value::new(&to_bignum(1_000_000)),
+            &fake_tx_input2(2, 0),
+            &fake_value(),
         );
 
         let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
@@ -5230,7 +5214,7 @@ mod tests {
             let mut tx_builder = create_reallistic_tx_builder();
             tx_builder.set_fee(&to_bignum(42));
             tx_builder.add_input(
-                &create_base_address(0),
+                &fake_base_address(0),
                 &TransactionInput::new(&fake_tx_hash(0), 0),
                 &Value::new(&to_bignum(10_000_000)),
             );

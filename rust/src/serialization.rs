@@ -232,7 +232,7 @@ impl Deserialize for Certificates {
 
 impl cbor_event::se::Serialize for TransactionBody {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(3 + match &self.ttl { Some(_) => 1, None => 0 } + match &self.certs { Some(_) => 1, None => 0 } + match &self.withdrawals { Some(_) => 1, None => 0 } + match &self.update { Some(_) => 1, None => 0 } + match &self.auxiliary_data_hash { Some(_) => 1, None => 0 } + match &self.validity_start_interval { Some(_) => 1, None => 0 } + match &self.mint { Some(_) => 1, None => 0 } + match &self.script_data_hash { Some(_) => 1, None => 0 } + match &self.collateral { Some(_) => 1, None => 0 } + match &self.required_signers { Some(_) => 1, None => 0 } + match &self.network_id { Some(_) => 1, None => 0 }))?;
+        serializer.write_map(cbor_event::Len::Len(3 + opt64(&self.ttl) + opt64(&self.certs) + opt64(&self.withdrawals) + opt64(&self.update) + opt64(&self.auxiliary_data_hash) + opt64(&self.validity_start_interval) + opt64(&self.mint) + opt64(&self.script_data_hash) + opt64(&self.collateral) + opt64(&self.required_signers) + opt64(&self.network_id) + opt64(&self.collateral_return) + opt64(&self.total_collateral)))?;
         serializer.write_unsigned_integer(0)?;
         self.inputs.serialize(serializer)?;
         serializer.write_unsigned_integer(1)?;
@@ -283,6 +283,14 @@ impl cbor_event::se::Serialize for TransactionBody {
             serializer.write_unsigned_integer(15)?;
             field.serialize(serializer)?;
         }
+        if let Some(field) = &self.collateral_return {
+            serializer.write_unsigned_integer(16)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.total_collateral {
+            serializer.write_unsigned_integer(17)?;
+            field.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
@@ -307,6 +315,8 @@ impl Deserialize for TransactionBody {
             let mut collateral = None;
             let mut required_signers = None;
             let mut network_id = None;
+            let mut collateral_return = None;
+            let mut total_collateral = None;
             let mut read = 0;
             while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
                 match raw.cbor_type()? {
@@ -434,6 +444,24 @@ impl Deserialize for TransactionBody {
                                 Ok(NetworkId::deserialize(raw)?)
                             })().map_err(|e| e.annotate("network_id"))?);
                         },
+                        16 =>  {
+                            if collateral_return.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(16)).into());
+                            }
+                            collateral_return = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(TransactionOutput::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("collateral_return"))?);
+                        },
+                        17 =>  {
+                            if total_collateral.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(17)).into());
+                            }
+                            total_collateral = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(Coin::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("total_collateral"))?);
+                        },
                         unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                     },
                     CBORType::Text => match raw.text()?.as_str() {
@@ -478,6 +506,8 @@ impl Deserialize for TransactionBody {
                 collateral,
                 required_signers,
                 network_id,
+                collateral_return,
+                total_collateral,
             })
         })().map_err(|e| e.annotate("TransactionBody"))
     }
@@ -3497,6 +3527,7 @@ impl Deserialize for NetworkId {
 
 #[cfg(test)]
 mod tests {
+    use crate::fakes::{fake_tx_input, fake_tx_output};
     use super::*;
 
     #[test]
@@ -3547,5 +3578,25 @@ mod tests {
         let block = Block::from_bytes(bytes).unwrap();
         let block2 = Block::from_bytes(block.to_bytes()).unwrap();
         assert_eq!(block.to_bytes(), block2.to_bytes());
+    }
+
+    #[test]
+    fn tx_body_roundtrip() {
+        let mut txb = TransactionBody::new(
+            &TransactionInputs(vec![
+                fake_tx_input(0),
+            ]),
+            &TransactionOutputs(vec![
+                fake_tx_output(1),
+            ]),
+            &to_bignum(1234567),
+            Some(12345678),
+        );
+
+        txb.set_collateral_return(&fake_tx_output(2));
+        txb.set_total_collateral(&to_bignum(1234));
+
+        let txb2 = TransactionBody::from_bytes(txb.to_bytes()).unwrap();
+        assert_eq!(txb, txb2);
     }
 }
