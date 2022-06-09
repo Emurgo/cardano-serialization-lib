@@ -320,6 +320,8 @@ pub struct TransactionBuilder {
     mint_scripts: Option<NativeScripts>,
     script_data_hash: Option<ScriptDataHash>,
     required_signers: Ed25519KeyHashes,
+    collateral_return: Option<TransactionOutput>,
+    total_collateral: Option<Coin>,
 }
 
 #[wasm_bindgen]
@@ -581,6 +583,14 @@ impl TransactionBuilder {
 
     pub fn set_collateral(&mut self, collateral: &TxInputsBuilder) {
         self.collateral = collateral.clone();
+    }
+
+    pub fn set_collateral_return(&mut self, collateral_return: &TransactionOutput) {
+        self.collateral_return = Some(collateral_return);
+    }
+
+    pub fn set_total_collateral(&mut self, total_collateral: &Coin) {
+        self.total_collateral = Some(total_collateral);
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -1329,9 +1339,8 @@ impl TransactionBuilder {
             collateral: self.collateral.inputs_option(),
             required_signers: self.required_signers.to_option(),
             network_id: None,
-            // <todo:implement_fields>
-            collateral_return: None,
-            total_collateral: None,
+            collateral_return: self.collateral_return.clone(),
+            total_collateral: self.total_collateral.clone(),
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;
