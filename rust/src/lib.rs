@@ -483,7 +483,6 @@ impl TransactionBody {
             collateral: None,
             required_signers: None,
             network_id: None,
-
             collateral_return: None,
             total_collateral: None,
         }
