@@ -207,7 +207,7 @@ pub struct TransactionBuilderConfig {
     key_deposit: BigNum,       // protocol parameter
     max_value_size: u32,       // protocol parameter
     max_tx_size: u32,          // protocol parameter
-    coins_per_utxo_word: Coin, // protocol parameter
+    data_cost: DataCost, // protocol parameter
     ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     prefer_pure_change: bool,
 }
@@ -220,7 +220,7 @@ pub struct TransactionBuilderConfigBuilder {
     key_deposit: Option<BigNum>,       // protocol parameter
     max_value_size: Option<u32>,       // protocol parameter
     max_tx_size: Option<u32>,          // protocol parameter
-    coins_per_utxo_word: Option<Coin>, // protocol parameter
+    data_cost: Option<DataCost>, // protocol parameter
     ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     prefer_pure_change: bool,
 }
@@ -234,7 +234,7 @@ impl TransactionBuilderConfigBuilder {
             key_deposit: None,
             max_value_size: None,
             max_tx_size: None,
-            coins_per_utxo_word: None,
+            data_cost: None,
             ex_unit_prices: None,
             prefer_pure_change: false,
         }
@@ -248,7 +248,13 @@ impl TransactionBuilderConfigBuilder {
 
     pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {
         let mut cfg = self.clone();
-        cfg.coins_per_utxo_word = Some(coins_per_utxo_word.clone());
+        cfg.data_cost = Some(DataCost::new_coins_per_word(coins_per_utxo_word));
+        cfg
+    }
+
+    pub fn data_cost(&self, data_cost: &DataCost) -> Self {
+        let mut cfg = self.clone();
+        cfg.data_cost = Some(data_cost.clone());
         cfg
     }
 
@@ -296,7 +302,7 @@ impl TransactionBuilderConfigBuilder {
             key_deposit: cfg.key_deposit.ok_or(JsError::from_str("uninitialized field: key_deposit"))?,
             max_value_size: cfg.max_value_size.ok_or(JsError::from_str("uninitialized field: max_value_size"))?,
             max_tx_size: cfg.max_tx_size.ok_or(JsError::from_str("uninitialized field: max_tx_size"))?,
-            coins_per_utxo_word: cfg.coins_per_utxo_word.ok_or(JsError::from_str("uninitialized field: coins_per_utxo_word"))?,
+            data_cost: cfg.data_cost.ok_or(JsError::from_str("uninitialized field: data_cost"))?,
             ex_unit_prices: cfg.ex_unit_prices,
             prefer_pure_change: cfg.prefer_pure_change,
         })
@@ -693,7 +699,7 @@ impl TransactionBuilder {
                 value_size
             )));
         }
-        let calc = MinOutputAdaCalculator::new(&output, &self.config.coins_per_utxo_word);
+        let calc = MinOutputAdaCalculator::new(&output, &self.config.data_cost);
         let min_ada = calc.calculate_ada()?;
         if output.amount().coin() < min_ada {
             Err(JsError::from_str(&format!(
@@ -933,7 +939,7 @@ impl TransactionBuilder {
         ).as_positive_multiasset();
 
         self.add_output(&output_builder
-            .with_asset_and_min_required_coin(&multiasset, &self.config.coins_per_utxo_word)?
+            .with_asset_and_min_required_coin(&multiasset, &self.config.data_cost)?
             .build()?
         )
     }
@@ -1059,7 +1065,7 @@ impl TransactionBuilder {
                 }
                 let change_estimator = input_total.checked_sub(&output_total)?;
                 if has_assets(change_estimator.multiasset()) {
-                    fn will_adding_asset_make_output_overflow(output: &TransactionOutput, current_assets: &Assets, asset_to_add: (PolicyID, AssetName, BigNum), max_value_size: u32, coins_per_utxo_word: &Coin) -> Result<bool, JsError> {
+                    fn will_adding_asset_make_output_overflow(output: &TransactionOutput, current_assets: &Assets, asset_to_add: (PolicyID, AssetName, BigNum), max_value_size: u32, data_cost: &DataCost) -> Result<bool, JsError> {
                         let (policy, asset_name, value) = asset_to_add;
                         let mut current_assets_clone = current_assets.clone();
                         current_assets_clone.insert(&asset_name, &value);
@@ -1072,14 +1078,14 @@ impl TransactionBuilder {
                         amount_clone = amount_clone.checked_add(&val)?;
 
                         // calculate minADA for more precise max value size
-                        let mut calc = MinOutputAdaCalculator::new_empty(coins_per_utxo_word)?;
+                        let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
                         calc.set_amount(&val);
                         let min_ada = calc.calculate_ada()?;
                         amount_clone.set_coin(&min_ada);
 
                         Ok(amount_clone.to_bytes().len() > max_value_size as usize)
                     }
-                    fn pack_nfts_for_change(max_value_size: u32, coins_per_utxo_word: &Coin, change_address: &Address, change_estimator: &Value, plutus_data: &Option<DataOption>, script_ref: &Option<ScriptRef>) -> Result<Vec<MultiAsset>, JsError> {
+                    fn pack_nfts_for_change(max_value_size: u32, data_cost: &DataCost, change_address: &Address, change_estimator: &Value, plutus_data: &Option<DataOption>, script_ref: &Option<ScriptRef>) -> Result<Vec<MultiAsset>, JsError> {
                         // we insert the entire available ADA temporarily here since that could potentially impact the size
                         // as it could be 1, 2 3 or 4 bytes for Coin.
                         let mut change_assets: Vec<MultiAsset> = Vec::new();
@@ -1126,7 +1132,7 @@ impl TransactionBuilder {
                                 let asset_name = asset_names.get(n);
                                 let value = assets.get(&asset_name).unwrap();
 
-                                if will_adding_asset_make_output_overflow(&output, &rebuilt_assets, (policy.clone(), asset_name.clone(), value), max_value_size, coins_per_utxo_word)? {
+                                if will_adding_asset_make_output_overflow(&output, &rebuilt_assets, (policy.clone(), asset_name.clone(), value), max_value_size, data_cost)? {
                                     // if we got here, this means we will run into a overflow error,
                                     // so we want to split into multiple outputs, for that we...
 
@@ -1163,7 +1169,7 @@ impl TransactionBuilder {
 
                             // calculate minADA for more precise max value size
                             let mut amount_clone = output.amount.clone();
-                            let mut calc = MinOutputAdaCalculator::new_empty(coins_per_utxo_word)?;
+                            let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
                             calc.set_amount(&val);
                             let min_ada = calc.calculate_ada()?;
                             amount_clone.set_coin(&min_ada);
@@ -1180,7 +1186,7 @@ impl TransactionBuilder {
                     let mut new_fee = fee.clone();
                     // we might need multiple change outputs for cases where the change has many asset types
                     // which surpass the max UTXO size limit
-                    let mut calc = MinOutputAdaCalculator::new_empty(&self.config.coins_per_utxo_word)?;
+                    let mut calc = MinOutputAdaCalculator::new_empty(&self.config.data_cost)?;
                     if let Some(data) = &plutus_data {
                         match data {
                             DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
@@ -1192,7 +1198,7 @@ impl TransactionBuilder {
                     }
                     let minimum_utxo_val = calc.calculate_ada()?;
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
-                        let nft_changes = pack_nfts_for_change(self.config.max_value_size, &self.config.coins_per_utxo_word, address, &change_left, &plutus_data.clone(), &script_ref.clone())?;
+                        let nft_changes = pack_nfts_for_change(self.config.max_value_size, &self.config.data_cost, address, &change_left, &plutus_data.clone(), &script_ref.clone())?;
                         if nft_changes.len() == 0 {
                             // this likely should never happen
                             return Err(JsError::from_str("NFTs too large for change output"));
@@ -1201,7 +1207,7 @@ impl TransactionBuilder {
                         let mut change_value = Value::new(&Coin::zero());
                         for nft_change in nft_changes.iter() {
                             change_value.set_multiasset(&nft_change);
-                            let mut calc = MinOutputAdaCalculator::new_empty(&self.config.coins_per_utxo_word)?;
+                            let mut calc = MinOutputAdaCalculator::new_empty(&self.config.data_cost)?;
                             calc.set_amount(&change_value);
                             if let Some(data) = &plutus_data {
                                 match data {
@@ -1261,7 +1267,7 @@ impl TransactionBuilder {
                     }
                     Ok(true)
                 } else {
-                    let mut calc = MinOutputAdaCalculator::new_empty(&self.config.coins_per_utxo_word)?;
+                    let mut calc = MinOutputAdaCalculator::new_empty(&self.config.data_cost)?;
                     calc.set_amount(&change_estimator);
                     if let Some(data) = &plutus_data {
                         match data {
@@ -4048,7 +4054,7 @@ mod tests {
             &TransactionOutputBuilder::new()
                 .with_address(&address)
                 .next().unwrap()
-                .with_asset_and_min_required_coin(&multiasset, &tx_builder.config.coins_per_utxo_word).unwrap()
+                .with_asset_and_min_required_coin(&multiasset, &tx_builder.config.data_cost).unwrap()
                 .build().unwrap()
             ).unwrap();
 

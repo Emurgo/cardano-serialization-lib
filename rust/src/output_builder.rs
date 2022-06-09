@@ -93,8 +93,8 @@ impl TransactionOutputAmountBuilder {
     }
 
     ///double ada calculation need to check if it redundant
-    pub fn with_asset_and_min_required_coin(&self, multiasset: &MultiAsset, coins_per_utxo_word: &Coin) -> Result<TransactionOutputAmountBuilder, JsError> {
-        let mut calc = MinOutputAdaCalculator::new_empty(coins_per_utxo_word)?;
+    pub fn with_asset_and_min_required_coin(&self, multiasset: &MultiAsset, data_cost: &DataCost) -> Result<TransactionOutputAmountBuilder, JsError> {
+        let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
         if let Some(data) = &self.data {
             match data {
                 DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
@@ -108,7 +108,7 @@ impl TransactionOutputAmountBuilder {
         let mut value = Value::new(&min_possible_coin);
         value.set_multiasset(multiasset);
 
-        let mut calc = MinOutputAdaCalculator::new_empty(coins_per_utxo_word)?;
+        let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
         calc.set_amount(&value);
         if let Some(data) = &self.data {
             match data {

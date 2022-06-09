@@ -148,6 +148,11 @@ impl BigNum {
         self.0 == 0
     }
 
+    pub fn div(&self, other: &BigNum) -> BigNum {
+        let res= self.0.div(&other.0);
+        Self(res)
+    }
+
     pub fn checked_mul(&self, other: &BigNum) -> Result<BigNum, JsError> {
         match self.0.checked_mul(other.0) {
             Some(value) => Ok(BigNum(value)),
@@ -201,6 +206,12 @@ impl TryFrom<BigNum> for u32 {
 impl From<u64> for BigNum {
     fn from(value: u64) -> Self {
         return BigNum(value)
+    }
+}
+
+impl From<usize> for BigNum {
+    fn from(value: usize) -> Self {
+        return BigNum(value as u64)
     }
 }
 
@@ -1106,23 +1117,23 @@ fn bundle_size(
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MinOutputAdaCalculator {
     output: TransactionOutput,
-    coins_per_utxo_word: BigNum,
+    data_cost: DataCost,
 }
 
 #[wasm_bindgen]
 impl MinOutputAdaCalculator {
 
-    pub fn new(output: &TransactionOutput, coins_per_utxo_word: &BigNum) -> Self {
+    pub fn new(output: &TransactionOutput, data_cost: &DataCost) -> Self {
         Self{
             output: output.clone(),
-            coins_per_utxo_word: coins_per_utxo_word.clone()
+            data_cost: data_cost.clone()
         }
     }
 
-    pub fn new_empty(coins_per_utxo_word: &BigNum) -> Result<MinOutputAdaCalculator, JsError> {
+    pub fn new_empty(data_cost: &DataCost) -> Result<MinOutputAdaCalculator, JsError> {
         Ok(Self{
             output: MinOutputAdaCalculator::create_fake_output()?,
-            coins_per_utxo_word: coins_per_utxo_word.clone()
+            data_cost: data_cost.clone()
         })
     }
 
@@ -1147,22 +1158,26 @@ impl MinOutputAdaCalculator {
     }
 
     pub fn calculate_ada(&self) -> Result<BigNum, JsError> {
-        //TODO: add code
-        min_ada_required(
-            &self.output.amount,
-            self.output.data.is_some(),
-            &self.coins_per_utxo_word)
+        let bytes = self.output.to_bytes().len();
+        //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
+        //See on the page 9 getValue txout
+        let mut big_num_bytes = BigNum::from(bytes);
+        big_num_bytes = big_num_bytes.checked_add(&BigNum::from(160u32))?;
+        Ok(big_num_bytes.checked_mul(&self.data_cost.get_cost_per_byte())?)
     }
 
     fn create_fake_output() -> Result<TransactionOutput, JsError> {
-        Ok(TransactionOutput::new(
-            &Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap(),
-            &Value::new(&Coin::from_str("1000000")?)))
-        //TODO: add code, change address
+        let fake_base_address: Address = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w")?;
+        let fake_value: Value = Value::new(&Coin::from_str("1000000")?);
+        Ok(TransactionOutput::new(&fake_base_address, &fake_value))
     }
 }
 
+/// !!! DEPRECATED !!!
+/// This function uses outdated set of arguments.
+/// Use `MinOutputAdaCalculator` instead
 #[wasm_bindgen]
+#[deprecated(since = "10.3.0", note="Use `MinOutputAdaCalculator` instead")]
 pub fn min_ada_required(
     assets: &Value,
     has_data_hash: bool, // whether the output includes a data hash
