@@ -586,11 +586,11 @@ impl TransactionBuilder {
     }
 
     pub fn set_collateral_return(&mut self, collateral_return: &TransactionOutput) {
-        self.collateral_return = Some(collateral_return);
+        self.collateral_return = Some(collateral_return.clone());
     }
 
     pub fn set_total_collateral(&mut self, total_collateral: &Coin) {
-        self.total_collateral = Some(total_collateral);
+        self.total_collateral = Some(total_collateral.clone());
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -967,6 +967,8 @@ impl TransactionBuilder {
             mint_scripts: None,
             script_data_hash: None,
             required_signers: Ed25519KeyHashes::new(),
+            collateral_return: None,
+            total_collateral: None,
         }
     }
 
