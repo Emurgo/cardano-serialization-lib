@@ -1825,7 +1825,7 @@ impl ScriptRef {
     }
 
     pub fn new_plutus_script(plutus_script: &PlutusScript) -> Self {
-        //TODO add choose right plutus script after updating type
+        //TODO: add choose right plutus script after updating type
         Self(ScriptRefEnum::PlutusScriptV1(plutus_script.clone()))
     }
 }
