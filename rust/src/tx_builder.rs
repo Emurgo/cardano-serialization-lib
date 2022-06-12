@@ -589,8 +589,41 @@ impl TransactionBuilder {
         self.collateral_return = Some(collateral_return.clone());
     }
 
+    /// This function will set the collateral-return value and then auto-calculate and assign
+    /// the total collateral coin value. Will raise an error in case no collateral inputs are set
+    /// or in case the total collateral value will have any assets in it except coin.
+    pub fn set_collateral_return_and_total(&mut self, collateral_return: &TransactionOutput) -> Result<(), JsError> {
+        self.set_collateral_return(collateral_return);
+        let collateral = &self.collateral;
+        if collateral.len() == 0 {
+            return Err(JsError::from_str("Cannot calculate total collateral value when collateral inputs are missing"));
+        }
+        let col_input_value: Value = collateral.total_value()?;
+        let total_col: Value = col_input_value.checked_sub(&collateral_return.amount())?;
+        if total_col.multiasset.is_some() {
+            return Err(JsError::from_str("Total collateral value cannot contain assets!"));
+        }
+        self.total_collateral = Some(total_col.coin);
+        Ok(())
+    }
+
     pub fn set_total_collateral(&mut self, total_collateral: &Coin) {
         self.total_collateral = Some(total_collateral.clone());
+    }
+
+    /// This function will set the total-collateral coin and then auto-calculate and assign
+    /// the collateral return value. Will raise an error in case no collateral inputs are set.
+    /// The specified address will be the received of the collateral return
+    pub fn set_total_collateral_and_return(&mut self, total_collateral: &Coin, return_address: &Address) -> Result<(), JsError> {
+        self.set_total_collateral(total_collateral);
+        let collateral = &self.collateral;
+        if collateral.len() == 0 {
+            return Err(JsError::from_str("Cannot calculate collateral return when collateral inputs are missing"));
+        }
+        let col_input_value: Value = collateral.total_value()?;
+        let col_return: Value = col_input_value.checked_sub(&Value::new(&total_collateral))?;
+        self.collateral_return = Some(TransactionOutput::new(return_address, &col_return));
+        Ok(())
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -5291,6 +5324,45 @@ mod tests {
         assert_eq!(tx.body.collateral_return.unwrap(), col_return);
         assert!(tx.body.total_collateral.is_some());
         assert_eq!(tx.body.total_collateral.unwrap(), col_total);
+    }
+
+    #[test]
+    fn inputs_builder_total_value() {
+
+        let mut b = TxInputsBuilder::new();
+        assert_eq!(b.total_value().unwrap(), Value::zero());
+
+        b.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &fake_value2(100_000),
+        );
+        assert_eq!(b.total_value().unwrap(), Value::new(&to_bignum(100_000)));
+
+        b.add_input(
+            &fake_base_address(1),
+            &fake_tx_input(1),
+            &fake_value2(200_000),
+        );
+        assert_eq!(b.total_value().unwrap(), Value::new(&to_bignum(300_000)));
+
+        let (_, policy_id) = mint_script_and_policy(0);
+
+        let mut assets = Assets::new();
+        assets.insert(&AssetName::new(fake_bytes_32(12)).unwrap(), &to_bignum(123));
+
+        let mut masset = MultiAsset::new();
+        masset.insert(&policy_id, &assets);
+
+        b.add_input(
+            &fake_base_address(2),
+            &fake_tx_input(2),
+            &Value::new_with_assets(
+                &to_bignum(300_000),
+                &masset,
+            ),
+        );
+        assert_eq!(b.total_value().unwrap(), Value::new_with_assets(&to_bignum(600_000), &masset));
     }
 }
 

@@ -344,6 +344,14 @@ impl TxInputsBuilder {
         keys.0.iter().for_each(|k| self.add_required_signer(k));
     }
 
+    pub fn total_value(&self) -> Result<Value, JsError> {
+        let mut res = Value::zero();
+        for (inp, _) in self.inputs.values() {
+            res = res.checked_add(&inp.amount)?;
+        }
+        Ok(res)
+    }
+
     pub fn inputs(&self) -> TransactionInputs {
         TransactionInputs(
             self.inputs.values()
