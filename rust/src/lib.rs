@@ -55,6 +55,7 @@ pub mod emip3;
 #[macro_use]
 pub mod utils;
 mod serialization_marcos;
+mod fakes;
 
 use address::*;
 use crypto::*;
@@ -179,7 +180,7 @@ impl TransactionInputs {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TransactionOutputs(Vec<TransactionOutput>);
 
 to_from_bytes!(TransactionOutputs);
@@ -241,7 +242,7 @@ impl From<&Ed25519KeyHashes> for RequiredSignersSet {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TransactionBody {
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
@@ -257,6 +258,8 @@ pub struct TransactionBody {
     collateral: Option<TransactionInputs>,
     required_signers: Option<RequiredSigners>,
     network_id: Option<NetworkId>,
+    collateral_return: Option<TransactionOutput>,
+    total_collateral: Option<Coin>,
 }
 
 to_from_bytes!(TransactionBody);
@@ -424,6 +427,22 @@ impl TransactionBody {
         self.network_id.clone()
     }
 
+    pub fn set_collateral_return(&mut self, collateral_return: &TransactionOutput) {
+        self.collateral_return = Some(collateral_return.clone());
+    }
+
+    pub fn collateral_return(&self) -> Option<TransactionOutput> {
+        self.collateral_return.clone()
+    }
+
+    pub fn set_total_collateral(&mut self, total_collateral: &Coin) {
+        self.total_collateral = Some(total_collateral.clone());
+    }
+
+    pub fn total_collateral(&self) -> Option<Coin> {
+        self.total_collateral.clone()
+    }
+
     /// !!! DEPRECATED !!!
     /// This constructor uses outdated slot number format for the ttl value.
     /// Use `.new_tx_body` and then `.set_ttl` instead
@@ -436,25 +455,11 @@ impl TransactionBody {
         outputs: &TransactionOutputs,
         fee: &Coin,
         ttl: Option<Slot32>) -> Self {
-        Self {
-            inputs: inputs.clone(),
-            outputs: outputs.clone(),
-            fee: fee.clone(),
-            ttl: match ttl.clone() {
-                Some(ttl32) => Some(ttl32.into()),
-                None => None
-            },
-            certs: None,
-            withdrawals: None,
-            update: None,
-            auxiliary_data_hash: None,
-            validity_start_interval: None,
-            mint: None,
-            script_data_hash: None,
-            collateral: None,
-            required_signers: None,
-            network_id: None,
+        let mut tx = Self::new_tx_body(inputs, outputs, fee);
+        if let Some(slot32) = ttl {
+            tx.set_ttl(&to_bignum(slot32 as u64));
         }
+        tx
     }
 
     /// Returns a new TransactionBody.
@@ -479,6 +484,8 @@ impl TransactionBody {
             collateral: None,
             required_signers: None,
             network_id: None,
+            collateral_return: None,
+            total_collateral: None,
         }
     }
 }
