@@ -1470,7 +1470,7 @@ impl TransactionBuilder {
 mod tests {
     use super::*;
     use fees::*;
-    use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value};
+    use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2};
     use crate::tx_builder_constants::TxBuilderConstants;
     use super::output_builder::TransactionOutputBuilder;
 
@@ -5261,5 +5261,36 @@ mod tests {
         ), 4);
     }
 
+    #[test]
+    fn collateral_return_and_total_collateral_setters() {
+
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let mut inp = TxInputsBuilder::new();
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &fake_value(),
+        );
+
+        tx_builder.set_inputs(&inp);
+        tx_builder.set_collateral(&inp);
+
+        let col_return = TransactionOutput::new(
+            &fake_base_address(1),
+            &fake_value2(123123),
+        );
+        let col_total = to_bignum(234234);
+
+        tx_builder.set_collateral_return(&col_return);
+        tx_builder.set_total_collateral(&col_total);
+
+        let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
+        assert!(tx.body.collateral_return.is_some());
+        assert_eq!(tx.body.collateral_return.unwrap(), col_return);
+        assert!(tx.body.total_collateral.is_some());
+        assert_eq!(tx.body.total_collateral.unwrap(), col_total);
+    }
 }
 
