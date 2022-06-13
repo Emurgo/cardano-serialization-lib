@@ -1380,6 +1380,10 @@ fn encode_template_to_native_script(
     }
 }
 
+pub(crate) fn opt64<T>(o: &Option<T>) -> u64 {
+    o.is_some() as u64
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
