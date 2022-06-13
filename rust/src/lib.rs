@@ -205,8 +205,8 @@ impl TransactionOutputs {
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum DataCostEnum {
-    CoinsPerWord(BigNum),
-    CoinsPerByte(BigNum)
+    CoinsPerWord(Coin),
+    CoinsPerByte(Coin)
 }
 
 #[wasm_bindgen]
@@ -216,24 +216,24 @@ pub struct DataCost(DataCostEnum);
 #[wasm_bindgen]
 impl DataCost {
 
-    pub fn new_coins_per_word(coins_per_word: &BigNum) -> DataCost {
-        DataCost(DataCostEnum::CoinsPerWord(coins_per_word.clone()))
+    pub fn new_coins_per_word(coins_per_word: &Coin) -> DataCost {
+        if coins_per_word != &BigNum::zero() {
+            DataCost(DataCostEnum::CoinsPerWord(coins_per_word.clone()))
+        } else {
+            DataCost(DataCostEnum::CoinsPerByte(BigNum::zero()))
+        }
     }
 
-    pub fn new_coins_per_byte(coins_per_byte: &BigNum) -> DataCost {
+    pub fn new_coins_per_byte(coins_per_byte: &Coin) -> DataCost {
         DataCost(DataCostEnum::CoinsPerByte(coins_per_byte.clone()))
     }
 
-    pub fn get_cost_per_byte(&self) -> BigNum {
+    pub fn get_cost_per_byte(&self) -> Result<Coin, JsError> {
         match &self.0 {
-            DataCostEnum::CoinsPerByte(coins_per_byte) => coins_per_byte.clone(),
+            DataCostEnum::CoinsPerByte(coins_per_byte) => Ok(coins_per_byte.clone()),
             DataCostEnum::CoinsPerWord(coins_per_word) => {
                 let bytes_in_word = BigNum::from(8u32);
-                if coins_per_word.lt(&bytes_in_word) {
-                    BigNum::one()
-                } else {
-                    coins_per_word.div(&bytes_in_word)
-                }
+                Ok(coins_per_word.div(&bytes_in_word))
             }
         }
     }

@@ -1163,7 +1163,7 @@ impl MinOutputAdaCalculator {
         //See on the page 9 getValue txout
         let mut big_num_bytes = BigNum::from(bytes);
         big_num_bytes = big_num_bytes.checked_add(&BigNum::from(160u32))?;
-        Ok(big_num_bytes.checked_mul(&self.data_cost.get_cost_per_byte())?)
+        Ok(big_num_bytes.checked_mul(&self.data_cost.get_cost_per_byte()?)?)
     }
 
     fn create_fake_output() -> Result<TransactionOutput, JsError> {
@@ -1183,22 +1183,14 @@ pub fn min_ada_required(
     has_data_hash: bool, // whether the output includes a data hash
     coins_per_utxo_word: &BigNum, // protocol parameter (in lovelace)
 ) -> Result<BigNum, JsError> {
-    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
-    let data_hash_size = if has_data_hash { 10 } else { 0 }; // in words
-    let utxo_entry_size_without_val = 27; // in words
-
-    let size = bundle_size(
-        &assets,
-        &OutputSizeConstants {
-            k0: 6,
-            k1: 12,
-            k2: 1,
-        },
-    );
-    let words = to_bignum(utxo_entry_size_without_val)
-        .checked_add(&to_bignum(size as u64))?
-        .checked_add(&to_bignum(data_hash_size))?;
-    coins_per_utxo_word.checked_mul(&words)
+    let data_cost = DataCost::new_coins_per_word(coins_per_utxo_word);
+    let mut calc = MinOutputAdaCalculator::new_empty(&data_cost)?;
+    calc.set_amount(assets);
+    if has_data_hash {
+        let fake_hash = DataHash::from_bytes(vec![201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232])?;
+        calc.set_data_hash(&fake_hash);
+    }
+   calc.calculate_ada()
 }
 
 /// Used to choosed the schema for a script JSON string
@@ -1559,7 +1551,7 @@ mod tests {
     fn min_ada_value_no_multiasset() {
         assert_eq!(
             from_bignum(&min_ada_required(&Value::new(&Coin::zero()), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            999978,
+            952510,
         );
     }
 
@@ -1567,7 +1559,7 @@ mod tests {
     fn min_ada_value_one_policy_one_0_char_asset() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_one_0_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_310_316,
+            1_103_360,
         );
     }
 
@@ -1575,7 +1567,7 @@ mod tests {
     fn min_ada_value_one_policy_one_1_char_asset() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_one_1_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_344_798,
+            1_124_910,
         );
     }
 
@@ -1583,7 +1575,7 @@ mod tests {
     fn min_ada_value_one_policy_three_1_char_assets() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_three_1_char_assets(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_448_244,
+            1_150_770,
         );
     }
 
@@ -1591,7 +1583,7 @@ mod tests {
     fn min_ada_value_two_policies_one_0_char_asset() {
         assert_eq!(
             from_bignum(&min_ada_required(&two_policies_one_0_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_482_726,
+            1_262_830,
         );
     }
 
@@ -1599,7 +1591,7 @@ mod tests {
     fn min_ada_value_two_policies_one_1_char_asset() {
         assert_eq!(
             from_bignum(&min_ada_required(&two_policies_one_1_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_517_208,
+            1_271_450,
         );
     }
 
@@ -1607,7 +1599,7 @@ mod tests {
     fn min_ada_value_three_policies_96_1_char_assets() {
         assert_eq!(
             from_bignum(&min_ada_required(&three_policies_96_1_char_assets(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            6_896_400,
+            2_633_410,
         );
     }
 
@@ -1615,7 +1607,7 @@ mod tests {
     fn min_ada_value_one_policy_one_0_char_asset_datum_hash() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_one_0_char_asset(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_655_136,
+            1_249_900,
         );
     }
 
@@ -1623,7 +1615,7 @@ mod tests {
     fn min_ada_value_one_policy_three_32_char_assets_datum_hash() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_three_32_char_assets(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            2_172_366,
+            1_711_070,
         );
     }
 
@@ -1631,7 +1623,7 @@ mod tests {
     fn min_ada_value_two_policies_one_0_char_asset_datum_hash() {
         assert_eq!(
             from_bignum(&min_ada_required(&two_policies_one_0_char_asset(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_827_546,
+            1_409_370,
         );
     }
 

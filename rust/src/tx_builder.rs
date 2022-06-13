@@ -1208,7 +1208,10 @@ impl TransactionBuilder {
                         for nft_change in nft_changes.iter() {
                             change_value.set_multiasset(&nft_change);
                             let mut calc = MinOutputAdaCalculator::new_empty(&self.config.data_cost)?;
-                            calc.set_amount(&change_value);
+                            //TODO add precise calculation
+                            let mut fake_change = change_value.clone();
+                            fake_change.set_coin(&change_left.coin);
+                            calc.set_amount(&fake_change);
                             if let Some(data) = &plutus_data {
                                 match data {
                                     DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
@@ -1226,6 +1229,7 @@ impl TransactionBuilder {
                                 data: plutus_data.clone(),
                                 script_ref: script_ref.clone()
                             };
+
                             // increase fee
                             let fee_for_change = self.fee_for_output(&change_output)?;
                             new_fee = new_fee.checked_add(&fee_for_change)?;
@@ -1599,11 +1603,11 @@ mod tests {
     }
 
     fn create_tx_builder_with_fee_and_val_size(linear_fee: &LinearFee, max_val_size: u32) -> TransactionBuilder {
-        create_tx_builder_full(linear_fee, 1, 1, max_val_size, 1)
+        create_tx_builder_full(linear_fee, 1, 1, max_val_size, 8)
     }
 
     fn create_tx_builder_with_fee(linear_fee: &LinearFee) -> TransactionBuilder {
-        create_tx_builder(linear_fee, 1, 1, 1)
+        create_tx_builder(linear_fee, 8, 1, 1)
     }
 
     fn create_tx_builder_with_fee_and_pure_change(linear_fee: &LinearFee) -> TransactionBuilder {
@@ -1613,14 +1617,14 @@ mod tests {
             .key_deposit(&to_bignum(1))
             .max_value_size(MAX_VALUE_SIZE)
             .max_tx_size(MAX_TX_SIZE)
-            .coins_per_utxo_word(&to_bignum(1))
+            .coins_per_utxo_word(&to_bignum(8))
             .prefer_pure_change(true)
             .build()
             .unwrap())
     }
 
     fn create_tx_builder_with_key_deposit(deposit: u64) -> TransactionBuilder {
-        create_tx_builder(&create_default_linear_fee(), 1, 1, deposit)
+        create_tx_builder(&create_default_linear_fee(), 8, 1, deposit)
     }
 
     fn create_default_tx_builder() -> TransactionBuilder {
@@ -1664,7 +1668,7 @@ mod tests {
             &TransactionOutputBuilder::new()
                 .with_address(&addr_net_0)
                 .next().unwrap()
-                .with_coin(&to_bignum(29))
+                .with_coin(&to_bignum(222))
                 .build().unwrap()
             ).unwrap();
         tx_builder.set_ttl(1000);
@@ -1829,7 +1833,7 @@ mod tests {
         tx_builder.add_key_input(
             &&spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(100))
+            &Value::new(&to_bignum(222))
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
@@ -1838,7 +1842,7 @@ mod tests {
             &TransactionOutputBuilder::new()
                 .with_address(&addr_net_0)
                 .next().unwrap()
-                .with_coin(&to_bignum(100))
+                .with_coin(&to_bignum(222))
                 .build().unwrap()
             ).unwrap();
         tx_builder.set_ttl(0);
@@ -1881,7 +1885,7 @@ mod tests {
         tx_builder.add_key_input(
             &&spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(58))
+            &Value::new(&to_bignum(700))
         );
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
@@ -1895,7 +1899,7 @@ mod tests {
             &TransactionOutputBuilder::new()
                 .with_address(&addr_net_0)
                 .next().unwrap()
-                .with_coin(&to_bignum(29))
+                .with_coin(&to_bignum(222))
                 .build().unwrap()
             ).unwrap();
         tx_builder.set_ttl(0);
@@ -1908,7 +1912,7 @@ mod tests {
         assert_eq!(added_change, true);
         let final_tx = tx_builder.build().unwrap();
         assert_eq!(final_tx.outputs().len(), 2);
-        assert_eq!(final_tx.outputs().get(1).amount().coin().to_str(), "29");
+        assert_eq!(final_tx.outputs().get(1).amount().coin().to_str(), "478");
     }
 
     #[test]
@@ -2084,7 +2088,7 @@ mod tests {
                 &spend_cred
             ).to_address(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(150))
+            &Value::new(&to_bignum(500))
         );
 
         let addr_net_0 = BaseAddress::new(
@@ -2107,7 +2111,7 @@ mod tests {
         mass.insert(&policy_id, &ass);
 
         // One coin and the minted asset goes into the output
-        let mut output_amount = Value::new(&to_bignum(50));
+        let mut output_amount = Value::new(&to_bignum(264));
         output_amount.set_multiasset(&mass);
 
         tx_builder.add_output(
@@ -2132,7 +2136,7 @@ mod tests {
 
         // Change must be one remaining coin because fee is one constant coin
         let change = tx_builder.outputs.get(1).amount();
-        assert_eq!(change.coin(), to_bignum(99));
+        assert_eq!(change.coin(), to_bignum(235));
         assert!(change.multiasset().is_none());
     }
 
@@ -2164,14 +2168,14 @@ mod tests {
         let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
         let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
 
-        // Input with 150 coins
+        // Input with 600 coins
         tx_builder.add_input(
             &EnterpriseAddress::new(
                 NetworkInfo::testnet().network_id(),
                 &spend_cred
             ).to_address(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(150))
+            &Value::new(&to_bignum(600))
         );
 
         let addr_net_0 = BaseAddress::new(
@@ -2196,7 +2200,7 @@ mod tests {
         mass.insert(&policy_id, &ass);
 
         // One coin and the minted asset goes into the output
-        let mut output_amount = Value::new(&to_bignum(50));
+        let mut output_amount = Value::new(&to_bignum(300));
         output_amount.set_multiasset(&mass);
 
         tx_builder.add_output(
@@ -2221,7 +2225,7 @@ mod tests {
 
         // Change must be one remaining coin because fee is one constant coin
         let change = tx_builder.outputs.get(1).amount();
-        assert_eq!(change.coin(), to_bignum(99));
+        assert_eq!(change.coin(), to_bignum(299));
         assert!(change.multiasset().is_some());
 
         let change_assets = change.multiasset().unwrap();
@@ -2279,7 +2283,7 @@ mod tests {
 
         for (i, (multiasset, ada)) in multiassets
             .iter()
-            .zip([100u64, 100].iter().cloned().map(to_bignum))
+            .zip([100u64, 1000].iter().cloned().map(to_bignum))
             .enumerate()
         {
             let mut input_amount = Value::new(&ada);
@@ -2302,7 +2306,7 @@ mod tests {
         )
         .to_address();
 
-        let mut output_amount = Value::new(&to_bignum(100));
+        let mut output_amount = Value::new(&to_bignum(500));
         output_amount.set_multiasset(&multiassets[2]);
 
         tx_builder.add_output(
@@ -2340,13 +2344,13 @@ mod tests {
         );
         assert_eq!(
             final_tx.outputs().get(1).amount().coin(),
-            to_bignum(99)
+            to_bignum(599)
         );
     }
 
     #[test]
     fn build_tx_with_native_assets_change_and_purification() {
-        let coin_per_utxo_word = to_bignum(1);
+        let coin_per_utxo_word = to_bignum(8);
         // Prefer pure change!
         let mut tx_builder = create_tx_builder_with_fee_and_pure_change(&create_linear_fee(0, 1));
         let spend = root_key_15()
@@ -2393,7 +2397,7 @@ mod tests {
 
         for (i, (multiasset, ada)) in multiassets
             .iter()
-            .zip([100u64, 100].iter().cloned().map(to_bignum))
+            .zip([100u64, 1000].iter().cloned().map(to_bignum))
             .enumerate()
         {
             let mut input_amount = Value::new(&ada);
@@ -2416,7 +2420,7 @@ mod tests {
         )
         .to_address();
 
-        let mut output_amount = Value::new(&to_bignum(50));
+        let mut output_amount = Value::new(&to_bignum(600));
         output_amount.set_multiasset(&multiassets[2]);
 
         tx_builder.add_output(
@@ -2441,7 +2445,7 @@ mod tests {
         assert_eq!(final_tx.outputs().len(), 3);
         assert_eq!(
             final_tx.outputs().get(0).amount().coin(),
-            to_bignum(50)
+            to_bignum(600)
         );
         assert_eq!(
             final_tx
@@ -2468,7 +2472,7 @@ mod tests {
         );
         assert_eq!(
             final_tx.outputs().get(2).amount().coin(),
-            to_bignum(110)
+            to_bignum(236)
         );
         assert_eq!(
             final_tx.outputs().get(2).amount().multiasset(),
@@ -2524,7 +2528,7 @@ mod tests {
 
         for (i, (multiasset, ada)) in multiassets
             .iter()
-            .zip([300u64, 300].iter().cloned().map(to_bignum))
+            .zip([300u64, 900].iter().cloned().map(to_bignum))
             .enumerate()
         {
             let mut input_amount = Value::new(&ada);
@@ -2547,7 +2551,7 @@ mod tests {
         )
         .to_address();
 
-        let mut output_amount = Value::new(&to_bignum(100));
+        let mut output_amount = Value::new(&to_bignum(300));
         output_amount.set_multiasset(&multiassets[2]);
 
         tx_builder.add_output(
@@ -2572,7 +2576,7 @@ mod tests {
         assert_eq!(final_tx.outputs().len(), 2);
         assert_eq!(
             final_tx.outputs().get(0).amount().coin(),
-            to_bignum(100)
+            to_bignum(300)
         );
         assert_eq!(
             final_tx
@@ -2591,7 +2595,7 @@ mod tests {
         // But not enough to cover the additional fee for a separate output
         assert_eq!(
             final_tx.outputs().get(1).amount().coin(),
-            to_bignum(101)
+            to_bignum(499)
         );
     }
 
@@ -2852,7 +2856,7 @@ mod tests {
         );
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap().to_address();
-        let output_amount = Value::new(&to_bignum(100));
+        let output_amount = Value::new(&to_bignum(208));
 
         tx_builder.add_output(
             &TransactionOutputBuilder::new()
@@ -2957,7 +2961,7 @@ mod tests {
         );
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap().to_address();
-        let output_amount = Value::new(&to_bignum(59));
+        let output_amount = Value::new(&to_bignum(208));
 
         tx_builder.add_output(
             &TransactionOutputBuilder::new()
@@ -2996,15 +3000,15 @@ mod tests {
             &TransactionOutputBuilder::new()
                 .with_address(&Address::from_bech32("addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z").unwrap())
                 .next().unwrap()
-                .with_coin(&to_bignum(1000))
+                .with_coin(&to_bignum(9000))
                 .build().unwrap()
             ).unwrap();
         let mut available_inputs = TransactionUnspentOutputs::new();
-        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
-        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(200))));
-        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(800))));
-        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(400))));
-        available_inputs.add(&make_input(4u8, Value::new(&to_bignum(100))));
+        available_inputs.add(&make_input(0u8, Value::new(&to_bignum(1200))));
+        available_inputs.add(&make_input(1u8, Value::new(&to_bignum(1600))));
+        available_inputs.add(&make_input(2u8, Value::new(&to_bignum(6400))));
+        available_inputs.add(&make_input(3u8, Value::new(&to_bignum(2400))));
+        available_inputs.add(&make_input(4u8, Value::new(&to_bignum(800))));
         tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::LargestFirst).unwrap();
         let change_addr = ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho").unwrap().to_address();
         let change_added = tx_builder.add_change_if_needed(&change_addr).unwrap();
@@ -3117,7 +3121,7 @@ mod tests {
         available_inputs.add(&input5);
 
         // should be taken to get enough ADA
-        let input6 = make_input(6u8, Value::new(&to_bignum(400)));
+        let input6 = make_input(6u8, Value::new(&to_bignum(900)));
         available_inputs.add(&input6);
 
         // should not be taken
@@ -3137,7 +3141,7 @@ mod tests {
         assert_eq!(6u8, tx.inputs().get(3).transaction_id().0[0]);
 
         let change = tx.outputs().get(1).amount;
-        assert_eq!(from_bignum(&change.coin), 55);
+        assert_eq!(from_bignum(&change.coin), 555);
         let change_ma = change.multiasset().unwrap();
         assert_eq!(15, from_bignum(&change_ma.get_asset(&pid1, &asset_name1)));
         assert_eq!(24, from_bignum(&change_ma.get_asset(&pid1, &asset_name2)));
@@ -3214,7 +3218,7 @@ mod tests {
         input5.output.amount.multiasset = Some(ma5);
         available_inputs.add(&input5);
 
-        let input6 = make_input(6u8, Value::new(&to_bignum(400)));
+        let input6 = make_input(6u8, Value::new(&to_bignum(1000)));
         available_inputs.add(&input6);
         available_inputs.add(&make_input(7u8, Value::new(&to_bignum(100))));
 
@@ -3573,7 +3577,7 @@ mod tests {
                 .key_deposit(&to_bignum(0))
                 .max_value_size(max_value_size)
                 .max_tx_size(MAX_TX_SIZE)
-                .coins_per_utxo_word(&to_bignum(1))
+                .coins_per_utxo_word(&to_bignum(8))
                 .prefer_pure_change(true)
                 .build()
                 .unwrap()
@@ -3596,7 +3600,7 @@ mod tests {
         let mut multiasset = MultiAsset::new();
         multiasset.insert(&policy_id, &assets);
 
-        let mut input_value = Value::new(&to_bignum(300));
+        let mut input_value = Value::new(&to_bignum(1200));
         input_value.set_multiasset(&multiasset);
 
         tx_builder.add_input(
@@ -3609,7 +3613,7 @@ mod tests {
         );
 
         let output_addr = ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b").unwrap().to_address();
-        let output_amount = Value::new(&to_bignum(50));
+        let output_amount = Value::new(&to_bignum(208));
 
         tx_builder.add_output(
             &TransactionOutputBuilder::new()
@@ -3633,9 +3637,9 @@ mod tests {
         assert_eq!(change1.address, change2.address);
         assert_eq!(change1.address, change3.address);
 
-        assert_eq!(change1.amount.coin, to_bignum(45));
-        assert_eq!(change2.amount.coin, to_bignum(42));
-        assert_eq!(change3.amount.coin, to_bignum(162));
+        assert_eq!(change1.amount.coin, to_bignum(288));
+        assert_eq!(change2.amount.coin, to_bignum(293));
+        assert_eq!(change3.amount.coin, to_bignum(410));
 
         assert!(change1.amount.multiasset.is_some());
         assert!(change2.amount.multiasset.is_some());
@@ -3975,7 +3979,7 @@ mod tests {
 
         let policy_id1 = PolicyID::from([0u8; 28]);
         let multiasset = create_multiasset_one_asset(&policy_id1);
-        let mut value = Value::new(&to_bignum(42));
+        let mut value = Value::new(&to_bignum(249));
         value.set_multiasset(&multiasset);
 
         let address = byron_address();
@@ -3999,7 +4003,7 @@ mod tests {
         let mut tx_builder = create_default_tx_builder();
 
         let address = byron_address();
-        let coin = to_bignum(43);
+        let coin = to_bignum(208);
         tx_builder.add_output(
             &TransactionOutputBuilder::new()
                 .with_address(&address)
@@ -4024,7 +4028,7 @@ mod tests {
         let multiasset = create_multiasset_one_asset(&policy_id1);
 
         let address = byron_address();
-        let coin = to_bignum(42);
+        let coin = to_bignum(249);
 
         tx_builder.add_output(
             &TransactionOutputBuilder::new()
@@ -4063,7 +4067,7 @@ mod tests {
 
         assert_eq!(out.address.to_bytes(), address.to_bytes());
         assert_eq!(out.amount.multiasset.unwrap(), multiasset);
-        assert_eq!(out.amount.coin, to_bignum(1344798));
+        assert_eq!(out.amount.coin, to_bignum(1146460));
     }
 
     #[test]
@@ -4077,7 +4081,7 @@ mod tests {
         let amount = Int::new_i32(1234);
 
         let address = byron_address();
-        let coin = to_bignum(100);
+        let coin = to_bignum(249);
 
         // Add unrelated mint first to check it is NOT added to output later
         tx_builder.add_mint_asset(&mint_script0, &name, amount.clone());
@@ -4167,7 +4171,7 @@ mod tests {
         let out = tx_builder.outputs.get(0);
 
         assert_eq!(out.address.to_bytes(), address.to_bytes());
-        assert_eq!(out.amount.coin, to_bignum(1344798));
+        assert_eq!(out.amount.coin, to_bignum(1146460));
 
         let multiasset = out.amount.multiasset.unwrap();
 
@@ -4385,7 +4389,7 @@ mod tests {
             &TransactionOutputBuilder::new()
                 .with_address(&byron_address())
                 .next().unwrap()
-                .with_coin(&to_bignum(42))
+                .with_coin(&to_bignum(208))
                 .build().unwrap()
         ).unwrap();
 
@@ -4393,7 +4397,7 @@ mod tests {
         let total_output_before_mint = tx_builder.get_total_output().unwrap();
 
         assert_eq!(total_input_before_mint.coin, to_bignum(300));
-        assert_eq!(total_output_before_mint.coin, to_bignum(42));
+        assert_eq!(total_output_before_mint.coin, to_bignum(208));
         let ma1_input = total_input_before_mint.multiasset.unwrap();
         let ma1_output = total_output_before_mint.multiasset;
         assert_eq!(ma1_input.get(&policy_id1).unwrap().get(&name).unwrap(), to_bignum(360));
@@ -4410,7 +4414,7 @@ mod tests {
         let total_output_after_mint = tx_builder.get_total_output().unwrap();
 
         assert_eq!(total_input_after_mint.coin, to_bignum(300));
-        assert_eq!(total_output_before_mint.coin, to_bignum(42));
+        assert_eq!(total_output_before_mint.coin, to_bignum(208));
         let ma2_input = total_input_after_mint.multiasset.unwrap();
         let ma2_output = total_output_after_mint.multiasset.unwrap();
         assert_eq!(ma2_input.get(&policy_id1).unwrap().get(&name).unwrap(), to_bignum(400));
