@@ -2513,7 +2513,7 @@ impl Header {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct OperationalCert {
     hot_vkey: KESVKey,
     sequence_number: u32,
@@ -2551,16 +2551,21 @@ impl OperationalCert {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum HeaderLeaderCertEnum {
+    NonceAndLeader(VRFCert, VRFCert),
+    VrfResult(VRFCert),
+}
+
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HeaderBody {
     block_number: u32,
     slot: SlotBigNum,
     prev_hash: Option<BlockHash>,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
-    nonce_vrf: VRFCert,
-    leader_vrf: VRFCert,
+    leader_cert: HeaderLeaderCertEnum,
     block_body_size: u32,
     block_body_hash: BlockHash,
     operational_cert: OperationalCert,
@@ -2603,12 +2608,39 @@ impl HeaderBody {
         self.vrf_vkey.clone()
     }
 
-    pub fn nonce_vrf(&self) -> VRFCert {
-        self.nonce_vrf.clone()
+    pub fn has_nonce_and_leader_vrf(&self) -> bool {
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::NonceAndLeader(_, _) => true,
+            _ => false,
+        }
     }
 
-    pub fn leader_vrf(&self) -> VRFCert {
-        self.leader_vrf.clone()
+    pub fn nonce_vrf_or_nothing(&self) -> Option<VRFCert> {
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::NonceAndLeader(nonce, _) => Some(nonce.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn leader_vrf_or_nothing(&self) -> Option<VRFCert> {
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::NonceAndLeader(_, leader) => Some(leader.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn has_vrf_result(&self) -> bool {
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::VrfResult(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn vrf_result_or_nothing(&self) -> Option<VRFCert> {
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::VrfResult(cert) => Some(cert.clone()),
+            _ => None,
+        }
     }
 
     pub fn block_body_size(&self) -> u32 {
@@ -2634,15 +2666,27 @@ impl HeaderBody {
     since = "10.1.0",
     note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use new_bignum instead."
     )]
-    pub fn new(block_number: u32, slot: Slot32, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+    pub fn new(
+        block_number: u32,
+        slot: Slot32,
+        prev_hash: Option<BlockHash>,
+        issuer_vkey: &Vkey,
+        vrf_vkey: &VRFVKey,
+        vrf_result: &VRFCert,
+        block_body_size: u32,
+        block_body_hash: &BlockHash,
+        operational_cert: &OperationalCert,
+        protocol_version: &ProtocolVersion,
+    ) -> Self {
         Self {
             block_number: block_number,
             slot: slot.clone().into(),
             prev_hash: prev_hash.clone(),
             issuer_vkey: issuer_vkey.clone(),
             vrf_vkey: vrf_vkey.clone(),
-            nonce_vrf: nonce_vrf.clone(),
-            leader_vrf: leader_vrf.clone(),
+            leader_cert: HeaderLeaderCertEnum::VrfResult(
+                vrf_result.clone(),
+            ),
             block_body_size: block_body_size,
             block_body_hash: block_body_hash.clone(),
             operational_cert: operational_cert.clone(),
@@ -2650,15 +2694,34 @@ impl HeaderBody {
         }
     }
 
-    pub fn new_headerbody(block_number: u32, slot: &SlotBigNum, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+    /// !!! DEPRECATED !!!
+    /// This constructor uses outdated slot number format.
+    /// Use `.new_headerbody` instead
+    #[deprecated(
+    since = "10.3.0",
+    note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use new_bignum instead."
+    )]
+    pub fn new_headerbody(
+        block_number: u32,
+        slot: &SlotBigNum,
+        prev_hash: Option<BlockHash>,
+        issuer_vkey: &Vkey,
+        vrf_vkey: &VRFVKey,
+        vrf_result: &VRFCert,
+        block_body_size: u32,
+        block_body_hash: &BlockHash,
+        operational_cert: &OperationalCert,
+        protocol_version: &ProtocolVersion,
+    ) -> Self {
         Self {
             block_number: block_number,
             slot: slot.clone(),
             prev_hash: prev_hash.clone(),
             issuer_vkey: issuer_vkey.clone(),
             vrf_vkey: vrf_vkey.clone(),
-            nonce_vrf: nonce_vrf.clone(),
-            leader_vrf: leader_vrf.clone(),
+            leader_cert: HeaderLeaderCertEnum::VrfResult(
+                vrf_result.clone(),
+            ),
             block_body_size: block_body_size,
             block_body_hash: block_body_hash.clone(),
             operational_cert: operational_cert.clone(),

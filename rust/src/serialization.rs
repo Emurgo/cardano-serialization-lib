@@ -3240,8 +3240,15 @@ impl cbor_event::se::Serialize for HeaderBody {
         }?;
         self.issuer_vkey.serialize(serializer)?;
         self.vrf_vkey.serialize(serializer)?;
-        self.nonce_vrf.serialize(serializer)?;
-        self.leader_vrf.serialize(serializer)?;
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::NonceAndLeader(nonce_vrf, leader_vrf) => {
+                nonce_vrf.serialize(serializer)?;
+                leader_vrf.serialize(serializer)?;
+            },
+            HeaderLeaderCertEnum::VrfResult(vrf_cert) => {
+                vrf_cert.serialize(serializer)?;
+            }
+        }
         self.block_body_size.serialize(serializer)?;
         self.block_body_hash.serialize(serializer)?;
         self.operational_cert.serialize_as_embedded_group(serializer)?;
@@ -3294,12 +3301,19 @@ impl DeserializeEmbeddedGroup for HeaderBody {
         let vrf_vkey = (|| -> Result<_, DeserializeError> {
             Ok(VRFVKey::deserialize(raw)?)
         })().map_err(|e| e.annotate("vrf_vkey"))?;
-        let nonce_vrf = (|| -> Result<_, DeserializeError> {
-            Ok(VRFCert::deserialize(raw)?)
-        })().map_err(|e| e.annotate("nonce_vrf"))?;
-        let leader_vrf = (|| -> Result<_, DeserializeError> {
-            Ok(VRFCert::deserialize(raw)?)
-        })().map_err(|e| e.annotate("leader_vrf"))?;
+        let leader_cert = {
+            // TODO: check for two or single certs
+            let nonce_vrf = (|| -> Result<_, DeserializeError> {
+                Ok(VRFCert::deserialize(raw)?)
+            })().map_err(|e| e.annotate("nonce_vrf"))?;
+            let leader_vrf = (|| -> Result<_, DeserializeError> {
+                Ok(VRFCert::deserialize(raw)?)
+            })().map_err(|e| e.annotate("leader_vrf"))?;
+            HeaderLeaderCertEnum::NonceAndLeader(
+                nonce_vrf,
+                leader_vrf,
+            )
+        };
         let block_body_size = (|| -> Result<_, DeserializeError> {
             Ok(u32::deserialize(raw)?)
         })().map_err(|e| e.annotate("block_body_size"))?;
@@ -3318,8 +3332,7 @@ impl DeserializeEmbeddedGroup for HeaderBody {
             prev_hash,
             issuer_vkey,
             vrf_vkey,
-            nonce_vrf,
-            leader_vrf,
+            leader_cert,
             block_body_size,
             block_body_hash,
             operational_cert,

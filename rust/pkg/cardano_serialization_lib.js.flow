@@ -1992,14 +1992,29 @@ declare export class HeaderBody {
   vrf_vkey(): VRFVKey;
 
   /**
-   * @returns {VRFCert}
+   * @returns {boolean}
    */
-  nonce_vrf(): VRFCert;
+  has_nonce_and_leader_vrf(): boolean;
 
   /**
-   * @returns {VRFCert}
+   * @returns {VRFCert | void}
    */
-  leader_vrf(): VRFCert;
+  nonce_vrf_or_nothing(): VRFCert | void;
+
+  /**
+   * @returns {VRFCert | void}
+   */
+  leader_vrf_or_nothing(): VRFCert | void;
+
+  /**
+   * @returns {boolean}
+   */
+  has_vrf_result(): boolean;
+
+  /**
+   * @returns {VRFCert | void}
+   */
+  vrf_result_or_nothing(): VRFCert | void;
 
   /**
    * @returns {number}
@@ -2030,8 +2045,7 @@ declare export class HeaderBody {
    * @param {BlockHash | void} prev_hash
    * @param {Vkey} issuer_vkey
    * @param {VRFVKey} vrf_vkey
-   * @param {VRFCert} nonce_vrf
-   * @param {VRFCert} leader_vrf
+   * @param {VRFCert} vrf_result
    * @param {number} block_body_size
    * @param {BlockHash} block_body_hash
    * @param {OperationalCert} operational_cert
@@ -2044,8 +2058,7 @@ declare export class HeaderBody {
     prev_hash: BlockHash | void,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
-    nonce_vrf: VRFCert,
-    leader_vrf: VRFCert,
+    vrf_result: VRFCert,
     block_body_size: number,
     block_body_hash: BlockHash,
     operational_cert: OperationalCert,
@@ -2053,13 +2066,15 @@ declare export class HeaderBody {
   ): HeaderBody;
 
   /**
+   * !!! DEPRECATED !!!
+   * This constructor uses outdated slot number format.
+   * Use `.new_headerbody` instead
    * @param {number} block_number
    * @param {BigNum} slot
    * @param {BlockHash | void} prev_hash
    * @param {Vkey} issuer_vkey
    * @param {VRFVKey} vrf_vkey
-   * @param {VRFCert} nonce_vrf
-   * @param {VRFCert} leader_vrf
+   * @param {VRFCert} vrf_result
    * @param {number} block_body_size
    * @param {BlockHash} block_body_hash
    * @param {OperationalCert} operational_cert
@@ -2072,8 +2087,7 @@ declare export class HeaderBody {
     prev_hash: BlockHash | void,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
-    nonce_vrf: VRFCert,
-    leader_vrf: VRFCert,
+    vrf_result: VRFCert,
     block_body_size: number,
     block_body_hash: BlockHash,
     operational_cert: OperationalCert,

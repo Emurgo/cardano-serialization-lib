@@ -283,7 +283,7 @@ impl PrivateKey {
 
 /// ED25519 key used as public key
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PublicKey(crypto::PublicKey<crypto::Ed25519>);
 
 impl From<crypto::PublicKey<crypto::Ed25519>> for PublicKey {
@@ -329,7 +329,7 @@ impl PublicKey {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Vkey(PublicKey);
 
 to_from_bytes!(Vkey);
@@ -688,7 +688,7 @@ impl PublicKeys {
 macro_rules! impl_signature {
     ($name:ident, $signee_type:ty, $verifier_type:ty) => {
         #[wasm_bindgen]
-        #[derive(Clone)]
+        #[derive(Clone, Debug)]
         pub struct $name(crypto::Signature<$signee_type, $verifier_type>);
 
         #[wasm_bindgen]
