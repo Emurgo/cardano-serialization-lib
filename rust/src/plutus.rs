@@ -318,8 +318,8 @@ impl ExUnits {
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum LanguageKind {
-    PlutusV1,
-    PlutusV2,
+    PlutusV1 = 0,
+    PlutusV2 = 1,
 }
 
 #[wasm_bindgen]
@@ -330,12 +330,17 @@ to_from_bytes!(Language);
 
 #[wasm_bindgen]
 impl Language {
+
     pub fn new_plutus_v1() -> Self {
         Self(LanguageKind::PlutusV1)
     }
 
+    pub fn new_plutus_v2() -> Self {
+        Self(LanguageKind::PlutusV2)
+    }
+
     pub fn kind(&self) -> LanguageKind {
-        self.0
+        self.0.clone()
     }
 }
 
@@ -967,11 +972,7 @@ impl Deserialize for ExUnits {
 impl cbor_event::se::Serialize for Language {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         // https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl#L324-L327
-        let tag = match self.0 {
-            LanguageKind::PlutusV1 => 0u64,
-            LanguageKind::PlutusV2 => 1u64,
-        };
-        serializer.write_unsigned_integer(tag)
+        serializer.write_unsigned_integer(self.kind() as u64)
     }
 }
 
@@ -980,6 +981,7 @@ impl Deserialize for Language {
         (|| -> Result<_, DeserializeError> {
             match raw.unsigned_integer()? {
                 0 => Ok(Language::new_plutus_v1()),
+                1 => Ok(Language::new_plutus_v2()),
                 _ => Err(DeserializeError::new("Language", DeserializeFailure::NoVariantMatched.into())),
             }
         })().map_err(|e| e.annotate("Language"))
