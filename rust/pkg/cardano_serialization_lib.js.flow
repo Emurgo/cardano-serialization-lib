@@ -4765,6 +4765,26 @@ declare export class ScriptRef {
    * @returns {ScriptRef}
    */
   static new_plutus_script(plutus_script: PlutusScript): ScriptRef;
+
+  /**
+   * @returns {boolean}
+   */
+  is_native_script(): boolean;
+
+  /**
+   * @returns {boolean}
+   */
+  is_plutus_script(): boolean;
+
+  /**
+   * @returns {NativeScript | void}
+   */
+  native_script(): NativeScript | void;
+
+  /**
+   * @returns {PlutusScript | void}
+   */
+  plutus_script(): PlutusScript | void;
 }
 /**
  */

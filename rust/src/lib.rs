@@ -1891,8 +1891,35 @@ impl ScriptRef {
     }
 
     pub fn new_plutus_script(plutus_script: &PlutusScript) -> Self {
-        //TODO: add choose right plutus script after updating type
         Self(ScriptRefEnum::PlutusScript(plutus_script.clone()))
+    }
+
+    pub fn is_native_script(&self) -> bool {
+        match &self.0 {
+            ScriptRefEnum::NativeScript(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_plutus_script(&self) -> bool {
+        match &self.0 {
+            ScriptRefEnum::PlutusScript(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn native_script(&self) -> Option<NativeScript> {
+        match &self.0 {
+            ScriptRefEnum::NativeScript(native_script) => Some(native_script.clone()),
+            _ => None
+        }
+    }
+
+    pub fn plutus_script(&self) -> Option<PlutusScript> {
+        match &self.0 {
+            ScriptRefEnum::PlutusScript(plutus_script) => Some(plutus_script.clone()),
+            _ => None
+        }
     }
 }
 
