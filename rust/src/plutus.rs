@@ -322,6 +322,16 @@ pub enum LanguageKind {
     PlutusV2 = 1,
 }
 
+impl LanguageKind {
+    fn from_u64(x: u64) -> Option<LanguageKind> {
+        match x {
+            0 => Some(LanguageKind::PlutusV1),
+            1 => Some(LanguageKind::PlutusV2),
+            _ => None,
+        }
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Language(LanguageKind);
@@ -979,9 +989,8 @@ impl cbor_event::se::Serialize for Language {
 impl Deserialize for Language {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            match raw.unsigned_integer()? {
-                0 => Ok(Language::new_plutus_v1()),
-                1 => Ok(Language::new_plutus_v2()),
+            match LanguageKind::from_u64(raw.unsigned_integer()?) {
+                Some(kind) => Ok(Language(kind)),
                 _ => Err(DeserializeError::new("Language", DeserializeFailure::NoVariantMatched.into())),
             }
         })().map_err(|e| e.annotate("Language"))
@@ -1485,5 +1494,27 @@ mod tests {
             bytes.clone(),
             LanguageKind::PlutusV2,
         ).unwrap());
+    }
+
+    #[test]
+    fn test_language_roundtrip() {
+        fn deserialize_language_from_uint(x: u64) -> Result<Language, DeserializeError> {
+            let mut buf = Serializer::new_vec();
+            x.serialize(&mut buf).unwrap();
+            Language::from_bytes(buf.finalize())
+        }
+
+        assert_eq!(deserialize_language_from_uint(0).unwrap(), Language::new_plutus_v1());
+        assert_eq!(deserialize_language_from_uint(1).unwrap(), Language::new_plutus_v2());
+        assert!(deserialize_language_from_uint(2).is_err());
+
+        assert_eq!(
+            Language::from_bytes(Language::new_plutus_v1().to_bytes()).unwrap(),
+            Language::new_plutus_v1(),
+        );
+        assert_eq!(
+            Language::from_bytes(Language::new_plutus_v2().to_bytes()).unwrap(),
+            Language::new_plutus_v2(),
+        );
     }
 }

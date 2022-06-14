@@ -2311,6 +2311,11 @@ declare export class Language {
   static new_plutus_v1(): Language;
 
   /**
+   * @returns {Language}
+   */
+  static new_plutus_v2(): Language;
+
+  /**
    * @returns {number}
    */
   kind(): number;
