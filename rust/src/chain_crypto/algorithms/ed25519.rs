@@ -10,6 +10,7 @@ use rand_os::rand_core::{CryptoRng, RngCore};
 use ed25519_bip32::XPub;
 
 /// ED25519 Signing Algorithm
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Ed25519;
 
 #[derive(Clone)]

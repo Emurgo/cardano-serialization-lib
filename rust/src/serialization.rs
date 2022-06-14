@@ -3540,7 +3540,7 @@ impl Deserialize for NetworkId {
 
 #[cfg(test)]
 mod tests {
-    use crate::fakes::{fake_tx_input, fake_tx_output};
+    use crate::fakes::{fake_bytes_32, fake_tx_input, fake_tx_output, fake_vkey};
     use super::*;
 
     #[test]
@@ -3594,7 +3594,7 @@ mod tests {
     }
 
     #[test]
-    fn tx_body_roundtrip() {
+    fn test_tx_body_roundtrip() {
         let mut txb = TransactionBody::new(
             &TransactionInputs(vec![
                 fake_tx_input(0),
@@ -3611,5 +3611,29 @@ mod tests {
 
         let txb2 = TransactionBody::from_bytes(txb.to_bytes()).unwrap();
         assert_eq!(txb, txb2);
+    }
+
+    #[test]
+    fn test_header_body_roundtrip() {
+        let hbody = HeaderBody::new_headerbody(
+            123,
+            &to_bignum(123),
+            Some(BlockHash::from_bytes(fake_bytes_32(1)).unwrap()),
+            &fake_vkey(),
+            &VRFVKey::from_bytes(fake_bytes_32(2)).unwrap(),
+            &VRFCert::new(fake_bytes_32(3), [0; 80].to_vec()).unwrap(),
+            123456,
+            &BlockHash::from_bytes(fake_bytes_32(4)).unwrap(),
+            &OperationalCert::new(
+                &KESVKey::from_bytes(fake_bytes_32(5)).unwrap(),
+                123,
+                456,
+                &Ed25519Signature::from_bytes([6; 64].to_vec()).unwrap(),
+            ),
+            &ProtocolVersion::new(12, 13),
+        );
+
+        let hbody2 = HeaderBody::from_bytes(hbody.to_bytes()).unwrap();
+        assert_eq!(hbody, hbody2);
     }
 }

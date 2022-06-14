@@ -2513,7 +2513,7 @@ impl Header {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OperationalCert {
     hot_vkey: KESVKey,
     sequence_number: u32,
@@ -2551,14 +2551,14 @@ impl OperationalCert {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HeaderLeaderCertEnum {
     NonceAndLeader(VRFCert, VRFCert),
     VrfResult(VRFCert),
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HeaderBody {
     block_number: u32,
     slot: SlotBigNum,
@@ -2694,13 +2694,6 @@ impl HeaderBody {
         }
     }
 
-    /// !!! DEPRECATED !!!
-    /// This constructor uses outdated slot number format.
-    /// Use `.new_headerbody` instead
-    #[deprecated(
-    since = "10.3.0",
-    note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use new_bignum instead."
-    )]
     pub fn new_headerbody(
         block_number: u32,
         slot: &SlotBigNum,
