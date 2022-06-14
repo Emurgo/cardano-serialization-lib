@@ -246,6 +246,12 @@ impl TransactionBuilderConfigBuilder {
         cfg
     }
 
+    /// !!! DEPRECATED !!!
+    /// Since babbage era cardano nodes use coins per byte. Use '.data_cost' instead.
+    #[deprecated(
+    since = "10.3.0",
+    note = "Since babbage era cardano nodes use coins per byte. Use '.data_cost' instead."
+    )]
     pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {
         let mut cfg = self.clone();
         cfg.data_cost = Some(DataCost::new_coins_per_word(coins_per_utxo_word));
@@ -939,7 +945,7 @@ impl TransactionBuilder {
         ).as_positive_multiasset();
 
         self.add_output(&output_builder
-            .with_asset_and_min_required_coin(&multiasset, &self.config.data_cost)?
+            .with_asset_and_min_required_coin_with_data_cost(&multiasset, &self.config.data_cost)?
             .build()?
         )
     }
@@ -4050,7 +4056,7 @@ mod tests {
             &TransactionOutputBuilder::new()
                 .with_address(&address)
                 .next().unwrap()
-                .with_asset_and_min_required_coin(&multiasset, &tx_builder.config.data_cost).unwrap()
+                .with_asset_and_min_required_coin_with_data_cost(&multiasset, &tx_builder.config.data_cost).unwrap()
                 .build().unwrap()
             ).unwrap();
 

@@ -98,6 +98,19 @@ declare export function get_deposit(
 ): BigNum;
 
 /**
+ * @param {TransactionOutput} output
+ * @param {DataCost} data_cost
+ * @returns {BigNum}
+ */
+declare export function min_ada_for_output(
+  output: TransactionOutput,
+  data_cost: DataCost
+): BigNum;
+
+/**
+ * !!! DEPRECATED !!!
+ * This function uses outdated set of arguments.
+ * Use `min_ada_for_output` instead
  * @param {Value} assets
  * @param {boolean} has_data_hash
  * @param {BigNum} coins_per_utxo_word
@@ -128,6 +141,33 @@ declare export function encode_json_str_to_native_script(
   self_xpub: string,
   schema: number
 ): NativeScript;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
+ * @param {ExUnits} ex_units
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function calculate_ex_units_ceil_cost(
+  ex_units: ExUnits,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
+
+/**
+ * @param {Transaction} tx
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function min_script_fee(
+  tx: Transaction,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
 
 /**
  * @param {Uint8Array} bytes
@@ -164,33 +204,6 @@ declare export function decode_metadatum_to_json_str(
   metadatum: TransactionMetadatum,
   schema: number
 ): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
- * @param {ExUnits} ex_units
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function calculate_ex_units_ceil_cost(
-  ex_units: ExUnits,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
-
-/**
- * @param {Transaction} tx
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function min_script_fee(
-  tx: Transaction,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
 
 /**
  * @param {string} password
@@ -758,6 +771,12 @@ declare export class BigNum {
    * @returns {boolean}
    */
   is_zero(): boolean;
+
+  /**
+   * @param {BigNum} other
+   * @returns {BigNum}
+   */
+  div(other: BigNum): BigNum;
 
   /**
    * @param {BigNum} other
@@ -1498,6 +1517,28 @@ declare export class DNSRecordSRV {
    * @returns {string}
    */
   record(): string;
+}
+/**
+ */
+declare export class DataCost {
+  free(): void;
+
+  /**
+   * @param {BigNum} coins_per_word
+   * @returns {DataCost}
+   */
+  static new_coins_per_word(coins_per_word: BigNum): DataCost;
+
+  /**
+   * @param {BigNum} coins_per_byte
+   * @returns {DataCost}
+   */
+  static new_coins_per_byte(coins_per_byte: BigNum): DataCost;
+
+  /**
+   * @returns {BigNum}
+   */
+  get_cost_per_byte(): BigNum;
 }
 /**
  */
@@ -2528,57 +2569,6 @@ declare export class MetadataMap {
    * @returns {MetadataList}
    */
   keys(): MetadataList;
-}
-/**
- */
-declare export class MinOutputAdaCalculator {
-  free(): void;
-
-  /**
-   * @param {TransactionOutput} output
-   * @param {BigNum} coins_per_utxo_word
-   * @returns {MinOutputAdaCalculator}
-   */
-  static new(
-    output: TransactionOutput,
-    coins_per_utxo_word: BigNum
-  ): MinOutputAdaCalculator;
-
-  /**
-   * @param {BigNum} coins_per_utxo_word
-   * @returns {MinOutputAdaCalculator}
-   */
-  static new_empty(coins_per_utxo_word: BigNum): MinOutputAdaCalculator;
-
-  /**
-   * @param {Address} address
-   */
-  set_address(address: Address): void;
-
-  /**
-   * @param {PlutusData} data
-   */
-  set_data(data: PlutusData): void;
-
-  /**
-   * @param {DataHash} data_hash
-   */
-  set_data_hash(data_hash: DataHash): void;
-
-  /**
-   * @param {Value} amount
-   */
-  set_amount(amount: Value): void;
-
-  /**
-   * @param {ScriptRef} script_ref
-   */
-  set_script_ref(script_ref: ScriptRef): void;
-
-  /**
-   * @returns {BigNum}
-   */
-  calculate_ada(): BigNum;
 }
 /**
  */
@@ -5397,6 +5387,26 @@ declare export class TransactionBody {
   network_id(): NetworkId | void;
 
   /**
+   * @param {TransactionOutput} collateral_return
+   */
+  set_collateral_return(collateral_return: TransactionOutput): void;
+
+  /**
+   * @returns {TransactionOutput | void}
+   */
+  collateral_return(): TransactionOutput | void;
+
+  /**
+   * @param {BigNum} total_collateral
+   */
+  set_total_collateral(total_collateral: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  total_collateral(): BigNum | void;
+
+  /**
    * !!! DEPRECATED !!!
    * This constructor uses outdated slot number format for the ttl value.
    * Use `.new_tx_body` and then `.set_ttl` instead
@@ -5916,12 +5926,20 @@ declare export class TransactionBuilderConfigBuilder {
   fee_algo(fee_algo: LinearFee): TransactionBuilderConfigBuilder;
 
   /**
+   * !!! DEPRECATED !!!
+   * Since babbage era cardano nodes use coins per byte. Use '.data_cost' instead.
    * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionBuilderConfigBuilder}
    */
   coins_per_utxo_word(
     coins_per_utxo_word: BigNum
   ): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {DataCost} data_cost
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  data_cost(data_cost: DataCost): TransactionBuilderConfigBuilder;
 
   /**
    * @param {ExUnitPrices} ex_unit_prices
@@ -6268,7 +6286,8 @@ declare export class TransactionOutputAmountBuilder {
   ): TransactionOutputAmountBuilder;
 
   /**
-   * double ada calculation need to check if it redundant
+   * !!! DEPRECATED !!!
+   * Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_with_data_cost' instead.
    * @param {MultiAsset} multiasset
    * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionOutputAmountBuilder}
@@ -6276,6 +6295,17 @@ declare export class TransactionOutputAmountBuilder {
   with_asset_and_min_required_coin(
     multiasset: MultiAsset,
     coins_per_utxo_word: BigNum
+  ): TransactionOutputAmountBuilder;
+
+  /**
+   * double ada calculation needs to check if it redundant
+   * @param {MultiAsset} multiasset
+   * @param {DataCost} data_cost
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_asset_and_min_required_coin_with_data_cost(
+    multiasset: MultiAsset,
+    data_cost: DataCost
   ): TransactionOutputAmountBuilder;
 
   /**
