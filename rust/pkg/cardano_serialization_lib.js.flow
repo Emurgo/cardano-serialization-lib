@@ -1992,26 +1992,34 @@ declare export class HeaderBody {
   vrf_vkey(): VRFVKey;
 
   /**
+   * If this function returns true, the `.nonce_vrf_or_nothing`
+   * and the `.leader_vrf_or_nothing` functions will return
+   * non-empty results
    * @returns {boolean}
    */
   has_nonce_and_leader_vrf(): boolean;
 
   /**
+   * Might return nothing in case `.has_nonce_and_leader_vrf` returns false
    * @returns {VRFCert | void}
    */
   nonce_vrf_or_nothing(): VRFCert | void;
 
   /**
+   * Might return nothing in case `.has_nonce_and_leader_vrf` returns false
    * @returns {VRFCert | void}
    */
   leader_vrf_or_nothing(): VRFCert | void;
 
   /**
+   * If this function returns true, the `.vrf_result_or_nothing`
+   * function will return a non-empty result
    * @returns {boolean}
    */
   has_vrf_result(): boolean;
 
   /**
+   * Might return nothing in case `.has_vrf_result` returns false
    * @returns {VRFCert | void}
    */
   vrf_result_or_nothing(): VRFCert | void;
@@ -2066,9 +2074,6 @@ declare export class HeaderBody {
   ): HeaderBody;
 
   /**
-   * !!! DEPRECATED !!!
-   * This constructor uses outdated slot number format.
-   * Use `.new_headerbody` instead
    * @param {number} block_number
    * @param {BigNum} slot
    * @param {BlockHash | void} prev_hash

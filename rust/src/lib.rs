@@ -2608,6 +2608,9 @@ impl HeaderBody {
         self.vrf_vkey.clone()
     }
 
+    /// If this function returns true, the `.nonce_vrf_or_nothing`
+    /// and the `.leader_vrf_or_nothing` functions will return
+    /// non-empty results
     pub fn has_nonce_and_leader_vrf(&self) -> bool {
         match &self.leader_cert {
             HeaderLeaderCertEnum::NonceAndLeader(_, _) => true,
@@ -2615,6 +2618,7 @@ impl HeaderBody {
         }
     }
 
+    /// Might return nothing in case `.has_nonce_and_leader_vrf` returns false
     pub fn nonce_vrf_or_nothing(&self) -> Option<VRFCert> {
         match &self.leader_cert {
             HeaderLeaderCertEnum::NonceAndLeader(nonce, _) => Some(nonce.clone()),
@@ -2622,6 +2626,7 @@ impl HeaderBody {
         }
     }
 
+    /// Might return nothing in case `.has_nonce_and_leader_vrf` returns false
     pub fn leader_vrf_or_nothing(&self) -> Option<VRFCert> {
         match &self.leader_cert {
             HeaderLeaderCertEnum::NonceAndLeader(_, leader) => Some(leader.clone()),
@@ -2629,6 +2634,8 @@ impl HeaderBody {
         }
     }
 
+    /// If this function returns true, the `.vrf_result_or_nothing`
+    /// function will return a non-empty result
     pub fn has_vrf_result(&self) -> bool {
         match &self.leader_cert {
             HeaderLeaderCertEnum::VrfResult(_) => true,
@@ -2636,6 +2643,7 @@ impl HeaderBody {
         }
     }
 
+    /// Might return nothing in case `.has_vrf_result` returns false
     pub fn vrf_result_or_nothing(&self) -> Option<VRFCert> {
         match &self.leader_cert {
             HeaderLeaderCertEnum::VrfResult(cert) => Some(cert.clone()),
