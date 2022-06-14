@@ -810,9 +810,9 @@ impl Deserialize for ScriptRefEnum {
             }
             let script_ref = match raw.unsigned_integer()? {
                 0 => ScriptRefEnum::NativeScript(NativeScript::deserialize(raw)?),
-                1 => ScriptRefEnum::PlutusScriptV1(PlutusScript::deserialize(raw)?),
+                1 => ScriptRefEnum::PlutusScript(PlutusScript::deserialize(raw)?),
                 //TODO: add plutus v2 tag
-                2 => ScriptRefEnum::PlutusScriptV2(PlutusScript::deserialize(raw)?),
+                2 => ScriptRefEnum::PlutusScript(PlutusScript::deserialize(raw)?),
                 n => return Err(DeserializeFailure::FixedValueMismatch {
                     found: Key::Uint(n),
                     expected: Key::Uint(0),
@@ -836,13 +836,10 @@ impl cbor_event::se::Serialize for ScriptRefEnum {
                 serializer.write_unsigned_integer(0)?;
                 native_script.serialize(serializer)?;
             },
-            ScriptRefEnum::PlutusScriptV1(plutus_script_v1) => {
+            ScriptRefEnum::PlutusScript(plutus_script_v1) => {
+                //TODO: add plutus v2 check
                 serializer.write_unsigned_integer(1)?;
                 plutus_script_v1.serialize(serializer)?;
-            },
-            ScriptRefEnum::PlutusScriptV2(plutus_script_v2) => {
-                serializer.write_unsigned_integer(2)?;
-                plutus_script_v2.serialize(serializer)?;
             }
         }
         Ok(serializer)

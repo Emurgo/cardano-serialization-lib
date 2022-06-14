@@ -1874,8 +1874,7 @@ enum NativeScriptEnum {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub enum ScriptRefEnum {
     NativeScript(NativeScript),
-    PlutusScriptV1(PlutusScript),
-    PlutusScriptV2(PlutusScript),
+    PlutusScript(PlutusScript),
 }
 
 #[wasm_bindgen]
@@ -1893,7 +1892,7 @@ impl ScriptRef {
 
     pub fn new_plutus_script(plutus_script: &PlutusScript) -> Self {
         //TODO: add choose right plutus script after updating type
-        Self(ScriptRefEnum::PlutusScriptV1(plutus_script.clone()))
+        Self(ScriptRefEnum::PlutusScript(plutus_script.clone()))
     }
 }
 
