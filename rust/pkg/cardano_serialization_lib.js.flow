@@ -1402,6 +1402,11 @@ declare export class CostModel {
    * @returns {Int}
    */
   get(operation: number): Int;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
 }
 /**
  */
@@ -6559,6 +6564,16 @@ declare export class TxBuilderConstants {
    * @returns {Costmdls}
    */
   static plutus_default_cost_models(): Costmdls;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_alonzo_cost_models(): Costmdls;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_vasil_cost_models(): Costmdls;
 }
 /**
  */

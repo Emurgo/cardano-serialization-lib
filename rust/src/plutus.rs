@@ -197,11 +197,15 @@ impl CostModel {
         }
         Ok(self.0[operation].clone())
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
-impl From<[i32; 166]> for CostModel {
-    fn from(values: [i32; 166]) -> Self {
-        CostModel(values.iter().map(|x| { Int::new_i32(*x).clone() }).collect())
+impl From<Vec<i128>> for CostModel {
+    fn from(values: Vec<i128>) -> Self {
+        CostModel(values.iter().map(|x| { Int(*x) }).collect())
     }
 }
 
