@@ -104,8 +104,8 @@ impl TransactionOutputAmountBuilder {
         self.with_asset_and_min_required_coin_with_data_cost(multiasset, &data_cost)
     }
 
-    ///double ada calculation needs to check if it redundant
     pub fn with_asset_and_min_required_coin_with_data_cost(&self, multiasset: &MultiAsset, data_cost: &DataCost) -> Result<TransactionOutputAmountBuilder, JsError> {
+        ///double ada calculation needs to check if it redundant
         let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
         if let Some(data) = &self.data {
             match data {
