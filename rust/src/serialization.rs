@@ -556,42 +556,39 @@ impl DeserializeEmbeddedGroup for TransactionInput {
 
 impl cbor_event::se::Serialize for TransactionOutput {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match (&self.data, &self.script_ref) {
+        if self.has_plutus_data() || self.has_script_ref() {
             //post alonzo output
-            (Some(DataOption::Data(_)), _) | (_, Some(_)) => {
-                let mut map_len = 2;
-                if let Some(_) = &self.data {
-                    map_len += 1;
-                }
-                if let Some(_) = &self.script_ref {
-                    map_len += 1;
-                }
-                serializer.write_map(cbor_event::Len::Len(map_len))?;
-                serializer.write_unsigned_integer(0)?;
-                self.address.serialize(serializer)?;
-                serializer.write_unsigned_integer(1)?;
-                self.amount.serialize(serializer)?;
-                if let Some(field) = &self.data {
-                    serializer.write_unsigned_integer(2)?;
-                    field.serialize(serializer)?;
-                }
-                if let Some(field) = &self.script_ref {
-                    serializer.write_unsigned_integer(3)?;
-                    field.serialize(serializer)?;
-                }
+            let mut map_len = 2;
+            if let Some(_) = &self.data {
+                map_len += 1;
             }
+            if let Some(_) = &self.script_ref {
+                map_len += 1;
+            }
+            serializer.write_map(cbor_event::Len::Len(map_len))?;
+            serializer.write_unsigned_integer(0)?;
+            self.address.serialize(serializer)?;
+            serializer.write_unsigned_integer(1)?;
+            self.amount.serialize(serializer)?;
+            if let Some(field) = &self.data {
+                serializer.write_unsigned_integer(2)?;
+                field.serialize(serializer)?;
+            }
+            if let Some(field) = &self.script_ref {
+                serializer.write_unsigned_integer(3)?;
+                field.serialize(serializer)?;
+            }
+        } else {
             //lagacy output
-            _ => {
-                let data_hash = match &self.data {
-                    Some(DataOption::DataHash(data_hash)) => Some(data_hash),
-                    _ => None,
-                };
-                serializer.write_array(cbor_event::Len::Len(if data_hash.is_some() { 3 } else { 2 }))?;
-                self.address.serialize(serializer)?;
-                self.amount.serialize(serializer)?;
-                if let Some(pure_data_hash) = data_hash {
-                    pure_data_hash.serialize(serializer)?;
-                }
+            let data_hash = match &self.data {
+                Some(DataOption::DataHash(data_hash)) => Some(data_hash),
+                _ => None,
+            };
+            serializer.write_array(cbor_event::Len::Len(if data_hash.is_some() { 3 } else { 2 }))?;
+            self.address.serialize(serializer)?;
+            self.amount.serialize(serializer)?;
+            if let Some(pure_data_hash) = data_hash {
+                pure_data_hash.serialize(serializer)?;
             }
         }
         Ok(serializer)

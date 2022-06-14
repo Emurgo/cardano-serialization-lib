@@ -610,6 +610,30 @@ impl TransactionOutput {
         self.data = Some(DataOption::DataHash(data_hash.clone()));
     }
 
+    pub fn has_plutus_data(&self) -> bool {
+        match &self.data {
+            Some(data) => match data {
+                DataOption::Data(_) => true,
+                _ => false
+            },
+            _ => false
+        }
+    }
+
+    pub fn has_data_hash(&self) -> bool {
+        match &self.data {
+            Some(data) => match data {
+                DataOption::DataHash(_) => true,
+                _ => false
+            },
+            None => false
+        }
+    }
+
+    pub fn has_script_ref(&self) -> bool {
+        self.script_ref.is_some()
+    }
+
     pub fn new(address: &Address, amount: &Value) -> Self {
         Self {
             address: address.clone(),
