@@ -1536,6 +1536,8 @@ declare export class DataCost {
   free(): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead.
    * @param {BigNum} coins_per_word
    * @returns {DataCost}
    */
