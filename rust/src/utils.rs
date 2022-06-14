@@ -1171,10 +1171,36 @@ impl MinOutputAdaCalculator {
     }
 }
 
+///returns minimal amount of ada for the output
 #[wasm_bindgen]
 pub fn min_ada_for_output(output: &TransactionOutput, data_cost: &DataCost) -> Result<BigNum, JsError> {
     let calc = MinOutputAdaCalculator::new(output, data_cost);
     calc.calculate_ada()
+}
+
+///returns minimal amount of ada for the output for case when the amount is included to the output
+#[wasm_bindgen]
+pub fn min_ada_for_output_with_min_ada(output: &TransactionOutput, data_cost: &DataCost) -> Result<BigNum, JsError> {
+    let mut min_ada = min_ada_for_output(output, data_cost)?;
+    let mut draft_output = output.clone();
+    draft_output.amount.checked_add(&Value::new(&min_ada))?;
+    let mut draft_len = draft_output.to_bytes().len();
+    //try 3 times to get precise amount of ada. if it impossible we just use size of u64
+    for i in 0..3 {
+        min_ada = min_ada_for_output(&draft_output, data_cost)?;
+        draft_output = output.clone();
+        draft_output.amount.checked_add(&Value::new(&min_ada))?;
+        let new_len = draft_output.to_bytes().len();
+        if new_len == draft_len {
+            Ok(min_ada)
+        } else {
+            draft_len = new_len;
+        }
+    }
+
+    let mut draft_output = output.clone();
+    draft_output.amount.coin = u64::MAX.into();
+    min_ada_for_output(output, data_cost)
 }
 
 /// !!! DEPRECATED !!!
