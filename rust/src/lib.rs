@@ -616,7 +616,7 @@ impl TransactionOutput {
                 DataOption::Data(_) => true,
                 _ => false
             },
-            _ => false
+            None => false
         }
     }
 

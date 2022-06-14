@@ -671,7 +671,6 @@ fn deserialize_as_postalonzo_output<R: BufRead + Seek>(raw: &mut Deserializer<R>
     (|| -> Result<_, DeserializeError> {
         let len = raw.map()?;
         let mut read_len = CBORReadLen::new(len);
-        read_len.read_elems(3)?;
         let mut address = None;
         let mut amount = None;
         let mut data = None;
@@ -685,6 +684,7 @@ fn deserialize_as_postalonzo_output<R: BufRead + Seek>(raw: &mut Deserializer<R>
                             return Err(DeserializeFailure::DuplicateKey(Key::Uint(0)).into());
                         }
                         address = Some((|| -> Result<_, DeserializeError> {
+                            read_len.read_elems(1)?;
                             Ok(Address::deserialize(raw)?)
                         })().map_err(|e| e.annotate("address"))?);
                     },
@@ -693,6 +693,7 @@ fn deserialize_as_postalonzo_output<R: BufRead + Seek>(raw: &mut Deserializer<R>
                             return Err(DeserializeFailure::DuplicateKey(Key::Uint(1)).into());
                         }
                         amount = Some((|| -> Result<_, DeserializeError> {
+                            read_len.read_elems(1)?;
                             Ok(Value::deserialize(raw)?)
                         })().map_err(|e| e.annotate("amount"))?);
                     },
@@ -701,6 +702,7 @@ fn deserialize_as_postalonzo_output<R: BufRead + Seek>(raw: &mut Deserializer<R>
                             return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
                         }
                         data = Some((|| -> Result<_, DeserializeError> {
+                            read_len.read_elems(1)?;
                             Ok(DataOption::deserialize(raw)?)
                         })().map_err(|e| e.annotate("data"))?);
                     },
@@ -709,6 +711,7 @@ fn deserialize_as_postalonzo_output<R: BufRead + Seek>(raw: &mut Deserializer<R>
                             return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
                         }
                         script_ref = Some((|| -> Result<_, DeserializeError> {
+                            read_len.read_elems(1)?;
                             Ok(ScriptRef::deserialize(raw)?)
                         })().map_err(|e| e.annotate("script_ref"))?);
                     },
@@ -3771,11 +3774,11 @@ impl Deserialize for NetworkId {
 
 #[cfg(test)]
 mod tests {
-    use crate::fakes::{fake_tx_input, fake_tx_output};
+    use crate::fakes::{fake_bytes_32, fake_tx_input, fake_tx_output};
     use super::*;
 
     #[test]
-    fn tx_output_deser() {
+    fn tx_output_deser_lagacy() {
         let mut txos = TransactionOutputs::new();
         let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
         let val = &Value::new(&BigNum::from_str("435464757").unwrap());
@@ -3787,6 +3790,163 @@ mod tests {
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_data_hash(&DataHash::from([47u8; DataHash::BYTE_COUNT]));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_plutus_script_and_datum() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        txo_dh.set_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new([61u8; 29].to_vec())));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_plutus_script() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new([61u8; 29].to_vec())));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_datum() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        txo_dh.set_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_native_script_and_datum() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
+        txo_dh.set_script_ref(&ScriptRef::new_native_script(&native_script));
+        txo_dh.set_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_native_script() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
+        txo_dh.set_script_ref(&ScriptRef::new_native_script(&native_script));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_native_script_and_data_hash() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
+        let data_hash = DataHash::from_bytes(vec![201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232]).unwrap();
+        txo_dh.set_data_hash(&data_hash);
+        txo_dh.set_script_ref(&ScriptRef::new_native_script(&native_script));
         txos.add(&txo);
         txos.add(&txo_dh);
         txos.add(&txo_dh);
