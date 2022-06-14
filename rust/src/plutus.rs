@@ -82,7 +82,7 @@ impl PlutusScript {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusScripts(Vec<PlutusScript>);
+pub struct PlutusScripts(pub(crate) Vec<PlutusScript>);
 
 to_from_bytes!(PlutusScripts);
 
@@ -102,6 +102,19 @@ impl PlutusScripts {
 
     pub fn add(&mut self, elem: &PlutusScript) {
         self.0.push(elem.clone());
+    }
+
+    pub(crate) fn by_version(&self, language: LanguageKind) -> PlutusScripts {
+        PlutusScripts(
+            self.0.iter()
+                .filter(|s| s.language_version() == language)
+                .map(|s| s.clone())
+                .collect()
+        )
+    }
+
+    pub(crate) fn has_version(&self, language: LanguageKind) -> bool {
+        self.0.iter().any(|s| s.language_version() == language)
     }
 }
 
@@ -544,7 +557,7 @@ pub struct PlutusList {
     // We should always preserve the original datums when deserialized as this is NOT canonicized
     // before computing datum hashes. This field will default to cardano-cli behavior if None
     // and will re-use the provided one if deserialized, unless the list is modified.
-    definite_encoding: Option<bool>,
+    pub(crate) definite_encoding: Option<bool>,
 }
 
 to_from_bytes!(PlutusList);
@@ -666,7 +679,7 @@ impl RedeemerTag {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Redeemers(Vec<Redeemer>);
+pub struct Redeemers(pub(crate) Vec<Redeemer>);
 
 to_from_bytes!(Redeemers);
 

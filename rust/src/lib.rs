@@ -1509,7 +1509,7 @@ impl Withdrawals {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TransactionWitnessSet {
     vkeys: Option<Vkeywitnesses>,
     native_scripts: Option<NativeScripts>,

@@ -1817,7 +1817,11 @@ impl Deserialize for Withdrawals {
 
 impl cbor_event::se::Serialize for TransactionWitnessSet {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(match &self.vkeys { Some(_) => 1, None => 0 } + match &self.native_scripts { Some(_) => 1, None => 0 } + match &self.bootstraps { Some(_) => 1, None => 0 } + match &self.plutus_scripts { Some(_) => 1, None => 0 } + match &self.plutus_data { Some(_) => 1, None => 0 } + match &self.redeemers { Some(_) => 1, None => 0 }))?;
+        let plutus_added_length = match &self.plutus_scripts {
+            Some(scripts) => 1 + (scripts.has_version(LanguageKind::PlutusV2) as u64),
+            _ => 0
+        };
+        serializer.write_map(cbor_event::Len::Len(opt64(&self.vkeys) + opt64(&self.native_scripts) + opt64(&self.bootstraps) + opt64(&self.plutus_data) + opt64(&self.redeemers) + plutus_added_length))?;
         if let Some(field) = &self.vkeys {
             serializer.write_unsigned_integer(0)?;
             field.serialize(serializer)?;
@@ -1830,9 +1834,13 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
             serializer.write_unsigned_integer(2)?;
             field.serialize(serializer)?;
         }
-        if let Some(field) = &self.plutus_scripts {
+        if let Some(plutus_scripts) = &self.plutus_scripts {
             serializer.write_unsigned_integer(3)?;
-            field.serialize(serializer)?;
+            plutus_scripts.by_version(LanguageKind::PlutusV1).serialize(serializer)?;
+            if plutus_added_length > 1 {
+                serializer.write_unsigned_integer(6)?;
+                plutus_scripts.by_version(LanguageKind::PlutusV2).serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.plutus_data {
             serializer.write_unsigned_integer(4)?;
@@ -3558,7 +3566,7 @@ impl Deserialize for NetworkId {
 
 #[cfg(test)]
 mod tests {
-    use crate::fakes::{fake_bytes_32, fake_tx_input, fake_tx_output, fake_vkey};
+    use crate::fakes::{fake_bytes_32, fake_signature, fake_tx_input, fake_tx_output, fake_vkey};
     use super::*;
 
     #[test]
@@ -3647,7 +3655,7 @@ mod tests {
                     &KESVKey::from_bytes(fake_bytes_32(5)).unwrap(),
                     123,
                     456,
-                    &Ed25519Signature::from_bytes([6; 64].to_vec()).unwrap(),
+                    &fake_signature(6),
                 ),
                 protocol_version: ProtocolVersion::new(12, 13),
             }
@@ -3665,5 +3673,25 @@ mod tests {
         ));
 
         assert_eq!(hbody2, HeaderBody::from_bytes(hbody2.to_bytes()).unwrap());
+    }
+
+    #[test]
+    fn test_witness_set_roundtrip() {
+        let mut ws = TransactionWitnessSet::new();
+        ws.set_vkeys(&Vkeywitnesses(vec![
+            Vkeywitness::new(
+                &fake_vkey(),
+                &fake_signature(1),
+            ),
+        ]));
+        ws.set_redeemers(&Redeemers(vec![]));
+
+        let mut plutus_data = PlutusList::new();
+        plutus_data.definite_encoding = Some(true);
+
+        ws.set_plutus_data(&plutus_data);
+        ws.set_plutus_scripts(&PlutusScripts(vec![]));
+
+        assert_eq!(TransactionWitnessSet::from_bytes(ws.to_bytes()).unwrap(), ws);
     }
 }

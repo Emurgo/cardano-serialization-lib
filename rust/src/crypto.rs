@@ -409,7 +409,7 @@ impl Deserialize for Vkeys {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Vkeywitness {
     vkey: Vkey,
     signature: Ed25519Signature,
@@ -470,8 +470,8 @@ impl Deserialize for Vkeywitness {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
-pub struct Vkeywitnesses(Vec<Vkeywitness>);
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Vkeywitnesses(pub(crate) Vec<Vkeywitness>);
 
 #[wasm_bindgen]
 impl Vkeywitnesses {
@@ -521,7 +521,7 @@ impl Deserialize for Vkeywitnesses {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BootstrapWitness {
     vkey: Vkey,
     signature: Ed25519Signature,
@@ -612,7 +612,7 @@ impl DeserializeEmbeddedGroup for BootstrapWitness {
 
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BootstrapWitnesses(Vec<BootstrapWitness>);
 
 #[wasm_bindgen]
