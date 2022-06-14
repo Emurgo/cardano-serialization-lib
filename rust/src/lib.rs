@@ -1795,6 +1795,7 @@ to_from_bytes!(NativeScript);
 pub enum ScriptHashNamespace {
     NativeScript = 0,
     PlutusScript = 1,
+    PlutusScriptV2 = 2,
 }
 
 #[wasm_bindgen]

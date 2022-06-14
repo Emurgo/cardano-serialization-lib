@@ -6,22 +6,43 @@ use super::*;
 
 use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusScript(Vec<u8>);
+pub struct PlutusScript {
+    bytes: Vec<u8>,
+    language: LanguageKind,
+}
 
 to_from_bytes!(PlutusScript);
 
 #[wasm_bindgen]
 impl PlutusScript {
+
     /**
      * Creates a new Plutus script from the RAW bytes of the compiled script.
      * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
      * If you creating this from those you should use PlutusScript::from_bytes() instead.
      */
     pub fn new(bytes: Vec<u8>) -> PlutusScript {
-        Self(bytes)
+        Self::new_with_version(bytes, LanguageKind::PlutusV1)
+    }
+
+    /**
+     * Creates a new Plutus script from the RAW bytes of the compiled script.
+     * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+     * If you creating this from those you should use PlutusScript::from_bytes() instead.
+     */
+    pub fn new_v2(bytes: Vec<u8>) -> PlutusScript {
+        Self::new_with_version(bytes, LanguageKind::PlutusV2)
+    }
+
+    /**
+     * Creates a new Plutus script from the RAW bytes of the compiled script.
+     * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+     * If you creating this from those you should use PlutusScript::from_bytes() instead.
+     */
+    pub fn new_with_version(bytes: Vec<u8>, language: LanguageKind) -> PlutusScript {
+        Self { bytes, language }
     }
 
     /**
@@ -29,16 +50,33 @@ impl PlutusScript {
      * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
      */
     pub fn bytes(&self) -> Vec<u8> {
-        self.0.clone()
+        self.bytes.clone()
+    }
+
+    /// Same as `.from_bytes` but will consider the script as requiring the Plutus Language V2
+    pub fn from_bytes_v2(bytes: Vec<u8>) -> Result<PlutusScript, JsError> {
+        Self::from_bytes_with_version(bytes, LanguageKind::PlutusV2)
+    }
+
+    /// Same as `.from_bytes` but will consider the script as requiring the specified language version
+    pub fn from_bytes_with_version(bytes: Vec<u8>, language: LanguageKind) -> Result<PlutusScript, JsError> {
+        Ok(Self::new_with_version(Self::from_bytes(bytes)?.bytes, language))
     }
 
     pub fn hash(&self) -> ScriptHash {
-        let mut bytes = Vec::with_capacity(self.0.len() + 1);
-        bytes.extend_from_slice(&vec![
-            ScriptHashNamespace::PlutusScript as u8,
-        ]);
-        bytes.extend_from_slice(&self.0);
+        let mut bytes = Vec::with_capacity(self.bytes.len() + 1);
+        // https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl#L413
+        let hash_prefix = match self.language {
+            LanguageKind::PlutusV1 => ScriptHashNamespace::PlutusScript,
+            LanguageKind::PlutusV2 => ScriptHashNamespace::PlutusScriptV2,
+        };
+        bytes.extend_from_slice(&vec![hash_prefix as u8]);
+        bytes.extend_from_slice(&self.bytes);
         ScriptHash::from(blake2b224(bytes.as_ref()))
+    }
+
+    pub fn language_version(&self) -> LanguageKind {
+        self.language.clone()
     }
 }
 
@@ -281,6 +319,7 @@ impl ExUnits {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum LanguageKind {
     PlutusV1,
+    PlutusV2,
 }
 
 #[wasm_bindgen]
@@ -687,13 +726,13 @@ use std::io::{SeekFrom};
 
 impl cbor_event::se::Serialize for PlutusScript {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_bytes(&self.0)
+        serializer.write_bytes(&self.bytes)
     }
 }
 
 impl Deserialize for PlutusScript {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(raw.bytes()?))
+        Ok(Self::new(raw.bytes()?))
     }
 }
 
@@ -927,11 +966,12 @@ impl Deserialize for ExUnits {
 
 impl cbor_event::se::Serialize for Language {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self.0 {
-            LanguageKind::PlutusV1 => {
-                serializer.write_unsigned_integer(0u64)
-            },
-        }
+        // https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl#L324-L327
+        let tag = match self.0 {
+            LanguageKind::PlutusV1 => 0u64,
+            LanguageKind::PlutusV2 => 1u64,
+        };
+        serializer.write_unsigned_integer(tag)
     }
 }
 
@@ -1422,5 +1462,26 @@ mod tests {
                 ),
             ),
         )
+    }
+
+    #[test]
+    fn test_plutus_script_version() {
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let s1: PlutusScript = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let s2: PlutusScript = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        assert_eq!(s1.bytes(), bytes[1..]);
+        assert_eq!(s2.bytes(), bytes[1..]);
+        assert_eq!(s1.language_version(), LanguageKind::PlutusV1);
+        assert_eq!(s2.language_version(), LanguageKind::PlutusV2);
+
+        assert_eq!(s1, PlutusScript::from_bytes_with_version(
+            bytes.clone(),
+            LanguageKind::PlutusV1,
+        ).unwrap());
+        assert_eq!(s2, PlutusScript::from_bytes_with_version(
+            bytes.clone(),
+            LanguageKind::PlutusV2,
+        ).unwrap());
     }
 }

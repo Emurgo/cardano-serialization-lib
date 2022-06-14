@@ -276,6 +276,7 @@ declare export var NativeScriptKind: {|
 declare export var ScriptHashNamespace: {|
   +NativeScript: 0, // 0
   +PlutusScript: 1, // 1
+  +PlutusScriptV2: 2, // 2
 |};
 
 /**
@@ -338,6 +339,7 @@ declare export var StakeCredKind: {|
 
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
 |};
 
 /**
@@ -3302,6 +3304,25 @@ declare export class PlutusScript {
   static new(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
+   * @param {Uint8Array} bytes
+   * @returns {PlutusScript}
+   */
+  static new_v2(bytes: Uint8Array): PlutusScript;
+
+  /**
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
+   * @param {Uint8Array} bytes
+   * @param {number} language
+   * @returns {PlutusScript}
+   */
+  static new_with_version(bytes: Uint8Array, language: number): PlutusScript;
+
+  /**
    * * The raw bytes of this compiled Plutus script.
    * * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
    * @returns {Uint8Array}
@@ -3309,9 +3330,32 @@ declare export class PlutusScript {
   bytes(): Uint8Array;
 
   /**
+   * Same as `.from_bytes` but will consider the script as requiring the Plutus Language V2
+   * @param {Uint8Array} bytes
+   * @returns {PlutusScript}
+   */
+  static from_bytes_v2(bytes: Uint8Array): PlutusScript;
+
+  /**
+   * Same as `.from_bytes` but will consider the script as requiring the specified language version
+   * @param {Uint8Array} bytes
+   * @param {number} language
+   * @returns {PlutusScript}
+   */
+  static from_bytes_with_version(
+    bytes: Uint8Array,
+    language: number
+  ): PlutusScript;
+
+  /**
    * @returns {ScriptHash}
    */
   hash(): ScriptHash;
+
+  /**
+   * @returns {number}
+   */
+  language_version(): number;
 }
 /**
  */
