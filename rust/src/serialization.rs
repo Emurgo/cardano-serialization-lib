@@ -3302,17 +3302,35 @@ impl DeserializeEmbeddedGroup for HeaderBody {
             Ok(VRFVKey::deserialize(raw)?)
         })().map_err(|e| e.annotate("vrf_vkey"))?;
         let leader_cert = {
-            // TODO: check for two or single certs
-            let nonce_vrf = (|| -> Result<_, DeserializeError> {
+            // NONCE VFR CERT, first of two certs
+            // or a single VRF RESULT CERT
+            // depending on the protocol version
+            let first_vrf_cert = (|| -> Result<_, DeserializeError> {
                 Ok(VRFCert::deserialize(raw)?)
             })().map_err(|e| e.annotate("nonce_vrf"))?;
-            let leader_vrf = (|| -> Result<_, DeserializeError> {
-                Ok(VRFCert::deserialize(raw)?)
-            })().map_err(|e| e.annotate("leader_vrf"))?;
-            HeaderLeaderCertEnum::NonceAndLeader(
-                nonce_vrf,
-                leader_vrf,
-            )
+            let cbor_type: cbor_event::Type = raw.cbor_type()?;
+            match cbor_type {
+                cbor_event::Type::Array => {
+                    // Legacy format, reading the second VRF cert
+                    let leader_vrf = (|| -> Result<_, DeserializeError> {
+                        Ok(VRFCert::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("leader_vrf"))?;
+                    HeaderLeaderCertEnum::NonceAndLeader(
+                        first_vrf_cert,
+                        leader_vrf,
+                    )
+                }
+                cbor_event::Type::UnsignedInteger => {
+                    // New format, no second VRF cert is present
+                    HeaderLeaderCertEnum::VrfResult(
+                        first_vrf_cert,
+                    )
+                }
+                t => return Err(DeserializeError::new(
+                    "HeaderBody.leader_cert",
+                    DeserializeFailure::UnexpectedKeyType(t)
+                ))
+            }
         };
         let block_body_size = (|| -> Result<_, DeserializeError> {
             Ok(u32::deserialize(raw)?)
@@ -3615,25 +3633,37 @@ mod tests {
 
     #[test]
     fn test_header_body_roundtrip() {
-        let hbody = HeaderBody::new_headerbody(
-            123,
-            &to_bignum(123),
-            Some(BlockHash::from_bytes(fake_bytes_32(1)).unwrap()),
-            &fake_vkey(),
-            &VRFVKey::from_bytes(fake_bytes_32(2)).unwrap(),
-            &VRFCert::new(fake_bytes_32(3), [0; 80].to_vec()).unwrap(),
-            123456,
-            &BlockHash::from_bytes(fake_bytes_32(4)).unwrap(),
-            &OperationalCert::new(
-                &KESVKey::from_bytes(fake_bytes_32(5)).unwrap(),
-                123,
-                456,
-                &Ed25519Signature::from_bytes([6; 64].to_vec()).unwrap(),
-            ),
-            &ProtocolVersion::new(12, 13),
-        );
+        fn fake_header_body(leader_cert: HeaderLeaderCertEnum) -> HeaderBody {
+            HeaderBody {
+                block_number: 123,
+                slot: to_bignum(123),
+                prev_hash: Some(BlockHash::from_bytes(fake_bytes_32(1)).unwrap()),
+                issuer_vkey: fake_vkey(),
+                vrf_vkey: VRFVKey::from_bytes(fake_bytes_32(2)).unwrap(),
+                leader_cert,
+                block_body_size: 123456,
+                block_body_hash: BlockHash::from_bytes(fake_bytes_32(4)).unwrap(),
+                operational_cert: OperationalCert::new(
+                    &KESVKey::from_bytes(fake_bytes_32(5)).unwrap(),
+                    123,
+                    456,
+                    &Ed25519Signature::from_bytes([6; 64].to_vec()).unwrap(),
+                ),
+                protocol_version: ProtocolVersion::new(12, 13),
+            }
+        }
 
-        let hbody2 = HeaderBody::from_bytes(hbody.to_bytes()).unwrap();
-        assert_eq!(hbody, hbody2);
+        let hbody1 = fake_header_body(HeaderLeaderCertEnum::VrfResult(
+            VRFCert::new(fake_bytes_32(3), [0; 80].to_vec()).unwrap(),
+        ));
+
+        assert_eq!(hbody1, HeaderBody::from_bytes(hbody1.to_bytes()).unwrap());
+
+        let hbody2 = fake_header_body(HeaderLeaderCertEnum::NonceAndLeader(
+            VRFCert::new(fake_bytes_32(4), [1; 80].to_vec()).unwrap(),
+            VRFCert::new(fake_bytes_32(5), [2; 80].to_vec()).unwrap(),
+        ));
+
+        assert_eq!(hbody2, HeaderBody::from_bytes(hbody2.to_bytes()).unwrap());
     }
 }
