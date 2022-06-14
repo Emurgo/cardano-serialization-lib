@@ -217,6 +217,12 @@ pub struct DataCost(DataCostEnum);
 #[wasm_bindgen]
 impl DataCost {
 
+    /// !!! DEPRECATED !!!
+    /// Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead.
+    #[deprecated(
+    since = "10.3.0",
+    note = "Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead."
+    )]
     pub fn new_coins_per_word(coins_per_word: &Coin) -> DataCost {
         if coins_per_word != &BigNum::zero() {
             DataCost(DataCostEnum::CoinsPerWord(coins_per_word.clone()))
