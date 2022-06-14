@@ -6252,6 +6252,21 @@ declare export class TransactionOutput {
   set_data_hash(data_hash: DataHash): void;
 
   /**
+   * @returns {boolean}
+   */
+  has_plutus_data(): boolean;
+
+  /**
+   * @returns {boolean}
+   */
+  has_data_hash(): boolean;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_ref(): boolean;
+
+  /**
    * @param {Address} address
    * @param {Value} amount
    * @returns {TransactionOutput}
