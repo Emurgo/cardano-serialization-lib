@@ -3,9 +3,8 @@ use hex::FromHex;
 use serde_json;
 use std::{collections::HashMap, io::{BufRead, Seek, Write}};
 use std::convert::{TryFrom};
-use itertools::Itertools;
 use num_bigint::Sign;
-use std::ops::{Rem, Div, Sub};
+use std::ops::{Div};
 
 use super::*;
 use crate::error::{DeserializeError, DeserializeFailure};
@@ -1062,56 +1061,6 @@ pub fn get_deposit(
     )
 }
 
-struct OutputSizeConstants {
-    k0: usize,
-    k1: usize,
-    k2: usize,
-}
-
-fn quot<T>(a: T, b: T) -> T
-where T: Sub<Output=T> + Rem<Output=T> + Div<Output=T> + Copy + Clone + std::fmt::Display {
-    (a - (a % b)) / b
-}
-
-fn bundle_size(
-    assets: &Value,
-    constants: &OutputSizeConstants,
-) -> usize {
-    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
-    match &assets.multiasset {
-        None => 2, // coinSize according the minimum value function
-        Some (assets) => {
-            let num_assets = assets.0
-                .values()
-                .fold(
-                    0,
-                    | acc, next| acc + next.len()
-                );
-            let sum_asset_name_lengths = assets.0
-                .values()
-                .flat_map(|assets| assets.0.keys())
-                .unique_by(|asset| asset.name())
-                .fold(
-                    0,
-                    | acc, next| acc + next.0.len()
-                );
-            let sum_policy_id_lengths = assets.0
-                .keys()
-                .fold(
-                    0,
-                    | acc, next| acc + next.0.len()
-                );
-            // converts bytes to 8-byte long words, rounding up
-            fn roundup_bytes_to_words(b: usize) -> usize {
-                quot(b + 7, 8)
-            }
-            constants.k0 + roundup_bytes_to_words(
-                (num_assets * constants.k1) + sum_asset_name_lengths +
-                (constants.k2 * sum_policy_id_lengths)
-            )
-        }
-    }
-}
 
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MinOutputAdaCalculator {
@@ -1186,13 +1135,13 @@ pub fn min_ada_for_output_with_min_ada(output: &TransactionOutput, data_cost: &D
     draft_output.amount.checked_add(&Value::new(&min_ada))?;
     let mut draft_len = draft_output.to_bytes().len();
     //try 3 times to get precise amount of ada. if it impossible we just use size of u64
-    for i in 0..3 {
+    for _ in 0..3 {
         min_ada = min_ada_for_output(&draft_output, data_cost)?;
         draft_output = output.clone();
         draft_output.amount.checked_add(&Value::new(&min_ada))?;
         let new_len = draft_output.to_bytes().len();
         if new_len == draft_len {
-            Ok(min_ada)
+            return Ok(min_ada);
         } else {
             draft_len = new_len;
         }
@@ -1420,14 +1369,6 @@ mod tests {
 
     // this is what is used in mainnet
     const COINS_PER_UTXO_WORD: u64 = 34_482;
-
-    fn bundle_constants() -> OutputSizeConstants {
-        OutputSizeConstants {
-            k0: 6,
-            k1: 12,
-            k2: 1,
-        }
-    }
 
     // taken from https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
     fn one_policy_one_0_char_asset() -> Value {
@@ -1658,38 +1599,6 @@ mod tests {
         assert_eq!(
             from_bignum(&min_ada_required(&two_policies_one_0_char_asset(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
             1_409_370,
-        );
-    }
-
-    #[test]
-    fn bundle_sizes() {
-        assert_eq!(
-            bundle_size(&one_policy_one_0_char_asset(), &bundle_constants()),
-            11
-        );
-        assert_eq!(
-            bundle_size(&one_policy_one_1_char_asset(), &bundle_constants()),
-            12
-        );
-        assert_eq!(
-            bundle_size(&one_policy_three_1_char_assets(), &bundle_constants()),
-            15
-        );
-        assert_eq!(
-            bundle_size(&two_policies_one_0_char_asset(), &bundle_constants()),
-            16
-        );
-        assert_eq!(
-            bundle_size(&two_policies_one_1_char_asset(), &bundle_constants()),
-            17
-        );
-        assert_eq!(
-            bundle_size(&three_policies_96_1_char_assets(), &bundle_constants()),
-            173
-        );
-        assert_eq!(
-            bundle_size(&one_policy_three_32_char_assets(), &bundle_constants()),
-            26
         );
     }
 
