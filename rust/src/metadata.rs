@@ -786,12 +786,13 @@ impl cbor_event::se::Serialize for AuxiliaryData {
                 None => self.metadata.as_ref().unwrap().serialize(serializer),
             }
         } else {
+            let plutus_added_length = match &self.plutus_scripts {
+                Some(scripts) => 1 + (scripts.has_version(&Language::new_plutus_v2()) as u64),
+                _ => 0,
+            };
             // new format with plutus support
             serializer.write_tag(259u64)?;
-            serializer.write_map(cbor_event::Len::Len(
-                if self.metadata.is_some() { 1 } else { 0 } +
-                if self.native_scripts.is_some() { 1 } else { 0 } +
-                if self.plutus_scripts.is_some() { 1 } else { 0 }))?;
+            serializer.write_map(cbor_event::Len::Len(opt64(&self.metadata) + opt64(&self.native_scripts) + plutus_added_length))?;
             if let Some(metadata) = &self.metadata {
                 serializer.write_unsigned_integer(0)?;
                 metadata.serialize(serializer)?;
@@ -828,7 +829,8 @@ impl Deserialize for AuxiliaryData {
                     let mut read_len = CBORReadLen::new(len);
                     let mut metadata = None;
                     let mut native_scripts = None;
-                    let mut plutus_scripts = None;
+                    let mut plutus_scripts_v1 = None;
+                    let mut plutus_scripts_v2 = None;
                     let mut read = 0;
                     while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
                         match raw.cbor_type()? {
@@ -852,13 +854,22 @@ impl Deserialize for AuxiliaryData {
                                     })().map_err(|e| e.annotate("native_scripts"))?);
                                 },
                                 2 =>  {
-                                    if plutus_scripts.is_some() {
+                                    if plutus_scripts_v1.is_some() {
                                         return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
                                     }
-                                    plutus_scripts = Some((|| -> Result<_, DeserializeError> {
+                                    plutus_scripts_v1 = Some((|| -> Result<_, DeserializeError> {
                                         read_len.read_elems(1)?;
                                         Ok(PlutusScripts::deserialize(raw)?)
-                                    })().map_err(|e| e.annotate("plutus_scripts"))?);
+                                    })().map_err(|e| e.annotate("plutus_scripts_v1"))?);
+                                },
+                                3 =>  {
+                                    if plutus_scripts_v2.is_some() {
+                                        return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
+                                    }
+                                    plutus_scripts_v2 = Some((|| -> Result<_, DeserializeError> {
+                                        read_len.read_elems(1)?;
+                                        Ok(PlutusScripts::deserialize(raw)?.map_as_version(&Language::new_plutus_v2()))
+                                    })().map_err(|e| e.annotate("plutus_scripts_v2"))?);
                                 },
                                 unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                             },
@@ -877,6 +888,12 @@ impl Deserialize for AuxiliaryData {
                         read += 1;
                     }
                     read_len.finish()?;
+                    let plutus_scripts = match (plutus_scripts_v1, plutus_scripts_v2) {
+                        (Some(v1), Some(v2)) => Some(v1.merge(&v2)),
+                        (Some(v1), _) => Some(v1),
+                        (_, Some(v2)) => Some(v2),
+                        _ => None,
+                    };
                     Ok(Self {
                         metadata,
                         native_scripts,
@@ -1106,6 +1123,8 @@ mod tests {
         let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
 
         auxiliary_data_roundtrip(&PlutusScripts(vec![]));
-        auxiliary_data_roundtrip(&PlutusScripts(vec![script_v1]));
+        auxiliary_data_roundtrip(&PlutusScripts(vec![script_v1.clone()]));
+        auxiliary_data_roundtrip(&PlutusScripts(vec![script_v2.clone()]));
+        auxiliary_data_roundtrip(&PlutusScripts(vec![script_v1.clone(), script_v2.clone()]));
     }
 }
