@@ -301,6 +301,7 @@ declare export var NativeScriptKind: {|
 declare export var ScriptHashNamespace: {|
   +NativeScript: 0, // 0
   +PlutusScript: 1, // 1
+  +PlutusScriptV2: 2, // 2
 |};
 
 /**
@@ -363,6 +364,7 @@ declare export var StakeCredKind: {|
 
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
 |};
 
 /**
@@ -1431,6 +1433,11 @@ declare export class CostModel {
    * @returns {Int}
    */
   get(operation: number): Int;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
 }
 /**
  */
@@ -2047,14 +2054,37 @@ declare export class HeaderBody {
   vrf_vkey(): VRFVKey;
 
   /**
-   * @returns {VRFCert}
+   * If this function returns true, the `.nonce_vrf_or_nothing`
+   * and the `.leader_vrf_or_nothing` functions will return
+   * non-empty results
+   * @returns {boolean}
    */
-  nonce_vrf(): VRFCert;
+  has_nonce_and_leader_vrf(): boolean;
 
   /**
-   * @returns {VRFCert}
+   * Might return nothing in case `.has_nonce_and_leader_vrf` returns false
+   * @returns {VRFCert | void}
    */
-  leader_vrf(): VRFCert;
+  nonce_vrf_or_nothing(): VRFCert | void;
+
+  /**
+   * Might return nothing in case `.has_nonce_and_leader_vrf` returns false
+   * @returns {VRFCert | void}
+   */
+  leader_vrf_or_nothing(): VRFCert | void;
+
+  /**
+   * If this function returns true, the `.vrf_result_or_nothing`
+   * function will return a non-empty result
+   * @returns {boolean}
+   */
+  has_vrf_result(): boolean;
+
+  /**
+   * Might return nothing in case `.has_vrf_result` returns false
+   * @returns {VRFCert | void}
+   */
+  vrf_result_or_nothing(): VRFCert | void;
 
   /**
    * @returns {number}
@@ -2085,8 +2115,7 @@ declare export class HeaderBody {
    * @param {BlockHash | void} prev_hash
    * @param {Vkey} issuer_vkey
    * @param {VRFVKey} vrf_vkey
-   * @param {VRFCert} nonce_vrf
-   * @param {VRFCert} leader_vrf
+   * @param {VRFCert} vrf_result
    * @param {number} block_body_size
    * @param {BlockHash} block_body_hash
    * @param {OperationalCert} operational_cert
@@ -2099,8 +2128,7 @@ declare export class HeaderBody {
     prev_hash: BlockHash | void,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
-    nonce_vrf: VRFCert,
-    leader_vrf: VRFCert,
+    vrf_result: VRFCert,
     block_body_size: number,
     block_body_hash: BlockHash,
     operational_cert: OperationalCert,
@@ -2113,8 +2141,7 @@ declare export class HeaderBody {
    * @param {BlockHash | void} prev_hash
    * @param {Vkey} issuer_vkey
    * @param {VRFVKey} vrf_vkey
-   * @param {VRFCert} nonce_vrf
-   * @param {VRFCert} leader_vrf
+   * @param {VRFCert} vrf_result
    * @param {number} block_body_size
    * @param {BlockHash} block_body_hash
    * @param {OperationalCert} operational_cert
@@ -2127,8 +2154,7 @@ declare export class HeaderBody {
     prev_hash: BlockHash | void,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
-    nonce_vrf: VRFCert,
-    leader_vrf: VRFCert,
+    vrf_result: VRFCert,
     block_body_size: number,
     block_body_hash: BlockHash,
     operational_cert: OperationalCert,
@@ -2343,6 +2369,11 @@ declare export class Language {
    * @returns {Language}
    */
   static new_plutus_v1(): Language;
+
+  /**
+   * @returns {Language}
+   */
+  static new_plutus_v2(): Language;
 
   /**
    * @returns {number}
@@ -3338,6 +3369,25 @@ declare export class PlutusScript {
   static new(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
+   * @param {Uint8Array} bytes
+   * @returns {PlutusScript}
+   */
+  static new_v2(bytes: Uint8Array): PlutusScript;
+
+  /**
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
+   * @param {Uint8Array} bytes
+   * @param {Language} language
+   * @returns {PlutusScript}
+   */
+  static new_with_version(bytes: Uint8Array, language: Language): PlutusScript;
+
+  /**
    * * The raw bytes of this compiled Plutus script.
    * * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
    * @returns {Uint8Array}
@@ -3345,9 +3395,32 @@ declare export class PlutusScript {
   bytes(): Uint8Array;
 
   /**
+   * Same as `.from_bytes` but will consider the script as requiring the Plutus Language V2
+   * @param {Uint8Array} bytes
+   * @returns {PlutusScript}
+   */
+  static from_bytes_v2(bytes: Uint8Array): PlutusScript;
+
+  /**
+   * Same as `.from_bytes` but will consider the script as requiring the specified language version
+   * @param {Uint8Array} bytes
+   * @param {Language} language
+   * @returns {PlutusScript}
+   */
+  static from_bytes_with_version(
+    bytes: Uint8Array,
+    language: Language
+  ): PlutusScript;
+
+  /**
    * @returns {ScriptHash}
    */
   hash(): ScriptHash;
+
+  /**
+   * @returns {Language}
+   */
+  language_version(): Language;
 }
 /**
  */
@@ -5501,6 +5574,36 @@ declare export class TransactionBuilder {
   set_collateral(collateral: TxInputsBuilder): void;
 
   /**
+   * @param {TransactionOutput} collateral_return
+   */
+  set_collateral_return(collateral_return: TransactionOutput): void;
+
+  /**
+   * This function will set the collateral-return value and then auto-calculate and assign
+   * the total collateral coin value. Will raise an error in case no collateral inputs are set
+   * or in case the total collateral value will have any assets in it except coin.
+   * @param {TransactionOutput} collateral_return
+   */
+  set_collateral_return_and_total(collateral_return: TransactionOutput): void;
+
+  /**
+   * @param {BigNum} total_collateral
+   */
+  set_total_collateral(total_collateral: BigNum): void;
+
+  /**
+   * This function will set the total-collateral coin and then auto-calculate and assign
+   * the collateral return value. Will raise an error in case no collateral inputs are set.
+   * The specified address will be the received of the collateral return
+   * @param {BigNum} total_collateral
+   * @param {Address} return_address
+   */
+  set_total_collateral_and_return(
+    total_collateral: BigNum,
+    return_address: Address
+  ): void;
+
+  /**
    * We have to know what kind of inputs these are to know what kind of mock witnesses to create since
    * 1) mock witnesses have different lengths depending on the type which changes the expecting fee
    * 2) Witnesses are a set so we need to get rid of duplicates to avoid over-estimating the fee
@@ -6631,6 +6734,16 @@ declare export class TxBuilderConstants {
    * @returns {Costmdls}
    */
   static plutus_default_cost_models(): Costmdls;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_alonzo_cost_models(): Costmdls;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_vasil_cost_models(): Costmdls;
 }
 /**
  */
@@ -6773,6 +6886,11 @@ declare export class TxInputsBuilder {
    * @param {Ed25519KeyHashes} keys
    */
   add_required_signers(keys: Ed25519KeyHashes): void;
+
+  /**
+   * @returns {Value}
+   */
+  total_value(): Value;
 
   /**
    * @returns {TransactionInputs}
@@ -6996,6 +7114,13 @@ declare export class Value {
    * @returns {Value}
    */
   static new_from_assets(multiasset: MultiAsset): Value;
+
+  /**
+   * @param {BigNum} coin
+   * @param {MultiAsset} multiasset
+   * @returns {Value}
+   */
+  static new_with_assets(coin: BigNum, multiasset: MultiAsset): Value;
 
   /**
    * @returns {Value}

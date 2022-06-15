@@ -270,10 +270,14 @@ impl Value {
     }
 
     pub fn new_from_assets(multiasset: &MultiAsset) -> Value {
+        Value::new_with_assets(&Coin::zero(), multiasset)
+    }
+
+    pub fn new_with_assets(coin: &Coin, multiasset: &MultiAsset) -> Value {
         match multiasset.0.is_empty() {
-            true => Value::zero(),
+            true => Value::new(coin),
             false => Self {
-                coin: Coin::zero(),
+                coin: coin.clone(),
                 multiasset: Some(multiasset.clone()),
             }
         }

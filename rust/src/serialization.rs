@@ -2064,7 +2064,11 @@ impl Deserialize for Withdrawals {
 
 impl cbor_event::se::Serialize for TransactionWitnessSet {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(match &self.vkeys { Some(_) => 1, None => 0 } + match &self.native_scripts { Some(_) => 1, None => 0 } + match &self.bootstraps { Some(_) => 1, None => 0 } + match &self.plutus_scripts { Some(_) => 1, None => 0 } + match &self.plutus_data { Some(_) => 1, None => 0 } + match &self.redeemers { Some(_) => 1, None => 0 }))?;
+        let plutus_added_length = match &self.plutus_scripts {
+            Some(scripts) => 1 + (scripts.has_version(&Language::new_plutus_v2()) as u64),
+            _ => 0
+        };
+        serializer.write_map(cbor_event::Len::Len(opt64(&self.vkeys) + opt64(&self.native_scripts) + opt64(&self.bootstraps) + opt64(&self.plutus_data) + opt64(&self.redeemers) + plutus_added_length))?;
         if let Some(field) = &self.vkeys {
             serializer.write_unsigned_integer(0)?;
             field.serialize(serializer)?;
@@ -2077,9 +2081,13 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
             serializer.write_unsigned_integer(2)?;
             field.serialize(serializer)?;
         }
-        if let Some(field) = &self.plutus_scripts {
+        if let Some(plutus_scripts) = &self.plutus_scripts {
             serializer.write_unsigned_integer(3)?;
-            field.serialize(serializer)?;
+            plutus_scripts.by_version(&Language::new_plutus_v1()).serialize(serializer)?;
+            if plutus_added_length > 1 {
+                serializer.write_unsigned_integer(6)?;
+                plutus_scripts.by_version(&Language::new_plutus_v2()).serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.plutus_data {
             serializer.write_unsigned_integer(4)?;
@@ -2101,7 +2109,8 @@ impl Deserialize for TransactionWitnessSet {
             let mut vkeys = None;
             let mut native_scripts = None;
             let mut bootstraps = None;
-            let mut plutus_scripts = None;
+            let mut plutus_scripts_v1 = None;
+            let mut plutus_scripts_v2 = None;
             let mut plutus_data = None;
             let mut redeemers = None;
             let mut read = 0;
@@ -2136,13 +2145,13 @@ impl Deserialize for TransactionWitnessSet {
                             })().map_err(|e| e.annotate("bootstraps"))?);
                         },
                         3 =>  {
-                            if plutus_scripts.is_some() {
+                            if plutus_scripts_v1.is_some() {
                                 return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
                             }
-                            plutus_scripts = Some((|| -> Result<_, DeserializeError> {
+                            plutus_scripts_v1 = Some((|| -> Result<_, DeserializeError> {
                                 read_len.read_elems(1)?;
                                 Ok(PlutusScripts::deserialize(raw)?)
-                            })().map_err(|e| e.annotate("plutus_scripts"))?);
+                            })().map_err(|e| e.annotate("plutus_scripts_v1"))?);
                         },
                         4 =>  {
                             if plutus_data.is_some() {
@@ -2162,6 +2171,15 @@ impl Deserialize for TransactionWitnessSet {
                                 Ok(Redeemers::deserialize(raw)?)
                             })().map_err(|e| e.annotate("redeemers"))?);
                         },
+                        6 =>  {
+                            if plutus_scripts_v2.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(6)).into());
+                            }
+                            plutus_scripts_v2 = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(PlutusScripts::deserialize(raw)?.map_as_version(&Language::new_plutus_v2()))
+                            })().map_err(|e| e.annotate("plutus_scripts_v2"))?);
+                        },
                         unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                     },
                     CBORType::Text => match raw.text()?.as_str() {
@@ -2179,6 +2197,12 @@ impl Deserialize for TransactionWitnessSet {
                 read += 1;
             }
             read_len.finish()?;
+            let plutus_scripts = match (plutus_scripts_v1, plutus_scripts_v2) {
+                (Some(v1), Some(v2)) => Some(v1.merge(&v2)),
+                (Some(v1), _) => Some(v1),
+                (_, Some(v2)) => Some(v2),
+                _ => None,
+            };
             Ok(Self {
                 vkeys,
                 native_scripts,
@@ -3487,8 +3511,15 @@ impl cbor_event::se::Serialize for HeaderBody {
         }?;
         self.issuer_vkey.serialize(serializer)?;
         self.vrf_vkey.serialize(serializer)?;
-        self.nonce_vrf.serialize(serializer)?;
-        self.leader_vrf.serialize(serializer)?;
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::NonceAndLeader(nonce_vrf, leader_vrf) => {
+                nonce_vrf.serialize(serializer)?;
+                leader_vrf.serialize(serializer)?;
+            },
+            HeaderLeaderCertEnum::VrfResult(vrf_cert) => {
+                vrf_cert.serialize(serializer)?;
+            }
+        }
         self.block_body_size.serialize(serializer)?;
         self.block_body_hash.serialize(serializer)?;
         self.operational_cert.serialize_as_embedded_group(serializer)?;
@@ -3541,12 +3572,37 @@ impl DeserializeEmbeddedGroup for HeaderBody {
         let vrf_vkey = (|| -> Result<_, DeserializeError> {
             Ok(VRFVKey::deserialize(raw)?)
         })().map_err(|e| e.annotate("vrf_vkey"))?;
-        let nonce_vrf = (|| -> Result<_, DeserializeError> {
-            Ok(VRFCert::deserialize(raw)?)
-        })().map_err(|e| e.annotate("nonce_vrf"))?;
-        let leader_vrf = (|| -> Result<_, DeserializeError> {
-            Ok(VRFCert::deserialize(raw)?)
-        })().map_err(|e| e.annotate("leader_vrf"))?;
+        let leader_cert = {
+            // NONCE VFR CERT, first of two certs
+            // or a single VRF RESULT CERT
+            // depending on the protocol version
+            let first_vrf_cert = (|| -> Result<_, DeserializeError> {
+                Ok(VRFCert::deserialize(raw)?)
+            })().map_err(|e| e.annotate("nonce_vrf"))?;
+            let cbor_type: cbor_event::Type = raw.cbor_type()?;
+            match cbor_type {
+                cbor_event::Type::Array => {
+                    // Legacy format, reading the second VRF cert
+                    let leader_vrf = (|| -> Result<_, DeserializeError> {
+                        Ok(VRFCert::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("leader_vrf"))?;
+                    HeaderLeaderCertEnum::NonceAndLeader(
+                        first_vrf_cert,
+                        leader_vrf,
+                    )
+                }
+                cbor_event::Type::UnsignedInteger => {
+                    // New format, no second VRF cert is present
+                    HeaderLeaderCertEnum::VrfResult(
+                        first_vrf_cert,
+                    )
+                }
+                t => return Err(DeserializeError::new(
+                    "HeaderBody.leader_cert",
+                    DeserializeFailure::UnexpectedKeyType(t)
+                ))
+            }
+        };
         let block_body_size = (|| -> Result<_, DeserializeError> {
             Ok(u32::deserialize(raw)?)
         })().map_err(|e| e.annotate("block_body_size"))?;
@@ -3565,8 +3621,7 @@ impl DeserializeEmbeddedGroup for HeaderBody {
             prev_hash,
             issuer_vkey,
             vrf_vkey,
-            nonce_vrf,
-            leader_vrf,
+            leader_cert,
             block_body_size,
             block_body_hash,
             operational_cert,
@@ -3774,7 +3829,7 @@ impl Deserialize for NetworkId {
 
 #[cfg(test)]
 mod tests {
-    use crate::fakes::{fake_bytes_32, fake_tx_input, fake_tx_output};
+    use crate::fakes::{fake_bytes_32, fake_signature, fake_tx_input, fake_tx_output, fake_vkey};
     use super::*;
 
     #[test]
@@ -3986,7 +4041,7 @@ mod tests {
     }
 
     #[test]
-    fn tx_body_roundtrip() {
+    fn test_tx_body_roundtrip() {
         let mut txb = TransactionBody::new(
             &TransactionInputs(vec![
                 fake_tx_input(0),
@@ -4003,5 +4058,75 @@ mod tests {
 
         let txb2 = TransactionBody::from_bytes(txb.to_bytes()).unwrap();
         assert_eq!(txb, txb2);
+    }
+
+    #[test]
+    fn test_header_body_roundtrip() {
+        fn fake_header_body(leader_cert: HeaderLeaderCertEnum) -> HeaderBody {
+            HeaderBody {
+                block_number: 123,
+                slot: to_bignum(123),
+                prev_hash: Some(BlockHash::from_bytes(fake_bytes_32(1)).unwrap()),
+                issuer_vkey: fake_vkey(),
+                vrf_vkey: VRFVKey::from_bytes(fake_bytes_32(2)).unwrap(),
+                leader_cert,
+                block_body_size: 123456,
+                block_body_hash: BlockHash::from_bytes(fake_bytes_32(4)).unwrap(),
+                operational_cert: OperationalCert::new(
+                    &KESVKey::from_bytes(fake_bytes_32(5)).unwrap(),
+                    123,
+                    456,
+                    &fake_signature(6),
+                ),
+                protocol_version: ProtocolVersion::new(12, 13),
+            }
+        }
+
+        let hbody1 = fake_header_body(HeaderLeaderCertEnum::VrfResult(
+            VRFCert::new(fake_bytes_32(3), [0; 80].to_vec()).unwrap(),
+        ));
+
+        assert_eq!(hbody1, HeaderBody::from_bytes(hbody1.to_bytes()).unwrap());
+
+        let hbody2 = fake_header_body(HeaderLeaderCertEnum::NonceAndLeader(
+            VRFCert::new(fake_bytes_32(4), [1; 80].to_vec()).unwrap(),
+            VRFCert::new(fake_bytes_32(5), [2; 80].to_vec()).unwrap(),
+        ));
+
+        assert_eq!(hbody2, HeaderBody::from_bytes(hbody2.to_bytes()).unwrap());
+    }
+
+    #[test]
+    fn test_witness_set_roundtrip() {
+        fn witness_set_roundtrip(plutus_scripts: &PlutusScripts) {
+            let mut ws = TransactionWitnessSet::new();
+            ws.set_vkeys(&Vkeywitnesses(vec![
+                Vkeywitness::new(
+                    &fake_vkey(),
+                    &fake_signature(1),
+                ),
+            ]));
+            ws.set_redeemers(&Redeemers(vec![
+                Redeemer::new(
+                    &RedeemerTag::new_spend(),
+                    &to_bignum(12),
+                    &PlutusData::new_integer(&BigInt::one()),
+                    &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+                )
+            ]));
+            ws.set_plutus_data(&PlutusList::from(vec![PlutusData::new_integer(&BigInt::one())]));
+            ws.set_plutus_scripts(plutus_scripts);
+
+            assert_eq!(TransactionWitnessSet::from_bytes(ws.to_bytes()).unwrap(), ws);
+        }
+
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        witness_set_roundtrip(&PlutusScripts(vec![]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone()]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v2.clone()]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone(), script_v2.clone()]));
     }
 }
