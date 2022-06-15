@@ -96,7 +96,7 @@ impl TransactionOutputAmountBuilder {
     /// !!! DEPRECATED !!!
     /// Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead.
     #[deprecated(
-    since = "10.3.0",
+    since = "11.0.0",
     note = "Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead."
     )]
     pub fn with_asset_and_min_required_coin(&self, multiasset: &MultiAsset, coins_per_utxo_word: &Coin) -> Result<TransactionOutputAmountBuilder, JsError> {

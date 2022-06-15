@@ -220,7 +220,7 @@ impl DataCost {
     /// !!! DEPRECATED !!!
     /// Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead.
     #[deprecated(
-    since = "10.3.0",
+    since = "11.0.0",
     note = "Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead."
     )]
     pub fn new_coins_per_word(coins_per_word: &Coin) -> DataCost {

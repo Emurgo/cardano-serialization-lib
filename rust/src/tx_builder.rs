@@ -256,7 +256,7 @@ impl TransactionBuilderConfigBuilder {
     /// !!! DEPRECATED !!!
     /// Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead.
     #[deprecated(
-    since = "10.3.0",
+    since = "11.0.0",
     note = "Since babbage era cardano nodes use coins per byte. Use '.data_cost' instead."
     )]
     pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {

@@ -1160,7 +1160,7 @@ pub fn min_ada_for_output(output: &TransactionOutput, data_cost: &DataCost) -> R
 /// This function uses outdated set of arguments.
 /// Use `min_ada_for_output` instead
 #[wasm_bindgen]
-#[deprecated(since = "10.3.0", note="Use `min_ada_for_output` instead")]
+#[deprecated(since = "11.0.0", note="Use `min_ada_for_output` instead")]
 pub fn min_ada_required(
     assets: &Value,
     has_data_hash: bool, // whether the output includes a data hash
