@@ -801,8 +801,8 @@ impl cbor_event::se::Serialize for AuxiliaryData {
                 native_scripts.serialize(serializer)?;
             }
             if let Some(plutus_scripts) = &self.plutus_scripts {
-                let v1 = plutus_scripts.by_version(LanguageKind::PlutusV1);
-                let v2 = plutus_scripts.by_version(LanguageKind::PlutusV2);
+                let v1 = plutus_scripts.by_version(&LanguageKind::PlutusV1);
+                let v2 = plutus_scripts.by_version(&LanguageKind::PlutusV2);
                 if v1.len() > 0 {
                     serializer.write_unsigned_integer(2)?;
                     v1.serialize(serializer)?;

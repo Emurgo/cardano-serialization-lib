@@ -1818,7 +1818,7 @@ impl Deserialize for Withdrawals {
 impl cbor_event::se::Serialize for TransactionWitnessSet {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         let plutus_added_length = match &self.plutus_scripts {
-            Some(scripts) => 1 + (scripts.has_version(LanguageKind::PlutusV2) as u64),
+            Some(scripts) => 1 + (scripts.has_version(&LanguageKind::PlutusV2) as u64),
             _ => 0
         };
         serializer.write_map(cbor_event::Len::Len(opt64(&self.vkeys) + opt64(&self.native_scripts) + opt64(&self.bootstraps) + opt64(&self.plutus_data) + opt64(&self.redeemers) + plutus_added_length))?;
@@ -1836,10 +1836,10 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
         }
         if let Some(plutus_scripts) = &self.plutus_scripts {
             serializer.write_unsigned_integer(3)?;
-            plutus_scripts.by_version(LanguageKind::PlutusV1).serialize(serializer)?;
+            plutus_scripts.by_version(&LanguageKind::PlutusV1).serialize(serializer)?;
             if plutus_added_length > 1 {
                 serializer.write_unsigned_integer(6)?;
-                plutus_scripts.by_version(LanguageKind::PlutusV2).serialize(serializer)?;
+                plutus_scripts.by_version(&LanguageKind::PlutusV2).serialize(serializer)?;
             }
         }
         if let Some(field) = &self.plutus_data {
@@ -1862,7 +1862,8 @@ impl Deserialize for TransactionWitnessSet {
             let mut vkeys = None;
             let mut native_scripts = None;
             let mut bootstraps = None;
-            let mut plutus_scripts = None;
+            let mut plutus_scripts_v1 = None;
+            let mut plutus_scripts_v2 = None;
             let mut plutus_data = None;
             let mut redeemers = None;
             let mut read = 0;
@@ -1897,13 +1898,13 @@ impl Deserialize for TransactionWitnessSet {
                             })().map_err(|e| e.annotate("bootstraps"))?);
                         },
                         3 =>  {
-                            if plutus_scripts.is_some() {
+                            if plutus_scripts_v1.is_some() {
                                 return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
                             }
-                            plutus_scripts = Some((|| -> Result<_, DeserializeError> {
+                            plutus_scripts_v1 = Some((|| -> Result<_, DeserializeError> {
                                 read_len.read_elems(1)?;
                                 Ok(PlutusScripts::deserialize(raw)?)
-                            })().map_err(|e| e.annotate("plutus_scripts"))?);
+                            })().map_err(|e| e.annotate("plutus_scripts_v1"))?);
                         },
                         4 =>  {
                             if plutus_data.is_some() {
@@ -1923,6 +1924,15 @@ impl Deserialize for TransactionWitnessSet {
                                 Ok(Redeemers::deserialize(raw)?)
                             })().map_err(|e| e.annotate("redeemers"))?);
                         },
+                        6 =>  {
+                            if plutus_scripts_v2.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(6)).into());
+                            }
+                            plutus_scripts_v2 = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(PlutusScripts::deserialize(raw)?.map_as_version(&LanguageKind::PlutusV2))
+                            })().map_err(|e| e.annotate("plutus_scripts_v2"))?);
+                        },
                         unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                     },
                     CBORType::Text => match raw.text()?.as_str() {
@@ -1940,6 +1950,12 @@ impl Deserialize for TransactionWitnessSet {
                 read += 1;
             }
             read_len.finish()?;
+            let plutus_scripts = match (plutus_scripts_v1, plutus_scripts_v2) {
+                (Some(v1), Some(v2)) => Some(v1.merge(&v2)),
+                (Some(v1), _) => Some(v1),
+                (_, Some(v2)) => Some(v2),
+                _ => None,
+            };
             Ok(Self {
                 vkeys,
                 native_scripts,
@@ -3704,8 +3720,8 @@ mod tests {
         let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
 
         witness_set_roundtrip(&PlutusScripts(vec![]));
-        witness_set_roundtrip(&PlutusScripts(vec![script_v1]));
-        witness_set_roundtrip(&PlutusScripts(vec![script_v2]));
-        witness_set_roundtrip(&PlutusScripts(vec![script_v1, script_v2]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone()]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v2.clone()]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone(), script_v2.clone()]));
     }
 }
