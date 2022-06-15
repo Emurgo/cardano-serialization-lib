@@ -801,12 +801,9 @@ impl cbor_event::se::Serialize for AuxiliaryData {
                 native_scripts.serialize(serializer)?;
             }
             if let Some(plutus_scripts) = &self.plutus_scripts {
-                let v1 = plutus_scripts.by_version(&Language::new_plutus_v1());
+                serializer.write_unsigned_integer(2)?;
+                plutus_scripts.by_version(&Language::new_plutus_v1()).serialize(serializer)?;
                 let v2 = plutus_scripts.by_version(&Language::new_plutus_v2());
-                if v1.len() > 0 {
-                    serializer.write_unsigned_integer(2)?;
-                    v1.serialize(serializer)?;
-                }
                 if v2.len() > 0 {
                     serializer.write_unsigned_integer(3)?;
                     v2.serialize(serializer)?;
@@ -1084,5 +1081,31 @@ mod tests {
     fn metadatum_map_duplicate_keys() {
         let bytes = hex::decode("a105a4781b232323232323232323232323232323232323232323232323232323827840232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323237840232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323236e232323232323232323232323232382a36f2323232323232323232323232323236a323030302d30312d303166232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323712323232323232323232323232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323a36f2323232323232323232323232323236a323030302d30312d303166232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323712323232323232323232323232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323752323232323232323232323232323232323232323236a323030302d30312d3031752323232323232323232323232323232323232323236a323030302d30312d3031").unwrap();
         TransactionMetadatum::from_bytes(bytes).unwrap();
+    }
+
+    #[test]
+    fn test_auxiliary_data_roundtrip() {
+
+        fn auxiliary_data_roundtrip(plutus_scripts: &PlutusScripts) {
+            let mut aux = AuxiliaryData::new();
+            let mut metadata = GeneralTransactionMetadata::new();
+            metadata.insert(&to_bignum(42), &encode_json_str_to_metadatum(
+                "{ \"test\": 148 }".to_string(),
+                MetadataJsonSchema::BasicConversions,
+            ).unwrap());
+            aux.set_metadata(&metadata);
+            aux.set_native_scripts(&NativeScripts::from(
+                vec![NativeScript::new_timelock_start(&TimelockStart::new(1234556))],
+            ));
+            aux.set_plutus_scripts(plutus_scripts);
+            assert_eq!(AuxiliaryData::from_bytes(aux.to_bytes()).unwrap(), aux);
+        }
+
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        auxiliary_data_roundtrip(&PlutusScripts(vec![]));
+        auxiliary_data_roundtrip(&PlutusScripts(vec![script_v1]));
     }
 }
