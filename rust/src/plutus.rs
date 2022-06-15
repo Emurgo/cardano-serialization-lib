@@ -24,7 +24,7 @@ impl PlutusScript {
      * If you creating this from those you should use PlutusScript::from_bytes() instead.
      */
     pub fn new(bytes: Vec<u8>) -> PlutusScript {
-        Self::new_with_version(bytes, &LanguageKind::PlutusV1)
+        Self::new_with_version(bytes, &Language::new_plutus_v1())
     }
 
     /**
@@ -33,7 +33,7 @@ impl PlutusScript {
      * If you creating this from those you should use PlutusScript::from_bytes() instead.
      */
     pub fn new_v2(bytes: Vec<u8>) -> PlutusScript {
-        Self::new_with_version(bytes, &LanguageKind::PlutusV2)
+        Self::new_with_version(bytes, &Language::new_plutus_v2())
     }
 
     /**
@@ -41,8 +41,8 @@ impl PlutusScript {
      * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
      * If you creating this from those you should use PlutusScript::from_bytes() instead.
      */
-    pub fn new_with_version(bytes: Vec<u8>, language: &LanguageKind) -> PlutusScript {
-        Self { bytes, language: language.clone() }
+    pub fn new_with_version(bytes: Vec<u8>, language: &Language) -> PlutusScript {
+        Self { bytes, language: language.0.clone() }
     }
 
     /**
@@ -55,11 +55,11 @@ impl PlutusScript {
 
     /// Same as `.from_bytes` but will consider the script as requiring the Plutus Language V2
     pub fn from_bytes_v2(bytes: Vec<u8>) -> Result<PlutusScript, JsError> {
-        Self::from_bytes_with_version(bytes, &LanguageKind::PlutusV2)
+        Self::from_bytes_with_version(bytes, &Language::new_plutus_v2())
     }
 
     /// Same as `.from_bytes` but will consider the script as requiring the specified language version
-    pub fn from_bytes_with_version(bytes: Vec<u8>, language: &LanguageKind) -> Result<PlutusScript, JsError> {
+    pub fn from_bytes_with_version(bytes: Vec<u8>, language: &Language) -> Result<PlutusScript, JsError> {
         Ok(Self::new_with_version(Self::from_bytes(bytes)?.bytes, language))
     }
 
@@ -75,11 +75,11 @@ impl PlutusScript {
         ScriptHash::from(blake2b224(bytes.as_ref()))
     }
 
-    pub fn language_version(&self) -> LanguageKind {
-        self.language.clone()
+    pub fn language_version(&self) -> Language {
+        Language(self.language.clone())
     }
 
-    pub(crate) fn clone_as_version(&self, language: &LanguageKind) -> PlutusScript {
+    pub(crate) fn clone_as_version(&self, language: &Language) -> PlutusScript {
         Self::new_with_version(self.bytes.clone(), language)
     }
 }
@@ -108,17 +108,17 @@ impl PlutusScripts {
         self.0.push(elem.clone());
     }
 
-    pub(crate) fn by_version(&self, language: &LanguageKind) -> PlutusScripts {
+    pub(crate) fn by_version(&self, language: &Language) -> PlutusScripts {
         PlutusScripts(
             self.0.iter()
-                .filter(|s| s.language_version() == *language)
+                .filter(|s| s.language_version().eq(language))
                 .map(|s| s.clone())
                 .collect()
         )
     }
 
-    pub(crate) fn has_version(&self, language: &LanguageKind) -> bool {
-        self.0.iter().any(|s| s.language_version() == *language)
+    pub(crate) fn has_version(&self, language: &Language) -> bool {
+        self.0.iter().any(|s| s.language_version().eq(language))
     }
 
     pub(crate) fn merge(&self, other: &PlutusScripts) -> PlutusScripts {
@@ -129,7 +129,7 @@ impl PlutusScripts {
         res
     }
 
-    pub(crate) fn map_as_version(&self, language: &LanguageKind) -> PlutusScripts {
+    pub(crate) fn map_as_version(&self, language: &Language) -> PlutusScripts {
         let mut res = PlutusScripts::new();
         for s in &self.0 {
             res.add(&s.clone_as_version(language));
@@ -1537,16 +1537,16 @@ mod tests {
 
         assert_eq!(s1.bytes(), bytes[1..]);
         assert_eq!(s2.bytes(), bytes[1..]);
-        assert_eq!(s1.language_version(), LanguageKind::PlutusV1);
-        assert_eq!(s2.language_version(), LanguageKind::PlutusV2);
+        assert_eq!(s1.language_version(), Language::new_plutus_v1());
+        assert_eq!(s2.language_version(), Language::new_plutus_v2());
 
         assert_eq!(s1, PlutusScript::from_bytes_with_version(
             bytes.clone(),
-            &LanguageKind::PlutusV1,
+            &Language::new_plutus_v1(),
         ).unwrap());
         assert_eq!(s2, PlutusScript::from_bytes_with_version(
             bytes.clone(),
-            &LanguageKind::PlutusV2,
+            &Language::new_plutus_v2(),
         ).unwrap());
     }
 

@@ -1818,7 +1818,7 @@ impl Deserialize for Withdrawals {
 impl cbor_event::se::Serialize for TransactionWitnessSet {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         let plutus_added_length = match &self.plutus_scripts {
-            Some(scripts) => 1 + (scripts.has_version(&LanguageKind::PlutusV2) as u64),
+            Some(scripts) => 1 + (scripts.has_version(&Language::new_plutus_v2()) as u64),
             _ => 0
         };
         serializer.write_map(cbor_event::Len::Len(opt64(&self.vkeys) + opt64(&self.native_scripts) + opt64(&self.bootstraps) + opt64(&self.plutus_data) + opt64(&self.redeemers) + plutus_added_length))?;
@@ -1836,10 +1836,10 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
         }
         if let Some(plutus_scripts) = &self.plutus_scripts {
             serializer.write_unsigned_integer(3)?;
-            plutus_scripts.by_version(&LanguageKind::PlutusV1).serialize(serializer)?;
+            plutus_scripts.by_version(&Language::new_plutus_v1()).serialize(serializer)?;
             if plutus_added_length > 1 {
                 serializer.write_unsigned_integer(6)?;
-                plutus_scripts.by_version(&LanguageKind::PlutusV2).serialize(serializer)?;
+                plutus_scripts.by_version(&Language::new_plutus_v2()).serialize(serializer)?;
             }
         }
         if let Some(field) = &self.plutus_data {
@@ -1930,7 +1930,7 @@ impl Deserialize for TransactionWitnessSet {
                             }
                             plutus_scripts_v2 = Some((|| -> Result<_, DeserializeError> {
                                 read_len.read_elems(1)?;
-                                Ok(PlutusScripts::deserialize(raw)?.map_as_version(&LanguageKind::PlutusV2))
+                                Ok(PlutusScripts::deserialize(raw)?.map_as_version(&Language::new_plutus_v2()))
                             })().map_err(|e| e.annotate("plutus_scripts_v2"))?);
                         },
                         unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),

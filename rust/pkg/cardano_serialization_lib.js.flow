@@ -3327,10 +3327,10 @@ declare export class PlutusScript {
    * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
    * * If you creating this from those you should use PlutusScript::from_bytes() instead.
    * @param {Uint8Array} bytes
-   * @param {number} language
+   * @param {Language} language
    * @returns {PlutusScript}
    */
-  static new_with_version(bytes: Uint8Array, language: number): PlutusScript;
+  static new_with_version(bytes: Uint8Array, language: Language): PlutusScript;
 
   /**
    * * The raw bytes of this compiled Plutus script.
@@ -3349,12 +3349,12 @@ declare export class PlutusScript {
   /**
    * Same as `.from_bytes` but will consider the script as requiring the specified language version
    * @param {Uint8Array} bytes
-   * @param {number} language
+   * @param {Language} language
    * @returns {PlutusScript}
    */
   static from_bytes_with_version(
     bytes: Uint8Array,
-    language: number
+    language: Language
   ): PlutusScript;
 
   /**
@@ -3363,9 +3363,9 @@ declare export class PlutusScript {
   hash(): ScriptHash;
 
   /**
-   * @returns {number}
+   * @returns {Language}
    */
-  language_version(): number;
+  language_version(): Language;
 }
 /**
  */
