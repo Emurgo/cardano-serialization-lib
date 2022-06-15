@@ -779,7 +779,7 @@ declare export class BigNum {
    * @param {BigNum} other
    * @returns {BigNum}
    */
-  div(other: BigNum): BigNum;
+  div_floor(other: BigNum): BigNum;
 
   /**
    * @param {BigNum} other
@@ -1548,7 +1548,7 @@ declare export class DataCost {
   /**
    * @returns {BigNum}
    */
-  get_cost_per_byte(): BigNum;
+  coins_per_byte(): BigNum;
 }
 /**
  */
@@ -6355,7 +6355,7 @@ declare export class TransactionOutput {
   /**
    * @returns {PlutusData | void}
    */
-  data(): PlutusData | void;
+  plutus_data(): PlutusData | void;
 
   /**
    * @returns {ScriptRef | void}
@@ -6370,7 +6370,7 @@ declare export class TransactionOutput {
   /**
    * @param {PlutusData} data
    */
-  set_data(data: PlutusData): void;
+  set_plutus_data(data: PlutusData): void;
 
   /**
    * @param {DataHash} data_hash

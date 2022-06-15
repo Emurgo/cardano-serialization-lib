@@ -147,8 +147,9 @@ impl BigNum {
         self.0 == 0
     }
 
-    pub fn div(&self, other: &BigNum) -> BigNum {
-        let res= self.0.div(&other.0);
+    pub fn div_floor(&self, other: &BigNum) -> BigNum {
+        // same as (a / b)
+        let res = self.0.div(&other.0);
         Self(res)
     }
 
@@ -1114,7 +1115,7 @@ impl MinOutputAdaCalculator {
         //See on the page 9 getValue txout
         let mut big_num_bytes = BigNum::from(bytes);
         big_num_bytes = big_num_bytes.checked_add(&BigNum::from(160u32))?;
-        Ok(big_num_bytes.checked_mul(&self.data_cost.get_cost_per_byte()?)?)
+        Ok(big_num_bytes.checked_mul(&self.data_cost.coins_per_byte()?)?)
     }
 
     fn create_fake_output() -> Result<TransactionOutput, JsError> {
@@ -2417,6 +2418,34 @@ mod tests {
         assert_eq!(
             to_bigint(7).div_ceil(&to_bigint(3)),
             to_bigint(3),
+        );
+    }
+
+    #[test]
+    fn test_bignum_div() {
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(1)),
+            to_bignum(10),
+        );
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(3)),
+            to_bignum(3),
+        );
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(4)),
+            to_bignum(2),
+        );
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(5)),
+            to_bignum(2),
+        );
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(6)),
+            to_bignum(1),
+        );
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(12)),
+            to_bignum(0),
         );
     }
 }

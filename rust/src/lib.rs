@@ -235,12 +235,12 @@ impl DataCost {
         DataCost(DataCostEnum::CoinsPerByte(coins_per_byte.clone()))
     }
 
-    pub fn get_cost_per_byte(&self) -> Result<Coin, JsError> {
+    pub fn coins_per_byte(&self) -> Result<Coin, JsError> {
         match &self.0 {
             DataCostEnum::CoinsPerByte(coins_per_byte) => Ok(coins_per_byte.clone()),
             DataCostEnum::CoinsPerWord(coins_per_word) => {
-                let bytes_in_word = BigNum::from(8u32);
-                Ok(coins_per_word.div(&bytes_in_word))
+                let bytes_in_word = to_bignum(8);
+                Ok(coins_per_word.div_floor(&bytes_in_word))
             }
         }
     }
@@ -590,7 +590,7 @@ impl TransactionOutput {
         }
     }
 
-    pub fn data(&self) -> Option<PlutusData> {
+    pub fn plutus_data(&self) -> Option<PlutusData> {
         match &self.data {
             Some(optional_data) => match optional_data {
                 DataOption::DataHash(_) => None,
@@ -608,7 +608,7 @@ impl TransactionOutput {
         self.script_ref = Some(script_ref.clone());
     }
 
-    pub fn set_data(&mut self, data: &PlutusData) {
+    pub fn set_plutus_data(&mut self, data: &PlutusData) {
         self.data = Some(DataOption::Data(data.clone()));
     }
 

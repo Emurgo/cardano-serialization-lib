@@ -3870,7 +3870,7 @@ mod tests {
             script_ref: None
         };
         let mut txo_dh = txo.clone();
-        txo_dh.set_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
         txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new([61u8; 29].to_vec())));
         txos.add(&txo);
         txos.add(&txo_dh);
@@ -3921,7 +3921,7 @@ mod tests {
             script_ref: None
         };
         let mut txo_dh = txo.clone();
-        txo_dh.set_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
         txos.add(&txo);
         txos.add(&txo_dh);
         txos.add(&txo_dh);
@@ -3948,7 +3948,7 @@ mod tests {
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
         txo_dh.set_script_ref(&ScriptRef::new_native_script(&native_script));
-        txo_dh.set_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
         txos.add(&txo);
         txos.add(&txo_dh);
         txos.add(&txo_dh);
