@@ -446,13 +446,21 @@ enum PlutusDataEnum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct PlutusData {
     datum: PlutusDataEnum,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
     // before computing datum hashes. So this field stores the original bytes to re-use.
     original_bytes: Option<Vec<u8>>,
 }
+
+impl std::cmp::PartialEq<Self> for PlutusData {
+    fn eq(&self, other: &Self) -> bool {
+        self.datum.eq(&other.datum)
+    }
+}
+
+impl std::cmp::Eq for PlutusData {}
 
 to_from_bytes!(PlutusData);
 
@@ -551,7 +559,7 @@ impl PlutusData {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct PlutusList {
     elems: Vec<PlutusData>,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
@@ -559,6 +567,15 @@ pub struct PlutusList {
     // and will re-use the provided one if deserialized, unless the list is modified.
     pub(crate) definite_encoding: Option<bool>,
 }
+
+
+impl std::cmp::PartialEq<Self> for PlutusList {
+    fn eq(&self, other: &Self) -> bool {
+        self.elems.eq(&other.elems)
+    }
+}
+
+impl std::cmp::Eq for PlutusList {}
 
 to_from_bytes!(PlutusList);
 

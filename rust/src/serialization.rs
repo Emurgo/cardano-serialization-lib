@@ -3677,21 +3677,35 @@ mod tests {
 
     #[test]
     fn test_witness_set_roundtrip() {
-        let mut ws = TransactionWitnessSet::new();
-        ws.set_vkeys(&Vkeywitnesses(vec![
-            Vkeywitness::new(
-                &fake_vkey(),
-                &fake_signature(1),
-            ),
-        ]));
-        ws.set_redeemers(&Redeemers(vec![]));
+        fn witness_set_roundtrip(plutus_scripts: &PlutusScripts) {
+            let mut ws = TransactionWitnessSet::new();
+            ws.set_vkeys(&Vkeywitnesses(vec![
+                Vkeywitness::new(
+                    &fake_vkey(),
+                    &fake_signature(1),
+                ),
+            ]));
+            ws.set_redeemers(&Redeemers(vec![
+                Redeemer::new(
+                    &RedeemerTag::new_spend(),
+                    &to_bignum(12),
+                    &PlutusData::new_integer(&BigInt::one()),
+                    &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+                )
+            ]));
+            ws.set_plutus_data(&PlutusList::from(vec![PlutusData::new_integer(&BigInt::one())]));
+            ws.set_plutus_scripts(plutus_scripts);
 
-        let mut plutus_data = PlutusList::new();
-        plutus_data.definite_encoding = Some(true);
+            assert_eq!(TransactionWitnessSet::from_bytes(ws.to_bytes()).unwrap(), ws);
+        }
 
-        ws.set_plutus_data(&plutus_data);
-        ws.set_plutus_scripts(&PlutusScripts(vec![]));
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
 
-        assert_eq!(TransactionWitnessSet::from_bytes(ws.to_bytes()).unwrap(), ws);
+        witness_set_roundtrip(&PlutusScripts(vec![]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v1]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v2]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v1, script_v2]));
     }
 }
