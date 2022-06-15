@@ -320,6 +320,8 @@ pub struct TransactionBuilder {
     mint_scripts: Option<NativeScripts>,
     script_data_hash: Option<ScriptDataHash>,
     required_signers: Ed25519KeyHashes,
+    collateral_return: Option<TransactionOutput>,
+    total_collateral: Option<Coin>,
 }
 
 #[wasm_bindgen]
@@ -581,6 +583,47 @@ impl TransactionBuilder {
 
     pub fn set_collateral(&mut self, collateral: &TxInputsBuilder) {
         self.collateral = collateral.clone();
+    }
+
+    pub fn set_collateral_return(&mut self, collateral_return: &TransactionOutput) {
+        self.collateral_return = Some(collateral_return.clone());
+    }
+
+    /// This function will set the collateral-return value and then auto-calculate and assign
+    /// the total collateral coin value. Will raise an error in case no collateral inputs are set
+    /// or in case the total collateral value will have any assets in it except coin.
+    pub fn set_collateral_return_and_total(&mut self, collateral_return: &TransactionOutput) -> Result<(), JsError> {
+        let collateral = &self.collateral;
+        if collateral.len() == 0 {
+            return Err(JsError::from_str("Cannot calculate total collateral value when collateral inputs are missing"));
+        }
+        let col_input_value: Value = collateral.total_value()?;
+        let total_col: Value = col_input_value.checked_sub(&collateral_return.amount())?;
+        if total_col.multiasset.is_some() {
+            return Err(JsError::from_str("Total collateral value cannot contain assets!"));
+        }
+        self.set_collateral_return(collateral_return);
+        self.total_collateral = Some(total_col.coin);
+        Ok(())
+    }
+
+    pub fn set_total_collateral(&mut self, total_collateral: &Coin) {
+        self.total_collateral = Some(total_collateral.clone());
+    }
+
+    /// This function will set the total-collateral coin and then auto-calculate and assign
+    /// the collateral return value. Will raise an error in case no collateral inputs are set.
+    /// The specified address will be the received of the collateral return
+    pub fn set_total_collateral_and_return(&mut self, total_collateral: &Coin, return_address: &Address) -> Result<(), JsError> {
+        let collateral = &self.collateral;
+        if collateral.len() == 0 {
+            return Err(JsError::from_str("Cannot calculate collateral return when collateral inputs are missing"));
+        }
+        let col_input_value: Value = collateral.total_value()?;
+        let col_return: Value = col_input_value.checked_sub(&Value::new(&total_collateral))?;
+        self.set_total_collateral(total_collateral);
+        self.collateral_return = Some(TransactionOutput::new(return_address, &col_return));
+        Ok(())
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -957,6 +1000,8 @@ impl TransactionBuilder {
             mint_scripts: None,
             script_data_hash: None,
             required_signers: Ed25519KeyHashes::new(),
+            collateral_return: None,
+            total_collateral: None,
         }
     }
 
@@ -1329,9 +1374,8 @@ impl TransactionBuilder {
             collateral: self.collateral.inputs_option(),
             required_signers: self.required_signers.to_option(),
             network_id: None,
-            // <todo:implement_fields>
-            collateral_return: None,
-            total_collateral: None,
+            collateral_return: self.collateral_return.clone(),
+            total_collateral: self.total_collateral.clone(),
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;
@@ -1459,7 +1503,7 @@ impl TransactionBuilder {
 mod tests {
     use super::*;
     use fees::*;
-    use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value};
+    use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2};
     use crate::tx_builder_constants::TxBuilderConstants;
     use super::output_builder::TransactionOutputBuilder;
 
@@ -5250,5 +5294,308 @@ mod tests {
         ), 4);
     }
 
+    #[test]
+    fn collateral_return_and_total_collateral_setters() {
+
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let mut inp = TxInputsBuilder::new();
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &fake_value(),
+        );
+
+        tx_builder.set_inputs(&inp);
+        tx_builder.set_collateral(&inp);
+
+        let col_return = TransactionOutput::new(
+            &fake_base_address(1),
+            &fake_value2(123123),
+        );
+        let col_total = to_bignum(234234);
+
+        tx_builder.set_collateral_return(&col_return);
+        tx_builder.set_total_collateral(&col_total);
+
+        let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
+        assert!(tx.body.collateral_return.is_some());
+        assert_eq!(tx.body.collateral_return.unwrap(), col_return);
+        assert!(tx.body.total_collateral.is_some());
+        assert_eq!(tx.body.total_collateral.unwrap(), col_total);
+    }
+
+    fn fake_multiasset(amount: u64) -> MultiAsset {
+        let (_, policy_id) = mint_script_and_policy(234);
+        let mut assets = Assets::new();
+        assets.insert(&AssetName::new(fake_bytes_32(235)).unwrap(), &to_bignum(amount));
+        let mut masset = MultiAsset::new();
+        masset.insert(&policy_id, &assets);
+        masset
+    }
+
+    #[test]
+    fn inputs_builder_total_value() {
+
+        let mut b = TxInputsBuilder::new();
+        assert_eq!(b.total_value().unwrap(), Value::zero());
+
+        b.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &fake_value2(100_000),
+        );
+        assert_eq!(b.total_value().unwrap(), Value::new(&to_bignum(100_000)));
+
+        b.add_input(
+            &fake_base_address(1),
+            &fake_tx_input(1),
+            &fake_value2(200_000),
+        );
+        assert_eq!(b.total_value().unwrap(), Value::new(&to_bignum(300_000)));
+
+        let masset = fake_multiasset(123);
+
+        b.add_input(
+            &fake_base_address(2),
+            &fake_tx_input(2),
+            &Value::new_with_assets(
+                &to_bignum(300_000),
+                &masset,
+            ),
+        );
+        assert_eq!(b.total_value().unwrap(), Value::new_with_assets(&to_bignum(600_000), &masset));
+    }
+
+    #[test]
+    fn test_auto_calc_total_collateral() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let mut inp = TxInputsBuilder::new();
+        let collateral_input_value = 2_000_000;
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &fake_value2(collateral_input_value.clone()),
+        );
+
+        tx_builder.set_collateral(&inp);
+
+        let collateral_return_value = 1_234_567;
+        let col_return = TransactionOutput::new(
+            &fake_base_address(1),
+            &fake_value2(collateral_return_value.clone()),
+        );
+
+        tx_builder.set_collateral_return_and_total(&col_return).unwrap();
+
+        assert!(tx_builder.collateral_return.is_some());
+        assert_eq!(
+            tx_builder.collateral_return.unwrap(),
+            col_return,
+        );
+
+        assert!(tx_builder.total_collateral.is_some());
+        assert_eq!(
+            tx_builder.total_collateral.unwrap(),
+            to_bignum(collateral_input_value - collateral_return_value),
+        );
+    }
+
+    #[test]
+    fn test_auto_calc_total_collateral_with_assets() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let masset = fake_multiasset(123);
+
+        let mut inp = TxInputsBuilder::new();
+        let collateral_input_value = 2_000_000;
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &Value::new_with_assets(
+                &to_bignum(collateral_input_value.clone()),
+                &masset,
+            ),
+        );
+
+        tx_builder.set_collateral(&inp);
+
+        let collateral_return_value = 1_345_678;
+        let col_return = TransactionOutput::new(
+            &fake_base_address(1),
+            &Value::new_with_assets(
+                &to_bignum(collateral_return_value.clone()),
+                &masset,
+            ),
+        );
+
+        tx_builder.set_collateral_return_and_total(&col_return).unwrap();
+
+        assert!(tx_builder.collateral_return.is_some());
+        assert_eq!(
+            tx_builder.collateral_return.unwrap(),
+            col_return,
+        );
+
+        assert!(tx_builder.total_collateral.is_some());
+        assert_eq!(
+            tx_builder.total_collateral.unwrap(),
+            to_bignum(collateral_input_value - collateral_return_value),
+        );
+    }
+
+    #[test]
+    fn test_auto_calc_total_collateral_fails_with_assets() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let masset = fake_multiasset(123);
+
+        let mut inp = TxInputsBuilder::new();
+        let collateral_input_value = 2_000_000;
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &Value::new_with_assets(
+                &to_bignum(collateral_input_value.clone()),
+                &masset,
+            ),
+        );
+
+        tx_builder.set_collateral(&inp);
+
+        // Collateral return does not handle ALL the assets from collateral input
+        let collateral_return_value = 1_345_678;
+        let col_return = TransactionOutput::new(
+            &fake_base_address(1),
+            &fake_value2(collateral_return_value.clone()),
+        );
+
+        let res = tx_builder.set_collateral_return_and_total(&col_return);
+
+        // Function call returns an error
+        assert!(res.is_err());
+
+        // NEITHER total collateral nor collateral return are changed in the builder
+        assert!(tx_builder.total_collateral.is_none());
+        assert!(tx_builder.collateral_return.is_none());
+    }
+
+    #[test]
+    fn test_auto_calc_total_collateral_fails_on_no_collateral() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let res = tx_builder.set_collateral_return_and_total(&TransactionOutput::new(
+            &fake_base_address(1),
+            &fake_value2(1_345_678),
+        ));
+
+        // Function call returns an error
+        assert!(res.is_err());
+
+        // NEITHER total collateral nor collateral return are changed in the builder
+        assert!(tx_builder.total_collateral.is_none());
+        assert!(tx_builder.collateral_return.is_none());
+    }
+
+    #[test]
+    fn test_auto_calc_collateral_return() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let mut inp = TxInputsBuilder::new();
+        let collateral_input_value = 2_000_000;
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &fake_value2(collateral_input_value.clone()),
+        );
+
+        tx_builder.set_collateral(&inp);
+
+        let total_collateral_value = 234_567;
+        let collateral_return_address = fake_base_address(1);
+
+        tx_builder.set_total_collateral_and_return(
+            &to_bignum(total_collateral_value.clone()),
+            &collateral_return_address,
+        ).unwrap();
+
+        assert!(tx_builder.total_collateral.is_some());
+        assert_eq!(
+            tx_builder.total_collateral.unwrap(),
+            to_bignum(total_collateral_value.clone()),
+        );
+
+        assert!(tx_builder.collateral_return.is_some());
+        let col_return: TransactionOutput = tx_builder.collateral_return.unwrap();
+        assert_eq!(col_return.address, collateral_return_address);
+        assert_eq!(col_return.amount, Value::new(
+            &to_bignum(collateral_input_value - total_collateral_value),
+        ));
+    }
+
+    #[test]
+    fn test_auto_calc_collateral_return_with_assets() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let masset = fake_multiasset(123);
+
+        let mut inp = TxInputsBuilder::new();
+        let collateral_input_value = 2_000_000;
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &Value::new_with_assets(
+                &to_bignum(collateral_input_value.clone()),
+                &masset,
+            ),
+        );
+
+        tx_builder.set_collateral(&inp);
+
+        let total_collateral_value = 345_678;
+        let collateral_return_address = fake_base_address(1);
+
+        tx_builder.set_total_collateral_and_return(
+            &to_bignum(total_collateral_value.clone()),
+            &collateral_return_address,
+        ).unwrap();
+
+        assert!(tx_builder.total_collateral.is_some());
+        assert_eq!(
+            tx_builder.total_collateral.unwrap(),
+            to_bignum(total_collateral_value.clone()),
+        );
+
+        assert!(tx_builder.collateral_return.is_some());
+        let col_return: TransactionOutput = tx_builder.collateral_return.unwrap();
+        assert_eq!(col_return.address, collateral_return_address);
+        assert_eq!(col_return.amount, Value::new_with_assets(
+            &to_bignum(collateral_input_value - total_collateral_value),
+            &masset,
+        ));
+    }
+
+    #[test]
+    fn test_auto_calc_collateral_return_fails_on_no_collateral() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let res = tx_builder.set_total_collateral_and_return(
+            &to_bignum(345_678.clone()),
+            &fake_base_address(1),
+        );
+
+        assert!(res.is_err());
+        assert!(tx_builder.total_collateral.is_none());
+        assert!(tx_builder.collateral_return.is_none());
+    }
 }
 

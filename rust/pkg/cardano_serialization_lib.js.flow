@@ -5318,6 +5318,26 @@ declare export class TransactionBody {
   network_id(): NetworkId | void;
 
   /**
+   * @param {TransactionOutput} collateral_return
+   */
+  set_collateral_return(collateral_return: TransactionOutput): void;
+
+  /**
+   * @returns {TransactionOutput | void}
+   */
+  collateral_return(): TransactionOutput | void;
+
+  /**
+   * @param {BigNum} total_collateral
+   */
+  set_total_collateral(total_collateral: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  total_collateral(): BigNum | void;
+
+  /**
    * !!! DEPRECATED !!!
    * This constructor uses outdated slot number format for the ttl value.
    * Use `.new_tx_body` and then `.set_ttl` instead
@@ -5376,6 +5396,36 @@ declare export class TransactionBuilder {
    * @param {TxInputsBuilder} collateral
    */
   set_collateral(collateral: TxInputsBuilder): void;
+
+  /**
+   * @param {TransactionOutput} collateral_return
+   */
+  set_collateral_return(collateral_return: TransactionOutput): void;
+
+  /**
+   * This function will set the collateral-return value and then auto-calculate and assign
+   * the total collateral coin value. Will raise an error in case no collateral inputs are set
+   * or in case the total collateral value will have any assets in it except coin.
+   * @param {TransactionOutput} collateral_return
+   */
+  set_collateral_return_and_total(collateral_return: TransactionOutput): void;
+
+  /**
+   * @param {BigNum} total_collateral
+   */
+  set_total_collateral(total_collateral: BigNum): void;
+
+  /**
+   * This function will set the total-collateral coin and then auto-calculate and assign
+   * the collateral return value. Will raise an error in case no collateral inputs are set.
+   * The specified address will be the received of the collateral return
+   * @param {BigNum} total_collateral
+   * @param {Address} return_address
+   */
+  set_total_collateral_and_return(
+    total_collateral: BigNum,
+    return_address: Address
+  ): void;
 
   /**
    * We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -6585,6 +6635,11 @@ declare export class TxInputsBuilder {
   add_required_signers(keys: Ed25519KeyHashes): void;
 
   /**
+   * @returns {Value}
+   */
+  total_value(): Value;
+
+  /**
    * @returns {TransactionInputs}
    */
   inputs(): TransactionInputs;
@@ -6806,6 +6861,13 @@ declare export class Value {
    * @returns {Value}
    */
   static new_from_assets(multiasset: MultiAsset): Value;
+
+  /**
+   * @param {BigNum} coin
+   * @param {MultiAsset} multiasset
+   * @returns {Value}
+   */
+  static new_with_assets(coin: BigNum, multiasset: MultiAsset): Value;
 
   /**
    * @returns {Value}
