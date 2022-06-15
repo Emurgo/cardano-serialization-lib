@@ -98,23 +98,12 @@ declare export function get_deposit(
 ): BigNum;
 
 /**
- * returns minimal amount of ada for the output
- * @param {TransactionOutput} output
- * @param {DataCost} data_cost
- * @returns {BigNum}
- */
-declare export function min_ada_for_output(
-  output: TransactionOutput,
-  data_cost: DataCost
-): BigNum;
-
-/**
  * returns minimal amount of ada for the output for case when the amount is included to the output
  * @param {TransactionOutput} output
  * @param {DataCost} data_cost
  * @returns {BigNum}
  */
-declare export function min_ada_for_output_with_min_ada(
+declare export function min_ada_for_output(
   output: TransactionOutput,
   data_cost: DataCost
 ): BigNum;
