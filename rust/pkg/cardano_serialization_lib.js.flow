@@ -1992,14 +1992,37 @@ declare export class HeaderBody {
   vrf_vkey(): VRFVKey;
 
   /**
-   * @returns {VRFCert}
+   * If this function returns true, the `.nonce_vrf_or_nothing`
+   * and the `.leader_vrf_or_nothing` functions will return
+   * non-empty results
+   * @returns {boolean}
    */
-  nonce_vrf(): VRFCert;
+  has_nonce_and_leader_vrf(): boolean;
 
   /**
-   * @returns {VRFCert}
+   * Might return nothing in case `.has_nonce_and_leader_vrf` returns false
+   * @returns {VRFCert | void}
    */
-  leader_vrf(): VRFCert;
+  nonce_vrf_or_nothing(): VRFCert | void;
+
+  /**
+   * Might return nothing in case `.has_nonce_and_leader_vrf` returns false
+   * @returns {VRFCert | void}
+   */
+  leader_vrf_or_nothing(): VRFCert | void;
+
+  /**
+   * If this function returns true, the `.vrf_result_or_nothing`
+   * function will return a non-empty result
+   * @returns {boolean}
+   */
+  has_vrf_result(): boolean;
+
+  /**
+   * Might return nothing in case `.has_vrf_result` returns false
+   * @returns {VRFCert | void}
+   */
+  vrf_result_or_nothing(): VRFCert | void;
 
   /**
    * @returns {number}
@@ -2030,8 +2053,7 @@ declare export class HeaderBody {
    * @param {BlockHash | void} prev_hash
    * @param {Vkey} issuer_vkey
    * @param {VRFVKey} vrf_vkey
-   * @param {VRFCert} nonce_vrf
-   * @param {VRFCert} leader_vrf
+   * @param {VRFCert} vrf_result
    * @param {number} block_body_size
    * @param {BlockHash} block_body_hash
    * @param {OperationalCert} operational_cert
@@ -2044,8 +2066,7 @@ declare export class HeaderBody {
     prev_hash: BlockHash | void,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
-    nonce_vrf: VRFCert,
-    leader_vrf: VRFCert,
+    vrf_result: VRFCert,
     block_body_size: number,
     block_body_hash: BlockHash,
     operational_cert: OperationalCert,
@@ -2058,8 +2079,7 @@ declare export class HeaderBody {
    * @param {BlockHash | void} prev_hash
    * @param {Vkey} issuer_vkey
    * @param {VRFVKey} vrf_vkey
-   * @param {VRFCert} nonce_vrf
-   * @param {VRFCert} leader_vrf
+   * @param {VRFCert} vrf_result
    * @param {number} block_body_size
    * @param {BlockHash} block_body_hash
    * @param {OperationalCert} operational_cert
@@ -2072,8 +2092,7 @@ declare export class HeaderBody {
     prev_hash: BlockHash | void,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
-    nonce_vrf: VRFCert,
-    leader_vrf: VRFCert,
+    vrf_result: VRFCert,
     block_body_size: number,
     block_body_hash: BlockHash,
     operational_cert: OperationalCert,
