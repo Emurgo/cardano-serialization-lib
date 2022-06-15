@@ -54,7 +54,7 @@ pub mod typed_bytes;
 pub mod emip3;
 #[macro_use]
 pub mod utils;
-mod serialization_marcos;
+mod serialization_macros;
 mod fakes;
 
 use address::*;
@@ -235,12 +235,12 @@ impl DataCost {
         DataCost(DataCostEnum::CoinsPerByte(coins_per_byte.clone()))
     }
 
-    pub fn coins_per_byte(&self) -> Result<Coin, JsError> {
+    pub fn coins_per_byte(&self) -> Coin {
         match &self.0 {
-            DataCostEnum::CoinsPerByte(coins_per_byte) => Ok(coins_per_byte.clone()),
+            DataCostEnum::CoinsPerByte(coins_per_byte) => coins_per_byte.clone(),
             DataCostEnum::CoinsPerWord(coins_per_word) => {
                 let bytes_in_word = to_bignum(8);
-                Ok(coins_per_word.div_floor(&bytes_in_word))
+                coins_per_word.div_floor(&bytes_in_word)
             }
         }
     }

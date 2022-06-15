@@ -203,24 +203,31 @@ pub enum CoinSelectionStrategyCIP2 {
 #[derive(Clone, Debug)]
 pub struct TransactionBuilderConfig {
     fee_algo: fees::LinearFee,
-    pool_deposit: BigNum,      // protocol parameter
-    key_deposit: BigNum,       // protocol parameter
+    pool_deposit: Coin,      // protocol parameter
+    key_deposit: Coin,       // protocol parameter
     max_value_size: u32,       // protocol parameter
     max_tx_size: u32,          // protocol parameter
-    data_cost: DataCost, // protocol parameter
+    coins_per_utxo_byte: Coin, // protocol parameter
     ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     prefer_pure_change: bool,
+}
+
+impl TransactionBuilderConfig {
+
+    fn utxo_cost(&self) -> DataCost {
+        DataCost::new_coins_per_byte(&self.coins_per_utxo_byte)
+    }
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionBuilderConfigBuilder {
     fee_algo: Option<fees::LinearFee>,
-    pool_deposit: Option<BigNum>,      // protocol parameter
-    key_deposit: Option<BigNum>,       // protocol parameter
+    pool_deposit: Option<Coin>,      // protocol parameter
+    key_deposit: Option<Coin>,       // protocol parameter
     max_value_size: Option<u32>,       // protocol parameter
     max_tx_size: Option<u32>,          // protocol parameter
-    data_cost: Option<DataCost>, // protocol parameter
+    coins_per_utxo_byte: Option<Coin>, // protocol parameter
     ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     prefer_pure_change: bool,
 }
@@ -234,7 +241,7 @@ impl TransactionBuilderConfigBuilder {
             key_deposit: None,
             max_value_size: None,
             max_tx_size: None,
-            data_cost: None,
+            coins_per_utxo_byte: None,
             ex_unit_prices: None,
             prefer_pure_change: false,
         }
@@ -247,20 +254,21 @@ impl TransactionBuilderConfigBuilder {
     }
 
     /// !!! DEPRECATED !!!
-    /// Since babbage era cardano nodes use coins per byte. Use '.data_cost' instead.
+    /// Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead.
     #[deprecated(
     since = "10.3.0",
     note = "Since babbage era cardano nodes use coins per byte. Use '.data_cost' instead."
     )]
     pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {
-        let mut cfg = self.clone();
-        cfg.data_cost = Some(DataCost::new_coins_per_word(coins_per_utxo_word));
-        cfg
+        self.coins_per_utxo_byte(
+            &DataCost::new_coins_per_word(coins_per_utxo_word)
+                .coins_per_byte()
+        )
     }
 
-    pub fn data_cost(&self, data_cost: &DataCost) -> Self {
+    pub fn coins_per_utxo_byte(&self, coins_per_utxo_byte: &Coin) -> Self {
         let mut cfg = self.clone();
-        cfg.data_cost = Some(data_cost.clone());
+        cfg.coins_per_utxo_byte = Some(coins_per_utxo_byte.clone());
         cfg
     }
 
@@ -308,7 +316,7 @@ impl TransactionBuilderConfigBuilder {
             key_deposit: cfg.key_deposit.ok_or(JsError::from_str("uninitialized field: key_deposit"))?,
             max_value_size: cfg.max_value_size.ok_or(JsError::from_str("uninitialized field: max_value_size"))?,
             max_tx_size: cfg.max_tx_size.ok_or(JsError::from_str("uninitialized field: max_tx_size"))?,
-            data_cost: cfg.data_cost.ok_or(JsError::from_str("uninitialized field: data_cost"))?,
+            coins_per_utxo_byte: cfg.coins_per_utxo_byte.ok_or(JsError::from_str("uninitialized field: coins_per_utxo_byte"))?,
             ex_unit_prices: cfg.ex_unit_prices,
             prefer_pure_change: cfg.prefer_pure_change,
         })
@@ -748,7 +756,7 @@ impl TransactionBuilder {
                 value_size
             )));
         }
-        let calc = MinOutputAdaCalculator::new(&output, &self.config.data_cost);
+        let calc = MinOutputAdaCalculator::new(&output, &self.config.utxo_cost());
         let min_ada = calc.calculate_ada()?;
         if output.amount().coin() < min_ada {
             Err(JsError::from_str(&format!(
@@ -987,9 +995,10 @@ impl TransactionBuilder {
             &MintAssets::new_from_entry(asset_name, amount.clone())
         ).as_positive_multiasset();
 
-        self.add_output(&output_builder
-            .with_asset_and_min_required_coin_with_data_cost(&multiasset, &self.config.data_cost)?
-            .build()?
+        self.add_output(
+            &output_builder
+                .with_asset_and_min_required_coin_by_utxo_cost(&multiasset, &self.config.utxo_cost())?
+                .build()?
         )
     }
 
@@ -1237,11 +1246,12 @@ impl TransactionBuilder {
                     let mut new_fee = fee.clone();
                     // we might need multiple change outputs for cases where the change has many asset types
                     // which surpass the max UTXO size limit
-                    let mut calc = MinOutputAdaCalculator::new_empty(&self.config.data_cost)?;
+                    let utxo_cost = self.config.utxo_cost();
+                    let mut calc = MinOutputAdaCalculator::new_empty(&utxo_cost)?;
                     if let Some(data) = &plutus_data {
                         match data {
                             DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
-                            DataOption::Data(datum) => calc.set_data(datum),
+                            DataOption::Data(datum) => calc.set_plutus_data(datum),
                         };
                     }
                     if let Some(script_ref) = &script_ref {
@@ -1249,7 +1259,7 @@ impl TransactionBuilder {
                     }
                     let minimum_utxo_val = calc.calculate_ada()?;
                     while let Some(Ordering::Greater) = change_left.multiasset.as_ref().map_or_else(|| None, |ma| ma.partial_cmp(&MultiAsset::new())) {
-                        let nft_changes = pack_nfts_for_change(self.config.max_value_size, &self.config.data_cost, address, &change_left, &plutus_data.clone(), &script_ref.clone())?;
+                        let nft_changes = pack_nfts_for_change(self.config.max_value_size, &utxo_cost, address, &change_left, &plutus_data.clone(), &script_ref.clone())?;
                         if nft_changes.len() == 0 {
                             // this likely should never happen
                             return Err(JsError::from_str("NFTs too large for change output"));
@@ -1258,7 +1268,7 @@ impl TransactionBuilder {
                         let mut change_value = Value::new(&Coin::zero());
                         for nft_change in nft_changes.iter() {
                             change_value.set_multiasset(&nft_change);
-                            let mut calc = MinOutputAdaCalculator::new_empty(&self.config.data_cost)?;
+                            let mut calc = MinOutputAdaCalculator::new_empty(&utxo_cost)?;
                             //TODO add precise calculation
                             let mut fake_change = change_value.clone();
                             fake_change.set_coin(&change_left.coin);
@@ -1266,7 +1276,7 @@ impl TransactionBuilder {
                             if let Some(data) = &plutus_data {
                                 match data {
                                     DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
-                                    DataOption::Data(datum) => calc.set_data(datum),
+                                    DataOption::Data(datum) => calc.set_plutus_data(datum),
                                 };
                             }
                             if let Some(script_ref) = &script_ref {
@@ -1322,12 +1332,12 @@ impl TransactionBuilder {
                     }
                     Ok(true)
                 } else {
-                    let mut calc = MinOutputAdaCalculator::new_empty(&self.config.data_cost)?;
+                    let mut calc = MinOutputAdaCalculator::new_empty(&self.config.utxo_cost())?;
                     calc.set_amount(&change_estimator);
                     if let Some(data) = &plutus_data {
                         match data {
                             DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
-                            DataOption::Data(datum) => calc.set_data(datum),
+                            DataOption::Data(datum) => calc.set_plutus_data(datum),
                         };
                     }
                     if let Some(script_ref) = &script_ref {
@@ -4096,11 +4106,12 @@ mod tests {
         let multiasset = create_multiasset_one_asset(&policy_id1);
 
         let address = byron_address();
+
         tx_builder.add_output(
             &TransactionOutputBuilder::new()
                 .with_address(&address)
                 .next().unwrap()
-                .with_asset_and_min_required_coin_with_data_cost(&multiasset, &tx_builder.config.data_cost).unwrap()
+                .with_asset_and_min_required_coin_by_utxo_cost(&multiasset, &tx_builder.config.utxo_cost()).unwrap()
                 .build().unwrap()
             ).unwrap();
 

@@ -1093,7 +1093,7 @@ impl MinOutputAdaCalculator {
         self.output.address = address.clone();
     }
 
-    pub fn set_data(&mut self, data: &PlutusData) {
+    pub fn set_plutus_data(&mut self, data: &PlutusData) {
         self.output.data = Some(DataOption::Data(data.clone()));
     }
 
@@ -1115,7 +1115,7 @@ impl MinOutputAdaCalculator {
         //See on the page 9 getValue txout
         let mut big_num_bytes = BigNum::from(bytes);
         big_num_bytes = big_num_bytes.checked_add(&BigNum::from(160u32))?;
-        Ok(big_num_bytes.checked_mul(&self.data_cost.coins_per_byte()?)?)
+        Ok(big_num_bytes.checked_mul(&self.data_cost.coins_per_byte())?)
     }
 
     fn create_fake_output() -> Result<TransactionOutput, JsError> {

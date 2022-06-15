@@ -36,13 +36,13 @@ impl TransactionOutputBuilder {
         cfg
     }
 
-    pub fn with_data(&self, data: &PlutusData) -> Self {
+    pub fn with_plutus_data(&self, data: &PlutusData) -> Self {
         let mut cfg = self.clone();
         cfg.data = Some(DataOption::Data(data.clone()));
         cfg
     }
 
-    pub fn with_script(&self, script_ref: &ScriptRef) -> Self {
+    pub fn with_script_ref(&self, script_ref: &ScriptRef) -> Self {
         let mut cfg = self.clone();
         cfg.script_ref = Some(script_ref.clone());
         cfg
@@ -94,23 +94,23 @@ impl TransactionOutputAmountBuilder {
 
 
     /// !!! DEPRECATED !!!
-    /// Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_with_data_cost' instead.
+    /// Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead.
     #[deprecated(
     since = "10.3.0",
-    note = "Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_with_data_cost' instead."
+    note = "Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead."
     )]
     pub fn with_asset_and_min_required_coin(&self, multiasset: &MultiAsset, coins_per_utxo_word: &Coin) -> Result<TransactionOutputAmountBuilder, JsError> {
         let data_cost = DataCost::new_coins_per_word(coins_per_utxo_word);
-        self.with_asset_and_min_required_coin_with_data_cost(multiasset, &data_cost)
+        self.with_asset_and_min_required_coin_by_utxo_cost(multiasset, &data_cost)
     }
 
-    pub fn with_asset_and_min_required_coin_with_data_cost(&self, multiasset: &MultiAsset, data_cost: &DataCost) -> Result<TransactionOutputAmountBuilder, JsError> {
+    pub fn with_asset_and_min_required_coin_by_utxo_cost(&self, multiasset: &MultiAsset, data_cost: &DataCost) -> Result<TransactionOutputAmountBuilder, JsError> {
         // TODO: double ada calculation needs to check if it redundant
         let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
         if let Some(data) = &self.data {
             match data {
                 DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
-                DataOption::Data(datum) => calc.set_data(datum),
+                DataOption::Data(datum) => calc.set_plutus_data(datum),
             };
         }
         if let Some(script_ref) = &self.script_ref {
@@ -125,7 +125,7 @@ impl TransactionOutputAmountBuilder {
         if let Some(data) = &self.data {
             match data {
                 DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
-                DataOption::Data(datum) => calc.set_data(datum),
+                DataOption::Data(datum) => calc.set_plutus_data(datum),
             };
         }
         if let Some(script_ref) = &self.script_ref {

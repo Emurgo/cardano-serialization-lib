@@ -6053,7 +6053,7 @@ declare export class TransactionBuilderConfigBuilder {
 
   /**
    * !!! DEPRECATED !!!
-   * Since babbage era cardano nodes use coins per byte. Use '.data_cost' instead.
+   * Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead.
    * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionBuilderConfigBuilder}
    */
@@ -6062,10 +6062,12 @@ declare export class TransactionBuilderConfigBuilder {
   ): TransactionBuilderConfigBuilder;
 
   /**
-   * @param {DataCost} data_cost
+   * @param {BigNum} coins_per_utxo_byte
    * @returns {TransactionBuilderConfigBuilder}
    */
-  data_cost(data_cost: DataCost): TransactionBuilderConfigBuilder;
+  coins_per_utxo_byte(
+    coins_per_utxo_byte: BigNum
+  ): TransactionBuilderConfigBuilder;
 
   /**
    * @param {ExUnitPrices} ex_unit_prices
@@ -6428,7 +6430,7 @@ declare export class TransactionOutputAmountBuilder {
 
   /**
    * !!! DEPRECATED !!!
-   * Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_with_data_cost' instead.
+   * Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead.
    * @param {MultiAsset} multiasset
    * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionOutputAmountBuilder}
@@ -6443,7 +6445,7 @@ declare export class TransactionOutputAmountBuilder {
    * @param {DataCost} data_cost
    * @returns {TransactionOutputAmountBuilder}
    */
-  with_asset_and_min_required_coin_with_data_cost(
+  with_asset_and_min_required_coin_by_utxo_cost(
     multiasset: MultiAsset,
     data_cost: DataCost
   ): TransactionOutputAmountBuilder;
@@ -6484,13 +6486,13 @@ declare export class TransactionOutputBuilder {
    * @param {PlutusData} data
    * @returns {TransactionOutputBuilder}
    */
-  with_data(data: PlutusData): TransactionOutputBuilder;
+  with_plutus_data(data: PlutusData): TransactionOutputBuilder;
 
   /**
    * @param {ScriptRef} script_ref
    * @returns {TransactionOutputBuilder}
    */
-  with_script(script_ref: ScriptRef): TransactionOutputBuilder;
+  with_script_ref(script_ref: ScriptRef): TransactionOutputBuilder;
 
   /**
    * @returns {TransactionOutputAmountBuilder}
