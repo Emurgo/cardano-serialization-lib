@@ -814,8 +814,10 @@ impl Deserialize for ScriptRefEnum {
             let script_ref = match raw.unsigned_integer()? {
                 0 => ScriptRefEnum::NativeScript(NativeScript::deserialize(raw)?),
                 1 => ScriptRefEnum::PlutusScript(PlutusScript::deserialize(raw)?),
-                //TODO: add plutus v2 tag
-                2 => ScriptRefEnum::PlutusScript(PlutusScript::deserialize(raw)?),
+                2 => ScriptRefEnum::PlutusScript(
+                    PlutusScript::deserialize(raw)?
+                        .clone_as_version(&Language::new_plutus_v2())
+                ),
                 n => return Err(DeserializeFailure::FixedValueMismatch {
                     found: Key::Uint(n),
                     expected: Key::Uint(0),
@@ -839,10 +841,9 @@ impl cbor_event::se::Serialize for ScriptRefEnum {
                 serializer.write_unsigned_integer(0)?;
                 native_script.serialize(serializer)?;
             },
-            ScriptRefEnum::PlutusScript(plutus_script_v1) => {
-                //TODO: add plutus v2 check
-                serializer.write_unsigned_integer(1)?;
-                plutus_script_v1.serialize(serializer)?;
+            ScriptRefEnum::PlutusScript(plutus_script) => {
+                serializer.write_unsigned_integer(plutus_script.script_namespace() as u64)?;
+                plutus_script.serialize(serializer)?;
             }
         }
         Ok(serializer)
@@ -4128,5 +4129,26 @@ mod tests {
         witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone()]));
         witness_set_roundtrip(&PlutusScripts(vec![script_v2.clone()]));
         witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone(), script_v2.clone()]));
+    }
+
+    #[test]
+    fn test_script_ref_roundtrip() {
+
+        let ref0 = ScriptRef::new_native_script(
+            &NativeScript::new_timelock_start(
+                &TimelockStart::new(123456)
+            ),
+        );
+        assert_eq!(ScriptRef::from_bytes(ref0.to_bytes()).unwrap(), ref0);
+
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        let ref1 = ScriptRef::new_plutus_script(&script_v1);
+        assert_eq!(ScriptRef::from_bytes(ref1.to_bytes()).unwrap(), ref1);
+
+        let ref2 = ScriptRef::new_plutus_script(&script_v2);
+        assert_eq!(ScriptRef::from_bytes(ref2.to_bytes()).unwrap(), ref2);
     }
 }
