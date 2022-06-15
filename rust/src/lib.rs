@@ -1509,7 +1509,7 @@ impl Withdrawals {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TransactionWitnessSet {
     vkeys: Option<Vkeywitnesses>,
     native_scripts: Option<NativeScripts>,
@@ -1795,6 +1795,7 @@ to_from_bytes!(NativeScript);
 pub enum ScriptHashNamespace {
     NativeScript = 0,
     PlutusScript = 1,
+    PlutusScriptV2 = 2,
 }
 
 #[wasm_bindgen]
