@@ -1125,7 +1125,7 @@ impl MinOutputAdaCalculator {
 }
 
 ///returns minimal amount of ada for the output without the minimal amount
-pub fn min_ada_for_output_excluded(output: &TransactionOutput, data_cost: &DataCost) -> Result<BigNum, JsError> {
+fn min_ada_for_output_excluded(output: &TransactionOutput, data_cost: &DataCost) -> Result<BigNum, JsError> {
     let calc = MinOutputAdaCalculator::new(output, data_cost);
     calc.calculate_ada()
 }
