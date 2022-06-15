@@ -1114,13 +1114,13 @@ impl MinOutputAdaCalculator {
         //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
         //See on the page 9 getValue txout
         let mut big_num_bytes = BigNum::from(bytes);
-        big_num_bytes = big_num_bytes.checked_add(&BigNum::from(160u32))?;
+        big_num_bytes = big_num_bytes.checked_add(&to_bignum(160))?;
         Ok(big_num_bytes.checked_mul(&self.data_cost.coins_per_byte())?)
     }
 
     fn create_fake_output() -> Result<TransactionOutput, JsError> {
         let fake_base_address: Address = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w")?;
-        let fake_value: Value = Value::new(&Coin::from_str("1000000")?);
+        let fake_value: Value = Value::new(&to_bignum(1000000));
         Ok(TransactionOutput::new(&fake_base_address, &fake_value))
     }
 }
