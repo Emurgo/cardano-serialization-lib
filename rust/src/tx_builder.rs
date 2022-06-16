@@ -756,8 +756,7 @@ impl TransactionBuilder {
                 value_size
             )));
         }
-        let calc = MinOutputAdaCalculator::new(&output, &self.config.utxo_cost());
-        let min_ada = calc.calculate_ada()?;
+        let min_ada = min_ada_for_output(&output, &self.config.utxo_cost())?;
         if output.amount().coin() < min_ada {
             Err(JsError::from_str(&format!(
                 "Value {} less than the minimum UTXO value {}",
