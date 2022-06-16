@@ -558,13 +558,7 @@ impl cbor_event::se::Serialize for TransactionOutput {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         if self.has_plutus_data() || self.has_script_ref() {
             //post alonzo output
-            let mut map_len = 2;
-            if let Some(_) = &self.plutus_data {
-                map_len += 1;
-            }
-            if let Some(_) = &self.script_ref {
-                map_len += 1;
-            }
+            let map_len = 2 + opt64(&self.plutus_data) + opt64(&self.script_ref);
             serializer.write_map(cbor_event::Len::Len(map_len))?;
             serializer.write_unsigned_integer(0)?;
             self.address.serialize(serializer)?;

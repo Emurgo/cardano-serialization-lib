@@ -612,21 +612,15 @@ impl TransactionOutput {
 
     pub fn has_plutus_data(&self) -> bool {
         match &self.plutus_data {
-            Some(data) => match data {
-                DataOption::Data(_) => true,
-                _ => false
-            },
-            None => false
+            Some(DataOption::Data(_)) => true,
+            _ => false
         }
     }
 
     pub fn has_data_hash(&self) -> bool {
         match &self.plutus_data {
-            Some(data) => match data {
-                DataOption::DataHash(_) => true,
-                _ => false
-            },
-            None => false
+            Some(DataOption::DataHash(_)) => true,
+            _ => false
         }
     }
 
