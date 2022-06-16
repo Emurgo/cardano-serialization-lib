@@ -582,21 +582,15 @@ impl TransactionOutput {
 
     pub fn data_hash(&self) -> Option<DataHash> {
         match &self.plutus_data {
-            Some(optional_data) => match optional_data {
-                DataOption::DataHash(data_hash) => Some(data_hash.clone()),
-                DataOption::Data(_) => None
-            }
-            None => None
+            Some(DataOption::DataHash(data_hash)) => Some(data_hash.clone()),
+            _ => None
         }
     }
 
     pub fn plutus_data(&self) -> Option<PlutusData> {
         match &self.plutus_data {
-            Some(optional_data) => match optional_data {
-                DataOption::DataHash(_) => None,
-                DataOption::Data(plutus_data) => Some(plutus_data.clone())
-            }
-            None => None
+            Some(DataOption::Data(plutus_data)) => Some(plutus_data.clone()),
+            _ => None
         }
     }
 

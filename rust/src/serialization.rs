@@ -580,10 +580,7 @@ impl cbor_event::se::Serialize for TransactionOutput {
             }
         } else {
             //lagacy output
-            let data_hash = match &self.plutus_data {
-                Some(DataOption::DataHash(data_hash)) => Some(data_hash),
-                _ => None,
-            };
+            let data_hash = &self.data_hash();
             serializer.write_array(cbor_event::Len::Len(if data_hash.is_some() { 3 } else { 2 }))?;
             self.address.serialize(serializer)?;
             self.amount.serialize(serializer)?;
