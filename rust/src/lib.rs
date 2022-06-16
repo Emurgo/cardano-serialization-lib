@@ -54,6 +54,7 @@ pub mod typed_bytes;
 pub mod emip3;
 #[macro_use]
 pub mod utils;
+mod serialization_macros;
 mod fakes;
 
 use address::*;
@@ -200,6 +201,48 @@ impl TransactionOutputs {
 
     pub fn add(&mut self, elem: &TransactionOutput) {
         self.0.push(elem.clone());
+    }
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum DataCostEnum {
+    CoinsPerWord(Coin),
+    CoinsPerByte(Coin)
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct DataCost(DataCostEnum);
+
+#[wasm_bindgen]
+impl DataCost {
+
+    /// !!! DEPRECATED !!!
+    /// Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead."
+    )]
+    pub fn new_coins_per_word(coins_per_word: &Coin) -> DataCost {
+        if coins_per_word != &BigNum::zero() {
+            DataCost(DataCostEnum::CoinsPerWord(coins_per_word.clone()))
+        } else {
+            DataCost(DataCostEnum::CoinsPerByte(BigNum::zero()))
+        }
+    }
+
+    pub fn new_coins_per_byte(coins_per_byte: &Coin) -> DataCost {
+        DataCost(DataCostEnum::CoinsPerByte(coins_per_byte.clone()))
+    }
+
+    pub fn coins_per_byte(&self) -> Coin {
+        match &self.0 {
+            DataCostEnum::CoinsPerByte(coins_per_byte) => coins_per_byte.clone(),
+            DataCostEnum::CoinsPerWord(coins_per_word) => {
+                let bytes_in_word = to_bignum(8);
+                coins_per_word.div_floor(&bytes_in_word)
+            }
+        }
     }
 }
 
@@ -520,8 +563,9 @@ impl TransactionInput {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionOutput {
     address: Address,
-    pub (crate) amount: Value,
-    data_hash: Option<DataHash>,
+    amount: Value,
+    plutus_data: Option<DataOption>,
+    script_ref: Option<ScriptRef>
 }
 
 to_from_bytes!(TransactionOutput);
@@ -537,18 +581,59 @@ impl TransactionOutput {
     }
 
     pub fn data_hash(&self) -> Option<DataHash> {
-        self.data_hash.clone()
+        match &self.plutus_data {
+            Some(DataOption::DataHash(data_hash)) => Some(data_hash.clone()),
+            _ => None
+        }
+    }
+
+    pub fn plutus_data(&self) -> Option<PlutusData> {
+        match &self.plutus_data {
+            Some(DataOption::Data(plutus_data)) => Some(plutus_data.clone()),
+            _ => None
+        }
+    }
+
+    pub fn script_ref(&self) -> Option<ScriptRef> {
+        self.script_ref.clone()
+    }
+
+    pub fn set_script_ref(&mut self, script_ref: &ScriptRef) {
+        self.script_ref = Some(script_ref.clone());
+    }
+
+    pub fn set_plutus_data(&mut self, data: &PlutusData) {
+        self.plutus_data = Some(DataOption::Data(data.clone()));
     }
 
     pub fn set_data_hash(&mut self, data_hash: &DataHash) {
-        self.data_hash = Some(data_hash.clone());
+        self.plutus_data = Some(DataOption::DataHash(data_hash.clone()));
+    }
+
+    pub fn has_plutus_data(&self) -> bool {
+        match &self.plutus_data {
+            Some(DataOption::Data(_)) => true,
+            _ => false
+        }
+    }
+
+    pub fn has_data_hash(&self) -> bool {
+        match &self.plutus_data {
+            Some(DataOption::DataHash(_)) => true,
+            _ => false
+        }
+    }
+
+    pub fn has_script_ref(&self) -> bool {
+        self.script_ref.is_some()
     }
 
     pub fn new(address: &Address, amount: &Value) -> Self {
         Self {
             address: address.clone(),
             amount: amount.clone(),
-            data_hash: None,
+            plutus_data: None,
+            script_ref: None
         }
     }
 }
@@ -1778,6 +1863,64 @@ enum NativeScriptEnum {
     ScriptNOfK(ScriptNOfK),
     TimelockStart(TimelockStart),
     TimelockExpiry(TimelockExpiry),
+}
+
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ScriptRefEnum {
+    NativeScript(NativeScript),
+    PlutusScript(PlutusScript),
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ScriptRef(ScriptRefEnum);
+
+to_from_bytes!(ScriptRef);
+
+#[wasm_bindgen]
+impl ScriptRef {
+
+    pub fn new_native_script(native_script: &NativeScript) -> Self {
+        Self(ScriptRefEnum::NativeScript(native_script.clone()))
+    }
+
+    pub fn new_plutus_script(plutus_script: &PlutusScript) -> Self {
+        Self(ScriptRefEnum::PlutusScript(plutus_script.clone()))
+    }
+
+    pub fn is_native_script(&self) -> bool {
+        match &self.0 {
+            ScriptRefEnum::NativeScript(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_plutus_script(&self) -> bool {
+        match &self.0 {
+            ScriptRefEnum::PlutusScript(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn native_script(&self) -> Option<NativeScript> {
+        match &self.0 {
+            ScriptRefEnum::NativeScript(native_script) => Some(native_script.clone()),
+            _ => None
+        }
+    }
+
+    pub fn plutus_script(&self) -> Option<PlutusScript> {
+        match &self.0 {
+            ScriptRefEnum::PlutusScript(plutus_script) => Some(plutus_script.clone()),
+            _ => None
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub enum DataOption {
+    DataHash(DataHash),
+    Data(PlutusData)
 }
 
 #[wasm_bindgen]

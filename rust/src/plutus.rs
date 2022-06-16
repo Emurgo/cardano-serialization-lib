@@ -66,17 +66,20 @@ impl PlutusScript {
     pub fn hash(&self) -> ScriptHash {
         let mut bytes = Vec::with_capacity(self.bytes.len() + 1);
         // https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl#L413
-        let hash_prefix = match self.language {
-            LanguageKind::PlutusV1 => ScriptHashNamespace::PlutusScript,
-            LanguageKind::PlutusV2 => ScriptHashNamespace::PlutusScriptV2,
-        };
-        bytes.extend_from_slice(&vec![hash_prefix as u8]);
+        bytes.extend_from_slice(&vec![self.script_namespace() as u8]);
         bytes.extend_from_slice(&self.bytes);
         ScriptHash::from(blake2b224(bytes.as_ref()))
     }
 
     pub fn language_version(&self) -> Language {
         Language(self.language.clone())
+    }
+
+    pub(crate) fn script_namespace(&self) -> ScriptHashNamespace {
+        match self.language {
+            LanguageKind::PlutusV1 => ScriptHashNamespace::PlutusScript,
+            LanguageKind::PlutusV2 => ScriptHashNamespace::PlutusScriptV2,
+        }
     }
 
     pub(crate) fn clone_as_version(&self, language: &Language) -> PlutusScript {

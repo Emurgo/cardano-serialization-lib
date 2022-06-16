@@ -98,6 +98,20 @@ declare export function get_deposit(
 ): BigNum;
 
 /**
+ * returns minimal amount of ada for the output for case when the amount is included to the output
+ * @param {TransactionOutput} output
+ * @param {DataCost} data_cost
+ * @returns {BigNum}
+ */
+declare export function min_ada_for_output(
+  output: TransactionOutput,
+  data_cost: DataCost
+): BigNum;
+
+/**
+ * !!! DEPRECATED !!!
+ * This function uses outdated set of arguments.
+ * Use `min_ada_for_output` instead
  * @param {Value} assets
  * @param {boolean} has_data_hash
  * @param {BigNum} coins_per_utxo_word
@@ -329,14 +343,6 @@ declare export var CoinSelectionStrategyCIP2: {|
 /**
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
   +PlutusV2: 1, // 1
@@ -361,6 +367,14 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
 |};
 
 /**
@@ -765,6 +779,12 @@ declare export class BigNum {
    * @param {BigNum} other
    * @returns {BigNum}
    */
+  div_floor(other: BigNum): BigNum;
+
+  /**
+   * @param {BigNum} other
+   * @returns {BigNum}
+   */
   checked_mul(other: BigNum): BigNum;
 
   /**
@@ -791,6 +811,12 @@ declare export class BigNum {
    * @returns {number}
    */
   compare(rhs_value: BigNum): number;
+
+  /**
+   * @param {BigNum} rhs_value
+   * @returns {boolean}
+   */
+  less_than(rhs_value: BigNum): boolean;
 }
 /**
  */
@@ -1505,6 +1531,30 @@ declare export class DNSRecordSRV {
    * @returns {string}
    */
   record(): string;
+}
+/**
+ */
+declare export class DataCost {
+  free(): void;
+
+  /**
+   * !!! DEPRECATED !!!
+   * Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead.
+   * @param {BigNum} coins_per_word
+   * @returns {DataCost}
+   */
+  static new_coins_per_word(coins_per_word: BigNum): DataCost;
+
+  /**
+   * @param {BigNum} coins_per_byte
+   * @returns {DataCost}
+   */
+  static new_coins_per_byte(coins_per_byte: BigNum): DataCost;
+
+  /**
+   * @returns {BigNum}
+   */
+  coins_per_byte(): BigNum;
 }
 /**
  */
@@ -4772,6 +4822,54 @@ declare export class ScriptPubkey {
 }
 /**
  */
+declare export class ScriptRef {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ScriptRef}
+   */
+  static from_bytes(bytes: Uint8Array): ScriptRef;
+
+  /**
+   * @param {NativeScript} native_script
+   * @returns {ScriptRef}
+   */
+  static new_native_script(native_script: NativeScript): ScriptRef;
+
+  /**
+   * @param {PlutusScript} plutus_script
+   * @returns {ScriptRef}
+   */
+  static new_plutus_script(plutus_script: PlutusScript): ScriptRef;
+
+  /**
+   * @returns {boolean}
+   */
+  is_native_script(): boolean;
+
+  /**
+   * @returns {boolean}
+   */
+  is_plutus_script(): boolean;
+
+  /**
+   * @returns {NativeScript | void}
+   */
+  native_script(): NativeScript | void;
+
+  /**
+   * @returns {PlutusScript | void}
+   */
+  plutus_script(): PlutusScript | void;
+}
+/**
+ */
 declare export class SingleHostAddr {
   free(): void;
 
@@ -5960,11 +6058,21 @@ declare export class TransactionBuilderConfigBuilder {
   fee_algo(fee_algo: LinearFee): TransactionBuilderConfigBuilder;
 
   /**
+   * !!! DEPRECATED !!!
+   * Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead.
    * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionBuilderConfigBuilder}
    */
   coins_per_utxo_word(
     coins_per_utxo_word: BigNum
+  ): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {BigNum} coins_per_utxo_byte
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  coins_per_utxo_byte(
+    coins_per_utxo_byte: BigNum
   ): TransactionBuilderConfigBuilder;
 
   /**
@@ -6253,9 +6361,44 @@ declare export class TransactionOutput {
   data_hash(): DataHash | void;
 
   /**
+   * @returns {PlutusData | void}
+   */
+  plutus_data(): PlutusData | void;
+
+  /**
+   * @returns {ScriptRef | void}
+   */
+  script_ref(): ScriptRef | void;
+
+  /**
+   * @param {ScriptRef} script_ref
+   */
+  set_script_ref(script_ref: ScriptRef): void;
+
+  /**
+   * @param {PlutusData} data
+   */
+  set_plutus_data(data: PlutusData): void;
+
+  /**
    * @param {DataHash} data_hash
    */
   set_data_hash(data_hash: DataHash): void;
+
+  /**
+   * @returns {boolean}
+   */
+  has_plutus_data(): boolean;
+
+  /**
+   * @returns {boolean}
+   */
+  has_data_hash(): boolean;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_ref(): boolean;
 
   /**
    * @param {Address} address
@@ -6292,6 +6435,8 @@ declare export class TransactionOutputAmountBuilder {
   ): TransactionOutputAmountBuilder;
 
   /**
+   * !!! DEPRECATED !!!
+   * Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead.
    * @param {MultiAsset} multiasset
    * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionOutputAmountBuilder}
@@ -6299,6 +6444,16 @@ declare export class TransactionOutputAmountBuilder {
   with_asset_and_min_required_coin(
     multiasset: MultiAsset,
     coins_per_utxo_word: BigNum
+  ): TransactionOutputAmountBuilder;
+
+  /**
+   * @param {MultiAsset} multiasset
+   * @param {DataCost} data_cost
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_asset_and_min_required_coin_by_utxo_cost(
+    multiasset: MultiAsset,
+    data_cost: DataCost
   ): TransactionOutputAmountBuilder;
 
   /**
@@ -6332,6 +6487,18 @@ declare export class TransactionOutputBuilder {
    * @returns {TransactionOutputBuilder}
    */
   with_data_hash(data_hash: DataHash): TransactionOutputBuilder;
+
+  /**
+   * @param {PlutusData} data
+   * @returns {TransactionOutputBuilder}
+   */
+  with_plutus_data(data: PlutusData): TransactionOutputBuilder;
+
+  /**
+   * @param {ScriptRef} script_ref
+   * @returns {TransactionOutputBuilder}
+   */
+  with_script_ref(script_ref: ScriptRef): TransactionOutputBuilder;
 
   /**
    * @returns {TransactionOutputAmountBuilder}

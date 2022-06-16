@@ -1,8 +1,12 @@
 #![allow(dead_code)]
-use crate::{Address, BaseAddress, Bip32PrivateKey, Ed25519KeyHash, Ed25519Signature, NetworkInfo, StakeCredential, to_bignum, TransactionHash, TransactionIndex, TransactionInput, TransactionOutput, Value, Vkey};
+use crate::{Address, BaseAddress, Bip32PrivateKey, DataHash, Ed25519KeyHash, Ed25519Signature, NetworkInfo, StakeCredential, to_bignum, TransactionHash, TransactionIndex, TransactionInput, TransactionOutput, Value, Vkey};
 
 pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
     vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100, 1, 2, 3, 4]
+}
+
+pub(crate) fn fake_data_hash(x: u8) -> DataHash {
+    DataHash::from_bytes(fake_bytes_32(x)).unwrap()
 }
 
 pub(crate) fn fake_key_hash(x: u8) -> Ed25519KeyHash {
