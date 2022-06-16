@@ -8,6 +8,7 @@ use std::ops::{Div};
 
 use super::*;
 use crate::error::{DeserializeError, DeserializeFailure};
+use crate::fakes::fake_data_hash;
 
 pub fn to_bytes<T: cbor_event::se::Serialize>(data_item: &T) -> Vec<u8> {
     let mut buf = Serializer::new_vec();
@@ -188,6 +189,10 @@ impl BigNum {
             std::cmp::Ordering::Less => -1,
             std::cmp::Ordering::Greater => 1,
         }
+    }
+
+    pub fn less_than(&self, rhs_value: &BigNum) -> bool {
+        self.compare(rhs_value) < 0
     }
 }
 
@@ -1110,12 +1115,25 @@ impl MinOutputAdaCalculator {
     }
 
     pub fn calculate_ada(&self) -> Result<BigNum, JsError> {
-        let bytes = self.output.to_bytes().len();
-        //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
-        //See on the page 9 getValue txout
-        let mut big_num_bytes = BigNum::from(bytes);
-        big_num_bytes = big_num_bytes.checked_add(&to_bignum(160))?;
-        Ok(big_num_bytes.checked_mul(&self.data_cost.coins_per_byte())?)
+        let coins_per_byte = self.data_cost.coins_per_byte();
+        let mut output: TransactionOutput = self.output.clone();
+        fn calc_required_coin(output: &TransactionOutput, coins_per_byte: &Coin) -> Result<Coin, JsError> {
+            //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
+            //See on the page 9 getValue txout
+            BigNum::from(output.to_bytes().len())
+                .checked_add(&to_bignum(160))?
+                .checked_mul(&coins_per_byte)
+        }
+        for _ in 0..3 {
+            let required_coin = calc_required_coin(&output, &coins_per_byte)?;
+            if output.amount.coin.less_than(&required_coin) {
+                output.amount.coin = required_coin.clone();
+            } else {
+                return Ok(required_coin);
+            }
+        }
+        output.amount.coin = to_bignum(u64::MAX);
+        Ok(calc_required_coin(&output, &coins_per_byte)?)
     }
 
     fn create_fake_output() -> Result<TransactionOutput, JsError> {
@@ -1125,35 +1143,10 @@ impl MinOutputAdaCalculator {
     }
 }
 
-///returns minimal amount of ada for the output without the minimal amount
-fn min_ada_for_output_excluded(output: &TransactionOutput, data_cost: &DataCost) -> Result<BigNum, JsError> {
-    let calc = MinOutputAdaCalculator::new(output, data_cost);
-    calc.calculate_ada()
-}
-
 ///returns minimal amount of ada for the output for case when the amount is included to the output
 #[wasm_bindgen]
 pub fn min_ada_for_output(output: &TransactionOutput, data_cost: &DataCost) -> Result<BigNum, JsError> {
-    let mut min_ada = min_ada_for_output_excluded(output, data_cost)?;
-    let mut draft_output = output.clone();
-    draft_output.amount.checked_add(&Value::new(&min_ada))?;
-    let mut draft_len = draft_output.to_bytes().len();
-    //try 3 times to get precise amount of ada. if it impossible we just use size of u64
-    for _ in 0..3 {
-        min_ada = min_ada_for_output_excluded(&draft_output, data_cost)?;
-        draft_output = output.clone();
-        draft_output.amount.checked_add(&Value::new(&min_ada))?;
-        let new_len = draft_output.to_bytes().len();
-        if new_len == draft_len {
-            return Ok(min_ada);
-        } else {
-            draft_len = new_len;
-        }
-    }
-
-    let mut draft_output = output.clone();
-    draft_output.amount.coin = u64::MAX.into();
-    min_ada_for_output_excluded(output, data_cost)
+    MinOutputAdaCalculator::new(output, data_cost).calculate_ada()
 }
 
 /// !!! DEPRECATED !!!
@@ -1170,8 +1163,7 @@ pub fn min_ada_required(
     let mut calc = MinOutputAdaCalculator::new_empty(&data_cost)?;
     calc.set_amount(assets);
     if has_data_hash {
-        let fake_hash = DataHash::from_bytes(vec![201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232])?;
-        calc.set_data_hash(&fake_hash);
+        calc.set_data_hash(&fake_data_hash(0));
     }
    calc.calculate_ada()
 }
@@ -1530,7 +1522,7 @@ mod tests {
     fn min_ada_value_no_multiasset() {
         assert_eq!(
             from_bignum(&min_ada_required(&Value::new(&Coin::zero()), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            952510,
+            969750,
         );
     }
 
@@ -1538,7 +1530,7 @@ mod tests {
     fn min_ada_value_one_policy_one_0_char_asset() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_one_0_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_103_360,
+            1_120_600,
         );
     }
 
@@ -1586,7 +1578,7 @@ mod tests {
     fn min_ada_value_one_policy_one_0_char_asset_datum_hash() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_one_0_char_asset(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_249_900,
+            1_267_140,
         );
     }
 

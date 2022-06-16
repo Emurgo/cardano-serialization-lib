@@ -811,6 +811,12 @@ declare export class BigNum {
    * @returns {number}
    */
   compare(rhs_value: BigNum): number;
+
+  /**
+   * @param {BigNum} rhs_value
+   * @returns {boolean}
+   */
+  less_than(rhs_value: BigNum): boolean;
 }
 /**
  */
