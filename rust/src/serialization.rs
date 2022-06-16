@@ -2892,14 +2892,6 @@ impl cbor_event::se::Serialize for ProtocolParamUpdate {
             serializer.write_unsigned_integer(11)?;
             field.serialize(serializer)?;
         }
-        if let Some(field) = &self.d {
-            serializer.write_unsigned_integer(12)?;
-            field.serialize(serializer)?;
-        }
-        if let Some(field) = &self.extra_entropy {
-            serializer.write_unsigned_integer(13)?;
-            field.serialize(serializer)?;
-        }
         if let Some(field) = &self.protocol_version {
             serializer.write_unsigned_integer(14)?;
             field.serialize(serializer)?;

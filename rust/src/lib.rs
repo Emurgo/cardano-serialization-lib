@@ -2380,18 +2380,40 @@ impl ProtocolParamUpdate {
         self.treasury_growth_rate.clone()
     }
 
+    /// !!! DEPRECATED !!!
+    /// Since babbage era this param is outdated. Setter doesn't set value now.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Since babbage era this param is outdated. Setter doesn't set value now."
+    )]
     pub fn set_d(&mut self, d: &UnitInterval) {
-        self.d = Some(d.clone())
     }
 
+    /// !!! DEPRECATED !!!
+    /// Since babbage era this param is outdated. But this param you can meet in a pre-babbage block.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Since babbage era this param is outdated. But this param you can meet in a pre-babbage block."
+    )]
     pub fn d(&self) -> Option<UnitInterval> {
         self.d.clone()
     }
 
+    /// !!! DEPRECATED !!!
+    /// Since babbage era this param is outdated. Setter doesn't set value now.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Since babbage era this param is outdated. Setter doesn't set value now."
+    )]
     pub fn set_extra_entropy(&mut self, extra_entropy: &Nonce) {
-        self.extra_entropy = Some(extra_entropy.clone())
     }
 
+    /// !!! DEPRECATED !!!
+    /// Since babbage era this param is outdated. But this param you can meet in a pre-babbage block.
+    #[deprecated(
+    since = "11.0.0",
+    note = "SSince babbage era this param is outdated. But this param you can meet in a pre-babbage block."
+    )]
     pub fn extra_entropy(&self) -> Option<Nonce> {
         self.extra_entropy.clone()
     }
