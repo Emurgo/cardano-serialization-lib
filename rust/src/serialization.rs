@@ -581,7 +581,7 @@ impl cbor_event::se::Serialize for TransactionOutput {
         } else {
             //lagacy output
             let data_hash = &self.data_hash();
-            serializer.write_array(cbor_event::Len::Len(if data_hash.is_some() { 3 } else { 2 }))?;
+            serializer.write_array(cbor_event::Len::Len(2 + opt64(&data_hash)))?;
             self.address.serialize(serializer)?;
             self.amount.serialize(serializer)?;
             if let Some(pure_data_hash) = data_hash {
@@ -3827,7 +3827,7 @@ impl Deserialize for NetworkId {
 
 #[cfg(test)]
 mod tests {
-    use crate::fakes::{fake_bytes_32, fake_signature, fake_tx_input, fake_tx_output, fake_vkey};
+    use crate::fakes::{fake_base_address, fake_bytes_32, fake_data_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey};
     use super::*;
 
     #[test]
@@ -4147,5 +4147,48 @@ mod tests {
 
         let ref2 = ScriptRef::new_plutus_script(&script_v2);
         assert_eq!(ScriptRef::from_bytes(ref2.to_bytes()).unwrap(), ref2);
+    }
+
+    #[test]
+    fn legacy_output_roundtrip() {
+        let o1 = TransactionOutput::new(&fake_base_address(0), &fake_value());
+        let mut o2 = TransactionOutput::new(&fake_base_address(1), &fake_value());
+        o2.set_data_hash(&fake_data_hash(2));
+
+        assert_eq!(TransactionOutput::from_bytes(o1.to_bytes()).unwrap(), o1);
+        assert_eq!(TransactionOutput::from_bytes(o2.to_bytes()).unwrap(), o2);
+    }
+
+    #[test]
+    fn babbage_output_roundtrip() {
+        let mut o1 = TransactionOutput::new(&fake_base_address(0), &fake_value2(234567));
+        o1.set_plutus_data(&PlutusData::new_empty_constr_plutus_data(&to_bignum(42)));
+        assert_eq!(TransactionOutput::from_bytes(o1.to_bytes()).unwrap(), o1);
+
+        let mut o2 = TransactionOutput::new(&fake_base_address(1), &fake_value2(234568));
+        o2.set_script_ref(&ScriptRef::new_native_script(&NativeScript::new_timelock_start(&TimelockStart::new(123456))));
+        assert_eq!(TransactionOutput::from_bytes(o2.to_bytes()).unwrap(), o2);
+
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        let mut o3 = TransactionOutput::new(&fake_base_address(2), &fake_value2(234569));
+        o3.set_script_ref(&ScriptRef::new_plutus_script(&script_v1));
+        assert_eq!(TransactionOutput::from_bytes(o3.to_bytes()).unwrap(), o3);
+
+        let mut o4 = TransactionOutput::new(&fake_base_address(3), &fake_value2(234570));
+        o4.set_script_ref(&ScriptRef::new_plutus_script(&script_v2));
+        assert_eq!(TransactionOutput::from_bytes(o4.to_bytes()).unwrap(), o4);
+
+        let mut o5 = TransactionOutput::new(&fake_base_address(4), &fake_value2(234571));
+        o5.set_plutus_data(&PlutusData::new_empty_constr_plutus_data(&to_bignum(43)));
+        o5.set_script_ref(&ScriptRef::new_plutus_script(&script_v2));
+        assert_eq!(TransactionOutput::from_bytes(o5.to_bytes()).unwrap(), o5);
+
+        let mut o6 = TransactionOutput::new(&fake_base_address(5), &fake_value2(234572));
+        o6.set_data_hash(&fake_data_hash(222));
+        o6.set_script_ref(&ScriptRef::new_plutus_script(&script_v2));
+        assert_eq!(TransactionOutput::from_bytes(o6.to_bytes()).unwrap(), o6);
     }
 }
