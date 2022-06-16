@@ -1094,11 +1094,11 @@ impl MinOutputAdaCalculator {
     }
 
     pub fn set_plutus_data(&mut self, data: &PlutusData) {
-        self.output.data = Some(DataOption::Data(data.clone()));
+        self.output.plutus_data = Some(DataOption::Data(data.clone()));
     }
 
     pub fn set_data_hash(&mut self, data_hash: &DataHash) {
-        self.output.data = Some(DataOption::DataHash(data_hash.clone()));
+        self.output.plutus_data = Some(DataOption::DataHash(data_hash.clone()));
     }
 
     pub fn set_amount(&mut self, amount: &Value) {

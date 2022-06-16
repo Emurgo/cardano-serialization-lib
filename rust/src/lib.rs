@@ -563,8 +563,8 @@ impl TransactionInput {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct TransactionOutput {
     address: Address,
-    pub (crate) amount: Value,
-    data : Option<DataOption>,
+    amount: Value,
+    plutus_data: Option<DataOption>,
     script_ref: Option<ScriptRef>
 }
 
@@ -581,7 +581,7 @@ impl TransactionOutput {
     }
 
     pub fn data_hash(&self) -> Option<DataHash> {
-        match &self.data {
+        match &self.plutus_data {
             Some(optional_data) => match optional_data {
                 DataOption::DataHash(data_hash) => Some(data_hash.clone()),
                 DataOption::Data(_) => None
@@ -591,7 +591,7 @@ impl TransactionOutput {
     }
 
     pub fn plutus_data(&self) -> Option<PlutusData> {
-        match &self.data {
+        match &self.plutus_data {
             Some(optional_data) => match optional_data {
                 DataOption::DataHash(_) => None,
                 DataOption::Data(plutus_data) => Some(plutus_data.clone())
@@ -609,15 +609,15 @@ impl TransactionOutput {
     }
 
     pub fn set_plutus_data(&mut self, data: &PlutusData) {
-        self.data = Some(DataOption::Data(data.clone()));
+        self.plutus_data = Some(DataOption::Data(data.clone()));
     }
 
     pub fn set_data_hash(&mut self, data_hash: &DataHash) {
-        self.data = Some(DataOption::DataHash(data_hash.clone()));
+        self.plutus_data = Some(DataOption::DataHash(data_hash.clone()));
     }
 
     pub fn has_plutus_data(&self) -> bool {
-        match &self.data {
+        match &self.plutus_data {
             Some(data) => match data {
                 DataOption::Data(_) => true,
                 _ => false
@@ -627,7 +627,7 @@ impl TransactionOutput {
     }
 
     pub fn has_data_hash(&self) -> bool {
-        match &self.data {
+        match &self.plutus_data {
             Some(data) => match data {
                 DataOption::DataHash(_) => true,
                 _ => false
@@ -644,7 +644,7 @@ impl TransactionOutput {
         Self {
             address: address.clone(),
             amount: amount.clone(),
-            data: None,
+            plutus_data: None,
             script_ref: None
         }
     }

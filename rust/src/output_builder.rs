@@ -140,7 +140,7 @@ impl TransactionOutputAmountBuilder {
         Ok(TransactionOutput {
             address: self.address.clone(),
             amount: self.amount.clone().ok_or(JsError::from_str("TransactionOutputAmountBuilder: amount missing"))?,
-            data: self.data.clone(),
+            plutus_data: self.data.clone(),
             script_ref: self.script_ref.clone()
         })
     }

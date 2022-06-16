@@ -559,7 +559,7 @@ impl cbor_event::se::Serialize for TransactionOutput {
         if self.has_plutus_data() || self.has_script_ref() {
             //post alonzo output
             let mut map_len = 2;
-            if let Some(_) = &self.data {
+            if let Some(_) = &self.plutus_data {
                 map_len += 1;
             }
             if let Some(_) = &self.script_ref {
@@ -570,7 +570,7 @@ impl cbor_event::se::Serialize for TransactionOutput {
             self.address.serialize(serializer)?;
             serializer.write_unsigned_integer(1)?;
             self.amount.serialize(serializer)?;
-            if let Some(field) = &self.data {
+            if let Some(field) = &self.plutus_data {
                 serializer.write_unsigned_integer(2)?;
                 field.serialize(serializer)?;
             }
@@ -580,7 +580,7 @@ impl cbor_event::se::Serialize for TransactionOutput {
             }
         } else {
             //lagacy output
-            let data_hash = match &self.data {
+            let data_hash = match &self.plutus_data {
                 Some(DataOption::DataHash(data_hash)) => Some(data_hash),
                 _ => None,
             };
@@ -661,7 +661,7 @@ impl DeserializeEmbeddedGroup for TransactionOutput {
         Ok(TransactionOutput {
             address,
             amount,
-            data: data_hash,
+            plutus_data: data_hash,
             script_ref : None
         })
     }
@@ -734,7 +734,7 @@ fn deserialize_as_postalonzo_output<R: BufRead + Seek>(raw: &mut Deserializer<R>
         Ok(TransactionOutput {
             address,
             amount,
-            data,
+            plutus_data: data,
             script_ref
         })
     })().map_err(|e| e.annotate("TransactionOutput"))
@@ -3841,7 +3841,7 @@ mod tests {
         let txo = TransactionOutput {
             address: addr.clone(),
             amount: val.clone(),
-            data: None,
+            plutus_data: None,
             script_ref: None
         };
         let mut txo_dh = txo.clone();
@@ -3866,7 +3866,7 @@ mod tests {
         let txo = TransactionOutput {
             address: addr.clone(),
             amount: val.clone(),
-            data: None,
+            plutus_data: None,
             script_ref: None
         };
         let mut txo_dh = txo.clone();
@@ -3892,7 +3892,7 @@ mod tests {
         let txo = TransactionOutput {
             address: addr.clone(),
             amount: val.clone(),
-            data: None,
+            plutus_data: None,
             script_ref: None
         };
         let mut txo_dh = txo.clone();
@@ -3917,7 +3917,7 @@ mod tests {
         let txo = TransactionOutput {
             address: addr.clone(),
             amount: val.clone(),
-            data: None,
+            plutus_data: None,
             script_ref: None
         };
         let mut txo_dh = txo.clone();
@@ -3942,7 +3942,7 @@ mod tests {
         let txo = TransactionOutput {
             address: addr.clone(),
             amount: val.clone(),
-            data: None,
+            plutus_data: None,
             script_ref: None
         };
         let mut txo_dh = txo.clone();
@@ -3969,7 +3969,7 @@ mod tests {
         let txo = TransactionOutput {
             address: addr.clone(),
             amount: val.clone(),
-            data: None,
+            plutus_data: None,
             script_ref: None
         };
         let mut txo_dh = txo.clone();
@@ -3995,7 +3995,7 @@ mod tests {
         let txo = TransactionOutput {
             address: addr.clone(),
             amount: val.clone(),
-            data: None,
+            plutus_data: None,
             script_ref: None
         };
         let mut txo_dh = txo.clone();

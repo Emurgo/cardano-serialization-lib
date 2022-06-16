@@ -1155,7 +1155,7 @@ impl TransactionBuilder {
                         let mut output = TransactionOutput {
                             address: change_address.clone(),
                             amount: base_coin.clone(),
-                            data: plutus_data.clone(),
+                            plutus_data: plutus_data.clone(),
                             script_ref: script_ref.clone()
                         };
                         // If this becomes slow on large TXs we can optimize it like the following
@@ -1208,7 +1208,7 @@ impl TransactionBuilder {
                                     output = TransactionOutput {
                                         address: change_address.clone(),
                                         amount: base_coin.clone(),
-                                        data: plutus_data.clone(),
+                                        plutus_data: plutus_data.clone(),
                                         script_ref: script_ref.clone()
                                     };
 
@@ -1287,7 +1287,7 @@ impl TransactionBuilder {
                             let change_output = TransactionOutput {
                                 address: address.clone(),
                                 amount: change_value.clone(),
-                                data: plutus_data.clone(),
+                                plutus_data: plutus_data.clone(),
                                 script_ref: script_ref.clone()
                             };
 
@@ -1308,7 +1308,7 @@ impl TransactionBuilder {
                         let pure_output = TransactionOutput {
                             address: address.clone(),
                             amount: change_left.clone(),
-                            data: plutus_data.clone(),
+                            plutus_data: plutus_data.clone(),
                             script_ref: script_ref.clone()
                         };
                         let additional_fee = self.fee_for_output(&pure_output)?;
@@ -1320,7 +1320,7 @@ impl TransactionBuilder {
                             self.add_output(&TransactionOutput {
                                 address: address.clone(),
                                 amount: potential_pure_value.clone(),
-                                data: plutus_data.clone(),
+                                plutus_data: plutus_data.clone(),
                                 script_ref: script_ref.clone()
                             })?;
                         }
@@ -1358,7 +1358,7 @@ impl TransactionBuilder {
                             let fee_for_change = self.fee_for_output(&TransactionOutput {
                                 address: address.clone(),
                                 amount: change_estimator.clone(),
-                                data: plutus_data.clone(),
+                                plutus_data: plutus_data.clone(),
                                 script_ref: script_ref.clone()
                             })?;
 
@@ -1372,7 +1372,7 @@ impl TransactionBuilder {
                                     self.add_output(&TransactionOutput {
                                         address: address.clone(),
                                         amount: change_estimator.checked_sub(&Value::new(&new_fee.clone()))?,
-                                        data: plutus_data.clone(),
+                                        plutus_data: plutus_data.clone(),
                                         script_ref: script_ref.clone()
                                     })?;
 
