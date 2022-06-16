@@ -2412,7 +2412,7 @@ impl ProtocolParamUpdate {
     /// Since babbage era this param is outdated. But this param you can meet in a pre-babbage block.
     #[deprecated(
     since = "11.0.0",
-    note = "SSince babbage era this param is outdated. But this param you can meet in a pre-babbage block."
+    note = "Since babbage era this param is outdated. But this param you can meet in a pre-babbage block."
     )]
     pub fn extra_entropy(&self) -> Option<Nonce> {
         self.extra_entropy.clone()
