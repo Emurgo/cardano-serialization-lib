@@ -302,6 +302,7 @@ pub struct TransactionBody {
     network_id: Option<NetworkId>,
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
+    reference_inputs: Option<TransactionInputs>,
 }
 
 to_from_bytes!(TransactionBody);
@@ -437,6 +438,14 @@ impl TransactionBody {
         self.mint()
     }
 
+    pub fn set_reference_inputs(&mut self, reference_inputs: &TransactionInputs) {
+        self.reference_inputs = Some(reference_inputs.clone())
+    }
+
+    pub fn reference_inputs(&self) -> Option<TransactionInputs> {
+        self.reference_inputs.clone()
+    }
+
     pub fn set_script_data_hash(&mut self, script_data_hash: &ScriptDataHash) {
         self.script_data_hash = Some(script_data_hash.clone())
     }
@@ -528,6 +537,7 @@ impl TransactionBody {
             network_id: None,
             collateral_return: None,
             total_collateral: None,
+            reference_inputs: None,
         }
     }
 }

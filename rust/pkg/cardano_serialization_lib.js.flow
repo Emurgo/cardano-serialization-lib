@@ -343,6 +343,14 @@ declare export var CoinSelectionStrategyCIP2: {|
 /**
  */
 
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ */
+
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
   +PlutusV2: 1, // 1
@@ -367,14 +375,6 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
-|};
-
-/**
- */
-
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
 |};
 
 /**
@@ -5449,6 +5449,16 @@ declare export class TransactionBody {
   multiassets(): Mint | void;
 
   /**
+   * @param {TransactionInputs} reference_inputs
+   */
+  set_reference_inputs(reference_inputs: TransactionInputs): void;
+
+  /**
+   * @returns {TransactionInputs | void}
+   */
+  reference_inputs(): TransactionInputs | void;
+
+  /**
    * @param {ScriptDataHash} script_data_hash
    */
   set_script_data_hash(script_data_hash: ScriptDataHash): void;
@@ -5597,6 +5607,11 @@ declare export class TransactionBuilder {
     total_collateral: BigNum,
     return_address: Address
   ): void;
+
+  /**
+   * @param {TransactionInput} reference_input
+   */
+  add_reference_input(reference_input: TransactionInput): void;
 
   /**
    * We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -5914,6 +5929,11 @@ declare export class TransactionBuilder {
    * @returns {TransactionBuilder}
    */
   static new(cfg: TransactionBuilderConfig): TransactionBuilder;
+
+  /**
+   * @returns {TransactionInputs}
+   */
+  get_reference_inputs(): TransactionInputs;
 
   /**
    * does not include refunds or withdrawals

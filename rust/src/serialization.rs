@@ -232,7 +232,7 @@ impl Deserialize for Certificates {
 
 impl cbor_event::se::Serialize for TransactionBody {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(3 + opt64(&self.ttl) + opt64(&self.certs) + opt64(&self.withdrawals) + opt64(&self.update) + opt64(&self.auxiliary_data_hash) + opt64(&self.validity_start_interval) + opt64(&self.mint) + opt64(&self.script_data_hash) + opt64(&self.collateral) + opt64(&self.required_signers) + opt64(&self.network_id) + opt64(&self.collateral_return) + opt64(&self.total_collateral)))?;
+        serializer.write_map(cbor_event::Len::Len(3 + opt64(&self.ttl) + opt64(&self.certs) + opt64(&self.withdrawals) + opt64(&self.update) + opt64(&self.auxiliary_data_hash) + opt64(&self.validity_start_interval) + opt64(&self.mint) + opt64(&self.script_data_hash) + opt64(&self.collateral) + opt64(&self.required_signers) + opt64(&self.network_id) + opt64(&self.collateral_return) + opt64(&self.total_collateral) + opt64(&self.reference_inputs)))?;
         serializer.write_unsigned_integer(0)?;
         self.inputs.serialize(serializer)?;
         serializer.write_unsigned_integer(1)?;
@@ -291,6 +291,10 @@ impl cbor_event::se::Serialize for TransactionBody {
             serializer.write_unsigned_integer(17)?;
             field.serialize(serializer)?;
         }
+        if let Some(field) = &self.reference_inputs {
+            serializer.write_unsigned_integer(18)?;
+            field.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
@@ -317,6 +321,7 @@ impl Deserialize for TransactionBody {
             let mut network_id = None;
             let mut collateral_return = None;
             let mut total_collateral = None;
+            let mut reference_inputs = None;
             let mut read = 0;
             while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
                 match raw.cbor_type()? {
@@ -462,6 +467,15 @@ impl Deserialize for TransactionBody {
                                 Ok(Coin::deserialize(raw)?)
                             })().map_err(|e| e.annotate("total_collateral"))?);
                         },
+                        18 => {
+                            if reference_inputs.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(18)).into());
+                            }
+                            reference_inputs = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(TransactionInputs::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("reference_inputs"))?);
+                        },
                         unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                     },
                     CBORType::Text => match raw.text()?.as_str() {
@@ -508,6 +522,7 @@ impl Deserialize for TransactionBody {
                 network_id,
                 collateral_return,
                 total_collateral,
+                reference_inputs,
             })
         })().map_err(|e| e.annotate("TransactionBody"))
     }
