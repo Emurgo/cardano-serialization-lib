@@ -343,14 +343,6 @@ declare export var CoinSelectionStrategyCIP2: {|
 /**
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
   +PlutusV2: 1, // 1
@@ -375,6 +367,14 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
 |};
 
 /**
@@ -6235,6 +6235,11 @@ declare export class TransactionInputs {
    * @param {TransactionInput} elem
    */
   add(elem: TransactionInput): void;
+
+  /**
+   * @returns {TransactionInputs | void}
+   */
+  to_option(): TransactionInputs | void;
 }
 /**
  */
