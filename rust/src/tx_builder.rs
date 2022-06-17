@@ -342,6 +342,7 @@ pub struct TransactionBuilder {
     required_signers: Ed25519KeyHashes,
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
+    reference_inputs: TransactionInputs,
 }
 
 #[wasm_bindgen]
@@ -644,6 +645,10 @@ impl TransactionBuilder {
         self.set_total_collateral(total_collateral);
         self.collateral_return = Some(TransactionOutput::new(return_address, &col_return));
         Ok(())
+    }
+
+    pub fn add_reference_input(&mut self, reference_input: &TransactionInput) {
+        self.reference_inputs.add(reference_input);
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -1019,7 +1024,12 @@ impl TransactionBuilder {
             required_signers: Ed25519KeyHashes::new(),
             collateral_return: None,
             total_collateral: None,
+            reference_inputs: TransactionInputs::new(),
         }
+    }
+
+    pub fn get_reference_inputs(&self) -> TransactionInputs {
+        self.reference_inputs.clone()
     }
 
     /// does not include refunds or withdrawals
@@ -1439,6 +1449,7 @@ impl TransactionBuilder {
             network_id: None,
             collateral_return: self.collateral_return.clone(),
             total_collateral: self.total_collateral.clone(),
+            reference_inputs: self.reference_inputs.to_option(),
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;
@@ -2106,6 +2117,176 @@ mod tests {
         );
 
         assert_eq!(tx_builder.inputs.len(), 4);
+    }
+
+    #[test]
+    fn add_ref_inputs_to_builder() {
+        let mut tx_builder = create_default_tx_builder();
+
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 1));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 2));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 3));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 4));
+
+        assert_eq!(tx_builder.reference_inputs.len(), 4);
+    }
+
+    #[test]
+    fn build_tx_with_script_ref() {
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 1));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 2));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 3));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 4));
+
+        tx_builder.add_input(
+            &PointerAddress::new(
+                NetworkInfo::testnet().network_id(),
+                &spend_cred,
+                &Pointer::new_pointer(
+                    &to_bignum(0),
+                    &to_bignum(0),
+                    &to_bignum(0)
+                )
+            ).to_address(),
+            &TransactionInput::new(&genesis_id(), 2),
+            &Value::new(&to_bignum(1_000_000))
+        );
+
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+        .to_address();
+
+        let output_amount = Value::new(&to_bignum(500));
+
+        tx_builder.add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(&addr_net_0)
+                .next().unwrap()
+                .with_value(&output_amount)
+                .build().unwrap()
+        ).unwrap();
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        ).to_address();
+
+        let added_change = tx_builder.add_change_if_needed(&change_addr).unwrap();
+        assert_eq!(added_change, true);
+        let final_tx = tx_builder.build().unwrap();
+        assert_eq!(final_tx.outputs().len(), 2);
+        assert_eq!(final_tx.reference_inputs().unwrap().len(), 4);
+        assert_eq!(final_tx.outputs().get(1).amount().coin(), to_bignum(999499));
+    }
+
+    #[test]
+    fn serialization_tx_body_with_script_ref() {
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 1));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 2));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 3));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 4));
+
+        tx_builder.add_input(
+            &PointerAddress::new(
+                NetworkInfo::testnet().network_id(),
+                &spend_cred,
+                &Pointer::new_pointer(
+                    &to_bignum(0),
+                    &to_bignum(0),
+                    &to_bignum(0)
+                )
+            ).to_address(),
+            &TransactionInput::new(&genesis_id(), 2),
+            &Value::new(&to_bignum(1_000_000))
+        );
+
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+            .to_address();
+
+        let output_amount = Value::new(&to_bignum(500));
+
+        tx_builder.add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(&addr_net_0)
+                .next().unwrap()
+                .with_value(&output_amount)
+                .build().unwrap()
+        ).unwrap();
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        ).to_address();
+
+        tx_builder.add_change_if_needed(&change_addr).unwrap();
+        let final_tx = tx_builder.build().unwrap();
+
+        let deser_t = TransactionBody::from_bytes(final_tx.to_bytes()).unwrap();
+
+        assert_eq!(deser_t.to_bytes(), final_tx.to_bytes());
     }
 
     #[test]
