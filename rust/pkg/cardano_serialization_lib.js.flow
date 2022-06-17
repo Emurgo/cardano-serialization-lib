@@ -144,33 +144,6 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
- * @param {ExUnits} ex_units
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function calculate_ex_units_ceil_cost(
-  ex_units: ExUnits,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
-
-/**
- * @param {Transaction} tx
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function min_script_fee(
-  tx: Transaction,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
-
-/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -205,6 +178,33 @@ declare export function decode_metadatum_to_json_str(
   metadatum: TransactionMetadatum,
   schema: number
 ): string;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
+ * @param {ExUnits} ex_units
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function calculate_ex_units_ceil_cost(
+  ex_units: ExUnits,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
+
+/**
+ * @param {Transaction} tx
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function min_script_fee(
+  tx: Transaction,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
 
 /**
  * @param {string} password
@@ -343,14 +343,6 @@ declare export var CoinSelectionStrategyCIP2: {|
 /**
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
   +PlutusV2: 1, // 1
@@ -375,6 +367,14 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
 |};
 
 /**
