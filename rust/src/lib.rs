@@ -177,6 +177,10 @@ impl TransactionInputs {
     pub fn add(&mut self, elem: &TransactionInput) {
         self.0.push(elem.clone());
     }
+
+    pub fn to_option(&self) -> Option<TransactionInputs> {
+        if self.len() > 0 { Some(self.clone()) } else { None }
+    }
 }
 
 #[wasm_bindgen]

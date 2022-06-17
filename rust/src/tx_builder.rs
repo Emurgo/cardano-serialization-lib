@@ -1449,10 +1449,7 @@ impl TransactionBuilder {
             network_id: None,
             collateral_return: self.collateral_return.clone(),
             total_collateral: self.total_collateral.clone(),
-            reference_inputs: match &self.reference_inputs.len() {
-                0 => None,
-                _ => Some(self.reference_inputs.clone()),
-            }
+            reference_inputs: self.reference_inputs.to_option(),
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;
