@@ -11,19 +11,41 @@ use schemars::JsonSchema;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusScript(Vec<u8>);
+pub struct PlutusScript {
+    bytes: Vec<u8>,
+    language: LanguageKind,
+}
 
 to_from_bytes!(PlutusScript);
 
 #[wasm_bindgen]
 impl PlutusScript {
+
     /**
      * Creates a new Plutus script from the RAW bytes of the compiled script.
      * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
      * If you creating this from those you should use PlutusScript::from_bytes() instead.
      */
     pub fn new(bytes: Vec<u8>) -> PlutusScript {
-        Self(bytes)
+        Self::new_with_version(bytes, &Language::new_plutus_v1())
+    }
+
+    /**
+     * Creates a new Plutus script from the RAW bytes of the compiled script.
+     * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+     * If you creating this from those you should use PlutusScript::from_bytes() instead.
+     */
+    pub fn new_v2(bytes: Vec<u8>) -> PlutusScript {
+        Self::new_with_version(bytes, &Language::new_plutus_v2())
+    }
+
+    /**
+     * Creates a new Plutus script from the RAW bytes of the compiled script.
+     * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+     * If you creating this from those you should use PlutusScript::from_bytes() instead.
+     */
+    pub fn new_with_version(bytes: Vec<u8>, language: &Language) -> PlutusScript {
+        Self { bytes, language: language.0.clone() }
     }
 
     /**
@@ -31,16 +53,40 @@ impl PlutusScript {
      * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
      */
     pub fn bytes(&self) -> Vec<u8> {
-        self.0.clone()
+        self.bytes.clone()
+    }
+
+    /// Same as `.from_bytes` but will consider the script as requiring the Plutus Language V2
+    pub fn from_bytes_v2(bytes: Vec<u8>) -> Result<PlutusScript, JsError> {
+        Self::from_bytes_with_version(bytes, &Language::new_plutus_v2())
+    }
+
+    /// Same as `.from_bytes` but will consider the script as requiring the specified language version
+    pub fn from_bytes_with_version(bytes: Vec<u8>, language: &Language) -> Result<PlutusScript, JsError> {
+        Ok(Self::new_with_version(Self::from_bytes(bytes)?.bytes, language))
     }
 
     pub fn hash(&self) -> ScriptHash {
-        let mut bytes = Vec::with_capacity(self.0.len() + 1);
-        bytes.extend_from_slice(&vec![
-            ScriptHashNamespace::PlutusScript as u8,
-        ]);
-        bytes.extend_from_slice(&self.0);
+        let mut bytes = Vec::with_capacity(self.bytes.len() + 1);
+        // https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl#L413
+        bytes.extend_from_slice(&vec![self.script_namespace() as u8]);
+        bytes.extend_from_slice(&self.bytes);
         ScriptHash::from(blake2b224(bytes.as_ref()))
+    }
+
+    pub fn language_version(&self) -> Language {
+        Language(self.language.clone())
+    }
+
+    pub(crate) fn script_namespace(&self) -> ScriptHashNamespace {
+        match self.language {
+            LanguageKind::PlutusV1 => ScriptHashNamespace::PlutusScript,
+            LanguageKind::PlutusV2 => ScriptHashNamespace::PlutusScriptV2,
+        }
+    }
+
+    pub(crate) fn clone_as_version(&self, language: &Language) -> PlutusScript {
+        Self::new_with_version(self.bytes.clone(), language)
     }
 }
 
@@ -69,7 +115,7 @@ impl JsonSchema for PlutusScript {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct PlutusScripts(Vec<PlutusScript>);
+pub struct PlutusScripts(pub(crate) Vec<PlutusScript>);
 
 to_from_bytes!(PlutusScripts);
 
@@ -89,6 +135,35 @@ impl PlutusScripts {
 
     pub fn add(&mut self, elem: &PlutusScript) {
         self.0.push(elem.clone());
+    }
+
+    pub(crate) fn by_version(&self, language: &Language) -> PlutusScripts {
+        PlutusScripts(
+            self.0.iter()
+                .filter(|s| s.language_version().eq(language))
+                .map(|s| s.clone())
+                .collect()
+        )
+    }
+
+    pub(crate) fn has_version(&self, language: &Language) -> bool {
+        self.0.iter().any(|s| s.language_version().eq(language))
+    }
+
+    pub(crate) fn merge(&self, other: &PlutusScripts) -> PlutusScripts {
+        let mut res = self.clone();
+        for s in &other.0 {
+            res.add(s);
+        }
+        res
+    }
+
+    pub(crate) fn map_as_version(&self, language: &Language) -> PlutusScripts {
+        let mut res = PlutusScripts::new();
+        for s in &self.0 {
+            res.add(&s.clone_as_version(language));
+        }
+        res
     }
 }
 
@@ -184,11 +259,15 @@ impl CostModel {
         }
         Ok(self.0[operation].clone())
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
-impl From<[i32; 166]> for CostModel {
-    fn from(values: [i32; 166]) -> Self {
-        CostModel(values.iter().map(|x| { Int::new_i32(*x).clone() }).collect())
+impl From<Vec<i128>> for CostModel {
+    fn from(values: Vec<i128>) -> Self {
+        CostModel(values.iter().map(|x| { Int(*x) }).collect())
     }
 }
 
@@ -278,7 +357,6 @@ impl ExUnitPrices {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct ExUnits {
-    // TODO: should these be u32 or BigNum?
     mem: BigNum,
     steps: BigNum,
 }
@@ -306,7 +384,18 @@ impl ExUnits {
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub enum LanguageKind {
-    PlutusV1,
+    PlutusV1 = 0,
+    PlutusV2 = 1,
+}
+
+impl LanguageKind {
+    fn from_u64(x: u64) -> Option<LanguageKind> {
+        match x {
+            0 => Some(LanguageKind::PlutusV1),
+            1 => Some(LanguageKind::PlutusV2),
+            _ => None,
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -317,12 +406,17 @@ to_from_bytes!(Language);
 
 #[wasm_bindgen]
 impl Language {
+
     pub fn new_plutus_v1() -> Self {
         Self(LanguageKind::PlutusV1)
     }
 
+    pub fn new_plutus_v2() -> Self {
+        Self(LanguageKind::PlutusV2)
+    }
+
     pub fn kind(&self) -> LanguageKind {
-        self.0
+        self.0.clone()
     }
 }
 
@@ -409,15 +503,34 @@ pub struct PlutusData {
     original_bytes: Option<Vec<u8>>,
 }
 
+impl std::cmp::PartialEq<Self> for PlutusData {
+    fn eq(&self, other: &Self) -> bool {
+        self.datum.eq(&other.datum)
+    }
+}
+
+impl std::cmp::Eq for PlutusData {}
+
 to_from_bytes!(PlutusData);
 
 #[wasm_bindgen]
 impl PlutusData {
+
     pub fn new_constr_plutus_data(constr_plutus_data: &ConstrPlutusData) -> Self {
         Self {
             datum: PlutusDataEnum::ConstrPlutusData(constr_plutus_data.clone()),
             original_bytes: None,
         }
+    }
+
+    /// Same as `.new_constr_plutus_data` but creates constr with empty data list
+    pub fn new_empty_constr_plutus_data(alternative: &BigNum) -> Self {
+        Self::new_constr_plutus_data(
+            &ConstrPlutusData::new(
+                alternative,
+                &PlutusList::new(),
+            ),
+        )
     }
 
     pub fn new_map(map: &PlutusMap) -> Self {
@@ -501,8 +614,17 @@ pub struct PlutusList {
     // We should always preserve the original datums when deserialized as this is NOT canonicized
     // before computing datum hashes. This field will default to cardano-cli behavior if None
     // and will re-use the provided one if deserialized, unless the list is modified.
-    definite_encoding: Option<bool>,
+    pub(crate) definite_encoding: Option<bool>,
 }
+
+
+impl std::cmp::PartialEq<Self> for PlutusList {
+    fn eq(&self, other: &Self) -> bool {
+        self.elems.eq(&other.elems)
+    }
+}
+
+impl std::cmp::Eq for PlutusList {}
 
 to_from_bytes!(PlutusList);
 
@@ -623,7 +745,7 @@ impl RedeemerTag {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct Redeemers(Vec<Redeemer>);
+pub struct Redeemers(pub(crate) Vec<Redeemer>);
 
 to_from_bytes!(Redeemers);
 
@@ -643,6 +765,17 @@ impl Redeemers {
 
     pub fn add(&mut self, elem: &Redeemer) {
         self.0.push(elem.clone());
+    }
+
+    pub fn total_ex_units(&self) -> Result<ExUnits, JsError> {
+        let mut tot_mem = BigNum::zero();
+        let mut tot_steps = BigNum::zero();
+        for i in 0..self.0.len() {
+            let r: &Redeemer = &self.0[i];
+            tot_mem = tot_mem.checked_add(&r.ex_units().mem())?;
+            tot_steps = tot_steps.checked_add(&r.ex_units().steps())?;
+        }
+        Ok(ExUnits::new(&tot_mem, &tot_steps))
     }
 }
 
@@ -691,13 +824,13 @@ use std::io::{SeekFrom};
 
 impl cbor_event::se::Serialize for PlutusScript {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_bytes(&self.0)
+        serializer.write_bytes(&self.bytes)
     }
 }
 
 impl Deserialize for PlutusScript {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(raw.bytes()?))
+        Ok(Self::new(raw.bytes()?))
     }
 }
 
@@ -931,19 +1064,16 @@ impl Deserialize for ExUnits {
 
 impl cbor_event::se::Serialize for Language {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self.0 {
-            LanguageKind::PlutusV1 => {
-                serializer.write_unsigned_integer(0u64)
-            },
-        }
+        // https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl#L324-L327
+        serializer.write_unsigned_integer(self.kind() as u64)
     }
 }
 
 impl Deserialize for Language {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            match raw.unsigned_integer()? {
-                0 => Ok(Language::new_plutus_v1()),
+            match LanguageKind::from_u64(raw.unsigned_integer()?) {
+                Some(kind) => Ok(Language(kind)),
                 _ => Err(DeserializeError::new("Language", DeserializeFailure::NoVariantMatched.into())),
             }
         })().map_err(|e| e.annotate("Language"))
@@ -1305,14 +1435,14 @@ mod tests {
         );
         let constr_0_hash = hex::encode(hash_plutus_data(&constr_0).to_bytes());
         assert_eq!(constr_0_hash, "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec");
-        let constr_0_roundtrip = PlutusData::from_bytes(constr_0.to_bytes()).unwrap();
+        // let constr_0_roundtrip = PlutusData::from_bytes(constr_0.to_bytes()).unwrap();
         // TODO: do we want semantic equality or bytewise equality?
-        //assert_eq!(constr_0, constr_0_roundtrip);
-        let constr_1854 = PlutusData::new_constr_plutus_data(
-            &ConstrPlutusData::new(&to_bignum(1854), &PlutusList::new())
-        );
-        let constr_1854_roundtrip = PlutusData::from_bytes(constr_1854.to_bytes()).unwrap();
-        //assert_eq!(constr_1854, constr_1854_roundtrip);
+        // assert_eq!(constr_0, constr_0_roundtrip);
+        // let constr_1854 = PlutusData::new_constr_plutus_data(
+        //     &ConstrPlutusData::new(&to_bignum(1854), &PlutusList::new())
+        // );
+        // let constr_1854_roundtrip = PlutusData::from_bytes(constr_1854.to_bytes()).unwrap();
+        // assert_eq!(constr_1854, constr_1854_roundtrip);
     }
 
     #[test]
@@ -1367,7 +1497,7 @@ mod tests {
             32, 150000, 32, 3345831, 1, 1,
         ];
         let cm = arr.iter().fold((CostModel::new(), 0), |(mut cm, i), x| {
-            cm.set(i, &Int::new_i32(x.clone()));
+            cm.set(i, &Int::new_i32(x.clone())).unwrap();
             (cm, i + 1)
         }).0;
         let mut cms = Costmdls::new();
@@ -1387,5 +1517,87 @@ mod tests {
             hex::decode("590e6f590e6c0100003323332223322333222332232332233223232333222323332223233333333222222223233322232333322223232332232323332223232332233223232333332222233223322332233223322332222323232232232325335303233300a3333573466e1cd55cea8042400046664446660a40060040026eb4d5d0a8041bae35742a00e66a05046666ae68cdc39aab9d37540029000102b11931a982599ab9c04f04c04a049357426ae89401c8c98d4c124cd5ce0268250240239999ab9a3370ea0089001102b11999ab9a3370ea00a9000102c11931a982519ab9c04e04b0490480473333573466e1cd55cea8012400046601a64646464646464646464646666ae68cdc39aab9d500a480008cccccccccc06ccd40a48c8c8cccd5cd19b8735573aa0049000119810981c9aba15002302e357426ae8940088c98d4c164cd5ce02e82d02c02b89aab9e5001137540026ae854028cd40a40a8d5d0a804999aa8183ae502f35742a010666aa060eb940bcd5d0a80399a8148211aba15006335029335505304b75a6ae854014c8c8c8cccd5cd19b8735573aa0049000119a8119919191999ab9a3370e6aae7540092000233502b33504175a6ae854008c118d5d09aba25002232635305d3357380c20bc0b80b626aae7940044dd50009aba150023232323333573466e1cd55cea80124000466a05266a082eb4d5d0a80118231aba135744a004464c6a60ba66ae7018417817016c4d55cf280089baa001357426ae8940088c98d4c164cd5ce02e82d02c02b89aab9e5001137540026ae854010cd40a5d71aba15003335029335505375c40026ae854008c0e0d5d09aba2500223263530553357380b20ac0a80a626ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226aae7940044dd50009aba150023232323333573466e1d4005200623020303a357426aae79400c8cccd5cd19b875002480108c07cc110d5d09aab9e500423333573466e1d400d20022301f302f357426aae7940148cccd5cd19b875004480008c088dd71aba135573ca00c464c6a60a066ae7015014413c13813413012c4d55cea80089baa001357426ae8940088c98d4c124cd5ce026825024023882489931a982419ab9c4910350543500049047135573ca00226ea80044d55ce9baa001135744a00226aae7940044dd50009109198008018011000911111111109199999999980080580500480400380300280200180110009109198008018011000891091980080180109000891091980080180109000891091980080180109000909111180200290911118018029091111801002909111180080290008919118011bac0013200135503c2233335573e0024a01c466a01a60086ae84008c00cd5d100101811919191999ab9a3370e6aae75400d200023330073232323333573466e1cd55cea8012400046601a605c6ae854008cd404c0a8d5d09aba25002232635303433573807006a06606426aae7940044dd50009aba150033335500b75ca0146ae854008cd403dd71aba135744a004464c6a606066ae700d00c40bc0b84d5d1280089aab9e5001137540024442466600200800600440024424660020060044002266aa002eb9d6889119118011bab00132001355036223233335573e0044a012466a01066aa05c600c6aae754008c014d55cf280118021aba200302b1357420022244004244244660020080062400224464646666ae68cdc3a800a400046a05e600a6ae84d55cf280191999ab9a3370ea00490011281791931a981399ab9c02b028026025024135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011980318039aba15002375a6ae84d5d1280111931a981219ab9c028025023022135573ca00226ea80048848cc00400c00880048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98d4c080cd5ce01201080f80f09baa00112232323333573466e1d400520042500723333573466e1d4009200223500a3006357426aae7940108cccd5cd19b87500348000940288c98d4c08ccd5ce01381201101081000f89aab9d50011375400224244460060082244400422444002240024646666ae68cdc3a800a4004400c46666ae68cdc3a80124000400c464c6a603666ae7007c0700680640604d55ce9baa0011220021220012001232323232323333573466e1d4005200c200b23333573466e1d4009200a200d23333573466e1d400d200823300b375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c46601a6eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc048c050d5d0a8049bae357426ae8940248cccd5cd19b875006480088c050c054d5d09aab9e500b23333573466e1d401d2000230133016357426aae7940308c98d4c080cd5ce01201080f80f00e80e00d80d00c80c09aab9d5004135573ca00626aae7940084d55cf280089baa00121222222230070082212222222330060090082122222223005008122222220041222222200322122222223300200900822122222223300100900820012323232323333573466e1d400520022333008375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea00490001180518059aba135573ca00c464c6a602266ae7005404804003c0384d55cea80189aba25001135573ca00226ea80048488c00800c888488ccc00401401000c80048c8c8cccd5cd19b875001480088c018dd71aba135573ca00646666ae68cdc3a80124000460106eb8d5d09aab9e5004232635300b33573801e01801401201026aae7540044dd5000909118010019091180080190008891119191999ab9a3370e6aae75400920002335500b300635742a004600a6ae84d5d1280111931a980419ab9c00c009007006135573ca00226ea800526120012001112212330010030021120014910350543100222123330010040030022001121223002003112200112001120012001122002122001200111232300100122330033002002001332323233322233322233223332223322332233322233223322332233223233322232323322323232323333222232332232323222323222325335301a5335301a333573466e1cc8cccd54c05048004c8cd406488ccd406400c004008d4058004cd4060888c00cc008004800488cdc0000a40040029000199aa98068900091299a980e299a9a81a1a98169a98131a9812001110009110019119a98188011281c11a81c8009080f880e899a8148010008800a8141a981028009111111111005240040380362038266ae712413c53686f756c642062652065786163746c79206f6e652073637269707420696e70757420746f2061766f696420646f75626c65207361742069737375650001b15335303500315335301a5335301a333573466e20ccc064ccd54c03448005402540a0cc020d4c0c00188880094004074074cdc09a9818003111001a80200d80e080e099ab9c49010f73656c6c6572206e6f7420706169640001b15335301a333573466e20ccc064cc88ccd54c03c48005402d40a8cc028004009400401c074075401006c07040704cd5ce24810d66656573206e6f7420706169640001b101b15335301a3322353022002222222222253353503e33355301f1200133502322533535040002210031001503f253353027333573466e3c0300040a40a04d41040045410000c840a4409d4004d4c0c001888800840704cd5ce2491c4f6e6c792073656c6c65722063616e2063616e63656c206f666665720001b101b135301d00122002153353016333573466e2540040d406005c40d4540044cdc199b8235302b001222003480c920d00f2235301a0012222222222333553011120012235302a002222353034003223353038002253353026333573466e3c0500040a009c4cd40cc01401c401c801d40b0024488cd54c02c480048d4d5408c00488cd54098008cd54c038480048d4d5409800488cd540a4008ccd4d540340048cc0e12000001223303900200123303800148000004cd54c02c480048d4d5408c00488cd54098008ccd4d540280048cd54c03c480048d4d5409c00488cd540a8008d5404400400488ccd5540200580080048cd54c03c480048d4d5409c00488cd540a8008d5403c004004ccd55400c044008004444888ccd54c018480054080cd54c02c480048d4d5408c00488cd54098008d54034004ccd54c0184800488d4d54090008894cd4c05cccd54c04048004c8cd405488ccd4d402c00c88008008004d4d402400488004cd4024894cd4c064008406c40040608d4d5409c00488cc028008014018400c4cd409001000d4084004cd54c02c480048d4d5408c00488c8cd5409c00cc004014c8004d540d8894cd4d40900044d5403400c884d4d540a4008894cd4c070cc0300080204cd5404801c0044c01800c00848848cc00400c00848004c8004d540b488448894cd4d40780044008884cc014008ccd54c01c480040140100044484888c00c01044884888cc0080140104484888c004010448004c8004d540a08844894cd4d406000454068884cd406cc010008cd54c01848004010004c8004d5409c88448894cd4d40600044d401800c884ccd4024014c010008ccd54c01c4800401401000448d4d400c0048800448d4d40080048800848848cc00400c0084800488ccd5cd19b8f002001006005222323230010053200135502522335350130014800088d4d54060008894cd4c02cccd5cd19b8f00200900d00c13007001130060033200135502422335350120014800088d4d5405c008894cd4c028ccd5cd19b8f00200700c00b10011300600312200212200120014881002212330010030022001222222222212333333333300100b00a009008007006005004003002200122123300100300220012221233300100400300220011122002122122330010040031200111221233001003002112001221233001003002200121223002003212230010032001222123330010040030022001121223002003112200112001122002122001200122337000040029040497a0088919180080091198019801001000a4411c28f07a93d7715db0bdc1766c8bd5b116602b105c02c54fc3bcd0d4680001").unwrap().clone(),
         ).unwrap();
         assert_eq!(script.hash(), hash);
+    }
+
+    fn redeemer_with_ex_units(mem: &BigNum, steps: &BigNum) -> Redeemer {
+        Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &BigNum::zero(),
+            &PlutusData::new_integer(&BigInt::from_str("0").unwrap()),
+            &ExUnits::new(mem, steps),
+        )
+    }
+
+    #[test]
+    fn test_total_ex_units() {
+        let mut r = Redeemers::new();
+
+        fn assert_ex_units(eu: &ExUnits, exp_mem: u64, exp_steps: u64) {
+            assert_eq!(eu.mem, to_bignum(exp_mem));
+            assert_eq!(eu.steps, to_bignum(exp_steps));
+        }
+
+        r.add(&redeemer_with_ex_units(&to_bignum(10), &to_bignum(100)));
+        assert_ex_units(&r.total_ex_units().unwrap(), 10, 100);
+        r.add(&redeemer_with_ex_units(&to_bignum(20), &to_bignum(200)));
+        assert_ex_units(&r.total_ex_units().unwrap(), 30, 300);
+        r.add(&redeemer_with_ex_units(&to_bignum(30), &to_bignum(300)));
+        assert_ex_units(&r.total_ex_units().unwrap(), 60, 600);
+    }
+
+    #[test]
+    fn test_empty_constr_data() {
+        assert_eq!(
+            PlutusData::new_empty_constr_plutus_data(&BigNum::one()),
+            PlutusData::new_constr_plutus_data(
+                &ConstrPlutusData::new(
+                    &BigNum::from_str("1").unwrap(),
+                    &PlutusList::new(),
+                ),
+            ),
+        )
+    }
+
+    #[test]
+    fn test_plutus_script_version() {
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let s1: PlutusScript = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let s2: PlutusScript = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        assert_eq!(s1.bytes(), bytes[1..]);
+        assert_eq!(s2.bytes(), bytes[1..]);
+        assert_eq!(s1.language_version(), Language::new_plutus_v1());
+        assert_eq!(s2.language_version(), Language::new_plutus_v2());
+
+        assert_eq!(s1, PlutusScript::from_bytes_with_version(
+            bytes.clone(),
+            &Language::new_plutus_v1(),
+        ).unwrap());
+        assert_eq!(s2, PlutusScript::from_bytes_with_version(
+            bytes.clone(),
+            &Language::new_plutus_v2(),
+        ).unwrap());
+    }
+
+    #[test]
+    fn test_language_roundtrip() {
+        fn deserialize_language_from_uint(x: u64) -> Result<Language, DeserializeError> {
+            let mut buf = Serializer::new_vec();
+            x.serialize(&mut buf).unwrap();
+            Language::from_bytes(buf.finalize())
+        }
+
+        assert_eq!(deserialize_language_from_uint(0).unwrap(), Language::new_plutus_v1());
+        assert_eq!(deserialize_language_from_uint(1).unwrap(), Language::new_plutus_v2());
+        assert!(deserialize_language_from_uint(2).is_err());
+
+        assert_eq!(
+            Language::from_bytes(Language::new_plutus_v1().to_bytes()).unwrap(),
+            Language::new_plutus_v1(),
+        );
+        assert_eq!(
+            Language::from_bytes(Language::new_plutus_v2().to_bytes()).unwrap(),
+            Language::new_plutus_v2(),
+        );
     }
 }

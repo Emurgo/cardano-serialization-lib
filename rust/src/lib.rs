@@ -1,4 +1,5 @@
 #![cfg_attr(feature = "with-bench", feature(test))]
+#![allow(deprecated)]
 
 #[macro_use]
 extern crate cfg_if;
@@ -53,6 +54,8 @@ pub mod typed_bytes;
 pub mod emip3;
 #[macro_use]
 pub mod utils;
+mod serialization_macros;
+mod fakes;
 
 use address::*;
 use crypto::*;
@@ -181,10 +184,14 @@ impl TransactionInputs {
     pub fn add(&mut self, elem: &TransactionInput) {
         self.0.push(elem.clone());
     }
+
+    pub fn to_option(&self) -> Option<TransactionInputs> {
+        if self.len() > 0 { Some(self.clone()) } else { None }
+    }
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionOutputs(Vec<TransactionOutput>);
 
 to_from_bytes!(TransactionOutputs);
@@ -207,6 +214,48 @@ impl TransactionOutputs {
 
     pub fn add(&mut self, elem: &TransactionOutput) {
         self.0.push(elem.clone());
+    }
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum DataCostEnum {
+    CoinsPerWord(Coin),
+    CoinsPerByte(Coin)
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct DataCost(DataCostEnum);
+
+#[wasm_bindgen]
+impl DataCost {
+
+    /// !!! DEPRECATED !!!
+    /// Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead."
+    )]
+    pub fn new_coins_per_word(coins_per_word: &Coin) -> DataCost {
+        if coins_per_word != &BigNum::zero() {
+            DataCost(DataCostEnum::CoinsPerWord(coins_per_word.clone()))
+        } else {
+            DataCost(DataCostEnum::CoinsPerByte(BigNum::zero()))
+        }
+    }
+
+    pub fn new_coins_per_byte(coins_per_byte: &Coin) -> DataCost {
+        DataCost(DataCostEnum::CoinsPerByte(coins_per_byte.clone()))
+    }
+
+    pub fn coins_per_byte(&self) -> Coin {
+        match &self.0 {
+            DataCostEnum::CoinsPerByte(coins_per_byte) => coins_per_byte.clone(),
+            DataCostEnum::CoinsPerWord(coins_per_word) => {
+                let bytes_in_word = to_bignum(8);
+                coins_per_word.div_floor(&bytes_in_word)
+            }
+        }
     }
 }
 
@@ -240,8 +289,17 @@ impl Certificates {
 pub type RequiredSigners = Ed25519KeyHashes;
 pub type RequiredSignersSet = BTreeSet<Ed25519KeyHash>;
 
+impl From<&Ed25519KeyHashes> for RequiredSignersSet {
+    fn from(keys: &Ed25519KeyHashes) -> Self {
+        keys.0.iter().fold(BTreeSet::new(), |mut set, k| {
+            set.insert(k.clone());
+            set
+        })
+    }
+}
+
 #[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionBody {
     inputs: TransactionInputs,
     outputs: TransactionOutputs,
@@ -257,6 +315,9 @@ pub struct TransactionBody {
     collateral: Option<TransactionInputs>,
     required_signers: Option<RequiredSigners>,
     network_id: Option<NetworkId>,
+    collateral_return: Option<TransactionOutput>,
+    total_collateral: Option<Coin>,
+    reference_inputs: Option<TransactionInputs>,
 }
 
 to_from_bytes!(TransactionBody);
@@ -394,6 +455,14 @@ impl TransactionBody {
         self.mint()
     }
 
+    pub fn set_reference_inputs(&mut self, reference_inputs: &TransactionInputs) {
+        self.reference_inputs = Some(reference_inputs.clone())
+    }
+
+    pub fn reference_inputs(&self) -> Option<TransactionInputs> {
+        self.reference_inputs.clone()
+    }
+
     pub fn set_script_data_hash(&mut self, script_data_hash: &ScriptDataHash) {
         self.script_data_hash = Some(script_data_hash.clone())
     }
@@ -426,6 +495,22 @@ impl TransactionBody {
         self.network_id.clone()
     }
 
+    pub fn set_collateral_return(&mut self, collateral_return: &TransactionOutput) {
+        self.collateral_return = Some(collateral_return.clone());
+    }
+
+    pub fn collateral_return(&self) -> Option<TransactionOutput> {
+        self.collateral_return.clone()
+    }
+
+    pub fn set_total_collateral(&mut self, total_collateral: &Coin) {
+        self.total_collateral = Some(total_collateral.clone());
+    }
+
+    pub fn total_collateral(&self) -> Option<Coin> {
+        self.total_collateral.clone()
+    }
+
     /// !!! DEPRECATED !!!
     /// This constructor uses outdated slot number format for the ttl value.
     /// Use `.new_tx_body` and then `.set_ttl` instead
@@ -438,25 +523,11 @@ impl TransactionBody {
         outputs: &TransactionOutputs,
         fee: &Coin,
         ttl: Option<Slot32>) -> Self {
-        Self {
-            inputs: inputs.clone(),
-            outputs: outputs.clone(),
-            fee: fee.clone(),
-            ttl: match ttl.clone() {
-                Some(ttl32) => Some(ttl32.into()),
-                None => None
-            },
-            certs: None,
-            withdrawals: None,
-            update: None,
-            auxiliary_data_hash: None,
-            validity_start_interval: None,
-            mint: None,
-            script_data_hash: None,
-            collateral: None,
-            required_signers: None,
-            network_id: None,
+        let mut tx = Self::new_tx_body(inputs, outputs, fee);
+        if let Some(slot32) = ttl {
+            tx.set_ttl(&to_bignum(slot32 as u64));
         }
+        tx
     }
 
     /// Returns a new TransactionBody.
@@ -481,6 +552,9 @@ impl TransactionBody {
             collateral: None,
             required_signers: None,
             network_id: None,
+            collateral_return: None,
+            total_collateral: None,
+            reference_inputs: None,
         }
     }
 }
@@ -518,8 +592,9 @@ impl TransactionInput {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionOutput {
     address: Address,
-    pub (crate) amount: Value,
-    data_hash: Option<DataHash>,
+    amount: Value,
+    plutus_data: Option<DataOption>,
+    script_ref: Option<ScriptRef>
 }
 
 to_from_bytes!(TransactionOutput);
@@ -537,18 +612,59 @@ impl TransactionOutput {
     }
 
     pub fn data_hash(&self) -> Option<DataHash> {
-        self.data_hash.clone()
+        match &self.plutus_data {
+            Some(DataOption::DataHash(data_hash)) => Some(data_hash.clone()),
+            _ => None
+        }
+    }
+
+    pub fn plutus_data(&self) -> Option<PlutusData> {
+        match &self.plutus_data {
+            Some(DataOption::Data(plutus_data)) => Some(plutus_data.clone()),
+            _ => None
+        }
+    }
+
+    pub fn script_ref(&self) -> Option<ScriptRef> {
+        self.script_ref.clone()
+    }
+
+    pub fn set_script_ref(&mut self, script_ref: &ScriptRef) {
+        self.script_ref = Some(script_ref.clone());
+    }
+
+    pub fn set_plutus_data(&mut self, data: &PlutusData) {
+        self.plutus_data = Some(DataOption::Data(data.clone()));
     }
 
     pub fn set_data_hash(&mut self, data_hash: &DataHash) {
-        self.data_hash = Some(data_hash.clone());
+        self.plutus_data = Some(DataOption::DataHash(data_hash.clone()));
+    }
+
+    pub fn has_plutus_data(&self) -> bool {
+        match &self.plutus_data {
+            Some(DataOption::Data(_)) => true,
+            _ => false
+        }
+    }
+
+    pub fn has_data_hash(&self) -> bool {
+        match &self.plutus_data {
+            Some(DataOption::DataHash(_)) => true,
+            _ => false
+        }
+    }
+
+    pub fn has_script_ref(&self) -> bool {
+        self.script_ref.is_some()
     }
 
     pub fn new(address: &Address, amount: &Value) -> Self {
         Self {
             address: address.clone(),
             amount: amount.clone(),
-            data_hash: None,
+            plutus_data: None,
+            script_ref: None
         }
     }
 }
@@ -638,6 +754,7 @@ to_from_json!(Ed25519KeyHashes);
 
 #[wasm_bindgen]
 impl Ed25519KeyHashes {
+
     pub fn new() -> Self {
         Self(Vec::new())
     }
@@ -652,6 +769,10 @@ impl Ed25519KeyHashes {
 
     pub fn add(&mut self, elem: &Ed25519KeyHash) {
         self.0.push(elem.clone());
+    }
+
+    pub fn to_option(&self) -> Option<Ed25519KeyHashes> {
+        if self.len() > 0 { Some(self.clone()) } else { None }
     }
 }
 
@@ -1600,7 +1721,7 @@ impl JsonSchema for Withdrawals {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionWitnessSet {
     vkeys: Option<Vkeywitnesses>,
     native_scripts: Option<NativeScripts>,
@@ -1885,6 +2006,64 @@ pub enum NativeScriptEnum {
     TimelockExpiry(TimelockExpiry),
 }
 
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ScriptRefEnum {
+    NativeScript(NativeScript),
+    PlutusScript(PlutusScript),
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ScriptRef(ScriptRefEnum);
+
+to_from_bytes!(ScriptRef);
+
+#[wasm_bindgen]
+impl ScriptRef {
+
+    pub fn new_native_script(native_script: &NativeScript) -> Self {
+        Self(ScriptRefEnum::NativeScript(native_script.clone()))
+    }
+
+    pub fn new_plutus_script(plutus_script: &PlutusScript) -> Self {
+        Self(ScriptRefEnum::PlutusScript(plutus_script.clone()))
+    }
+
+    pub fn is_native_script(&self) -> bool {
+        match &self.0 {
+            ScriptRefEnum::NativeScript(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_plutus_script(&self) -> bool {
+        match &self.0 {
+            ScriptRefEnum::PlutusScript(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn native_script(&self) -> Option<NativeScript> {
+        match &self.0 {
+            ScriptRefEnum::NativeScript(native_script) => Some(native_script.clone()),
+            _ => None
+        }
+    }
+
+    pub fn plutus_script(&self) -> Option<PlutusScript> {
+        match &self.0 {
+            ScriptRefEnum::PlutusScript(plutus_script) => Some(plutus_script.clone()),
+            _ => None
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub enum DataOption {
+    DataHash(DataHash),
+    Data(PlutusData)
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct NativeScript(NativeScriptEnum);
@@ -1902,6 +2081,7 @@ to_from_json!(NativeScript);
 pub enum ScriptHashNamespace {
     NativeScript = 0,
     PlutusScript = 1,
+    PlutusScriptV2 = 2,
 }
 
 #[wasm_bindgen]
@@ -2381,18 +2561,22 @@ impl ProtocolParamUpdate {
         self.treasury_growth_rate.clone()
     }
 
-    pub fn set_d(&mut self, d: &UnitInterval) {
-        self.d = Some(d.clone())
-    }
-
+    /// !!! DEPRECATED !!!
+    /// Since babbage era this param is outdated. But this param you can meet in a pre-babbage block.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Since babbage era this param is outdated. But this param you can meet in a pre-babbage block."
+    )]
     pub fn d(&self) -> Option<UnitInterval> {
         self.d.clone()
     }
 
-    pub fn set_extra_entropy(&mut self, extra_entropy: &Nonce) {
-        self.extra_entropy = Some(extra_entropy.clone())
-    }
-
+    /// !!! DEPRECATED !!!
+    /// Since babbage era this param is outdated. But this param you can meet in a pre-babbage block.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Since babbage era this param is outdated. But this param you can meet in a pre-babbage block."
+    )]
     pub fn extra_entropy(&self) -> Option<Nonce> {
         self.extra_entropy.clone()
     }
@@ -2691,7 +2875,7 @@ impl Header {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct OperationalCert {
     hot_vkey: KESVKey,
     sequence_number: u32,
@@ -2731,16 +2915,21 @@ impl OperationalCert {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum HeaderLeaderCertEnum {
+    NonceAndLeader(VRFCert, VRFCert),
+    VrfResult(VRFCert),
+}
+
 #[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct HeaderBody {
     block_number: u32,
     slot: SlotBigNum,
     prev_hash: Option<BlockHash>,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
-    nonce_vrf: VRFCert,
-    leader_vrf: VRFCert,
+    leader_cert: HeaderLeaderCertEnum,
     block_body_size: u32,
     block_body_hash: BlockHash,
     operational_cert: OperationalCert,
@@ -2785,12 +2974,47 @@ impl HeaderBody {
         self.vrf_vkey.clone()
     }
 
-    pub fn nonce_vrf(&self) -> VRFCert {
-        self.nonce_vrf.clone()
+    /// If this function returns true, the `.nonce_vrf_or_nothing`
+    /// and the `.leader_vrf_or_nothing` functions will return
+    /// non-empty results
+    pub fn has_nonce_and_leader_vrf(&self) -> bool {
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::NonceAndLeader(_, _) => true,
+            _ => false,
+        }
     }
 
-    pub fn leader_vrf(&self) -> VRFCert {
-        self.leader_vrf.clone()
+    /// Might return nothing in case `.has_nonce_and_leader_vrf` returns false
+    pub fn nonce_vrf_or_nothing(&self) -> Option<VRFCert> {
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::NonceAndLeader(nonce, _) => Some(nonce.clone()),
+            _ => None,
+        }
+    }
+
+    /// Might return nothing in case `.has_nonce_and_leader_vrf` returns false
+    pub fn leader_vrf_or_nothing(&self) -> Option<VRFCert> {
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::NonceAndLeader(_, leader) => Some(leader.clone()),
+            _ => None,
+        }
+    }
+
+    /// If this function returns true, the `.vrf_result_or_nothing`
+    /// function will return a non-empty result
+    pub fn has_vrf_result(&self) -> bool {
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::VrfResult(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Might return nothing in case `.has_vrf_result` returns false
+    pub fn vrf_result_or_nothing(&self) -> Option<VRFCert> {
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::VrfResult(cert) => Some(cert.clone()),
+            _ => None,
+        }
     }
 
     pub fn block_body_size(&self) -> u32 {
@@ -2816,15 +3040,27 @@ impl HeaderBody {
     since = "10.1.0",
     note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use new_bignum instead."
     )]
-    pub fn new(block_number: u32, slot: Slot32, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+    pub fn new(
+        block_number: u32,
+        slot: Slot32,
+        prev_hash: Option<BlockHash>,
+        issuer_vkey: &Vkey,
+        vrf_vkey: &VRFVKey,
+        vrf_result: &VRFCert,
+        block_body_size: u32,
+        block_body_hash: &BlockHash,
+        operational_cert: &OperationalCert,
+        protocol_version: &ProtocolVersion,
+    ) -> Self {
         Self {
             block_number: block_number,
             slot: slot.clone().into(),
             prev_hash: prev_hash.clone(),
             issuer_vkey: issuer_vkey.clone(),
             vrf_vkey: vrf_vkey.clone(),
-            nonce_vrf: nonce_vrf.clone(),
-            leader_vrf: leader_vrf.clone(),
+            leader_cert: HeaderLeaderCertEnum::VrfResult(
+                vrf_result.clone(),
+            ),
             block_body_size: block_body_size,
             block_body_hash: block_body_hash.clone(),
             operational_cert: operational_cert.clone(),
@@ -2832,15 +3068,27 @@ impl HeaderBody {
         }
     }
 
-    pub fn new_headerbody(block_number: u32, slot: &SlotBigNum, prev_hash: Option<BlockHash>, issuer_vkey: &Vkey, vrf_vkey: &VRFVKey, nonce_vrf: &VRFCert, leader_vrf: &VRFCert, block_body_size: u32, block_body_hash: &BlockHash, operational_cert: &OperationalCert, protocol_version: &ProtocolVersion) -> Self {
+    pub fn new_headerbody(
+        block_number: u32,
+        slot: &SlotBigNum,
+        prev_hash: Option<BlockHash>,
+        issuer_vkey: &Vkey,
+        vrf_vkey: &VRFVKey,
+        vrf_result: &VRFCert,
+        block_body_size: u32,
+        block_body_hash: &BlockHash,
+        operational_cert: &OperationalCert,
+        protocol_version: &ProtocolVersion,
+    ) -> Self {
         Self {
             block_number: block_number,
             slot: slot.clone(),
             prev_hash: prev_hash.clone(),
             issuer_vkey: issuer_vkey.clone(),
             vrf_vkey: vrf_vkey.clone(),
-            nonce_vrf: nonce_vrf.clone(),
-            leader_vrf: leader_vrf.clone(),
+            leader_cert: HeaderLeaderCertEnum::VrfResult(
+                vrf_result.clone(),
+            ),
             block_body_size: block_body_size,
             block_body_hash: block_body_hash.clone(),
             operational_cert: operational_cert.clone(),

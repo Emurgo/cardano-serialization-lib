@@ -232,7 +232,7 @@ impl Deserialize for Certificates {
 
 impl cbor_event::se::Serialize for TransactionBody {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(3 + match &self.ttl { Some(_) => 1, None => 0 } + match &self.certs { Some(_) => 1, None => 0 } + match &self.withdrawals { Some(_) => 1, None => 0 } + match &self.update { Some(_) => 1, None => 0 } + match &self.auxiliary_data_hash { Some(_) => 1, None => 0 } + match &self.validity_start_interval { Some(_) => 1, None => 0 } + match &self.mint { Some(_) => 1, None => 0 } + match &self.script_data_hash { Some(_) => 1, None => 0 } + match &self.collateral { Some(_) => 1, None => 0 } + match &self.required_signers { Some(_) => 1, None => 0 } + match &self.network_id { Some(_) => 1, None => 0 }))?;
+        serializer.write_map(cbor_event::Len::Len(3 + opt64(&self.ttl) + opt64(&self.certs) + opt64(&self.withdrawals) + opt64(&self.update) + opt64(&self.auxiliary_data_hash) + opt64(&self.validity_start_interval) + opt64(&self.mint) + opt64(&self.script_data_hash) + opt64(&self.collateral) + opt64(&self.required_signers) + opt64(&self.network_id) + opt64(&self.collateral_return) + opt64(&self.total_collateral) + opt64(&self.reference_inputs)))?;
         serializer.write_unsigned_integer(0)?;
         self.inputs.serialize(serializer)?;
         serializer.write_unsigned_integer(1)?;
@@ -283,6 +283,18 @@ impl cbor_event::se::Serialize for TransactionBody {
             serializer.write_unsigned_integer(15)?;
             field.serialize(serializer)?;
         }
+        if let Some(field) = &self.collateral_return {
+            serializer.write_unsigned_integer(16)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.total_collateral {
+            serializer.write_unsigned_integer(17)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.reference_inputs {
+            serializer.write_unsigned_integer(18)?;
+            field.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
@@ -307,6 +319,9 @@ impl Deserialize for TransactionBody {
             let mut collateral = None;
             let mut required_signers = None;
             let mut network_id = None;
+            let mut collateral_return = None;
+            let mut total_collateral = None;
+            let mut reference_inputs = None;
             let mut read = 0;
             while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
                 match raw.cbor_type()? {
@@ -434,6 +449,33 @@ impl Deserialize for TransactionBody {
                                 Ok(NetworkId::deserialize(raw)?)
                             })().map_err(|e| e.annotate("network_id"))?);
                         },
+                        16 =>  {
+                            if collateral_return.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(16)).into());
+                            }
+                            collateral_return = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(TransactionOutput::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("collateral_return"))?);
+                        },
+                        17 =>  {
+                            if total_collateral.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(17)).into());
+                            }
+                            total_collateral = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(Coin::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("total_collateral"))?);
+                        },
+                        18 => {
+                            if reference_inputs.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(18)).into());
+                            }
+                            reference_inputs = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(TransactionInputs::deserialize(raw)?)
+                            })().map_err(|e| e.annotate("reference_inputs"))?);
+                        },
                         unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                     },
                     CBORType::Text => match raw.text()?.as_str() {
@@ -478,6 +520,9 @@ impl Deserialize for TransactionBody {
                 collateral,
                 required_signers,
                 network_id,
+                collateral_return,
+                total_collateral,
+                reference_inputs,
             })
         })().map_err(|e| e.annotate("TransactionBody"))
     }
@@ -526,11 +571,31 @@ impl DeserializeEmbeddedGroup for TransactionInput {
 
 impl cbor_event::se::Serialize for TransactionOutput {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(if self.data_hash.is_some() { 3 } else { 2 }))?;
-        self.address.serialize(serializer)?;
-        self.amount.serialize(serializer)?;
-        if let Some(data_hash) = &self.data_hash {
-            data_hash.serialize(serializer)?;
+        if self.has_plutus_data() || self.has_script_ref() {
+            //post alonzo output
+            let map_len = 2 + opt64(&self.plutus_data) + opt64(&self.script_ref);
+            serializer.write_map(cbor_event::Len::Len(map_len))?;
+            serializer.write_unsigned_integer(0)?;
+            self.address.serialize(serializer)?;
+            serializer.write_unsigned_integer(1)?;
+            self.amount.serialize(serializer)?;
+            if let Some(field) = &self.plutus_data {
+                serializer.write_unsigned_integer(2)?;
+                field.serialize(serializer)?;
+            }
+            if let Some(field) = &self.script_ref {
+                serializer.write_unsigned_integer(3)?;
+                field.serialize(serializer)?;
+            }
+        } else {
+            //lagacy output
+            let data_hash = &self.data_hash();
+            serializer.write_array(cbor_event::Len::Len(2 + opt64(&data_hash)))?;
+            self.address.serialize(serializer)?;
+            self.amount.serialize(serializer)?;
+            if let Some(pure_data_hash) = data_hash {
+                pure_data_hash.serialize(serializer)?;
+            }
         }
         Ok(serializer)
     }
@@ -541,16 +606,22 @@ impl cbor_event::se::Serialize for TransactionOutput {
 impl Deserialize for TransactionOutput {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => /* it's ok */(),
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+            match raw.cbor_type()? {
+                CBORType::Array => {
+                    let len = raw.array()?;
+                    let ret = Self::deserialize_as_embedded_group(raw, len);
+                    match len {
+                        cbor_event::Len::Len(_) => /* TODO: check finite len somewhere */(),
+                        cbor_event::Len::Indefinite => match raw.special()? {
+                            CBORSpecial::Break => /* it's ok */(),
+                            _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
+                        },
+                    }
+                    ret
                 },
+                CBORType::Map => deserialize_as_postalonzo_output(raw),
+                cbor_type  => Err(DeserializeFailure::UnexpectedKeyType(cbor_type).into())
             }
-            ret
         })().map_err(|e| e.annotate("TransactionOutput"))
     }
 }
@@ -580,7 +651,7 @@ impl DeserializeEmbeddedGroup for TransactionOutput {
                 let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
                 let bytes = raw.bytes().unwrap();
                 if bytes.len() == DataHash::BYTE_COUNT {
-                    Some(DataHash(bytes[..DataHash::BYTE_COUNT].try_into().unwrap()))
+                    Some(DataOption::DataHash(DataHash(bytes[..DataHash::BYTE_COUNT].try_into().unwrap())))
                 } else {
                     // This is an address of the next output in sequence, which luckily is > 32 bytes so there's no confusion
                     // Go to previous place in array then carry on
@@ -596,8 +667,220 @@ impl DeserializeEmbeddedGroup for TransactionOutput {
         Ok(TransactionOutput {
             address,
             amount,
-            data_hash,
+            plutus_data: data_hash,
+            script_ref : None
         })
+    }
+}
+
+fn deserialize_as_postalonzo_output<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<TransactionOutput, DeserializeError>  {
+    (|| -> Result<_, DeserializeError> {
+        let len = raw.map()?;
+        let mut read_len = CBORReadLen::new(len);
+        let mut address = None;
+        let mut amount = None;
+        let mut data = None;
+        let mut script_ref = None;
+        let mut read = 0;
+        while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
+            match raw.cbor_type()? {
+                CBORType::UnsignedInteger => match raw.unsigned_integer()? {
+                    0 =>  {
+                        if address.is_some() {
+                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(0)).into());
+                        }
+                        address = Some((|| -> Result<_, DeserializeError> {
+                            read_len.read_elems(1)?;
+                            Ok(Address::deserialize(raw)?)
+                        })().map_err(|e| e.annotate("address"))?);
+                    },
+                    1 =>  {
+                        if amount.is_some() {
+                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(1)).into());
+                        }
+                        amount = Some((|| -> Result<_, DeserializeError> {
+                            read_len.read_elems(1)?;
+                            Ok(Value::deserialize(raw)?)
+                        })().map_err(|e| e.annotate("amount"))?);
+                    },
+                    2 =>  {
+                        if data.is_some() {
+                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
+                        }
+                        data = Some((|| -> Result<_, DeserializeError> {
+                            read_len.read_elems(1)?;
+                            Ok(DataOption::deserialize(raw)?)
+                        })().map_err(|e| e.annotate("data"))?);
+                    },
+                    3 =>  {
+                        if script_ref.is_some() {
+                            return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
+                        }
+                        script_ref = Some((|| -> Result<_, DeserializeError> {
+                            read_len.read_elems(1)?;
+                            Ok(ScriptRef::deserialize(raw)?)
+                        })().map_err(|e| e.annotate("script_ref"))?);
+                    },
+                    unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
+                },
+                other_type => return Err(DeserializeFailure::UnexpectedKeyType(other_type).into()),
+            }
+            read += 1;
+        }
+        let address = match address {
+            Some(x) => x,
+            None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(0)).into()),
+        };
+        let amount = match amount {
+            Some(x) => x,
+            None => return Err(DeserializeFailure::MandatoryFieldMissing(Key::Uint(1)).into()),
+        };
+
+        read_len.finish()?;
+        Ok(TransactionOutput {
+            address,
+            amount,
+            plutus_data: data,
+            script_ref
+        })
+    })().map_err(|e| e.annotate("TransactionOutput"))
+}
+
+impl Deserialize for DataOption {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            if let cbor_event::Len::Len(n) = len {
+                if n != 2 {
+                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(2, len, "[id, datum_or_hash]")).into())
+                }
+            }
+            let datum = match raw.unsigned_integer()? {
+                0 => DataOption::DataHash(DataHash::deserialize(raw)?),
+                1 => {
+                    match raw.tag()? {
+                        //bytes string tag
+                        24 => {
+                            let data = (|| -> Result<_, DeserializeError> {
+                                Ok(from_bytes(&raw.bytes()?)?)
+                            })().map_err(|e| e.annotate("PlutusData"))?;
+                            DataOption::Data(data)
+                        },
+                        tag => {
+                            return Err(DeserializeFailure::TagMismatch {
+                                found: tag,
+                                expected: 24,
+                            }.into());
+                        }
+                    }
+                }
+                n => return Err(DeserializeFailure::FixedValueMismatch {
+                    found: Key::Uint(n),
+                    expected: Key::Uint(0),
+                }.into()),
+            };
+            if let cbor_event::Len::Indefinite = len {
+                if raw.special()? != CBORSpecial::Break {
+                    return Err(DeserializeFailure::EndingBreakMissing.into());
+                }
+            }
+            Ok(datum)
+        })().map_err(|e| e.annotate("DataOption"))
+    }
+}
+
+impl cbor_event::se::Serialize for DataOption {
+    fn serialize<'a, W: Write + Sized>(&self, serializer: &'a mut Serializer<W>) -> cbor_event::Result<&'a mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(2))?;
+        match &self {
+            DataOption::DataHash(data_hash) => {
+                serializer.write_unsigned_integer(0)?;
+                data_hash.serialize(serializer)?;
+            },
+            DataOption::Data(data) => {
+                serializer.write_unsigned_integer(1)?;
+                let bytes = data.to_bytes();
+                serializer.write_tag(24)?
+                    .write_bytes(&bytes)?;
+            }
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for ScriptRefEnum {
+    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            let len = raw.array()?;
+            if let cbor_event::Len::Len(n) = len {
+                if n != 2 {
+                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(2, len, "[id, native_or_putus_script]")).into())
+                }
+            }
+            let script_ref = match raw.unsigned_integer()? {
+                0 => ScriptRefEnum::NativeScript(NativeScript::deserialize(raw)?),
+                1 => ScriptRefEnum::PlutusScript(PlutusScript::deserialize(raw)?),
+                2 => ScriptRefEnum::PlutusScript(
+                    PlutusScript::deserialize(raw)?
+                        .clone_as_version(&Language::new_plutus_v2())
+                ),
+                n => return Err(DeserializeFailure::FixedValueMismatch {
+                    found: Key::Uint(n),
+                    expected: Key::Uint(0),
+                }.into()),
+            };
+            if let cbor_event::Len::Indefinite = len {
+                if raw.special()? != CBORSpecial::Break {
+                    return Err(DeserializeFailure::EndingBreakMissing.into());
+                }
+            }
+            Ok(script_ref)
+        })().map_err(|e| e.annotate("ScriptRefEnum"))
+    }
+}
+
+impl cbor_event::se::Serialize for ScriptRefEnum {
+    fn serialize<'a, W: Write + Sized>(&self, serializer: &'a mut Serializer<W>) -> cbor_event::Result<&'a mut Serializer<W>> {
+        serializer.write_array(cbor_event::Len::Len(2))?;
+        match &self {
+            ScriptRefEnum::NativeScript(native_script) => {
+                serializer.write_unsigned_integer(0)?;
+                native_script.serialize(serializer)?;
+            },
+            ScriptRefEnum::PlutusScript(plutus_script) => {
+                serializer.write_unsigned_integer(plutus_script.script_namespace() as u64)?;
+                plutus_script.serialize(serializer)?;
+            }
+        }
+        Ok(serializer)
+    }
+}
+
+impl Deserialize for ScriptRef {
+    fn deserialize<R: BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        (|| -> Result<_, DeserializeError> {
+            match raw.tag()? {
+                //bytes string tag
+                24 => {
+                    Ok(ScriptRef(from_bytes(&raw.bytes()?)?))
+                }
+                tag => {
+                    return Err(DeserializeFailure::TagMismatch {
+                        found: tag,
+                        expected: 24,
+                    }.into());
+                }
+            }
+        })().map_err(|e| e.annotate("ScriptRef"))
+    }
+}
+
+impl cbor_event::se::Serialize for ScriptRef {
+    fn serialize<'a, W: Write + Sized>(&self, serializer: &'a mut Serializer<W>) -> cbor_event::Result<&'a mut Serializer<W>> {
+        let bytes = to_bytes(&self.0);
+        serializer.write_tag(24)?
+            .write_bytes(&bytes)?;
+        Ok(serializer)
     }
 }
 
@@ -1265,7 +1548,8 @@ impl cbor_event::se::Serialize for MIRToStakeCredentials {
 impl Deserialize for MIRToStakeCredentials {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let mut table = linked_hash_map::LinkedHashMap::new();let len = raw.map()?;
+            let mut table = linked_hash_map::LinkedHashMap::new();
+            let len = raw.map()?;
             while match len { cbor_event::Len::Len(n) => table.len() < n as usize, cbor_event::Len::Indefinite => true, } {
                 if raw.cbor_type()? == CBORType::Special {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
@@ -1787,7 +2071,11 @@ impl Deserialize for Withdrawals {
 
 impl cbor_event::se::Serialize for TransactionWitnessSet {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(match &self.vkeys { Some(_) => 1, None => 0 } + match &self.native_scripts { Some(_) => 1, None => 0 } + match &self.bootstraps { Some(_) => 1, None => 0 } + match &self.plutus_scripts { Some(_) => 1, None => 0 } + match &self.plutus_data { Some(_) => 1, None => 0 } + match &self.redeemers { Some(_) => 1, None => 0 }))?;
+        let plutus_added_length = match &self.plutus_scripts {
+            Some(scripts) => 1 + (scripts.has_version(&Language::new_plutus_v2()) as u64),
+            _ => 0
+        };
+        serializer.write_map(cbor_event::Len::Len(opt64(&self.vkeys) + opt64(&self.native_scripts) + opt64(&self.bootstraps) + opt64(&self.plutus_data) + opt64(&self.redeemers) + plutus_added_length))?;
         if let Some(field) = &self.vkeys {
             serializer.write_unsigned_integer(0)?;
             field.serialize(serializer)?;
@@ -1800,9 +2088,13 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
             serializer.write_unsigned_integer(2)?;
             field.serialize(serializer)?;
         }
-        if let Some(field) = &self.plutus_scripts {
+        if let Some(plutus_scripts) = &self.plutus_scripts {
             serializer.write_unsigned_integer(3)?;
-            field.serialize(serializer)?;
+            plutus_scripts.by_version(&Language::new_plutus_v1()).serialize(serializer)?;
+            if plutus_added_length > 1 {
+                serializer.write_unsigned_integer(6)?;
+                plutus_scripts.by_version(&Language::new_plutus_v2()).serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.plutus_data {
             serializer.write_unsigned_integer(4)?;
@@ -1824,7 +2116,8 @@ impl Deserialize for TransactionWitnessSet {
             let mut vkeys = None;
             let mut native_scripts = None;
             let mut bootstraps = None;
-            let mut plutus_scripts = None;
+            let mut plutus_scripts_v1 = None;
+            let mut plutus_scripts_v2 = None;
             let mut plutus_data = None;
             let mut redeemers = None;
             let mut read = 0;
@@ -1859,13 +2152,13 @@ impl Deserialize for TransactionWitnessSet {
                             })().map_err(|e| e.annotate("bootstraps"))?);
                         },
                         3 =>  {
-                            if plutus_scripts.is_some() {
+                            if plutus_scripts_v1.is_some() {
                                 return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
                             }
-                            plutus_scripts = Some((|| -> Result<_, DeserializeError> {
+                            plutus_scripts_v1 = Some((|| -> Result<_, DeserializeError> {
                                 read_len.read_elems(1)?;
                                 Ok(PlutusScripts::deserialize(raw)?)
-                            })().map_err(|e| e.annotate("plutus_scripts"))?);
+                            })().map_err(|e| e.annotate("plutus_scripts_v1"))?);
                         },
                         4 =>  {
                             if plutus_data.is_some() {
@@ -1885,6 +2178,15 @@ impl Deserialize for TransactionWitnessSet {
                                 Ok(Redeemers::deserialize(raw)?)
                             })().map_err(|e| e.annotate("redeemers"))?);
                         },
+                        6 =>  {
+                            if plutus_scripts_v2.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(6)).into());
+                            }
+                            plutus_scripts_v2 = Some((|| -> Result<_, DeserializeError> {
+                                read_len.read_elems(1)?;
+                                Ok(PlutusScripts::deserialize(raw)?.map_as_version(&Language::new_plutus_v2()))
+                            })().map_err(|e| e.annotate("plutus_scripts_v2"))?);
+                        },
                         unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                     },
                     CBORType::Text => match raw.text()?.as_str() {
@@ -1902,6 +2204,12 @@ impl Deserialize for TransactionWitnessSet {
                 read += 1;
             }
             read_len.finish()?;
+            let plutus_scripts = match (plutus_scripts_v1, plutus_scripts_v2) {
+                (Some(v1), Some(v2)) => Some(v1.merge(&v2)),
+                (Some(v1), _) => Some(v1),
+                (_, Some(v2)) => Some(v2),
+                _ => None,
+            };
             Ok(Self {
                 vkeys,
                 native_scripts,
@@ -2550,7 +2858,7 @@ impl Deserialize for ProtocolVersions {
 }
 impl cbor_event::se::Serialize for ProtocolParamUpdate {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(match &self.minfee_a { Some(_) => 1, None => 0 } + match &self.minfee_b { Some(_) => 1, None => 0 } + match &self.max_block_body_size { Some(_) => 1, None => 0 } + match &self.max_tx_size { Some(_) => 1, None => 0 } + match &self.max_block_header_size { Some(_) => 1, None => 0 } + match &self.key_deposit { Some(_) => 1, None => 0 } + match &self.pool_deposit { Some(_) => 1, None => 0 } + match &self.max_epoch { Some(_) => 1, None => 0 } + match &self.n_opt { Some(_) => 1, None => 0 } + match &self.pool_pledge_influence { Some(_) => 1, None => 0 } + match &self.expansion_rate { Some(_) => 1, None => 0 } + match &self.treasury_growth_rate { Some(_) => 1, None => 0 } + match &self.d { Some(_) => 1, None => 0 } + match &self.extra_entropy { Some(_) => 1, None => 0 } + match &self.protocol_version { Some(_) => 1, None => 0 } + match &self.min_pool_cost { Some(_) => 1, None => 0 } + match &self.ada_per_utxo_byte { Some(_) => 1, None => 0 } + match &self.cost_models { Some(_) => 1, None => 0 } + match &self.execution_costs { Some(_) => 1, None => 0 } + match &self.max_tx_ex_units { Some(_) => 1, None => 0 } + match &self.max_block_ex_units { Some(_) => 1, None => 0 } + match &self.max_value_size { Some(_) => 1, None => 0 }))?;
+        serializer.write_map(cbor_event::Len::Len(match &self.minfee_a { Some(_) => 1, None => 0 } + match &self.minfee_b { Some(_) => 1, None => 0 } + match &self.max_block_body_size { Some(_) => 1, None => 0 } + match &self.max_tx_size { Some(_) => 1, None => 0 } + match &self.max_block_header_size { Some(_) => 1, None => 0 } + match &self.key_deposit { Some(_) => 1, None => 0 } + match &self.pool_deposit { Some(_) => 1, None => 0 } + match &self.max_epoch { Some(_) => 1, None => 0 } + match &self.n_opt { Some(_) => 1, None => 0 } + match &self.pool_pledge_influence { Some(_) => 1, None => 0 } + match &self.expansion_rate { Some(_) => 1, None => 0 } + match &self.treasury_growth_rate { Some(_) => 1, None => 0 } + match &self.protocol_version { Some(_) => 1, None => 0 } + match &self.min_pool_cost { Some(_) => 1, None => 0 } + match &self.ada_per_utxo_byte { Some(_) => 1, None => 0 } + match &self.cost_models { Some(_) => 1, None => 0 } + match &self.execution_costs { Some(_) => 1, None => 0 } + match &self.max_tx_ex_units { Some(_) => 1, None => 0 } + match &self.max_block_ex_units { Some(_) => 1, None => 0 } + match &self.max_value_size { Some(_) => 1, None => 0 }))?;
         if let Some(field) = &self.minfee_a {
             serializer.write_unsigned_integer(0)?;
             field.serialize(serializer)?;
@@ -2597,14 +2905,6 @@ impl cbor_event::se::Serialize for ProtocolParamUpdate {
         }
         if let Some(field) = &self.treasury_growth_rate {
             serializer.write_unsigned_integer(11)?;
-            field.serialize(serializer)?;
-        }
-        if let Some(field) = &self.d {
-            serializer.write_unsigned_integer(12)?;
-            field.serialize(serializer)?;
-        }
-        if let Some(field) = &self.extra_entropy {
-            serializer.write_unsigned_integer(13)?;
             field.serialize(serializer)?;
         }
         if let Some(field) = &self.protocol_version {
@@ -3210,8 +3510,15 @@ impl cbor_event::se::Serialize for HeaderBody {
         }?;
         self.issuer_vkey.serialize(serializer)?;
         self.vrf_vkey.serialize(serializer)?;
-        self.nonce_vrf.serialize(serializer)?;
-        self.leader_vrf.serialize(serializer)?;
+        match &self.leader_cert {
+            HeaderLeaderCertEnum::NonceAndLeader(nonce_vrf, leader_vrf) => {
+                nonce_vrf.serialize(serializer)?;
+                leader_vrf.serialize(serializer)?;
+            },
+            HeaderLeaderCertEnum::VrfResult(vrf_cert) => {
+                vrf_cert.serialize(serializer)?;
+            }
+        }
         self.block_body_size.serialize(serializer)?;
         self.block_body_hash.serialize(serializer)?;
         self.operational_cert.serialize_as_embedded_group(serializer)?;
@@ -3264,12 +3571,37 @@ impl DeserializeEmbeddedGroup for HeaderBody {
         let vrf_vkey = (|| -> Result<_, DeserializeError> {
             Ok(VRFVKey::deserialize(raw)?)
         })().map_err(|e| e.annotate("vrf_vkey"))?;
-        let nonce_vrf = (|| -> Result<_, DeserializeError> {
-            Ok(VRFCert::deserialize(raw)?)
-        })().map_err(|e| e.annotate("nonce_vrf"))?;
-        let leader_vrf = (|| -> Result<_, DeserializeError> {
-            Ok(VRFCert::deserialize(raw)?)
-        })().map_err(|e| e.annotate("leader_vrf"))?;
+        let leader_cert = {
+            // NONCE VFR CERT, first of two certs
+            // or a single VRF RESULT CERT
+            // depending on the protocol version
+            let first_vrf_cert = (|| -> Result<_, DeserializeError> {
+                Ok(VRFCert::deserialize(raw)?)
+            })().map_err(|e| e.annotate("nonce_vrf"))?;
+            let cbor_type: cbor_event::Type = raw.cbor_type()?;
+            match cbor_type {
+                cbor_event::Type::Array => {
+                    // Legacy format, reading the second VRF cert
+                    let leader_vrf = (|| -> Result<_, DeserializeError> {
+                        Ok(VRFCert::deserialize(raw)?)
+                    })().map_err(|e| e.annotate("leader_vrf"))?;
+                    HeaderLeaderCertEnum::NonceAndLeader(
+                        first_vrf_cert,
+                        leader_vrf,
+                    )
+                }
+                cbor_event::Type::UnsignedInteger => {
+                    // New format, no second VRF cert is present
+                    HeaderLeaderCertEnum::VrfResult(
+                        first_vrf_cert,
+                    )
+                }
+                t => return Err(DeserializeError::new(
+                    "HeaderBody.leader_cert",
+                    DeserializeFailure::UnexpectedKeyType(t)
+                ))
+            }
+        };
         let block_body_size = (|| -> Result<_, DeserializeError> {
             Ok(u32::deserialize(raw)?)
         })().map_err(|e| e.annotate("block_body_size"))?;
@@ -3288,8 +3620,7 @@ impl DeserializeEmbeddedGroup for HeaderBody {
             prev_hash,
             issuer_vkey,
             vrf_vkey,
-            nonce_vrf,
-            leader_vrf,
+            leader_cert,
             block_body_size,
             block_body_hash,
             operational_cert,
@@ -3497,20 +3828,179 @@ impl Deserialize for NetworkId {
 
 #[cfg(test)]
 mod tests {
+    use crate::fakes::{fake_base_address, fake_bytes_32, fake_data_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey};
     use super::*;
 
     #[test]
-    fn tx_output_deser() {
+    fn tx_output_deser_lagacy() {
         let mut txos = TransactionOutputs::new();
         let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
         let val = &Value::new(&BigNum::from_str("435464757").unwrap());
         let txo = TransactionOutput {
             address: addr.clone(),
             amount: val.clone(),
-            data_hash: None,
+            plutus_data: None,
+            script_ref: None
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_data_hash(&DataHash::from([47u8; DataHash::BYTE_COUNT]));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_plutus_script_and_datum() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new([61u8; 29].to_vec())));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_plutus_script() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new([61u8; 29].to_vec())));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_datum() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_native_script_and_datum() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
+        txo_dh.set_script_ref(&ScriptRef::new_native_script(&native_script));
+        txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_native_script() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
+        txo_dh.set_script_ref(&ScriptRef::new_native_script(&native_script));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let bytes = txos.to_bytes();
+        let txos_deser = TransactionOutputs::from_bytes(bytes.clone()).unwrap();
+        let bytes_deser = txos_deser.to_bytes();
+        assert_eq!(bytes, bytes_deser);
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_native_script_and_data_hash() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
+        let data_hash = DataHash::from_bytes(vec![201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232]).unwrap();
+        txo_dh.set_data_hash(&data_hash);
+        txo_dh.set_script_ref(&ScriptRef::new_native_script(&native_script));
         txos.add(&txo);
         txos.add(&txo_dh);
         txos.add(&txo_dh);
@@ -3547,5 +4037,159 @@ mod tests {
         let block = Block::from_bytes(bytes).unwrap();
         let block2 = Block::from_bytes(block.to_bytes()).unwrap();
         assert_eq!(block.to_bytes(), block2.to_bytes());
+    }
+
+    #[test]
+    fn test_tx_body_roundtrip() {
+        let mut txb = TransactionBody::new(
+            &TransactionInputs(vec![
+                fake_tx_input(0),
+            ]),
+            &TransactionOutputs(vec![
+                fake_tx_output(1),
+            ]),
+            &to_bignum(1234567),
+            Some(12345678),
+        );
+
+        txb.set_collateral_return(&fake_tx_output(2));
+        txb.set_total_collateral(&to_bignum(1234));
+
+        let txb2 = TransactionBody::from_bytes(txb.to_bytes()).unwrap();
+        assert_eq!(txb, txb2);
+    }
+
+    #[test]
+    fn test_header_body_roundtrip() {
+        fn fake_header_body(leader_cert: HeaderLeaderCertEnum) -> HeaderBody {
+            HeaderBody {
+                block_number: 123,
+                slot: to_bignum(123),
+                prev_hash: Some(BlockHash::from_bytes(fake_bytes_32(1)).unwrap()),
+                issuer_vkey: fake_vkey(),
+                vrf_vkey: VRFVKey::from_bytes(fake_bytes_32(2)).unwrap(),
+                leader_cert,
+                block_body_size: 123456,
+                block_body_hash: BlockHash::from_bytes(fake_bytes_32(4)).unwrap(),
+                operational_cert: OperationalCert::new(
+                    &KESVKey::from_bytes(fake_bytes_32(5)).unwrap(),
+                    123,
+                    456,
+                    &fake_signature(6),
+                ),
+                protocol_version: ProtocolVersion::new(12, 13),
+            }
+        }
+
+        let hbody1 = fake_header_body(HeaderLeaderCertEnum::VrfResult(
+            VRFCert::new(fake_bytes_32(3), [0; 80].to_vec()).unwrap(),
+        ));
+
+        assert_eq!(hbody1, HeaderBody::from_bytes(hbody1.to_bytes()).unwrap());
+
+        let hbody2 = fake_header_body(HeaderLeaderCertEnum::NonceAndLeader(
+            VRFCert::new(fake_bytes_32(4), [1; 80].to_vec()).unwrap(),
+            VRFCert::new(fake_bytes_32(5), [2; 80].to_vec()).unwrap(),
+        ));
+
+        assert_eq!(hbody2, HeaderBody::from_bytes(hbody2.to_bytes()).unwrap());
+    }
+
+    #[test]
+    fn test_witness_set_roundtrip() {
+        fn witness_set_roundtrip(plutus_scripts: &PlutusScripts) {
+            let mut ws = TransactionWitnessSet::new();
+            ws.set_vkeys(&Vkeywitnesses(vec![
+                Vkeywitness::new(
+                    &fake_vkey(),
+                    &fake_signature(1),
+                ),
+            ]));
+            ws.set_redeemers(&Redeemers(vec![
+                Redeemer::new(
+                    &RedeemerTag::new_spend(),
+                    &to_bignum(12),
+                    &PlutusData::new_integer(&BigInt::one()),
+                    &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+                )
+            ]));
+            ws.set_plutus_data(&PlutusList::from(vec![PlutusData::new_integer(&BigInt::one())]));
+            ws.set_plutus_scripts(plutus_scripts);
+
+            assert_eq!(TransactionWitnessSet::from_bytes(ws.to_bytes()).unwrap(), ws);
+        }
+
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        witness_set_roundtrip(&PlutusScripts(vec![]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone()]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v2.clone()]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone(), script_v2.clone()]));
+    }
+
+    #[test]
+    fn test_script_ref_roundtrip() {
+
+        let ref0 = ScriptRef::new_native_script(
+            &NativeScript::new_timelock_start(
+                &TimelockStart::new(123456)
+            ),
+        );
+        assert_eq!(ScriptRef::from_bytes(ref0.to_bytes()).unwrap(), ref0);
+
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        let ref1 = ScriptRef::new_plutus_script(&script_v1);
+        assert_eq!(ScriptRef::from_bytes(ref1.to_bytes()).unwrap(), ref1);
+
+        let ref2 = ScriptRef::new_plutus_script(&script_v2);
+        assert_eq!(ScriptRef::from_bytes(ref2.to_bytes()).unwrap(), ref2);
+    }
+
+    #[test]
+    fn legacy_output_roundtrip() {
+        let o1 = TransactionOutput::new(&fake_base_address(0), &fake_value());
+        let mut o2 = TransactionOutput::new(&fake_base_address(1), &fake_value());
+        o2.set_data_hash(&fake_data_hash(2));
+
+        assert_eq!(TransactionOutput::from_bytes(o1.to_bytes()).unwrap(), o1);
+        assert_eq!(TransactionOutput::from_bytes(o2.to_bytes()).unwrap(), o2);
+    }
+
+    #[test]
+    fn babbage_output_roundtrip() {
+        let mut o1 = TransactionOutput::new(&fake_base_address(0), &fake_value2(234567));
+        o1.set_plutus_data(&PlutusData::new_empty_constr_plutus_data(&to_bignum(42)));
+        assert_eq!(TransactionOutput::from_bytes(o1.to_bytes()).unwrap(), o1);
+
+        let mut o2 = TransactionOutput::new(&fake_base_address(1), &fake_value2(234568));
+        o2.set_script_ref(&ScriptRef::new_native_script(&NativeScript::new_timelock_start(&TimelockStart::new(123456))));
+        assert_eq!(TransactionOutput::from_bytes(o2.to_bytes()).unwrap(), o2);
+
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        let mut o3 = TransactionOutput::new(&fake_base_address(2), &fake_value2(234569));
+        o3.set_script_ref(&ScriptRef::new_plutus_script(&script_v1));
+        assert_eq!(TransactionOutput::from_bytes(o3.to_bytes()).unwrap(), o3);
+
+        let mut o4 = TransactionOutput::new(&fake_base_address(3), &fake_value2(234570));
+        o4.set_script_ref(&ScriptRef::new_plutus_script(&script_v2));
+        assert_eq!(TransactionOutput::from_bytes(o4.to_bytes()).unwrap(), o4);
+
+        let mut o5 = TransactionOutput::new(&fake_base_address(4), &fake_value2(234571));
+        o5.set_plutus_data(&PlutusData::new_empty_constr_plutus_data(&to_bignum(43)));
+        o5.set_script_ref(&ScriptRef::new_plutus_script(&script_v2));
+        assert_eq!(TransactionOutput::from_bytes(o5.to_bytes()).unwrap(), o5);
+
+        let mut o6 = TransactionOutput::new(&fake_base_address(5), &fake_value2(234572));
+        o6.set_data_hash(&fake_data_hash(222));
+        o6.set_script_ref(&ScriptRef::new_plutus_script(&script_v2));
+        assert_eq!(TransactionOutput::from_bytes(o6.to_bytes()).unwrap(), o6);
     }
 }
