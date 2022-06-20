@@ -494,7 +494,7 @@ impl Deserialize for Vkeywitness {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct Vkeywitnesses(Vec<Vkeywitness>);
+pub struct Vkeywitnesses(pub(crate) Vec<Vkeywitness>);
 
 #[wasm_bindgen]
 impl Vkeywitnesses {

@@ -37,7 +37,7 @@ checksum = "a4a45a46ab1f2412e53d3a0ade76ffad2025804294569aae387231a0cd6e0899"
 
 [[package]]
 name = "cardano-serialization-lib"
-version = "10.1.0"
+version = "11.0.0-beta.1"
 dependencies = [
  "bech32",
  "cbor_event",
@@ -53,6 +53,7 @@ dependencies = [
  "linked-hash-map",
  "noop_proc_macro",
  "num-bigint",
+ "num-integer",
  "rand",
  "rand_os",
  "schemars",
@@ -257,9 +258,9 @@ dependencies = [
 
 [[package]]
 name = "num-integer"
-version = "0.1.44"
+version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2cc698a63b549a70bc047073d2949cce27cd1c7b0a4a862d08a8031bc2801db"
+checksum = "225d3389fb3509a24c93f5c29eb6bde2586b98d9f016636dff58d7c6f7569cd9"
 dependencies = [
  "autocfg",
  "num-traits",
