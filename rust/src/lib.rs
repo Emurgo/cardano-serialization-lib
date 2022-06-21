@@ -2006,14 +2006,14 @@ pub enum NativeScriptEnum {
     TimelockExpiry(TimelockExpiry),
 }
 
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, serde::Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub enum ScriptRefEnum {
     NativeScript(NativeScript),
     PlutusScript(PlutusScript),
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct ScriptRef(ScriptRefEnum);
 
 to_from_bytes!(ScriptRef);
@@ -2059,7 +2059,7 @@ impl ScriptRef {
     }
 }
 
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, serde::Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub enum DataOption {
     DataHash(DataHash),
     Data(PlutusData)
@@ -2916,7 +2916,7 @@ impl OperationalCert {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub enum HeaderLeaderCertEnum {
     NonceAndLeader(VRFCert, VRFCert),
     VrfResult(VRFCert),

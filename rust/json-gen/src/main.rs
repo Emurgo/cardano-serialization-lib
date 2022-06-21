@@ -7,7 +7,7 @@ use cardano_serialization_lib::crypto::*;
 use cardano_serialization_lib::metadata::*;
 use cardano_serialization_lib::plutus::*;
 use cardano_serialization_lib::utils::*;
-use cardano_serialization_lib::tx_builder::*;
+use crate::tx_builder::tx_inputs_builder::{PlutusWitness, PlutusWitnesses};
 
 //#[macro_export]
 macro_rules! gen_json_schema {
@@ -94,6 +94,10 @@ fn main() {
     gen_json_schema!(Mint);
     gen_json_schema!(NetworkId);
     gen_json_schema!(NetworkIdKind);
+    gen_json_schema!(ScriptRef);
+    gen_json_schema!(DataOption);
+    gen_json_schema!(HeaderLeaderCertEnum);
+
     // crypto.rs
     gen_json_schema!(PublicKey);
     gen_json_schema!(Vkey);

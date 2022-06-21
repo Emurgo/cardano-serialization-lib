@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-mod tx_inputs_builder;
+pub mod tx_inputs_builder;
 
 use super::*;
 use super::fees;
