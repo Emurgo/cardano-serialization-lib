@@ -122,6 +122,12 @@ pub struct BigNum(u64);
 
 to_from_bytes!(BigNum);
 
+impl std::fmt::Display for BigNum {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[wasm_bindgen]
 impl BigNum {
     // Create a BigNum from a standard rust string representation
