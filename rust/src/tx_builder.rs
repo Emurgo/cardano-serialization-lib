@@ -1,6 +1,7 @@
 #![allow(deprecated)]
 
 mod tx_inputs_builder;
+mod tx_batch_builder;
 
 use super::*;
 use super::fees;
