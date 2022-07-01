@@ -2,6 +2,7 @@
 
 mod tx_inputs_builder;
 mod tx_batch_builder;
+mod batch_tools;
 
 use super::*;
 use super::fees;
