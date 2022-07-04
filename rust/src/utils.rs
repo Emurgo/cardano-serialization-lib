@@ -214,6 +214,14 @@ impl TryFrom<BigNum> for u32 {
     }
 }
 
+impl TryFrom<BigNum> for u64 {
+    type Error = JsError;
+
+    fn try_from(value: BigNum) -> Result<Self, Self::Error> {
+        Ok(value.0)
+    }
+}
+
 impl From<u64> for BigNum {
     fn from(value: u64) -> Self {
         return BigNum(value)
