@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use js_sys::Set;
+use js_sys::{add, Set};
+use crate::tx_builder::batch_tools::assets_groups::{AssetGroups, PlaneAssetId, UtxoIndex};
 use super::*;
 
 pub struct TransactionBatchList(Vec<TransactionBatch>);
@@ -8,25 +9,44 @@ pub struct TransactionBatch {
     transactions: Vec<Transaction>
 }
 
-struct UtxoIndex(usize);
-struct PlaneAssetId(PolicyID, AssetName);
-struct AssetGroups(HashMap<PlaneAsset, HashSet<UtxoIndex>>);
-
-struct UtxosStat {
-    assets_in_policy: HashMap<PolicyID, usize>,
-    coins_in_assets: HashMap<PlaneMultiAssetId, BigNum>,
-    ada_coins: BigNum,
-}
 
 
 struct TxOutputProposal {
-    used_assests: HashMap<PlaneAssetId, BigNum>,
+    used_assets: HashMap<PlaneAssetId, BigNum>,
     used_policies: HashSet<PolicyID>,
-    free_space: usize,
-    used_space: usize
+    current_value: Value,
+    address: Address,
+    free_asset_space: usize,
+    used_asset_space: usize,
+    total_space: usize
 }
 
 impl TxOutputProposal {
+
+    fn new(address: &Address, max_ada: &Coin, max_value_size: usize) -> Result<Self, JsError> {
+        let value = Value::new(max_ada);
+        let output = TransactionOutput::new(address, &value);
+        let total_space = output.to_bytes().len();
+        let value_len = value.to_bytes().len();
+        let free_len = max_value_size.checked_sub(value_len)?;
+        Ok(Self {
+            used_assets: HashMap::new(),
+            used_policies: HashSet::new(),
+            current_value: value,
+            address: address.clone(),
+            free_asset_space: free_len,
+            used_asset_space: value_len,
+            total_space,
+        })
+    }
+
+    fn try_take_next_asset(&mut self, &mut assets: AssetGroups) -> Option<UtxoIndex> {
+        unimplemented!()
+    }
+
+    fn create_output(&self) -> TransactionOutput {
+        return TransactionOutput::new(&self.address, &self.current_value);
+    }
 
 }
 
