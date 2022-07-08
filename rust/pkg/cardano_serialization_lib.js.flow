@@ -1412,11 +1412,15 @@ declare export class CostModel {
   static from_bytes(bytes: Uint8Array): CostModel;
 
   /**
+   * Creates a new CostModels instance of an unrestricted length
    * @returns {CostModel}
    */
   static new(): CostModel;
 
   /**
+   * Sets the cost at the specified index to the specified value.
+   * In case the operation index is larger than the previous largest used index,
+   * it will fill any inbetween indexes with zeroes
    * @param {number} operation
    * @param {Int} cost
    * @returns {Int}
