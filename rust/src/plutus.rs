@@ -209,27 +209,24 @@ to_from_bytes!(CostModel);
 #[wasm_bindgen]
 impl CostModel {
 
-    #[deprecated(since = "11.0.0", note="Use `.new_with_length`")]
+    /// Creates a new CostModels instance of an unrestricted length
     pub fn new() -> Self {
-        Self::new_with_length(TxBuilderConstants::PLUTUS_V1_OP_COUNT)
+        Self(Vec::new())
     }
 
-    /// Creates a new CostModel instance with the specified underlying length
-    pub fn new_with_length(len: usize) -> Self {
-        let mut costs = Vec::with_capacity(len);
-        for _ in 0 .. len {
-            costs.push(Int::new_i32(0));
-        }
-        Self(costs)
-    }
-
+    /// Sets the cost at the specified index to the specified value.
+    /// In case the operation index is larger than the previous largest used index,
+    /// it will fill any inbetween indexes with zeroes
     pub fn set(&mut self, operation: usize, cost: &Int) -> Result<Int, JsError> {
-        let max = self.0.len();
-        if operation >= max {
-            return Err(JsError::from_str(&format!("CostModel operation {} out of bounds. Max is {}", operation, max)));
+        let len = self.0.len();
+        let idx = operation.clone();
+        if idx >= len {
+            for _ in 0 .. (idx - len + 1) {
+                self.0.push(Int::new_i32(0));
+            }
         }
-        let old = self.0[operation].clone();
-        self.0[operation] = cost.clone();
+        let old = self.0[idx].clone();
+        self.0[idx] = cost.clone();
         Ok(old)
     }
 
@@ -801,7 +798,6 @@ impl Strings {
 // Serialization
 
 use std::io::{SeekFrom};
-use crate::tx_builder_constants::TxBuilderConstants;
 
 
 impl cbor_event::se::Serialize for PlutusScript {
@@ -925,15 +921,6 @@ impl Deserialize for CostModel {
                     break;
                 }
                 arr.push(Int::deserialize(raw)?);
-            }
-            let min = TxBuilderConstants::PLUTUS_V1_OP_COUNT;
-            let max = TxBuilderConstants::PLUTUS_V2_OP_COUNT;
-            if arr.len() != min && arr.len() != max {
-                return Err(DeserializeFailure::OutOfRange{
-                    min,
-                    max,
-                    found: arr.len()
-                }.into());
             }
             Ok(())
         })().map_err(|e| e.annotate("CostModel"))?;
@@ -1587,6 +1574,7 @@ mod tests {
 
     #[test]
     fn test_cost_model_roundtrip() {
+        use crate::tx_builder_constants::TxBuilderConstants;
         let costmodels = TxBuilderConstants::plutus_vasil_cost_models();
         assert_eq!(costmodels, Costmdls::from_bytes(costmodels.to_bytes()).unwrap());
     }

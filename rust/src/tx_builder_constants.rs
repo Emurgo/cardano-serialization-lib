@@ -1,5 +1,4 @@
 use super::*;
-use crate::plutus::{Costmdls, CostModel, Language};
 
 // The first element is the cost model, which is an array of 166 operations costs, ordered by asc operaion names.
 // The second value is the pre-calculated `language_views_encoding` value required for the script hash creation.
@@ -11,9 +10,6 @@ pub struct TxBuilderConstants();
 
 #[wasm_bindgen]
 impl TxBuilderConstants {
-
-    pub const PLUTUS_V1_OP_COUNT: usize = 166;
-    pub const PLUTUS_V2_OP_COUNT: usize = 175;
 
     pub fn plutus_default_cost_models() -> Costmdls {
         TxBuilderConstants::plutus_alonzo_cost_models()
