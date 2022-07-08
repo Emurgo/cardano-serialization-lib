@@ -285,13 +285,23 @@ impl GeneralTransactionMetadata {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct AuxiliaryData {
     metadata: Option<GeneralTransactionMetadata>,
     native_scripts: Option<NativeScripts>,
     plutus_scripts: Option<PlutusScripts>,
     prefer_alonzo_format: bool,
 }
+
+impl std::cmp::PartialEq<Self> for AuxiliaryData {
+    fn eq(&self, other: &Self) -> bool {
+        self.metadata.eq(&other.metadata)
+            && self.native_scripts.eq(&other.native_scripts)
+            && self.plutus_scripts.eq(&other.plutus_scripts)
+    }
+}
+
+impl std::cmp::Eq for AuxiliaryData {}
 
 to_from_bytes!(AuxiliaryData);
 
