@@ -3,70 +3,22 @@ use hex::FromHex;
 use serde_json;
 use std::{collections::HashMap, io::{BufRead, Seek, Write}};
 use std::convert::{TryFrom};
-use itertools::Itertools;
 use num_bigint::Sign;
-use std::ops::{Rem, Div, Sub};
+use std::ops::{Div};
 
 use super::*;
 use crate::error::{DeserializeError, DeserializeFailure};
+use crate::fakes::fake_data_hash;
 
-// JsError can't be used by non-wasm targets so we use this macro to expose
-// either a DeserializeError or a JsError error depending on if we're on a
-// wasm or a non-wasm target where JsError is not available (it panics!).
-// Note: wasm-bindgen doesn't support macros inside impls, so we have to wrap these
-//       in their own impl and invoke the invoke the macro from global scope.
-// TODO: possibly write s generic version of this for other usages (e.g. PrivateKey, etc)
-#[macro_export]
-macro_rules! from_bytes {
-    // Custom from_bytes() code
-    ($name:ident, $data: ident, $body:block) => {
-        // wasm-exposed JsError return - JsError panics when used outside wasm
-        #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-        #[wasm_bindgen]
-        impl $name {
-            pub fn from_bytes($data: Vec<u8>) -> Result<$name, JsError> {
-                Ok($body?)
-            }
-        }
-        // non-wasm exposed DeserializeError return
-        #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
-        impl $name {
-            pub fn from_bytes($data: Vec<u8>) -> Result<$name, DeserializeError> $body
-        }
-    };
-    // Uses Deserialize trait to auto-generate one
-    ($name:ident) => {
-        from_bytes!($name, bytes, {
-            let mut raw = Deserializer::from(std::io::Cursor::new(bytes));
-            Self::deserialize(&mut raw)
-        });
-    };
+pub fn to_bytes<T: cbor_event::se::Serialize>(data_item: &T) -> Vec<u8> {
+    let mut buf = Serializer::new_vec();
+    data_item.serialize(&mut buf).unwrap();
+    buf.finalize()
 }
 
-// There's no need to do wasm vs non-wasm as this call can't fail but
-// this is here just to provide a default Serialize-based impl
-// Note: Once again you can't use macros in impls with wasm-bindgen
-//       so make sure you invoke this outside of one
-#[macro_export]
-macro_rules! to_bytes {
-    ($name:ident) => {
-        #[wasm_bindgen]
-        impl $name {
-            pub fn to_bytes(&self) -> Vec<u8> {
-                let mut buf = Serializer::new_vec();
-                self.serialize(&mut buf).unwrap();
-                buf.finalize()
-            }
-        }
-    }
-}
-
-#[macro_export]
-macro_rules! to_from_bytes {
-    ($name:ident) => {
-        to_bytes!($name);
-        from_bytes!($name);
-    }
+pub fn from_bytes<T: Deserialize>(data: &Vec<u8>) -> Result<T, DeserializeError>{
+    let mut raw = Deserializer::from(std::io::Cursor::new(data));
+    T::deserialize(&mut raw)
 }
 
 #[wasm_bindgen]
@@ -170,6 +122,12 @@ pub struct BigNum(u64);
 
 to_from_bytes!(BigNum);
 
+impl std::fmt::Display for BigNum {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[wasm_bindgen]
 impl BigNum {
     // Create a BigNum from a standard rust string representation
@@ -194,6 +152,12 @@ impl BigNum {
 
     pub fn is_zero(&self) -> bool {
         self.0 == 0
+    }
+
+    pub fn div_floor(&self, other: &BigNum) -> BigNum {
+        // same as (a / b)
+        let res = self.0.div(&other.0);
+        Self(res)
     }
 
     pub fn checked_mul(&self, other: &BigNum) -> Result<BigNum, JsError> {
@@ -232,6 +196,10 @@ impl BigNum {
             std::cmp::Ordering::Greater => 1,
         }
     }
+
+    pub fn less_than(&self, rhs_value: &BigNum) -> bool {
+        self.compare(rhs_value) < 0
+    }
 }
 
 impl TryFrom<BigNum> for u32 {
@@ -249,6 +217,12 @@ impl TryFrom<BigNum> for u32 {
 impl From<u64> for BigNum {
     fn from(value: u64) -> Self {
         return BigNum(value)
+    }
+}
+
+impl From<usize> for BigNum {
+    fn from(value: usize) -> Self {
+        return BigNum(value as u64)
     }
 }
 
@@ -308,10 +282,14 @@ impl Value {
     }
 
     pub fn new_from_assets(multiasset: &MultiAsset) -> Value {
+        Value::new_with_assets(&Coin::zero(), multiasset)
+    }
+
+    pub fn new_with_assets(coin: &Coin, multiasset: &MultiAsset) -> Value {
         match multiasset.0.is_empty() {
-            true => Value::zero(),
+            true => Value::new(coin),
             false => Self {
-                coin: Coin::zero(),
+                coin: coin.clone(),
                 multiasset: Some(multiasset.clone()),
             }
         }
@@ -1099,87 +1077,101 @@ pub fn get_deposit(
     )
 }
 
-struct OutputSizeConstants {
-    k0: usize,
-    k1: usize,
-    k2: usize,
+
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MinOutputAdaCalculator {
+    output: TransactionOutput,
+    data_cost: DataCost,
 }
 
-fn quot<T>(a: T, b: T) -> T
-where T: Sub<Output=T> + Rem<Output=T> + Div<Output=T> + Copy + Clone + std::fmt::Display {
-    (a - (a % b)) / b
-}
+impl MinOutputAdaCalculator {
 
-fn bundle_size(
-    assets: &Value,
-    constants: &OutputSizeConstants,
-) -> usize {
-    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
-    match &assets.multiasset {
-        None => 2, // coinSize according the minimum value function
-        Some (assets) => {
-            let num_assets = assets.0
-                .values()
-                .fold(
-                    0,
-                    | acc, next| acc + next.len()
-                );
-            let sum_asset_name_lengths = assets.0
-                .values()
-                .flat_map(|assets| assets.0.keys())
-                .unique_by(|asset| asset.name())
-                .fold(
-                    0,
-                    | acc, next| acc + next.0.len()
-                );
-            let sum_policy_id_lengths = assets.0
-                .keys()
-                .fold(
-                    0,
-                    | acc, next| acc + next.0.len()
-                );
-            // converts bytes to 8-byte long words, rounding up
-            fn roundup_bytes_to_words(b: usize) -> usize {
-                quot(b + 7, 8)
-            }
-            constants.k0 + roundup_bytes_to_words(
-                (num_assets * constants.k1) + sum_asset_name_lengths +
-                (constants.k2 * sum_policy_id_lengths)
-            )
+    pub fn new(output: &TransactionOutput, data_cost: &DataCost) -> Self {
+        Self{
+            output: output.clone(),
+            data_cost: data_cost.clone()
         }
+    }
+
+    pub fn new_empty(data_cost: &DataCost) -> Result<MinOutputAdaCalculator, JsError> {
+        Ok(Self{
+            output: MinOutputAdaCalculator::create_fake_output()?,
+            data_cost: data_cost.clone()
+        })
+    }
+
+    pub fn set_address(&mut self, address: &Address) {
+        self.output.address = address.clone();
+    }
+
+    pub fn set_plutus_data(&mut self, data: &PlutusData) {
+        self.output.plutus_data = Some(DataOption::Data(data.clone()));
+    }
+
+    pub fn set_data_hash(&mut self, data_hash: &DataHash) {
+        self.output.plutus_data = Some(DataOption::DataHash(data_hash.clone()));
+    }
+
+    pub fn set_amount(&mut self, amount: &Value) {
+        self.output.amount = amount.clone();
+    }
+
+    pub fn set_script_ref(&mut self, script_ref: &ScriptRef) {
+        self.output.script_ref = Some(script_ref.clone());
+    }
+
+    pub fn calculate_ada(&self) -> Result<BigNum, JsError> {
+        let coins_per_byte = self.data_cost.coins_per_byte();
+        let mut output: TransactionOutput = self.output.clone();
+        fn calc_required_coin(output: &TransactionOutput, coins_per_byte: &Coin) -> Result<Coin, JsError> {
+            //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
+            //See on the page 9 getValue txout
+            BigNum::from(output.to_bytes().len())
+                .checked_add(&to_bignum(160))?
+                .checked_mul(&coins_per_byte)
+        }
+        for _ in 0..3 {
+            let required_coin = calc_required_coin(&output, &coins_per_byte)?;
+            if output.amount.coin.less_than(&required_coin) {
+                output.amount.coin = required_coin.clone();
+            } else {
+                return Ok(required_coin);
+            }
+        }
+        output.amount.coin = to_bignum(u64::MAX);
+        Ok(calc_required_coin(&output, &coins_per_byte)?)
+    }
+
+    fn create_fake_output() -> Result<TransactionOutput, JsError> {
+        let fake_base_address: Address = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w")?;
+        let fake_value: Value = Value::new(&to_bignum(1000000));
+        Ok(TransactionOutput::new(&fake_base_address, &fake_value))
     }
 }
 
+///returns minimal amount of ada for the output for case when the amount is included to the output
 #[wasm_bindgen]
+pub fn min_ada_for_output(output: &TransactionOutput, data_cost: &DataCost) -> Result<BigNum, JsError> {
+    MinOutputAdaCalculator::new(output, data_cost).calculate_ada()
+}
+
+/// !!! DEPRECATED !!!
+/// This function uses outdated set of arguments.
+/// Use `min_ada_for_output` instead
+#[wasm_bindgen]
+#[deprecated(since = "11.0.0", note="Use `min_ada_for_output` instead")]
 pub fn min_ada_required(
     assets: &Value,
     has_data_hash: bool, // whether the output includes a data hash
     coins_per_utxo_word: &BigNum, // protocol parameter (in lovelace)
 ) -> Result<BigNum, JsError> {
-    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
-    let data_hash_size = if has_data_hash { 10 } else { 0 }; // in words
-    let utxo_entry_size_without_val = 27; // in words
-
-    let size = bundle_size(
-        &assets,
-        &OutputSizeConstants {
-            k0: 6,
-            k1: 12,
-            k2: 1,
-        },
-    );
-    let words = to_bignum(utxo_entry_size_without_val)
-        .checked_add(&to_bignum(size as u64))?
-        .checked_add(&to_bignum(data_hash_size))?;
-    coins_per_utxo_word.checked_mul(&words)
-}
-
-pub fn min_pure_ada(coins_per_utxo_word: &BigNum, has_data_hash: bool) -> Result<BigNum, JsError> {
-    min_ada_required(
-        &Value::new(&Coin::from_str("1000000")?),
-        has_data_hash,
-        coins_per_utxo_word,
-    )
+    let data_cost = DataCost::new_coins_per_word(coins_per_utxo_word);
+    let mut calc = MinOutputAdaCalculator::new_empty(&data_cost)?;
+    calc.set_amount(assets);
+    if has_data_hash {
+        calc.set_data_hash(&fake_data_hash(0));
+    }
+   calc.calculate_ada()
 }
 
 /// Used to choosed the schema for a script JSON string
@@ -1369,20 +1361,16 @@ fn encode_template_to_native_script(
     }
 }
 
+pub(crate) fn opt64<T>(o: &Option<T>) -> u64 {
+    o.is_some() as u64
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     // this is what is used in mainnet
     const COINS_PER_UTXO_WORD: u64 = 34_482;
-
-    fn bundle_constants() -> OutputSizeConstants {
-        OutputSizeConstants {
-            k0: 6,
-            k1: 12,
-            k2: 1,
-        }
-    }
 
     // taken from https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
     fn one_policy_one_0_char_asset() -> Value {
@@ -1540,7 +1528,7 @@ mod tests {
     fn min_ada_value_no_multiasset() {
         assert_eq!(
             from_bignum(&min_ada_required(&Value::new(&Coin::zero()), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            999978,
+            969750,
         );
     }
 
@@ -1548,7 +1536,7 @@ mod tests {
     fn min_ada_value_one_policy_one_0_char_asset() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_one_0_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_310_316,
+            1_120_600,
         );
     }
 
@@ -1556,7 +1544,7 @@ mod tests {
     fn min_ada_value_one_policy_one_1_char_asset() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_one_1_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_344_798,
+            1_124_910,
         );
     }
 
@@ -1564,7 +1552,7 @@ mod tests {
     fn min_ada_value_one_policy_three_1_char_assets() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_three_1_char_assets(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_448_244,
+            1_150_770,
         );
     }
 
@@ -1572,7 +1560,7 @@ mod tests {
     fn min_ada_value_two_policies_one_0_char_asset() {
         assert_eq!(
             from_bignum(&min_ada_required(&two_policies_one_0_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_482_726,
+            1_262_830,
         );
     }
 
@@ -1580,7 +1568,7 @@ mod tests {
     fn min_ada_value_two_policies_one_1_char_asset() {
         assert_eq!(
             from_bignum(&min_ada_required(&two_policies_one_1_char_asset(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_517_208,
+            1_271_450,
         );
     }
 
@@ -1588,7 +1576,7 @@ mod tests {
     fn min_ada_value_three_policies_96_1_char_assets() {
         assert_eq!(
             from_bignum(&min_ada_required(&three_policies_96_1_char_assets(), false, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            6_896_400,
+            2_633_410,
         );
     }
 
@@ -1596,7 +1584,7 @@ mod tests {
     fn min_ada_value_one_policy_one_0_char_asset_datum_hash() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_one_0_char_asset(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_655_136,
+            1_267_140,
         );
     }
 
@@ -1604,7 +1592,7 @@ mod tests {
     fn min_ada_value_one_policy_three_32_char_assets_datum_hash() {
         assert_eq!(
             from_bignum(&min_ada_required(&one_policy_three_32_char_assets(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            2_172_366,
+            1_711_070,
         );
     }
 
@@ -1612,39 +1600,7 @@ mod tests {
     fn min_ada_value_two_policies_one_0_char_asset_datum_hash() {
         assert_eq!(
             from_bignum(&min_ada_required(&two_policies_one_0_char_asset(), true, &to_bignum(COINS_PER_UTXO_WORD)).unwrap()),
-            1_827_546,
-        );
-    }
-
-    #[test]
-    fn bundle_sizes() {
-        assert_eq!(
-            bundle_size(&one_policy_one_0_char_asset(), &bundle_constants()),
-            11
-        );
-        assert_eq!(
-            bundle_size(&one_policy_one_1_char_asset(), &bundle_constants()),
-            12
-        );
-        assert_eq!(
-            bundle_size(&one_policy_three_1_char_assets(), &bundle_constants()),
-            15
-        );
-        assert_eq!(
-            bundle_size(&two_policies_one_0_char_asset(), &bundle_constants()),
-            16
-        );
-        assert_eq!(
-            bundle_size(&two_policies_one_1_char_asset(), &bundle_constants()),
-            17
-        );
-        assert_eq!(
-            bundle_size(&three_policies_96_1_char_assets(), &bundle_constants()),
-            173
-        );
-        assert_eq!(
-            bundle_size(&one_policy_three_32_char_assets(), &bundle_constants()),
-            26
+            1_409_370,
         );
     }
 
@@ -2460,6 +2416,34 @@ mod tests {
         assert_eq!(
             to_bigint(7).div_ceil(&to_bigint(3)),
             to_bigint(3),
+        );
+    }
+
+    #[test]
+    fn test_bignum_div() {
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(1)),
+            to_bignum(10),
+        );
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(3)),
+            to_bignum(3),
+        );
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(4)),
+            to_bignum(2),
+        );
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(5)),
+            to_bignum(2),
+        );
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(6)),
+            to_bignum(1),
+        );
+        assert_eq!(
+            to_bignum(10).div_floor(&to_bignum(12)),
+            to_bignum(0),
         );
     }
 }
