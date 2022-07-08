@@ -12,6 +12,9 @@ pub struct TxBuilderConstants();
 #[wasm_bindgen]
 impl TxBuilderConstants {
 
+    pub const PLUTUS_V1_OP_COUNT: usize = 166;
+    pub const PLUTUS_V2_OP_COUNT: usize = 175;
+
     pub fn plutus_default_cost_models() -> Costmdls {
         TxBuilderConstants::plutus_alonzo_cost_models()
     }

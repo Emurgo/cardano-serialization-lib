@@ -200,8 +200,6 @@ impl ConstrPlutusData {
     }
 }
 
-const COST_MODEL_OP_COUNT: usize = 166;
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct CostModel(Vec<Int>);
@@ -210,17 +208,25 @@ to_from_bytes!(CostModel);
 
 #[wasm_bindgen]
 impl CostModel {
+
+    #[deprecated(since = "11.0.0", note="Use `.new_with_length`")]
     pub fn new() -> Self {
-        let mut costs = Vec::with_capacity(COST_MODEL_OP_COUNT);
-        for _ in 0 .. COST_MODEL_OP_COUNT {
+        Self::new_with_length(TxBuilderConstants::PLUTUS_V1_OP_COUNT)
+    }
+
+    /// Creates a new CostModel instance with the specified underlying length
+    pub fn new_with_length(len: usize) -> Self {
+        let mut costs = Vec::with_capacity(len);
+        for _ in 0 .. len {
             costs.push(Int::new_i32(0));
         }
         Self(costs)
     }
 
     pub fn set(&mut self, operation: usize, cost: &Int) -> Result<Int, JsError> {
-        if operation >= COST_MODEL_OP_COUNT {
-            return Err(JsError::from_str(&format!("CostModel operation {} out of bounds. Max is {}", operation, COST_MODEL_OP_COUNT)));
+        let max = self.0.len();
+        if operation >= max {
+            return Err(JsError::from_str(&format!("CostModel operation {} out of bounds. Max is {}", operation, max)));
         }
         let old = self.0[operation].clone();
         self.0[operation] = cost.clone();
@@ -228,8 +234,9 @@ impl CostModel {
     }
 
     pub fn get(&self, operation: usize) -> Result<Int, JsError> {
-        if operation >= COST_MODEL_OP_COUNT {
-            return Err(JsError::from_str(&format!("CostModel operation {} out of bounds. Max is {}", operation, COST_MODEL_OP_COUNT)));
+        let max = self.0.len();
+        if operation >= max {
+            return Err(JsError::from_str(&format!("CostModel operation {} out of bounds. Max is {}", operation, max)));
         }
         Ok(self.0[operation].clone())
     }
@@ -794,6 +801,7 @@ impl Strings {
 // Serialization
 
 use std::io::{SeekFrom};
+use crate::tx_builder_constants::TxBuilderConstants;
 
 
 impl cbor_event::se::Serialize for PlutusScript {
@@ -898,7 +906,7 @@ impl Deserialize for ConstrPlutusData {
 
 impl cbor_event::se::Serialize for CostModel {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(COST_MODEL_OP_COUNT as u64))?;
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
         for cost in &self.0 {
             cost.serialize(serializer)?;
         }
@@ -918,10 +926,12 @@ impl Deserialize for CostModel {
                 }
                 arr.push(Int::deserialize(raw)?);
             }
-            if arr.len() != COST_MODEL_OP_COUNT {
+            let min = TxBuilderConstants::PLUTUS_V1_OP_COUNT;
+            let max = TxBuilderConstants::PLUTUS_V2_OP_COUNT;
+            if arr.len() != min && arr.len() != max {
                 return Err(DeserializeFailure::OutOfRange{
-                    min: COST_MODEL_OP_COUNT,
-                    max: COST_MODEL_OP_COUNT,
+                    min,
+                    max,
                     found: arr.len()
                 }.into());
             }
@@ -1573,5 +1583,11 @@ mod tests {
             Language::from_bytes(Language::new_plutus_v2().to_bytes()).unwrap(),
             Language::new_plutus_v2(),
         );
+    }
+
+    #[test]
+    fn test_cost_model_roundtrip() {
+        let costmodels = TxBuilderConstants::plutus_vasil_cost_models();
+        assert_eq!(costmodels, Costmdls::from_bytes(costmodels.to_bytes()).unwrap());
     }
 }
