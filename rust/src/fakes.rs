@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::{Address, BaseAddress, Bip32PrivateKey, DataHash, Ed25519KeyHash, Ed25519Signature, NetworkInfo, StakeCredential, to_bignum, TransactionHash, TransactionIndex, TransactionInput, TransactionOutput, Value, Vkey};
+use crate::{Address, BaseAddress, Bip32PrivateKey, DataHash, Ed25519KeyHash, Ed25519Signature, NetworkInfo, StakeCredential, to_bignum, TransactionHash, TransactionIndex, TransactionInput, TransactionOutput, Value, Vkey, PublicKey, Vkeywitness};
 
 pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
     vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100, 1, 2, 3, 4]
@@ -61,4 +61,15 @@ pub(crate) fn fake_vkey() -> Vkey {
 
 pub(crate) fn fake_signature(x: u8) -> Ed25519Signature {
     Ed25519Signature::from_bytes([x; 64].to_vec()).unwrap()
+}
+
+pub(crate) fn fake_pubkey(x: u8) -> PublicKey {
+    PublicKey::from_bytes(&[x; 32]).unwrap()
+}
+
+pub(crate) fn fake_vkeywitness(x: u8) -> Vkeywitness {
+    Vkeywitness::new(
+        &Vkey::new(&fake_pubkey(x.clone())),
+        &fake_signature(x),
+    )
 }
