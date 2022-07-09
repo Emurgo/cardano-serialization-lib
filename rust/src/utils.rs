@@ -2,7 +2,9 @@ use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 use hex::FromHex;
 use serde_json;
 use std::{collections::HashMap, io::{BufRead, Seek, Write}};
+use std::convert::{TryFrom};
 use itertools::Itertools;
+use num_bigint::Sign;
 use std::ops::{Rem, Div, Sub};
 
 use super::*;
@@ -186,6 +188,10 @@ impl BigNum {
         Self(0)
     }
 
+    pub fn one() -> Self {
+        Self(1)
+    }
+
     pub fn is_zero(&self) -> bool {
         self.0 == 0
     }
@@ -228,6 +234,30 @@ impl BigNum {
     }
 }
 
+impl TryFrom<BigNum> for u32 {
+    type Error = JsError;
+
+    fn try_from(value: BigNum) -> Result<Self, Self::Error> {
+        if value.0 > u32::MAX.into() {
+            Err(JsError::from_str(&format!("Value {} is bigger than max u32 {}", value.0, u32::MAX)))
+        } else {
+            Ok(value.0 as u32)
+        }
+    }
+}
+
+impl From<u64> for BigNum {
+    fn from(value: u64) -> Self {
+        return BigNum(value)
+    }
+}
+
+impl From<u32> for BigNum {
+    fn from(value: u32) -> Self {
+        return BigNum(value.into())
+    }
+}
+
 impl cbor_event::se::Serialize for BigNum {
   fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
       serializer.write_unsigned_integer(self.0)
@@ -248,6 +278,11 @@ pub fn to_bignum(val: u64) -> BigNum {
 }
 pub fn from_bignum(val: &BigNum) -> u64 {
     val.0
+}
+
+
+pub fn to_bigint(val: u64) -> BigInt {
+    BigInt::from_str(&val.to_string()).unwrap()
 }
 
 // Specifies an amount of ADA in terms of lovelace
@@ -688,12 +723,18 @@ to_from_bytes!(BigInt);
 
 #[wasm_bindgen]
 impl BigInt {
+
+    pub fn is_zero(&self) -> bool {
+        self.0.sign() == Sign::NoSign
+    }
+
     pub fn as_u64(&self) -> Option<BigNum> {
         let (sign, u64_digits) = self.0.to_u64_digits();
         if sign == num_bigint::Sign::Minus {
             return None;
         }
         match u64_digits.len() {
+            0 => Some(to_bignum(0)),
             1 => Some(to_bignum(*u64_digits.first().unwrap())),
             _ => None,
         }
@@ -703,11 +744,35 @@ impl BigInt {
         use std::str::FromStr;
         num_bigint::BigInt::from_str(text)
             .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
-            .map(BigInt)
+            .map(Self)
     }
 
     pub fn to_str(&self) -> String {
         self.0.to_string()
+    }
+
+    pub fn add(&self, other: &BigInt) -> BigInt {
+        Self(&self.0 + &other.0)
+    }
+
+    pub fn mul(&self, other: &BigInt) -> BigInt {
+        Self(&self.0 * &other.0)
+    }
+
+    pub fn one() -> BigInt {
+        use std::str::FromStr;
+        Self(num_bigint::BigInt::from_str("1").unwrap())
+    }
+
+    pub fn increment(&self) -> BigInt {
+        self.add(&Self::one())
+    }
+
+    pub fn div_ceil(&self, other: &BigInt) -> BigInt {
+        use num_integer::Integer;
+        let (res, rem) = self.0.div_rem(&other.0);
+        let result = Self(res);
+        if Self(rem).is_zero() { result } else { result.increment() }
     }
 }
 
@@ -1289,9 +1354,9 @@ fn encode_template_to_native_script(
         serde_json::Value::Object(map) if map.contains_key("active_from") => {
             if let serde_json::Value::Number(active_from) = map.get("active_from").unwrap() {
                 if let Some(n) = active_from.as_u64() {
-                    let slot: u32 = n as u32;
+                    let slot: SlotBigNum = n.into();
 
-                    let time_lock_start = TimelockStart::new(slot);
+                    let time_lock_start = TimelockStart::new_timelockstart(&slot);
 
                     Ok(NativeScript::new_timelock_start(&time_lock_start))
                 } else {
@@ -1306,9 +1371,9 @@ fn encode_template_to_native_script(
         serde_json::Value::Object(map) if map.contains_key("active_until") => {
             if let serde_json::Value::Number(active_until) = map.get("active_until").unwrap() {
                 if let Some(n) = active_until.as_u64() {
-                    let slot: u32 = n as u32;
+                    let slot: SlotBigNum = n.into();
 
-                    let time_lock_expiry = TimelockExpiry::new(slot);
+                    let time_lock_expiry = TimelockExpiry::new_timelockexpiry(&slot);
 
                     Ok(NativeScript::new_timelock_expiry(&time_lock_expiry))
                 } else {
@@ -2271,7 +2336,7 @@ mod tests {
             Bip32PublicKey::from_bytes(&hex::decode(cosigner0_hex).unwrap()).unwrap().to_raw_key().hash()
         );
         let all_1 = all.get(1).as_timelock_start().unwrap();
-        assert_eq!(all_1.slot(), 120);
+        assert_eq!(all_1.slot().unwrap(), 120);
         let any = from.get(1).as_script_any().unwrap().native_scripts();
         assert_eq!(all.len(), 2);
         let any_0 = any.get(0).as_script_pubkey().unwrap();
@@ -2280,7 +2345,7 @@ mod tests {
             Bip32PublicKey::from_bytes(&hex::decode(cosigner1_hex).unwrap()).unwrap().to_raw_key().hash()
         );
         let any_1 = any.get(1).as_timelock_expiry().unwrap();
-        assert_eq!(any_1.slot(), 1000);
+        assert_eq!(any_1.slot().unwrap(), 1000);
         let self_key = from.get(2).as_script_pubkey().unwrap();
         assert_eq!(
             self_key.addr_keyhash(),
@@ -2360,5 +2425,61 @@ mod tests {
         let y = Int::from_bytes(bytes_y.clone()).unwrap();
         assert_eq!(y.to_str(), "-18446744073709551616");
         assert_eq!(bytes_y, y.to_bytes());
+    }
+
+    #[test]
+    fn test_bigint_add() {
+        assert_eq!(
+            to_bigint(10).add(&to_bigint(20)),
+            to_bigint(30),
+        );
+        assert_eq!(
+            to_bigint(500).add(&to_bigint(800)),
+            to_bigint(1300),
+        );
+    }
+
+    #[test]
+    fn test_bigint_mul() {
+        assert_eq!(
+            to_bigint(10).mul(&to_bigint(20)),
+            to_bigint(200),
+        );
+        assert_eq!(
+            to_bigint(500).mul(&to_bigint(800)),
+            to_bigint(400000),
+        );
+        assert_eq!(
+            to_bigint(12).mul(&to_bigint(22)),
+            to_bigint(264),
+        );
+    }
+
+    #[test]
+    fn test_bigint_div_ceil() {
+        assert_eq!(
+            to_bigint(20).div_ceil(&to_bigint(10)),
+            to_bigint(2),
+        );
+        assert_eq!(
+            to_bigint(20).div_ceil(&to_bigint(2)),
+            to_bigint(10),
+        );
+        assert_eq!(
+            to_bigint(21).div_ceil(&to_bigint(2)),
+            to_bigint(11),
+        );
+        assert_eq!(
+            to_bigint(6).div_ceil(&to_bigint(3)),
+            to_bigint(2),
+        );
+        assert_eq!(
+            to_bigint(5).div_ceil(&to_bigint(3)),
+            to_bigint(2),
+        );
+        assert_eq!(
+            to_bigint(7).div_ceil(&to_bigint(3)),
+            to_bigint(3),
+        );
     }
 }

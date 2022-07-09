@@ -5,3 +5,4 @@ rust/target
 .idea
 rust/.idea
 binaryen/
+.DS_Store

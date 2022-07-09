@@ -341,7 +341,7 @@ impl Deserialize for TransactionBody {
                             }
                             ttl = Some((|| -> Result<_, DeserializeError> {
                                 read_len.read_elems(1)?;
-                                Ok(Slot::deserialize(raw)?)
+                                Ok(SlotBigNum::deserialize(raw)?)
                             })().map_err(|e| e.annotate("ttl"))?);
                         },
                         4 =>  {
@@ -386,7 +386,7 @@ impl Deserialize for TransactionBody {
                             }
                             validity_start_interval = Some((|| -> Result<_, DeserializeError> {
                                 read_len.read_elems(1)?;
-                                Ok(Slot::deserialize(raw)?)
+                                Ok(SlotBigNum::deserialize(raw)?)
                             })().map_err(|e| e.annotate("validity_start_interval"))?);
                         },
                         9 =>  {
@@ -2171,7 +2171,7 @@ impl DeserializeEmbeddedGroup for TimelockStart {
             Ok(())
         })().map_err(|e| e.annotate("index_0"))?;
         let slot = (|| -> Result<_, DeserializeError> {
-            Ok(Slot::deserialize(raw)?)
+            Ok(SlotBigNum::deserialize(raw)?)
         })().map_err(|e| e.annotate("slot"))?;
         Ok(TimelockStart {
             slot,
@@ -2223,7 +2223,7 @@ impl DeserializeEmbeddedGroup for TimelockExpiry {
             Ok(())
         })().map_err(|e| e.annotate("index_0"))?;
         let slot = (|| -> Result<_, DeserializeError> {
-            Ok(Slot::deserialize(raw)?)
+            Ok(SlotBigNum::deserialize(raw)?)
         })().map_err(|e| e.annotate("slot"))?;
         Ok(TimelockExpiry {
             slot,
@@ -3243,7 +3243,7 @@ impl DeserializeEmbeddedGroup for HeaderBody {
             Ok(u32::deserialize(raw)?)
         })().map_err(|e| e.annotate("block_number"))?;
         let slot = (|| -> Result<_, DeserializeError> {
-            Ok(Slot::deserialize(raw)?)
+            Ok(SlotBigNum::deserialize(raw)?)
         })().map_err(|e| e.annotate("slot"))?;
         let prev_hash = (|| -> Result<_, DeserializeError> {
             Ok(match raw.cbor_type()? != CBORType::Special {
