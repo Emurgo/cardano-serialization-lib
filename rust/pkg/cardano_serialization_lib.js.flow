@@ -302,7 +302,44 @@ declare export var NetworkIdKind: {|
 |};
 
 /**
- * Used to choosed the schema for a script JSON string
+ */
+
+declare export var LanguageKind: {|
+  +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
+|};
+
+/**
+ */
+
+declare export var PlutusDataKind: {|
+  +ConstrPlutusData: 0, // 0
+  +Map: 1, // 1
+  +List: 2, // 2
+  +Integer: 3, // 3
+  +Bytes: 4, // 4
+|};
+
+/**
+ */
+
+declare export var RedeemerTagKind: {|
+  +Spend: 0, // 0
+  +Mint: 1, // 1
+  +Cert: 2, // 2
+  +Reward: 3, // 3
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ * Used to choose the schema for a script JSON string
  */
 
 declare export var ScriptSchema: {|
@@ -338,43 +375,6 @@ declare export var CoinSelectionStrategyCIP2: {|
   +RandomImprove: 1, // 1
   +LargestFirstMultiAsset: 2, // 2
   +RandomImproveMultiAsset: 3, // 3
-|};
-
-/**
- */
-
-declare export var LanguageKind: {|
-  +PlutusV1: 0, // 0
-  +PlutusV2: 1, // 1
-|};
-
-/**
- */
-
-declare export var PlutusDataKind: {|
-  +ConstrPlutusData: 0, // 0
-  +Map: 1, // 1
-  +List: 2, // 2
-  +Integer: 3, // 3
-  +Bytes: 4, // 4
-|};
-
-/**
- */
-
-declare export var RedeemerTagKind: {|
-  +Spend: 0, // 0
-  +Mint: 1, // 1
-  +Cert: 2, // 2
-  +Reward: 3, // 3
-|};
-
-/**
- */
-
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
 |};
 
 /**
@@ -4378,6 +4378,28 @@ declare export class RedeemerTag {
 }
 /**
  */
+declare export class RedeemerWitnessKey {
+  free(): void;
+
+  /**
+   * @returns {RedeemerTag}
+   */
+  tag(): RedeemerTag;
+
+  /**
+   * @returns {BigNum}
+   */
+  index(): BigNum;
+
+  /**
+   * @param {RedeemerTag} tag
+   * @param {BigNum} index
+   * @returns {RedeemerWitnessKey}
+   */
+  static new(tag: RedeemerTag, index: BigNum): RedeemerWitnessKey;
+}
+/**
+ */
 declare export class Redeemers {
   free(): void;
 
@@ -4508,6 +4530,91 @@ declare export class Relays {
    * @param {Relay} elem
    */
   add(elem: Relay): void;
+}
+/**
+ */
+declare export class RequiredWitnessSet {
+  free(): void;
+
+  /**
+   * @param {Vkeywitness} vkey
+   */
+  add_vkey(vkey: Vkeywitness): void;
+
+  /**
+   * @param {Vkey} vkey
+   */
+  add_vkey_key(vkey: Vkey): void;
+
+  /**
+   * @param {Ed25519KeyHash} hash
+   */
+  add_vkey_key_hash(hash: Ed25519KeyHash): void;
+
+  /**
+   * @param {BootstrapWitness} bootstrap
+   */
+  add_bootstrap(bootstrap: BootstrapWitness): void;
+
+  /**
+   * @param {Vkey} bootstrap
+   */
+  add_bootstrap_key(bootstrap: Vkey): void;
+
+  /**
+   * @param {Ed25519KeyHash} hash
+   */
+  add_bootstrap_key_hash(hash: Ed25519KeyHash): void;
+
+  /**
+   * @param {NativeScript} native_script
+   */
+  add_native_script(native_script: NativeScript): void;
+
+  /**
+   * @param {ScriptHash} native_script
+   */
+  add_native_script_hash(native_script: ScriptHash): void;
+
+  /**
+   * @param {PlutusScript} plutus_script
+   */
+  add_plutus_script(plutus_script: PlutusScript): void;
+
+  /**
+   * @param {ScriptHash} plutus_script
+   */
+  add_plutus_hash(plutus_script: ScriptHash): void;
+
+  /**
+   * @param {PlutusData} plutus_datum
+   */
+  add_plutus_datum(plutus_datum: PlutusData): void;
+
+  /**
+   * @param {DataHash} plutus_datum
+   */
+  add_plutus_datum_hash(plutus_datum: DataHash): void;
+
+  /**
+   * @param {Redeemer} redeemer
+   */
+  add_redeemer(redeemer: Redeemer): void;
+
+  /**
+   * @param {RedeemerWitnessKey} redeemer
+   */
+  add_redeemer_tag(redeemer: RedeemerWitnessKey): void;
+
+  /**
+   * @param {RequiredWitnessSet} requirements
+   */
+  add_all(requirements: RequiredWitnessSet): void;
+
+  /**
+   * @returns {RequiredWitnessSet}
+   */
+  static new(): RequiredWitnessSet;
 }
 /**
  */
@@ -6670,6 +6777,62 @@ declare export class TransactionWitnessSet {
    * @returns {TransactionWitnessSet}
    */
   static new(): TransactionWitnessSet;
+}
+/**
+ * Builder de-duplicates witnesses as they are added
+ */
+declare export class TransactionWitnessSetBuilder {
+  free(): void;
+
+  /**
+   * @param {Vkeywitness} vkey
+   */
+  add_vkey(vkey: Vkeywitness): void;
+
+  /**
+   * @param {BootstrapWitness} bootstrap
+   */
+  add_bootstrap(bootstrap: BootstrapWitness): void;
+
+  /**
+   * @param {NativeScript} native_script
+   */
+  add_native_script(native_script: NativeScript): void;
+
+  /**
+   * @param {PlutusScript} plutus_script
+   */
+  add_plutus_script(plutus_script: PlutusScript): void;
+
+  /**
+   * @param {PlutusData} plutus_datum
+   */
+  add_plutus_datum(plutus_datum: PlutusData): void;
+
+  /**
+   * @param {Redeemer} redeemer
+   */
+  add_redeemer(redeemer: Redeemer): void;
+
+  /**
+   * @param {RequiredWitnessSet} required_wits
+   */
+  add_required_wits(required_wits: RequiredWitnessSet): void;
+
+  /**
+   * @returns {TransactionWitnessSetBuilder}
+   */
+  static new(): TransactionWitnessSetBuilder;
+
+  /**
+   * @param {TransactionWitnessSet} wit_set
+   */
+  add_existing(wit_set: TransactionWitnessSet): void;
+
+  /**
+   * @returns {TransactionWitnessSet}
+   */
+  build(): TransactionWitnessSet;
 }
 /**
  */
