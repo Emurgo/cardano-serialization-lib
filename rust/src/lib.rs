@@ -3541,4 +3541,24 @@ mod tests {
         assert!(pks4.contains(&keyhash2));
         assert!(pks4.contains(&keyhash3));
     }
+
+    #[test]
+    fn test_witness_set_union() {
+        use crate::fakes::{fake_vkeywitness, fake_key_hash};
+        let nscript1 = NativeScript::new_script_pubkey(&ScriptPubkey::new(&fake_key_hash(0)));
+        let s1 = TransactionWitnessSet {
+            vkeys: Some(Vkeywitnesses(vec![fake_vkeywitness(0)])),
+            native_scripts: Some(NativeScripts(vec![nscript1])),
+            bootstraps: None,
+            plutus_scripts: None,
+            plutus_data: None,
+            redeemers: None,
+        };
+
+        // Any union of X with an empty set is equal to X
+        let s1_copy1 = s1.union(&TransactionWitnessSet::new());
+        let s1_copy2 = TransactionWitnessSet::new().union(&s1);
+        assert_eq!(s1_copy1, s1);
+        assert_eq!(s1_copy2, s1);
+    }
 }
