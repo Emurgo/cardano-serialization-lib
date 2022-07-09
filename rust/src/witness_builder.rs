@@ -65,14 +65,14 @@ impl RequiredWitnessSet {
     }
 
     pub fn add_native_script(&mut self, native_script: &NativeScript) {
-        self.add_native_script_hash(&native_script.hash(ScriptHashNamespace::NativeScript));
+        self.add_native_script_hash(&native_script.hash());
     }
     pub fn add_native_script_hash(&mut self, native_script: &ScriptHash) {
         self.native_scripts.insert(native_script.clone());
     }
 
     pub fn add_plutus_script(&mut self, plutus_script: &PlutusScript) {
-        self.add_plutus_hash(&plutus_script.hash(ScriptHashNamespace::PlutusV1));
+        self.add_plutus_hash(&plutus_script.hash());
     }
     pub fn add_plutus_hash(&mut self, plutus_script: &ScriptHash) {
         self.plutus_scripts.insert(plutus_script.clone());
@@ -162,11 +162,11 @@ impl TransactionWitnessSetBuilder {
     }
 
     pub fn add_native_script(&mut self, native_script: &NativeScript) {
-        self.native_scripts.insert(native_script.hash(ScriptHashNamespace::NativeScript), native_script.clone());
+        self.native_scripts.insert(native_script.hash(), native_script.clone());
     }
 
     pub fn add_plutus_script(&mut self, plutus_script: &PlutusScript) {
-        self.plutus_scripts.insert(plutus_script.hash(ScriptHashNamespace::PlutusV1), plutus_script.clone());
+        self.plutus_scripts.insert(plutus_script.hash(), plutus_script.clone());
     }
 
     pub fn add_plutus_datum(&mut self, plutus_datum: &PlutusData) {

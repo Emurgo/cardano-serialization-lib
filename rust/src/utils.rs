@@ -1085,16 +1085,15 @@ pub struct MinOutputAdaCalculator {
 }
 
 impl MinOutputAdaCalculator {
-
     pub fn new(output: &TransactionOutput, data_cost: &DataCost) -> Self {
-        Self{
+        Self {
             output: output.clone(),
             data_cost: data_cost.clone()
         }
     }
 
     pub fn new_empty(data_cost: &DataCost) -> Result<MinOutputAdaCalculator, JsError> {
-        Ok(Self{
+        Ok(Self {
             output: MinOutputAdaCalculator::create_fake_output()?,
             data_cost: data_cost.clone()
         })
@@ -1142,17 +1141,11 @@ impl MinOutputAdaCalculator {
         Ok(calc_required_coin(&output, &coins_per_byte)?)
     }
 
-/// Each new language uses a different namespace for hashing its script
-/// This is because you could have a language where the same bytes have different semantics
-/// So this avoids scripts in different languages mapping to the same hash
-/// Note that the enum value here is different than the enum value for deciding the cost model of a script
-/// https://github.com/input-output-hk/cardano-ledger/blob/9c3b4737b13b30f71529e76c5330f403165e28a6/eras/alonzo/impl/src/Cardano/Ledger/Alonzo.hs#L127
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum ScriptHashNamespace {
-    NativeScript,
-    PlutusV1,
-    PlutusV2
+    fn create_fake_output() -> Result<TransactionOutput, JsError> {
+        let fake_base_address: Address = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w")?;
+        let fake_value: Value = Value::new(&to_bignum(1000000));
+        Ok(TransactionOutput::new(&fake_base_address, &fake_value))
+    }
 }
 
 pub (crate) fn hash_script(namespace: ScriptHashNamespace, script: Vec<u8>) -> ScriptHash {
@@ -1160,13 +1153,6 @@ pub (crate) fn hash_script(namespace: ScriptHashNamespace, script: Vec<u8>) -> S
     bytes.extend_from_slice(&vec![namespace as u8]);
     bytes.extend_from_slice(&script);
     ScriptHash::from(blake2b224(bytes.as_ref()))
-}
-
-    fn create_fake_output() -> Result<TransactionOutput, JsError> {
-        let fake_base_address: Address = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w")?;
-        let fake_value: Value = Value::new(&to_bignum(1000000));
-        Ok(TransactionOutput::new(&fake_base_address, &fake_value))
-    }
 }
 
 ///returns minimal amount of ada for the output for case when the amount is included to the output
