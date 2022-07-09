@@ -5995,6 +5995,14 @@ declare export class TransactionBuilder {
   build(): TransactionBody;
 
   /**
+   * Include the specified witnesses into the produced transactions.
+   * It will be added to all previously included witnesses
+   * and the witnesses added with native or plutus scripts.
+   * @param {TransactionWitnessSet} witness_set
+   */
+  include_witnesses(witness_set: TransactionWitnessSet): void;
+
+  /**
    * Returns full Transaction object with the body and the auxiliary data
    * NOTE: witness_set will contain all mint_scripts if any been added or set
    * NOTE: is_valid set to true
@@ -6670,6 +6678,14 @@ declare export class TransactionWitnessSet {
    * @returns {TransactionWitnessSet}
    */
   static new(): TransactionWitnessSet;
+
+  /**
+   * Combines all witnesses from the current set with the specified one
+   * and returns a new independent set instance
+   * @param {TransactionWitnessSet} other
+   * @returns {TransactionWitnessSet}
+   */
+  union(other: TransactionWitnessSet): TransactionWitnessSet;
 }
 /**
  */

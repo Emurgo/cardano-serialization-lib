@@ -901,7 +901,7 @@ impl Deserialize for AuxiliaryData {
                     }
                     read_len.finish()?;
                     let plutus_scripts = match (plutus_scripts_v1, plutus_scripts_v2) {
-                        (Some(v1), Some(v2)) => Some(v1.merge(&v2)),
+                        (Some(v1), Some(v2)) => Some(v1.union(&v2)),
                         (Some(v1), _) => Some(v1),
                         (_, Some(v2)) => Some(v2),
                         _ => None,

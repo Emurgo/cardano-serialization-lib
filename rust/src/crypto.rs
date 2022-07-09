@@ -490,6 +490,14 @@ impl Vkeywitnesses {
     pub fn add(&mut self, elem: &Vkeywitness) {
         self.0.push(elem.clone());
     }
+
+    pub(crate) fn union(&self, other: &Vkeywitnesses) -> Vkeywitnesses {
+        let mut copy = self.clone();
+        for k in &other.0 {
+            copy.add(k);
+        }
+        copy
+    }
 }
 
 impl cbor_event::se::Serialize for Vkeywitnesses {
@@ -631,6 +639,14 @@ impl BootstrapWitnesses {
 
     pub fn add(&mut self, elem: &BootstrapWitness) {
         self.0.push(elem.clone());
+    }
+
+    pub(crate) fn union(&self, other: &BootstrapWitnesses) -> BootstrapWitnesses {
+        let mut copy = self.clone();
+        for k in &other.0 {
+            copy.add(k);
+        }
+        copy
     }
 }
 

@@ -1680,6 +1680,27 @@ impl TransactionWitnessSet {
             redeemers: None,
         }
     }
+
+    /// Combines all witnesses from the current set with the specified one
+    /// and returns a new independent set instance
+    pub fn union(&self, other: &TransactionWitnessSet) -> TransactionWitnessSet {
+        fn option_merge<T: Clone>(o1: Option<&T>, o2: Option<&T>, f: &dyn Fn(&T, &T) -> T) -> Option<T> {
+            match (o1, o2) {
+                (Some(a), Some(b)) => Some(f(a, b)),
+                (Some(a), _) => Some(a.clone()),
+                (_, Some(b)) => Some(b.clone()),
+                _ => None
+            }
+        }
+        Self {
+            vkeys: option_merge(self.vkeys.as_ref(), other.vkeys.as_ref(), &Vkeywitnesses::union),
+            native_scripts: option_merge(self.native_scripts.as_ref(), other.native_scripts.as_ref(), &NativeScripts::union),
+            bootstraps: option_merge(self.bootstraps.as_ref(), other.bootstraps.as_ref(), &BootstrapWitnesses::union),
+            plutus_scripts: option_merge(self.plutus_scripts.as_ref(), other.plutus_scripts.as_ref(), &PlutusScripts::union),
+            plutus_data: option_merge(self.plutus_data.as_ref(), other.plutus_data.as_ref(), &PlutusList::union),
+            redeemers: option_merge(self.redeemers.as_ref(), other.redeemers.as_ref(), &Redeemers::union),
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -2075,6 +2096,14 @@ impl NativeScripts {
 
     pub fn add(&mut self, elem: &NativeScript) {
         self.0.push(elem.clone());
+    }
+
+    pub(crate) fn union(&self, other: &NativeScripts) -> NativeScripts {
+        let mut copy = self.clone();
+        for k in &other.0 {
+            copy.add(k);
+        }
+        copy
     }
 }
 

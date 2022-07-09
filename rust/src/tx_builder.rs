@@ -343,6 +343,7 @@ pub struct TransactionBuilder {
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
     reference_inputs: TransactionInputs,
+    include_witness_set: TransactionWitnessSet,
 }
 
 #[wasm_bindgen]
@@ -1043,6 +1044,7 @@ impl TransactionBuilder {
             collateral_return: None,
             total_collateral: None,
             reference_inputs: TransactionInputs::new(),
+            include_witness_set: TransactionWitnessSet::new(),
         }
     }
 
@@ -1539,7 +1541,14 @@ impl TransactionBuilder {
             wit.set_plutus_data(&datums);
             wit.set_redeemers(&redeemers);
         }
-        wit
+        wit.union(&self.include_witness_set)
+    }
+
+    /// Include the specified witnesses into the produced transactions.
+    /// It will be added to all previously included witnesses
+    /// and the witnesses added with native or plutus scripts.
+    pub fn include_witnesses(&mut self, witness_set: &TransactionWitnessSet) {
+        self.include_witness_set = self.include_witness_set.union(witness_set);
     }
 
     fn has_plutus_inputs(&self) -> bool {

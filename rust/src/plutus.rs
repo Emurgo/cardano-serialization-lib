@@ -124,7 +124,7 @@ impl PlutusScripts {
         self.0.iter().any(|s| s.language_version().eq(language))
     }
 
-    pub(crate) fn merge(&self, other: &PlutusScripts) -> PlutusScripts {
+    pub(crate) fn union(&self, other: &PlutusScripts) -> PlutusScripts {
         let mut res = self.clone();
         for s in &other.0 {
             res.add(s);
@@ -627,6 +627,14 @@ impl PlutusList {
         self.elems.push(elem.clone());
         self.definite_encoding = None;
     }
+
+    pub(crate) fn union(&self, other: &PlutusList) -> PlutusList {
+        let mut copy = self.clone();
+        for k in &other.elems {
+            copy.add(k);
+        }
+        copy
+    }
 }
 
 impl From<Vec<PlutusData>> for PlutusList {
@@ -743,6 +751,14 @@ impl Redeemers {
 
     pub fn add(&mut self, elem: &Redeemer) {
         self.0.push(elem.clone());
+    }
+
+    pub(crate) fn union(&self, other: &Redeemers) -> Redeemers {
+        let mut copy = self.clone();
+        for k in &other.0 {
+            copy.add(k);
+        }
+        copy
     }
 
     pub fn total_ex_units(&self) -> Result<ExUnits, JsError> {
