@@ -15,10 +15,6 @@ to_from_bytes!(PlutusScript);
 
 #[wasm_bindgen]
 impl PlutusScript {
-    pub fn hash(&self, namespace: ScriptHashNamespace) -> ScriptHash {
-        hash_script(namespace, self.to_bytes())
-    }
-
     /**
      * Creates a new Plutus script from the RAW bytes of the compiled script.
      * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
