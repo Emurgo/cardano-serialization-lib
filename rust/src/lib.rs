@@ -1960,12 +1960,7 @@ pub enum ScriptHashNamespace {
 impl NativeScript {
 
     pub fn hash(&self) -> ScriptHash {
-        let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
-        bytes.extend_from_slice(&vec![
-            ScriptHashNamespace::NativeScript as u8,
-        ]);
-        bytes.extend_from_slice(&self.to_bytes());
-        ScriptHash::from(blake2b224(bytes.as_ref()))
+        hash_script(ScriptHashNamespace::NativeScript, self.to_bytes())
     }
 
     pub fn new_script_pubkey(script_pubkey: &ScriptPubkey) -> Self {

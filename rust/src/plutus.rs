@@ -64,11 +64,8 @@ impl PlutusScript {
     }
 
     pub fn hash(&self) -> ScriptHash {
-        let mut bytes = Vec::with_capacity(self.bytes.len() + 1);
         // https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl#L413
-        bytes.extend_from_slice(&vec![self.script_namespace() as u8]);
-        bytes.extend_from_slice(&self.bytes);
-        ScriptHash::from(blake2b224(bytes.as_ref()))
+        hash_script(self.script_namespace(), self.bytes())
     }
 
     pub fn language_version(&self) -> Language {
