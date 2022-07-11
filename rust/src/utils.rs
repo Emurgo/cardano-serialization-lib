@@ -818,6 +818,20 @@ impl BigInt {
         }
     }
 
+    pub fn as_int(&self) -> Option<Int> {
+        let (sign, u64_digits) = self.0.to_u64_digits();
+        let u64_digit = match u64_digits.len() {
+            0 => Some(to_bignum(0)),
+            1 => Some(to_bignum(*u64_digits.first().unwrap())),
+            _ => None,
+        }?;
+        match sign {
+            num_bigint::Sign::NoSign |
+            num_bigint::Sign::Plus => Some(Int::new(&u64_digit)),
+            num_bigint::Sign::Minus => Some(Int::new_negative(&u64_digit)),
+        }
+    }
+
     pub fn from_str(text: &str) -> Result<BigInt, JsError> {
         use std::str::FromStr;
         num_bigint::BigInt::from_str(text)
@@ -925,6 +939,12 @@ impl Deserialize for BigInt {
                 _ => return Err(DeserializeFailure::NoVariantMatched.into()),
             }
         })().map_err(|e| e.annotate("BigInt"))
+    }
+}
+
+impl<T> std::convert::From<T> for BigInt where T: std::convert::Into<num_bigint::BigInt> {
+    fn from(x: T) -> Self {
+        Self(x.into())
     }
 }
 
@@ -2545,5 +2565,20 @@ mod tests {
             to_bignum(10).div_floor(&to_bignum(12)),
             to_bignum(0),
         );
+    }
+
+    #[test]
+    fn bigint_as_int() {
+        let zero = BigInt::from_str("0").unwrap();
+        let zero_int = zero.as_int().unwrap();
+        assert_eq!(zero_int.0, 0i128);
+
+        let pos = BigInt::from_str("1024").unwrap();
+        let pos_int = pos.as_int().unwrap();
+        assert_eq!(pos_int.0, 1024i128);
+
+        let neg = BigInt::from_str("-1024").unwrap();
+        let neg_int = neg.as_int().unwrap();
+        assert_eq!(neg_int.0, -1024i128);
     }
 }

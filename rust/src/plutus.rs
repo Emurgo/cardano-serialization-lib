@@ -830,7 +830,271 @@ impl Strings {
 
 
 
+// json
 
+
+/// JSON <-> PlutusData conversion schemas.
+/// Follows ScriptDataJsonSchema in cardano-cli defined at:
+/// https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/ScriptData.hs#L254
+///
+/// All methods here have the following restrictions due to limitations on dependencies:
+/// * JSON numbers above u64::MAX (positive) or below i64::MIN (negative) will throw errors
+/// * Hex strings for bytes don't accept odd-length (half-byte) strings.
+///      cardano-cli seems to support these however but it seems to be different than just 0-padding
+///      on either side when tested so proceed with caution
+#[wasm_bindgen]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum PlutusDatumSchema {
+    /// ScriptDataJsonNoSchema in cardano-node.
+    ///
+    /// This is the format used by --script-data-value in cardano-cli
+    /// This tries to accept most JSON but does not support the full spectrum of Plutus datums.
+    /// From JSON:
+    /// * null/true/false/floats NOT supported
+    /// * strings starting with 0x are treated as hex bytes. All other strings are encoded as their utf8 bytes.
+    /// To JSON:
+    /// * ConstrPlutusData not supported in ANY FORM (neither keys nor values)
+    /// * Lists not supported in keys
+    /// * Maps not supported in keys
+    ////
+    BasicConversions,
+    /// ScriptDataJsonDetailedSchema in cardano-node.
+    /// 
+    /// This is the format used by --script-data-file in cardano-cli
+    /// This covers almost all (only minor exceptions) Plutus datums, but the JSON must conform to a strict schema.
+    /// The schema specifies that ALL keys and ALL values must be contained in a JSON map with 2 cases:
+    /// 1. For ConstrPlutusData there must be two fields "constructor" contianing a number and "fields" containing its fields
+    ///    e.g. { "constructor": 2, "fields": [{"int": 2}, {"list": [{"bytes": "CAFEF00D"}]}]}
+    /// 2. For all other cases there must be only one field named "int", "bytes", "list" or "map"
+    ///    Integer's value is a JSON number e.g. {"int": 100}
+    ///    Bytes' value is a hex string representing the bytes WITHOUT any prefix e.g. {"bytes": "CAFEF00D"}
+    ///    Lists' value is a JSON list of its elements encoded via the same schema e.g. {"list": [{"bytes": "CAFEF00D"}]}
+    ///    Maps' value is a JSON list of objects, one for each key-value pair in the map, with keys "k" and "v"
+    ///          respectively with their values being the plutus datum encoded via this same schema
+    ///          e.g. {"map": [
+    ///              {"k": {"int": 2}, "v": {"int": 5}},
+    ///              {"k": {"map": [{"k": {"list": [{"int": 1}]}, "v": {"bytes": "FF03"}}]}, "v": {"list": []}}
+    ///          ]}
+    /// From JSON:
+    /// * null/true/false/floats NOT supported
+    /// * the JSON must conform to a very specific schema
+    /// To JSON:
+    /// * all Plutus datums should be fully supported outside of the integer range limitations outlined above.
+    ////
+    DetailedSchema,
+}
+
+#[wasm_bindgen]
+pub fn encode_json_str_to_plutus_datum(json: &str, schema: PlutusDatumSchema) -> Result<PlutusData, JsError> {
+    let value = serde_json::from_str(json).map_err(|e| JsError::from_str(&e.to_string()))?;
+    encode_json_value_to_plutus_datum(value, schema)
+}
+
+pub fn encode_json_value_to_plutus_datum(value: serde_json::Value, schema: PlutusDatumSchema) -> Result<PlutusData, JsError> {
+    use serde_json::Value;
+    fn encode_number(x: serde_json::Number) -> Result<PlutusData, JsError> {
+        if let Some(x) = x.as_u64() {
+            Ok(PlutusData::new_integer(&BigInt::from(x)))
+        } else if let Some(x) = x.as_i64() {
+            Ok(PlutusData::new_integer(&BigInt::from(x)))
+        } else {
+            Err(JsError::from_str("floats not allowed in plutus datums"))
+        }
+    }
+    fn encode_string(s: &str, schema: PlutusDatumSchema, is_key: bool) -> Result<PlutusData, JsError> {
+        if schema == PlutusDatumSchema::BasicConversions {
+            if s.starts_with("0x") {
+                // this must be a valid hex bytestring after
+                hex::decode(&s[2..])
+                    .map(|bytes| PlutusData::new_bytes(bytes))
+                    .map_err(|err| JsError::from_str(&format!("Error decoding {}: {}", s, err)))
+            } else if is_key {
+                // try as an integer
+                BigInt::from_str(s)
+                    .map(|x| PlutusData::new_integer(&x))
+                // if not, we use the utf8 bytes of the string instead directly
+                    .or_else(|_err| Ok(PlutusData::new_bytes(s.as_bytes().to_vec())))
+            } else {
+                // can only be UTF bytes if not in a key and not prefixed by 0x
+                Ok(PlutusData::new_bytes(s.as_bytes().to_vec()))
+            }
+        } else {
+            if s.starts_with("0x") {
+                Err(JsError::from_str("Hex byte strings in detailed schema should NOT start with 0x and should just contain the hex characters"))
+            } else {
+                hex::decode(s)
+                    .map(|bytes| PlutusData::new_bytes(bytes))
+                    .map_err(|e| JsError::from_str(&e.to_string()))
+            }
+        }
+    }
+    fn encode_array(json_arr: Vec<Value>, schema: PlutusDatumSchema) -> Result<PlutusData, JsError> {
+        let mut arr = PlutusList::new();
+        for value in json_arr {
+            arr.add(&encode_json_value_to_plutus_datum(value, schema)?);
+        }
+        Ok(PlutusData::new_list(&arr))
+    }
+    match schema {
+        PlutusDatumSchema::BasicConversions => match value {
+            Value::Null => Err(JsError::from_str("null not allowed in plutus datums")),
+            Value::Bool(_) => Err(JsError::from_str("bools not allowed in plutus datums")),
+            Value::Number(x) => encode_number(x),
+            // no strings in plutus so it's all bytes (as hex or utf8 printable)
+            Value::String(s) => encode_string(&s, schema, false),
+            Value::Array(json_arr) => encode_array(json_arr, schema),
+            Value::Object(json_obj) => {
+                let mut map = PlutusMap::new();
+                for (raw_key, raw_value) in json_obj {
+                    let key = encode_string(&raw_key, schema, true)?;
+                    let value = encode_json_value_to_plutus_datum(raw_value, schema)?;
+                    map.insert(&key, &value);
+                }
+                Ok(PlutusData::new_map(&map))
+            },
+        },
+        PlutusDatumSchema::DetailedSchema => match value {
+            Value::Object(obj) => {
+                if obj.len() == 1 {
+                    // all variants except tagged constructors
+                    let (k, v) = obj.into_iter().next().unwrap();
+                    fn tag_mismatch() -> JsError {
+                        JsError::from_str("key does not match type")
+                    }
+                    match k.as_str() {
+                        "int" => match v {
+                            Value::Number(x) => encode_number(x),
+                            _ => Err(tag_mismatch()),
+                        },
+                        "bytes" => encode_string(v.as_str().ok_or_else(tag_mismatch)?, schema, false),
+                        "list" => encode_array(v.as_array().ok_or_else(tag_mismatch)?.clone(), schema),
+                        "map" => {
+                            let mut map = PlutusMap::new();
+                            fn map_entry_err() -> JsError {
+                                JsError::from_str("entry format in detailed schema map object not correct. Needs to be of form {\"k\": {\"key_type\": key}, \"v\": {\"value_type\", value}}")
+                            }
+                            for entry in v.as_array().ok_or_else(tag_mismatch)? {
+                                let entry_obj = entry.as_object().ok_or_else(map_entry_err)?;
+                                let raw_key = entry_obj
+                                    .get("k")
+                                    .ok_or_else(map_entry_err)?;
+                                let value = entry_obj
+                                    .get("v")
+                                    .ok_or_else(map_entry_err)?;
+                                let key = encode_json_value_to_plutus_datum(raw_key.clone(), schema)?;
+                                map.insert(&key, &encode_json_value_to_plutus_datum(value.clone(), schema)?);
+                            }
+                            Ok(PlutusData::new_map(&map))
+                        },
+                        invalid_key => Err(JsError::from_str(&format!("key '{}' in tagged object not valid", invalid_key))),
+                    }
+                } else {
+                    // constructor with tagged variant
+                    if obj.len() != 2 {
+                        return Err(JsError::from_str("detailed schemas must either have only one of the following keys: \"int\", \"bytes\", \"list\" or \"map\", or both of these 2 keys: \"constructor\" + \"fields\""));
+                    }
+                    let variant: BigNum = obj
+                        .get("constructor")
+                        .and_then(|v| Some(to_bignum(v.as_u64()?)))
+                        .ok_or_else(|| JsError::from_str("tagged constructors must contain an unsigned integer called \"constructor\""))?;
+                    let fields_json = obj
+                        .get("fields")
+                        .and_then(|f| f.as_array())
+                        .ok_or_else(|| JsError::from_str("tagged constructors must contian a list called \"fields\""))?;
+                    let mut fields = PlutusList::new();
+                    for field_json in fields_json {
+                        let field = encode_json_value_to_plutus_datum(field_json.clone(), schema)?;
+                        fields.add(&field);
+                    }
+                    Ok(PlutusData::new_constr_plutus_data(&ConstrPlutusData::new(&variant, &fields)))
+                }
+            },
+            _ => Err(JsError::from_str(&format!("DetailedSchema requires ALL JSON to be tagged objects, found: {}", value))),
+        },
+    }
+}
+
+#[wasm_bindgen]
+pub fn decode_plutus_datum_to_json_str(datum: &PlutusData, schema: PlutusDatumSchema) -> Result<String, JsError> {
+    let value = decode_plutus_datum_to_json_value(datum, schema)?;
+    serde_json::to_string(&value).map_err(|e| JsError::from_str(&e.to_string()))
+}
+
+pub fn decode_plutus_datum_to_json_value(datum: &PlutusData, schema: PlutusDatumSchema) -> Result<serde_json::Value, JsError> {
+    use serde_json::Value;
+    let (type_tag, json_value) = match &datum.datum {
+        PlutusDataEnum::ConstrPlutusData(constr) => {
+            let mut obj = serde_json::map::Map::with_capacity(2);
+            obj.insert(
+                String::from("constructor"),
+                Value::from(from_bignum(&constr.alternative))
+            );
+            let mut fields = Vec::new();
+            for field in constr.data.elems.iter() {
+                fields.push(decode_plutus_datum_to_json_value(field, schema)?);
+            }
+            obj.insert(
+                String::from("fields"),
+                Value::from(fields)
+            );
+            (None, Value::from(obj))
+        },
+        PlutusDataEnum::Map(map) => match schema {
+            PlutusDatumSchema::BasicConversions => (None, Value::from(map.0.iter().map(|(key, value)| {
+                let json_key: String = match &key.datum {
+                    PlutusDataEnum::ConstrPlutusData(_) => Err(JsError::from_str("plutus data constructors are not allowed as keys in this schema. Use DetailedSchema.")),
+                    PlutusDataEnum::Map(_) => Err(JsError::from_str("plutus maps are not allowed as keys in this schema. Use DetailedSchema.")),
+                    PlutusDataEnum::List(_) => Err(JsError::from_str("plutus lists are not allowed as keys in this schema. Use DetailedSchema.")),
+                    PlutusDataEnum::Integer(x) => Ok(x.to_str()),
+                    PlutusDataEnum::Bytes(bytes) => String::from_utf8(bytes.clone()).or_else(|_err| Ok(format!("0x{}", hex::encode(bytes))))
+                }?;
+                let json_value = decode_plutus_datum_to_json_value(value, schema)?;
+                Ok((json_key, Value::from(json_value)))
+            }).collect::<Result<serde_json::map::Map<String, Value>, JsError>>()?)),
+            PlutusDatumSchema::DetailedSchema => (Some("map"), Value::from(map.0.iter().map(|(key, value)| {
+                let k = decode_plutus_datum_to_json_value(key, schema)?;
+                let v = decode_plutus_datum_to_json_value(value, schema)?;
+                let mut kv_obj = serde_json::map::Map::with_capacity(2);
+                kv_obj.insert(String::from("k"), k);
+                kv_obj.insert(String::from("v"), v);
+                Ok(Value::from(kv_obj))
+            }).collect::<Result<Vec<_>, JsError>>()?)),
+        },
+        PlutusDataEnum::List(list) => {
+            let mut elems = Vec::new();
+            for elem in list.elems.iter() {
+                elems.push(decode_plutus_datum_to_json_value(elem, schema)?);
+            }
+            (Some("list"), Value::from(elems))
+        },
+        PlutusDataEnum::Integer(bigint) => (
+            Some("int"),
+            bigint
+                .as_int()
+                .as_ref()
+                .map(|int| if int.0 >= 0 { Value::from(int.0 as u64) } else { Value::from(int.0 as i64) })
+                .ok_or_else(|| JsError::from_str(&format!("Integer {} too big for our JSON support", bigint.to_str())))?
+        ),
+        PlutusDataEnum::Bytes(bytes) => (Some("bytes"), Value::from(match schema {
+            PlutusDatumSchema::BasicConversions => {
+                // cardano-cli converts to a string only if bytes are utf8 and all characters are printable
+                String::from_utf8(bytes.clone())
+                    .ok()
+                    .filter(|utf8| utf8.chars().all(|c| !c.is_control()))
+                // otherwise we hex-encode the bytes with a 0x prefix
+                    .unwrap_or_else(|| format!("0x{}", hex::encode(bytes)))
+            },
+            PlutusDatumSchema::DetailedSchema => hex::encode(bytes),
+        })),
+    };
+    if type_tag.is_none() || schema != PlutusDatumSchema::DetailedSchema {
+        Ok(json_value)
+    } else {
+        let mut wrapper = serde_json::map::Map::with_capacity(1);
+        wrapper.insert(String::from(type_tag.unwrap()), json_value);
+        Ok(Value::from(wrapper))
+    }
+}
 
 
 
@@ -882,8 +1146,6 @@ impl Deserialize for PlutusScripts {
     }
 }
 
-
-// TODO: write tests for this hand-coded implementation?
 impl cbor_event::se::Serialize for ConstrPlutusData {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
         if let Some(compact_tag) = Self::alternative_to_compact_cbor_tag(from_bignum(&self.alternative)) {
@@ -1493,6 +1755,89 @@ mod tests {
     }
 
     #[test]
+    pub fn plutus_datum_from_json_basic() {
+        let json = "{
+            \"5\": \"some utf8 string\",
+            \"0xDEADBEEF\": [
+                {\"reg string\": {}},
+                -9
+            ]
+        }";
+
+        let datum = encode_json_str_to_plutus_datum(json, PlutusDatumSchema::BasicConversions).unwrap();
+
+        let map = datum.as_map().unwrap();
+        let map_5 = map.get(&PlutusData::new_integer(&BigInt::from_str("5").unwrap())).unwrap();
+        let utf8_bytes = "some utf8 string".as_bytes();
+        assert_eq!(map_5.as_bytes().unwrap(), utf8_bytes);
+        let map_deadbeef: PlutusList = map
+            .get(&PlutusData::new_bytes(vec![222, 173, 190, 239]))
+            .expect("DEADBEEF key not found")
+            .as_list()
+            .expect("must be a map");
+        assert_eq!(map_deadbeef.len(), 2);
+        let inner_map = map_deadbeef.get(0).as_map().unwrap();
+        assert_eq!(inner_map.len(), 1);
+        let reg_string = inner_map.get(&PlutusData::new_bytes("reg string".as_bytes().to_vec())).unwrap();
+        assert_eq!(reg_string.as_map().expect("reg string: {}").len(), 0);
+        assert_eq!(map_deadbeef.get(1).as_integer(), BigInt::from_str("-9").ok());
+
+        // test round-trip via generated JSON
+        let json2 = decode_plutus_datum_to_json_str(&datum, PlutusDatumSchema::BasicConversions).unwrap();
+        let datum2 = encode_json_str_to_plutus_datum(&json2, PlutusDatumSchema::BasicConversions).unwrap();
+        assert_eq!(datum, datum2);
+    }
+
+    #[test]
+    pub fn plutus_datum_from_json_detailed() {
+        let json = "{\"list\": [
+            {\"map\": [
+                {\"k\": {\"bytes\": \"DEADBEEF\"}, \"v\": {\"int\": 42}},
+                {\"k\": {\"map\" : [
+                    {\"k\": {\"int\": 9}, \"v\": {\"int\": -5}}
+                ]}, \"v\": {\"list\": []}}
+            ]},
+            {\"bytes\": \"CAFED00D\"},
+            {\"constructor\": 0, \"fields\": [
+                {\"map\": []},
+                {\"int\": 23}
+            ]}
+        ]}";
+        let datum = encode_json_str_to_plutus_datum(json, PlutusDatumSchema::DetailedSchema).unwrap();
+
+        let list = datum.as_list().unwrap();
+        assert_eq!(3, list.len());
+        // map
+        let map = list.get(0).as_map().unwrap();
+        assert_eq!(map.len(), 2);
+        let map_deadbeef = map.get(&PlutusData::new_bytes(vec![222, 173, 190, 239])).unwrap();
+        assert_eq!(map_deadbeef.as_integer(), BigInt::from_str("42").ok());
+        let mut long_key = PlutusMap::new();
+        long_key.insert(
+            &PlutusData::new_integer(&BigInt::from_str("9").unwrap()),
+            &PlutusData::new_integer(&BigInt::from_str("-5").unwrap())
+        );
+        let map_9_to_5 = map.get(&PlutusData::new_map(&long_key)).unwrap().as_list().unwrap();
+        assert_eq!(map_9_to_5.len(), 0);
+        // bytes
+        let bytes = list.get(1).as_bytes().unwrap();
+        assert_eq!(bytes, [202, 254, 208, 13]);
+        // constr data
+        let constr = list.get(2).as_constr_plutus_data().unwrap();
+        assert_eq!(to_bignum(0), constr.alternative());
+        let fields = constr.data();
+        assert_eq!(fields.len(), 2);
+        let field0 = fields.get(0).as_map().unwrap();
+        assert_eq!(field0.len(), 0);
+        let field1 = fields.get(1);
+        assert_eq!(field1.as_integer(), BigInt::from_str("23").ok());
+        
+        // test round-trip via generated JSON
+        let json2 = decode_plutus_datum_to_json_str(&datum, PlutusDatumSchema::DetailedSchema).unwrap();
+        let datum2 = encode_json_str_to_plutus_datum(&json2, PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, datum2);
+    }
+
     pub fn test_cost_model() {
         let arr = vec![
             197209, 0, 1, 1, 396231, 621, 0, 1, 150000, 1000, 0, 1, 150000, 32,
