@@ -9,6 +9,7 @@ use std::ops::{Div};
 use super::*;
 use crate::error::{DeserializeError, DeserializeFailure};
 use crate::fakes::fake_data_hash;
+use schemars::JsonSchema;
 
 pub fn to_bytes<T: cbor_event::se::Serialize>(data_item: &T) -> Vec<u8> {
     let mut buf = Serializer::new_vec();
@@ -19,6 +20,30 @@ pub fn to_bytes<T: cbor_event::se::Serialize>(data_item: &T) -> Vec<u8> {
 pub fn from_bytes<T: Deserialize>(data: &Vec<u8>) -> Result<T, DeserializeError>{
     let mut raw = Deserializer::from(std::io::Cursor::new(data));
     T::deserialize(&mut raw)
+}
+
+#[macro_export]
+macro_rules! to_from_json {
+    ($name:ident) => {
+        #[wasm_bindgen]
+        impl $name {
+            pub fn to_json(&self) -> Result<String, JsError> {
+                serde_json::to_string_pretty(&self)
+                    .map_err(|e| JsError::from_str(&format!("to_json: {}", e)))
+            }
+
+            #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+            pub fn to_js_value(&self) -> Result<JsValue, JsError> {
+                JsValue::from_serde(&self)
+                    .map_err(|e| JsError::from_str(&format!("to_js_value: {}", e)))
+            }
+
+            pub fn from_json(json: &str) -> Result<$name, JsError> {
+                serde_json::from_str(json)
+                    .map_err(|e| JsError::from_str(&format!("from_json: {}", e)))
+            }
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -247,6 +272,27 @@ impl Deserialize for BigNum {
   }
 }
 
+impl serde::Serialize for BigNum {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&self.to_str())
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for BigNum {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"string rep of a number"))
+    }
+}
+
+impl JsonSchema for BigNum {
+    fn schema_name() -> String { String::from("BigNum") }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
+}
+
 pub fn to_bignum(val: u64) -> BigNum {
     BigNum(val)
 }
@@ -263,13 +309,15 @@ pub fn to_bigint(val: u64) -> BigInt {
 pub type Coin = BigNum;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, /*Hash,*/ Ord, PartialEq)]
+#[derive(Clone, Debug, Eq, /*Hash,*/ Ord, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Value {
     pub (crate) coin: Coin,
     pub (crate) multiasset: Option<MultiAsset>,
 }
 
 to_from_bytes!(Value);
+
+to_from_json!(Value);
 
 #[wasm_bindgen]
 impl Value {
@@ -571,6 +619,16 @@ impl Int {
     pub fn to_str(&self) -> String {
         format!("{}", self.0)
     }
+
+    // Create an Int from a standard rust string representation
+    pub fn from_str(string: &str) -> Result<Int, JsError> {
+        let x = string.parse::<i128>()
+            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))?;
+        if x.abs() > u64::MAX as i128 {
+            return Err(JsError::from_str(&format!("{} out of bounds. Value (without sign) must fit within 4 bytes limit of {}", x, u64::MAX)));
+        }
+        Ok(Self(x))
+    }
 }
 
 impl cbor_event::se::Serialize for Int {
@@ -593,6 +651,27 @@ impl Deserialize for Int {
             }
         })().map_err(|e| e.annotate("Int"))
     }
+}
+
+impl serde::Serialize for Int {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: serde::Serializer {
+        serializer.serialize_str(&self.to_str())
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for Int {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+        D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"string rep of a number"))
+    }
+}
+
+impl JsonSchema for Int {
+    fn schema_name() -> String { String::from("Int") }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
 }
 
 /// TODO: this function can be removed in case `cbor_event` library ever gets a fix on their side
@@ -698,6 +777,27 @@ pub (crate) fn read_bounded_bytes<R: BufRead + Seek>(raw: &mut Deserializer<R>) 
 pub struct BigInt(num_bigint::BigInt);
 
 to_from_bytes!(BigInt);
+
+impl serde::Serialize for BigInt {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&self.to_str())
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for BigInt {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        BigInt::from_str(&s).map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"string rep of a big int"))
+    }
+}
+
+impl JsonSchema for BigInt {
+    fn schema_name() -> String { String::from("BigInt") }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
+}
 
 #[wasm_bindgen]
 impl BigInt {

@@ -67,8 +67,8 @@ impl NetworkInfo {
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq, Ord, PartialEq, PartialOrd)]
-enum StakeCredType {
+#[derive(Debug, Clone, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
+pub enum StakeCredType {
     Key(Ed25519KeyHash),
     Script(ScriptHash),
 }
@@ -82,7 +82,7 @@ pub enum StakeCredKind {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct StakeCredential(StakeCredType);
 
 #[wasm_bindgen]
@@ -125,6 +125,8 @@ impl StakeCredential {
 }
 
 to_from_bytes!(StakeCredential);
+
+to_from_json!(StakeCredential);
 
 impl cbor_event::se::Serialize for StakeCredential {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
@@ -273,6 +275,32 @@ pub struct Address(AddrType);
 from_bytes!(Address, data, {
     Self::from_bytes_impl(data.as_ref())
 });
+
+to_from_json!(Address);
+
+impl serde::Serialize for Address {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let bech32 = self.to_bech32(None)
+            .map_err(|e| serde::ser::Error::custom(format!("to_bech32: {:?}", e)))?;
+        serializer.serialize_str(&bech32)
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for Address {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let bech32 = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        Address::from_bech32(&bech32)
+            .map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&bech32), &"bech32 address string"))
+    }
+}
+
+impl JsonSchema for Address {
+    fn schema_name() -> String { String::from("Address") }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
+}
 
 // to/from_bytes() are the raw encoding without a wrapping CBOR Bytes tag
 // while Serialize and Deserialize traits include that for inclusion with
@@ -587,6 +615,34 @@ impl RewardAddress {
             _ => None,
         }
     }
+}
+
+impl serde::Serialize for RewardAddress {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let bech32 = self
+            .to_address()
+            .to_bech32(None)
+            .map_err(|e| serde::ser::Error::custom(format!("to_bech32: {:?}", e)))?;
+        serializer.serialize_str(&bech32)
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for RewardAddress {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let bech32 = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        match Address::from_bech32(&bech32).ok().map(|addr| RewardAddress::from_address(&addr)) {
+            Some(Some(ra)) => Ok(ra),
+            _ => Err(serde::de::Error::invalid_value(serde::de::Unexpected::Str(&bech32), &"bech32 reward address string")),
+        }
+    }
+}
+
+impl JsonSchema for RewardAddress {
+    fn schema_name() -> String { String::from("RewardAddress") }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
 }
 
 // needed since we treat RewardAccount like RewardAddress
