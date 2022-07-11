@@ -1593,7 +1593,6 @@ impl TransactionBuilder {
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
     use super::*;
     use fees::*;
     use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2};
@@ -6068,7 +6067,7 @@ mod tests {
         let fake_out = TransactionOutput::new(&collateral_return_address, &possible_ret);
         let min_ada = min_ada_for_output(&fake_out, &tx_builder.config.utxo_cost()).unwrap();
 
-        let mut total_collateral_value = to_bignum(collateral_input_value).checked_sub(&min_ada).unwrap();
+        let total_collateral_value = to_bignum(collateral_input_value).checked_sub(&min_ada).unwrap();
 
         tx_builder.set_total_collateral_and_return(
             &total_collateral_value,
@@ -6089,8 +6088,6 @@ mod tests {
     fn test_add_zero_collateral_return() {
         let mut tx_builder = create_reallistic_tx_builder();
         tx_builder.set_fee(&to_bignum(123456));
-
-        let masset = fake_multiasset(123);
 
         let mut inp = TxInputsBuilder::new();
         let collateral_input_value = 2_000_000;
