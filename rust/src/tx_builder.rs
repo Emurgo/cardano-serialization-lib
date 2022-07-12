@@ -1420,12 +1420,24 @@ impl TransactionBuilder {
     /// in the builder to be used when building the tx body.
     /// In case there are no plutus input witnesses present - nothing will change
     /// You can set specific hash value using `.set_script_data_hash`
-    pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) {
+    pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) -> Result<(), JsError> {
+        let mut retained_cost_models = Costmdls::new();
         if let Some(pw) = self.inputs.get_plutus_input_scripts() {
-            let (_, datums, redeemers) = pw.collect();
+            let (scripts, datums, redeemers) = pw.collect();
+            for lang in Languages::list().0 {
+                if scripts.has_version(&lang) {
+                    match cost_models.get(&lang) {
+                        Some(cost) => { retained_cost_models.insert(&lang, &cost); },
+                        _ => return Err(JsError::from_str(
+                            &format!("Missing cost model for language version: {:?}", lang)
+                        )),
+                    }
+                }
+            }
             self.script_data_hash =
-                Some(hash_script_data(&redeemers, cost_models, Some(datums)));
+                Some(hash_script_data(&redeemers, &retained_cost_models, Some(datums)));
         }
+        Ok(())
     }
 
     /// Sets the specified hash value.
@@ -5033,7 +5045,7 @@ mod tests {
         // Setting script data hash removes the error
         tx_builder.calc_script_data_hash(
             &TxBuilderConstants::plutus_default_cost_models(),
-        );
+        ).unwrap();
 
         // Using SAFE `.build_tx`
         let res2 = tx_builder.build_tx();
@@ -5094,7 +5106,7 @@ mod tests {
         // Calc the script data hash
         tx_builder.calc_script_data_hash(
             &TxBuilderConstants::plutus_default_cost_models(),
-        );
+        ).unwrap();
 
         let tx: Transaction = tx_builder.build_tx().unwrap();
         assert!(tx.witness_set.redeemers.is_some());
@@ -5190,7 +5202,7 @@ mod tests {
 
         tx_builder.calc_script_data_hash(
             &TxBuilderConstants::plutus_default_cost_models(),
-        );
+        ).unwrap();
 
         let tx: Transaction = tx_builder.build_tx().unwrap();
 
@@ -5335,7 +5347,7 @@ mod tests {
 
         tx_builder.calc_script_data_hash(
             &TxBuilderConstants::plutus_default_cost_models(),
-        );
+        ).unwrap();
 
         let w: &TransactionWitnessSet = &tx_builder.build_tx().unwrap().witness_set;
 

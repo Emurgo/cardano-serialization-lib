@@ -6727,6 +6727,16 @@ declare export class TxBuilderConstants {
    * @returns {Costmdls}
    */
   static plutus_vasil_cost_models(): Costmdls;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_vasil_cost_models_v1_only(): Costmdls;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_vasil_cost_models_v2_only(): Costmdls;
 }
 /**
  */

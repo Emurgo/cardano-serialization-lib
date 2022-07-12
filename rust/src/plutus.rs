@@ -309,9 +309,8 @@ impl Costmdls {
                 cost_model_serializer.write_special(cbor_event::Special::Break).unwrap();
                 serializer.write_bytes(cost_model_serializer.finalize()).unwrap();
             } else {
-                serializer.write_unsigned_integer(key.kind() as u64).unwrap();
-                let cost_model = self.0.get(&key).unwrap();
-                serializer.serialize(cost_model).unwrap();
+                serializer.serialize(key).unwrap();
+                serializer.serialize(self.0.get(&key).unwrap()).unwrap();
             }
         }
         let out = serializer.finalize();
@@ -415,7 +414,7 @@ impl Language {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Languages(Vec<Language>);
+pub struct Languages(pub(crate) Vec<Language>);
 
 #[wasm_bindgen]
 impl Languages {
@@ -433,6 +432,10 @@ impl Languages {
 
     pub fn add(&mut self, elem: Language) {
         self.0.push(elem);
+    }
+
+    pub(crate) fn list() -> Languages {
+        Languages(vec![Language::new_plutus_v1(), Language::new_plutus_v2()])
     }
 }
 
