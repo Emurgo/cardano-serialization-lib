@@ -1462,11 +1462,15 @@ declare export class CostModel {
   static from_bytes(bytes: Uint8Array): CostModel;
 
   /**
+   * Creates a new CostModels instance of an unrestricted length
    * @returns {CostModel}
    */
   static new(): CostModel;
 
   /**
+   * Sets the cost at the specified index to the specified value.
+   * In case the operation index is larger than the previous largest used index,
+   * it will fill any inbetween indexes with zeroes
    * @param {number} operation
    * @param {Int} cost
    * @returns {Int}
@@ -4124,14 +4128,14 @@ declare export class ProtocolParamUpdate {
   extra_entropy(): Nonce | void;
 
   /**
-   * @param {ProtocolVersions} protocol_version
+   * @param {ProtocolVersion} protocol_version
    */
-  set_protocol_version(protocol_version: ProtocolVersions): void;
+  set_protocol_version(protocol_version: ProtocolVersion): void;
 
   /**
-   * @returns {ProtocolVersions | void}
+   * @returns {ProtocolVersion | void}
    */
-  protocol_version(): ProtocolVersions | void;
+  protocol_version(): ProtocolVersion | void;
 
   /**
    * @param {BigNum} min_pool_cost
@@ -4260,43 +4264,6 @@ declare export class ProtocolVersion {
    * @returns {ProtocolVersion}
    */
   static new(major: number, minor: number): ProtocolVersion;
-}
-/**
- */
-declare export class ProtocolVersions {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {ProtocolVersions}
-   */
-  static from_bytes(bytes: Uint8Array): ProtocolVersions;
-
-  /**
-   * @returns {ProtocolVersions}
-   */
-  static new(): ProtocolVersions;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {number} index
-   * @returns {ProtocolVersion}
-   */
-  get(index: number): ProtocolVersion;
-
-  /**
-   * @param {ProtocolVersion} elem
-   */
-  add(elem: ProtocolVersion): void;
 }
 /**
  * ED25519 key used as public key

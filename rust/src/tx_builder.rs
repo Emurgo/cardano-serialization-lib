@@ -623,6 +623,14 @@ impl TransactionBuilder {
         if total_col.multiasset.is_some() {
             return Err(JsError::from_str("Total collateral value cannot contain assets!"));
         }
+
+        let min_ada = min_ada_for_output(&collateral_return, &self.config.utxo_cost())?;
+        if min_ada > collateral_return.amount.coin {
+            return Err(JsError::from_str(&format!("Not enough coin to make return on the collateral value!\
+                 Increase amount of return coins. \
+                 Min ada for return {}, but was {}", min_ada, collateral_return.amount.coin)))
+        }
+
         self.set_collateral_return(collateral_return);
         self.total_collateral = Some(total_col.coin);
         Ok(())
@@ -642,8 +650,18 @@ impl TransactionBuilder {
         }
         let col_input_value: Value = collateral.total_value()?;
         let col_return: Value = col_input_value.checked_sub(&Value::new(&total_collateral))?;
+        if col_return.multiasset.is_some() || col_return.coin > BigNum::zero() {
+            let return_output = TransactionOutput::new(return_address, &col_return);
+            let min_ada = min_ada_for_output(&return_output, &self.config.utxo_cost())?;
+            if min_ada > col_return.coin {
+                return Err(JsError::from_str(&format!("Not enough coin to make return on the collateral value!\
+                 Decrease the total collateral value or add more collateral inputs. \
+                 Min ada for return {}, but was {}", min_ada, col_return.coin)))
+            }
+            self.collateral_return = Some(return_output);
+        }
         self.set_total_collateral(total_collateral);
-        self.collateral_return = Some(TransactionOutput::new(return_address, &col_return));
+
         Ok(())
     }
 
@@ -5749,6 +5767,33 @@ mod tests {
     }
 
     #[test]
+    fn test_auto_calc_total_collateral_fails_on_no_ada() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let mut inp = TxInputsBuilder::new();
+        let collateral_input_value = 2_000_000;
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &Value::new(&to_bignum(collateral_input_value.clone())));
+
+        tx_builder.set_collateral(&inp);
+
+        let res = tx_builder.set_collateral_return_and_total(&TransactionOutput::new(
+            &fake_base_address(1),
+            &fake_value2(1),
+        ));
+
+        // Function call returns an error
+        assert!(res.is_err());
+
+        // NEITHER total collateral nor collateral return are changed in the builder
+        assert!(tx_builder.total_collateral.is_none());
+        assert!(tx_builder.collateral_return.is_none());
+    }
+
+    #[test]
     fn test_auto_calc_collateral_return() {
         let mut tx_builder = create_reallistic_tx_builder();
         tx_builder.set_fee(&to_bignum(123456));
@@ -5827,6 +5872,117 @@ mod tests {
             &masset,
         ));
     }
+
+    #[test]
+    fn test_add_collateral_return_succeed_with_border_amount() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let masset = fake_multiasset(123);
+
+        let mut inp = TxInputsBuilder::new();
+        let collateral_input_value = 2_000_000;
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &Value::new_with_assets(
+                &to_bignum(collateral_input_value.clone()),
+                &masset,
+            ),
+        );
+
+        tx_builder.set_collateral(&inp);
+
+
+        let collateral_return_address = fake_base_address(1);
+
+        let possible_ret = Value::new_from_assets(&masset);
+        let fake_out = TransactionOutput::new(&collateral_return_address, &possible_ret);
+        let min_ada = min_ada_for_output(&fake_out, &tx_builder.config.utxo_cost()).unwrap();
+
+        let total_collateral_value = to_bignum(collateral_input_value).checked_sub(&min_ada).unwrap();
+
+        tx_builder.set_total_collateral_and_return(
+            &total_collateral_value,
+            &collateral_return_address,
+        ).unwrap();
+
+        assert!(tx_builder.total_collateral.is_some());
+        assert!(tx_builder.collateral_return.is_some());
+        let col_return: TransactionOutput = tx_builder.collateral_return.unwrap();
+        assert_eq!(col_return.address, collateral_return_address);
+        assert_eq!(col_return.amount, Value::new_with_assets(
+            &min_ada,
+            &masset,
+        ));
+    }
+
+    #[test]
+    fn test_add_zero_collateral_return() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let mut inp = TxInputsBuilder::new();
+        let collateral_input_value = 2_000_000;
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &Value::new(
+                &to_bignum(collateral_input_value.clone())));
+
+        tx_builder.set_collateral(&inp);
+
+
+        let collateral_return_address = fake_base_address(1);
+
+        tx_builder.set_total_collateral_and_return(
+            &to_bignum(collateral_input_value.clone()),
+            &collateral_return_address,
+        ).unwrap();
+
+        assert!(tx_builder.total_collateral.is_some());
+        assert!(tx_builder.collateral_return.is_none());
+    }
+
+    #[test]
+    fn test_add_collateral_return_fails_no_enough_ada() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(123456));
+
+        let masset = fake_multiasset(123);
+
+        let mut inp = TxInputsBuilder::new();
+        let collateral_input_value = 2_000_000;
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &Value::new_with_assets(
+                &to_bignum(collateral_input_value.clone()),
+                &masset,
+            ),
+        );
+
+        tx_builder.set_collateral(&inp);
+
+
+        let collateral_return_address = fake_base_address(1);
+
+        let possible_ret = Value::new_from_assets(&masset);
+        let fake_out = TransactionOutput::new(&collateral_return_address, &possible_ret);
+        let min_ada = min_ada_for_output(&fake_out, &tx_builder.config.utxo_cost()).unwrap();
+        let mut total_collateral_value = to_bignum(collateral_input_value).checked_sub(&min_ada).unwrap();
+        //make total collateral value bigger for make collateral return less then min ada
+        total_collateral_value = total_collateral_value.checked_add(&to_bignum(1)).unwrap();
+
+        let coll_add_res = tx_builder.set_total_collateral_and_return(
+            &total_collateral_value,
+            &collateral_return_address);
+
+        assert!(coll_add_res.is_err());
+        assert!(tx_builder.total_collateral.is_none());
+        assert!(tx_builder.collateral_return.is_none());
+    }
+
 
     #[test]
     fn test_auto_calc_collateral_return_fails_on_no_collateral() {

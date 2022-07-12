@@ -285,12 +285,23 @@ impl GeneralTransactionMetadata {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct AuxiliaryData {
     metadata: Option<GeneralTransactionMetadata>,
     native_scripts: Option<NativeScripts>,
     plutus_scripts: Option<PlutusScripts>,
+    prefer_alonzo_format: bool,
 }
+
+impl std::cmp::PartialEq<Self> for AuxiliaryData {
+    fn eq(&self, other: &Self) -> bool {
+        self.metadata.eq(&other.metadata)
+            && self.native_scripts.eq(&other.native_scripts)
+            && self.plutus_scripts.eq(&other.plutus_scripts)
+    }
+}
+
+impl std::cmp::Eq for AuxiliaryData {}
 
 to_from_bytes!(AuxiliaryData);
 
@@ -301,6 +312,7 @@ impl AuxiliaryData {
             metadata: None,
             native_scripts: None,
             plutus_scripts: None,
+            prefer_alonzo_format: false,
         }
     }
 
@@ -554,7 +566,7 @@ pub fn decode_metadatum_to_json_value(metadatum: &TransactionMetadatum, schema: 
                 }
                 ("map", Value::from(json_map))
             },
-            
+
             MetadataJsonSchema::DetailedSchema => ("map", Value::from(map.0.iter().map(|(key, value)| {
                 // must encode maps as JSON lists of objects with k/v keys
                 // also in these schemas we support more key types than strings
@@ -776,7 +788,7 @@ impl cbor_event::se::Serialize for AuxiliaryData {
         // we still serialize using the shelley-mary era format as it is still supported
         // and it takes up less space on-chain so this should be better for scaling.
         // Plus the code was already written for shelley-mary anyway
-        if self.metadata.is_some() && self.plutus_scripts.is_none()  {
+        if !self.prefer_alonzo_format && self.metadata.is_some() && self.plutus_scripts.is_none() {
             match &self.native_scripts() {
                 Some(native_scripts) => {
                     serializer.write_array(cbor_event::Len::Len(2))?;
@@ -898,6 +910,7 @@ impl Deserialize for AuxiliaryData {
                         metadata,
                         native_scripts,
                         plutus_scripts,
+                        prefer_alonzo_format: true,
                     })
                 },
                 // shelley mary format (still valid for alonzo)
@@ -922,6 +935,7 @@ impl Deserialize for AuxiliaryData {
                         metadata: Some(metadata),
                         native_scripts: Some(native_scripts),
                         plutus_scripts: None,
+                        prefer_alonzo_format: false,
                     })
                 },
                 // shelley pre-mary format (still valid for alonzo + mary)
@@ -929,6 +943,7 @@ impl Deserialize for AuxiliaryData {
                     metadata: Some(GeneralTransactionMetadata::deserialize(raw).map_err(|e| e.annotate("metadata"))?),
                     native_scripts: None,
                     plutus_scripts: None,
+                    prefer_alonzo_format: false,
                 }),
                 _ => return Err(DeserializeFailure::NoVariantMatched)?
             }
@@ -1092,6 +1107,19 @@ mod tests {
         aux_data.set_plutus_scripts(&plutus_scripts);
         let ad3_deser = AuxiliaryData::from_bytes(aux_data.to_bytes()).unwrap();
         assert_eq!(aux_data.to_bytes(), ad3_deser.to_bytes());
+    }
+
+    #[test]
+    fn alonzo_metadata_round_trip() {
+        let bytes_alonzo = hex::decode("d90103a100a1186469737472696e67206d64").unwrap();
+        let aux_alonzo = AuxiliaryData::from_bytes(bytes_alonzo.clone()).unwrap();
+        assert!(aux_alonzo.prefer_alonzo_format);
+        assert_eq!(aux_alonzo.to_bytes(), bytes_alonzo);
+
+        let bytes_pre_alonzo = hex::decode("a1186469737472696e67206d64").unwrap();
+        let aux_pre_alonzo = AuxiliaryData::from_bytes(bytes_pre_alonzo.clone()).unwrap();
+        assert!(!aux_pre_alonzo.prefer_alonzo_format);
+        assert_eq!(aux_pre_alonzo.to_bytes(), bytes_pre_alonzo);
     }
 
     #[test]
