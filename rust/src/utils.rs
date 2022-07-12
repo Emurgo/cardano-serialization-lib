@@ -2449,7 +2449,7 @@ mod tests {
     }
 
     #[test]
-    fn ttt() {
+    fn test_vasil_v1_costmodel_hashing() {
         let v1 = Language::new_plutus_v1();
         let v1_cost_model = TxBuilderConstants::plutus_vasil_cost_models()
             .get(&v1).unwrap();
