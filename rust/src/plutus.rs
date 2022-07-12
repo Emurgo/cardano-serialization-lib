@@ -279,25 +279,40 @@ impl Costmdls {
 
     pub(crate) fn language_views_encoding(&self) -> Vec<u8> {
         let mut serializer = Serializer::new_vec();
-        let mut keys_bytes: Vec<(Language, Vec<u8>)> = self.0.iter().map(|(k, _v)| (k.clone(), k.to_bytes())).collect();
+        fn key_len(l: &Language) -> usize {
+            if l.kind() == LanguageKind::PlutusV1 {
+                let mut serializer = Serializer::new_vec();
+                serializer.write_bytes(l.to_bytes()).unwrap();
+                serializer.finalize().len()
+            } else {
+                l.to_bytes().len()
+            }
+        }
+        let mut keys: Vec<Language> = self.0.iter().map(|(k, _v)| k.clone()).collect();
         // keys must be in canonical ordering first
-        keys_bytes.sort_by(|lhs, rhs| match lhs.1.len().cmp(&rhs.1.len()) {
-            std::cmp::Ordering::Equal => lhs.1.cmp(&rhs.1),
+        keys.sort_by(|lhs, rhs| match key_len(lhs).cmp(&key_len(rhs)) {
+            std::cmp::Ordering::Equal => lhs.cmp(&rhs),
             len_order => len_order,
         });
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64)).unwrap();
-        for (key, key_bytes) in keys_bytes.iter() {
-            serializer.write_bytes(key_bytes).unwrap();
-            let cost_model = self.0.get(&key).unwrap();
-            // Due to a bug in the cardano-node input-output-hk/cardano-ledger-specs/issues/2512
-            // we must use indefinite length serialization in this inner bytestring to match it
-            let mut cost_model_serializer = Serializer::new_vec();
-            cost_model_serializer.write_array(cbor_event::Len::Indefinite).unwrap();
-            for cost in &cost_model.0 {
-                cost.serialize(&mut cost_model_serializer).unwrap();
+        for key in keys.iter() {
+            if key.kind() == LanguageKind::PlutusV1 {
+                serializer.write_bytes(key.to_bytes()).unwrap();
+                let cost_model = self.0.get(&key).unwrap();
+                // Due to a bug in the cardano-node input-output-hk/cardano-ledger-specs/issues/2512
+                // we must use indefinite length serialization in this inner bytestring to match it
+                let mut cost_model_serializer = Serializer::new_vec();
+                cost_model_serializer.write_array(cbor_event::Len::Indefinite).unwrap();
+                for cost in &cost_model.0 {
+                    cost.serialize(&mut cost_model_serializer).unwrap();
+                }
+                cost_model_serializer.write_special(cbor_event::Special::Break).unwrap();
+                serializer.write_bytes(cost_model_serializer.finalize()).unwrap();
+            } else {
+                serializer.write_unsigned_integer(key.kind() as u64).unwrap();
+                let cost_model = self.0.get(&key).unwrap();
+                serializer.serialize(cost_model).unwrap();
             }
-            cost_model_serializer.write_special(cbor_event::Special::Break).unwrap();
-            serializer.write_bytes(cost_model_serializer.finalize()).unwrap();
         }
         let out = serializer.finalize();
         println!("language_views = {}", hex::encode(out.clone()));
