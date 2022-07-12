@@ -77,7 +77,6 @@ fn main() {
     gen_json_schema!(ScriptHashes);
     gen_json_schema!(ProposedProtocolParameterUpdates);
     gen_json_schema!(ProtocolVersion);
-    gen_json_schema!(ProtocolVersions);
     gen_json_schema!(ProtocolParamUpdate);
     gen_json_schema!(TransactionBodies);
     gen_json_schema!(TransactionWitnessSets);
