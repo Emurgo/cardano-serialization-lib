@@ -5953,6 +5953,9 @@ declare export class TransactionBuilder {
    * in the builder to be used when building the tx body.
    * In case there are no plutus input witnesses present - nothing will change
    * You can set specific hash value using `.set_script_data_hash`
+   * NOTE: this function will check which language versions are used in the present scripts
+   * and will assert and require for a corresponding cost-model to be present in the passed map.
+   * Only the cost-models for the present language versions will be used in the hash calculation.
    * @param {Costmdls} cost_models
    */
   calc_script_data_hash(cost_models: Costmdls): void;

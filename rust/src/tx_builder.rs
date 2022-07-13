@@ -1420,12 +1420,27 @@ impl TransactionBuilder {
     /// in the builder to be used when building the tx body.
     /// In case there are no plutus input witnesses present - nothing will change
     /// You can set specific hash value using `.set_script_data_hash`
-    pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) {
+    /// NOTE: this function will check which language versions are used in the present scripts
+    /// and will assert and require for a corresponding cost-model to be present in the passed map.
+    /// Only the cost-models for the present language versions will be used in the hash calculation.
+    pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) -> Result<(), JsError> {
+        let mut retained_cost_models = Costmdls::new();
         if let Some(pw) = self.inputs.get_plutus_input_scripts() {
-            let (_, datums, redeemers) = pw.collect();
+            let (scripts, datums, redeemers) = pw.collect();
+            for lang in Languages::list().0 {
+                if scripts.has_version(&lang) {
+                    match cost_models.get(&lang) {
+                        Some(cost) => { retained_cost_models.insert(&lang, &cost); },
+                        _ => return Err(JsError::from_str(
+                            &format!("Missing cost model for language version: {:?}", lang)
+                        )),
+                    }
+                }
+            }
             self.script_data_hash =
-                Some(hash_script_data(&redeemers, cost_models, Some(datums)));
+                Some(hash_script_data(&redeemers, &retained_cost_models, Some(datums)));
         }
+        Ok(())
     }
 
     /// Sets the specified hash value.
@@ -5033,7 +5048,7 @@ mod tests {
         // Setting script data hash removes the error
         tx_builder.calc_script_data_hash(
             &TxBuilderConstants::plutus_default_cost_models(),
-        );
+        ).unwrap();
 
         // Using SAFE `.build_tx`
         let res2 = tx_builder.build_tx();
@@ -5094,7 +5109,7 @@ mod tests {
         // Calc the script data hash
         tx_builder.calc_script_data_hash(
             &TxBuilderConstants::plutus_default_cost_models(),
-        );
+        ).unwrap();
 
         let tx: Transaction = tx_builder.build_tx().unwrap();
         assert!(tx.witness_set.redeemers.is_some());
@@ -5190,7 +5205,7 @@ mod tests {
 
         tx_builder.calc_script_data_hash(
             &TxBuilderConstants::plutus_default_cost_models(),
-        );
+        ).unwrap();
 
         let tx: Transaction = tx_builder.build_tx().unwrap();
 
@@ -5335,7 +5350,7 @@ mod tests {
 
         tx_builder.calc_script_data_hash(
             &TxBuilderConstants::plutus_default_cost_models(),
-        );
+        ).unwrap();
 
         let w: &TransactionWitnessSet = &tx_builder.build_tx().unwrap().witness_set;
 
@@ -5997,6 +6012,78 @@ mod tests {
         assert!(res.is_err());
         assert!(tx_builder.total_collateral.is_none());
         assert!(tx_builder.collateral_return.is_none());
+    }
+
+    #[test]
+    fn test_costmodel_retaining_for_v1() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
+
+        let (script1, _) = plutus_script_and_hash(0);
+        let datum = PlutusData::new_integer(&BigInt::from_str("42").unwrap());
+        let redeemer = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &datum,
+            &ExUnits::new(&to_bignum(1700), &to_bignum(368100)),
+        );
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(&script1, &datum, &redeemer),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        // Setting script data hash removes the error
+        tx_builder.calc_script_data_hash(
+            &TxBuilderConstants::plutus_vasil_cost_models(),
+        ).unwrap();
+
+        // Using SAFE `.build_tx`
+        let res2 = tx_builder.build_tx();
+        assert!(res2.is_ok());
+
+        let v1 = Language::new_plutus_v1();
+        let v1_costmodel = TxBuilderConstants::plutus_vasil_cost_models().get(&v1).unwrap();
+        let mut retained_cost_models = Costmdls::new();
+        retained_cost_models.insert(&v1, &v1_costmodel);
+
+        let data_hash = hash_script_data(
+            &Redeemers::from(vec![redeemer.clone()]),
+            &retained_cost_models,
+            Some(PlutusList::from(vec![datum])),
+        );
+        assert_eq!(tx_builder.script_data_hash.unwrap(), data_hash);
+    }
+
+    #[test]
+    fn test_costmodel_retaining_fails_on_missing_costmodel() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
+
+        let (script1, _) = plutus_script_and_hash(0);
+        let datum = PlutusData::new_integer(&BigInt::from_str("42").unwrap());
+        let redeemer = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &datum,
+            &ExUnits::new(&to_bignum(1700), &to_bignum(368100)),
+        );
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(&script1, &datum, &redeemer),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        let v2 = Language::new_plutus_v2();
+        let v2_costmodel = TxBuilderConstants::plutus_vasil_cost_models().get(&v2).unwrap();
+        let mut retained_cost_models = Costmdls::new();
+        retained_cost_models.insert(&v2, &v2_costmodel);
+
+        // Setting script data hash removes the error
+        let calc_result = tx_builder.calc_script_data_hash(&retained_cost_models);
+        assert!(calc_result.is_err());
     }
 }
 
