@@ -283,10 +283,9 @@ impl Costmdls {
             if l.kind() == LanguageKind::PlutusV1 {
                 let mut serializer = Serializer::new_vec();
                 serializer.write_bytes(l.to_bytes()).unwrap();
-                serializer.finalize().len()
-            } else {
-                l.to_bytes().len()
+                return serializer.finalize().len();
             }
+            l.to_bytes().len()
         }
         let mut keys: Vec<Language> = self.0.iter().map(|(k, _v)| k.clone()).collect();
         // keys must be in canonical ordering first
@@ -313,9 +312,7 @@ impl Costmdls {
                 serializer.serialize(self.0.get(&key).unwrap()).unwrap();
             }
         }
-        let out = serializer.finalize();
-        println!("language_views = {}", hex::encode(out.clone()));
-        out
+        serializer.finalize()
     }
 }
 
@@ -1595,5 +1592,56 @@ mod tests {
         use crate::tx_builder_constants::TxBuilderConstants;
         let costmodels = TxBuilderConstants::plutus_vasil_cost_models();
         assert_eq!(costmodels, Costmdls::from_bytes(costmodels.to_bytes()).unwrap());
+    }
+
+    #[test]
+    fn test_known_plutus_data_hash() {
+        use crate::tx_builder_constants::TxBuilderConstants;
+        let pdata = PlutusList::from(vec![
+            PlutusData::new_constr_plutus_data(
+                &ConstrPlutusData::new(
+                    &BigNum::zero(),
+                    &PlutusList::from(vec![
+                        PlutusData::new_constr_plutus_data(
+                            &ConstrPlutusData::new(
+                                &BigNum::zero(),
+                                &PlutusList::from(vec![
+                                    PlutusData::new_bytes(hex::decode("A183BF86925F66C579A3745C9517744399679B090927B8F6E2F2E1BB").unwrap()),
+                                    PlutusData::new_bytes(hex::decode("6164617065416D616E734576616E73").unwrap())
+                                ]),
+                            ),
+                        ),
+                        PlutusData::new_constr_plutus_data(
+                            &ConstrPlutusData::new(
+                                &BigNum::zero(),
+                                &PlutusList::from(vec![
+                                    PlutusData::new_bytes(hex::decode("9A4E855293A0B9AF5E50935A331D83E7982AB5B738EA0E6FC0F9E656").unwrap()),
+                                    PlutusData::new_bytes(hex::decode("4652414D455F38333030325F4C30").unwrap())
+                                ]),
+                            ),
+                        ),
+                        PlutusData::new_bytes(hex::decode("BEA1C521DF58F4EEEF60C647E5EBD88C6039915409F9FD6454A476B9").unwrap()),
+                    ]),
+                ),
+            ),
+        ]);
+        let redeemers = Redeemers(vec![
+            Redeemer::new(
+                &RedeemerTag::new_spend(),
+                &BigNum::one(),
+                &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
+                &ExUnits::new(&to_bignum(7000000), &to_bignum(3000000000)),
+            ),
+        ]);
+        let lang = Language::new_plutus_v1();
+        let lang_costmodel = TxBuilderConstants::plutus_vasil_cost_models().get(&lang).unwrap();
+        let mut retained_cost_models = Costmdls::new();
+        retained_cost_models.insert(&lang, &lang_costmodel);
+        let hash = hash_script_data(
+            &redeemers,
+            &retained_cost_models,
+            Some(pdata),
+        );
+        assert_eq!(hex::encode(hash.to_bytes()), "357041b88b914670a3b5e3b0861d47f2ac05ed4935ea73886434d8944aa6dfe0");
     }
 }
