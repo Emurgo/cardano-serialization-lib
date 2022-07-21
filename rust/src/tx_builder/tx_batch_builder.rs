@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use js_sys::{add, Set};
 use crate::tx_builder::batch_tools::assets_groups::{AssetGroups, PlaneAssetId, UtxoIndex};
 use super::*;
 
@@ -40,7 +39,7 @@ impl TxOutputProposal {
         })
     }
 
-    fn try_take_next_asset(&mut self, &mut assets: AssetGroups) -> Option<UtxoIndex> {
+    fn try_take_next_asset(&mut self, mut assets: &AssetGroups) -> Option<UtxoIndex> {
         unimplemented!()
     }
 
