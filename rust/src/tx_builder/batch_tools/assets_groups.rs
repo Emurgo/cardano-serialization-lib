@@ -51,7 +51,62 @@ pub struct AssetGroups {
 
 impl AssetGroups {
     fn new(utxos: &TransactionUnspentOutputs) -> Self {
+        let mut assets: Vec<PlaneAssetId> = Vec::new();
+        let mut policies: Vec<PolicyID> = Vec::new();
+        let mut assets_sizes: Vec<AssetSizeCost> = Vec::new();
+        let mut assets_amounts: HashMap<(AssetIndex, UtxoIndex), Coin> = HashMap::new();
+        let mut assets_counts: Vec<(AssetIndex, usize)> = Vec::new();
+        let mut free_utxo_to_assets: HashMap<UtxoIndex, HashSet<AssetIndex>> = HashMap::new();
+        let mut free_asset_to_utxos: HashMap<AssetIndex, HashSet<UtxoIndex>> = HashMap::new();
+        let mut asset_to_policy: HashMap<AssetIndex, PolicyIndex> = HashMap::new();
+        let mut policy_to_asset: HashMap<PolicyIndex, HashSet<AssetIndex>> = HashMap::new();
+        let mut inputs: HashMap<UtxoIndex, (TransactionInput, usize)> = HashMap::new();
 
+        let mut asset_ids : HashMap<PlaneAssetId, AssetIndex> = HashMap::new();
+        let mut policy_ids : HashMap<PolicyID, PolicyIndex> = HashMap::new();
+
+        let mut current_utxo_num = 0usize;
+        let mut asset_count = 0usize;
+        let mut policy_count = 0usize;
+        for utxo in &utxos.0 {
+            //TODO add input calc
+            if let Some(assests) = &utxo.output.amount.multiasset {
+                for policy in &assests.0 {
+                    let mut current_policy_index = PolicyIndex(policy_count.clone());
+                    if Some(policy_index) = policy_ids.get(policy.0) {
+                        current_policy_index = policy_index.clone()
+                    } else {
+                        policy_ids.insert(policy.0.clone(), current_policy_index.clone());
+                        policy_count += 1;
+                    }
+
+                    for asset in &policy.1.0 {
+                        let mut current_asset_index = AssetIndex(asset_count.clone());
+                        let plane_id = PlaneAssetId(current_policy_index.clone(), asset.0.clone());
+                        if Some(asset_index) = asset_ids.get(&plane_id) {
+                            current_asset_index = asset_index.clone();
+                        } else {
+                            asset_ids.insert(plane_id.clone(), current_asset_index);
+                            asset_count += 1;
+                        }
+                    }
+                }
+            }
+            current_utxo_num += 1;
+        }
+
+        AssetGroups(
+            assets,
+            policies,
+            assets_sizes,
+            utxos.clone(),
+            assets_amounts,
+            assets_counts,
+            free_utxo_to_assets,
+            free_asset_to_utxos,
+            asset_to_policy,
+            policy_to_asset,
+            inputs)
     }
 
     fn get_asset_intersections(&self,
