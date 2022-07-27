@@ -2831,7 +2831,7 @@ impl DeserializeEmbeddedGroup for ProtocolVersion {
 
 impl cbor_event::se::Serialize for ProtocolParamUpdate {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(match &self.minfee_a { Some(_) => 1, None => 0 } + match &self.minfee_b { Some(_) => 1, None => 0 } + match &self.max_block_body_size { Some(_) => 1, None => 0 } + match &self.max_tx_size { Some(_) => 1, None => 0 } + match &self.max_block_header_size { Some(_) => 1, None => 0 } + match &self.key_deposit { Some(_) => 1, None => 0 } + match &self.pool_deposit { Some(_) => 1, None => 0 } + match &self.max_epoch { Some(_) => 1, None => 0 } + match &self.n_opt { Some(_) => 1, None => 0 } + match &self.pool_pledge_influence { Some(_) => 1, None => 0 } + match &self.expansion_rate { Some(_) => 1, None => 0 } + match &self.treasury_growth_rate { Some(_) => 1, None => 0 } + match &self.protocol_version { Some(_) => 1, None => 0 } + match &self.min_pool_cost { Some(_) => 1, None => 0 } + match &self.ada_per_utxo_byte { Some(_) => 1, None => 0 } + match &self.cost_models { Some(_) => 1, None => 0 } + match &self.execution_costs { Some(_) => 1, None => 0 } + match &self.max_tx_ex_units { Some(_) => 1, None => 0 } + match &self.max_block_ex_units { Some(_) => 1, None => 0 } + match &self.max_value_size { Some(_) => 1, None => 0 }))?;
+        serializer.write_map(cbor_event::Len::Len(match &self.minfee_a { Some(_) => 1, None => 0 } + match &self.minfee_b { Some(_) => 1, None => 0 } + match &self.max_block_body_size { Some(_) => 1, None => 0 } + match &self.max_tx_size { Some(_) => 1, None => 0 } + match &self.max_block_header_size { Some(_) => 1, None => 0 } + match &self.key_deposit { Some(_) => 1, None => 0 } + match &self.pool_deposit { Some(_) => 1, None => 0 } + match &self.max_epoch { Some(_) => 1, None => 0 } + match &self.n_opt { Some(_) => 1, None => 0 } + match &self.pool_pledge_influence { Some(_) => 1, None => 0 } + match &self.expansion_rate { Some(_) => 1, None => 0 } + match &self.treasury_growth_rate { Some(_) => 1, None => 0 } + match &self.d { Some(_) => 1, None => 0 } + match &self.extra_entropy { Some(_) => 1, None => 0 } + match &self.protocol_version { Some(_) => 1, None => 0 } + match &self.min_pool_cost { Some(_) => 1, None => 0 } + match &self.ada_per_utxo_byte { Some(_) => 1, None => 0 } + match &self.cost_models { Some(_) => 1, None => 0 } + match &self.execution_costs { Some(_) => 1, None => 0 } + match &self.max_tx_ex_units { Some(_) => 1, None => 0 } + match &self.max_block_ex_units { Some(_) => 1, None => 0 } + match &self.max_value_size { Some(_) => 1, None => 0 }))?;
         if let Some(field) = &self.minfee_a {
             serializer.write_unsigned_integer(0)?;
             field.serialize(serializer)?;
@@ -2878,6 +2878,14 @@ impl cbor_event::se::Serialize for ProtocolParamUpdate {
         }
         if let Some(field) = &self.treasury_growth_rate {
             serializer.write_unsigned_integer(11)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.d {
+            serializer.write_unsigned_integer(12)?;
+            field.serialize(serializer)?;
+        }
+        if let Some(field) = &self.extra_entropy {
+            serializer.write_unsigned_integer(13)?;
             field.serialize(serializer)?;
         }
         if let Some(field) = &self.protocol_version {
