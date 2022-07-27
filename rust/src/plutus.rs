@@ -6,22 +6,43 @@ use super::*;
 
 use cbor_event::{self, de::Deserializer, se::{Serialize, Serializer}};
 
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusScript(Vec<u8>);
+pub struct PlutusScript {
+    bytes: Vec<u8>,
+    language: LanguageKind,
+}
 
 to_from_bytes!(PlutusScript);
 
 #[wasm_bindgen]
 impl PlutusScript {
+
     /**
      * Creates a new Plutus script from the RAW bytes of the compiled script.
      * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
      * If you creating this from those you should use PlutusScript::from_bytes() instead.
      */
     pub fn new(bytes: Vec<u8>) -> PlutusScript {
-        Self(bytes)
+        Self::new_with_version(bytes, &Language::new_plutus_v1())
+    }
+
+    /**
+     * Creates a new Plutus script from the RAW bytes of the compiled script.
+     * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+     * If you creating this from those you should use PlutusScript::from_bytes() instead.
+     */
+    pub fn new_v2(bytes: Vec<u8>) -> PlutusScript {
+        Self::new_with_version(bytes, &Language::new_plutus_v2())
+    }
+
+    /**
+     * Creates a new Plutus script from the RAW bytes of the compiled script.
+     * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+     * If you creating this from those you should use PlutusScript::from_bytes() instead.
+     */
+    pub fn new_with_version(bytes: Vec<u8>, language: &Language) -> PlutusScript {
+        Self { bytes, language: language.0.clone() }
     }
 
     /**
@@ -29,22 +50,46 @@ impl PlutusScript {
      * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
      */
     pub fn bytes(&self) -> Vec<u8> {
-        self.0.clone()
+        self.bytes.clone()
+    }
+
+    /// Same as `.from_bytes` but will consider the script as requiring the Plutus Language V2
+    pub fn from_bytes_v2(bytes: Vec<u8>) -> Result<PlutusScript, JsError> {
+        Self::from_bytes_with_version(bytes, &Language::new_plutus_v2())
+    }
+
+    /// Same as `.from_bytes` but will consider the script as requiring the specified language version
+    pub fn from_bytes_with_version(bytes: Vec<u8>, language: &Language) -> Result<PlutusScript, JsError> {
+        Ok(Self::new_with_version(Self::from_bytes(bytes)?.bytes, language))
     }
 
     pub fn hash(&self) -> ScriptHash {
-        let mut bytes = Vec::with_capacity(self.0.len() + 1);
-        bytes.extend_from_slice(&vec![
-            ScriptHashNamespace::PlutusScript as u8,
-        ]);
-        bytes.extend_from_slice(&self.0);
+        let mut bytes = Vec::with_capacity(self.bytes.len() + 1);
+        // https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl#L413
+        bytes.extend_from_slice(&vec![self.script_namespace() as u8]);
+        bytes.extend_from_slice(&self.bytes);
         ScriptHash::from(blake2b224(bytes.as_ref()))
+    }
+
+    pub fn language_version(&self) -> Language {
+        Language(self.language.clone())
+    }
+
+    pub(crate) fn script_namespace(&self) -> ScriptHashNamespace {
+        match self.language {
+            LanguageKind::PlutusV1 => ScriptHashNamespace::PlutusScript,
+            LanguageKind::PlutusV2 => ScriptHashNamespace::PlutusScriptV2,
+        }
+    }
+
+    pub(crate) fn clone_as_version(&self, language: &Language) -> PlutusScript {
+        Self::new_with_version(self.bytes.clone(), language)
     }
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusScripts(Vec<PlutusScript>);
+pub struct PlutusScripts(pub(crate) Vec<PlutusScript>);
 
 to_from_bytes!(PlutusScripts);
 
@@ -64,6 +109,35 @@ impl PlutusScripts {
 
     pub fn add(&mut self, elem: &PlutusScript) {
         self.0.push(elem.clone());
+    }
+
+    pub(crate) fn by_version(&self, language: &Language) -> PlutusScripts {
+        PlutusScripts(
+            self.0.iter()
+                .filter(|s| s.language_version().eq(language))
+                .map(|s| s.clone())
+                .collect()
+        )
+    }
+
+    pub(crate) fn has_version(&self, language: &Language) -> bool {
+        self.0.iter().any(|s| s.language_version().eq(language))
+    }
+
+    pub(crate) fn merge(&self, other: &PlutusScripts) -> PlutusScripts {
+        let mut res = self.clone();
+        for s in &other.0 {
+            res.add(s);
+        }
+        res
+    }
+
+    pub(crate) fn map_as_version(&self, language: &Language) -> PlutusScripts {
+        let mut res = PlutusScripts::new();
+        for s in &self.0 {
+            res.add(&s.clone_as_version(language));
+        }
+        res
     }
 }
 
@@ -126,8 +200,6 @@ impl ConstrPlutusData {
     }
 }
 
-const COST_MODEL_OP_COUNT: usize = 166;
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct CostModel(Vec<Int>);
@@ -136,34 +208,44 @@ to_from_bytes!(CostModel);
 
 #[wasm_bindgen]
 impl CostModel {
+
+    /// Creates a new CostModels instance of an unrestricted length
     pub fn new() -> Self {
-        let mut costs = Vec::with_capacity(COST_MODEL_OP_COUNT);
-        for _ in 0 .. COST_MODEL_OP_COUNT {
-            costs.push(Int::new_i32(0));
-        }
-        Self(costs)
+        Self(Vec::new())
     }
 
+    /// Sets the cost at the specified index to the specified value.
+    /// In case the operation index is larger than the previous largest used index,
+    /// it will fill any inbetween indexes with zeroes
     pub fn set(&mut self, operation: usize, cost: &Int) -> Result<Int, JsError> {
-        if operation >= COST_MODEL_OP_COUNT {
-            return Err(JsError::from_str(&format!("CostModel operation {} out of bounds. Max is {}", operation, COST_MODEL_OP_COUNT)));
+        let len = self.0.len();
+        let idx = operation.clone();
+        if idx >= len {
+            for _ in 0 .. (idx - len + 1) {
+                self.0.push(Int::new_i32(0));
+            }
         }
-        let old = self.0[operation].clone();
-        self.0[operation] = cost.clone();
+        let old = self.0[idx].clone();
+        self.0[idx] = cost.clone();
         Ok(old)
     }
 
     pub fn get(&self, operation: usize) -> Result<Int, JsError> {
-        if operation >= COST_MODEL_OP_COUNT {
-            return Err(JsError::from_str(&format!("CostModel operation {} out of bounds. Max is {}", operation, COST_MODEL_OP_COUNT)));
+        let max = self.0.len();
+        if operation >= max {
+            return Err(JsError::from_str(&format!("CostModel operation {} out of bounds. Max is {}", operation, max)));
         }
         Ok(self.0[operation].clone())
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
-impl From<[i32; 166]> for CostModel {
-    fn from(values: [i32; 166]) -> Self {
-        CostModel(values.iter().map(|x| { Int::new_i32(*x).clone() }).collect())
+impl From<Vec<i128>> for CostModel {
+    fn from(values: Vec<i128>) -> Self {
+        CostModel(values.iter().map(|x| { Int(*x) }).collect())
     }
 }
 
@@ -197,29 +279,40 @@ impl Costmdls {
 
     pub(crate) fn language_views_encoding(&self) -> Vec<u8> {
         let mut serializer = Serializer::new_vec();
-        let mut keys_bytes: Vec<(Language, Vec<u8>)> = self.0.iter().map(|(k, _v)| (k.clone(), k.to_bytes())).collect();
+        fn key_len(l: &Language) -> usize {
+            if l.kind() == LanguageKind::PlutusV1 {
+                let mut serializer = Serializer::new_vec();
+                serializer.write_bytes(l.to_bytes()).unwrap();
+                return serializer.finalize().len();
+            }
+            l.to_bytes().len()
+        }
+        let mut keys: Vec<Language> = self.0.iter().map(|(k, _v)| k.clone()).collect();
         // keys must be in canonical ordering first
-        keys_bytes.sort_by(|lhs, rhs| match lhs.1.len().cmp(&rhs.1.len()) {
-            std::cmp::Ordering::Equal => lhs.1.cmp(&rhs.1),
+        keys.sort_by(|lhs, rhs| match key_len(lhs).cmp(&key_len(rhs)) {
+            std::cmp::Ordering::Equal => lhs.cmp(&rhs),
             len_order => len_order,
         });
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64)).unwrap();
-        for (key, key_bytes) in keys_bytes.iter() {
-            serializer.write_bytes(key_bytes).unwrap();
-            let cost_model = self.0.get(&key).unwrap();
-            // Due to a bug in the cardano-node input-output-hk/cardano-ledger-specs/issues/2512
-            // we must use indefinite length serialization in this inner bytestring to match it
-            let mut cost_model_serializer = Serializer::new_vec();
-            cost_model_serializer.write_array(cbor_event::Len::Indefinite).unwrap();
-            for cost in &cost_model.0 {
-                cost.serialize(&mut cost_model_serializer).unwrap();
+        for key in keys.iter() {
+            if key.kind() == LanguageKind::PlutusV1 {
+                serializer.write_bytes(key.to_bytes()).unwrap();
+                let cost_model = self.0.get(&key).unwrap();
+                // Due to a bug in the cardano-node input-output-hk/cardano-ledger-specs/issues/2512
+                // we must use indefinite length serialization in this inner bytestring to match it
+                let mut cost_model_serializer = Serializer::new_vec();
+                cost_model_serializer.write_array(cbor_event::Len::Indefinite).unwrap();
+                for cost in &cost_model.0 {
+                    cost.serialize(&mut cost_model_serializer).unwrap();
+                }
+                cost_model_serializer.write_special(cbor_event::Special::Break).unwrap();
+                serializer.write_bytes(cost_model_serializer.finalize()).unwrap();
+            } else {
+                serializer.serialize(key).unwrap();
+                serializer.serialize(self.0.get(&key).unwrap()).unwrap();
             }
-            cost_model_serializer.write_special(cbor_event::Special::Break).unwrap();
-            serializer.write_bytes(cost_model_serializer.finalize()).unwrap();
         }
-        let out = serializer.finalize();
-        println!("language_views = {}", hex::encode(out.clone()));
-        out
+        serializer.finalize()
     }
 }
 
@@ -280,7 +373,18 @@ impl ExUnits {
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum LanguageKind {
-    PlutusV1,
+    PlutusV1 = 0,
+    PlutusV2 = 1,
+}
+
+impl LanguageKind {
+    fn from_u64(x: u64) -> Option<LanguageKind> {
+        match x {
+            0 => Some(LanguageKind::PlutusV1),
+            1 => Some(LanguageKind::PlutusV2),
+            _ => None,
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -291,18 +395,23 @@ to_from_bytes!(Language);
 
 #[wasm_bindgen]
 impl Language {
+
     pub fn new_plutus_v1() -> Self {
         Self(LanguageKind::PlutusV1)
     }
 
+    pub fn new_plutus_v2() -> Self {
+        Self(LanguageKind::PlutusV2)
+    }
+
     pub fn kind(&self) -> LanguageKind {
-        self.0
+        self.0.clone()
     }
 }
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Languages(Vec<Language>);
+pub struct Languages(pub(crate) Vec<Language>);
 
 #[wasm_bindgen]
 impl Languages {
@@ -320,6 +429,10 @@ impl Languages {
 
     pub fn add(&mut self, elem: Language) {
         self.0.push(elem);
+    }
+
+    pub(crate) fn list() -> Languages {
+        Languages(vec![Language::new_plutus_v1(), Language::new_plutus_v2()])
     }
 }
 
@@ -375,13 +488,21 @@ enum PlutusDataEnum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct PlutusData {
     datum: PlutusDataEnum,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
     // before computing datum hashes. So this field stores the original bytes to re-use.
     original_bytes: Option<Vec<u8>>,
 }
+
+impl std::cmp::PartialEq<Self> for PlutusData {
+    fn eq(&self, other: &Self) -> bool {
+        self.datum.eq(&other.datum)
+    }
+}
+
+impl std::cmp::Eq for PlutusData {}
 
 to_from_bytes!(PlutusData);
 
@@ -480,14 +601,23 @@ impl PlutusData {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct PlutusList {
     elems: Vec<PlutusData>,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
     // before computing datum hashes. This field will default to cardano-cli behavior if None
     // and will re-use the provided one if deserialized, unless the list is modified.
-    definite_encoding: Option<bool>,
+    pub(crate) definite_encoding: Option<bool>,
 }
+
+
+impl std::cmp::PartialEq<Self> for PlutusList {
+    fn eq(&self, other: &Self) -> bool {
+        self.elems.eq(&other.elems)
+    }
+}
+
+impl std::cmp::Eq for PlutusList {}
 
 to_from_bytes!(PlutusList);
 
@@ -608,7 +738,7 @@ impl RedeemerTag {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Redeemers(Vec<Redeemer>);
+pub struct Redeemers(pub(crate) Vec<Redeemer>);
 
 to_from_bytes!(Redeemers);
 
@@ -687,13 +817,13 @@ use std::io::{SeekFrom};
 
 impl cbor_event::se::Serialize for PlutusScript {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_bytes(&self.0)
+        serializer.write_bytes(&self.bytes)
     }
 }
 
 impl Deserialize for PlutusScript {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(raw.bytes()?))
+        Ok(Self::new(raw.bytes()?))
     }
 }
 
@@ -787,7 +917,7 @@ impl Deserialize for ConstrPlutusData {
 
 impl cbor_event::se::Serialize for CostModel {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(COST_MODEL_OP_COUNT as u64))?;
+        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
         for cost in &self.0 {
             cost.serialize(serializer)?;
         }
@@ -806,13 +936,6 @@ impl Deserialize for CostModel {
                     break;
                 }
                 arr.push(Int::deserialize(raw)?);
-            }
-            if arr.len() != COST_MODEL_OP_COUNT {
-                return Err(DeserializeFailure::OutOfRange{
-                    min: COST_MODEL_OP_COUNT,
-                    max: COST_MODEL_OP_COUNT,
-                    found: arr.len()
-                }.into());
             }
             Ok(())
         })().map_err(|e| e.annotate("CostModel"))?;
@@ -927,19 +1050,16 @@ impl Deserialize for ExUnits {
 
 impl cbor_event::se::Serialize for Language {
     fn serialize<'se, W: Write>(&self, serializer: &'se mut Serializer<W>) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self.0 {
-            LanguageKind::PlutusV1 => {
-                serializer.write_unsigned_integer(0u64)
-            },
-        }
+        // https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl#L324-L327
+        serializer.write_unsigned_integer(self.kind() as u64)
     }
 }
 
 impl Deserialize for Language {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            match raw.unsigned_integer()? {
-                0 => Ok(Language::new_plutus_v1()),
+            match LanguageKind::from_u64(raw.unsigned_integer()?) {
+                Some(kind) => Ok(Language(kind)),
                 _ => Err(DeserializeError::new("Language", DeserializeFailure::NoVariantMatched.into())),
             }
         })().map_err(|e| e.annotate("Language"))
@@ -1422,5 +1542,117 @@ mod tests {
                 ),
             ),
         )
+    }
+
+    #[test]
+    fn test_plutus_script_version() {
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let s1: PlutusScript = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let s2: PlutusScript = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        assert_eq!(s1.bytes(), bytes[1..]);
+        assert_eq!(s2.bytes(), bytes[1..]);
+        assert_eq!(s1.language_version(), Language::new_plutus_v1());
+        assert_eq!(s2.language_version(), Language::new_plutus_v2());
+
+        assert_eq!(s1, PlutusScript::from_bytes_with_version(
+            bytes.clone(),
+            &Language::new_plutus_v1(),
+        ).unwrap());
+        assert_eq!(s2, PlutusScript::from_bytes_with_version(
+            bytes.clone(),
+            &Language::new_plutus_v2(),
+        ).unwrap());
+    }
+
+    #[test]
+    fn test_language_roundtrip() {
+        fn deserialize_language_from_uint(x: u64) -> Result<Language, DeserializeError> {
+            let mut buf = Serializer::new_vec();
+            x.serialize(&mut buf).unwrap();
+            Language::from_bytes(buf.finalize())
+        }
+
+        assert_eq!(deserialize_language_from_uint(0).unwrap(), Language::new_plutus_v1());
+        assert_eq!(deserialize_language_from_uint(1).unwrap(), Language::new_plutus_v2());
+        assert!(deserialize_language_from_uint(2).is_err());
+
+        assert_eq!(
+            Language::from_bytes(Language::new_plutus_v1().to_bytes()).unwrap(),
+            Language::new_plutus_v1(),
+        );
+        assert_eq!(
+            Language::from_bytes(Language::new_plutus_v2().to_bytes()).unwrap(),
+            Language::new_plutus_v2(),
+        );
+    }
+
+    #[test]
+    fn test_cost_model_roundtrip() {
+        use crate::tx_builder_constants::TxBuilderConstants;
+        let costmodels = TxBuilderConstants::plutus_vasil_cost_models();
+        assert_eq!(costmodels, Costmdls::from_bytes(costmodels.to_bytes()).unwrap());
+    }
+
+    #[test]
+    fn test_known_plutus_data_hash() {
+        use crate::tx_builder_constants::TxBuilderConstants;
+        let pdata = PlutusList::from(vec![
+            PlutusData::new_constr_plutus_data(
+                &ConstrPlutusData::new(
+                    &BigNum::zero(),
+                    &PlutusList::from(vec![
+                        PlutusData::new_constr_plutus_data(
+                            &ConstrPlutusData::new(
+                                &BigNum::zero(),
+                                &PlutusList::from(vec![
+                                    PlutusData::new_bytes(hex::decode("A183BF86925F66C579A3745C9517744399679B090927B8F6E2F2E1BB").unwrap()),
+                                    PlutusData::new_bytes(hex::decode("6164617065416D616E734576616E73").unwrap())
+                                ]),
+                            ),
+                        ),
+                        PlutusData::new_constr_plutus_data(
+                            &ConstrPlutusData::new(
+                                &BigNum::zero(),
+                                &PlutusList::from(vec![
+                                    PlutusData::new_bytes(hex::decode("9A4E855293A0B9AF5E50935A331D83E7982AB5B738EA0E6FC0F9E656").unwrap()),
+                                    PlutusData::new_bytes(hex::decode("4652414D455F38333030325F4C30").unwrap())
+                                ]),
+                            ),
+                        ),
+                        PlutusData::new_bytes(hex::decode("BEA1C521DF58F4EEEF60C647E5EBD88C6039915409F9FD6454A476B9").unwrap()),
+                    ]),
+                ),
+            ),
+        ]);
+        let redeemers = Redeemers(vec![
+            Redeemer::new(
+                &RedeemerTag::new_spend(),
+                &BigNum::one(),
+                &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
+                &ExUnits::new(&to_bignum(7000000), &to_bignum(3000000000)),
+            ),
+        ]);
+        let lang = Language::new_plutus_v1();
+        let lang_costmodel = TxBuilderConstants::plutus_vasil_cost_models().get(&lang).unwrap();
+        let mut retained_cost_models = Costmdls::new();
+        retained_cost_models.insert(&lang, &lang_costmodel);
+        let hash = hash_script_data(
+            &redeemers,
+            &retained_cost_models,
+            Some(pdata),
+        );
+        assert_eq!(hex::encode(hash.to_bytes()), "357041b88b914670a3b5e3b0861d47f2ac05ed4935ea73886434d8944aa6dfe0");
+    }
+
+    #[test]
+    fn test_same_datum_in_different_formats_with_expected_hashes() {
+        // This is a known datum with indefinite arrays and a known expected hash
+        let pdata1 = PlutusData::from_bytes(hex::decode("d8799fd8799f581ca183bf86925f66c579a3745c9517744399679b090927b8f6e2f2e1bb4f616461706541696c656e416d61746fffd8799f581c9a4e855293a0b9af5e50935a331d83e7982ab5b738ea0e6fc0f9e6564e4652414d455f36353030335f4c30ff581cbea1c521df58f4eeef60c647e5ebd88c6039915409f9fd6454a476b9ff").unwrap()).unwrap();
+        assert_eq!(hex::encode(hash_plutus_data(&pdata1).to_bytes()), "ec3028f46325b983a470893a8bdc1b4a100695b635fb1237d301c3490b23e89b");
+        // This is the same exact datum manually converted to definite arrays
+        // and it produces a different known expected hash because the format is preserved after deserialization
+        let pdata2 = PlutusData::from_bytes(hex::decode("d87983d87982581ca183bf86925f66c579a3745c9517744399679b090927b8f6e2f2e1bb4f616461706541696c656e416d61746fd87982581c9a4e855293a0b9af5e50935a331d83e7982ab5b738ea0e6fc0f9e6564e4652414d455f36353030335f4c30581cbea1c521df58f4eeef60c647e5ebd88c6039915409f9fd6454a476b9").unwrap()).unwrap();
+        assert_eq!(hex::encode(hash_plutus_data(&pdata2).to_bytes()), "816cdf6d4d8cba3ad0188ca643db95ddf0e03cdfc0e75a9550a72a82cb146222");
     }
 }

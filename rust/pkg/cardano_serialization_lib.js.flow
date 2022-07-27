@@ -98,6 +98,20 @@ declare export function get_deposit(
 ): BigNum;
 
 /**
+ * returns minimal amount of ada for the output for case when the amount is included to the output
+ * @param {TransactionOutput} output
+ * @param {DataCost} data_cost
+ * @returns {BigNum}
+ */
+declare export function min_ada_for_output(
+  output: TransactionOutput,
+  data_cost: DataCost
+): BigNum;
+
+/**
+ * !!! DEPRECATED !!!
+ * This function uses outdated set of arguments.
+ * Use `min_ada_for_output` instead
  * @param {Value} assets
  * @param {boolean} has_data_hash
  * @param {BigNum} coins_per_utxo_word
@@ -276,6 +290,7 @@ declare export var NativeScriptKind: {|
 declare export var ScriptHashNamespace: {|
   +NativeScript: 0, // 0
   +PlutusScript: 1, // 1
+  +PlutusScriptV2: 2, // 2
 |};
 
 /**
@@ -328,16 +343,9 @@ declare export var CoinSelectionStrategyCIP2: {|
 /**
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
 |};
 
 /**
@@ -359,6 +367,14 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
 |};
 
 /**
@@ -763,6 +779,12 @@ declare export class BigNum {
    * @param {BigNum} other
    * @returns {BigNum}
    */
+  div_floor(other: BigNum): BigNum;
+
+  /**
+   * @param {BigNum} other
+   * @returns {BigNum}
+   */
   checked_mul(other: BigNum): BigNum;
 
   /**
@@ -789,6 +811,12 @@ declare export class BigNum {
    * @returns {number}
    */
   compare(rhs_value: BigNum): number;
+
+  /**
+   * @param {BigNum} rhs_value
+   * @returns {boolean}
+   */
+  less_than(rhs_value: BigNum): boolean;
 }
 /**
  */
@@ -1384,11 +1412,15 @@ declare export class CostModel {
   static from_bytes(bytes: Uint8Array): CostModel;
 
   /**
+   * Creates a new CostModels instance of an unrestricted length
    * @returns {CostModel}
    */
   static new(): CostModel;
 
   /**
+   * Sets the cost at the specified index to the specified value.
+   * In case the operation index is larger than the previous largest used index,
+   * it will fill any inbetween indexes with zeroes
    * @param {number} operation
    * @param {Int} cost
    * @returns {Int}
@@ -1400,6 +1432,11 @@ declare export class CostModel {
    * @returns {Int}
    */
   get(operation: number): Int;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
 }
 /**
  */
@@ -1498,6 +1535,30 @@ declare export class DNSRecordSRV {
    * @returns {string}
    */
   record(): string;
+}
+/**
+ */
+declare export class DataCost {
+  free(): void;
+
+  /**
+   * !!! DEPRECATED !!!
+   * Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead.
+   * @param {BigNum} coins_per_word
+   * @returns {DataCost}
+   */
+  static new_coins_per_word(coins_per_word: BigNum): DataCost;
+
+  /**
+   * @param {BigNum} coins_per_byte
+   * @returns {DataCost}
+   */
+  static new_coins_per_byte(coins_per_byte: BigNum): DataCost;
+
+  /**
+   * @returns {BigNum}
+   */
+  coins_per_byte(): BigNum;
 }
 /**
  */
@@ -1992,14 +2053,37 @@ declare export class HeaderBody {
   vrf_vkey(): VRFVKey;
 
   /**
-   * @returns {VRFCert}
+   * If this function returns true, the `.nonce_vrf_or_nothing`
+   * and the `.leader_vrf_or_nothing` functions will return
+   * non-empty results
+   * @returns {boolean}
    */
-  nonce_vrf(): VRFCert;
+  has_nonce_and_leader_vrf(): boolean;
 
   /**
-   * @returns {VRFCert}
+   * Might return nothing in case `.has_nonce_and_leader_vrf` returns false
+   * @returns {VRFCert | void}
    */
-  leader_vrf(): VRFCert;
+  nonce_vrf_or_nothing(): VRFCert | void;
+
+  /**
+   * Might return nothing in case `.has_nonce_and_leader_vrf` returns false
+   * @returns {VRFCert | void}
+   */
+  leader_vrf_or_nothing(): VRFCert | void;
+
+  /**
+   * If this function returns true, the `.vrf_result_or_nothing`
+   * function will return a non-empty result
+   * @returns {boolean}
+   */
+  has_vrf_result(): boolean;
+
+  /**
+   * Might return nothing in case `.has_vrf_result` returns false
+   * @returns {VRFCert | void}
+   */
+  vrf_result_or_nothing(): VRFCert | void;
 
   /**
    * @returns {number}
@@ -2030,8 +2114,7 @@ declare export class HeaderBody {
    * @param {BlockHash | void} prev_hash
    * @param {Vkey} issuer_vkey
    * @param {VRFVKey} vrf_vkey
-   * @param {VRFCert} nonce_vrf
-   * @param {VRFCert} leader_vrf
+   * @param {VRFCert} vrf_result
    * @param {number} block_body_size
    * @param {BlockHash} block_body_hash
    * @param {OperationalCert} operational_cert
@@ -2044,8 +2127,7 @@ declare export class HeaderBody {
     prev_hash: BlockHash | void,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
-    nonce_vrf: VRFCert,
-    leader_vrf: VRFCert,
+    vrf_result: VRFCert,
     block_body_size: number,
     block_body_hash: BlockHash,
     operational_cert: OperationalCert,
@@ -2058,8 +2140,7 @@ declare export class HeaderBody {
    * @param {BlockHash | void} prev_hash
    * @param {Vkey} issuer_vkey
    * @param {VRFVKey} vrf_vkey
-   * @param {VRFCert} nonce_vrf
-   * @param {VRFCert} leader_vrf
+   * @param {VRFCert} vrf_result
    * @param {number} block_body_size
    * @param {BlockHash} block_body_hash
    * @param {OperationalCert} operational_cert
@@ -2072,8 +2153,7 @@ declare export class HeaderBody {
     prev_hash: BlockHash | void,
     issuer_vkey: Vkey,
     vrf_vkey: VRFVKey,
-    nonce_vrf: VRFCert,
-    leader_vrf: VRFCert,
+    vrf_result: VRFCert,
     block_body_size: number,
     block_body_hash: BlockHash,
     operational_cert: OperationalCert,
@@ -2288,6 +2368,11 @@ declare export class Language {
    * @returns {Language}
    */
   static new_plutus_v1(): Language;
+
+  /**
+   * @returns {Language}
+   */
+  static new_plutus_v2(): Language;
 
   /**
    * @returns {number}
@@ -3283,6 +3368,25 @@ declare export class PlutusScript {
   static new(bytes: Uint8Array): PlutusScript;
 
   /**
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
+   * @param {Uint8Array} bytes
+   * @returns {PlutusScript}
+   */
+  static new_v2(bytes: Uint8Array): PlutusScript;
+
+  /**
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
+   * @param {Uint8Array} bytes
+   * @param {Language} language
+   * @returns {PlutusScript}
+   */
+  static new_with_version(bytes: Uint8Array, language: Language): PlutusScript;
+
+  /**
    * * The raw bytes of this compiled Plutus script.
    * * If you need "cborBytes" for cardano-cli use PlutusScript::to_bytes() instead.
    * @returns {Uint8Array}
@@ -3290,9 +3394,32 @@ declare export class PlutusScript {
   bytes(): Uint8Array;
 
   /**
+   * Same as `.from_bytes` but will consider the script as requiring the Plutus Language V2
+   * @param {Uint8Array} bytes
+   * @returns {PlutusScript}
+   */
+  static from_bytes_v2(bytes: Uint8Array): PlutusScript;
+
+  /**
+   * Same as `.from_bytes` but will consider the script as requiring the specified language version
+   * @param {Uint8Array} bytes
+   * @param {Language} language
+   * @returns {PlutusScript}
+   */
+  static from_bytes_with_version(
+    bytes: Uint8Array,
+    language: Language
+  ): PlutusScript;
+
+  /**
    * @returns {ScriptHash}
    */
   hash(): ScriptHash;
+
+  /**
+   * @returns {Language}
+   */
+  language_version(): Language;
 }
 /**
  */
@@ -3937,34 +4064,28 @@ declare export class ProtocolParamUpdate {
   treasury_growth_rate(): UnitInterval | void;
 
   /**
-   * @param {UnitInterval} d
-   */
-  set_d(d: UnitInterval): void;
-
-  /**
+   * !!! DEPRECATED !!!
+   * Since babbage era this param is outdated. But this param you can meet in a pre-babbage block.
    * @returns {UnitInterval | void}
    */
   d(): UnitInterval | void;
 
   /**
-   * @param {Nonce} extra_entropy
-   */
-  set_extra_entropy(extra_entropy: Nonce): void;
-
-  /**
+   * !!! DEPRECATED !!!
+   * Since babbage era this param is outdated. But this param you can meet in a pre-babbage block.
    * @returns {Nonce | void}
    */
   extra_entropy(): Nonce | void;
 
   /**
-   * @param {ProtocolVersions} protocol_version
+   * @param {ProtocolVersion} protocol_version
    */
-  set_protocol_version(protocol_version: ProtocolVersions): void;
+  set_protocol_version(protocol_version: ProtocolVersion): void;
 
   /**
-   * @returns {ProtocolVersions | void}
+   * @returns {ProtocolVersion | void}
    */
-  protocol_version(): ProtocolVersions | void;
+  protocol_version(): ProtocolVersion | void;
 
   /**
    * @param {BigNum} min_pool_cost
@@ -4093,43 +4214,6 @@ declare export class ProtocolVersion {
    * @returns {ProtocolVersion}
    */
   static new(major: number, minor: number): ProtocolVersion;
-}
-/**
- */
-declare export class ProtocolVersions {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {ProtocolVersions}
-   */
-  static from_bytes(bytes: Uint8Array): ProtocolVersions;
-
-  /**
-   * @returns {ProtocolVersions}
-   */
-  static new(): ProtocolVersions;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {number} index
-   * @returns {ProtocolVersion}
-   */
-  get(index: number): ProtocolVersion;
-
-  /**
-   * @param {ProtocolVersion} elem
-   */
-  add(elem: ProtocolVersion): void;
 }
 /**
  * ED25519 key used as public key
@@ -4696,6 +4780,54 @@ declare export class ScriptPubkey {
    * @returns {ScriptPubkey}
    */
   static new(addr_keyhash: Ed25519KeyHash): ScriptPubkey;
+}
+/**
+ */
+declare export class ScriptRef {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ScriptRef}
+   */
+  static from_bytes(bytes: Uint8Array): ScriptRef;
+
+  /**
+   * @param {NativeScript} native_script
+   * @returns {ScriptRef}
+   */
+  static new_native_script(native_script: NativeScript): ScriptRef;
+
+  /**
+   * @param {PlutusScript} plutus_script
+   * @returns {ScriptRef}
+   */
+  static new_plutus_script(plutus_script: PlutusScript): ScriptRef;
+
+  /**
+   * @returns {boolean}
+   */
+  is_native_script(): boolean;
+
+  /**
+   * @returns {boolean}
+   */
+  is_plutus_script(): boolean;
+
+  /**
+   * @returns {NativeScript | void}
+   */
+  native_script(): NativeScript | void;
+
+  /**
+   * @returns {PlutusScript | void}
+   */
+  plutus_script(): PlutusScript | void;
 }
 /**
  */
@@ -5278,6 +5410,16 @@ declare export class TransactionBody {
   multiassets(): Mint | void;
 
   /**
+   * @param {TransactionInputs} reference_inputs
+   */
+  set_reference_inputs(reference_inputs: TransactionInputs): void;
+
+  /**
+   * @returns {TransactionInputs | void}
+   */
+  reference_inputs(): TransactionInputs | void;
+
+  /**
    * @param {ScriptDataHash} script_data_hash
    */
   set_script_data_hash(script_data_hash: ScriptDataHash): void;
@@ -5316,6 +5458,26 @@ declare export class TransactionBody {
    * @returns {NetworkId | void}
    */
   network_id(): NetworkId | void;
+
+  /**
+   * @param {TransactionOutput} collateral_return
+   */
+  set_collateral_return(collateral_return: TransactionOutput): void;
+
+  /**
+   * @returns {TransactionOutput | void}
+   */
+  collateral_return(): TransactionOutput | void;
+
+  /**
+   * @param {BigNum} total_collateral
+   */
+  set_total_collateral(total_collateral: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  total_collateral(): BigNum | void;
 
   /**
    * !!! DEPRECATED !!!
@@ -5376,6 +5538,41 @@ declare export class TransactionBuilder {
    * @param {TxInputsBuilder} collateral
    */
   set_collateral(collateral: TxInputsBuilder): void;
+
+  /**
+   * @param {TransactionOutput} collateral_return
+   */
+  set_collateral_return(collateral_return: TransactionOutput): void;
+
+  /**
+   * This function will set the collateral-return value and then auto-calculate and assign
+   * the total collateral coin value. Will raise an error in case no collateral inputs are set
+   * or in case the total collateral value will have any assets in it except coin.
+   * @param {TransactionOutput} collateral_return
+   */
+  set_collateral_return_and_total(collateral_return: TransactionOutput): void;
+
+  /**
+   * @param {BigNum} total_collateral
+   */
+  set_total_collateral(total_collateral: BigNum): void;
+
+  /**
+   * This function will set the total-collateral coin and then auto-calculate and assign
+   * the collateral return value. Will raise an error in case no collateral inputs are set.
+   * The specified address will be the received of the collateral return
+   * @param {BigNum} total_collateral
+   * @param {Address} return_address
+   */
+  set_total_collateral_and_return(
+    total_collateral: BigNum,
+    return_address: Address
+  ): void;
+
+  /**
+   * @param {TransactionInput} reference_input
+   */
+  add_reference_input(reference_input: TransactionInput): void;
 
   /**
    * We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -5695,6 +5892,11 @@ declare export class TransactionBuilder {
   static new(cfg: TransactionBuilderConfig): TransactionBuilder;
 
   /**
+   * @returns {TransactionInputs}
+   */
+  get_reference_inputs(): TransactionInputs;
+
+  /**
    * does not include refunds or withdrawals
    * @returns {Value}
    */
@@ -5751,6 +5953,9 @@ declare export class TransactionBuilder {
    * in the builder to be used when building the tx body.
    * In case there are no plutus input witnesses present - nothing will change
    * You can set specific hash value using `.set_script_data_hash`
+   * NOTE: this function will check which language versions are used in the present scripts
+   * and will assert and require for a corresponding cost-model to be present in the passed map.
+   * Only the cost-models for the present language versions will be used in the hash calculation.
    * @param {Costmdls} cost_models
    */
   calc_script_data_hash(cost_models: Costmdls): void;
@@ -5837,11 +6042,21 @@ declare export class TransactionBuilderConfigBuilder {
   fee_algo(fee_algo: LinearFee): TransactionBuilderConfigBuilder;
 
   /**
+   * !!! DEPRECATED !!!
+   * Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead.
    * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionBuilderConfigBuilder}
    */
   coins_per_utxo_word(
     coins_per_utxo_word: BigNum
+  ): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {BigNum} coins_per_utxo_byte
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  coins_per_utxo_byte(
+    coins_per_utxo_byte: BigNum
   ): TransactionBuilderConfigBuilder;
 
   /**
@@ -5984,6 +6199,11 @@ declare export class TransactionInputs {
    * @param {TransactionInput} elem
    */
   add(elem: TransactionInput): void;
+
+  /**
+   * @returns {TransactionInputs | void}
+   */
+  to_option(): TransactionInputs | void;
 }
 /**
  */
@@ -6130,9 +6350,44 @@ declare export class TransactionOutput {
   data_hash(): DataHash | void;
 
   /**
+   * @returns {PlutusData | void}
+   */
+  plutus_data(): PlutusData | void;
+
+  /**
+   * @returns {ScriptRef | void}
+   */
+  script_ref(): ScriptRef | void;
+
+  /**
+   * @param {ScriptRef} script_ref
+   */
+  set_script_ref(script_ref: ScriptRef): void;
+
+  /**
+   * @param {PlutusData} data
+   */
+  set_plutus_data(data: PlutusData): void;
+
+  /**
    * @param {DataHash} data_hash
    */
   set_data_hash(data_hash: DataHash): void;
+
+  /**
+   * @returns {boolean}
+   */
+  has_plutus_data(): boolean;
+
+  /**
+   * @returns {boolean}
+   */
+  has_data_hash(): boolean;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_ref(): boolean;
 
   /**
    * @param {Address} address
@@ -6169,6 +6424,8 @@ declare export class TransactionOutputAmountBuilder {
   ): TransactionOutputAmountBuilder;
 
   /**
+   * !!! DEPRECATED !!!
+   * Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead.
    * @param {MultiAsset} multiasset
    * @param {BigNum} coins_per_utxo_word
    * @returns {TransactionOutputAmountBuilder}
@@ -6176,6 +6433,16 @@ declare export class TransactionOutputAmountBuilder {
   with_asset_and_min_required_coin(
     multiasset: MultiAsset,
     coins_per_utxo_word: BigNum
+  ): TransactionOutputAmountBuilder;
+
+  /**
+   * @param {MultiAsset} multiasset
+   * @param {DataCost} data_cost
+   * @returns {TransactionOutputAmountBuilder}
+   */
+  with_asset_and_min_required_coin_by_utxo_cost(
+    multiasset: MultiAsset,
+    data_cost: DataCost
   ): TransactionOutputAmountBuilder;
 
   /**
@@ -6209,6 +6476,18 @@ declare export class TransactionOutputBuilder {
    * @returns {TransactionOutputBuilder}
    */
   with_data_hash(data_hash: DataHash): TransactionOutputBuilder;
+
+  /**
+   * @param {PlutusData} data
+   * @returns {TransactionOutputBuilder}
+   */
+  with_plutus_data(data: PlutusData): TransactionOutputBuilder;
+
+  /**
+   * @param {ScriptRef} script_ref
+   * @returns {TransactionOutputBuilder}
+   */
+  with_script_ref(script_ref: ScriptRef): TransactionOutputBuilder;
 
   /**
    * @returns {TransactionOutputAmountBuilder}
@@ -6441,6 +6720,16 @@ declare export class TxBuilderConstants {
    * @returns {Costmdls}
    */
   static plutus_default_cost_models(): Costmdls;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_alonzo_cost_models(): Costmdls;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_vasil_cost_models(): Costmdls;
 }
 /**
  */
@@ -6583,6 +6872,11 @@ declare export class TxInputsBuilder {
    * @param {Ed25519KeyHashes} keys
    */
   add_required_signers(keys: Ed25519KeyHashes): void;
+
+  /**
+   * @returns {Value}
+   */
+  total_value(): Value;
 
   /**
    * @returns {TransactionInputs}
@@ -6806,6 +7100,13 @@ declare export class Value {
    * @returns {Value}
    */
   static new_from_assets(multiasset: MultiAsset): Value;
+
+  /**
+   * @param {BigNum} coin
+   * @param {MultiAsset} multiasset
+   * @returns {Value}
+   */
+  static new_with_assets(coin: BigNum, multiasset: MultiAsset): Value;
 
   /**
    * @returns {Value}

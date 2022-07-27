@@ -283,7 +283,7 @@ impl PrivateKey {
 
 /// ED25519 key used as public key
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PublicKey(crypto::PublicKey<crypto::Ed25519>);
 
 impl From<crypto::PublicKey<crypto::Ed25519>> for PublicKey {
@@ -329,7 +329,7 @@ impl PublicKey {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Vkey(PublicKey);
 
 to_from_bytes!(Vkey);
@@ -409,7 +409,7 @@ impl Deserialize for Vkeys {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Vkeywitness {
     vkey: Vkey,
     signature: Ed25519Signature,
@@ -470,8 +470,8 @@ impl Deserialize for Vkeywitness {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
-pub struct Vkeywitnesses(Vec<Vkeywitness>);
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Vkeywitnesses(pub(crate) Vec<Vkeywitness>);
 
 #[wasm_bindgen]
 impl Vkeywitnesses {
@@ -521,7 +521,7 @@ impl Deserialize for Vkeywitnesses {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BootstrapWitness {
     vkey: Vkey,
     signature: Ed25519Signature,
@@ -612,7 +612,7 @@ impl DeserializeEmbeddedGroup for BootstrapWitness {
 
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BootstrapWitnesses(Vec<BootstrapWitness>);
 
 #[wasm_bindgen]
@@ -688,7 +688,7 @@ impl PublicKeys {
 macro_rules! impl_signature {
     ($name:ident, $signee_type:ty, $verifier_type:ty) => {
         #[wasm_bindgen]
-        #[derive(Clone)]
+        #[derive(Clone, Debug, Eq, PartialEq)]
         pub struct $name(crypto::Signature<$signee_type, $verifier_type>);
 
         #[wasm_bindgen]
