@@ -56,6 +56,7 @@ pub mod emip3;
 pub mod utils;
 mod serialization_macros;
 mod fakes;
+pub mod witness_builder;
 
 use address::*;
 use crypto::*;
@@ -1786,7 +1787,7 @@ impl TimelockStart {
     /// !!! DEPRECATED !!!
     /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
     /// Otherwise will just raise an error.
-    /// Use `.slot_bignum` instead 
+    /// Use `.slot_bignum` instead
     #[deprecated(
     since = "10.1.0",
     note = "Possible boundary error. Use slot_bignum instead"
@@ -1959,12 +1960,7 @@ pub enum ScriptHashNamespace {
 impl NativeScript {
 
     pub fn hash(&self) -> ScriptHash {
-        let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
-        bytes.extend_from_slice(&vec![
-            ScriptHashNamespace::NativeScript as u8,
-        ]);
-        bytes.extend_from_slice(&self.to_bytes());
-        ScriptHash::from(blake2b224(bytes.as_ref()))
+        hash_script(ScriptHashNamespace::NativeScript, self.to_bytes())
     }
 
     pub fn new_script_pubkey(script_pubkey: &ScriptPubkey) -> Self {

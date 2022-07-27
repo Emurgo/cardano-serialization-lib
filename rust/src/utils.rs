@@ -1085,16 +1085,15 @@ pub struct MinOutputAdaCalculator {
 }
 
 impl MinOutputAdaCalculator {
-
     pub fn new(output: &TransactionOutput, data_cost: &DataCost) -> Self {
-        Self{
+        Self {
             output: output.clone(),
             data_cost: data_cost.clone()
         }
     }
 
     pub fn new_empty(data_cost: &DataCost) -> Result<MinOutputAdaCalculator, JsError> {
-        Ok(Self{
+        Ok(Self {
             output: MinOutputAdaCalculator::create_fake_output()?,
             data_cost: data_cost.clone()
         })
@@ -1149,6 +1148,13 @@ impl MinOutputAdaCalculator {
     }
 }
 
+pub (crate) fn hash_script(namespace: ScriptHashNamespace, script: Vec<u8>) -> ScriptHash {
+    let mut bytes = Vec::with_capacity(script.len() + 1);
+    bytes.extend_from_slice(&vec![namespace as u8]);
+    bytes.extend_from_slice(&script);
+    ScriptHash::from(blake2b224(bytes.as_ref()))
+}
+
 ///returns minimal amount of ada for the output for case when the amount is included to the output
 #[wasm_bindgen]
 pub fn min_ada_for_output(output: &TransactionOutput, data_cost: &DataCost) -> Result<BigNum, JsError> {
@@ -1174,7 +1180,7 @@ pub fn min_ada_required(
    calc.calculate_ada()
 }
 
-/// Used to choosed the schema for a script JSON string
+/// Used to choose the schema for a script JSON string
 #[wasm_bindgen]
 pub enum ScriptSchema {
     Wallet,

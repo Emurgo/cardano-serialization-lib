@@ -283,7 +283,7 @@ impl PrivateKey {
 
 /// ED25519 key used as public key
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct PublicKey(crypto::PublicKey<crypto::Ed25519>);
 
 impl From<crypto::PublicKey<crypto::Ed25519>> for PublicKey {
@@ -329,7 +329,7 @@ impl PublicKey {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Vkey(PublicKey);
 
 to_from_bytes!(Vkey);
@@ -613,7 +613,7 @@ impl DeserializeEmbeddedGroup for BootstrapWitness {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BootstrapWitnesses(Vec<BootstrapWitness>);
+pub struct BootstrapWitnesses(pub (crate) Vec<BootstrapWitness>);
 
 #[wasm_bindgen]
 impl BootstrapWitnesses {

@@ -64,11 +64,8 @@ impl PlutusScript {
     }
 
     pub fn hash(&self) -> ScriptHash {
-        let mut bytes = Vec::with_capacity(self.bytes.len() + 1);
         // https://github.com/input-output-hk/cardano-ledger/blob/master/eras/babbage/test-suite/cddl-files/babbage.cddl#L413
-        bytes.extend_from_slice(&vec![self.script_namespace() as u8]);
-        bytes.extend_from_slice(&self.bytes);
-        ScriptHash::from(blake2b224(bytes.as_ref()))
+        hash_script(self.script_namespace(), self.bytes())
     }
 
     pub fn language_version(&self) -> Language {
@@ -603,7 +600,7 @@ impl PlutusData {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct PlutusList {
-    elems: Vec<PlutusData>,
+    pub(crate) elems: Vec<PlutusData>,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
     // before computing datum hashes. This field will default to cardano-cli behavior if None
     // and will re-use the provided one if deserialized, unless the list is modified.
@@ -699,7 +696,7 @@ impl Redeemer {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub enum RedeemerTagKind {
     Spend,
     Mint,
@@ -708,7 +705,7 @@ pub enum RedeemerTagKind {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct RedeemerTag(RedeemerTagKind);
 
 to_from_bytes!(RedeemerTag);
@@ -738,7 +735,7 @@ impl RedeemerTag {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Redeemers(pub(crate) Vec<Redeemer>);
+pub struct Redeemers(pub (crate) Vec<Redeemer>);
 
 to_from_bytes!(Redeemers);
 
