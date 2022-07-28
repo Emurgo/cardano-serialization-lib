@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use js_sys::new;
 use super::super::*;
 
 #[derive(PartialEq, Eq, Hash, Clone)]
@@ -30,8 +31,8 @@ struct UtxoSizeCost {
 }
 
 struct UtxosStat {
-    assets_in_policy: HashMap<PolicyID, usize>,
-    coins_in_assets: HashMap<PlaneAssetId, Coin>,
+    assets_in_policy: HashMap<PolicyIndex, usize>,
+    coins_in_assets: HashMap<AssetIndex, Coin>,
     ada_coins: Coin,
 }
 
@@ -46,31 +47,42 @@ pub struct AssetGroups {
     free_asset_to_utxos: HashMap<AssetIndex, HashSet<UtxoIndex>>,
     asset_to_policy: HashMap<AssetIndex, PolicyIndex>,
     policy_to_asset: HashMap<PolicyIndex, HashSet<AssetIndex>>,
-    inputs: HashMap<UtxoIndex, (TransactionInput, usize)>
+    inputs_sizes: Vec<usize>,
+    utxos_stat: UtxosStat
 }
 
 impl AssetGroups {
-    fn new(utxos: &TransactionUnspentOutputs) -> Self {
+   pub fn new(utxos: &TransactionUnspentOutputs) -> Self {
         let mut assets: Vec<PlaneAssetId> = Vec::new();
         let mut policies: Vec<PolicyID> = Vec::new();
         let mut assets_sizes: Vec<AssetSizeCost> = Vec::new();
         let mut assets_amounts: HashMap<(AssetIndex, UtxoIndex), Coin> = HashMap::new();
-        let mut assets_counts: Vec<(AssetIndex, usize)> = Vec::new();
+        //let mut assets_counts: Vec<(AssetIndex, usize)> = Vec::new();
         let mut free_utxo_to_assets: HashMap<UtxoIndex, HashSet<AssetIndex>> = HashMap::new();
         let mut free_asset_to_utxos: HashMap<AssetIndex, HashSet<UtxoIndex>> = HashMap::new();
         let mut asset_to_policy: HashMap<AssetIndex, PolicyIndex> = HashMap::new();
         let mut policy_to_asset: HashMap<PolicyIndex, HashSet<AssetIndex>> = HashMap::new();
-        let mut inputs: HashMap<UtxoIndex, (TransactionInput, usize)> = HashMap::new();
 
-        let mut asset_ids : HashMap<PlaneAssetId, AssetIndex> = HashMap::new();
-        let mut policy_ids : HashMap<PolicyID, PolicyIndex> = HashMap::new();
+        let mut asset_ids: HashMap<PlaneAssetId, AssetIndex> = HashMap::new();
+        let mut policy_ids: HashMap<PolicyID, PolicyIndex> = HashMap::new();
+        let mut assets_counts: HashMap<AssetIndex, usize> = HashMap::new();
+
+        let mut utxo_stat = UtxosStat {
+            assets_in_policy: HashMap::new(),
+            coins_in_assets: HashMap::new(),
+            ada_coins: Coin::zero()
+        };
 
         let mut current_utxo_num = 0usize;
         let mut asset_count = 0usize;
         let mut policy_count = 0usize;
+
+       let input_sizes = Self::get_inputs_sizes(&utxos);
+
         for utxo in &utxos.0 {
             //TODO add input calc
-            if let Some(assests) = &utxo.output.amount.multiasset {
+            let current_utxo_index= UtxoIndex(current_utxo_num.clone());
+                if let Some(assests) = &utxo.output.amount.multiasset {
                 for policy in &assests.0 {
                     let mut current_policy_index = PolicyIndex(policy_count.clone());
                     if Some(policy_index) = policy_ids.get(policy.0) {
@@ -86,9 +98,35 @@ impl AssetGroups {
                         if Some(asset_index) = asset_ids.get(&plane_id) {
                             current_asset_index = asset_index.clone();
                         } else {
-                            asset_ids.insert(plane_id.clone(), current_asset_index);
+                            asset_ids.insert(plane_id, current_asset_index);
                             asset_count += 1;
                         }
+
+                        asset_to_policy.insert(current_asset_index.clone(), current_policy_index.clone());
+                        if let Some(mut assets_set) = policy_to_asset.get(&current_policy_index) {
+                            assets_set.insert(current_asset_index.clone());
+                        } else {
+                           let mut assets_set = HashSet::new();
+                            assets_set.insert(current_asset_index.clone());
+                            policy_to_asset.insert(current_policy_index.clone(), assets_set);
+                        }
+
+                        if let Some(mut utxo_set) = free_asset_to_utxos.get(&current_asset_index) {
+                            utxo_set.insert(current_utxo_index.clone());
+                        } else {
+                            let mut utxo_set = HashSet::new();
+                            utxo_set.insert(current_utxo_index.clone());
+                            free_asset_to_utxos.insert(current_asset_index.clone(), utxo_set);
+                        }
+
+                        if let Some(mut assets_set) = free_utxo_to_assets.get(&current_utxo_index) {
+                            assets_set.insert(current_asset_index.clone());
+                        } else {
+                            let mut assets_set = HashSet::new();
+                            assets_set.insert(current_asset_index.clone());
+                            free_utxo_to_assets.insert(current_utxo_index.clone(), assets_set);
+                        }
+                        //TODO: add size calc
                     }
                 }
             }
@@ -106,7 +144,16 @@ impl AssetGroups {
             free_asset_to_utxos,
             asset_to_policy,
             policy_to_asset,
-            inputs)
+            input_sizes)
+    }
+
+    fn get_inputs_sizes(utoxs: &TransactionUnspentOutputs) -> Vec<usize> {
+        let mut sizes = Vec::with_capacity(utoxs.0.len());
+        for utxo in &utoxs.0 {
+            let len = utxo.input.to_bytes().len();
+            sizes.push(len);
+        }
+        sizes
     }
 
     fn get_asset_intersections(&self,
@@ -193,7 +240,7 @@ impl AssetGroups {
         if tx_utxo.is_none() {
             tx_utxo = tx_utxo_tmp.clone();
         }
-
+        //TODO: add dedup
         let (output_utxo, tx_utxo_tmp) =
             self.choose_candidate(&self.assets_counts, value_free_space, tx_free_space);
 
