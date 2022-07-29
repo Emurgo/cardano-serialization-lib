@@ -1387,6 +1387,7 @@ pub(crate) fn opt64<T>(o: &Option<T>) -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use crate::tx_builder_constants::TxBuilderConstants;
     use super::*;
 
     // this is what is used in mainnet
@@ -2465,6 +2466,30 @@ mod tests {
             to_bignum(10).div_floor(&to_bignum(12)),
             to_bignum(0),
         );
+    }
+
+    #[test]
+    fn test_vasil_v1_costmodel_hashing() {
+        let v1 = Language::new_plutus_v1();
+        let v1_cost_model = TxBuilderConstants::plutus_vasil_cost_models()
+            .get(&v1).unwrap();
+        let mut costmodels = Costmdls::new();
+        costmodels.insert(&v1, &v1_cost_model);
+        let hash = hash_script_data(
+            &Redeemers(vec![
+                Redeemer::new(
+                    &RedeemerTag::new_spend(),
+                    &BigNum::zero(),
+                    &PlutusData::new_integer(&BigInt::from_str("42").unwrap()),
+                    &ExUnits::new(&to_bignum(1700), &to_bignum(368100)),
+                )
+            ]),
+            &costmodels,
+            Some(PlutusList::from(vec![
+                PlutusData::new_integer(&BigInt::from_str("42").unwrap())
+            ])),
+        );
+        assert_eq!(hex::encode(hash.to_bytes()), "f4e4522ff98b6ba0ab5042d44da2458cd5fa6f97dc42aca1def58193f17a1375");
     }
 
     #[test]
