@@ -1,0 +1,13 @@
+[package]
+name = "cardano-serialization-lib-json-schema-gen"
+version = "0.0.1"
+edition = "2018"
+authors = ["EMURGO"]
+license = "MIT"
+
+
+[dependencies]
+serde_json = "1.0.57"
+schemars = "0.8.8"
+#serde = { version = "1.0", features = ["derive"] }
+cardano-serialization-lib = { path = ".." }

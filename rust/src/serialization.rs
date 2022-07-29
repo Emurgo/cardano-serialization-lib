@@ -4003,6 +4003,196 @@ mod tests {
     }
 
     #[test]
+    fn tx_output_deser_lagacy_json() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        txo_dh.set_data_hash(&DataHash::from([47u8; DataHash::BYTE_COUNT]));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let json_txos = txos.to_json().unwrap();
+        let deser_txos = TransactionOutputs::from_json(json_txos.as_str()).unwrap();
+
+        assert_eq!(deser_txos.to_bytes(), txos.to_bytes());
+        assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_plutus_script_and_datum_json() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new([61u8; 29].to_vec())));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let json_txos = txos.to_json().unwrap();
+        let deser_txos = TransactionOutputs::from_json(json_txos.as_str()).unwrap();
+
+        assert_eq!(deser_txos.to_bytes(), txos.to_bytes());
+        assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_plutus_script_json() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new([61u8; 29].to_vec())));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let json_txos = txos.to_json().unwrap();
+        let deser_txos = TransactionOutputs::from_json(json_txos.as_str()).unwrap();
+
+        assert_eq!(deser_txos.to_bytes(), txos.to_bytes());
+        assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_datum_json() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let json_txos = txos.to_json().unwrap();
+        let deser_txos = TransactionOutputs::from_json(json_txos.as_str()).unwrap();
+
+        assert_eq!(deser_txos.to_bytes(), txos.to_bytes());
+        assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_native_script_and_datum_json() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
+        txo_dh.set_script_ref(&ScriptRef::new_native_script(&native_script));
+        txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let json_txos = txos.to_json().unwrap();
+        let deser_txos = TransactionOutputs::from_json(json_txos.as_str()).unwrap();
+
+        assert_eq!(deser_txos.to_bytes(), txos.to_bytes());
+        assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_native_script_json() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
+        txo_dh.set_script_ref(&ScriptRef::new_native_script(&native_script));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let json_txos = txos.to_json().unwrap();
+        let deser_txos = TransactionOutputs::from_json(json_txos.as_str()).unwrap();
+
+        assert_eq!(deser_txos.to_bytes(), txos.to_bytes());
+        assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
+    }
+
+    #[test]
+    fn tx_output_deser_post_alonzo_with_native_script_and_data_hash_json() {
+        let mut txos = TransactionOutputs::new();
+        let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+        let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+        let txo = TransactionOutput {
+            address: addr.clone(),
+            amount: val.clone(),
+            plutus_data: None,
+            script_ref: None
+        };
+        let mut txo_dh = txo.clone();
+        let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
+        let data_hash = DataHash::from_bytes(vec![201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232]).unwrap();
+        txo_dh.set_data_hash(&data_hash);
+        txo_dh.set_script_ref(&ScriptRef::new_native_script(&native_script));
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        txos.add(&txo_dh);
+        txos.add(&txo);
+        txos.add(&txo);
+        txos.add(&txo_dh);
+        let json_txos = txos.to_json().unwrap();
+        let deser_txos = TransactionOutputs::from_json(json_txos.as_str()).unwrap();
+
+        assert_eq!(deser_txos.to_bytes(), txos.to_bytes());
+        assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
+    }
+
+
+    #[test]
     fn mir_deser() {
         let reserves_to_pot = MoveInstantaneousReward::new_to_other_pot(MIRPot::Treasury, &Coin::from_str("143546464").unwrap());
         let reserves_to_pot_deser = MoveInstantaneousReward::from_bytes(reserves_to_pot.to_bytes()).unwrap();

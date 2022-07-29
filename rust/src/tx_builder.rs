@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-mod tx_inputs_builder;
+pub mod tx_inputs_builder;
 
 use super::*;
 use super::fees;
@@ -2321,6 +2321,88 @@ mod tests {
 
         assert_eq!(deser_t.to_bytes(), final_tx.to_bytes());
     }
+
+    #[test]
+    fn json_serialization_tx_body_with_script_ref() {
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 1));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 2));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 3));
+        tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 4));
+
+        tx_builder.add_input(
+            &PointerAddress::new(
+                NetworkInfo::testnet().network_id(),
+                &spend_cred,
+                &Pointer::new_pointer(
+                    &to_bignum(0),
+                    &to_bignum(0),
+                    &to_bignum(0)
+                )
+            ).to_address(),
+            &TransactionInput::new(&genesis_id(), 2),
+            &Value::new(&to_bignum(1_000_000))
+        );
+
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+            .to_address();
+
+        let output_amount = Value::new(&to_bignum(500));
+
+        tx_builder.add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(&addr_net_0)
+                .next().unwrap()
+                .with_value(&output_amount)
+                .build().unwrap()
+        ).unwrap();
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        ).to_address();
+
+        tx_builder.add_change_if_needed(&change_addr).unwrap();
+        let final_tx = tx_builder.build().unwrap();
+
+        let json_tx_body = final_tx.to_json().unwrap();
+        let deser_t = TransactionBody::from_json(json_tx_body.as_str()).unwrap();
+
+        assert_eq!(deser_t.to_bytes(), final_tx.to_bytes());
+        assert_eq!(deser_t.to_json().unwrap(), final_tx.to_json().unwrap());
+    }
+
 
     #[test]
     fn build_tx_with_mint_all_sent() {
@@ -5238,6 +5320,91 @@ mod tests {
         // because it was added on the third position
         assert_eq!(redeems.get(1), redeemer2.clone_with_index(&to_bignum(2)));
     }
+
+    #[test]
+    fn test_json_serialization_native_and_plutus_scripts_together() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+        tx_builder.set_collateral(&create_collateral());
+        let (pscript1, _) = plutus_script_and_hash(0);
+        let (pscript2, phash2) = plutus_script_and_hash(1);
+        let (nscript1, _) = mint_script_and_policy(0);
+        let (nscript2, nhash2) = mint_script_and_policy(1);
+        let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
+        let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
+        // Creating redeemers with indexes ZERO
+        let redeemer1 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes_32(20)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+        let redeemer2 = Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(0),
+            &PlutusData::new_bytes(fake_bytes_32(21)),
+            &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        );
+
+        // Add one plutus input directly with witness
+        tx_builder.add_plutus_script_input(
+            &PlutusWitness::new(&pscript1, &datum1, &redeemer1),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        // Add one native input directly with witness
+        tx_builder.add_native_script_input(
+            &nscript1,
+            &TransactionInput::new(&genesis_id(), 1),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        // Add one plutus input generically without witness
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&phash2),
+            &TransactionInput::new(&genesis_id(), 2),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        // Add one native input generically without witness
+        tx_builder.add_input(
+            &create_base_address_from_script_hash(&nhash2),
+            &TransactionInput::new(&genesis_id(), 3),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+
+        // There are two missing script witnesses
+        assert_eq!(tx_builder.count_missing_input_scripts(), 2);
+
+        let remaining1 = tx_builder.add_required_plutus_input_scripts(
+            &PlutusWitnesses::from(vec![
+                PlutusWitness::new(&pscript2, &datum2, &redeemer2),
+            ]),
+        );
+
+        // There is one missing script witness now
+        assert_eq!(remaining1, 1);
+        assert_eq!(tx_builder.count_missing_input_scripts(), 1);
+
+        let remaining2 = tx_builder.add_required_native_input_scripts(
+            &NativeScripts::from(vec![nscript2.clone()]),
+        );
+
+        // There are no missing script witnesses now
+        assert_eq!(remaining2, 0);
+        assert_eq!(tx_builder.count_missing_input_scripts(), 0);
+
+        tx_builder.calc_script_data_hash(
+            &TxBuilderConstants::plutus_default_cost_models(),
+        );
+
+        let tx: Transaction = tx_builder.build_tx().unwrap();
+
+        let json_tx = tx.to_json().unwrap();
+        let deser_tx = Transaction::from_json(json_tx.as_str()).unwrap();
+
+        assert_eq!(deser_tx.to_bytes(), tx.to_bytes());
+        assert_eq!(deser_tx.to_json().unwrap(), tx.to_json().unwrap());
+    }
+
 
     #[test]
     fn test_regular_and_collateral_inputs_same_keyhash() {

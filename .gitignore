@@ -5,4 +5,7 @@ rust/target
 .idea
 rust/.idea
 binaryen/
+rust/json-gen/target
+rust/json-gen/output
+rust/json-gen/schema
 .DS_Store

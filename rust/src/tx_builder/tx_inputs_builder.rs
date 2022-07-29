@@ -8,12 +8,14 @@ pub(crate) struct TxBuilderInput {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusWitness {
     script: PlutusScript,
     datum: PlutusData,
     redeemer: Redeemer,
 }
+
+to_from_json!(PlutusWitness);
 
 #[wasm_bindgen]
 impl PlutusWitness {
@@ -49,8 +51,10 @@ impl PlutusWitness {
 
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusWitnesses(pub(crate) Vec<PlutusWitness>);
+
+to_from_json!(PlutusWitnesses);
 
 #[wasm_bindgen]
 impl PlutusWitnesses {
