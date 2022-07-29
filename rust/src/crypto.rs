@@ -137,8 +137,8 @@ impl Bip32PrivateKey {
     pub fn from_hex(hex_str : &str) -> Result<Bip32PrivateKey, JsError> {
            match hex::decode(hex_str) {
             Ok(data) => Ok(Self::from_bytes(data.as_ref())?),
-            Err(e) =>  Err(JsError::from_str(&e.to_string())) 
-        }  
+            Err(e) =>  Err(JsError::from_str(&e.to_string()))
+        }
     }
 }
 
@@ -214,8 +214,8 @@ impl Bip32PublicKey {
     pub fn from_hex(hex_str : &str) -> Result<Bip32PublicKey, JsError> {
         match hex::decode(hex_str) {
             Ok(data) => Ok(Self::from_bytes(data.as_ref())?),
-            Err(e) =>  Err(JsError::from_str(&e.to_string())) 
-        }  
+            Err(e) =>  Err(JsError::from_str(&e.to_string()))
+        }
     }
 }
 
@@ -309,7 +309,7 @@ impl PrivateKey {
     pub fn from_hex(hex_str: &str) -> Result<PrivateKey, JsError> {
         let data : Vec<u8> = match hex::decode(hex_str) {
             Ok(d) => d,
-            Err(e) => return Err(JsError::from_str(&e.to_string())) 
+            Err(e) => return Err(JsError::from_str(&e.to_string()))
         };
         let data_slice : &[u8] = data.as_slice();
         crypto::SecretKey::from_binary(data_slice)
@@ -325,7 +325,7 @@ impl PrivateKey {
 
 /// ED25519 key used as public key
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PublicKey(crypto::PublicKey<crypto::Ed25519>);
 
 impl From<crypto::PublicKey<crypto::Ed25519>> for PublicKey {
@@ -376,13 +376,34 @@ impl PublicKey {
     pub fn from_hex(hex_str : &str) -> Result<PublicKey, JsError> {
         match hex::decode(hex_str) {
             Ok(data) => Ok(Self::from_bytes(data.as_ref())?),
-            Err(e) =>  Err(JsError::from_str(&e.to_string())) 
+            Err(e) =>  Err(JsError::from_str(&e.to_string()))
         }
-    }    
+    }
+}
+
+impl serde::Serialize for PublicKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&self.to_bech32())
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for PublicKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        PublicKey::from_bech32(&s).map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"bech32 public key string"))
+    }
+}
+
+impl JsonSchema for PublicKey {
+    fn schema_name() -> String { String::from("PublicKey") }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Vkey(PublicKey);
 
 to_from_bytes!(Vkey);
@@ -462,13 +483,15 @@ impl Deserialize for Vkeys {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Vkeywitness {
     vkey: Vkey,
     signature: Ed25519Signature,
 }
 
 to_from_bytes!(Vkeywitness);
+
+to_from_json!(Vkeywitness);
 
 #[wasm_bindgen]
 impl Vkeywitness {
@@ -523,8 +546,8 @@ impl Deserialize for Vkeywitness {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
-pub struct Vkeywitnesses(Vec<Vkeywitness>);
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
+pub struct Vkeywitnesses(pub(crate) Vec<Vkeywitness>);
 
 #[wasm_bindgen]
 impl Vkeywitnesses {
@@ -574,7 +597,7 @@ impl Deserialize for Vkeywitnesses {
 }
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct BootstrapWitness {
     vkey: Vkey,
     signature: Ed25519Signature,
@@ -583,6 +606,8 @@ pub struct BootstrapWitness {
 }
 
 to_from_bytes!(BootstrapWitness);
+
+to_from_json!(BootstrapWitness);
 
 #[wasm_bindgen]
 impl BootstrapWitness {
@@ -665,7 +690,7 @@ impl DeserializeEmbeddedGroup for BootstrapWitness {
 
 
 #[wasm_bindgen]
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct BootstrapWitnesses(Vec<BootstrapWitness>);
 
 #[wasm_bindgen]
@@ -741,7 +766,7 @@ impl PublicKeys {
 macro_rules! impl_signature {
     ($name:ident, $signee_type:ty, $verifier_type:ty) => {
         #[wasm_bindgen]
-        #[derive(Clone)]
+        #[derive(Clone, Debug, Eq, PartialEq)]
         pub struct $name(crypto::Signature<$signee_type, $verifier_type>);
 
         #[wasm_bindgen]
@@ -788,6 +813,27 @@ macro_rules! impl_signature {
                 Ok(Self(crypto::Signature::from_binary(raw.bytes()?.as_ref())?))
             }
         }
+
+        impl serde::Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where S: serde::Serializer {
+                serializer.serialize_str(&self.to_hex())
+            }
+        }
+
+        impl <'de> serde::de::Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+            D: serde::de::Deserializer<'de> {
+                let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+                $name::from_hex(&s).map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"hex bytes for signature"))
+            }
+        }
+
+        impl JsonSchema for $name {
+            fn schema_name() -> String { String::from(stringify!($name)) }
+            fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+            fn is_referenceable() -> bool { String::is_referenceable() }
+        }
     };
 }
 
@@ -797,6 +843,19 @@ macro_rules! impl_hash_type {
         #[wasm_bindgen]
         #[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
         pub struct $name(pub (crate) [u8; $byte_count]);
+
+        // hash types are the only types in this library to not expect the entire CBOR structure.
+        // There is no CBOR binary tag here just the raw hash bytes.
+        from_bytes!($name, bytes, {
+            use std::convert::TryInto;
+            match bytes.len() {
+                $byte_count => Ok($name(bytes[..$byte_count].try_into().unwrap())),
+                other_len => {
+                    let cbor_error = cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(other_len as u64), "hash length");
+                    Err(DeserializeError::new(stringify!($name), DeserializeFailure::CBOR(cbor_error)))
+                },
+            }
+        });
 
         #[wasm_bindgen]
         impl $name {
@@ -816,32 +875,16 @@ macro_rules! impl_hash_type {
                 let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data).unwrap();
                 Ok(Self::from_bytes(data)?)
             }
-            
-            pub fn to_hex(&self) -> Result<String, JsError> {
-                Ok(hex::encode(self.to_bytes()))
-            }
-        
-            pub fn from_hex(hex_str: &str) -> Result<$name, JsError> {
-                 match hex::decode(hex_str) {
-                    Ok(data) => Ok(Self::from_bytes(data)?),
-                    Err(e) =>  Err(JsError::from_str(&e.to_string())) 
-                }
+
+            pub fn to_hex(&self) -> String {
+                hex::encode(&self.0)
             }
 
+            pub fn from_hex(hex: &str) -> Result<$name, JsError> {
+                let bytes = hex::decode(hex).map_err(|e| JsError::from_str(&format!("hex decode failed: {}", e)))?;
+                Self::from_bytes(bytes).map_err(|e| JsError::from_str(&format!("{:?}", e)))
+            }
         }
-
-        // hash types are the only types in this library to not expect the entire CBOR structure.
-        // There is no CBOR binary tag here just the raw hash bytes.
-        from_bytes!($name, bytes, {
-            use std::convert::TryInto;
-            match bytes.len() {
-                $byte_count => Ok($name(bytes[..$byte_count].try_into().unwrap())),
-                other_len => {
-                    let cbor_error = cbor_event::Error::WrongLen($byte_count, cbor_event::Len::Len(other_len as u64), "hash length");
-                    Err(DeserializeError::new(stringify!($name), DeserializeFailure::CBOR(cbor_error)))
-                },
-            }
-        });
 
         // associated consts are not supported in wasm_bindgen
         impl $name {
@@ -872,6 +915,27 @@ macro_rules! impl_hash_type {
                     Ok($name(bytes[..$byte_count].try_into().unwrap()))
                 })().map_err(|e| e.annotate(stringify!($name)))
             }
+        }
+
+        impl serde::Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where S: serde::Serializer {
+                serializer.serialize_str(&self.to_hex())
+            }
+        }
+
+        impl <'de> serde::de::Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+            D: serde::de::Deserializer<'de> {
+                let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+                $name::from_hex(&s).map_err(|_e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"hex bytes for hash"))
+            }
+        }
+
+        impl JsonSchema for $name {
+            fn schema_name() -> String { String::from(stringify!($name)) }
+            fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+            fn is_referenceable() -> bool { String::is_referenceable() }
         }
     }
 }
@@ -958,13 +1022,39 @@ impl Deserialize for KESSignature {
                 return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(Self::BYTE_COUNT as u64, cbor_event::Len::Len(bytes.len() as u64), "hash length")).into());
             }
             Ok(KESSignature(bytes))
-        })().map_err(|e| e.annotate(stringify!($name)))
+        })().map_err(|e| e.annotate("KESSignature"))
     }
+}
+
+impl serde::Serialize for KESSignature {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        serializer.serialize_str(&hex::encode(self.to_bytes()))
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for KESSignature {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        if let Ok(hex_bytes) = hex::decode(s.clone()) {
+            if let Ok(sig) = KESSignature::from_bytes(hex_bytes) {
+                return Ok(sig);
+            }
+        }
+        Err(serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &"hex bytes for KESSignature"))
+    }
+}
+
+impl JsonSchema for KESSignature {
+    fn schema_name() -> String { String::from("KESSignature") }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
 }
 
 // Evolving nonce type (used for Update's crypto)
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Nonce {
     hash: Option<[u8; 32]>,
 }
@@ -1055,7 +1145,7 @@ impl Deserialize for Nonce {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct VRFCert {
     output: Vec<u8>,
     proof: Vec<u8>,
@@ -1066,6 +1156,8 @@ impl VRFCert {
 }
 
 to_from_bytes!(VRFCert);
+
+to_from_json!(VRFCert);
 
 #[wasm_bindgen]
 impl VRFCert {

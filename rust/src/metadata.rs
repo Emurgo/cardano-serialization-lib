@@ -219,6 +219,32 @@ impl TransactionMetadatum {
     }
 }
 
+impl serde::Serialize for TransactionMetadatum {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let json_str = decode_metadatum_to_json_str(self, MetadataJsonSchema::DetailedSchema)
+            .map_err(|e| serde::ser::Error::custom(&format!("{:?}", e)))?;
+        serializer.serialize_str(&json_str)
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for TransactionMetadatum {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        encode_json_str_to_metadatum(s.clone(), MetadataJsonSchema::DetailedSchema)
+            .map_err(|e| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &format!("{:?}", e).as_str()))
+    }
+}
+
+// just for now we'll do json-in-json until I can figure this out better
+// TODO: maybe not generate this? or how do we do this?
+impl JsonSchema for TransactionMetadatum {
+    fn schema_name() -> String { String::from("TransactionMetadatum") }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema { String::json_schema(gen) }
+    fn is_referenceable() -> bool { String::is_referenceable() }
+}
+
 pub type TransactionMetadatumLabel = BigNum;
 
 #[wasm_bindgen]
@@ -252,6 +278,8 @@ pub struct GeneralTransactionMetadata(LinkedHashMap<TransactionMetadatumLabel, T
 
 to_from_bytes!(GeneralTransactionMetadata);
 
+to_from_json!(GeneralTransactionMetadata);
+
 #[wasm_bindgen]
 impl GeneralTransactionMetadata {
     pub fn new() -> Self {
@@ -284,15 +312,53 @@ impl GeneralTransactionMetadata {
     }
 }
 
+impl serde::Serialize for GeneralTransactionMetadata {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let map = self.0.iter().collect::<std::collections::BTreeMap<_, _>>();
+        map.serialize(serializer)
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for GeneralTransactionMetadata {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+    D: serde::de::Deserializer<'de> {
+        let map = <std::collections::BTreeMap<_, _> as serde::de::Deserialize>::deserialize(deserializer)?;
+        Ok(Self(map.into_iter().collect()))
+    }
+}
+
+impl JsonSchema for GeneralTransactionMetadata {
+    fn schema_name() -> String { String::from("GeneralTransactionMetadata") }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        std::collections::BTreeMap::<TransactionMetadatumLabel, TransactionMetadatum>::json_schema(gen)
+    }
+    fn is_referenceable() -> bool { std::collections::BTreeMap::<TransactionMetadatumLabel, TransactionMetadatum>::is_referenceable() }
+}
+
+
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Ord, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct AuxiliaryData {
     metadata: Option<GeneralTransactionMetadata>,
     native_scripts: Option<NativeScripts>,
     plutus_scripts: Option<PlutusScripts>,
+    prefer_alonzo_format: bool,
 }
 
+impl std::cmp::PartialEq<Self> for AuxiliaryData {
+    fn eq(&self, other: &Self) -> bool {
+        self.metadata.eq(&other.metadata)
+            && self.native_scripts.eq(&other.native_scripts)
+            && self.plutus_scripts.eq(&other.plutus_scripts)
+    }
+}
+
+impl std::cmp::Eq for AuxiliaryData {}
+
 to_from_bytes!(AuxiliaryData);
+
+to_from_json!(AuxiliaryData);
 
 #[wasm_bindgen]
 impl AuxiliaryData {
@@ -301,6 +367,7 @@ impl AuxiliaryData {
             metadata: None,
             native_scripts: None,
             plutus_scripts: None,
+            prefer_alonzo_format: false,
         }
     }
 
@@ -554,7 +621,7 @@ pub fn decode_metadatum_to_json_value(metadatum: &TransactionMetadatum, schema: 
                 }
                 ("map", Value::from(json_map))
             },
-            
+
             MetadataJsonSchema::DetailedSchema => ("map", Value::from(map.0.iter().map(|(key, value)| {
                 // must encode maps as JSON lists of objects with k/v keys
                 // also in these schemas we support more key types than strings
@@ -776,7 +843,7 @@ impl cbor_event::se::Serialize for AuxiliaryData {
         // we still serialize using the shelley-mary era format as it is still supported
         // and it takes up less space on-chain so this should be better for scaling.
         // Plus the code was already written for shelley-mary anyway
-        if self.metadata.is_some() && self.plutus_scripts.is_none()  {
+        if !self.prefer_alonzo_format && self.metadata.is_some() && self.plutus_scripts.is_none() {
             match &self.native_scripts() {
                 Some(native_scripts) => {
                     serializer.write_array(cbor_event::Len::Len(2))?;
@@ -786,12 +853,13 @@ impl cbor_event::se::Serialize for AuxiliaryData {
                 None => self.metadata.as_ref().unwrap().serialize(serializer),
             }
         } else {
+            let plutus_added_length = match &self.plutus_scripts {
+                Some(scripts) => 1 + (scripts.has_version(&Language::new_plutus_v2()) as u64),
+                _ => 0,
+            };
             // new format with plutus support
             serializer.write_tag(259u64)?;
-            serializer.write_map(cbor_event::Len::Len(
-                if self.metadata.is_some() { 1 } else { 0 } +
-                if self.native_scripts.is_some() { 1 } else { 0 } +
-                if self.plutus_scripts.is_some() { 1 } else { 0 }))?;
+            serializer.write_map(cbor_event::Len::Len(opt64(&self.metadata) + opt64(&self.native_scripts) + plutus_added_length))?;
             if let Some(metadata) = &self.metadata {
                 serializer.write_unsigned_integer(0)?;
                 metadata.serialize(serializer)?;
@@ -802,7 +870,12 @@ impl cbor_event::se::Serialize for AuxiliaryData {
             }
             if let Some(plutus_scripts) = &self.plutus_scripts {
                 serializer.write_unsigned_integer(2)?;
-                plutus_scripts.serialize(serializer)?;
+                plutus_scripts.by_version(&Language::new_plutus_v1()).serialize(serializer)?;
+                let v2 = plutus_scripts.by_version(&Language::new_plutus_v2());
+                if v2.len() > 0 {
+                    serializer.write_unsigned_integer(3)?;
+                    v2.serialize(serializer)?;
+                }
             }
             Ok(serializer)
         }
@@ -823,7 +896,8 @@ impl Deserialize for AuxiliaryData {
                     let mut read_len = CBORReadLen::new(len);
                     let mut metadata = None;
                     let mut native_scripts = None;
-                    let mut plutus_scripts = None;
+                    let mut plutus_scripts_v1 = None;
+                    let mut plutus_scripts_v2 = None;
                     let mut read = 0;
                     while match len { cbor_event::Len::Len(n) => read < n as usize, cbor_event::Len::Indefinite => true, } {
                         match raw.cbor_type()? {
@@ -847,13 +921,22 @@ impl Deserialize for AuxiliaryData {
                                     })().map_err(|e| e.annotate("native_scripts"))?);
                                 },
                                 2 =>  {
-                                    if plutus_scripts.is_some() {
+                                    if plutus_scripts_v1.is_some() {
                                         return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
                                     }
-                                    plutus_scripts = Some((|| -> Result<_, DeserializeError> {
+                                    plutus_scripts_v1 = Some((|| -> Result<_, DeserializeError> {
                                         read_len.read_elems(1)?;
                                         Ok(PlutusScripts::deserialize(raw)?)
-                                    })().map_err(|e| e.annotate("plutus_scripts"))?);
+                                    })().map_err(|e| e.annotate("plutus_scripts_v1"))?);
+                                },
+                                3 =>  {
+                                    if plutus_scripts_v2.is_some() {
+                                        return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
+                                    }
+                                    plutus_scripts_v2 = Some((|| -> Result<_, DeserializeError> {
+                                        read_len.read_elems(1)?;
+                                        Ok(PlutusScripts::deserialize(raw)?.map_as_version(&Language::new_plutus_v2()))
+                                    })().map_err(|e| e.annotate("plutus_scripts_v2"))?);
                                 },
                                 unknown_key => return Err(DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()),
                             },
@@ -872,10 +955,17 @@ impl Deserialize for AuxiliaryData {
                         read += 1;
                     }
                     read_len.finish()?;
+                    let plutus_scripts = match (plutus_scripts_v1, plutus_scripts_v2) {
+                        (Some(v1), Some(v2)) => Some(v1.merge(&v2)),
+                        (Some(v1), _) => Some(v1),
+                        (_, Some(v2)) => Some(v2),
+                        _ => None,
+                    };
                     Ok(Self {
                         metadata,
                         native_scripts,
                         plutus_scripts,
+                        prefer_alonzo_format: true,
                     })
                 },
                 // shelley mary format (still valid for alonzo)
@@ -900,6 +990,7 @@ impl Deserialize for AuxiliaryData {
                         metadata: Some(metadata),
                         native_scripts: Some(native_scripts),
                         plutus_scripts: None,
+                        prefer_alonzo_format: false,
                     })
                 },
                 // shelley pre-mary format (still valid for alonzo + mary)
@@ -907,6 +998,7 @@ impl Deserialize for AuxiliaryData {
                     metadata: Some(GeneralTransactionMetadata::deserialize(raw).map_err(|e| e.annotate("metadata"))?),
                     native_scripts: None,
                     plutus_scripts: None,
+                    prefer_alonzo_format: false,
                 }),
                 _ => return Err(DeserializeFailure::NoVariantMatched)?
             }
@@ -1073,8 +1165,49 @@ mod tests {
     }
 
     #[test]
+    fn alonzo_metadata_round_trip() {
+        let bytes_alonzo = hex::decode("d90103a100a1186469737472696e67206d64").unwrap();
+        let aux_alonzo = AuxiliaryData::from_bytes(bytes_alonzo.clone()).unwrap();
+        assert!(aux_alonzo.prefer_alonzo_format);
+        assert_eq!(aux_alonzo.to_bytes(), bytes_alonzo);
+
+        let bytes_pre_alonzo = hex::decode("a1186469737472696e67206d64").unwrap();
+        let aux_pre_alonzo = AuxiliaryData::from_bytes(bytes_pre_alonzo.clone()).unwrap();
+        assert!(!aux_pre_alonzo.prefer_alonzo_format);
+        assert_eq!(aux_pre_alonzo.to_bytes(), bytes_pre_alonzo);
+    }
+
+    #[test]
     fn metadatum_map_duplicate_keys() {
         let bytes = hex::decode("a105a4781b232323232323232323232323232323232323232323232323232323827840232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323237840232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323236e232323232323232323232323232382a36f2323232323232323232323232323236a323030302d30312d303166232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323712323232323232323232323232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323a36f2323232323232323232323232323236a323030302d30312d303166232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323712323232323232323232323232323232323784023232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323752323232323232323232323232323232323232323236a323030302d30312d3031752323232323232323232323232323232323232323236a323030302d30312d3031").unwrap();
         TransactionMetadatum::from_bytes(bytes).unwrap();
+    }
+
+    #[test]
+    fn test_auxiliary_data_roundtrip() {
+
+        fn auxiliary_data_roundtrip(plutus_scripts: &PlutusScripts) {
+            let mut aux = AuxiliaryData::new();
+            let mut metadata = GeneralTransactionMetadata::new();
+            metadata.insert(&to_bignum(42), &encode_json_str_to_metadatum(
+                "{ \"test\": 148 }".to_string(),
+                MetadataJsonSchema::BasicConversions,
+            ).unwrap());
+            aux.set_metadata(&metadata);
+            aux.set_native_scripts(&NativeScripts::from(
+                vec![NativeScript::new_timelock_start(&TimelockStart::new(1234556))],
+            ));
+            aux.set_plutus_scripts(plutus_scripts);
+            assert_eq!(AuxiliaryData::from_bytes(aux.to_bytes()).unwrap(), aux);
+        }
+
+        let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+        let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
+        let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+
+        auxiliary_data_roundtrip(&PlutusScripts(vec![]));
+        auxiliary_data_roundtrip(&PlutusScripts(vec![script_v1.clone()]));
+        auxiliary_data_roundtrip(&PlutusScripts(vec![script_v2.clone()]));
+        auxiliary_data_roundtrip(&PlutusScripts(vec![script_v1.clone(), script_v2.clone()]));
     }
 }

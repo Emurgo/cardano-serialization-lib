@@ -8,12 +8,14 @@ pub(crate) struct TxBuilderInput {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusWitness {
     script: PlutusScript,
     datum: PlutusData,
     redeemer: Redeemer,
 }
+
+to_from_json!(PlutusWitness);
 
 #[wasm_bindgen]
 impl PlutusWitness {
@@ -49,8 +51,10 @@ impl PlutusWitness {
 
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusWitnesses(pub(crate) Vec<PlutusWitness>);
+
+to_from_json!(PlutusWitnesses);
 
 #[wasm_bindgen]
 impl PlutusWitnesses {
@@ -342,6 +346,14 @@ impl TxInputsBuilder {
 
     pub fn add_required_signers(&mut self, keys: &RequiredSigners) {
         keys.0.iter().for_each(|k| self.add_required_signer(k));
+    }
+
+    pub fn total_value(&self) -> Result<Value, JsError> {
+        let mut res = Value::zero();
+        for (inp, _) in self.inputs.values() {
+            res = res.checked_add(&inp.amount)?;
+        }
+        Ok(res)
     }
 
     pub fn inputs(&self) -> TransactionInputs {

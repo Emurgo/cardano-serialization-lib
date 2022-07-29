@@ -10,7 +10,8 @@ use super::*;
 #[derive(Clone, Debug)]
 pub struct TransactionOutputBuilder {
     address: Option<Address>,
-    data_hash: Option<DataHash>,
+    data: Option<DataOption>,
+    script_ref: Option<ScriptRef>
 }
 
 #[wasm_bindgen]
@@ -18,7 +19,8 @@ impl TransactionOutputBuilder {
     pub fn new() -> Self {
         Self {
             address: None,
-            data_hash: None,
+            data: None,
+            script_ref: None
         }
     }
 
@@ -30,7 +32,19 @@ impl TransactionOutputBuilder {
 
     pub fn with_data_hash(&self, data_hash: &DataHash) -> Self {
         let mut cfg = self.clone();
-        cfg.data_hash = Some(data_hash.clone());
+        cfg.data = Some(DataOption::DataHash(data_hash.clone()));
+        cfg
+    }
+
+    pub fn with_plutus_data(&self, data: &PlutusData) -> Self {
+        let mut cfg = self.clone();
+        cfg.data = Some(DataOption::Data(data.clone()));
+        cfg
+    }
+
+    pub fn with_script_ref(&self, script_ref: &ScriptRef) -> Self {
+        let mut cfg = self.clone();
+        cfg.script_ref = Some(script_ref.clone());
         cfg
     }
 
@@ -38,7 +52,8 @@ impl TransactionOutputBuilder {
         Ok(TransactionOutputAmountBuilder {
             address: self.address.clone().ok_or(JsError::from_str("TransactionOutputBaseBuilder: Address missing"))?,
             amount: None,
-            data_hash: self.data_hash.clone(),
+            data: self.data.clone(),
+            script_ref: self.script_ref.clone()
         })
     }
 }
@@ -48,7 +63,8 @@ impl TransactionOutputBuilder {
 pub struct TransactionOutputAmountBuilder {
     address: Address,
     amount: Option<Value>,
-    data_hash: Option<DataHash>,
+    data: Option<DataOption>,
+    script_ref: Option<ScriptRef>
 }
 
 #[wasm_bindgen]
@@ -76,15 +92,46 @@ impl TransactionOutputAmountBuilder {
         cfg
     }
 
+
+    /// !!! DEPRECATED !!!
+    /// Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead.
+    #[deprecated(
+    since = "11.0.0",
+    note = "Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead."
+    )]
     pub fn with_asset_and_min_required_coin(&self, multiasset: &MultiAsset, coins_per_utxo_word: &Coin) -> Result<TransactionOutputAmountBuilder, JsError> {
-        let min_possible_coin = min_pure_ada(&coins_per_utxo_word, self.data_hash.is_some())?;
+        let data_cost = DataCost::new_coins_per_word(coins_per_utxo_word);
+        self.with_asset_and_min_required_coin_by_utxo_cost(multiasset, &data_cost)
+    }
+
+    pub fn with_asset_and_min_required_coin_by_utxo_cost(&self, multiasset: &MultiAsset, data_cost: &DataCost) -> Result<TransactionOutputAmountBuilder, JsError> {
+        // TODO: double ada calculation needs to check if it redundant
+        let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
+        if let Some(data) = &self.data {
+            match data {
+                DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
+                DataOption::Data(datum) => calc.set_plutus_data(datum),
+            };
+        }
+        if let Some(script_ref) = &self.script_ref {
+            calc.set_script_ref(script_ref);
+        }
+        let min_possible_coin = calc.calculate_ada()?;
         let mut value = Value::new(&min_possible_coin);
         value.set_multiasset(multiasset);
-        let required_coin = min_ada_required(
-            &value,
-            self.data_hash.is_some(),
-            &coins_per_utxo_word,
-        )?;
+
+        let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
+        calc.set_amount(&value);
+        if let Some(data) = &self.data {
+            match data {
+                DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
+                DataOption::Data(datum) => calc.set_plutus_data(datum),
+            };
+        }
+        if let Some(script_ref) = &self.script_ref {
+            calc.set_script_ref(script_ref);
+        }
+        let required_coin = calc.calculate_ada()?;
 
         Ok(self.with_coin_and_asset(&required_coin, &multiasset))
     }
@@ -93,7 +140,8 @@ impl TransactionOutputAmountBuilder {
         Ok(TransactionOutput {
             address: self.address.clone(),
             amount: self.amount.clone().ok_or(JsError::from_str("TransactionOutputAmountBuilder: amount missing"))?,
-            data_hash: self.data_hash.clone(),
+            plutus_data: self.data.clone(),
+            script_ref: self.script_ref.clone()
         })
     }
 }
