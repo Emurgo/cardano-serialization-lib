@@ -305,29 +305,40 @@ impl Costmdls {
 
     pub(crate) fn language_views_encoding(&self) -> Vec<u8> {
         let mut serializer = Serializer::new_vec();
-        let mut keys_bytes: Vec<(Language, Vec<u8>)> = self.0.iter().map(|(k, _v)| (k.clone(), k.to_bytes())).collect();
+        fn key_len(l: &Language) -> usize {
+            if l.kind() == LanguageKind::PlutusV1 {
+                let mut serializer = Serializer::new_vec();
+                serializer.write_bytes(l.to_bytes()).unwrap();
+                return serializer.finalize().len();
+            }
+            l.to_bytes().len()
+        }
+        let mut keys: Vec<Language> = self.0.iter().map(|(k, _v)| k.clone()).collect();
         // keys must be in canonical ordering first
-        keys_bytes.sort_by(|lhs, rhs| match lhs.1.len().cmp(&rhs.1.len()) {
-            std::cmp::Ordering::Equal => lhs.1.cmp(&rhs.1),
+        keys.sort_by(|lhs, rhs| match key_len(lhs).cmp(&key_len(rhs)) {
+            std::cmp::Ordering::Equal => lhs.cmp(&rhs),
             len_order => len_order,
         });
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64)).unwrap();
-        for (key, key_bytes) in keys_bytes.iter() {
-            serializer.write_bytes(key_bytes).unwrap();
-            let cost_model = self.0.get(&key).unwrap();
-            // Due to a bug in the cardano-node input-output-hk/cardano-ledger-specs/issues/2512
-            // we must use indefinite length serialization in this inner bytestring to match it
-            let mut cost_model_serializer = Serializer::new_vec();
-            cost_model_serializer.write_array(cbor_event::Len::Indefinite).unwrap();
-            for cost in &cost_model.0 {
-                cost.serialize(&mut cost_model_serializer).unwrap();
+        for key in keys.iter() {
+            if key.kind() == LanguageKind::PlutusV1 {
+                serializer.write_bytes(key.to_bytes()).unwrap();
+                let cost_model = self.0.get(&key).unwrap();
+                // Due to a bug in the cardano-node input-output-hk/cardano-ledger-specs/issues/2512
+                // we must use indefinite length serialization in this inner bytestring to match it
+                let mut cost_model_serializer = Serializer::new_vec();
+                cost_model_serializer.write_array(cbor_event::Len::Indefinite).unwrap();
+                for cost in &cost_model.0 {
+                    cost.serialize(&mut cost_model_serializer).unwrap();
+                }
+                cost_model_serializer.write_special(cbor_event::Special::Break).unwrap();
+                serializer.write_bytes(cost_model_serializer.finalize()).unwrap();
+            } else {
+                serializer.serialize(key).unwrap();
+                serializer.serialize(self.0.get(&key).unwrap()).unwrap();
             }
-            cost_model_serializer.write_special(cbor_event::Special::Break).unwrap();
-            serializer.write_bytes(cost_model_serializer.finalize()).unwrap();
         }
-        let out = serializer.finalize();
-        println!("language_views = {}", hex::encode(out.clone()));
-        out
+        serializer.finalize()
     }
 }
 
@@ -426,7 +437,7 @@ impl Language {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct Languages(Vec<Language>);
+pub struct Languages(pub(crate) Vec<Language>);
 
 #[wasm_bindgen]
 impl Languages {
@@ -444,6 +455,10 @@ impl Languages {
 
     pub fn add(&mut self, elem: Language) {
         self.0.push(elem);
+    }
+
+    pub(crate) fn list() -> Languages {
+        Languages(vec![Language::new_plutus_v1(), Language::new_plutus_v2()])
     }
 }
 
@@ -1603,5 +1618,67 @@ mod tests {
         use crate::tx_builder_constants::TxBuilderConstants;
         let costmodels = TxBuilderConstants::plutus_vasil_cost_models();
         assert_eq!(costmodels, Costmdls::from_bytes(costmodels.to_bytes()).unwrap());
+    }
+
+    #[test]
+    fn test_known_plutus_data_hash() {
+        use crate::tx_builder_constants::TxBuilderConstants;
+        let pdata = PlutusList::from(vec![
+            PlutusData::new_constr_plutus_data(
+                &ConstrPlutusData::new(
+                    &BigNum::zero(),
+                    &PlutusList::from(vec![
+                        PlutusData::new_constr_plutus_data(
+                            &ConstrPlutusData::new(
+                                &BigNum::zero(),
+                                &PlutusList::from(vec![
+                                    PlutusData::new_bytes(hex::decode("A183BF86925F66C579A3745C9517744399679B090927B8F6E2F2E1BB").unwrap()),
+                                    PlutusData::new_bytes(hex::decode("6164617065416D616E734576616E73").unwrap())
+                                ]),
+                            ),
+                        ),
+                        PlutusData::new_constr_plutus_data(
+                            &ConstrPlutusData::new(
+                                &BigNum::zero(),
+                                &PlutusList::from(vec![
+                                    PlutusData::new_bytes(hex::decode("9A4E855293A0B9AF5E50935A331D83E7982AB5B738EA0E6FC0F9E656").unwrap()),
+                                    PlutusData::new_bytes(hex::decode("4652414D455F38333030325F4C30").unwrap())
+                                ]),
+                            ),
+                        ),
+                        PlutusData::new_bytes(hex::decode("BEA1C521DF58F4EEEF60C647E5EBD88C6039915409F9FD6454A476B9").unwrap()),
+                    ]),
+                ),
+            ),
+        ]);
+        let redeemers = Redeemers(vec![
+            Redeemer::new(
+                &RedeemerTag::new_spend(),
+                &BigNum::one(),
+                &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
+                &ExUnits::new(&to_bignum(7000000), &to_bignum(3000000000)),
+            ),
+        ]);
+        let lang = Language::new_plutus_v1();
+        let lang_costmodel = TxBuilderConstants::plutus_vasil_cost_models().get(&lang).unwrap();
+        let mut retained_cost_models = Costmdls::new();
+        retained_cost_models.insert(&lang, &lang_costmodel);
+        let hash = hash_script_data(
+            &redeemers,
+            &retained_cost_models,
+            Some(pdata),
+        );
+        assert_eq!(hex::encode(hash.to_bytes()), "357041b88b914670a3b5e3b0861d47f2ac05ed4935ea73886434d8944aa6dfe0");
+    }
+
+    #[test]
+    fn test_same_datum_in_different_formats_with_expected_hashes() {
+        // This is a known datum with indefinite arrays and a known expected hash
+        let pdata1 = PlutusData::from_bytes(hex::decode("d8799fd8799f581ca183bf86925f66c579a3745c9517744399679b090927b8f6e2f2e1bb4f616461706541696c656e416d61746fffd8799f581c9a4e855293a0b9af5e50935a331d83e7982ab5b738ea0e6fc0f9e6564e4652414d455f36353030335f4c30ff581cbea1c521df58f4eeef60c647e5ebd88c6039915409f9fd6454a476b9ff").unwrap()).unwrap();
+        assert_eq!(hex::encode(hash_plutus_data(&pdata1).to_bytes()), "ec3028f46325b983a470893a8bdc1b4a100695b635fb1237d301c3490b23e89b");
+        // This is the same exact datum manually converted to definite arrays
+        // and it produces a different known expected hash because the format is preserved after deserialization
+        let pdata2 = PlutusData::from_bytes(hex::decode("d87983d87982581ca183bf86925f66c579a3745c9517744399679b090927b8f6e2f2e1bb4f616461706541696c656e416d61746fd87982581c9a4e855293a0b9af5e50935a331d83e7982ab5b738ea0e6fc0f9e6564e4652414d455f36353030335f4c30581cbea1c521df58f4eeef60c647e5ebd88c6039915409f9fd6454a476b9").unwrap()).unwrap();
+        assert_eq!(hex::encode(hash_plutus_data(&pdata2).to_bytes()), "816cdf6d4d8cba3ad0188ca643db95ddf0e03cdfc0e75a9550a72a82cb146222");
     }
 }
