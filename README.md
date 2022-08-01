@@ -1,6 +1,6 @@
 # Cardano Serialization Lib
 
-This is a library for serialization & deserialization of data structures used in Cardano's Haskell implementation of Shelley along with useful utility functions.
+This is a library, written in Rust, for serialization & deserialization of data structures used in Cardano's Haskell implementation of Alonzo along with useful utility functions.
 
 ##### NPM packages
 
