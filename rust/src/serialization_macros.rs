@@ -46,9 +46,8 @@ macro_rules! to_bytes {
                 buf.finalize()
             }
         }
-    }
+    };
 }
-
 
 #[macro_export]
 macro_rules! from_hex {
@@ -92,7 +91,7 @@ macro_rules! to_hex {
                 hex::encode(buf.finalize())
             }
         }
-    }
+    };
 }
 
 #[macro_export]
@@ -102,5 +101,5 @@ macro_rules! to_from_bytes {
         from_bytes!($name);
         to_hex!($name);
         from_hex!($name);
-    }
+    };
 }

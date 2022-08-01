@@ -189,11 +189,9 @@ impl<T, A: VerificationAlgorithm> Clone for Signature<T, A> {
     }
 }
 
-
 impl<T, A: VerificationAlgorithm> PartialEq<Self> for Signature<T, A> {
     fn eq(&self, other: &Self) -> bool {
-        self.signdata.as_ref() == other.signdata.as_ref()
-            && self.phantom == other.phantom
+        self.signdata.as_ref() == other.signdata.as_ref() && self.phantom == other.phantom
     }
 }
 

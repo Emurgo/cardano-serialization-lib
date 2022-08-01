@@ -1,8 +1,15 @@
 #![allow(dead_code)]
-use crate::{Address, BaseAddress, Bip32PrivateKey, DataHash, Ed25519KeyHash, Ed25519Signature, NetworkInfo, StakeCredential, to_bignum, TransactionHash, TransactionIndex, TransactionInput, TransactionOutput, Value, Vkey};
+use crate::{
+    to_bignum, Address, BaseAddress, Bip32PrivateKey, DataHash, Ed25519KeyHash, Ed25519Signature,
+    NetworkInfo, StakeCredential, TransactionHash, TransactionIndex, TransactionInput,
+    TransactionOutput, Value, Vkey,
+};
 
 pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
-    vec![x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255, 213, 85, 248, 39, 204, 158, 225, 100, 1, 2, 3, 4]
+    vec![
+        x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255,
+        213, 85, 248, 39, 204, 158, 225, 100, 1, 2, 3, 4,
+    ]
 }
 
 pub(crate) fn fake_data_hash(x: u8) -> DataHash {
@@ -17,8 +24,9 @@ pub(crate) fn fake_base_address(x: u8) -> Address {
     BaseAddress::new(
         NetworkInfo::testnet().network_id(),
         &StakeCredential::from_keyhash(&fake_key_hash(x)),
-        &StakeCredential::from_keyhash(&fake_key_hash(0))
-    ).to_address()
+        &StakeCredential::from_keyhash(&fake_key_hash(0)),
+    )
+    .to_address()
 }
 
 pub(crate) fn fake_tx_hash(input_hash_byte: u8) -> TransactionHash {
@@ -42,21 +50,20 @@ pub(crate) fn fake_value2(v: u64) -> Value {
 }
 
 pub(crate) fn fake_tx_output(input_hash_byte: u8) -> TransactionOutput {
-    TransactionOutput::new(
-        &fake_base_address(input_hash_byte),
-        &fake_value(),
-    )
+    TransactionOutput::new(&fake_base_address(input_hash_byte), &fake_value())
 }
 
 pub(crate) fn fake_tx_output2(input_hash_byte: u8, val: u64) -> TransactionOutput {
-    TransactionOutput::new(
-        &fake_base_address(input_hash_byte),
-        &fake_value2(val),
-    )
+    TransactionOutput::new(&fake_base_address(input_hash_byte), &fake_value2(val))
 }
 
 pub(crate) fn fake_vkey() -> Vkey {
-    Vkey::new(&Bip32PrivateKey::generate_ed25519_bip32().unwrap().to_public().to_raw_key())
+    Vkey::new(
+        &Bip32PrivateKey::generate_ed25519_bip32()
+            .unwrap()
+            .to_public()
+            .to_raw_key(),
+    )
 }
 
 pub(crate) fn fake_signature(x: u8) -> Ed25519Signature {
