@@ -1132,11 +1132,7 @@ impl MinOutputAdaCalculator {
         let coins_per_byte = self.data_cost.coins_per_byte();
         let mut output: TransactionOutput = self.output.clone();
         fn calc_required_coin(output: &TransactionOutput, coins_per_byte: &Coin) -> Result<Coin, JsError> {
-            //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
-            //See on the page 9 getValue txout
-            BigNum::from(output.to_bytes().len())
-                .checked_add(&to_bignum(160))?
-                .checked_mul(&coins_per_byte)
+            Self::calc_size_cost(coins_per_byte,output.to_bytes().len())
         }
         for _ in 0..3 {
             let required_coin = calc_required_coin(&output, &coins_per_byte)?;
@@ -1154,6 +1150,13 @@ impl MinOutputAdaCalculator {
         let fake_base_address: Address = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w")?;
         let fake_value: Value = Value::new(&to_bignum(1000000));
         Ok(TransactionOutput::new(&fake_base_address, &fake_value))
+    }
+
+    fn calc_size_cost(coins_per_byte: &Coin, size: usize) -> Result<Coin, JsError> {
+        //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
+        //See on the page 9 getValue txout
+        size.into().checked_add(&to_bignum(160))?
+            .checked_mul(&coins_per_byte)
     }
 }
 
