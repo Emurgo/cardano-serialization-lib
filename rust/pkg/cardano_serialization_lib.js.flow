@@ -195,6 +195,26 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {PlutusData}
+ */
+declare export function encode_json_str_to_plutus_datum(
+  json: string,
+  schema: number
+): PlutusData;
+
+/**
+ * @param {PlutusData} datum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_plutus_datum_to_json_str(
+  datum: PlutusData,
+  schema: number
+): string;
+
+/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -227,26 +247,6 @@ declare export function encode_json_str_to_metadatum(
  */
 declare export function decode_metadatum_to_json_str(
   metadatum: TransactionMetadatum,
-  schema: number
-): string;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {PlutusData}
- */
-declare export function encode_json_str_to_plutus_datum(
-  json: string,
-  schema: number
-): PlutusData;
-
-/**
- * @param {PlutusData} datum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_plutus_datum_to_json_str(
-  datum: PlutusData,
   schema: number
 ): string;
 
@@ -351,26 +351,6 @@ declare export var ScriptSchema: {|
 /**
  */
 
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
   +PlutusV2: 1, // 1
@@ -412,6 +392,26 @@ declare export var RedeemerTagKind: {|
 declare export var PlutusDatumSchema: {|
   +BasicConversions: 0, // 0
   +DetailedSchema: 1, // 1
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
 |};
 
 /**
@@ -879,6 +879,22 @@ declare export class BigInt {
   static from_hex(hex_str: string): BigInt;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {BigIntJSON}
+   */
+  to_js_value(): BigIntJSON;
+
+  /**
+   * @param {string} json
+   * @returns {BigInt}
+   */
+  static from_json(json: string): BigInt;
+
+  /**
    * @returns {boolean}
    */
   is_zero(): boolean;
@@ -958,6 +974,22 @@ declare export class BigNum {
    * @returns {BigNum}
    */
   static from_hex(hex_str: string): BigNum;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {BigNumJSON}
+   */
+  to_js_value(): BigNumJSON;
+
+  /**
+   * @param {string} json
+   * @returns {BigNum}
+   */
+  static from_json(json: string): BigNum;
 
   /**
    * @param {string} string
@@ -1741,6 +1773,22 @@ declare export class ConstrPlutusData {
   static from_hex(hex_str: string): ConstrPlutusData;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {ConstrPlutusDataJSON}
+   */
+  to_js_value(): ConstrPlutusDataJSON;
+
+  /**
+   * @param {string} json
+   * @returns {ConstrPlutusData}
+   */
+  static from_json(json: string): ConstrPlutusData;
+
+  /**
    * @returns {BigNum}
    */
   alternative(): BigNum;
@@ -1783,6 +1831,22 @@ declare export class CostModel {
    * @returns {CostModel}
    */
   static from_hex(hex_str: string): CostModel;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {CostModelJSON}
+   */
+  to_js_value(): CostModelJSON;
+
+  /**
+   * @param {string} json
+   * @returns {CostModel}
+   */
+  static from_json(json: string): CostModel;
 
   /**
    * Creates a new CostModels instance of an unrestricted length
@@ -1837,6 +1901,22 @@ declare export class Costmdls {
    * @returns {Costmdls}
    */
   static from_hex(hex_str: string): Costmdls;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {CostmdlsJSON}
+   */
+  to_js_value(): CostmdlsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Costmdls}
+   */
+  static from_json(json: string): Costmdls;
 
   /**
    * @returns {Costmdls}
@@ -1894,6 +1974,22 @@ declare export class DNSRecordAorAAAA {
   static from_hex(hex_str: string): DNSRecordAorAAAA;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {DNSRecordAorAAAAJSON}
+   */
+  to_js_value(): DNSRecordAorAAAAJSON;
+
+  /**
+   * @param {string} json
+   * @returns {DNSRecordAorAAAA}
+   */
+  static from_json(json: string): DNSRecordAorAAAA;
+
+  /**
    * @param {string} dns_name
    * @returns {DNSRecordAorAAAA}
    */
@@ -1930,6 +2026,22 @@ declare export class DNSRecordSRV {
    * @returns {DNSRecordSRV}
    */
   static from_hex(hex_str: string): DNSRecordSRV;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {DNSRecordSRVJSON}
+   */
+  to_js_value(): DNSRecordSRVJSON;
+
+  /**
+   * @param {string} json
+   * @returns {DNSRecordSRV}
+   */
+  static from_json(json: string): DNSRecordSRV;
 
   /**
    * @param {string} dns_name
@@ -2207,6 +2319,22 @@ declare export class ExUnitPrices {
   static from_hex(hex_str: string): ExUnitPrices;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {ExUnitPricesJSON}
+   */
+  to_js_value(): ExUnitPricesJSON;
+
+  /**
+   * @param {string} json
+   * @returns {ExUnitPrices}
+   */
+  static from_json(json: string): ExUnitPrices;
+
+  /**
    * @returns {UnitInterval}
    */
   mem_price(): UnitInterval;
@@ -2249,6 +2377,22 @@ declare export class ExUnits {
    * @returns {ExUnits}
    */
   static from_hex(hex_str: string): ExUnits;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {ExUnitsJSON}
+   */
+  to_js_value(): ExUnitsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {ExUnits}
+   */
+  static from_json(json: string): ExUnits;
 
   /**
    * @returns {BigNum}
@@ -2822,6 +2966,22 @@ declare export class Int {
   static from_hex(hex_str: string): Int;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {IntJSON}
+   */
+  to_js_value(): IntJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Int}
+   */
+  static from_json(json: string): Int;
+
+  /**
    * @param {BigNum} x
    * @returns {Int}
    */
@@ -3090,6 +3250,22 @@ declare export class Language {
    * @returns {Language}
    */
   static from_hex(hex_str: string): Language;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {LanguageJSON}
+   */
+  to_js_value(): LanguageJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Language}
+   */
+  static from_json(json: string): Language;
 
   /**
    * @returns {Language}
@@ -4087,6 +4263,22 @@ declare export class Nonce {
   static from_hex(hex_str: string): Nonce;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {NonceJSON}
+   */
+  to_js_value(): NonceJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Nonce}
+   */
+  static from_json(json: string): Nonce;
+
+  /**
    * @returns {Nonce}
    */
   static new_identity(): Nonce;
@@ -4207,6 +4399,22 @@ declare export class PlutusData {
   static from_hex(hex_str: string): PlutusData;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {PlutusDataJSON}
+   */
+  to_js_value(): PlutusDataJSON;
+
+  /**
+   * @param {string} json
+   * @returns {PlutusData}
+   */
+  static from_json(json: string): PlutusData;
+
+  /**
    * @param {ConstrPlutusData} constr_plutus_data
    * @returns {PlutusData}
    */
@@ -4303,6 +4511,22 @@ declare export class PlutusList {
   static from_hex(hex_str: string): PlutusList;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {PlutusListJSON}
+   */
+  to_js_value(): PlutusListJSON;
+
+  /**
+   * @param {string} json
+   * @returns {PlutusList}
+   */
+  static from_json(json: string): PlutusList;
+
+  /**
    * @returns {PlutusList}
    */
   static new(): PlutusList;
@@ -4349,6 +4573,22 @@ declare export class PlutusMap {
    * @returns {PlutusMap}
    */
   static from_hex(hex_str: string): PlutusMap;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {PlutusMapJSON}
+   */
+  to_js_value(): PlutusMapJSON;
+
+  /**
+   * @param {string} json
+   * @returns {PlutusMap}
+   */
+  static from_json(json: string): PlutusMap;
 
   /**
    * @returns {PlutusMap}
@@ -4496,6 +4736,22 @@ declare export class PlutusScripts {
   static from_hex(hex_str: string): PlutusScripts;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {PlutusScriptsJSON}
+   */
+  to_js_value(): PlutusScriptsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {PlutusScripts}
+   */
+  static from_json(json: string): PlutusScripts;
+
+  /**
    * @returns {PlutusScripts}
    */
   static new(): PlutusScripts;
@@ -4520,22 +4776,6 @@ declare export class PlutusScripts {
  */
 declare export class PlutusWitness {
   free(): void;
-
-  /**
-   * @returns {string}
-   */
-  to_json(): string;
-
-  /**
-   * @returns {PlutusWitnessJSON}
-   */
-  to_js_value(): PlutusWitnessJSON;
-
-  /**
-   * @param {string} json
-   * @returns {PlutusWitness}
-   */
-  static from_json(json: string): PlutusWitness;
 
   /**
    * @param {PlutusScript} script
@@ -4568,22 +4808,6 @@ declare export class PlutusWitness {
  */
 declare export class PlutusWitnesses {
   free(): void;
-
-  /**
-   * @returns {string}
-   */
-  to_json(): string;
-
-  /**
-   * @returns {PlutusWitnessesJSON}
-   */
-  to_js_value(): PlutusWitnessesJSON;
-
-  /**
-   * @param {string} json
-   * @returns {PlutusWitnesses}
-   */
-  static from_json(json: string): PlutusWitnesses;
 
   /**
    * @returns {PlutusWitnesses}
@@ -5625,6 +5849,22 @@ declare export class Redeemer {
   static from_hex(hex_str: string): Redeemer;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {RedeemerJSON}
+   */
+  to_js_value(): RedeemerJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Redeemer}
+   */
+  static from_json(json: string): Redeemer;
+
+  /**
    * @returns {RedeemerTag}
    */
   tag(): RedeemerTag;
@@ -5686,6 +5926,22 @@ declare export class RedeemerTag {
   static from_hex(hex_str: string): RedeemerTag;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {RedeemerTagJSON}
+   */
+  to_js_value(): RedeemerTagJSON;
+
+  /**
+   * @param {string} json
+   * @returns {RedeemerTag}
+   */
+  static from_json(json: string): RedeemerTag;
+
+  /**
    * @returns {RedeemerTag}
    */
   static new_spend(): RedeemerTag;
@@ -5736,6 +5992,22 @@ declare export class Redeemers {
    * @returns {Redeemers}
    */
   static from_hex(hex_str: string): Redeemers;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {RedeemersJSON}
+   */
+  to_js_value(): RedeemersJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Redeemers}
+   */
+  static from_json(json: string): Redeemers;
 
   /**
    * @returns {Redeemers}
@@ -8634,6 +8906,22 @@ declare export class TransactionUnspentOutput {
   static from_hex(hex_str: string): TransactionUnspentOutput;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {TransactionUnspentOutputJSON}
+   */
+  to_js_value(): TransactionUnspentOutputJSON;
+
+  /**
+   * @param {string} json
+   * @returns {TransactionUnspentOutput}
+   */
+  static from_json(json: string): TransactionUnspentOutput;
+
+  /**
    * @param {TransactionInput} input
    * @param {TransactionOutput} output
    * @returns {TransactionUnspentOutput}
@@ -9056,6 +9344,22 @@ declare export class URL {
   static from_hex(hex_str: string): URL;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {URLJSON}
+   */
+  to_js_value(): URLJSON;
+
+  /**
+   * @param {string} json
+   * @returns {URL}
+   */
+  static from_json(json: string): URL;
+
+  /**
    * @param {string} url
    * @returns {URL}
    */
@@ -9470,6 +9774,22 @@ declare export class Vkey {
    * @returns {Vkey}
    */
   static from_hex(hex_str: string): Vkey;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {VkeyJSON}
+   */
+  to_js_value(): VkeyJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Vkey}
+   */
+  static from_json(json: string): Vkey;
 
   /**
    * @param {PublicKey} pk
@@ -10141,6 +10461,10 @@ export interface TransactionOutputJSON {
   script_ref?: ScriptRefJSON | null;
 }
 export type TransactionOutputsJSON = TransactionOutputJSON[];
+export interface TransactionUnspentOutputJSON {
+  input: TransactionInputJSON;
+  output: TransactionOutputJSON;
+}
 export interface TransactionWitnessSetJSON {
   bootstraps?: BootstrapWitnessesJSON | null;
   native_scripts?: NativeScriptsJSON | null;
