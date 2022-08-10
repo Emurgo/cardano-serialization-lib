@@ -146,9 +146,7 @@ impl StakeCredential {
     }
 }
 
-to_from_bytes!(StakeCredential);
-
-to_from_json!(StakeCredential);
+impl_to_from!(StakeCredential);
 
 impl cbor_event::se::Serialize for StakeCredential {
     fn serialize<'se, W: Write>(
