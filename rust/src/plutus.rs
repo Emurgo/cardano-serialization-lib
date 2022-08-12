@@ -1909,6 +1909,7 @@ impl Deserialize for Strings {
 mod tests {
     use super::*;
     use hex::*;
+    use crate::tx_builder_constants::TxBuilderConstants;
 
     #[test]
     pub fn plutus_constr_data() {
@@ -2293,5 +2294,27 @@ mod tests {
             hex::encode(hash_plutus_data(&pdata2).to_bytes()),
             "816cdf6d4d8cba3ad0188ca643db95ddf0e03cdfc0e75a9550a72a82cb146222"
         );
+    }
+
+    #[test]
+    fn test_known_plutus_data_hash_with_no_datums() {
+        let mut costmodels = Costmdls::new();
+        costmodels.insert(
+            &Language::new_plutus_v2(),
+            &TxBuilderConstants::plutus_vasil_cost_models().get(&Language::new_plutus_v2()).unwrap(),
+        );
+        let hash = hash_script_data(
+            &Redeemers(vec![
+                Redeemer::new(
+                    &RedeemerTag::new_spend(),
+                    &BigNum::zero(),
+                    &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
+                    &ExUnits::new(&to_bignum(842996), &to_bignum(246100241)),
+                ),
+            ]),
+            &costmodels,
+            None,
+        );
+        assert_eq!(hex::encode(hash.to_bytes()), "ac71f2adcaecd7576fa658098b12001dec03ce5c27dbb890e16966e3e135b3e2");
     }
 }
