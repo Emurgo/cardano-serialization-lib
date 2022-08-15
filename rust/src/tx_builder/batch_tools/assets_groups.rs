@@ -1,11 +1,6 @@
-use std::cmp::max;
 use std::collections::HashMap;
-use js_sys::new;
-use crate::tx_builder::batch_tools::abstract_map::AbstractMap;
-use crate::tx_builder::batch_tools::asset_calculator::{AssetCalculator, UtxosStat};
+use crate::tx_builder::batch_tools::assets_calculator::{AssetsCalculator, UtxosStat};
 use super::super::*;
-
-const MAX_INLINE_ENCODING: u64 = 23;
 
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub struct UtxoIndex(usize);
@@ -17,12 +12,12 @@ pub struct UtxoIndex(usize);
 // }
 
 #[derive(PartialEq, Eq, Hash, Clone)]
-pub struct AssetIndex(usize);
+pub struct AssetIndex(pub(super) usize);
 
 #[derive(PartialEq, Eq, Hash, Clone)]
-pub struct PolicyIndex(usize);
+pub struct PolicyIndex(pub(super) usize);
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Hash)]
 pub struct PlaneAssetId(PolicyIndex, AssetName);
 
 pub struct AssetsForAppend {
@@ -34,15 +29,14 @@ pub struct AssetsForAppend {
 
 pub struct AssetsForAppendPrototype {
     assets_for_current_output: HashSet<AssetIndex>,
-    assets_for_new_output: Option<HashSet<AssetIndex>>,
+    assets_for_new_output: HashSet<AssetIndex>,
     assets_for_rest_outputs: HashSet<AssetIndex>,
 }
 
 pub struct AssetGroups {
     assets: Vec<PlaneAssetId>,
     policies: Vec<PolicyID>,
-    assets_calculator: AssetCalculator,
-    utxos: TransactionUnspentOutputs,
+    assets_calculator: AssetsCalculator,
     assets_amounts: HashMap<(AssetIndex, UtxoIndex), Coin>,
     assets_counts: Vec<(AssetIndex, usize)>,
 
@@ -53,11 +47,12 @@ pub struct AssetGroups {
     asset_to_policy: HashMap<AssetIndex, PolicyIndex>,
     policy_to_asset: HashMap<PolicyIndex, HashSet<AssetIndex>>,
     inputs_sizes: Vec<usize>,
-    bare_output_size : usize
+
+    free_ada_utxos : Vec(UtxoIndex, Coin),
 }
 
 impl AssetGroups {
-    pub fn new(utxos: &TransactionUnspentOutputs, address: &Address) -> Self {
+    pub fn new(utxos: &TransactionUnspentOutputs, address: &Address) -> Result<Self, JsError> {
         let mut assets: Vec<PlaneAssetId> = Vec::new();
         let mut policies: Vec<PolicyID> = Vec::new();
         let mut assets_name_sizes: Vec<usize> = Vec::new();
@@ -78,10 +73,10 @@ impl AssetGroups {
         let mut policy_count = 0usize;
         let mut total_ada = Coin::zero();
 
-        let input_sizes = Self::get_inputs_sizes(&utxos);
+        let mut free_ada_utxos_map = BTreeMap::new();
 
         for utxo in &utxos.0 {
-            total_ada += utxo.output.amount.coin;
+            total_ada = total_ada.checked_add(&utxo.output.amount.coin)?;
 
             let current_utxo_index = UtxoIndex(current_utxo_num.clone());
             if let Some(assests) = &utxo.output.amount.multiasset {
@@ -90,7 +85,7 @@ impl AssetGroups {
                     if let Some(policy_index) = policy_ids.get(policy.0) {
                         current_policy_index = policy_index.clone()
                     } else {
-                        let policy_id_size = AssetSize::get_struct_size(policy.0.len().into());
+                        let policy_id_size = AssetsCalculator::get_struct_size(policy.0.0.len() as u64);
                         policies.push(policy.0.clone());
                         policies_sizes.push(policy_id_size);
                         policy_ids.insert(policy.0.clone(), current_policy_index.clone());
@@ -104,7 +99,7 @@ impl AssetGroups {
                             current_asset_index = asset_index.clone();
                             assets_counts[current_asset_index.0].1 += 1;
                         } else {
-                            let asset_name_size = AssetSize::get_struct_size(asset.0.len().into());
+                            let asset_name_size = AssetsCalculator::get_struct_size(asset.0.0.len() as u64);
                             assets.push(plane_id.clone());
                             assets_name_sizes.push(asset_name_size);
                             asset_ids.insert(plane_id, current_asset_index.clone());
@@ -138,17 +133,27 @@ impl AssetGroups {
                         }
                     }
                 }
+            } else {
+                free_ada_utxos_map.insert(utxo.output.amount.coin.clone(), current_utxo_index.clone());
             }
             current_utxo_num += 1;
         }
 
-        let utxos_stat = UtxosStat::new(&total_ada, &policy_to_asset, &assets_amounts);
-        let asset_calculator = AssetCalculator::new(utxos_stat, assets_name_sizes, policies_sizes, address);
-        AssetGroups {
+        let utxos_stat = UtxosStat::new(&total_ada, &policy_to_asset, &assets_amounts)?;
+        let assets_calculator = AssetsCalculator::new(utxos_stat, assets_name_sizes, policies_sizes, address);
+        let inputs_sizes = Self::get_inputs_sizes(&utxos);
+
+        assets_counts.sort_by(|a, b| b.1.cmp(&a.1));
+        let free_ada_utxos= free_ada_utxos_map
+            .into_iter()
+            .rev()
+            .map(|(k, v)| (v, k))
+            .collect();
+
+        Ok(Self {
             assets,
             policies,
-            assets_sizes,
-            utxos: utxos.clone(),
+            assets_calculator,
             assets_amounts,
             assets_counts,
             free_utxo_to_assets,
@@ -156,8 +161,8 @@ impl AssetGroups {
             asset_to_policy,
             policy_to_asset,
             inputs_sizes,
-            utxos_stat,
-        }
+            free_ada_utxos,
+        })
     }
 
     fn get_inputs_sizes(utoxs: &TransactionUnspentOutputs) -> Vec<usize> {
@@ -170,10 +175,7 @@ impl AssetGroups {
     }
 
 
-
-    fn get_asset_intersections(&self,
-                               used_assets: &HashSet<AssetIndex>,
-                               used_assets_in_output: &HashSet<AssetIndex>) -> Vec<(AssetIndex, usize)> {
+    fn get_asset_intersections(&self, used_assets: &HashSet<AssetIndex>) -> Vec<(AssetIndex, usize)> {
         let mut intersections = Vec::new();
         for (index, asset_count) in &self.assets_counts {
             if used_assets.contains(index) && self.free_asset_to_utxos.contains_key(index) {
@@ -200,37 +202,73 @@ impl AssetGroups {
         intersections
     }
 
-    fn prototype_append_to_output(&self,
-                                 used_assets: &HashSet<AssetIndex>,
-                                 used_assets_in_output: &HashSet<AssetIndex>,
-                                 utxo: &UtxoIndex,
-                                 value_free_space: &usize, tx_free_space: &usize) -> Option<AssetsForAppendPrototype> {
+    fn prototype_append(&self,
+                        used_assets: &HashSet<AssetIndex>,
+                        used_assets_in_output: &HashSet<AssetIndex>,
+                        utxo: &UtxoIndex,
+                        value_capacity: &usize,
+                        tx_free_space: &usize) -> Option<AssetsForAppendPrototype> {
         let utxo_assets = self.free_utxo_to_assets.get(utxo);
         if let Some(utxo_assets) = utxo_assets {
             let output_intersection = used_assets_in_output & utxo_assets;
             let rest_assets = utxo_assets - &output_intersection;
             let asset_for_old_ouputs = &rest_assets & utxo_assets;
-            let asset_for_add = utxo_assets - &output_intersection - &asset_for_old_ouputs;
-            let new_ouput_state = asset_for_add + used_assets_in_output;
-            let new_size = self.assets_calculator.calc_aprox_value_size(&new_ouput_state);
-            if new_size <= *value_free_space {
-                return Some(AssetsForAppendPrototype {
-                    assets_for_current_output: asset_for_add,
-                    assets_for_new_output: None,
-                    assets_for_rest_outputs:asset_for_old_ouputs,
-                });
+            let asset_for_add = &(utxo_assets - &output_intersection) - &asset_for_old_ouputs;
+
+            let mut old_value_state =
+                self.assets_calculator.build_intermediate_data(
+                    used_assets_in_output,
+                    &self.asset_to_policy);
+
+            let mut new_value_state = old_value_state.clone();
+
+            let mut asset_to_output = HashSet::new();
+            let mut asset_to_new_output = HashSet::new();
+
+            for asset in &asset_for_add {
+                let new_size = self.assets_calculator.add_asset(
+                    &new_value_state,
+                    asset,
+                    &self.asset_to_policy[asset]);
+                if new_size <= *value_capacity {
+                    asset_to_output.insert(asset.clone());
+                    old_value_state = new_value_state.clone();
+                } else {
+                    new_value_state = old_value_state.clone();
+                    asset_to_new_output.insert(asset.clone());
+                }
             }
+
+            return Some(AssetsForAppendPrototype {
+                assets_for_current_output: asset_for_add,
+                assets_for_new_output: asset_to_new_output,
+                assets_for_rest_outputs:asset_for_old_ouputs,
+            });
         }
         None
     }
 
-    fn prototype_append_to_tx(&self,
-                             used_assets: &HashSet<AssetIndex>,
-                             utxo: &UtxoIndex,
-                             value_free_space: &usize, tx_free_space: &usize) -> Option<Vec<AssetIndex>> {
-        let mut assets = Vec::new();
+    pub fn get_next_pure_ada_utxo(&mut self) -> Option<(UtxoIndex, Coin)> {
+        self.free_ada_utxos.pop()
+    }
 
-        return None;
+    pub fn get_next_pure_ada_utxo_by_amount(&mut self, need_ada: &Coin) -> Result<Vec<(UtxoIndex, Coin)>, JsError> {
+        let mut ada_left = need_ada.clone();
+        let mut utxos = Vec::new();
+        while let Some((utxo, utxo_ada)) = self.free_ada_utxos.pop() {
+            if utxo_ada >= ada_left {
+                ada_left = Coin::zero();
+            } else {
+                ada_left = ada_left.checked_sub(&utxo_ada)?;
+            }
+            utxos.push((utxo, utxo_ada));
+        }
+        if ada_left.is_zero() {
+            Ok(utxos)
+        } else {
+            self.free_ada_utxos.append(utxos.iter().rev().collect());
+            Err(JsError::new("Not enough funds"))
+        }
     }
 
     fn get_grouped_assets(&self, assets: &HashSet<AssetIndex>) -> HashMap<PolicyIndex, HashSet<AssetIndex>> {
@@ -242,8 +280,6 @@ impl AssetGroups {
         }
         grouped_assets
     }
-
-
 
     fn choose_candidate(&self, assets: &Vec<(AssetIndex, usize)>, value_free_space: &usize, tx_free_space: &usize) -> (Option<UtxoIndex>, Option<UtxoIndex>) {
         let mut output_utxo: Option<UtxoIndex> = None;
@@ -299,6 +335,20 @@ impl AssetGroups {
         tx_utxo
     }
 
+    fn remove_utxo(&mut self, utxo: &UtxoIndex) {
+        if let Some(mut assets) = self.free_utxo_to_assets.get(utxo) {
+            for asset in assets {
+                if let Some(mut utxos) = self.free_asset_to_utxos.get_mut(asset) {
+                    utxos.remove(utxo);
+                    if utxos.is_empty() {
+                        self.free_asset_to_utxos.remove(asset);
+                    }
+                }
+            }
+            self.free_utxo_to_assets.remove(utxo);
+        }
+    }
+
     fn get_assets_indexes(&self, utxo_index: &UtxoIndex) -> HashSet<AssetIndex> {
         match &self.free_utxo_to_assets.get(utxo_index) {
             Some(&set) => set.clone(),
@@ -306,13 +356,11 @@ impl AssetGroups {
         }
     }
 
-    fn get_asset_size(&self, asset_index: &AssetIndex) -> Result<AssetSize, JsError> {
-        match &self.assets_sizes.get(asset_index.0) {
-            Some(&size) => Ok(size.clone()),
-            None => Err(JsError::from_str(&"Wrong index for asset sizes. Invalid AssetGroups state."))
-        }
-    }
-
-
+    // fn get_asset_size(&self, asset_index: &AssetIndex) -> Result<AssetSize, JsError> {
+    //     match &self.assets_sizes.get(asset_index.0) {
+    //         Some(&size) => Ok(size.clone()),
+    //         None => Err(JsError::from_str(&"Wrong index for asset sizes. Invalid AssetGroups state."))
+    //     }
+    // }
 }
 

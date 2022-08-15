@@ -1,3 +1,3 @@
-pub mod abstract_map;
+pub mod utxo_stat;
 pub mod assets_groups;
-pub mod asset_calculator;
+pub mod assets_calculator;
