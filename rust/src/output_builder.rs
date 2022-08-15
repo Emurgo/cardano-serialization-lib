@@ -11,7 +11,7 @@ use super::*;
 pub struct TransactionOutputBuilder {
     address: Option<Address>,
     data: Option<DataOption>,
-    script_ref: Option<ScriptRef>
+    script_ref: Option<ScriptRef>,
 }
 
 #[wasm_bindgen]
@@ -20,7 +20,7 @@ impl TransactionOutputBuilder {
         Self {
             address: None,
             data: None,
-            script_ref: None
+            script_ref: None,
         }
     }
 
@@ -50,10 +50,12 @@ impl TransactionOutputBuilder {
 
     pub fn next(&self) -> Result<TransactionOutputAmountBuilder, JsError> {
         Ok(TransactionOutputAmountBuilder {
-            address: self.address.clone().ok_or(JsError::from_str("TransactionOutputBaseBuilder: Address missing"))?,
+            address: self.address.clone().ok_or(JsError::from_str(
+                "TransactionOutputBaseBuilder: Address missing",
+            ))?,
             amount: None,
             data: self.data.clone(),
-            script_ref: self.script_ref.clone()
+            script_ref: self.script_ref.clone(),
         })
     }
 }
@@ -64,12 +66,11 @@ pub struct TransactionOutputAmountBuilder {
     address: Address,
     amount: Option<Value>,
     data: Option<DataOption>,
-    script_ref: Option<ScriptRef>
+    script_ref: Option<ScriptRef>,
 }
 
 #[wasm_bindgen]
 impl TransactionOutputAmountBuilder {
-
     pub fn with_value(&self, amount: &Value) -> Self {
         let mut cfg = self.clone();
         cfg.amount = Some(amount.clone());
@@ -92,19 +93,26 @@ impl TransactionOutputAmountBuilder {
         cfg
     }
 
-
     /// !!! DEPRECATED !!!
     /// Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead.
     #[deprecated(
-    since = "11.0.0",
-    note = "Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead."
+        since = "11.0.0",
+        note = "Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead."
     )]
-    pub fn with_asset_and_min_required_coin(&self, multiasset: &MultiAsset, coins_per_utxo_word: &Coin) -> Result<TransactionOutputAmountBuilder, JsError> {
+    pub fn with_asset_and_min_required_coin(
+        &self,
+        multiasset: &MultiAsset,
+        coins_per_utxo_word: &Coin,
+    ) -> Result<TransactionOutputAmountBuilder, JsError> {
         let data_cost = DataCost::new_coins_per_word(coins_per_utxo_word);
         self.with_asset_and_min_required_coin_by_utxo_cost(multiasset, &data_cost)
     }
 
-    pub fn with_asset_and_min_required_coin_by_utxo_cost(&self, multiasset: &MultiAsset, data_cost: &DataCost) -> Result<TransactionOutputAmountBuilder, JsError> {
+    pub fn with_asset_and_min_required_coin_by_utxo_cost(
+        &self,
+        multiasset: &MultiAsset,
+        data_cost: &DataCost,
+    ) -> Result<TransactionOutputAmountBuilder, JsError> {
         // TODO: double ada calculation needs to check if it redundant
         let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
         if let Some(data) = &self.data {
@@ -139,9 +147,11 @@ impl TransactionOutputAmountBuilder {
     pub fn build(&self) -> Result<TransactionOutput, JsError> {
         Ok(TransactionOutput {
             address: self.address.clone(),
-            amount: self.amount.clone().ok_or(JsError::from_str("TransactionOutputAmountBuilder: amount missing"))?,
+            amount: self.amount.clone().ok_or(JsError::from_str(
+                "TransactionOutputAmountBuilder: amount missing",
+            ))?,
             plutus_data: self.data.clone(),
-            script_ref: self.script_ref.clone()
+            script_ref: self.script_ref.clone(),
         })
     }
 }

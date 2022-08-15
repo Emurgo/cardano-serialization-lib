@@ -2,9 +2,9 @@ use crate::chain_crypto::{
     bech32::{self, Bech32},
     key,
 };
+use crate::typed_bytes::{ByteArray, ByteSlice};
 use hex::FromHexError;
 use std::{fmt, marker::PhantomData, str::FromStr};
-use crate::typed_bytes::{ByteArray, ByteSlice};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verification {
@@ -189,11 +189,9 @@ impl<T, A: VerificationAlgorithm> Clone for Signature<T, A> {
     }
 }
 
-
 impl<T, A: VerificationAlgorithm> PartialEq<Self> for Signature<T, A> {
     fn eq(&self, other: &Self) -> bool {
-        self.signdata.as_ref() == other.signdata.as_ref()
-            && self.phantom == other.phantom
+        self.signdata.as_ref() == other.signdata.as_ref() && self.phantom == other.phantom
     }
 }
 

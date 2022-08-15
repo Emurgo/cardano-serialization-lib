@@ -11,7 +11,7 @@
 
 use crate::legacy_address::base58;
 use crate::legacy_address::cbor;
-use cbor_event::{self, de::Deserializer, se::Serializer, cbor};
+use cbor_event::{self, cbor, de::Deserializer, se::Serializer};
 use cryptoxide::blake2b::Blake2b;
 use cryptoxide::digest::Digest;
 use cryptoxide::sha3;
@@ -349,7 +349,10 @@ impl cbor_event::se::Serialize for ExtendedAddr {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         let addr_bytes = cbor_event::Value::Bytes(self.addr.to_vec());
-        cbor::util::encode_with_crc32_(&(&addr_bytes, &self.attributes, &self.addr_type), serializer)?;
+        cbor::util::encode_with_crc32_(
+            &(&addr_bytes, &self.attributes, &self.addr_type),
+            serializer,
+        )?;
         Ok(serializer)
     }
 }
@@ -368,7 +371,11 @@ impl cbor_event::de::Deserialize for ExtendedAddr {
         })?;
         let attributes = cbor_event::de::Deserialize::deserialize(&mut raw)?;
         let addr_type = cbor_event::de::Deserialize::deserialize(&mut raw)?;
-        Ok(ExtendedAddr { addr, addr_type, attributes })
+        Ok(ExtendedAddr {
+            addr,
+            addr_type,
+            attributes,
+        })
     }
 }
 impl fmt::Display for ExtendedAddr {
