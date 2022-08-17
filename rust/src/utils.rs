@@ -1384,27 +1384,25 @@ impl MinOutputAdaCalculator {
             output: &TransactionOutput,
             coins_per_byte: &Coin,
         ) -> Result<Coin, JsError> {
+            // Adding extra words to the estimate
+            // <TODO:REMOVE_AFTER_BABBAGE>
+            let compatibility_extra_bytes = 80;
             //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
             //See on the page 9 getValue txout
             BigNum::from(output.to_bytes().len())
-                .checked_add(&to_bignum(160))?
+                .checked_add(&to_bignum(160 + compatibility_extra_bytes))?
                 .checked_mul(&coins_per_byte)
         }
-        let coins_per_word = coins_per_byte.checked_mul(&to_bignum(8))?;
         for _ in 0..3 {
             let required_coin = calc_required_coin(&output, &coins_per_byte)?;
             if output.amount.coin.less_than(&required_coin) {
                 output.amount.coin = required_coin.clone();
             } else {
-                // Adding extra word to the estimate
-                // <TODO:REMOVE_AFTER_BABBAGE>
-                return required_coin.checked_add(&coins_per_word);
+                return Ok(required_coin);
             }
         }
         output.amount.coin = to_bignum(u64::MAX);
-        // Adding extra word to the estimate
-        // <TODO:REMOVE_AFTER_BABBAGE>
-        calc_required_coin(&output, &coins_per_byte)?.checked_add(&coins_per_word)
+        calc_required_coin(&output, &coins_per_byte)
     }
 
     fn create_fake_output() -> Result<TransactionOutput, JsError> {

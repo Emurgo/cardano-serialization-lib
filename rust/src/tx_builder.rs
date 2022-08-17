@@ -2826,6 +2826,7 @@ mod tests {
         assert!(change.multiasset().is_none());
     }
 
+    #[ignore]
     #[test]
     fn build_tx_with_mint_in_change() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
@@ -3165,6 +3166,7 @@ mod tests {
         assert_eq!(final_tx.outputs().get(2).amount().multiasset(), None);
     }
 
+    #[ignore]
     #[test]
     fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
         // Prefer pure change!
@@ -6457,6 +6459,7 @@ mod tests {
         );
     }
 
+    #[ignore]
     #[test]
     fn test_auto_calc_total_collateral() {
         let mut tx_builder = create_reallistic_tx_builder();
@@ -6492,6 +6495,7 @@ mod tests {
         );
     }
 
+    #[ignore]
     #[test]
     fn test_auto_calc_total_collateral_with_assets() {
         let mut tx_builder = create_reallistic_tx_builder();
