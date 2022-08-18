@@ -1378,15 +1378,17 @@ impl MinOutputAdaCalculator {
     }
 
     pub fn calculate_ada(&self) -> Result<BigNum, JsError> {
+        let has_data_hash = self.output.has_data_hash().clone();
         let coins_per_byte = self.data_cost.coins_per_byte();
         let mut output: TransactionOutput = self.output.clone();
         fn calc_required_coin(
             output: &TransactionOutput,
             coins_per_byte: &Coin,
+            has_data_hash: bool,
         ) -> Result<Coin, JsError> {
             // Adding extra words to the estimate
             // <TODO:REMOVE_AFTER_BABBAGE>
-            let compatibility_extra_bytes = 80;
+            let compatibility_extra_bytes = if has_data_hash { 160 } else { 80 };
             //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
             //See on the page 9 getValue txout
             BigNum::from(output.to_bytes().len())
@@ -1394,7 +1396,7 @@ impl MinOutputAdaCalculator {
                 .checked_mul(&coins_per_byte)
         }
         for _ in 0..3 {
-            let required_coin = calc_required_coin(&output, &coins_per_byte)?;
+            let required_coin = calc_required_coin(&output, &coins_per_byte, has_data_hash)?;
             if output.amount.coin.less_than(&required_coin) {
                 output.amount.coin = required_coin.clone();
             } else {
@@ -1402,7 +1404,7 @@ impl MinOutputAdaCalculator {
             }
         }
         output.amount.coin = to_bignum(u64::MAX);
-        calc_required_coin(&output, &coins_per_byte)
+        calc_required_coin(&output, &coins_per_byte, has_data_hash)
     }
 
     fn create_fake_output() -> Result<TransactionOutput, JsError> {
