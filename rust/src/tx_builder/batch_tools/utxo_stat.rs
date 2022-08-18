@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use crate::{Coin, JsError};
-use crate::tx_builder::batch_tools::assets_groups::{AssetIndex, PolicyIndex, UtxoIndex};
+use super::indexes::{UtxoIndex, AssetIndex, PolicyIndex};
 
 #[derive(Clone)]
 pub(super) struct UtxosStat {
