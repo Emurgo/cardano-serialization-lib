@@ -1,5 +1,7 @@
 use std::collections::HashMap;
-use super::indexes::{AssetGroups, AssetIndex, PlaneAssetId, UtxoIndex};
+use batch_tools::proposals::{TxProposal, TxOutputProposal};
+use batch_tools::indexes::{UtxoIndex, AssetIndex};
+use batch_tools::assets_groups::{AssetGroups};
 use super::*;
 
 pub struct TransactionBatchList(Vec<TransactionBatch>);
@@ -25,7 +27,8 @@ impl TxBatchBuilder {
     }
 
     pub fn build(&self) -> Result<TransactionBatchList, JsError> {
-        let mut current_tx_proposal = TxProposal::new(&self.config)?;
+        let mut current_tx_proposal = TxProposal::new();
+
     }
 }
 

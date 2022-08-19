@@ -31,7 +31,7 @@ pub struct AssetGroups {
 }
 
 impl AssetGroups {
-    pub fn new(utxos: &TransactionUnspentOutputs, address: &Address) -> Result<Self, JsError> {
+    pub(crate) fn new(utxos: &TransactionUnspentOutputs, address: &Address) -> Result<Self, JsError> {
         let mut assets: Vec<PlaneAssetId> = Vec::new();
         let mut policies: Vec<PolicyID> = Vec::new();
         let mut assets_name_sizes: Vec<usize> = Vec::new();
@@ -140,6 +140,43 @@ impl AssetGroups {
         })
     }
 
+    pub(crate) fn build_value(assets: &hashset<assetindex>, utxos: &vec<utxoindex>) -> value {
+        unimplemented!()
+    }
+
+    pub(crate) fn try_append_next_utxos(&mut self, tx_proposal: &TxProposal) -> Option<TxProposal> {
+        let mut tx_utxo: Option<TxProposal> = None;
+        let asset_intersections = self.get_asset_intersections(tx_proposal.used_assets);
+        let (output_utxo, tx_utxo_tmp) =
+            self.make_candidate(&asset_intersections, tx_proposal);
+        if let Some(res_utxo) = &output_utxo {
+            Some(res_utxo.clone())
+        }
+        tx_utxo = tx_utxo_tmp;
+
+        let policy_intersections = self.get_policy_intersections(tx_proposal.used_assets);
+        let (output_utxo, tx_utxo_tmp) =
+            self.make_candidate(&policy_intersections, tx_proposal);
+        if let Some(res_utxo) = &output_utxo {
+            Some(res_utxo.clone())
+        }
+        if tx_utxo.is_none() {
+            tx_utxo = tx_utxo_tmp.clone();
+        }
+        //TODO: add dedup
+        let (output_utxo, tx_utxo_tmp) =
+            self.make_candidate(&self.assets_counts, tx_proposal);
+
+        if let Some(res_utxo) = &output_utxo {
+            Some(res_utxo.clone())
+        }
+        if tx_utxo.is_none() {
+            return tx_utxo_tmp.clone();
+        }
+
+        tx_utxo
+    }
+
     fn get_inputs_sizes(utoxs: &TransactionUnspentOutputs) -> Vec<usize> {
         let mut sizes = Vec::with_capacity(utoxs.0.len());
         for utxo in &utoxs.0 {
@@ -180,7 +217,12 @@ impl AssetGroups {
                         tx_proposal: &TxProposal,
                         utxo: &UtxoIndex) -> Option<TxProposalChanges> {
         let utxo_assets = self.free_utxo_to_assets.get(utxo);
-        let used_assets_in_output= tx_proposal.tx_output_proposals.last().used_assets();
+        let used_assets_in_output = match tx_proposal.tx_output_proposals.last() {
+            Some(output) => &output.used_assets,
+            None => &HashSet::new(),
+        };
+
+        let used_assets = &tx_proposal.used_assets;
         if let Some(utxo_assets) = utxo_assets {
             let output_intersection = used_assets_in_output & utxo_assets;
             let rest_assets = utxo_assets - &output_intersection;
@@ -254,7 +296,8 @@ impl AssetGroups {
         grouped_assets
     }
 
-    fn make_candidate(&self, assets: &Vec<(AssetIndex, usize)>, tx_propoasl: &TxProposal) -> (Option<UtxoIndex>, Option<UtxoIndex>) {
+    fn make_candidate(&self, assets: &Vec<(AssetIndex, usize)>, tx_propoasl: &TxProposal)
+            -> (Option<TxProposal>, Option<TxProposal>) {
         let mut txp_with_new_output: Option<TxProposalChanges> = None;
         let mut txp: Option<TxProposalChanges> = None;
         for (index, asset_count) in assets.iter() {
@@ -273,41 +316,6 @@ impl AssetGroups {
         }
 
         (txp, txp_with_new_output)
-    }
-
-    fn get_next_utxo_index(&mut self, used_assets: &HashSet<AssetIndex>,
-                           used_assets_in_output: &HashSet<AssetIndex>,
-                           value_free_space: &usize, tx_free_space: &usize) -> Option<UtxoIndex> {
-        let mut tx_utxo: Option<UtxoIndex> = None;
-        let asset_intersections = self.get_asset_intersections(used_assets);
-        let (output_utxo, tx_utxo_tmp) =
-            self.make_candidate(&asset_intersections, value_free_space, tx_free_space);
-        if let Some(res_utxo) = &output_utxo {
-            Some(res_utxo.clone())
-        }
-        tx_utxo = tx_utxo_tmp;
-
-        let policy_intersections = self.get_policy_intersections(used_assets);
-        let (output_utxo, tx_utxo_tmp) =
-            self.make_candidate(&policy_intersections, value_free_space, tx_free_space);
-        if let Some(res_utxo) = &output_utxo {
-            Some(res_utxo.clone())
-        }
-        if tx_utxo.is_none() {
-            tx_utxo = tx_utxo_tmp.clone();
-        }
-        //TODO: add dedup
-        let (output_utxo, tx_utxo_tmp) =
-            self.make_candidate(&self.assets_counts, value_free_space, tx_free_space);
-
-        if let Some(res_utxo) = &output_utxo {
-            Some(res_utxo.clone())
-        }
-        if tx_utxo.is_none() {
-            return tx_utxo_tmp.clone();
-        }
-
-        tx_utxo
     }
 
     fn remove_utxo(&mut self, utxo: &UtxoIndex) {

@@ -25,7 +25,7 @@ impl WitnessesCalculator {
     }
 
     pub(super) fn get_full_size(&self) -> usize {
-        self.total_size;
+        self.total_size
     }
 
     //TODO: replace it by size calculation without serialization and fake entity

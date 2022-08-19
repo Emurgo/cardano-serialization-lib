@@ -3,10 +3,10 @@ use super::indexes::{UtxoIndex, AssetIndex};
 use super::assets_groups::AssetGroups;
 use super::assets_calculator::{IntermediateValueState};
 
-pub(super) struct TxOutputProposal {
-    used_assets: HashSet<AssetIndex>,
-    address: Address,
-    min_ada: Coin,
+pub(crate) struct TxOutputProposal {
+    pub(super) used_assets: HashSet<AssetIndex>,
+    pub(super) address: Address,
+    pub(super) min_ada: Coin,
 }
 
 impl TxOutputProposal {
@@ -23,13 +23,13 @@ impl TxOutputProposal {
         self.used_assets.extend(assets);
     }
 
-    fn create_output(&self, asset_groups: &AssetGroups) -> TransactionOutput {
-        return TransactionOutput::new(&self.address, &self.current_value);
+    fn create_output(&self, asset_groups: &AssetGroups, used_utxos: &Vec<UtxoIndex>) -> TransactionOutput {
+        return TransactionOutput::new(&self.address, asset_groups.build_value(self.used_assets, used_utxos));
     }
 
 }
 
-pub(super) struct TxProposal {
+pub(crate) struct TxProposal {
     pub(super)  tx_output_proposals: Vec<TxOutputProposal>,
     pub(super)  used_utoxs: Vec<UtxoIndex>,
     pub(super)  used_assets: HashSet<AssetIndex>,
@@ -39,7 +39,7 @@ pub(super) struct TxProposal {
 }
 
 impl TxProposal {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             tx_output_proposals: Vec::new(),
             used_utoxs: Vec::new(),
@@ -50,8 +50,30 @@ impl TxProposal {
         }
     }
 
-    fn prepare_builder(config: &TransactionBuilderConfig) -> TransactionBuilder {
-        let mut tx_builder = TransactionBuilder::new(config);
-        tx_builder
+    pub(crate) fn create_tx(&self, asset_groups: &AssetGroups, utxos: &TransactionUnspentOutputs) -> Transaction {
+        let witnesses = TransactionWitnessSet::new();
+        let mut outputs = Vec::new();
+        for proposal in &self.tx_output_proposals {
+            outputs.push(proposal.create_output(asset_groups, self.used_utoxs));
+        }
+
+        let mut inputs = Vec::new();
+        for utxo in &self.used_utoxs {
+            inputs.push(utxos.0[utxo.0].input.clone());
+        }
+
+        let body = TransactionBody::new(
+            TransactionInputs(inputs),
+            TransactionOutputs(outputs),
+            self.fee,
+            None,
+        );
+        let mut tx = Transaction::new(
+            body,
+            witnesses,
+            None
+        );
+
+        return tx;
     }
 }

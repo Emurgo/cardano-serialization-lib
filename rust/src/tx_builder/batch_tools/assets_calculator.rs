@@ -89,7 +89,7 @@ impl AssetsCalculator {
     pub(super) fn new(utxo_stat: UtxosStat, assets_name_sizes: Vec<usize>,
                       policies_sizes: Vec<usize>, address: &Address) -> Self {
         let bare_output_size =
-            CborCalculator::output_size_without_assets(&utxo_stat.ada_coins, address);
+            CborCalculator::output_size(&utxo_stat.ada_coins, address);
         let min_name_size = match assets_name_sizes.iter().min() {
             Some(min) => *min,
             None => 0,
