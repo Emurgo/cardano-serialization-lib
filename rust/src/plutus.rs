@@ -385,6 +385,17 @@ impl Costmdls {
         }
         serializer.finalize()
     }
+
+    pub(crate) fn retain_language_versions(&self, languages: Vec<Language>) -> Costmdls {
+        let mut result = Costmdls::new();
+        for lang in languages {
+            match self.get(&lang) {
+                Some(costmodel) => { result.insert(&lang, &costmodel); },
+                _ => {}
+            }
+        }
+        result
+    }
 }
 
 #[wasm_bindgen]
@@ -2316,5 +2327,43 @@ mod tests {
             None,
         );
         assert_eq!(hex::encode(hash.to_bytes()), "ac71f2adcaecd7576fa658098b12001dec03ce5c27dbb890e16966e3e135b3e2");
+    }
+
+    #[test]
+    fn test_known_plutus_data_hash_2() {
+        let datums = PlutusList::from(vec![
+            PlutusData::new_constr_plutus_data(
+                &ConstrPlutusData::new(
+                    &BigNum::zero(),
+                    &PlutusList::from(vec![
+                        PlutusData::new_bytes(
+                            hex::decode("45F6A506A49A38263C4A8BBB2E1E369DD8732FB1F9A281F3E8838387").unwrap(),
+                        ),
+                        PlutusData::new_integer(&BigInt::from_str("60000000").unwrap()),
+                        PlutusData::new_bytes(
+                            hex::decode("EE8E37676F6EBB8E031DFF493F88FF711D24AA68666A09D61F1D3FB3").unwrap(),
+                        ),
+                        PlutusData::new_bytes(
+                            hex::decode("43727970746F44696E6F3036333039").unwrap(),
+                        ),
+                    ]),
+                )
+            )
+        ]);
+        let redeemers = Redeemers(vec![
+            Redeemer::new(
+                &RedeemerTag::new_spend(),
+                &BigNum::one(),
+                &PlutusData::new_empty_constr_plutus_data(&BigNum::one()),
+                &ExUnits::new(&to_bignum(61300), &to_bignum(18221176)),
+            ),
+        ]);
+        let hash = hash_script_data(
+            &redeemers,
+            &TxBuilderConstants::plutus_vasil_cost_models()
+                .retain_language_versions(vec![Language::new_plutus_v1()]),
+            Some(datums),
+        );
+        assert_eq!(hex::encode(hash.to_bytes()), "e6129f50a866d19d95bc9c95ee87b57a9e695c05d92ba2746141b03c15cf5f70");
     }
 }
