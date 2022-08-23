@@ -11,7 +11,9 @@ use std::ops::Div;
 use std::{
     collections::HashMap,
     io::{BufRead, Seek, Write},
+    ops::{Rem, Sub},
 };
+use itertools::Itertools;
 
 use super::*;
 use crate::error::{DeserializeError, DeserializeFailure};
@@ -247,6 +249,10 @@ impl BigNum {
 
     pub fn less_than(&self, rhs_value: &BigNum) -> bool {
         self.compare(rhs_value) < 0
+    }
+
+    pub fn max(a: &BigNum, b: &BigNum) -> BigNum {
+        if a.less_than(b) { b.clone() } else { a.clone() }
     }
 }
 
@@ -1343,6 +1349,84 @@ pub fn get_deposit(
     internal_get_deposit(&txbody.certs, &pool_deposit, &key_deposit)
 }
 
+// <TODO:REMOVE_AFTER_BABBAGE>
+struct OutputSizeConstants {
+    k0: usize,
+    k1: usize,
+    k2: usize,
+}
+
+// <TODO:REMOVE_AFTER_BABBAGE>
+fn quot<T>(a: T, b: T) -> T
+    where T: Sub<Output=T> + Rem<Output=T> + Div<Output=T> + Copy + Clone + std::fmt::Display {
+    (a - (a % b)) / b
+}
+
+// <TODO:REMOVE_AFTER_BABBAGE>
+fn bundle_size(
+    assets: &Value,
+    constants: &OutputSizeConstants,
+) -> usize {
+    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
+    match &assets.multiasset {
+        None => 2, // coinSize according the minimum value function
+        Some (assets) => {
+            let num_assets = assets.0
+                .values()
+                .fold(
+                    0,
+                    | acc, next| acc + next.len()
+                );
+            let sum_asset_name_lengths = assets.0
+                .values()
+                .flat_map(|assets| assets.0.keys())
+                .unique_by(|asset| asset.name())
+                .fold(
+                    0,
+                    | acc, next| acc + next.0.len()
+                );
+            let sum_policy_id_lengths = assets.0
+                .keys()
+                .fold(
+                    0,
+                    | acc, next| acc + next.0.len()
+                );
+            // converts bytes to 8-byte long words, rounding up
+            fn roundup_bytes_to_words(b: usize) -> usize {
+                quot(b + 7, 8)
+            }
+            constants.k0 + roundup_bytes_to_words(
+                (num_assets * constants.k1) + sum_asset_name_lengths +
+                    (constants.k2 * sum_policy_id_lengths)
+            )
+        }
+    }
+}
+
+// <TODO:REMOVE_AFTER_BABBAGE>
+fn _min_ada_required_legacy(
+    assets: &Value,
+    has_data_hash: bool, // whether the output includes a data hash
+    coins_per_utxo_word: &BigNum, // protocol parameter (in lovelace)
+) -> Result<BigNum, JsError> {
+    // based on https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
+    let data_hash_size = if has_data_hash { 10 } else { 0 }; // in words
+    let utxo_entry_size_without_val = 27; // in words
+
+    let size = bundle_size(
+        &assets,
+        &OutputSizeConstants {
+            k0: 6,
+            k1: 12,
+            k2: 1,
+        },
+    );
+    let words = to_bignum(utxo_entry_size_without_val)
+        .checked_add(&to_bignum(size as u64))?
+        .checked_add(&to_bignum(data_hash_size))?;
+    coins_per_utxo_word.checked_mul(&words)
+}
+
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MinOutputAdaCalculator {
     output: TransactionOutput,
@@ -1391,16 +1475,19 @@ impl MinOutputAdaCalculator {
             output: &TransactionOutput,
             coins_per_byte: &Coin,
         ) -> Result<Coin, JsError> {
-            // Adding extra words to the estimate
-            // <TODO:REMOVE_AFTER_BABBAGE>
-            let compatibility_extra_bytes =
-                (output.amount().count_assets() as u64 * 15)
-                    + if output.has_data_hash() { 80 } else { 0 };
+            let legacy_coin = _min_ada_required_legacy(
+                &output.amount(),
+                output.has_data_hash(),
+                &coins_per_byte
+                    .checked_add(&BigNum::one())?
+                    .checked_mul(&BigNum::from_str("8")?)?
+            )?;
             //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
             //See on the page 9 getValue txout
-            BigNum::from(output.to_bytes().len())
-                .checked_add(&to_bignum(160 + compatibility_extra_bytes))?
-                .checked_mul(&coins_per_byte)
+            let result = BigNum::from(output.to_bytes().len())
+                .checked_add(&to_bignum(160))?
+                .checked_mul(&coins_per_byte)?;
+            Ok(BigNum::max(&result, &legacy_coin))
         }
         for _ in 0..3 {
             let required_coin = calc_required_coin(&output, &coins_per_byte)?;

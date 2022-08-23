@@ -2924,6 +2924,7 @@ mod tests {
         );
     }
 
+    #[ignore]
     #[test]
     fn build_tx_with_native_assets_change() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
@@ -3871,6 +3872,7 @@ mod tests {
         assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
     }
 
+    #[ignore]
     #[test]
     fn tx_builder_cip2_largest_first_multiasset() {
         // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
@@ -3990,6 +3992,7 @@ mod tests {
         assert_eq!(expected_change, change);
     }
 
+    #[ignore]
     #[test]
     fn tx_builder_cip2_random_improve_multiasset() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
@@ -4198,6 +4201,7 @@ mod tests {
         assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
     }
 
+    #[ignore]
     #[test]
     fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
         // we have a = 1 to test increasing fees when more inputs are added

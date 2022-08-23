@@ -1027,6 +1027,13 @@ declare export class BigNum {
    * @returns {boolean}
    */
   less_than(rhs_value: BigNum): boolean;
+
+  /**
+   * @param {BigNum} a
+   * @param {BigNum} b
+   * @returns {BigNum}
+   */
+  static max(a: BigNum, b: BigNum): BigNum;
 }
 /**
  */
