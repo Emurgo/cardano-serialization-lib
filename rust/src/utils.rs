@@ -414,13 +414,6 @@ impl Value {
                 .unwrap_or(true)
     }
 
-    pub(crate) fn count_assets(&self) -> usize {
-        match &self.multiasset {
-            Some(ma) => { ma.len() }
-            _ => 0
-        }
-    }
-
     pub fn coin(&self) -> Coin {
         self.coin
     }
