@@ -2086,6 +2086,7 @@ mod tests {
         assert_eq!(datum, datum2);
     }
 
+    #[test]
     pub fn test_cost_model() {
         let arr = vec![
             197209, 0, 1, 1, 396231, 621, 0, 1, 150000, 1000, 0, 1, 150000, 32, 2477736, 29175, 4,
