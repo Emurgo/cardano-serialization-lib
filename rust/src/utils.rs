@@ -408,10 +408,10 @@ impl Value {
                 .unwrap_or(true)
     }
 
-    pub(crate) fn has_assets(&self) -> bool {
+    pub(crate) fn count_assets(&self) -> usize {
         match &self.multiasset {
-            Some(ma) => { ma.len() > 0 }
-            _ => false
+            Some(ma) => { ma.len() }
+            _ => 0
         }
     }
 
@@ -1393,11 +1393,9 @@ impl MinOutputAdaCalculator {
         ) -> Result<Coin, JsError> {
             // Adding extra words to the estimate
             // <TODO:REMOVE_AFTER_BABBAGE>
-            let compatibility_extra_bytes = if output.amount().has_assets() {
-                if output.has_data_hash() { 160 } else { 80 }
-            } else {
-                0
-            };
+            let compatibility_extra_bytes =
+                (output.amount().count_assets() as u64 * 15)
+                    + if output.has_data_hash() { 80 } else { 0 };
             //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
             //See on the page 9 getValue txout
             BigNum::from(output.to_bytes().len())
