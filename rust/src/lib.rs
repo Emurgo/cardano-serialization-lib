@@ -264,6 +264,17 @@ impl DataCost {
             }
         }
     }
+
+    // <TODO:REMOVE_AFTER_BABBAGE>
+    pub(crate) fn coins_per_word(&self) -> Result<Coin, JsError> {
+        match &self.0 {
+            DataCostEnum::CoinsPerByte(coins_per_byte) => {
+                coins_per_byte
+                    .checked_mul(&BigNum::from_str("8")?)
+            },
+            DataCostEnum::CoinsPerWord(coins_per_word) => Ok(coins_per_word.clone()),
+        }
+    }
 }
 
 #[wasm_bindgen]
