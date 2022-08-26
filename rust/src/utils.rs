@@ -43,7 +43,7 @@ macro_rules! to_from_json {
 
             #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
             pub fn to_js_value(&self) -> Result<JsValue, JsError> {
-                JsValue::from_serde(&self)
+                serde_wasm_bindgen::to_value(&self)
                     .map_err(|e| JsError::from_str(&format!("to_js_value: {}", e)))
             }
 
