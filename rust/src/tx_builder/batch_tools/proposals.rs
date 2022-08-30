@@ -1,60 +1,216 @@
+use std::collections::HashMap;
+use crate::serialization_tools::map_names::TxBodyNames;
 use super::super::*;
-use super::indexes::{UtxoIndex, AssetIndex};
-use super::assets_groups::AssetGroups;
-use super::assets_calculator::{IntermediateValueState};
+use super::indexes::{UtxoIndex, AssetIndex, PolicyIndex};
+use super::asset_categorizer::AssetCategorizer;
+use super::witnesses_calculator::WitnessesCalculator;
 
+#[derive(Clone)]
 pub(crate) struct TxOutputProposal {
     pub(super) used_assets: HashSet<AssetIndex>,
+    pub(super) grouped_assets: HashMap<PolicyIndex, HashSet<AssetIndex>>,
     pub(super) address: Address,
     pub(super) min_ada: Coin,
+    pub(super) total_ada: Coin,
+    pub(super) size: usize,
 }
 
 impl TxOutputProposal {
-
     pub(super) fn new(address: &Address) -> Self {
         TxOutputProposal {
             used_assets: HashSet::new(),
+            grouped_assets: HashMap::new(),
             address: address.clone(),
-            min_ada: Coin::zero()
+            min_ada: Coin::zero(),
+            total_ada: Coin::zero(),
+            size: 0,
         }
     }
 
-    pub(super) fn add_assets(self, assets: &HashSet<AssetIndex>) {
-        self.used_assets.extend(assets);
+    pub(super) fn add_ada(&mut self, ada_coins: &Coin) -> Result<(), JsError> {
+        self.total_ada = self.total_ada.checked_add(ada_coins)?;
+        Ok(())
     }
 
-    fn create_output(&self, asset_groups: &AssetGroups, used_utxos: &Vec<UtxoIndex>) -> TransactionOutput {
-        return TransactionOutput::new(&self.address, asset_groups.build_value(self.used_assets, used_utxos));
+    pub(super) fn add_asset(&mut self, asset: &AssetIndex, policy_index: &PolicyIndex) {
+        self.used_assets.insert(asset.clone());
+        let policy = self.grouped_assets.entry(policy_index.clone())
+            .or_insert(HashSet::new());
+        policy.insert(asset.clone());
     }
 
+    pub(super) fn get_used_assets(&self) -> &HashSet<AssetIndex> {
+        &self.used_assets
+    }
+
+    pub(super) fn get_total_ada(&self) -> Coin {
+        self.total_ada
+    }
+
+    pub(super) fn set_total_ada(&mut self, ada_coins: &Coin) {
+        self.total_ada = ada_coins.clone();
+    }
+
+    pub(super) fn get_min_ada(&self) -> Coin {
+        self.min_ada
+    }
+
+    pub(super) fn set_min_ada(&mut self, min_ada: &Coin) {
+        self.min_ada = min_ada.clone();
+    }
+
+    pub(super) fn set_size(&mut self, size: usize) {
+        self.size = size;
+    }
+
+    pub(super) fn get_size(&self) -> usize {
+        self.size
+    }
+
+    fn create_output(&self, asset_groups: &AssetCategorizer, used_utxos: &HashSet<UtxoIndex>)
+                     -> Result<TransactionOutput, JsError> {
+        Ok(TransactionOutput::new(&self.address, &asset_groups.build_value(used_utxos, self)?))
+    }
 }
 
+#[derive(Clone)]
 pub(crate) struct TxProposal {
-    pub(super)  tx_output_proposals: Vec<TxOutputProposal>,
-    pub(super)  used_utoxs: Vec<UtxoIndex>,
-    pub(super)  used_assets: HashSet<AssetIndex>,
-    pub(super)  total_ada: Coin,
-    pub(super)  min_outputs_ada: Coin,
-    pub(super)  fee: Coin,
+    pub(super) used_body_fields: HashSet<TxBodyNames>,
+    pub(super) tx_output_proposals: Vec<TxOutputProposal>,
+    pub(super) used_utoxs: HashSet<UtxoIndex>,
+    pub(super) used_assets: HashSet<AssetIndex>,
+    pub(super) total_ada: Coin,
+    pub(super) min_outputs_ada: Coin,
+    pub(super) fee: Coin,
+    pub(super) witnesses_calculator: WitnessesCalculator,
+    pub(super) size: usize,
 }
 
 impl TxProposal {
     pub(crate) fn new() -> Self {
+        let mut body_fields = HashSet::new();
+        body_fields.insert(TxBodyNames::Inputs);
+        body_fields.insert(TxBodyNames::Outputs);
+        body_fields.insert(TxBodyNames::Fee);
+
         Self {
+            used_body_fields: body_fields,
             tx_output_proposals: Vec::new(),
-            used_utoxs: Vec::new(),
+            used_utoxs: HashSet::new(),
             used_assets: HashSet::new(),
             total_ada: Coin::zero(),
             min_outputs_ada: Coin::zero(),
             fee: Coin::zero(),
+            witnesses_calculator: WitnessesCalculator::new(),
+            size: 0,
         }
     }
 
-    pub(crate) fn create_tx(&self, asset_groups: &AssetGroups, utxos: &TransactionUnspentOutputs) -> Transaction {
+    pub(super) fn add_new_output(&mut self, address: &Address) {
+        self.tx_output_proposals.push(TxOutputProposal::new(address));
+    }
+
+    pub(super) fn add_asset(&mut self, asset: &AssetIndex, policy_index: &PolicyIndex) {
+        self.used_assets.insert(asset.clone());
+        if let Some(output) = self.tx_output_proposals.last_mut() {
+            output.add_asset(asset, policy_index);
+        }
+    }
+
+    pub(super) fn add_utxo(&mut self, utxo: &UtxoIndex, ada_coins: &Coin, address: &Address) -> Result<(), JsError> {
+        self.used_utoxs.insert(utxo.clone());
+        self.total_ada = self.total_ada.checked_add(ada_coins)?;
+        self.witnesses_calculator.add_address(address);
+        Ok(())
+    }
+
+    pub(super) fn is_empty(&self) -> bool {
+        self.used_utoxs.is_empty()
+    }
+
+    pub(super) fn get_used_utoxs(&self) -> &HashSet<UtxoIndex> {
+        &self.used_utoxs
+    }
+
+    pub(super) fn get_used_assets(&self) -> &HashSet<AssetIndex> {
+        &self.used_assets
+    }
+
+    pub(super) fn get_total_ada(&self) -> &Coin {
+        &self.total_ada
+    }
+
+    pub(super) fn get_outputs(&self) -> &Vec<TxOutputProposal> {
+        &self.tx_output_proposals
+    }
+
+    pub(super) fn get_outputs_mut(&mut self) -> &mut Vec<TxOutputProposal> {
+        &mut self.tx_output_proposals
+    }
+
+    pub(super) fn get_fee(&self) -> &Coin {
+        &self.fee
+    }
+
+    pub(super) fn set_fee(&mut self, fee: &Coin) {
+        self.fee = fee.clone();
+    }
+
+    pub(super) fn get_size(&self) -> usize {
+        self.size
+    }
+
+    pub(super) fn set_size(&mut self, size: usize) {
+        self.size = size;
+    }
+
+    pub(super) fn get_min_ada_for_ouputs(&self) -> Result<Coin, JsError> {
+        self.tx_output_proposals.iter()
+            .map(|output| output.get_min_ada())
+            .try_fold(Coin::zero(), |acc, ada| acc.checked_add(&ada))
+    }
+
+    pub(super) fn get_total_ada_for_ouputs(&self) -> Result<Coin, JsError> {
+        self.tx_output_proposals.iter()
+            .map(|output| output.get_total_ada())
+            .try_fold(Coin::zero(), |acc, ada| acc.checked_add(&ada))
+    }
+
+    pub(super) fn get_need_ada(&self) -> Result<Coin, JsError> {
+        let need_ada = self.get_total_ada_for_ouputs()?
+            .checked_add(&self.fee)?;
+        if need_ada > self.total_ada {
+            need_ada.checked_sub(&self.total_ada)
+        } else {
+            Ok(Coin::zero())
+        }
+    }
+
+    pub(super) fn get_unsed_ada(&self) -> Result<Coin, JsError> {
+        let need_ada = self.get_total_ada_for_ouputs()?
+            .checked_add(&self.fee)?;
+        if need_ada < self.total_ada {
+            return Ok(self.total_ada.checked_sub(&need_ada)?);
+        } else {
+            return Ok(Coin::zero());
+        }
+    }
+
+    pub(crate) fn add_last_ada_to_last_output(&mut self) -> Result<(), JsError> {
+        let unsued_ada = self.get_unsed_ada()?;
+        if let Some(output) = self.tx_output_proposals.last_mut() {
+            output.add_ada(&unsued_ada)?;
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn create_tx(&self, asset_groups: &AssetCategorizer, utxos: &TransactionUnspentOutputs)
+                            -> Result<Transaction, JsError> {
         let witnesses = TransactionWitnessSet::new();
         let mut outputs = Vec::new();
         for proposal in &self.tx_output_proposals {
-            outputs.push(proposal.create_output(asset_groups, self.used_utoxs));
+            outputs.push(proposal.create_output(asset_groups, &self.used_utoxs)?);
         }
 
         let mut inputs = Vec::new();
@@ -63,17 +219,17 @@ impl TxProposal {
         }
 
         let body = TransactionBody::new(
-            TransactionInputs(inputs),
-            TransactionOutputs(outputs),
-            self.fee,
+            &TransactionInputs(inputs),
+            &TransactionOutputs(outputs),
+            &self.fee,
             None,
         );
-        let mut tx = Transaction::new(
-            body,
-            witnesses,
-            None
+        let tx = Transaction::new(
+            &body,
+            &witnesses,
+            None,
         );
 
-        return tx;
+        Ok(tx)
     }
 }

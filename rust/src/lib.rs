@@ -56,6 +56,7 @@ pub mod typed_bytes;
 pub mod utils;
 mod fakes;
 mod serialization_macros;
+mod serialization_tools;
 
 use crate::traits::NoneOrEmpty;
 use address::*;
@@ -3242,7 +3243,7 @@ impl HeaderBody {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct AssetName(Vec<u8>);
 
 impl Ord for AssetName {

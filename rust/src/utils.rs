@@ -248,6 +248,10 @@ impl BigNum {
     pub fn less_than(&self, rhs_value: &BigNum) -> bool {
         self.compare(rhs_value) < 0
     }
+
+    pub fn max_value() -> BigNum {
+        BigNum(u64::max_value())
+    }
 }
 
 impl TryFrom<BigNum> for u32 {

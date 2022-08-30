@@ -23,9 +23,10 @@ impl UtxosStat {
             utxos_stat.assets_in_policy.insert(policy_index.clone(), assets.len());
         }
 
-        for ((asset_index, utxo_index), amount) in amounts {
+        for ((asset_index, _ ), amount) in amounts {
             if let Some(coins) = utxos_stat.coins_in_assets.get(asset_index) {
-                utxos_stat.coins_in_assets.insert(asset_index.clone(), coins.checked_add(amount)?);
+                let new_total = coins.checked_add(amount)?;
+                utxos_stat.coins_in_assets.insert(asset_index.clone(), new_total);
             } else {
                 utxos_stat.coins_in_assets.insert(asset_index.clone(), amount.clone());
             }
