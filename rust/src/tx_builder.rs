@@ -355,7 +355,7 @@ pub struct TransactionBuilder {
     required_signers: Ed25519KeyHashes,
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
-    reference_inputs: TransactionInputs,
+    reference_inputs: HashSet<TransactionInput>,
 }
 
 #[wasm_bindgen]
@@ -757,7 +757,7 @@ impl TransactionBuilder {
     }
 
     pub fn add_reference_input(&mut self, reference_input: &TransactionInput) {
-        self.reference_inputs.add(reference_input);
+        self.reference_inputs.insert(reference_input.clone());
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -1196,12 +1196,18 @@ impl TransactionBuilder {
             required_signers: Ed25519KeyHashes::new(),
             collateral_return: None,
             total_collateral: None,
-            reference_inputs: TransactionInputs::new(),
+            reference_inputs: HashSet::new(),
         }
     }
 
     pub fn get_reference_inputs(&self) -> TransactionInputs {
-        self.reference_inputs.clone()
+        let mut inputs = self.reference_inputs.clone();
+        for input in self.inputs.get_ref_inputs().0 {
+            inputs.insert(input);
+        }
+
+        let vec_inputs = inputs.into_iter().collect();
+        TransactionInputs(vec_inputs)
     }
 
     /// does not include refunds or withdrawals
@@ -1699,7 +1705,7 @@ impl TransactionBuilder {
             network_id: None,
             collateral_return: self.collateral_return.clone(),
             total_collateral: self.total_collateral.clone(),
-            reference_inputs: self.reference_inputs.to_option(),
+            reference_inputs: self.get_reference_inputs().to_option(),
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;

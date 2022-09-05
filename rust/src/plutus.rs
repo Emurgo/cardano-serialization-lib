@@ -386,7 +386,7 @@ impl Costmdls {
         serializer.finalize()
     }
 
-    pub(crate) fn retain_language_versions(&self, languages: Vec<Language>) -> Costmdls {
+    pub fn retain_language_versions(&self, languages: Vec<Language>) -> Costmdls {
         let mut result = Costmdls::new();
         for lang in languages {
             match self.get(&lang) {
