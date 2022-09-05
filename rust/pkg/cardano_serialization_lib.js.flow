@@ -1872,6 +1872,12 @@ declare export class Costmdls {
    * @returns {Languages}
    */
   keys(): Languages;
+
+  /**
+   * @param {Languages} languages
+   * @returns {Costmdls}
+   */
+  retain_language_versions(languages: Languages): Costmdls;
 }
 /**
  */
@@ -2011,6 +2017,23 @@ declare export class DataHash {
    * @returns {DataHash}
    */
   static from_hex(hex: string): DataHash;
+}
+/**
+ */
+declare export class DatumSource {
+  free(): void;
+
+  /**
+   * @param {PlutusData} datum
+   * @returns {DatumSource}
+   */
+  static new(datum: PlutusData): DatumSource;
+
+  /**
+   * @param {TransactionInput} input
+   * @returns {DatumSource}
+   */
+  static new_ref_input(input: TransactionInput): DatumSource;
 }
 /**
  */
@@ -4477,6 +4500,27 @@ declare export class PlutusScript {
 }
 /**
  */
+declare export class PlutusScriptSource {
+  free(): void;
+
+  /**
+   * @param {PlutusScript} script
+   * @returns {PlutusScriptSource}
+   */
+  static new(script: PlutusScript): PlutusScriptSource;
+
+  /**
+   * @param {ScriptHash} script_hash
+   * @param {TransactionInput} input
+   * @returns {PlutusScriptSource}
+   */
+  static new_ref_input(
+    script_hash: ScriptHash,
+    input: TransactionInput
+  ): PlutusScriptSource;
+}
+/**
+ */
 declare export class PlutusScripts {
   free(): void;
 
@@ -4529,22 +4573,6 @@ declare export class PlutusWitness {
   free(): void;
 
   /**
-   * @returns {string}
-   */
-  to_json(): string;
-
-  /**
-   * @returns {PlutusWitnessJSON}
-   */
-  to_js_value(): PlutusWitnessJSON;
-
-  /**
-   * @param {string} json
-   * @returns {PlutusWitness}
-   */
-  static from_json(json: string): PlutusWitness;
-
-  /**
    * @param {PlutusScript} script
    * @param {PlutusData} datum
    * @param {Redeemer} redeemer
@@ -4557,14 +4585,26 @@ declare export class PlutusWitness {
   ): PlutusWitness;
 
   /**
-   * @returns {PlutusScript}
+   * @param {PlutusScriptSource} script
+   * @param {DatumSource} datum
+   * @param {Redeemer} redeemer
+   * @returns {PlutusWitness}
    */
-  script(): PlutusScript;
+  static new_with_ref(
+    script: PlutusScriptSource,
+    datum: DatumSource,
+    redeemer: Redeemer
+  ): PlutusWitness;
 
   /**
-   * @returns {PlutusData}
+   * @returns {PlutusScript | void}
    */
-  datum(): PlutusData;
+  script(): PlutusScript | void;
+
+  /**
+   * @returns {PlutusData | void}
+   */
+  datum(): PlutusData | void;
 
   /**
    * @returns {Redeemer}
@@ -4575,22 +4615,6 @@ declare export class PlutusWitness {
  */
 declare export class PlutusWitnesses {
   free(): void;
-
-  /**
-   * @returns {string}
-   */
-  to_json(): string;
-
-  /**
-   * @returns {PlutusWitnessesJSON}
-   */
-  to_js_value(): PlutusWitnessesJSON;
-
-  /**
-   * @param {string} json
-   * @returns {PlutusWitnesses}
-   */
-  static from_json(json: string): PlutusWitnesses;
 
   /**
    * @returns {PlutusWitnesses}
@@ -8993,6 +9017,11 @@ declare export class TxInputsBuilder {
   add_required_plutus_input_scripts(scripts: PlutusWitnesses): number;
 
   /**
+   * @returns {TransactionInputs}
+   */
+  get_ref_inputs(): TransactionInputs;
+
+  /**
    * Returns a copy of the current script input witness scripts in the builder
    * @returns {NativeScripts | void}
    */
@@ -10016,6 +10045,7 @@ export interface ProtocolVersionJSON {
   major: number;
   minor: number;
 }
+export type ProtocolVersionsJSON = ProtocolVersionJSON[];
 export type PublicKeyJSON = string;
 export interface RedeemerJSON {
   data: PlutusDataJSON;
