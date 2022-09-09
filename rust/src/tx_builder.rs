@@ -1098,7 +1098,12 @@ impl TransactionBuilder {
             .map(|m| m.get(&policy_id).as_ref().cloned())
             .unwrap_or(None)
             .unwrap_or(MintAssets::new());
-        asset.insert(asset_name, amount);
+        if let Some(mint_amount) = asset.get(asset_name) {
+            let new_amount = mint_amount.0 + amount.0;
+            asset.insert(asset_name, Int(new_amount));
+        } else {
+            asset.insert(asset_name, amount);
+        }
         self._set_mint_asset(&policy_id, policy_script, &asset);
     }
 
