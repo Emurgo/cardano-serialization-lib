@@ -210,14 +210,14 @@ pub struct TransactionBuilderConfig {
     key_deposit: Coin,                    // protocol parameter
     max_value_size: u32,                  // protocol parameter
     max_tx_size: u32,                     // protocol parameter
-    coins_per_utxo_byte: Coin,            // protocol parameter
+    data_cost: DataCost,                  // protocol parameter
     ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     prefer_pure_change: bool,
 }
 
 impl TransactionBuilderConfig {
     fn utxo_cost(&self) -> DataCost {
-        DataCost::new_coins_per_byte(&self.coins_per_utxo_byte)
+        self.data_cost.clone()
     }
 }
 
@@ -229,7 +229,7 @@ pub struct TransactionBuilderConfigBuilder {
     key_deposit: Option<Coin>,            // protocol parameter
     max_value_size: Option<u32>,          // protocol parameter
     max_tx_size: Option<u32>,             // protocol parameter
-    coins_per_utxo_byte: Option<Coin>,    // protocol parameter
+    data_cost: Option<DataCost>,          // protocol parameter
     ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     prefer_pure_change: bool,
 }
@@ -243,7 +243,7 @@ impl TransactionBuilderConfigBuilder {
             key_deposit: None,
             max_value_size: None,
             max_tx_size: None,
-            coins_per_utxo_byte: None,
+            data_cost: None,
             ex_unit_prices: None,
             prefer_pure_change: false,
         }
@@ -262,14 +262,14 @@ impl TransactionBuilderConfigBuilder {
         note = "Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead."
     )]
     pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {
-        self.coins_per_utxo_byte(
-            &DataCost::new_coins_per_word(coins_per_utxo_word).coins_per_byte(),
-        )
+        let mut cfg = self.clone();
+        cfg.data_cost = Some(DataCost::new_coins_per_word(coins_per_utxo_word));
+        cfg
     }
 
     pub fn coins_per_utxo_byte(&self, coins_per_utxo_byte: &Coin) -> Self {
         let mut cfg = self.clone();
-        cfg.coins_per_utxo_byte = Some(coins_per_utxo_byte.clone());
+        cfg.data_cost = Some(DataCost::new_coins_per_byte(coins_per_utxo_byte));
         cfg
     }
 
@@ -327,8 +327,8 @@ impl TransactionBuilderConfigBuilder {
             max_tx_size: cfg
                 .max_tx_size
                 .ok_or(JsError::from_str("uninitialized field: max_tx_size"))?,
-            coins_per_utxo_byte: cfg.coins_per_utxo_byte.ok_or(JsError::from_str(
-                "uninitialized field: coins_per_utxo_byte",
+            data_cost: cfg.data_cost.ok_or(JsError::from_str(
+                "uninitialized field: coins_per_utxo_byte or coins_per_utxo_word",
             ))?,
             ex_unit_prices: cfg.ex_unit_prices,
             prefer_pure_change: cfg.prefer_pure_change,
@@ -1098,7 +1098,12 @@ impl TransactionBuilder {
             .map(|m| m.get(&policy_id).as_ref().cloned())
             .unwrap_or(None)
             .unwrap_or(MintAssets::new());
-        asset.insert(asset_name, amount);
+        if let Some(mint_amount) = asset.get(asset_name) {
+            let new_amount = mint_amount.0 + amount.0;
+            asset.insert(asset_name, Int(new_amount));
+        } else {
+            asset.insert(asset_name, amount);
+        }
         self._set_mint_asset(&policy_id, policy_script, &asset);
     }
 
@@ -1844,10 +1849,7 @@ impl TransactionBuilder {
 mod tests {
     use super::output_builder::TransactionOutputBuilder;
     use super::*;
-    use crate::fakes::{
-        fake_base_address, fake_bytes_32, fake_key_hash, fake_tx_hash, fake_tx_input,
-        fake_tx_input2, fake_value, fake_value2,
-    };
+    use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_policy_id, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2};
     use crate::tx_builder_constants::TxBuilderConstants;
     use fees::*;
 
@@ -3561,9 +3563,9 @@ mod tests {
 
     fn create_multiasset() -> (MultiAsset, [ScriptHash; 3], [AssetName; 3]) {
         let policy_ids = [
-            PolicyID::from([0u8; 28]),
-            PolicyID::from([1u8; 28]),
-            PolicyID::from([2u8; 28]),
+            fake_policy_id(0),
+            fake_policy_id(1),
+            fake_policy_id(2),
         ];
         let names = [
             AssetName::new(vec![99u8; 32]).unwrap(),

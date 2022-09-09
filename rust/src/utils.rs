@@ -31,38 +31,16 @@ pub fn from_bytes<T: Deserialize>(data: &Vec<u8>) -> Result<T, DeserializeError>
     T::deserialize(&mut raw)
 }
 
-#[macro_export]
-macro_rules! to_from_json {
-    ($name:ident) => {
-        #[wasm_bindgen]
-        impl $name {
-            pub fn to_json(&self) -> Result<String, JsError> {
-                serde_json::to_string_pretty(&self)
-                    .map_err(|e| JsError::from_str(&format!("to_json: {}", e)))
-            }
 
-            #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-            pub fn to_js_value(&self) -> Result<JsValue, JsError> {
-                JsValue::from_serde(&self)
-                    .map_err(|e| JsError::from_str(&format!("to_js_value: {}", e)))
-            }
-
-            pub fn from_json(json: &str) -> Result<$name, JsError> {
-                serde_json::from_str(json)
-                    .map_err(|e| JsError::from_str(&format!("from_json: {}", e)))
-            }
-        }
-    };
-}
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, JsonSchema,)]
 pub struct TransactionUnspentOutput {
     pub(crate) input: TransactionInput,
     pub(crate) output: TransactionOutput,
 }
 
-to_from_bytes!(TransactionUnspentOutput);
+impl_to_from!(TransactionUnspentOutput);
 
 #[wasm_bindgen]
 impl TransactionUnspentOutput {
@@ -169,7 +147,7 @@ impl TransactionUnspentOutputs {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BigNum(u64);
 
-to_from_bytes!(BigNum);
+impl_to_from!(BigNum);
 
 impl std::fmt::Display for BigNum {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -374,9 +352,7 @@ pub struct Value {
     pub(crate) multiasset: Option<MultiAsset>,
 }
 
-to_from_bytes!(Value);
-
-to_from_json!(Value);
+impl_to_from!(Value);
 
 #[wasm_bindgen]
 impl Value {
@@ -614,7 +590,7 @@ impl Deserialize for Value {
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Int(pub(crate) i128);
 
-to_from_bytes!(Int);
+impl_to_from!(Int);
 
 #[wasm_bindgen]
 impl Int {
@@ -886,7 +862,7 @@ pub(crate) fn read_bounded_bytes<R: BufRead + Seek>(
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BigInt(num_bigint::BigInt);
 
-to_from_bytes!(BigInt);
+impl_to_from!(BigInt);
 
 impl serde::Serialize for BigInt {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -1463,17 +1439,19 @@ impl MinOutputAdaCalculator {
 
     pub fn calculate_ada(&self) -> Result<BigNum, JsError> {
         let coins_per_byte = self.data_cost.coins_per_byte();
+        // <TODO:REMOVE_AFTER_BABBAGE>
+        let coins_per_word = self.data_cost.coins_per_word()?;
         let mut output: TransactionOutput = self.output.clone();
         fn calc_required_coin(
             output: &TransactionOutput,
             coins_per_byte: &Coin,
+            coins_per_word: &Coin,
         ) -> Result<Coin, JsError> {
+            // <TODO:REMOVE_AFTER_BABBAGE>
             let legacy_coin = _min_ada_required_legacy(
                 &output.amount(),
                 output.has_data_hash(),
-                &coins_per_byte
-                    .checked_add(&BigNum::one())?
-                    .checked_mul(&BigNum::from_str("8")?)?
+                coins_per_word,
             )?;
             //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
             //See on the page 9 getValue txout
@@ -1483,7 +1461,7 @@ impl MinOutputAdaCalculator {
             Ok(BigNum::max(&result, &legacy_coin))
         }
         for _ in 0..3 {
-            let required_coin = calc_required_coin(&output, &coins_per_byte)?;
+            let required_coin = calc_required_coin(&output, &coins_per_byte, &coins_per_word)?;
             if output.amount.coin.less_than(&required_coin) {
                 output.amount.coin = required_coin.clone();
             } else {
@@ -1491,7 +1469,7 @@ impl MinOutputAdaCalculator {
             }
         }
         output.amount.coin = to_bignum(u64::MAX);
-        calc_required_coin(&output, &coins_per_byte)
+        calc_required_coin(&output, &coins_per_byte, &coins_per_word)
     }
 
     fn create_fake_output() -> Result<TransactionOutput, JsError> {

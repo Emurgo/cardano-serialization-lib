@@ -103,3 +103,35 @@ macro_rules! to_from_bytes {
         from_hex!($name);
     };
 }
+
+#[macro_export]
+macro_rules! to_from_json {
+    ($name:ident) => {
+        #[wasm_bindgen]
+        impl $name {
+            pub fn to_json(&self) -> Result<String, JsError> {
+                serde_json::to_string_pretty(&self)
+                    .map_err(|e| JsError::from_str(&format!("to_json: {}", e)))
+            }
+
+            #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+            pub fn to_js_value(&self) -> Result<JsValue, JsError> {
+                serde_wasm_bindgen::to_value(&self)
+                    .map_err(|e| JsError::from_str(&format!("to_js_value: {}", e)))
+            }
+
+            pub fn from_json(json: &str) -> Result<$name, JsError> {
+                serde_json::from_str(json)
+                    .map_err(|e| JsError::from_str(&format!("from_json: {}", e)))
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_to_from {
+    ($name:ident) => {
+        to_from_bytes!($name);
+        to_from_json!($name);
+    };
+}

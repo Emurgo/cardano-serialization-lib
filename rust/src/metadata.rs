@@ -283,9 +283,7 @@ pub struct GeneralTransactionMetadata(
     LinkedHashMap<TransactionMetadatumLabel, TransactionMetadatum>,
 );
 
-to_from_bytes!(GeneralTransactionMetadata);
-
-to_from_json!(GeneralTransactionMetadata);
+impl_to_from!(GeneralTransactionMetadata);
 
 #[wasm_bindgen]
 impl GeneralTransactionMetadata {
@@ -374,9 +372,7 @@ impl std::cmp::PartialEq<Self> for AuxiliaryData {
 
 impl std::cmp::Eq for AuxiliaryData {}
 
-to_from_bytes!(AuxiliaryData);
-
-to_from_json!(AuxiliaryData);
+impl_to_from!(AuxiliaryData);
 
 #[wasm_bindgen]
 impl AuxiliaryData {
