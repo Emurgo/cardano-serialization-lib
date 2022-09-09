@@ -66,6 +66,8 @@ use plutus::*;
 use schemars::JsonSchema;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
+use std::fmt::Display;
+use std::fmt;
 use utils::*;
 
 type DeltaCoin = Int;
@@ -3255,6 +3257,12 @@ impl HeaderBody {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AssetName(Vec<u8>);
+
+impl Display for AssetName {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", hex::encode(&self.0))
+    }
+}
 
 impl Ord for AssetName {
     fn cmp(&self, other: &Self) -> Ordering {
