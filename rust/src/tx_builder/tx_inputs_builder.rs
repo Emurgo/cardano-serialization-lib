@@ -17,8 +17,6 @@ pub struct PlutusWitness {
     redeemer: Redeemer,
 }
 
-to_from_json!(PlutusWitness);
-
 #[wasm_bindgen]
 impl PlutusWitness {
     pub fn new(script: &PlutusScript, datum: &PlutusData, redeemer: &Redeemer) -> Self {
@@ -55,8 +53,6 @@ impl PlutusWitness {
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct PlutusWitnesses(pub(crate) Vec<PlutusWitness>);
-
-to_from_json!(PlutusWitnesses);
 
 #[wasm_bindgen]
 impl PlutusWitnesses {

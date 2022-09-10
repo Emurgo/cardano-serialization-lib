@@ -81,9 +81,7 @@ pub struct UnitInterval {
     denominator: BigNum,
 }
 
-to_from_bytes!(UnitInterval);
-
-to_from_json!(UnitInterval);
+impl_to_from!(UnitInterval);
 
 #[wasm_bindgen]
 impl UnitInterval {
@@ -118,9 +116,7 @@ pub struct Transaction {
     auxiliary_data: Option<AuxiliaryData>,
 }
 
-to_from_bytes!(Transaction);
-
-to_from_json!(Transaction);
+impl_to_from!(Transaction);
 
 #[wasm_bindgen]
 impl Transaction {
@@ -169,9 +165,7 @@ type CertificateIndex = u32;
 )]
 pub struct TransactionInputs(Vec<TransactionInput>);
 
-to_from_bytes!(TransactionInputs);
-
-to_from_json!(TransactionInputs);
+impl_to_from!(TransactionInputs);
 
 #[wasm_bindgen]
 impl TransactionInputs {
@@ -204,9 +198,7 @@ impl TransactionInputs {
 #[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionOutputs(Vec<TransactionOutput>);
 
-to_from_bytes!(TransactionOutputs);
-
-to_from_json!(TransactionOutputs);
+impl_to_from!(TransactionOutputs);
 
 #[wasm_bindgen]
 impl TransactionOutputs {
@@ -285,9 +277,7 @@ impl DataCost {
 )]
 pub struct Certificates(Vec<Certificate>);
 
-to_from_bytes!(Certificates);
-
-to_from_json!(Certificates);
+impl_to_from!(Certificates);
 
 #[wasm_bindgen]
 impl Certificates {
@@ -342,9 +332,7 @@ pub struct TransactionBody {
     reference_inputs: Option<TransactionInputs>,
 }
 
-to_from_bytes!(TransactionBody);
-
-to_from_json!(TransactionBody);
+impl_to_from!(TransactionBody);
 
 #[wasm_bindgen]
 impl TransactionBody {
@@ -587,9 +575,7 @@ pub struct TransactionInput {
     index: TransactionIndex,
 }
 
-to_from_bytes!(TransactionInput);
-
-to_from_json!(TransactionInput);
+impl_to_from!(TransactionInput);
 
 #[wasm_bindgen]
 impl TransactionInput {
@@ -620,9 +606,7 @@ pub struct TransactionOutput {
     script_ref: Option<ScriptRef>,
 }
 
-to_from_bytes!(TransactionOutput);
-
-to_from_json!(TransactionOutput);
+impl_to_from!(TransactionOutput);
 
 #[wasm_bindgen]
 impl TransactionOutput {
@@ -700,9 +684,7 @@ pub struct StakeRegistration {
     stake_credential: StakeCredential,
 }
 
-to_from_bytes!(StakeRegistration);
-
-to_from_json!(StakeRegistration);
+impl_to_from!(StakeRegistration);
 
 #[wasm_bindgen]
 impl StakeRegistration {
@@ -725,9 +707,7 @@ pub struct StakeDeregistration {
     stake_credential: StakeCredential,
 }
 
-to_from_bytes!(StakeDeregistration);
-
-to_from_json!(StakeDeregistration);
+impl_to_from!(StakeDeregistration);
 
 #[wasm_bindgen]
 impl StakeDeregistration {
@@ -751,9 +731,7 @@ pub struct StakeDelegation {
     pool_keyhash: Ed25519KeyHash,
 }
 
-to_from_bytes!(StakeDelegation);
-
-to_from_json!(StakeDelegation);
+impl_to_from!(StakeDelegation);
 
 #[wasm_bindgen]
 impl StakeDelegation {
@@ -779,9 +757,7 @@ impl StakeDelegation {
 )]
 pub struct Ed25519KeyHashes(Vec<Ed25519KeyHash>);
 
-to_from_bytes!(Ed25519KeyHashes);
-
-to_from_json!(Ed25519KeyHashes);
+impl_to_from!(Ed25519KeyHashes);
 
 #[wasm_bindgen]
 impl Ed25519KeyHashes {
@@ -816,9 +792,7 @@ impl Ed25519KeyHashes {
 )]
 pub struct Relays(Vec<Relay>);
 
-to_from_bytes!(Relays);
-
-to_from_json!(Relays);
+impl_to_from!(Relays);
 
 #[wasm_bindgen]
 impl Relays {
@@ -855,9 +829,7 @@ pub struct PoolParams {
     pool_metadata: Option<PoolMetadata>,
 }
 
-to_from_bytes!(PoolParams);
-
-to_from_json!(PoolParams);
+impl_to_from!(PoolParams);
 
 #[wasm_bindgen]
 impl PoolParams {
@@ -930,9 +902,7 @@ pub struct PoolRegistration {
     pool_params: PoolParams,
 }
 
-to_from_bytes!(PoolRegistration);
-
-to_from_json!(PoolRegistration);
+impl_to_from!(PoolRegistration);
 
 #[wasm_bindgen]
 impl PoolRegistration {
@@ -956,9 +926,7 @@ pub struct PoolRetirement {
     epoch: Epoch,
 }
 
-to_from_bytes!(PoolRetirement);
-
-to_from_json!(PoolRetirement);
+impl_to_from!(PoolRetirement);
 
 #[wasm_bindgen]
 impl PoolRetirement {
@@ -988,9 +956,7 @@ pub struct GenesisKeyDelegation {
     vrf_keyhash: VRFKeyHash,
 }
 
-to_from_bytes!(GenesisKeyDelegation);
-
-to_from_json!(GenesisKeyDelegation);
+impl_to_from!(GenesisKeyDelegation);
 
 #[wasm_bindgen]
 impl GenesisKeyDelegation {
@@ -1027,9 +993,7 @@ pub struct MoveInstantaneousRewardsCert {
     move_instantaneous_reward: MoveInstantaneousReward,
 }
 
-to_from_bytes!(MoveInstantaneousRewardsCert);
-
-to_from_json!(MoveInstantaneousRewardsCert);
+impl_to_from!(MoveInstantaneousRewardsCert);
 
 #[wasm_bindgen]
 impl MoveInstantaneousRewardsCert {
@@ -1075,9 +1039,7 @@ pub enum CertificateEnum {
 )]
 pub struct Certificate(CertificateEnum);
 
-to_from_bytes!(Certificate);
-
-to_from_json!(Certificate);
+impl_to_from!(Certificate);
 
 #[wasm_bindgen]
 impl Certificate {
@@ -1224,9 +1186,7 @@ pub struct MIRToStakeCredentials {
     rewards: linked_hash_map::LinkedHashMap<StakeCredential, DeltaCoin>,
 }
 
-to_from_bytes!(MIRToStakeCredentials);
-
-to_from_json!(MIRToStakeCredentials);
+impl_to_from!(MIRToStakeCredentials);
 
 #[wasm_bindgen]
 impl MIRToStakeCredentials {
@@ -1306,9 +1266,7 @@ pub struct MoveInstantaneousReward {
     variant: MIREnum,
 }
 
-to_from_bytes!(MoveInstantaneousReward);
-
-to_from_json!(MoveInstantaneousReward);
+impl_to_from!(MoveInstantaneousReward);
 
 #[wasm_bindgen]
 impl MoveInstantaneousReward {
@@ -1360,9 +1318,7 @@ type Port = u16;
 )]
 pub struct Ipv4([u8; 4]);
 
-to_from_bytes!(Ipv4);
-
-to_from_json!(Ipv4);
+impl_to_from!(Ipv4);
 
 #[wasm_bindgen]
 impl Ipv4 {
@@ -1392,9 +1348,7 @@ impl Ipv4 {
 )]
 pub struct Ipv6([u8; 16]);
 
-to_from_bytes!(Ipv6);
-
-to_from_json!(Ipv6);
+impl_to_from!(Ipv6);
 
 #[wasm_bindgen]
 impl Ipv6 {
@@ -1426,7 +1380,7 @@ static URL_MAX_LEN: usize = 64;
 )]
 pub struct URL(String);
 
-to_from_bytes!(URL);
+impl_to_from!(URL);
 
 #[wasm_bindgen]
 impl URL {
@@ -1462,7 +1416,7 @@ static DNS_NAME_MAX_LEN: usize = 64;
 )]
 pub struct DNSRecordAorAAAA(String);
 
-to_from_bytes!(DNSRecordAorAAAA);
+impl_to_from!(DNSRecordAorAAAA);
 
 #[wasm_bindgen]
 impl DNSRecordAorAAAA {
@@ -1496,7 +1450,7 @@ impl DNSRecordAorAAAA {
 )]
 pub struct DNSRecordSRV(String);
 
-to_from_bytes!(DNSRecordSRV);
+impl_to_from!(DNSRecordSRV);
 
 #[wasm_bindgen]
 impl DNSRecordSRV {
@@ -1534,9 +1488,7 @@ pub struct SingleHostAddr {
     ipv6: Option<Ipv6>,
 }
 
-to_from_bytes!(SingleHostAddr);
-
-to_from_json!(SingleHostAddr);
+impl_to_from!(SingleHostAddr);
 
 #[wasm_bindgen]
 impl SingleHostAddr {
@@ -1570,9 +1522,7 @@ pub struct SingleHostName {
     dns_name: DNSRecordAorAAAA,
 }
 
-to_from_bytes!(SingleHostName);
-
-to_from_json!(SingleHostName);
+impl_to_from!(SingleHostName);
 
 #[wasm_bindgen]
 impl SingleHostName {
@@ -1600,9 +1550,7 @@ pub struct MultiHostName {
     dns_name: DNSRecordSRV,
 }
 
-to_from_bytes!(MultiHostName);
-
-to_from_json!(MultiHostName);
+impl_to_from!(MultiHostName);
 
 #[wasm_bindgen]
 impl MultiHostName {
@@ -1640,9 +1588,7 @@ pub enum RelayEnum {
 )]
 pub struct Relay(RelayEnum);
 
-to_from_bytes!(Relay);
-
-to_from_json!(Relay);
+impl_to_from!(Relay);
 
 #[wasm_bindgen]
 impl Relay {
@@ -1697,9 +1643,7 @@ pub struct PoolMetadata {
     pool_metadata_hash: PoolMetadataHash,
 }
 
-to_from_bytes!(PoolMetadata);
-
-to_from_json!(PoolMetadata);
+impl_to_from!(PoolMetadata);
 
 #[wasm_bindgen]
 impl PoolMetadata {
@@ -1725,9 +1669,7 @@ impl PoolMetadata {
 )]
 pub struct StakeCredentials(Vec<StakeCredential>);
 
-to_from_bytes!(StakeCredentials);
-
-to_from_json!(StakeCredentials);
+impl_to_from!(StakeCredentials);
 
 #[wasm_bindgen]
 impl StakeCredentials {
@@ -1754,9 +1696,7 @@ impl StakeCredentials {
 )]
 pub struct RewardAddresses(Vec<RewardAddress>);
 
-to_from_bytes!(RewardAddresses);
-
-to_from_json!(RewardAddresses);
+impl_to_from!(RewardAddresses);
 
 #[wasm_bindgen]
 impl RewardAddresses {
@@ -1781,9 +1721,7 @@ impl RewardAddresses {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Withdrawals(linked_hash_map::LinkedHashMap<RewardAddress, Coin>);
 
-to_from_bytes!(Withdrawals);
-
-to_from_json!(Withdrawals);
+impl_to_from!(Withdrawals);
 
 #[wasm_bindgen]
 impl Withdrawals {
@@ -1858,9 +1796,7 @@ pub struct TransactionWitnessSet {
     redeemers: Option<Redeemers>,
 }
 
-to_from_bytes!(TransactionWitnessSet);
-
-to_from_json!(TransactionWitnessSet);
+impl_to_from!(TransactionWitnessSet);
 
 #[wasm_bindgen]
 impl TransactionWitnessSet {
@@ -1932,9 +1868,7 @@ pub struct ScriptPubkey {
     addr_keyhash: Ed25519KeyHash,
 }
 
-to_from_bytes!(ScriptPubkey);
-
-to_from_json!(ScriptPubkey);
+impl_to_from!(ScriptPubkey);
 
 #[wasm_bindgen]
 impl ScriptPubkey {
@@ -1957,9 +1891,7 @@ pub struct ScriptAll {
     native_scripts: NativeScripts,
 }
 
-to_from_bytes!(ScriptAll);
-
-to_from_json!(ScriptAll);
+impl_to_from!(ScriptAll);
 
 #[wasm_bindgen]
 impl ScriptAll {
@@ -1982,9 +1914,7 @@ pub struct ScriptAny {
     native_scripts: NativeScripts,
 }
 
-to_from_bytes!(ScriptAny);
-
-to_from_json!(ScriptAny);
+impl_to_from!(ScriptAny);
 
 #[wasm_bindgen]
 impl ScriptAny {
@@ -2008,9 +1938,7 @@ pub struct ScriptNOfK {
     native_scripts: NativeScripts,
 }
 
-to_from_bytes!(ScriptNOfK);
-
-to_from_json!(ScriptNOfK);
+impl_to_from!(ScriptNOfK);
 
 #[wasm_bindgen]
 impl ScriptNOfK {
@@ -2038,9 +1966,7 @@ pub struct TimelockStart {
     slot: SlotBigNum,
 }
 
-to_from_bytes!(TimelockStart);
-
-to_from_json!(TimelockStart);
+impl_to_from!(TimelockStart);
 
 #[wasm_bindgen]
 impl TimelockStart {
@@ -2084,9 +2010,7 @@ pub struct TimelockExpiry {
     slot: SlotBigNum,
 }
 
-to_from_bytes!(TimelockExpiry);
-
-to_from_json!(TimelockExpiry);
+impl_to_from!(TimelockExpiry);
 
 #[wasm_bindgen]
 impl TimelockExpiry {
@@ -2153,8 +2077,7 @@ pub enum ScriptRefEnum {
 )]
 pub struct ScriptRef(ScriptRefEnum);
 
-to_from_bytes!(ScriptRef);
-to_from_json!(ScriptRef);
+impl_to_from!(ScriptRef);
 
 #[wasm_bindgen]
 impl ScriptRef {
@@ -2209,9 +2132,7 @@ pub enum DataOption {
 )]
 pub struct NativeScript(NativeScriptEnum);
 
-to_from_bytes!(NativeScript);
-
-to_from_json!(NativeScript);
+impl_to_from!(NativeScript);
 
 /// Each new language uses a different namespace for hashing its script
 /// This is because you could have a language where the same bytes have different semantics
@@ -2373,9 +2294,7 @@ pub struct Update {
     epoch: Epoch,
 }
 
-to_from_bytes!(Update);
-
-to_from_json!(Update);
+impl_to_from!(Update);
 
 #[wasm_bindgen]
 impl Update {
@@ -2404,9 +2323,7 @@ impl Update {
 )]
 pub struct GenesisHashes(Vec<GenesisHash>);
 
-to_from_bytes!(GenesisHashes);
-
-to_from_json!(GenesisHashes);
+impl_to_from!(GenesisHashes);
 
 #[wasm_bindgen]
 impl GenesisHashes {
@@ -2433,9 +2350,7 @@ impl GenesisHashes {
 )]
 pub struct ScriptHashes(pub(crate) Vec<ScriptHash>);
 
-to_from_bytes!(ScriptHashes);
-
-to_from_json!(ScriptHashes);
+impl_to_from!(ScriptHashes);
 
 #[wasm_bindgen]
 impl ScriptHashes {
@@ -2496,9 +2411,7 @@ impl JsonSchema for ProposedProtocolParameterUpdates {
     }
 }
 
-to_from_bytes!(ProposedProtocolParameterUpdates);
-
-to_from_json!(ProposedProtocolParameterUpdates);
+impl_to_from!(ProposedProtocolParameterUpdates);
 
 #[wasm_bindgen]
 impl ProposedProtocolParameterUpdates {
@@ -2541,9 +2454,7 @@ pub struct ProtocolVersion {
     minor: u32,
 }
 
-to_from_bytes!(ProtocolVersion);
-
-to_from_json!(ProtocolVersion);
+impl_to_from!(ProtocolVersion);
 
 #[wasm_bindgen]
 impl ProtocolVersion {
@@ -2593,9 +2504,7 @@ pub struct ProtocolParamUpdate {
     max_collateral_inputs: Option<u32>,
 }
 
-to_from_bytes!(ProtocolParamUpdate);
-
-to_from_json!(ProtocolParamUpdate);
+impl_to_from!(ProtocolParamUpdate);
 
 #[wasm_bindgen]
 impl ProtocolParamUpdate {
@@ -2829,9 +2738,7 @@ impl ProtocolParamUpdate {
 #[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionBodies(pub(crate) Vec<TransactionBody>);
 
-to_from_bytes!(TransactionBodies);
-
-to_from_json!(TransactionBodies);
+impl_to_from!(TransactionBodies);
 
 #[wasm_bindgen]
 impl TransactionBodies {
@@ -2856,9 +2763,7 @@ impl TransactionBodies {
 #[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionWitnessSets(Vec<TransactionWitnessSet>);
 
-to_from_bytes!(TransactionWitnessSets);
-
-to_from_json!(TransactionWitnessSets);
+impl_to_from!(TransactionWitnessSets);
 
 #[wasm_bindgen]
 impl TransactionWitnessSets {
@@ -2959,9 +2864,7 @@ pub struct Block {
     invalid_transactions: TransactionIndexes,
 }
 
-to_from_bytes!(Block);
-
-to_from_json!(Block);
+impl_to_from!(Block);
 
 #[wasm_bindgen]
 impl Block {
@@ -3009,9 +2912,7 @@ pub struct Header {
     body_signature: KESSignature,
 }
 
-to_from_bytes!(Header);
-
-to_from_json!(Header);
+impl_to_from!(Header);
 
 #[wasm_bindgen]
 impl Header {
@@ -3040,9 +2941,7 @@ pub struct OperationalCert {
     sigma: Ed25519Signature,
 }
 
-to_from_bytes!(OperationalCert);
-
-to_from_json!(OperationalCert);
+impl_to_from!(OperationalCert);
 
 #[wasm_bindgen]
 impl OperationalCert {
@@ -3098,9 +2997,7 @@ pub struct HeaderBody {
     protocol_version: ProtocolVersion,
 }
 
-to_from_bytes!(HeaderBody);
-
-to_from_json!(HeaderBody);
+impl_to_from!(HeaderBody);
 
 #[wasm_bindgen]
 impl HeaderBody {
@@ -3281,9 +3178,7 @@ impl PartialOrd for AssetName {
     }
 }
 
-to_from_bytes!(AssetName);
-
-to_from_json!(AssetName);
+impl_to_from!(AssetName);
 
 #[wasm_bindgen]
 impl AssetName {
@@ -3356,9 +3251,7 @@ impl JsonSchema for AssetName {
 )]
 pub struct AssetNames(Vec<AssetName>);
 
-to_from_bytes!(AssetNames);
-
-to_from_json!(AssetNames);
+impl_to_from!(AssetNames);
 
 #[wasm_bindgen]
 impl AssetNames {
@@ -3397,9 +3290,7 @@ pub type PolicyIDs = ScriptHashes;
 )]
 pub struct Assets(pub(crate) std::collections::BTreeMap<AssetName, BigNum>);
 
-to_from_bytes!(Assets);
-
-to_from_json!(Assets);
+impl_to_from!(Assets);
 
 #[wasm_bindgen]
 impl Assets {
@@ -3433,9 +3324,7 @@ impl Assets {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct MultiAsset(pub(crate) std::collections::BTreeMap<PolicyID, Assets>);
 
-to_from_bytes!(MultiAsset);
-
-to_from_json!(MultiAsset);
+impl_to_from!(MultiAsset);
 
 #[wasm_bindgen]
 impl MultiAsset {
@@ -3618,9 +3507,7 @@ impl MintAssets {
 )]
 pub struct Mint(std::collections::BTreeMap<PolicyID, MintAssets>);
 
-to_from_bytes!(Mint);
-
-to_from_json!(Mint);
+impl_to_from!(Mint);
 
 #[wasm_bindgen]
 impl Mint {
@@ -3720,9 +3607,7 @@ pub enum NetworkIdKind {
 )]
 pub struct NetworkId(NetworkIdKind);
 
-to_from_bytes!(NetworkId);
-
-to_from_json!(NetworkId);
+impl_to_from!(NetworkId);
 
 #[wasm_bindgen]
 impl NetworkId {
