@@ -420,7 +420,7 @@ impl JsonSchema for PublicKey {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Vkey(PublicKey);
 
-to_from_bytes!(Vkey);
+impl_to_from!(Vkey);
 
 #[wasm_bindgen]
 impl Vkey {
@@ -515,9 +515,7 @@ pub struct Vkeywitness {
     signature: Ed25519Signature,
 }
 
-to_from_bytes!(Vkeywitness);
-
-to_from_json!(Vkeywitness);
+impl_to_from!(Vkeywitness);
 
 #[wasm_bindgen]
 impl Vkeywitness {
@@ -650,9 +648,7 @@ pub struct BootstrapWitness {
     attributes: Vec<u8>,
 }
 
-to_from_bytes!(BootstrapWitness);
-
-to_from_json!(BootstrapWitness);
+impl_to_from!(BootstrapWitness);
 
 #[wasm_bindgen]
 impl BootstrapWitness {
@@ -1216,7 +1212,7 @@ pub struct Nonce {
     hash: Option<[u8; 32]>,
 }
 
-to_from_bytes!(Nonce);
+impl_to_from!(Nonce);
 
 // can't export consts via wasm_bindgen
 impl Nonce {
@@ -1324,9 +1320,7 @@ impl VRFCert {
     pub const PROOF_LEN: usize = 80;
 }
 
-to_from_bytes!(VRFCert);
-
-to_from_json!(VRFCert);
+impl_to_from!(VRFCert);
 
 #[wasm_bindgen]
 impl VRFCert {

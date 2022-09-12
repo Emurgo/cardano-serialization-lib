@@ -31,38 +31,16 @@ pub fn from_bytes<T: Deserialize>(data: &Vec<u8>) -> Result<T, DeserializeError>
     T::deserialize(&mut raw)
 }
 
-#[macro_export]
-macro_rules! to_from_json {
-    ($name:ident) => {
-        #[wasm_bindgen]
-        impl $name {
-            pub fn to_json(&self) -> Result<String, JsError> {
-                serde_json::to_string_pretty(&self)
-                    .map_err(|e| JsError::from_str(&format!("to_json: {}", e)))
-            }
 
-            #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-            pub fn to_js_value(&self) -> Result<JsValue, JsError> {
-                JsValue::from_serde(&self)
-                    .map_err(|e| JsError::from_str(&format!("to_js_value: {}", e)))
-            }
-
-            pub fn from_json(json: &str) -> Result<$name, JsError> {
-                serde_json::from_str(json)
-                    .map_err(|e| JsError::from_str(&format!("from_json: {}", e)))
-            }
-        }
-    };
-}
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, JsonSchema,)]
 pub struct TransactionUnspentOutput {
     pub(crate) input: TransactionInput,
     pub(crate) output: TransactionOutput,
 }
 
-to_from_bytes!(TransactionUnspentOutput);
+impl_to_from!(TransactionUnspentOutput);
 
 #[wasm_bindgen]
 impl TransactionUnspentOutput {
@@ -169,7 +147,7 @@ impl TransactionUnspentOutputs {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct BigNum(u64);
 
-to_from_bytes!(BigNum);
+impl_to_from!(BigNum);
 
 impl std::fmt::Display for BigNum {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -375,9 +353,7 @@ pub struct Value {
     pub(crate) multiasset: Option<MultiAsset>,
 }
 
-to_from_bytes!(Value);
-
-to_from_json!(Value);
+impl_to_from!(Value);
 
 #[wasm_bindgen]
 impl Value {
@@ -615,7 +591,7 @@ impl Deserialize for Value {
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Int(pub(crate) i128);
 
-to_from_bytes!(Int);
+impl_to_from!(Int);
 
 #[wasm_bindgen]
 impl Int {
@@ -887,7 +863,7 @@ pub(crate) fn read_bounded_bytes<R: BufRead + Seek>(
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BigInt(num_bigint::BigInt);
 
-to_from_bytes!(BigInt);
+impl_to_from!(BigInt);
 
 impl serde::Serialize for BigInt {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

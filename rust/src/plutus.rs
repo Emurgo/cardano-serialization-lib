@@ -145,7 +145,7 @@ impl JsonSchema for PlutusScript {
 )]
 pub struct PlutusScripts(pub(crate) Vec<PlutusScript>);
 
-to_from_bytes!(PlutusScripts);
+impl_to_from!(PlutusScripts);
 
 #[wasm_bindgen]
 impl PlutusScripts {
@@ -205,7 +205,7 @@ pub struct ConstrPlutusData {
     data: PlutusList,
 }
 
-to_from_bytes!(ConstrPlutusData);
+impl_to_from!(ConstrPlutusData);
 
 #[wasm_bindgen]
 impl ConstrPlutusData {
@@ -263,7 +263,7 @@ impl ConstrPlutusData {
 )]
 pub struct CostModel(Vec<Int>);
 
-to_from_bytes!(CostModel);
+impl_to_from!(CostModel);
 
 #[wasm_bindgen]
 impl CostModel {
@@ -316,7 +316,7 @@ impl From<Vec<i128>> for CostModel {
 )]
 pub struct Costmdls(std::collections::BTreeMap<Language, CostModel>);
 
-to_from_bytes!(Costmdls);
+impl_to_from!(Costmdls);
 
 #[wasm_bindgen]
 impl Costmdls {
@@ -407,7 +407,7 @@ pub struct ExUnitPrices {
     step_price: SubCoin,
 }
 
-to_from_bytes!(ExUnitPrices);
+impl_to_from!(ExUnitPrices);
 
 #[wasm_bindgen]
 impl ExUnitPrices {
@@ -436,7 +436,7 @@ pub struct ExUnits {
     steps: BigNum,
 }
 
-to_from_bytes!(ExUnits);
+impl_to_from!(ExUnits);
 
 #[wasm_bindgen]
 impl ExUnits {
@@ -499,7 +499,7 @@ impl LanguageKind {
 )]
 pub struct Language(LanguageKind);
 
-to_from_bytes!(Language);
+impl_to_from!(Language);
 
 #[wasm_bindgen]
 impl Language {
@@ -551,7 +551,7 @@ impl Languages {
 )]
 pub struct PlutusMap(std::collections::BTreeMap<PlutusData, PlutusData>);
 
-to_from_bytes!(PlutusMap);
+impl_to_from!(PlutusMap);
 
 #[wasm_bindgen]
 impl PlutusMap {
@@ -617,7 +617,7 @@ impl std::cmp::PartialEq<Self> for PlutusData {
 
 impl std::cmp::Eq for PlutusData {}
 
-to_from_bytes!(PlutusData);
+impl_to_from!(PlutusData);
 
 #[wasm_bindgen]
 impl PlutusData {
@@ -725,7 +725,7 @@ impl std::cmp::PartialEq<Self> for PlutusList {
 
 impl std::cmp::Eq for PlutusList {}
 
-to_from_bytes!(PlutusList);
+impl_to_from!(PlutusList);
 
 #[wasm_bindgen]
 impl PlutusList {
@@ -770,7 +770,7 @@ pub struct Redeemer {
     ex_units: ExUnits,
 }
 
-to_from_bytes!(Redeemer);
+impl_to_from!(Redeemer);
 
 #[wasm_bindgen]
 impl Redeemer {
@@ -835,7 +835,7 @@ pub enum RedeemerTagKind {
 )]
 pub struct RedeemerTag(RedeemerTagKind);
 
-to_from_bytes!(RedeemerTag);
+impl_to_from!(RedeemerTag);
 
 #[wasm_bindgen]
 impl RedeemerTag {
@@ -866,7 +866,7 @@ impl RedeemerTag {
 )]
 pub struct Redeemers(pub(crate) Vec<Redeemer>);
 
-to_from_bytes!(Redeemers);
+impl_to_from!(Redeemers);
 
 #[wasm_bindgen]
 impl Redeemers {

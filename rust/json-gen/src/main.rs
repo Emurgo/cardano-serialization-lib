@@ -155,4 +155,5 @@ fn main() {
     gen_json_schema!(BigInt);
     gen_json_schema!(Int);
     gen_json_schema!(Value);
+    gen_json_schema!(TransactionUnspentOutput);
 }
