@@ -7,6 +7,8 @@ use crypto::bech32::Bech32 as _;
 use rand_os::OsRng;
 use std::io::{BufRead, Seek, Write};
 use std::str::FromStr;
+use std::fmt::Display;
+use std::fmt;
 
 use cryptoxide::blake2b::Blake2b;
 
@@ -1056,6 +1058,12 @@ macro_rules! impl_hash_type {
             }
             fn is_referenceable() -> bool {
                 String::is_referenceable()
+            }
+        }
+
+        impl Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "{}", self.to_hex())
             }
         }
     };
