@@ -13,6 +13,7 @@ use std::{
     io::{BufRead, Seek, Write},
     ops::{Rem, Sub},
 };
+use std::fmt::Display;
 use itertools::Itertools;
 
 use super::*;
@@ -1700,6 +1701,63 @@ fn encode_template_to_native_script(
 
 pub(crate) fn opt64<T>(o: &Option<T>) -> u64 {
     o.is_some() as u64
+}
+
+pub struct ValueShortage {
+    pub(crate) ada_shortage: Option<(Coin, Coin, Coin)>,
+    pub(crate) asset_shortage: Vec<(PolicyID, AssetName, Coin, Coin)>,
+}
+
+impl Display for ValueShortage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "shortage: {{")?;
+        if let Some((input_data, out_data, fee)) = self.ada_shortage {
+            writeln!(f, "ada in inputs: {}, ada in outputs: {}, fee {}", input_data, out_data, fee)?;
+            writeln!(f, "NOTE! \"ada in inputs\" must be >= (\"ada in outputs\" + fee) before adding change")?;
+            writeln!(f, "and  \"ada in inputs\" must be == (\"ada in outputs\" + fee) after adding change")?;
+        }
+        for (policy_id, asset_name, asset_shortage, asset_available) in
+            &self.asset_shortage
+        {
+            write!(f, "policy id: \"{}\", asset name: \"{}\" ", policy_id, asset_name)?;
+            writeln!(f, "coins in inputs: {}, coins in outputs: {}", asset_shortage, asset_available)?;
+        }
+        write!(f, " }}")
+    }
+}
+
+pub(crate) fn get_input_shortage(all_inputs_value: &Value, all_outputs_value: &Value, fee: &Coin)
+    -> Result<Option<ValueShortage>, JsError> {
+    let mut shortage = ValueShortage{
+        ada_shortage: None,
+        asset_shortage: Vec::new()};
+    if all_inputs_value.coin < all_outputs_value.coin.checked_add(fee)? {
+        shortage.ada_shortage = Some((
+            all_inputs_value.coin.clone(),
+            all_outputs_value.coin.clone(),
+            fee.clone()));
+    }
+
+    if let Some(policies) = &all_outputs_value.multiasset {
+        for (policy_id, assets) in &policies.0 {
+            for (asset_name, coins) in &assets.0 {
+                let inputs_coins = match &all_inputs_value.multiasset {
+                    Some(multiasset) => multiasset.get_asset(policy_id, asset_name),
+                    None => Coin::zero()
+                };
+
+                if inputs_coins < *coins {
+                    shortage.asset_shortage.push((policy_id.clone(), asset_name.clone(), inputs_coins, coins.clone()));
+                }
+            }
+        }
+    }
+
+    if shortage.ada_shortage.is_some() || shortage.asset_shortage.len() > 0 {
+        Ok(Some(shortage))
+    } else {
+        Ok(None)
+    }
 }
 
 #[cfg(test)]
