@@ -156,4 +156,5 @@ fn main() {
     gen_json_schema!(Int);
     gen_json_schema!(Value);
     gen_json_schema!(TransactionUnspentOutput);
+    gen_json_schema!(TransactionUnspentOutputs);
 }
