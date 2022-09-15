@@ -552,7 +552,7 @@ impl AssetCategorizer {
         CborCalculator::estimate_output_cost(
             &output_proposal.get_total_ada(),
             output_size,
-            &self.config.coins_per_utxo_byte)
+            &self.config.data_cost)
     }
 
     fn estimate_fee(&self, tx_proposal: &TxProposal) -> Result<(Coin, usize), JsError> {

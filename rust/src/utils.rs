@@ -1473,30 +1473,9 @@ impl MinOutputAdaCalculator {
     }
 
     pub fn calculate_ada(&self) -> Result<BigNum, JsError> {
-        let coins_per_byte = self.data_cost.coins_per_byte();
-        // <TODO:REMOVE_AFTER_BABBAGE>
-        let coins_per_word = self.data_cost.coins_per_word()?;
         let mut output: TransactionOutput = self.output.clone();
-        fn calc_required_coin(
-            output: &TransactionOutput,
-            coins_per_byte: &Coin,
-            coins_per_word: &Coin,
-        ) -> Result<Coin, JsError> {
-            // <TODO:REMOVE_AFTER_BABBAGE>
-            let legacy_coin = _min_ada_required_legacy(
-                &output.amount(),
-                output.has_data_hash(),
-                coins_per_word,
-            )?;
-            //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
-            //See on the page 9 getValue txout
-            let result = BigNum::from(output.to_bytes().len())
-                .checked_add(&to_bignum(160))?
-                .checked_mul(&coins_per_byte)?;
-            Ok(BigNum::max(&result, &legacy_coin))
-        }
         for _ in 0..3 {
-            let required_coin = calc_required_coin(&output, &coins_per_byte, &coins_per_word)?;
+            let required_coin = Self::calc_required_coin(&output, &self.data_cost)?;
             if output.amount.coin.less_than(&required_coin) {
                 output.amount.coin = required_coin.clone();
             } else {
@@ -1504,7 +1483,7 @@ impl MinOutputAdaCalculator {
             }
         }
         output.amount.coin = to_bignum(u64::MAX);
-        Ok(calc_required_coin(&output, &coins_per_byte)?)
+        Ok(Self::calc_required_coin(&output, &self.data_cost)?)
     }
 
     fn create_fake_output() -> Result<TransactionOutput, JsError> {
@@ -1513,15 +1492,26 @@ impl MinOutputAdaCalculator {
         Ok(TransactionOutput::new(&fake_base_address, &fake_value))
     }
 
-    pub fn calc_size_cost(coins_per_byte: &Coin, size: usize) -> Result<Coin, JsError> {
+    pub fn calc_size_cost(data_cost: &DataCost, size: usize) -> Result<Coin, JsError> {
         //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
         //See on the page 9 getValue txout
         to_bignum(size as u64).checked_add(&to_bignum(160))?
-            .checked_mul(&coins_per_byte)
+            .checked_mul(&data_cost.coins_per_byte())
     }
 
-    fn calc_required_coin(output: &TransactionOutput, coins_per_byte: &Coin) -> Result<Coin, JsError> {
-        Self::calc_size_cost(coins_per_byte,output.to_bytes().len())
+    fn calc_required_coin(output: &TransactionOutput, data_cost: &DataCost) -> Result<Coin, JsError> {
+        // <TODO:REMOVE_AFTER_BABBAGE> BEGIN
+        let legacy_coin = _min_ada_required_legacy(
+            &output.amount(),
+            output.has_data_hash(),
+            &data_cost.coins_per_word()?,
+        )?;
+        // <TODO:REMOVE_AFTER_BABBAGE> END
+        //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
+        //See on the page 9 getValue txout
+        let result = Self::calc_size_cost(data_cost,output.to_bytes().len())?;
+        // <TODO:REMOVE_AFTER_BABBAGE> remove legacy_coin, just return result
+        Ok(BigNum::max(&result, &legacy_coin))
     }
 }
 

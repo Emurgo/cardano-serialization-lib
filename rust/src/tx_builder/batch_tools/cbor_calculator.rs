@@ -89,8 +89,8 @@ impl CborCalculator {
     //TODO: exract iterative logic from estimate_output_cost and estimate_fee to separate function
     pub(super) fn estimate_output_cost(used_coins: &Coin,
                                        output_size: usize,
-                                       coins_per_byte: &Coin) -> Result<(Coin, usize), JsError> {
-        let mut current_cost = MinOutputAdaCalculator::calc_size_cost(coins_per_byte, output_size)?;
+                                       data_cost: &DataCost) -> Result<(Coin, usize), JsError> {
+        let mut current_cost = MinOutputAdaCalculator::calc_size_cost(data_cost, output_size)?;
         if current_cost <= *used_coins {
             return Ok((current_cost, output_size));
         }
@@ -98,7 +98,7 @@ impl CborCalculator {
         let size_without_coin = output_size - CborCalculator::get_coin_size(used_coins);
         let mut last_size = size_without_coin + CborCalculator::get_coin_size(&current_cost);
         for _ in 0..3 {
-            current_cost = MinOutputAdaCalculator::calc_size_cost(coins_per_byte, last_size)?;
+            current_cost = MinOutputAdaCalculator::calc_size_cost(data_cost, last_size)?;
             let new_size = size_without_coin + CborCalculator::get_coin_size(&current_cost);
             if new_size == last_size {
                 return Ok((current_cost, last_size));
@@ -108,7 +108,7 @@ impl CborCalculator {
         }
 
         let max_size = output_size + CborCalculator::get_coin_size(&Coin::max_value());
-        let pessimistic_cost = MinOutputAdaCalculator::calc_size_cost(coins_per_byte, max_size)?;
+        let pessimistic_cost = MinOutputAdaCalculator::calc_size_cost(data_cost, max_size)?;
         Ok((pessimistic_cost, max_size))
     }
 
