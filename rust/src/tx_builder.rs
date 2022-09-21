@@ -1284,6 +1284,18 @@ impl TransactionBuilder {
     /// Editing inputs, outputs, mint, etc. after change been calculated
     /// might cause a mismatch in calculated fee versus the required fee
     pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsError> {
+        self.add_bundled_change_if_needed(address, None)
+    }
+
+    /// Warning: this function will mutate the /fee/ field
+    /// Make sure to call this function last after setting all other tx-body properties
+    /// Editing inputs, outputs, mint, etc. after change been calculated
+    /// might cause a mismatch in calculated fee versus the required fee
+    pub fn add_bundled_change_if_needed(
+        &mut self,
+        address: &Address,
+        max_bundle_count: Option<u32>,
+    ) -> Result<bool, JsError> {
         let fee = match &self.fee {
             None => self.min_fee(),
             // generating the change output involves changing the fee
@@ -1321,6 +1333,15 @@ impl TransactionBuilder {
                 }
                 let change_estimator = input_total.checked_sub(&output_total)?;
                 if has_assets(change_estimator.multiasset()) {
+                    fn will_adding_asset_go_over_bundle_count(
+                        bundle_count: u32,
+                        max_bundle_count: Option<u32>,
+                    ) -> bool {
+                        match max_bundle_count {
+                            Some(max) => bundle_count + 1 > max,
+                            None => false,
+                        }
+                    }
                     fn will_adding_asset_make_output_overflow(
                         output: &TransactionOutput,
                         current_assets: &Assets,
@@ -1349,6 +1370,7 @@ impl TransactionBuilder {
                     }
                     fn pack_nfts_for_change(
                         max_value_size: u32,
+                        max_bundle_count: Option<u32>,
                         data_cost: &DataCost,
                         change_address: &Address,
                         change_estimator: &Value,
@@ -1367,6 +1389,7 @@ impl TransactionBuilder {
                             plutus_data: plutus_data.clone(),
                             script_ref: script_ref.clone(),
                         };
+                        let mut bundle_count: u32 = 0;
                         // If this becomes slow on large TXs we can optimize it like the following
                         // to avoid cloning + reserializing the entire output.
                         // This would probably be more relevant if we use a smarter packing algorithm
@@ -1401,7 +1424,10 @@ impl TransactionBuilder {
                                 let asset_name = asset_names.get(n);
                                 let value = assets.get(&asset_name).unwrap();
 
-                                if will_adding_asset_make_output_overflow(
+                                if will_adding_asset_go_over_bundle_count(
+                                    bundle_count,
+                                    max_bundle_count,
+                                ) || will_adding_asset_make_output_overflow(
                                     &output,
                                     &rebuilt_assets,
                                     (policy.clone(), asset_name.clone(), value),
@@ -1433,9 +1459,11 @@ impl TransactionBuilder {
                                     next_nft = MultiAsset::new();
 
                                     rebuilt_assets = Assets::new();
+                                    bundle_count = 0
                                 }
 
                                 rebuilt_assets.insert(&asset_name, &value);
+                                bundle_count += 1;
                             }
 
                             next_nft.insert(policy, &rebuilt_assets);
@@ -1480,6 +1508,7 @@ impl TransactionBuilder {
                     {
                         let nft_changes = pack_nfts_for_change(
                             self.config.max_value_size,
+                            max_bundle_count,
                             &utxo_cost,
                             address,
                             &change_left,
@@ -3020,7 +3049,7 @@ mod tests {
             &change_cred,
             &stake_cred,
         )
-            .to_address();
+        .to_address();
 
         let added_change = tx_builder.add_change_if_needed(&change_addr);
         assert!(added_change.is_err());
@@ -3115,7 +3144,7 @@ mod tests {
             &change_cred,
             &stake_cred,
         )
-            .to_address();
+        .to_address();
 
         let added_change = tx_builder.add_change_if_needed(&change_addr);
         assert!(added_change.is_err());
@@ -3850,6 +3879,89 @@ mod tests {
         }
         for output in final_tx.outputs.0.iter() {
             assert!(output.amount.to_bytes().len() <= max_value_size as usize);
+        }
+    }
+    #[test]
+    fn build_tx_add_change_bundle_nfts() {
+        let max_bundle_count = 2; // super low max bundle count to test with fewer assets
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
+
+        let (multiasset, policy_ids, names) = create_multiasset();
+
+        let mut input_value = Value::new(&to_bignum(1000));
+        input_value.set_multiasset(&multiasset);
+
+        tx_builder.add_input(
+            &ByronAddress::from_base58(
+                "Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3",
+            )
+            .unwrap()
+            .to_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &input_value,
+        );
+
+        let output_addr = ByronAddress::from_base58(
+            "Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b",
+        )
+        .unwrap()
+        .to_address();
+        let output_amount = Value::new(&to_bignum(232));
+
+        tx_builder
+            .add_output(
+                &TransactionOutputBuilder::new()
+                    .with_address(&output_addr)
+                    .next()
+                    .unwrap()
+                    .with_value(&output_amount)
+                    .build()
+                    .unwrap(),
+            )
+            .unwrap();
+
+        let change_addr = ByronAddress::from_base58(
+            "Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho",
+        )
+        .unwrap()
+        .to_address();
+
+        let added_change = tx_builder
+            .add_bundled_change_if_needed(&change_addr, Some(max_bundle_count))
+            .unwrap();
+        assert_eq!(added_change, true);
+        let final_tx = tx_builder.build().unwrap();
+        assert_eq!(final_tx.outputs().len(), 3);
+        for (policy_id, asset_name) in policy_ids.iter().zip(names.iter()) {
+            assert!(final_tx
+                .outputs
+                .0
+                .iter()
+                .find(|output| output.amount.multiasset.as_ref().map_or_else(
+                    || false,
+                    |ma| ma
+                        .0
+                        .iter()
+                        .find(|(pid, a)| *pid == policy_id
+                            && a.0.iter().find(|(name, _)| *name == asset_name).is_some())
+                        .is_some()
+                ))
+                .is_some());
+        }
+        for output in final_tx.outputs.0.iter() {
+            let count = match &output.amount.multiasset {
+                Some(ma) => {
+                    let mut count: u32 = 0;
+                    for (_, assets) in &ma.0 {
+                        for (_, _) in &assets.0 {
+                            count += 1;
+                        }
+                    }
+                    count
+                }
+                None => 0,
+            };
+            assert!(count <= max_bundle_count);
         }
     }
 

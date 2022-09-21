@@ -2,6 +2,42 @@
 
 import wasm = require('rust-lib')
 
+export const toBigNum = (x: number | BigInt): wasm.BigNum => wasm.BigNum.from_str(x.toString())
+export const toHex = (bytes: any, format?: BufferEncoding) => Buffer.from(bytes, format).toString('hex')
+
+export type EpochParams = {
+  min_fee_a: number,
+  min_fee_b: number,
+  pool_deposit: number,
+  key_deposit: number,
+  max_val_size: number,
+  max_tx_size: number,
+  coins_per_utxo_size: number,
+}
+
+export function initTransactionBuilder (epochParams: EpochParams): wasm.TransactionBuilder {
+  const {
+    min_fee_a,
+    min_fee_b,
+    pool_deposit,
+    key_deposit,
+    max_val_size,
+    max_tx_size,
+    coins_per_utxo_size
+  } = epochParams
+
+  const config = wasm.TransactionBuilderConfigBuilder.new()
+    .fee_algo(wasm.LinearFee.new(toBigNum(min_fee_a), toBigNum(min_fee_b)))
+    .pool_deposit(toBigNum(pool_deposit))
+    .key_deposit(toBigNum(key_deposit))
+    .max_value_size(max_val_size)
+    .max_tx_size(max_tx_size)
+    .prefer_pure_change(true)
+    .coins_per_utxo_word(toBigNum(coins_per_utxo_size))
+
+  return wasm.TransactionBuilder.new(config.build())
+}
+
 const metadata = wasm.TransactionMetadatum.from_bytes(
   Buffer.from("a200a16e4c615f52657073697374616e634568576173206865726501a56743686f6963657384a36b43616e6469646174654964782461616139353033612d366663352d343665612d396161302d62346339306633363161346368566f746552616e6b016a566f746557656967687401a36b43616e6469646174654964782438643634396331322d393336652d343662652d623635612d63313766333066353935373468566f746552616e6b026a566f746557656967687401a36b43616e6469646174654964782438316365376638652d393463332d343833352d393166632d32313436643531666131666368566f746552616e6b006a566f746557656967687400a36b43616e6469646174654964782434303735343061612d353862352d343063612d623438342d66343030343065623239393068566f746552616e6b036a566f746557656967687401694e6574776f726b49646f5468655265616c4164616d4465616e6a4f626a656374547970656a566f746542616c6c6f746a50726f706f73616c4964782438303036346332382d316230332d346631632d616266302d63613863356139386435623967566f7465724964782464393930613165382d636239302d346635392d623563662d613862353963396261386165", "hex")
 );
@@ -9,11 +45,11 @@ const map = metadata.as_map();
 const keys = map.keys();
 for (let i = 0; i < keys.len(); i++) {
   const val = keys.get(i);
-  console.log(Buffer.from(val.to_bytes()).toString('hex'));
+  console.log(toHex(val.to_bytes()));
 }
 
 const addr = wasm.Address.from_bech32('addr1qxy657awttf5avs2629f4hs6k5ulhw8f27akv30yws622dudj86zwkwhv3yjky5ntrmhcln5yxc05rcq0lhs8l78vd3qhc5eak');
-console.log(Buffer.from(addr.to_bytes()).toString('hex'));
+console.log(toHex(addr.to_bytes()));
 // const addr = wasm.Address.from_bytes(Buffer.from('615c619e192407b2e972f04f0dda7c52aa8013d45ee7ba69d57041cad0', 'hex'));
 // console.log(addr.to_bech32());
 
@@ -22,10 +58,10 @@ console.log(Buffer.from(addr.to_bytes()).toString('hex'));
 // console.log(wasm.ByronAddress.is_valid('Ae2tdPwUPEZFAi4DxQaXeW9HAXYjdfvMWLgNXCJVjvweygZkAUiLjRwGfPr'));
 // console.log(wasm.ByronAddress.is_valid('Ae2tdPwUPEZ3MHKkpT5Bpj549vrRH7nBqYjNXnCV8G2Bc2YxNcGHEa8ykDp'));
 // const addr = wasm.Address.from_bech32(
-  // Buffer.from(
-    // 'stake1uy5mdzcepk905jj5vqzgyxly57ldhzegugzp9y7fruc6d5sqapp2u',
-  //   'hex'
-  // ),
+// Buffer.from(
+// 'stake1uy5mdzcepk905jj5vqzgyxly57ldhzegugzp9y7fruc6d5sqapp2u',
+//   'hex'
+// ),
 // );
 
 // const enterpriseAddr = wasm.EnterpriseAddress.new(

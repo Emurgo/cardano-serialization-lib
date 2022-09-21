@@ -8160,6 +8160,20 @@ declare export class TransactionBuilder {
   add_change_if_needed(address: Address): boolean;
 
   /**
+   * Warning: this function will mutate the /fee/ field
+   * Make sure to call this function last after setting all other tx-body properties
+   * Editing inputs, outputs, mint, etc. after change been calculated
+   * might cause a mismatch in calculated fee versus the required fee
+   * @param {Address} address
+   * @param {number | void} max_bundle_count
+   * @returns {boolean}
+   */
+  add_bundled_change_if_needed(
+    address: Address,
+    max_bundle_count?: number
+  ): boolean;
+
+  /**
    * This method will calculate the script hash data
    * using the plutus datums and redeemers already present in the builder
    * along with the provided cost model, and will register the calculated value
@@ -10274,12 +10288,6 @@ export interface PlutusMapJSON {
 }
 export type PlutusScriptJSON = string;
 export type PlutusScriptsJSON = string[];
-export interface PlutusWitnessJSON {
-  datum: PlutusDataJSON;
-  redeemer: RedeemerJSON;
-  script: string;
-}
-export type PlutusWitnessesJSON = PlutusWitnessJSON[];
 export interface PoolMetadataJSON {
   pool_metadata_hash: string;
   url: URLJSON;
