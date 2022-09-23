@@ -7336,8 +7336,7 @@ mod tests {
         let addr= Address::from_bech32("addr_test1wpv93hm9sqx0ar7pgxwl9jn3xt6lwmxxy27zd932slzvghqg8fe0n").unwrap();
         let mut builder = create_reallistic_tx_builder();
         builder.add_output(&output);
-        builder.add_inputs_from(&utoxs, CoinSelectionStrategyCIP2::RandomImproveMultiAsset).unwrap();
-        builder.add_change_if_needed(&addr).unwrap();
-        assert!(true);
+        let res = builder.add_inputs_from(&utoxs, CoinSelectionStrategyCIP2::RandomImproveMultiAsset);
+        assert!(res.is_ok());
     }
 }
