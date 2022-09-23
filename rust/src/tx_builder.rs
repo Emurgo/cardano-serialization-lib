@@ -597,7 +597,7 @@ impl TransactionBuilder {
             .cloned()
             .collect::<Vec<TransactionOutput>>();
         outputs.sort_by_key(|output| by(&output.amount).expect("filtered above"));
-        let mut avaible_coins = by(input_total).unwrap_or(BigNum::zero());
+        let available_coins = by(input_total).unwrap_or(BigNum::zero());
         for output in outputs.iter().rev() {
             // TODO: how should we adapt this to inputs being associated when running for other assets?
             // if we do these two phases for each asset and don't take into account the other runs for other assets
@@ -614,7 +614,7 @@ impl TransactionBuilder {
             // we try and subtract all other assets b != a from the outputs we're trying to cover.
             // It might make sense to diverge further and not consider it per-output and to instead just match against
             // the sum of all outputs as one single value.
-            let mut added = avaible_coins.clone();
+            let mut added = available_coins.clone();
             let needed = by(&output.amount).unwrap();
             while added < needed {
                 if relevant_indices.is_empty() {
@@ -633,7 +633,7 @@ impl TransactionBuilder {
                     .or_default()
                     .push(i);
             }
-            avaible_coins = added.checked_sub(&needed)?;
+            available_coins = added.checked_sub(&needed)?;
         }
         if !relevant_indices.is_empty() && pure_ada {
             // Phase 2: Improvement
