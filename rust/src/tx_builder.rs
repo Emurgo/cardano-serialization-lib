@@ -597,7 +597,7 @@ impl TransactionBuilder {
             .cloned()
             .collect::<Vec<TransactionOutput>>();
         outputs.sort_by_key(|output| by(&output.amount).expect("filtered above"));
-        let available_coins = by(input_total).unwrap_or(BigNum::zero());
+        let mut available_coins = by(input_total).unwrap_or(BigNum::zero());
         for output in outputs.iter().rev() {
             // TODO: how should we adapt this to inputs being associated when running for other assets?
             // if we do these two phases for each asset and don't take into account the other runs for other assets
