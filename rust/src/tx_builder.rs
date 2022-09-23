@@ -1988,7 +1988,6 @@ mod tests {
         create_tx_builder_with_fee(&create_default_linear_fee())
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_change() {
         let mut tx_builder = create_default_tx_builder();
@@ -2215,7 +2214,6 @@ mod tests {
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
 
-    #[ignore]
     #[test]
     fn build_tx_exact_amount() {
         // transactions where sum(input) == sum(output) exact should pass
@@ -2280,7 +2278,6 @@ mod tests {
         assert_eq!(final_tx.outputs().len(), 1);
     }
 
-    #[ignore]
     #[test]
     fn build_tx_exact_change() {
         // transactions where we have exactly enough ADA to add change should pass
@@ -2744,7 +2741,6 @@ mod tests {
         assert_eq!(deser_t.to_json().unwrap(), final_tx.to_json().unwrap());
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_mint_all_sent() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
@@ -2833,7 +2829,6 @@ mod tests {
         assert!(change.multiasset().is_none());
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_mint_in_change() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
@@ -3121,7 +3116,6 @@ mod tests {
         assert!(added_change.is_err());
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_native_assets_change() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
@@ -3235,7 +3229,6 @@ mod tests {
         assert_eq!(final_tx.outputs().get(1).amount().coin(), to_bignum(599));
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_native_assets_change_and_purification() {
         let coin_per_utxo_word = to_bignum(8);
@@ -3364,7 +3357,6 @@ mod tests {
         assert_eq!(final_tx.outputs().get(2).amount().multiasset(), None);
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
         // Prefer pure change!
@@ -3781,7 +3773,6 @@ mod tests {
         return (multiasset, policy_ids, names);
     }
 
-    #[ignore]
     #[test]
     fn build_tx_add_change_split_nfts() {
         let max_value_size = 100; // super low max output size to test with fewer assets
@@ -3888,7 +3879,6 @@ mod tests {
             .is_err());
     }
 
-    #[ignore]
     #[test]
     fn build_tx_add_change_nfts_not_enough_ada() {
         let mut tx_builder = create_tx_builder_with_fee_and_val_size(
@@ -4069,7 +4059,6 @@ mod tests {
         assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
     }
 
-    #[ignore]
     #[test]
     fn tx_builder_cip2_largest_first_multiasset() {
         // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
@@ -4189,7 +4178,6 @@ mod tests {
         assert_eq!(expected_change, change);
     }
 
-    #[ignore]
     #[test]
     fn tx_builder_cip2_random_improve_multiasset() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
@@ -4398,7 +4386,6 @@ mod tests {
         assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
     }
 
-    #[ignore]
     #[test]
     fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
         // we have a = 1 to test increasing fees when more inputs are added
@@ -4723,7 +4710,6 @@ mod tests {
         );
     }
 
-    #[ignore]
     #[test]
     fn add_change_splits_change_into_multiple_outputs_when_nfts_overflow_output_size() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
@@ -5148,7 +5134,6 @@ mod tests {
         assert_eq!(mint_scripts.get(1), mint_script2);
     }
 
-    #[ignore]
     #[test]
     fn add_output_amount() {
         let mut tx_builder = create_default_tx_builder();
@@ -5178,7 +5163,6 @@ mod tests {
         assert_eq!(out.amount, value);
     }
 
-    #[ignore]
     #[test]
     fn add_output_coin() {
         let mut tx_builder = create_default_tx_builder();
@@ -5205,7 +5189,6 @@ mod tests {
         assert!(out.amount.multiasset.is_none());
     }
 
-    #[ignore]
     #[test]
     fn add_output_coin_and_multiasset() {
         let mut tx_builder = create_default_tx_builder();
@@ -5236,7 +5219,6 @@ mod tests {
         assert_eq!(out.amount.multiasset.unwrap(), multiasset);
     }
 
-    #[ignore]
     #[test]
     fn add_output_asset_and_min_required_coin() {
         let mut tx_builder = create_reallistic_tx_builder();
@@ -5270,7 +5252,6 @@ mod tests {
         assert_eq!(out.amount.coin, to_bignum(1146460));
     }
 
-    #[ignore]
     #[test]
     fn add_mint_asset_and_output() {
         let mut tx_builder = create_default_tx_builder();
@@ -5334,7 +5315,6 @@ mod tests {
         assert_eq!(asset.get(&name).unwrap(), to_bignum(1234));
     }
 
-    #[ignore]
     #[test]
     fn add_mint_asset_and_min_required_coin() {
         let mut tx_builder = create_reallistic_tx_builder();
@@ -5541,7 +5521,6 @@ mod tests {
         // assert!(est5.err().unwrap().to_string().contains("witness scripts are not provided"));
     }
 
-    #[ignore]
     #[test]
     fn total_input_output_with_mint_and_burn() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
@@ -6660,7 +6639,6 @@ mod tests {
         );
     }
 
-    #[ignore]
     #[test]
     fn test_auto_calc_total_collateral() {
         let mut tx_builder = create_reallistic_tx_builder();
@@ -6696,7 +6674,6 @@ mod tests {
         );
     }
 
-    #[ignore]
     #[test]
     fn test_auto_calc_total_collateral_with_assets() {
         let mut tx_builder = create_reallistic_tx_builder();
