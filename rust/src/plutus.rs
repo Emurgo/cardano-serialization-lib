@@ -197,15 +197,13 @@ impl PlutusScripts {
 }
 
 #[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd,)]
 pub struct ConstrPlutusData {
     alternative: BigNum,
     data: PlutusList,
 }
 
-impl_to_from!(ConstrPlutusData);
+to_from_bytes!(ConstrPlutusData);
 
 #[wasm_bindgen]
 impl ConstrPlutusData {
@@ -546,12 +544,10 @@ impl Languages {
 }
 
 #[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd,)]
 pub struct PlutusMap(std::collections::BTreeMap<PlutusData, PlutusData>);
 
-impl_to_from!(PlutusMap);
+to_from_bytes!(PlutusMap);
 
 #[wasm_bindgen]
 impl PlutusMap {
@@ -590,8 +586,7 @@ pub enum PlutusDataKind {
 }
 
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
+    Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum PlutusDataEnum {
     ConstrPlutusData(ConstrPlutusData),
     Map(PlutusMap),
@@ -601,7 +596,7 @@ pub enum PlutusDataEnum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Ord, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct PlutusData {
     datum: PlutusDataEnum,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
@@ -617,7 +612,7 @@ impl std::cmp::PartialEq<Self> for PlutusData {
 
 impl std::cmp::Eq for PlutusData {}
 
-impl_to_from!(PlutusData);
+to_from_bytes!(PlutusData);
 
 #[wasm_bindgen]
 impl PlutusData {
@@ -707,6 +702,42 @@ impl PlutusData {
     }
 }
 
+//TODO: replace this by cardano-node schemas
+impl JsonSchema for PlutusData {
+    fn is_referenceable() -> bool {
+        String::is_referenceable()
+    }
+
+    fn schema_name() -> String {
+        String::from("PlutusData")
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        String::json_schema(gen)
+    }
+}
+
+//TODO: need to figure out what schema to use here
+impl serde::Serialize for PlutusData {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: serde::Serializer {
+        let json = decode_plutus_datum_to_json_str(
+            self,
+            PlutusDatumSchema::DetailedSchema)
+            .map_err(|ser_err| serde::ser::Error::custom(&format!("Serialization error: {:?}", ser_err)))?;
+        serializer.serialize_str(&json)
+    }
+}
+
+impl <'de> serde::de::Deserialize<'de> for PlutusData {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
+        D: serde::de::Deserializer<'de> {
+        let datum_json = <String as serde::Deserialize>::deserialize(deserializer)?;
+        encode_json_str_to_plutus_datum(&datum_json, PlutusDatumSchema::DetailedSchema)
+            .map_err(|ser_err| serde::de::Error::custom(&format!("Deserialization error: {:?}", ser_err)))
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Ord, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusList {
@@ -725,7 +756,7 @@ impl std::cmp::PartialEq<Self> for PlutusList {
 
 impl std::cmp::Eq for PlutusList {}
 
-impl_to_from!(PlutusList);
+to_from_bytes!(PlutusList);
 
 #[wasm_bindgen]
 impl PlutusList {
@@ -770,7 +801,7 @@ pub struct Redeemer {
     ex_units: ExUnits,
 }
 
-impl_to_from!(Redeemer);
+to_from_bytes!(Redeemer);
 
 #[wasm_bindgen]
 impl Redeemer {
@@ -866,7 +897,7 @@ impl RedeemerTag {
 )]
 pub struct Redeemers(pub(crate) Vec<Redeemer>);
 
-impl_to_from!(Redeemers);
+to_from_bytes!(Redeemers);
 
 #[wasm_bindgen]
 impl Redeemers {
@@ -1139,6 +1170,7 @@ pub fn encode_json_value_to_plutus_datum(
     }
 }
 
+//TODO: move it to serialize impl
 #[wasm_bindgen]
 pub fn decode_plutus_datum_to_json_str(
     datum: &PlutusData,
@@ -1148,6 +1180,7 @@ pub fn decode_plutus_datum_to_json_str(
     serde_json::to_string(&value).map_err(|e| JsError::from_str(&e.to_string()))
 }
 
+//TODO: move it to deserialize impl
 pub fn decode_plutus_datum_to_json_value(
     datum: &PlutusData,
     schema: PlutusDatumSchema,
