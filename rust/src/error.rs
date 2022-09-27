@@ -130,6 +130,9 @@ impl std::fmt::Display for DeserializeError {
     }
 }
 
+#[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+impl std::error::Error for DeserializeError {}
+
 impl From<DeserializeError> for JsError {
     fn from(e: DeserializeError) -> JsError {
         JsError::from_str(&e.to_string())
@@ -202,3 +205,6 @@ impl std::fmt::Display for JsError {
         write!(f, "{}", self.msg)
     }
 }
+
+#[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+impl std::error::Error for JsError {}
