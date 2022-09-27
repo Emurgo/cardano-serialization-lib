@@ -117,8 +117,10 @@ impl Deserialize for TransactionUnspentOutput {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, JsonSchema,)]
 pub struct TransactionUnspentOutputs(pub(crate) Vec<TransactionUnspentOutput>);
+
+to_from_json!(TransactionUnspentOutputs);
 
 #[wasm_bindgen]
 impl TransactionUnspentOutputs {
