@@ -8914,6 +8914,22 @@ declare export class TransactionUnspentOutputs {
   free(): void;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {TransactionUnspentOutputsJSON}
+   */
+  to_js_value(): TransactionUnspentOutputsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {TransactionUnspentOutputs}
+   */
+  static from_json(json: string): TransactionUnspentOutputs;
+
+  /**
    * @returns {TransactionUnspentOutputs}
    */
   static new(): TransactionUnspentOutputs;
@@ -10416,6 +10432,7 @@ export interface TransactionUnspentOutputJSON {
   input: TransactionInputJSON;
   output: TransactionOutputJSON;
 }
+export type TransactionUnspentOutputsJSON = TransactionUnspentOutputJSON[];
 export interface TransactionWitnessSetJSON {
   bootstraps?: BootstrapWitnessesJSON | null;
   native_scripts?: NativeScriptsJSON | null;
