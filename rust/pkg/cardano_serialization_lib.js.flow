@@ -4480,6 +4480,19 @@ declare export class PlutusData {
    * @returns {Uint8Array | void}
    */
   as_bytes(): Uint8Array | void;
+
+  /**
+   * @param {number} schema
+   * @returns {string}
+   */
+  to_json(schema: number): string;
+
+  /**
+   * @param {string} json
+   * @param {number} schema
+   * @returns {PlutusData}
+   */
+  static from_json(json: string, schema: number): PlutusData;
 }
 /**
  */
@@ -5848,6 +5861,22 @@ declare export class Redeemer {
   static from_hex(hex_str: string): Redeemer;
 
   /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {RedeemerJSON}
+   */
+  to_js_value(): RedeemerJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Redeemer}
+   */
+  static from_json(json: string): Redeemer;
+
+  /**
    * @returns {RedeemerTag}
    */
   tag(): RedeemerTag;
@@ -5975,6 +6004,22 @@ declare export class Redeemers {
    * @returns {Redeemers}
    */
   static from_hex(hex_str: string): Redeemers;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {RedeemersJSON}
+   */
+  to_js_value(): RedeemersJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Redeemers}
+   */
+  static from_json(json: string): Redeemers;
 
   /**
    * @returns {Redeemers}

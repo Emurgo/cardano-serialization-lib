@@ -700,6 +700,14 @@ impl PlutusData {
             _ => None,
         }
     }
+
+    pub fn to_json(&self, schema: PlutusDatumSchema) -> Result<String, JsError> {
+        decode_plutus_datum_to_json_str(self, schema)
+    }
+
+    pub fn from_json(json: &str, schema: PlutusDatumSchema) -> Result<PlutusData, JsError> {
+        encode_json_str_to_plutus_datum(json, schema)
+    }
 }
 
 //TODO: replace this by cardano-node schemas
@@ -801,7 +809,7 @@ pub struct Redeemer {
     ex_units: ExUnits,
 }
 
-to_from_bytes!(Redeemer);
+impl_to_from!(Redeemer);
 
 #[wasm_bindgen]
 impl Redeemer {
@@ -897,7 +905,7 @@ impl RedeemerTag {
 )]
 pub struct Redeemers(pub(crate) Vec<Redeemer>);
 
-to_from_bytes!(Redeemers);
+impl_to_from!(Redeemers);
 
 #[wasm_bindgen]
 impl Redeemers {
