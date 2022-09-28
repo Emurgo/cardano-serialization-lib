@@ -386,9 +386,9 @@ impl Costmdls {
         serializer.finalize()
     }
 
-    pub(crate) fn retain_language_versions(&self, languages: Vec<Language>) -> Costmdls {
+    pub fn retain_language_versions(&self, languages: &Languages) -> Costmdls {
         let mut result = Costmdls::new();
-        for lang in languages {
+        for lang in &languages.0 {
             match self.get(&lang) {
                 Some(costmodel) => { result.insert(&lang, &costmodel); },
                 _ => {}
@@ -2362,7 +2362,7 @@ mod tests {
         let hash = hash_script_data(
             &redeemers,
             &TxBuilderConstants::plutus_vasil_cost_models()
-                .retain_language_versions(vec![Language::new_plutus_v1()]),
+                .retain_language_versions(&Languages(vec![Language::new_plutus_v1()])),
             Some(datums),
         );
         assert_eq!(hex::encode(hash.to_bytes()), "e6129f50a866d19d95bc9c95ee87b57a9e695c05d92ba2746141b03c15cf5f70");
