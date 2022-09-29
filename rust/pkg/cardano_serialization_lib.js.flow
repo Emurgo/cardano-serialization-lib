@@ -10351,12 +10351,6 @@ export interface PlutusMapJSON {
 }
 export type PlutusScriptJSON = string;
 export type PlutusScriptsJSON = string[];
-export interface PlutusWitnessJSON {
-  datum: PlutusDataJSON;
-  redeemer: RedeemerJSON;
-  script: string;
-}
-export type PlutusWitnessesJSON = PlutusWitnessJSON[];
 export interface PoolMetadataJSON {
   pool_metadata_hash: string;
   url: URLJSON;
@@ -10413,7 +10407,6 @@ export interface ProtocolVersionJSON {
   major: number;
   minor: number;
 }
-export type ProtocolVersionsJSON = ProtocolVersionJSON[];
 export type PublicKeyJSON = string;
 export interface RedeemerJSON {
   data: PlutusDataJSON;
