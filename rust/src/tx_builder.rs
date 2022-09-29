@@ -4277,6 +4277,13 @@ mod tests {
                 CoinSelectionStrategyCIP2::RandomImproveMultiAsset,
             )
             .unwrap();
+
+        let input_for_cover_change = make_input(10u8, Value::new(&to_bignum(1000)));
+        tx_builder.add_input(
+            &input_for_cover_change.output.address,
+            &input_for_cover_change.input,
+            &input_for_cover_change.output.amount);
+
         let change_addr = ByronAddress::from_base58(
             "Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho",
         )
