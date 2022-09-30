@@ -4678,6 +4678,17 @@ declare export class PlutusScript {
   ): PlutusScript;
 
   /**
+   * Same as .from_hex but will consider the script as requiring the specified language version
+   * @param {string} hex_str
+   * @param {Language} language
+   * @returns {PlutusScript}
+   */
+  static from_hex_with_version(
+    hex_str: string,
+    language: Language
+  ): PlutusScript;
+
+  /**
    * @returns {ScriptHash}
    */
   hash(): ScriptHash;
