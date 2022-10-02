@@ -17,7 +17,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 cryptoxide = "0.4.2"
-cbor_event = "2.1.3"
+cbor_event = "2.2.0"
 ed25519-bip32 = "0.4.1"
 sha2 = "^0.9"
 digest = "^0.9"
