@@ -357,7 +357,7 @@ pub struct TransactionBuilder {
     required_signers: Ed25519KeyHashes,
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
-    reference_inputs: TransactionInputs,
+    reference_inputs: HashSet<TransactionInput>,
 }
 
 #[wasm_bindgen]
@@ -417,6 +417,7 @@ impl TransactionBuilder {
                     &mut output_total,
                     |value| Some(value.coin),
                     &mut rng,
+                    true,
                 )?;
                 // Phase 3: add extra inputs needed for fees (not covered by CIP-2)
                 // We do this at the end because this new inputs won't be associated with
@@ -483,6 +484,7 @@ impl TransactionBuilder {
                                 &mut output_total,
                                 |value| value.multiasset.as_ref()?.get(policy_id)?.get(asset_name),
                                 &mut rng,
+                                false,
                             )?;
                         }
                     }
@@ -495,6 +497,7 @@ impl TransactionBuilder {
                     &mut output_total,
                     |value| Some(value.coin),
                     &mut rng,
+                    false,
                 )?;
                 // Phase 3: add extra inputs needed for fees (not covered by CIP-2)
                 // We do this at the end because this new inputs won't be associated with
@@ -575,6 +578,7 @@ impl TransactionBuilder {
         output_total: &mut Value,
         by: F,
         rng: &mut rand::rngs::ThreadRng,
+        pure_ada: bool,
     ) -> Result<(), JsError>
     where
         F: Fn(&Value) -> Option<BigNum>,
@@ -595,6 +599,7 @@ impl TransactionBuilder {
             .cloned()
             .collect::<Vec<TransactionOutput>>();
         outputs.sort_by_key(|output| by(&output.amount).expect("filtered above"));
+        let mut available_coins = by(input_total).unwrap_or(BigNum::zero());
         for output in outputs.iter().rev() {
             // TODO: how should we adapt this to inputs being associated when running for other assets?
             // if we do these two phases for each asset and don't take into account the other runs for other assets
@@ -611,7 +616,7 @@ impl TransactionBuilder {
             // we try and subtract all other assets b != a from the outputs we're trying to cover.
             // It might make sense to diverge further and not consider it per-output and to instead just match against
             // the sum of all outputs as one single value.
-            let mut added = BigNum::zero();
+            let mut added = available_coins.clone();
             let needed = by(&output.amount).unwrap();
             while added < needed {
                 if relevant_indices.is_empty() {
@@ -630,8 +635,9 @@ impl TransactionBuilder {
                     .or_default()
                     .push(i);
             }
+            available_coins = added.checked_sub(&needed)?;
         }
-        if !relevant_indices.is_empty() {
+        if !relevant_indices.is_empty() && pure_ada {
             // Phase 2: Improvement
             for output in outputs.iter_mut() {
                 let associated = associated_indices.get_mut(output).unwrap();
@@ -640,9 +646,9 @@ impl TransactionBuilder {
                     let j: &mut usize = relevant_indices.get_mut(random_index).unwrap();
                     let input = &available_inputs[*i];
                     let new_input = &available_inputs[*j];
-                    let cur = from_bignum(&input.output.amount.coin);
-                    let new = from_bignum(&new_input.output.amount.coin);
-                    let min = from_bignum(&output.amount.coin);
+                    let cur = from_bignum(&by(&input.output.amount).unwrap_or(BigNum::zero()));
+                    let new = from_bignum(&by(&new_input.output.amount).unwrap_or(BigNum::zero()));
+                    let min = from_bignum(&by(&output.amount).unwrap_or(BigNum::zero()));
                     let ideal = 2 * min;
                     let max = 3 * min;
                     let move_closer =
@@ -659,13 +665,15 @@ impl TransactionBuilder {
 
         // after finalizing the improvement we need to actually add these results to the builder
         for output in outputs.iter() {
-            for i in associated_indices.get(output).unwrap().iter() {
-                let input = &available_inputs[*i];
-                let input_fee =
-                    self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
-                self.add_input(&input.output.address, &input.input, &input.output.amount);
-                *input_total = input_total.checked_add(&input.output.amount)?;
-                *output_total = output_total.checked_add(&Value::new(&input_fee))?;
+            if let Some(associated) = associated_indices.get(output) {
+                for i in associated.iter() {
+                    let input = &available_inputs[*i];
+                    let input_fee =
+                        self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+                    self.add_input(&input.output.address, &input.input, &input.output.amount);
+                    *input_total = input_total.checked_add(&input.output.amount)?;
+                    *output_total = output_total.checked_add(&Value::new(&input_fee))?;
+                }
             }
         }
 
@@ -759,7 +767,7 @@ impl TransactionBuilder {
     }
 
     pub fn add_reference_input(&mut self, reference_input: &TransactionInput) {
-        self.reference_inputs.add(reference_input);
+        self.reference_inputs.insert(reference_input.clone());
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -1100,7 +1108,12 @@ impl TransactionBuilder {
             .map(|m| m.get(&policy_id).as_ref().cloned())
             .unwrap_or(None)
             .unwrap_or(MintAssets::new());
-        asset.insert(asset_name, amount);
+        if let Some(mint_amount) = asset.get(asset_name) {
+            let new_amount = mint_amount.0 + amount.0;
+            asset.insert(asset_name, Int(new_amount));
+        } else {
+            asset.insert(asset_name, amount);
+        }
         self._set_mint_asset(&policy_id, policy_script, &asset);
     }
 
@@ -1198,12 +1211,18 @@ impl TransactionBuilder {
             required_signers: Ed25519KeyHashes::new(),
             collateral_return: None,
             total_collateral: None,
-            reference_inputs: TransactionInputs::new(),
+            reference_inputs: HashSet::new(),
         }
     }
 
     pub fn get_reference_inputs(&self) -> TransactionInputs {
-        self.reference_inputs.clone()
+        let mut inputs = self.reference_inputs.clone();
+        for input in self.inputs.get_ref_inputs().0 {
+            inputs.insert(input);
+        }
+
+        let vec_inputs = inputs.into_iter().collect();
+        TransactionInputs(vec_inputs)
     }
 
     /// does not include refunds or withdrawals
@@ -1298,6 +1317,11 @@ impl TransactionBuilder {
 
         let input_total = self.get_total_input()?;
         let output_total = self.get_total_output()?;
+
+        let shortage = get_input_shortage(&input_total, &output_total, &fee)?;
+        if let Some(shortage) = shortage {
+            return Err(JsError::from_str(&format!("Insufficient input in transaction. {}", shortage)));
+        }
 
         use std::cmp::Ordering;
         match &input_total.partial_cmp(&output_total.checked_add(&Value::new(&fee))?) {
@@ -1701,7 +1725,7 @@ impl TransactionBuilder {
             network_id: None,
             collateral_return: self.collateral_return.clone(),
             total_collateral: self.total_collateral.clone(),
-            reference_inputs: self.reference_inputs.to_option(),
+            reference_inputs: self.get_reference_inputs().to_option(),
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;
@@ -1980,7 +2004,6 @@ mod tests {
         create_tx_builder_with_fee(&create_default_linear_fee())
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_change() {
         let mut tx_builder = create_default_tx_builder();
@@ -2207,7 +2230,6 @@ mod tests {
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
 
-    #[ignore]
     #[test]
     fn build_tx_exact_amount() {
         // transactions where sum(input) == sum(output) exact should pass
@@ -2272,7 +2294,6 @@ mod tests {
         assert_eq!(final_tx.outputs().len(), 1);
     }
 
-    #[ignore]
     #[test]
     fn build_tx_exact_change() {
         // transactions where we have exactly enough ADA to add change should pass
@@ -2736,7 +2757,6 @@ mod tests {
         assert_eq!(deser_t.to_json().unwrap(), final_tx.to_json().unwrap());
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_mint_all_sent() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
@@ -2825,7 +2845,6 @@ mod tests {
         assert!(change.multiasset().is_none());
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_mint_in_change() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
@@ -2923,7 +2942,196 @@ mod tests {
         );
     }
 
-    #[ignore]
+    #[test]
+    fn change_with_input_and_mint_not_enough_ada() {
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 1));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+
+        let (min_script, policy_id) = mint_script_and_policy(0);
+        let asset_name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+
+        let amount_minted = to_bignum(1000);
+        let amount_sent = to_bignum(500);
+        let amount_input_amount = to_bignum(600);
+
+        let mut asset_input = Assets::new();
+        asset_input.insert(&asset_name, &amount_input_amount);
+        let mut mass_input = MultiAsset::new();
+        mass_input.insert(&policy_id, &asset_input);
+
+        // Input with 600 coins
+        tx_builder.add_input(
+            &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(600)),
+        );
+
+        tx_builder.add_input(
+            &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+            &TransactionInput::new(&genesis_id(), 1),
+            &Value::new_with_assets(&to_bignum(1), &mass_input),
+        );
+
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        ).to_address();
+
+        // Adding mint of the asset - which should work as an input
+        tx_builder.add_mint_asset(&min_script, &asset_name, Int::new(&amount_minted));
+
+        let mut asset = Assets::new();
+        asset.insert(&asset_name, &amount_sent);
+        let mut mass = MultiAsset::new();
+        mass.insert(&policy_id, &asset);
+
+        // One coin and the minted asset goes into the output
+        let mut output_amount = Value::new(&to_bignum(400));
+        output_amount.set_multiasset(&mass);
+
+        tx_builder
+            .add_output(
+                &TransactionOutputBuilder::new()
+                    .with_address(&addr_net_0)
+                    .next()
+                    .unwrap()
+                    .with_value(&output_amount)
+                    .build()
+                    .unwrap(),
+            )
+            .unwrap();
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+            .to_address();
+
+        let added_change = tx_builder.add_change_if_needed(&change_addr);
+        assert!(added_change.is_err());
+    }
+
+    #[test]
+    fn change_with_input_and_mint_not_enough_assets() {
+        let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 1));
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+
+        let (min_script, policy_id) = mint_script_and_policy(0);
+        let asset_name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+
+        let amount_minted = to_bignum(1000);
+        let amount_sent = to_bignum(100000);
+        let amount_input_amount = to_bignum(600);
+
+        let mut asset_input = Assets::new();
+        asset_input.insert(&asset_name, &amount_input_amount);
+        let mut mass_input = MultiAsset::new();
+        mass_input.insert(&policy_id, &asset_input);
+
+        // Input with 600 coins
+        tx_builder.add_input(
+            &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(100000)),
+        );
+
+        tx_builder.add_input(
+            &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+            &TransactionInput::new(&genesis_id(), 1),
+            &Value::new_with_assets(&to_bignum(1), &mass_input),
+        );
+
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        ).to_address();
+
+        // Adding mint of the asset - which should work as an input
+        tx_builder.add_mint_asset(&min_script, &asset_name, Int::new(&amount_minted));
+
+        let mut asset = Assets::new();
+        asset.insert(&asset_name, &amount_sent);
+        let mut mass = MultiAsset::new();
+        mass.insert(&policy_id, &asset);
+
+        // One coin and the minted asset goes into the output
+        let mut output_amount = Value::new(&to_bignum(400));
+        output_amount.set_multiasset(&mass);
+
+        tx_builder
+            .add_output(
+                &TransactionOutputBuilder::new()
+                    .with_address(&addr_net_0)
+                    .next()
+                    .unwrap()
+                    .with_value(&output_amount)
+                    .build()
+                    .unwrap(),
+            )
+            .unwrap();
+
+        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+            .to_address();
+
+        let added_change = tx_builder.add_change_if_needed(&change_addr);
+        assert!(added_change.is_err());
+    }
+
     #[test]
     fn build_tx_with_native_assets_change() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
@@ -3037,7 +3245,6 @@ mod tests {
         assert_eq!(final_tx.outputs().get(1).amount().coin(), to_bignum(599));
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_native_assets_change_and_purification() {
         let coin_per_utxo_word = to_bignum(8);
@@ -3166,7 +3373,6 @@ mod tests {
         assert_eq!(final_tx.outputs().get(2).amount().multiasset(), None);
     }
 
-    #[ignore]
     #[test]
     fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
         // Prefer pure change!
@@ -3583,7 +3789,6 @@ mod tests {
         return (multiasset, policy_ids, names);
     }
 
-    #[ignore]
     #[test]
     fn build_tx_add_change_split_nfts() {
         let max_value_size = 100; // super low max output size to test with fewer assets
@@ -3690,7 +3895,6 @@ mod tests {
             .is_err());
     }
 
-    #[ignore]
     #[test]
     fn build_tx_add_change_nfts_not_enough_ada() {
         let mut tx_builder = create_tx_builder_with_fee_and_val_size(
@@ -3871,7 +4075,6 @@ mod tests {
         assert_eq!(3u8, tx.inputs().get(1).transaction_id().0[0]);
     }
 
-    #[ignore]
     #[test]
     fn tx_builder_cip2_largest_first_multiasset() {
         // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
@@ -3991,7 +4194,6 @@ mod tests {
         assert_eq!(expected_change, change);
     }
 
-    #[ignore]
     #[test]
     fn tx_builder_cip2_random_improve_multiasset() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
@@ -4077,6 +4279,13 @@ mod tests {
                 CoinSelectionStrategyCIP2::RandomImproveMultiAsset,
             )
             .unwrap();
+
+        let input_for_cover_change = make_input(10u8, Value::new(&to_bignum(1000)));
+        tx_builder.add_input(
+            &input_for_cover_change.output.address,
+            &input_for_cover_change.input,
+            &input_for_cover_change.output.amount);
+
         let change_addr = ByronAddress::from_base58(
             "Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho",
         )
@@ -4200,7 +4409,6 @@ mod tests {
         assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
     }
 
-    #[ignore]
     #[test]
     fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
         // we have a = 1 to test increasing fees when more inputs are added
@@ -4525,7 +4733,6 @@ mod tests {
         );
     }
 
-    #[ignore]
     #[test]
     fn add_change_splits_change_into_multiple_outputs_when_nfts_overflow_output_size() {
         let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
@@ -4950,7 +5157,6 @@ mod tests {
         assert_eq!(mint_scripts.get(1), mint_script2);
     }
 
-    #[ignore]
     #[test]
     fn add_output_amount() {
         let mut tx_builder = create_default_tx_builder();
@@ -4980,7 +5186,6 @@ mod tests {
         assert_eq!(out.amount, value);
     }
 
-    #[ignore]
     #[test]
     fn add_output_coin() {
         let mut tx_builder = create_default_tx_builder();
@@ -5007,7 +5212,6 @@ mod tests {
         assert!(out.amount.multiasset.is_none());
     }
 
-    #[ignore]
     #[test]
     fn add_output_coin_and_multiasset() {
         let mut tx_builder = create_default_tx_builder();
@@ -5038,7 +5242,6 @@ mod tests {
         assert_eq!(out.amount.multiasset.unwrap(), multiasset);
     }
 
-    #[ignore]
     #[test]
     fn add_output_asset_and_min_required_coin() {
         let mut tx_builder = create_reallistic_tx_builder();
@@ -5072,7 +5275,6 @@ mod tests {
         assert_eq!(out.amount.coin, to_bignum(1146460));
     }
 
-    #[ignore]
     #[test]
     fn add_mint_asset_and_output() {
         let mut tx_builder = create_default_tx_builder();
@@ -5136,7 +5338,6 @@ mod tests {
         assert_eq!(asset.get(&name).unwrap(), to_bignum(1234));
     }
 
-    #[ignore]
     #[test]
     fn add_mint_asset_and_min_required_coin() {
         let mut tx_builder = create_reallistic_tx_builder();
@@ -5343,7 +5544,6 @@ mod tests {
         // assert!(est5.err().unwrap().to_string().contains("witness scripts are not provided"));
     }
 
-    #[ignore]
     #[test]
     fn total_input_output_with_mint_and_burn() {
         let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
@@ -6462,7 +6662,6 @@ mod tests {
         );
     }
 
-    #[ignore]
     #[test]
     fn test_auto_calc_total_collateral() {
         let mut tx_builder = create_reallistic_tx_builder();
@@ -6498,7 +6697,6 @@ mod tests {
         );
     }
 
-    #[ignore]
     #[test]
     fn test_auto_calc_total_collateral_with_assets() {
         let mut tx_builder = create_reallistic_tx_builder();
@@ -6893,5 +7091,439 @@ mod tests {
         // Setting script data hash removes the error
         let calc_result = tx_builder.calc_script_data_hash(&retained_cost_models);
         assert!(calc_result.is_err());
+    }
+
+    #[test]
+    fn coin_selection_random_improve_multi_asset() {
+        let utoxs = TransactionUnspentOutputs::from_json("[ { \"input\": {
+  \"transaction_id\": \"96631bf40bc2ae1e10b3c9157a4c711562c664b9744ed1f580b725e0589efcd0\",
+  \"index\": 1
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"661308571\",
+    \"multiasset\": null
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"89da149fa162eca7212493f2bcc8415ed070832e053ac0ec335d3501f901ad77\",
+  \"index\": 1
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"555975153\",
+    \"multiasset\": null
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"0124993c20ea0fe626d96a644773225202fb442238c38206242d26a1131e0a6e\",
+  \"index\": 1
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"1899495\",
+    \"multiasset\": {
+      \"07e8df329b724e4be48ee32738125c06000de5448aaf93ed46d59e28\": {
+        \"44696e6f436f696e\": \"750\"
+      }
+    }
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"c15c423d624b3af3f032c079a1b390c472b8ba889b48dd581d0ea28f96a36875\",
+  \"index\": 0
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"1804315\",
+    \"multiasset\": {
+      \"07e8df329b724e4be48ee32738125c06000de5448aaf93ed46d59e28\": {
+        \"44696e6f436f696e\": \"2000\"
+      }
+    }
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"5894bf9c9125859d29770bf43e4018f4f34a69edee49a7c9488c6707ab523c9b\",
+  \"index\": 1
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"440573428\",
+    \"multiasset\": null
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"168404afd4e9927d7775c8f40c0f749fc7634832d6931c5d51a507724cf44420\",
+  \"index\": 0
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"1804315\",
+    \"multiasset\": {
+      \"07e8df329b724e4be48ee32738125c06000de5448aaf93ed46d59e28\": {
+        \"44696e6f436f696e\": \"1000\"
+      }
+    }
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"3e6138498b721ee609a4c289768b2accad39cd4f00448540a95ba3362578a2f7\",
+  \"index\": 4
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"1508500\",
+    \"multiasset\": {
+      \"07e8df329b724e4be48ee32738125c06000de5448aaf93ed46d59e28\": {
+        \"44696e6f436f696e\": \"750\"
+      }
+    }
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"3e6138498b721ee609a4c289768b2accad39cd4f00448540a95ba3362578a2f7\",
+  \"index\": 5
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"664935092\",
+    \"multiasset\": null
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"046cf1bc21c23c59975714b520dd7ed22b63dab592cb0449e0ee6cc96eefde69\",
+  \"index\": 2
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"7094915\",
+    \"multiasset\": null
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"e16f195105db5f84621af4f7ea57c7156b8699cba94d4fdb72a6fb09e31db7a8\",
+  \"index\": 1
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"78400000\",
+    \"multiasset\": null
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"e16f195105db5f84621af4f7ea57c7156b8699cba94d4fdb72a6fb09e31db7a8\",
+  \"index\": 2
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"2000000\",
+    \"multiasset\": null
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"006697ef0c9285b7001ebe5a9e356fb50441e0af803773a99b7cbb0e9b728570\",
+  \"index\": 1
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"15054830\",
+    \"multiasset\": {
+      \"07e8df329b724e4be48ee32738125c06000de5448aaf93ed46d59e28\": {
+        \"44696e6f436f696e\": \"56250\"
+      },
+      \"3320679b145d683b9123f0626360699fcd7408b4d3ec3bd9cc79398c\": {
+        \"44696e6f436f696e\": \"287000\"
+      },
+      \"57fca08abbaddee36da742a839f7d83a7e1d2419f1507fcbf3916522\": {
+        \"4d494e54\": \"91051638\",
+        \"534245525259\": \"27198732\"
+      },
+      \"e61bfc106338ed4aeba93036324fbea8150fd9750fcffca1cd9f1a19\": {
+        \"44696e6f536176696f723030303639\": \"1\",
+        \"44696e6f536176696f723030303936\": \"1\",
+        \"44696e6f536176696f723030313737\": \"1\",
+        \"44696e6f536176696f723030333033\": \"1\",
+        \"44696e6f536176696f723030333531\": \"1\",
+        \"44696e6f536176696f723030333931\": \"1\",
+        \"44696e6f536176696f723030343336\": \"1\",
+        \"44696e6f536176696f723030343434\": \"1\",
+        \"44696e6f536176696f723030353232\": \"1\",
+        \"44696e6f536176696f723030353337\": \"1\",
+        \"44696e6f536176696f723030363334\": \"1\",
+        \"44696e6f536176696f723030373332\": \"1\",
+        \"44696e6f536176696f723030373430\": \"1\",
+        \"44696e6f536176696f723030373435\": \"1\",
+        \"44696e6f536176696f723031303139\": \"1\",
+        \"44696e6f536176696f723031303631\": \"1\",
+        \"44696e6f536176696f723031333432\": \"1\",
+        \"44696e6f536176696f723031333832\": \"1\",
+        \"44696e6f536176696f723031353333\": \"1\",
+        \"44696e6f536176696f723031353732\": \"1\",
+        \"44696e6f536176696f723031363337\": \"1\",
+        \"44696e6f536176696f723031363430\": \"1\",
+        \"44696e6f536176696f723031373631\": \"1\",
+        \"44696e6f536176696f723031393436\": \"1\",
+        \"44696e6f536176696f723032313237\": \"1\",
+        \"44696e6f536176696f723032323232\": \"1\",
+        \"44696e6f536176696f723032333230\": \"1\",
+        \"44696e6f536176696f723032333239\": \"1\",
+        \"44696e6f536176696f723032333534\": \"1\",
+        \"44696e6f536176696f723032333631\": \"1\",
+        \"44696e6f536176696f723032333935\": \"1\",
+        \"44696e6f536176696f723032333938\": \"1\",
+        \"44696e6f536176696f723032343037\": \"1\",
+        \"44696e6f536176696f723032343434\": \"1\",
+        \"44696e6f536176696f723032353039\": \"1\",
+        \"44696e6f536176696f723032363334\": \"1\",
+        \"44696e6f536176696f723032363430\": \"1\",
+        \"44696e6f536176696f723032373537\": \"1\",
+        \"44696e6f536176696f723032373832\": \"1\",
+        \"44696e6f536176696f723032383933\": \"1\",
+        \"44696e6f536176696f723033323430\": \"1\",
+        \"44696e6f536176696f723033343937\": \"1\",
+        \"44696e6f536176696f723033353437\": \"1\",
+        \"44696e6f536176696f723033353738\": \"1\",
+        \"44696e6f536176696f723033363638\": \"1\",
+        \"44696e6f536176696f723033363836\": \"1\",
+        \"44696e6f536176696f723033363930\": \"1\",
+        \"44696e6f536176696f723033383638\": \"1\",
+        \"44696e6f536176696f723033383731\": \"1\",
+        \"44696e6f536176696f723033383931\": \"1\",
+        \"44696e6f536176696f723034313936\": \"1\",
+        \"44696e6f536176696f723034323538\": \"1\",
+        \"44696e6f536176696f723034323733\": \"1\",
+        \"44696e6f536176696f723034363235\": \"1\",
+        \"44696e6f536176696f723034373132\": \"1\",
+        \"44696e6f536176696f723034373932\": \"1\",
+        \"44696e6f536176696f723034383831\": \"1\",
+        \"44696e6f536176696f723034393936\": \"1\",
+        \"44696e6f536176696f723035303432\": \"1\",
+        \"44696e6f536176696f723035313539\": \"1\",
+        \"44696e6f536176696f723035333138\": \"1\",
+        \"44696e6f536176696f723035333532\": \"1\",
+        \"44696e6f536176696f723035343433\": \"1\",
+        \"44696e6f536176696f723035343639\": \"1\",
+        \"44696e6f536176696f723035373434\": \"1\",
+        \"44696e6f536176696f723035373638\": \"1\",
+        \"44696e6f536176696f723035373830\": \"1\",
+        \"44696e6f536176696f723035383435\": \"1\",
+        \"44696e6f536176696f723035383538\": \"1\",
+        \"44696e6f536176696f723035393632\": \"1\",
+        \"44696e6f536176696f723036303032\": \"1\",
+        \"44696e6f536176696f723036303337\": \"1\",
+        \"44696e6f536176696f723036303738\": \"1\",
+        \"44696e6f536176696f723036323033\": \"1\",
+        \"44696e6f536176696f723036323036\": \"1\",
+        \"44696e6f536176696f723036323236\": \"1\",
+        \"44696e6f536176696f723036333130\": \"1\",
+        \"44696e6f536176696f723036333935\": \"1\",
+        \"44696e6f536176696f723036343932\": \"1\",
+        \"44696e6f536176696f723036353532\": \"1\",
+        \"44696e6f536176696f723036363735\": \"1\",
+        \"44696e6f536176696f723036363839\": \"1\",
+        \"44696e6f536176696f723036373233\": \"1\",
+        \"44696e6f536176696f723036383731\": \"1\",
+        \"44696e6f536176696f723036383830\": \"1\",
+        \"44696e6f536176696f723036393137\": \"1\",
+        \"44696e6f536176696f723037303339\": \"1\",
+        \"44696e6f536176696f723037323638\": \"1\",
+        \"44696e6f536176696f723037333434\": \"1\",
+        \"44696e6f536176696f723037343232\": \"1\",
+        \"44696e6f536176696f723037343731\": \"1\",
+        \"44696e6f536176696f723037353431\": \"1\",
+        \"44696e6f536176696f723037363032\": \"1\",
+        \"44696e6f536176696f723037363136\": \"1\",
+        \"44696e6f536176696f723037363430\": \"1\",
+        \"44696e6f536176696f723037373635\": \"1\",
+        \"44696e6f536176696f723037373732\": \"1\",
+        \"44696e6f536176696f723037393039\": \"1\",
+        \"44696e6f536176696f723037393234\": \"1\",
+        \"44696e6f536176696f723037393430\": \"1\",
+        \"44696e6f536176696f723037393632\": \"1\",
+        \"44696e6f536176696f723038303130\": \"1\",
+        \"44696e6f536176696f723038303338\": \"1\",
+        \"44696e6f536176696f723038303339\": \"1\",
+        \"44696e6f536176696f723038303636\": \"1\",
+        \"44696e6f536176696f723038313735\": \"1\",
+        \"44696e6f536176696f723038323032\": \"1\",
+        \"44696e6f536176696f723038323131\": \"1\",
+        \"44696e6f536176696f723038323536\": \"1\",
+        \"44696e6f536176696f723038333532\": \"1\",
+        \"44696e6f536176696f723038333536\": \"1\",
+        \"44696e6f536176696f723038333538\": \"1\",
+        \"44696e6f536176696f723038333539\": \"1\",
+        \"44696e6f536176696f723038333830\": \"1\",
+        \"44696e6f536176696f723038343932\": \"1\",
+        \"44696e6f536176696f723038353231\": \"1\",
+        \"44696e6f536176696f723038353736\": \"1\",
+        \"44696e6f536176696f723038353836\": \"1\",
+        \"44696e6f536176696f723038363130\": \"1\",
+        \"44696e6f536176696f723039303231\": \"1\",
+        \"44696e6f536176696f723039303735\": \"1\",
+        \"44696e6f536176696f723039313039\": \"1\",
+        \"44696e6f536176696f723039313231\": \"1\",
+        \"44696e6f536176696f723039323238\": \"1\",
+        \"44696e6f536176696f723039333138\": \"1\",
+        \"44696e6f536176696f723039333731\": \"1\",
+        \"44696e6f536176696f723039343035\": \"1\",
+        \"44696e6f536176696f723039343136\": \"1\",
+        \"44696e6f536176696f723039353039\": \"1\",
+        \"44696e6f536176696f723039353635\": \"1\",
+        \"44696e6f536176696f723039363331\": \"1\",
+        \"44696e6f536176696f723039363932\": \"1\",
+        \"44696e6f536176696f723039383839\": \"1\",
+        \"44696e6f536176696f723039393038\": \"1\",
+        \"44696e6f536176696f723039393935\": \"1\"
+      },
+      \"ee8e37676f6ebb8e031dff493f88ff711d24aa68666a09d61f1d3fb3\": {
+        \"43727970746f44696e6f3030303135\": \"1\",
+        \"43727970746f44696e6f3030313335\": \"1\",
+        \"43727970746f44696e6f3030323634\": \"1\",
+        \"43727970746f44696e6f3030333932\": \"1\",
+        \"43727970746f44696e6f3030353834\": \"1\",
+        \"43727970746f44696e6f3030373136\": \"1\",
+        \"43727970746f44696e6f3030373837\": \"1\",
+        \"43727970746f44696e6f3030383438\": \"1\",
+        \"43727970746f44696e6f3031303537\": \"1\",
+        \"43727970746f44696e6f3031313134\": \"1\",
+        \"43727970746f44696e6f3031323237\": \"1\",
+        \"43727970746f44696e6f3031323330\": \"1\",
+        \"43727970746f44696e6f3031343031\": \"1\",
+        \"43727970746f44696e6f3031353138\": \"1\",
+        \"43727970746f44696e6f3031353734\": \"1\",
+        \"43727970746f44696e6f3031373635\": \"1\",
+        \"43727970746f44696e6f3031383037\": \"1\",
+        \"43727970746f44696e6f3031383231\": \"1\",
+        \"43727970746f44696e6f3032303830\": \"1\",
+        \"43727970746f44696e6f3032313133\": \"1\",
+        \"43727970746f44696e6f3032323835\": \"1\",
+        \"43727970746f44696e6f3032343238\": \"1\",
+        \"43727970746f44696e6f3032363738\": \"1\",
+        \"43727970746f44696e6f3032393034\": \"1\",
+        \"43727970746f44696e6f3032393333\": \"1\",
+        \"43727970746f44696e6f3032393537\": \"1\",
+        \"43727970746f44696e6f3032393632\": \"1\",
+        \"43727970746f44696e6f3032393735\": \"1\",
+        \"43727970746f44696e6f3033303434\": \"1\",
+        \"43727970746f44696e6f3033333338\": \"1\",
+        \"43727970746f44696e6f3033393535\": \"1\",
+        \"43727970746f44696e6f3034303630\": \"1\",
+        \"43727970746f44696e6f3034313939\": \"1\",
+        \"43727970746f44696e6f3034373439\": \"1\",
+        \"43727970746f44696e6f3034383134\": \"1\",
+        \"43727970746f44696e6f3034393530\": \"1\",
+        \"43727970746f44696e6f3035303630\": \"1\",
+        \"43727970746f44696e6f3035333230\": \"1\",
+        \"43727970746f44696e6f2d312d3030303030\": \"1\",
+        \"43727970746f44696e6f2d312d3030303032\": \"1\"
+      }
+    }
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"006697ef0c9285b7001ebe5a9e356fb50441e0af803773a99b7cbb0e9b728570\",
+  \"index\": 2
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"2279450\",
+    \"multiasset\": null
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"017962634cf8fa87835256a80b8374c6f75687c34d8694480cb071648551c3a7\",
+  \"index\": 0
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"2000000\",
+    \"multiasset\": {
+      \"ee8e37676f6ebb8e031dff493f88ff711d24aa68666a09d61f1d3fb3\": {
+        \"43727970746f44696e6f3031353039\": \"1\"
+      }
+    }
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}},
+{ \"input\": {
+  \"transaction_id\": \"017962634cf8fa87835256a80b8374c6f75687c34d8694480cb071648551c3a7\",
+  \"index\": 1
+},
+\"output\": {
+  \"address\": \"addr_test1qp03v9yeg0vcfdhyn65ets2juearxpc3pmdhr0sxs0w6wh3sjf67h3yhrpxpv00zqfc7rtmr6mnmrcplfdkw5zhnl49qmyf0q5\",
+  \"amount\": {
+    \"coin\": \"725669617\",
+    \"multiasset\": null
+  },
+  \"plutus_data\": null,
+  \"script_ref\": null
+}}]")
+            .unwrap();
+        let output = TransactionOutput::from_json("{
+  \"address\": \"addr_test1wpv93hm9sqx0ar7pgxwl9jn3xt6lwmxxy27zd932slzvghqg8fe0n\",
+  \"amount\": {
+    \"coin\": \"20000000\",
+    \"multiasset\": {
+      \"07e8df329b724e4be48ee32738125c06000de5448aaf93ed46d59e28\": {
+        \"44696e6f436f696e\": \"1000\"
+      },
+      \"ee8e37676f6ebb8e031dff493f88ff711d24aa68666a09d61f1d3fb3\": {
+        \"43727970746f44696e6f2d312d3030303030\": \"1\",
+        \"43727970746f44696e6f2d312d3030303032\": \"1\"
+      }
+    }
+  },
+  \"plutus_data\": {
+    \"DataHash\": \"979f68de9e070e75779f80ce5e6cc74f8d77661d65f2895c01d0a6f66eceb791\"
+  },
+  \"script_ref\": null
+}").unwrap();
+        let addr= Address::from_bech32("addr_test1wpv93hm9sqx0ar7pgxwl9jn3xt6lwmxxy27zd932slzvghqg8fe0n").unwrap();
+        let mut builder = create_reallistic_tx_builder();
+        builder.add_output(&output);
+        let res = builder.add_inputs_from(&utoxs, CoinSelectionStrategyCIP2::RandomImproveMultiAsset);
+        assert!(res.is_ok());
     }
 }

@@ -7,7 +7,6 @@ use cardano_serialization_lib::crypto::*;
 use cardano_serialization_lib::metadata::*;
 use cardano_serialization_lib::plutus::*;
 use cardano_serialization_lib::utils::*;
-use crate::tx_builder::tx_inputs_builder::{PlutusWitness, PlutusWitnesses};
 
 //#[macro_export]
 macro_rules! gen_json_schema {
@@ -129,7 +128,7 @@ fn main() {
     // plutus.rs
     gen_json_schema!(PlutusScript);
     gen_json_schema!(PlutusScripts);
-    gen_json_schema!(ConstrPlutusData);
+    // gen_json_schema!(ConstrPlutusData);
     gen_json_schema!(CostModel);
     gen_json_schema!(Costmdls);
     gen_json_schema!(ExUnitPrices);
@@ -137,11 +136,10 @@ fn main() {
     gen_json_schema!(Language);
     gen_json_schema!(LanguageKind);
     gen_json_schema!(Languages);
-    gen_json_schema!(PlutusMap);
-    gen_json_schema!(PlutusData);
-    gen_json_schema!(PlutusList);
-    gen_json_schema!(PlutusData);
-    //gen_json_schema!(PlutusDataEnum);
+    // gen_json_schema!(PlutusMap);
+    // gen_json_schema!(PlutusData);
+    // gen_json_schema!(PlutusList);
+    // gen_json_schema!(PlutusDataEnum);
     gen_json_schema!(Redeemer);
     gen_json_schema!(RedeemerTag);
     gen_json_schema!(RedeemerTagKind);
@@ -156,8 +154,6 @@ fn main() {
     gen_json_schema!(BigInt);
     gen_json_schema!(Int);
     gen_json_schema!(Value);
-
-    // tx_builder.rs
-    gen_json_schema!(PlutusWitness);
-    gen_json_schema!(PlutusWitnesses);
+    gen_json_schema!(TransactionUnspentOutput);
+    gen_json_schema!(TransactionUnspentOutputs);
 }

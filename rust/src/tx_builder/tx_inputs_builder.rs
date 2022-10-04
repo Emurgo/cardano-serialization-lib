@@ -7,34 +7,95 @@ pub(crate) struct TxBuilderInput {
     pub(crate) amount: Value, // we need to keep track of the amount in the inputs for input selection
 }
 
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct PlutusWitness {
-    script: PlutusScript,
-    datum: PlutusData,
-    redeemer: Redeemer,
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum PlutusScriptSourceEnum {
+    Script(PlutusScript),
+    RefInput(TransactionInput, ScriptHash),
 }
 
-to_from_json!(PlutusWitness);
+impl PlutusScriptSourceEnum {
+    pub fn script_hash(&self) -> ScriptHash {
+        match self {
+            PlutusScriptSourceEnum::Script(script) => script.hash(),
+            PlutusScriptSourceEnum::RefInput(_, script_hash) => script_hash.clone(),
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct PlutusScriptSource(PlutusScriptSourceEnum);
+
+#[wasm_bindgen]
+impl PlutusScriptSource {
+    pub fn new(script: &PlutusScript) -> Self {
+        Self(PlutusScriptSourceEnum::Script(script.clone()))
+    }
+
+    pub fn new_ref_input(script_hash: &ScriptHash, input: &TransactionInput) -> Self {
+        Self(PlutusScriptSourceEnum::RefInput(input.clone(), script_hash.clone()))
+    }
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum DatumSourceEnum {
+    Datum(PlutusData),
+    RefInput(TransactionInput),
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct DatumSource(DatumSourceEnum);
+
+#[wasm_bindgen]
+impl DatumSource {
+    pub fn new(datum: &PlutusData) -> Self {
+        Self(DatumSourceEnum::Datum(datum.clone()))
+    }
+
+    pub fn new_ref_input(input: &TransactionInput) -> Self {
+        Self(DatumSourceEnum::RefInput(input.clone()))
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct PlutusWitness {
+    script: PlutusScriptSourceEnum,
+    datum: DatumSourceEnum,
+    redeemer: Redeemer,
+}
 
 #[wasm_bindgen]
 impl PlutusWitness {
     pub fn new(script: &PlutusScript, datum: &PlutusData, redeemer: &Redeemer) -> Self {
         Self {
-            script: script.clone(),
-            datum: datum.clone(),
+            script: PlutusScriptSourceEnum::Script(script.clone()),
+            datum: DatumSourceEnum::Datum(datum.clone()),
             redeemer: redeemer.clone(),
         }
     }
 
-    pub fn script(&self) -> PlutusScript {
-        self.script.clone()
+    pub fn new_with_ref(script: &PlutusScriptSource, datum: &DatumSource, redeemer: &Redeemer) -> Self {
+        Self {
+            script: script.0.clone(),
+            datum: datum.0.clone(),
+            redeemer: redeemer.clone(),
+        }
     }
 
-    pub fn datum(&self) -> PlutusData {
-        self.datum.clone()
+    pub fn script(&self) -> Option<PlutusScript> {
+        match &self.script {
+            PlutusScriptSourceEnum::Script(script) => Some(script.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn datum(&self) -> Option<PlutusData> {
+        match &self.datum {
+            DatumSourceEnum::Datum(datum) => Some(datum.clone()),
+            _ => None,
+        }
     }
 
     pub fn redeemer(&self) -> Redeemer {
@@ -51,12 +112,8 @@ impl PlutusWitness {
 }
 
 #[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PlutusWitnesses(pub(crate) Vec<PlutusWitness>);
-
-to_from_json!(PlutusWitnesses);
 
 #[wasm_bindgen]
 impl PlutusWitnesses {
@@ -81,8 +138,12 @@ impl PlutusWitnesses {
         let mut d = PlutusList::new();
         let mut r = Redeemers::new();
         self.0.iter().for_each(|w| {
-            s.add(&w.script);
-            d.add(&w.datum);
+            if let PlutusScriptSourceEnum::Script(script) = &w.script {
+                s.add(script);
+            }
+            if let DatumSourceEnum::Datum(datum) = &w.datum {
+                d.add(datum);
+            }
             r.add(&w.redeemer);
         });
         (s, d, r)
@@ -91,12 +152,7 @@ impl PlutusWitnesses {
 
 impl From<Vec<PlutusWitness>> for PlutusWitnesses {
     fn from(scripts: Vec<PlutusWitness>) -> Self {
-        scripts
-            .iter()
-            .fold(PlutusWitnesses::new(), |mut scripts, s| {
-                scripts.add(s);
-                scripts
-            })
+        Self(scripts)
     }
 }
 
@@ -204,7 +260,8 @@ impl TxInputsBuilder {
         input: &TransactionInput,
         amount: &Value,
     ) {
-        let hash = witness.script.hash();
+        let hash = witness.script.script_hash();
+
         self.add_script_input(&hash, input, amount);
         self.input_types.scripts.insert(
             hash,
@@ -310,7 +367,7 @@ impl TxInputsBuilder {
     /// Use `.count_missing_input_scripts` to find the number of still missing scripts
     pub fn add_required_plutus_input_scripts(&mut self, scripts: &PlutusWitnesses) -> usize {
         scripts.0.iter().for_each(|s: &PlutusWitness| {
-            let hash = s.script.hash();
+            let hash = s.script.script_hash();
             if self.input_types.scripts.contains_key(&hash) {
                 self.input_types.scripts.insert(
                     hash,
@@ -319,6 +376,23 @@ impl TxInputsBuilder {
             }
         });
         self.count_missing_input_scripts()
+    }
+
+    pub fn get_ref_inputs(&self) -> TransactionInputs {
+        let mut inputs = Vec::new();
+        for wintess in self.input_types.scripts.iter()
+            .filter_map(|(_, wit)| wit.as_ref() ) {
+            if let ScriptWitnessType::PlutusScriptWitness(plutus_witness) = wintess {
+                if let DatumSourceEnum::RefInput(input) = &plutus_witness.datum {
+                    inputs.push(input.clone());
+                }
+                if let PlutusScriptSourceEnum::RefInput(input, _) = &plutus_witness.script {
+                    inputs.push(input.clone());
+                }
+            }
+        }
+
+        TransactionInputs(inputs)
     }
 
     /// Returns a copy of the current script input witness scripts in the builder
