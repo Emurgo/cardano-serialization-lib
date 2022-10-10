@@ -596,6 +596,7 @@ pub enum PlutusDataKind {
     Bytes,
 }
 
+#[wasm_bindgen]
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum PlutusDataEnum {
