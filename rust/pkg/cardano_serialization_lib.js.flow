@@ -6,6 +6,62 @@
  */
 
 /**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {PlutusData}
+ */
+declare export function encode_json_str_to_plutus_datum(
+  json: string,
+  schema: number
+): PlutusData;
+
+/**
+ * @param {PlutusData} datum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_plutus_datum_to_json_str(
+  datum: PlutusData,
+  schema: number
+): string;
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
  * @param {Transaction} tx
  * @param {LinearFee} linear_fee
  * @returns {BigNum}
@@ -31,30 +87,6 @@ declare export function min_script_fee(
   tx: Transaction,
   ex_unit_prices: ExUnitPrices
 ): BigNum;
-
-/**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
- */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
 
 /**
  * @param {TransactionHash} tx_body_hash
@@ -195,60 +227,40 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
  * @returns {string}
  */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
 ): string;
 
 /**
- * @param {string} json
- * @param {number} schema
- * @returns {PlutusData}
- */
-declare export function encode_json_str_to_plutus_datum(
-  json: string,
-  schema: number
-): PlutusData;
-
-/**
- * @param {PlutusData} datum
- * @param {number} schema
+ * @param {string} password
+ * @param {string} data
  * @returns {string}
  */
-declare export function decode_plutus_datum_to_json_str(
-  datum: PlutusData,
-  schema: number
+declare export function decrypt_with_password(
+  password: string,
+  data: string
 ): string;
+
+/**
+ * @param {Address} address
+ * @param {TransactionUnspentOutputs} utxos
+ * @param {TransactionBuilderConfig} config
+ * @returns {TransactionBatchList}
+ */
+declare export function create_send_all(
+  address: Address,
+  utxos: TransactionUnspentOutputs,
+  config: TransactionBuilderConfig
+): TransactionBatchList;
 
 /**
  */
@@ -324,53 +336,6 @@ declare export var NetworkIdKind: {|
 /**
  */
 
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-  +LargestFirstMultiAsset: 2, // 2
-  +RandomImproveMultiAsset: 3, // 3
-|};
-
-/**
- */
-
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- * Used to choosed the schema for a script JSON string
- */
-
-declare export var ScriptSchema: {|
-  +Wallet: 0, // 0
-  +Node: 1, // 1
-|};
-
-/**
- */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
   +PlutusV2: 1, // 1
@@ -412,6 +377,53 @@ declare export var RedeemerTagKind: {|
 declare export var PlutusDatumSchema: {|
   +BasicConversions: 0, // 0
   +DetailedSchema: 1, // 1
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ * Used to choosed the schema for a script JSON string
+ */
+
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
 |};
 
 /**
@@ -1059,6 +1071,11 @@ declare export class BigNum {
    * @returns {boolean}
    */
   less_than(rhs_value: BigNum): boolean;
+
+  /**
+   * @returns {BigNum}
+   */
+  static max_value(): BigNum;
 
   /**
    * @param {BigNum} a
@@ -7410,6 +7427,38 @@ declare export class Transaction {
     witness_set: TransactionWitnessSet,
     auxiliary_data?: AuxiliaryData
   ): Transaction;
+}
+/**
+ */
+declare export class TransactionBatch {
+  free(): void;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {Transaction}
+   */
+  get(index: number): Transaction;
+}
+/**
+ */
+declare export class TransactionBatchList {
+  free(): void;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {TransactionBatch}
+   */
+  get(index: number): TransactionBatch;
 }
 /**
  */
