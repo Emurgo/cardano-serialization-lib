@@ -1,5 +1,8 @@
 #![allow(deprecated)]
 
+#[cfg(test)]
+mod test_batch;
+
 pub mod tx_inputs_builder;
 mod tx_batch_builder;
 mod batch_tools;
@@ -43,7 +46,7 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
     set
 }
 
-pub fn fake_private_key() -> Bip32PrivateKey {
+pub(crate) fn fake_private_key() -> Bip32PrivateKey {
     Bip32PrivateKey::from_bytes(&[
         0xb8, 0xf2, 0xbe, 0xce, 0x9b, 0xdf, 0xe2, 0xb0, 0x28, 0x2f, 0x5b, 0xad, 0x70, 0x55, 0x62,
         0xac, 0x99, 0x6e, 0xfb, 0x6a, 0xf9, 0x6b, 0x64, 0x8f, 0x44, 0x45, 0xec, 0x44, 0xf4, 0x7a,
@@ -56,7 +59,7 @@ pub fn fake_private_key() -> Bip32PrivateKey {
     .unwrap()
 }
 
-fn fake_raw_key_sig() -> Ed25519Signature {
+pub(crate) fn fake_raw_key_sig() -> Ed25519Signature {
     Ed25519Signature::from_bytes(vec![
         36, 248, 153, 211, 155, 23, 253, 93, 102, 193, 146, 196, 181, 13, 52, 62, 66, 247, 35, 91,
         48, 80, 76, 138, 231, 97, 159, 147, 200, 40, 220, 109, 206, 69, 104, 221, 105, 23, 124, 85,
@@ -66,7 +69,7 @@ fn fake_raw_key_sig() -> Ed25519Signature {
     .unwrap()
 }
 
-fn fake_raw_key_public() -> PublicKey {
+pub(crate) fn fake_raw_key_public() -> PublicKey {
     PublicKey::from_bytes(&[
         207, 118, 57, 154, 33, 13, 232, 114, 14, 159, 168, 148, 228, 94, 65, 226, 154, 181, 37,
         227, 11, 196, 2, 128, 28, 7, 98, 80, 209, 88, 91, 205,

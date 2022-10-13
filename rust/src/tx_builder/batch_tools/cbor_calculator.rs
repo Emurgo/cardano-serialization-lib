@@ -38,7 +38,7 @@ impl CborCalculator {
     }
 
     pub(super) fn get_boostrap_witness_size(address: &ByronAddress) -> usize {
-        //TODO: add precalculater boostrap witness size
+        //TODO: add precalculated boostrap witness size
         let witness = make_icarus_bootstrap_witness(
             &TransactionHash::from([0u8; TransactionHash::BYTE_COUNT]),
             address,
@@ -47,16 +47,23 @@ impl CborCalculator {
         witness.to_bytes().len()
     }
 
-    pub(super) fn get_output_size(address: &Address, only_ada: bool) -> usize {
+    pub(super) fn get_output_size(address: &Address) -> usize {
         //pre babbage output size is array of 2 elements address and value
         let legacy_output_size = CborCalculator::get_struct_size(2);
         let address_size = CborCalculator::get_address_size(address);
-        if only_ada {
-            legacy_output_size + address_size
+        let address_struct_size = CborCalculator::get_struct_size(address_size as u64);
+        return legacy_output_size + address_size + address_struct_size
+    }
+
+    pub(super) fn get_value_struct_size(ada_only: bool) -> usize {
+        if ada_only {
+            //only ada value is encoded as coin without struct overhead
+            0
         } else {
-            //value with coin and assets is array of 2 elements
-            legacy_output_size + CborCalculator::get_struct_size(2)
+            //value with assets and ada is array of 2 elements
+            CborCalculator::get_struct_size(2)
         }
+
     }
 
     pub(super) fn get_bare_tx_body_size(body_fields: &HashSet<TxBodyNames>) -> usize {
@@ -86,7 +93,7 @@ impl CborCalculator {
     }
 
 
-    //TODO: exract iterative logic from estimate_output_cost and estimate_fee to separate function
+    //TODO: extract iterative logic from estimate_output_cost and estimate_fee to separate function
     pub(super) fn estimate_output_cost(used_coins: &Coin,
                                        output_size: usize,
                                        data_cost: &DataCost) -> Result<(Coin, usize), JsError> {
@@ -120,12 +127,12 @@ impl CborCalculator {
         let mut current_cost = min_fee_for_size(tx_size_without_fee, fee_algo)?;
         let mut last_size = tx_size_without_fee + CborCalculator::get_coin_size(&current_cost);
 
-        last_size = Self::recals_size_with_dependable_value(last_size, &current_cost, min_dependable_amount, dependable_amount)?;
+        last_size = Self::recalc_size_with_dependable_value(last_size, &current_cost, min_dependable_amount, dependable_amount)?;
 
         for _ in 0..3 {
             current_cost = min_fee_for_size(last_size, fee_algo)?;
             let mut new_size = tx_size_without_fee + CborCalculator::get_coin_size(&current_cost);
-            new_size = Self::recals_size_with_dependable_value(new_size, &current_cost, min_dependable_amount, dependable_amount)?;
+            new_size = Self::recalc_size_with_dependable_value(new_size, &current_cost, min_dependable_amount, dependable_amount)?;
 
             if new_size == last_size {
                 return Ok((current_cost, last_size));
@@ -141,12 +148,12 @@ impl CborCalculator {
 
     //if we get ada from somewhere for fee, that means that we reduce size of it can be reduced
     //by this logic we try to track this
-    fn recals_size_with_dependable_value(size: usize,
+    fn recalc_size_with_dependable_value(size: usize,
                                          current_cost: &Coin,
                                          min_dependable_amount: Option<Coin>,
                                          dependable_amount: Option<Coin>, ) -> Result<usize, JsError> {
         if let Some(dependable_amount) = dependable_amount {
-            let mut remain_ada = dependable_amount.checked_sub(current_cost)?;
+            let mut remain_ada = dependable_amount.checked_sub(current_cost).unwrap_or(Coin::zero());
             if let Some(min_dependable_amount) = min_dependable_amount {
                 if remain_ada < min_dependable_amount {
                     remain_ada = min_dependable_amount;

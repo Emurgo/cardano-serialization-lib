@@ -141,6 +141,15 @@ impl TransactionUnspentOutputs {
     }
 }
 
+impl<'a> IntoIterator for &'a TransactionUnspentOutputs {
+    type Item = &'a TransactionUnspentOutput;
+    type IntoIter = std::slice::Iter<'a, TransactionUnspentOutput>;
+
+    fn into_iter(self) -> std::slice::Iter<'a, TransactionUnspentOutput> {
+        self.0.iter()
+    }
+}
+
 // Generic u64 wrapper for platforms that don't support u64 or BigInt/etc
 // This is an unsigned type - no negative numbers.
 // Can be converted to/from plain rust

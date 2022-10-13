@@ -10,7 +10,7 @@ use super::super::*;
 pub(crate) struct TxProposalChanges {
     tx_proposal: TxProposal,
     makes_new_outputs: bool,
-    asset_utxo: Option<UtxoIndex>,
+    asset_utxo: Vec<UtxoIndex>,
     ada_utxos: Vec<UtxoIndex>,
 }
 
@@ -19,20 +19,19 @@ impl TxProposalChanges {
         TxProposalChanges {
             tx_proposal,
             makes_new_outputs,
-            asset_utxo: None,
+            asset_utxo: Vec::new(),
             ada_utxos: Vec::new(),
         }
     }
 }
 
-//TODO: rename to asset cat
 pub struct AssetCategorizer {
     address: Address,
     config: TransactionBuilderConfig,
     assets: Vec<PlaneAssetId>,
     policies: Vec<PolicyID>,
     assets_calculator: AssetsCalculator,
-    assets_amounts: HashMap<(AssetIndex, UtxoIndex), Coin>,
+    assets_amounts: Vec<HashMap<UtxoIndex, Coin>>,
     assets_counts: Vec<(AssetIndex, usize)>,
     utxos_ada: Vec<Coin>,
     addresses: Vec<Address>,
@@ -47,8 +46,7 @@ pub struct AssetCategorizer {
 
     free_ada_utxos: Vec<(UtxoIndex, Coin)>,
 
-    ada_ouput_size: usize,
-    assets_ouput_size: usize,
+    output_size: usize,
 }
 
 impl AssetCategorizer {
@@ -57,8 +55,7 @@ impl AssetCategorizer {
         let mut utxos_ada: Vec<Coin> = Vec::new();
         let mut policies: Vec<PolicyID> = Vec::new();
         let mut assets_name_sizes: Vec<usize> = Vec::new();
-        let mut policies_sizes: Vec<usize> = Vec::new();
-        let mut assets_amounts: HashMap<(AssetIndex, UtxoIndex), Coin> = HashMap::new();
+        let mut assets_amounts: Vec<HashMap<UtxoIndex, Coin>> = Vec::new();
         //let mut assets_counts: Vec<(AssetIndex, usize)> = Vec::new();
         let mut free_utxo_to_assets: HashMap<UtxoIndex, HashSet<AssetIndex>> = HashMap::new();
         let mut free_asset_to_utxos: HashMap<AssetIndex, HashSet<UtxoIndex>> = HashMap::new();
@@ -90,9 +87,7 @@ impl AssetCategorizer {
                     if let Some(policy_index) = policy_ids.get(policy.0) {
                         current_policy_index = policy_index.clone()
                     } else {
-                        let policy_id_size = CborCalculator::get_struct_size(policy.0.0.len() as u64);
                         policies.push(policy.0.clone());
-                        policies_sizes.push(policy_id_size);
                         policy_ids.insert(policy.0.clone(), current_policy_index.clone());
                         policy_count += 1;
                     }
@@ -101,19 +96,22 @@ impl AssetCategorizer {
                         let mut current_asset_index = AssetIndex(asset_count.clone());
                         let plane_id = PlaneAssetId(current_policy_index.clone(), asset.0.clone());
 
-                        assets_amounts.insert((current_asset_index.clone(), current_utxo_index.clone()), asset.1.clone());
-
                         if let Some(asset_index) = asset_ids.get(&plane_id) {
                             current_asset_index = asset_index.clone();
                             assets_counts[current_asset_index.0].1 += 1;
                         } else {
-                            let asset_name_size = CborCalculator::get_struct_size(asset.0.0.len() as u64);
+                            let mut asset_name_size = CborCalculator::get_struct_size(asset.0.0.len() as u64);
+                            asset_name_size += asset.0.0.len();
                             assets.push(plane_id.clone());
                             assets_name_sizes.push(asset_name_size);
                             asset_ids.insert(plane_id, current_asset_index.clone());
                             assets_counts.push((current_asset_index.clone(), 0));
+                            assets_amounts.push(HashMap::new());
                             asset_count += 1;
                         }
+
+                        let asset_utxo_amounts = &mut assets_amounts[current_asset_index.0];
+                        asset_utxo_amounts.insert(current_utxo_index.clone(), asset.1.clone());
 
                         asset_to_policy.insert(current_asset_index.clone(), current_policy_index.clone());
                         if let Some(assets_set) = policy_to_asset.get_mut(&current_policy_index) {
@@ -148,13 +146,12 @@ impl AssetCategorizer {
         }
 
         let utxos_stat = UtxosStat::new(&total_ada, &policy_to_asset, &assets_amounts)?;
-        let assets_calculator = AssetsCalculator::new(utxos_stat, assets_name_sizes, policies_sizes);
+        let assets_calculator = AssetsCalculator::new(utxos_stat, assets_name_sizes);
         let inputs_sizes = Self::get_inputs_sizes(&utxos);
 
         assets_counts.sort_by(|a, b| b.1.cmp(&a.1));
         free_ada_utxos.sort_by(|a, b| a.1.cmp(&b.1));
-        let ada_ouput_size = CborCalculator::get_output_size(address, true);
-        let assets_ouput_size = CborCalculator::get_output_size(address, false);
+        let output_size = CborCalculator::get_output_size(address);
 
         Ok(Self {
             address: address.clone(),
@@ -172,8 +169,7 @@ impl AssetCategorizer {
             policy_to_asset,
             inputs_sizes,
             free_ada_utxos,
-            ada_ouput_size,
-            assets_ouput_size,
+            output_size,
         })
     }
 
@@ -196,7 +192,7 @@ impl AssetCategorizer {
             for asset_index in assets {
                 let mut asset_coins = Coin::zero();
                 for utxo in used_utxos {
-                    if let Some(coins) = self.assets_amounts.get(&(asset_index.clone(), utxo.clone())) {
+                    if let Some(coins) = self.assets_amounts[asset_index.0].get(utxo) {
                         asset_coins = asset_coins.checked_add(coins)?;
                     }
                 }
@@ -217,7 +213,8 @@ impl AssetCategorizer {
         }
 
         if let Some(proposal_changes) = proposal_changes {
-            if let Some(utxo) = proposal_changes.asset_utxo {
+
+            for utxo in proposal_changes.asset_utxo {
                 self.remove_assets_utxo(&utxo);
             }
 
@@ -271,8 +268,11 @@ impl AssetCategorizer {
         let mut used_utxos = HashSet::new();
         if new_proposal.get_need_ada()? == Coin::zero() {
             if let Some((utxo, coin)) = &self.get_next_pure_ada_utxo() {
+                if new_proposal.get_outputs().is_empty() {
+                    new_proposal.add_new_output(&self.address);
+                }
                 used_utxos.insert(utxo.clone());
-                new_proposal.add_utxo(utxo, coin, &self.addresses[utxo.0]);
+                new_proposal.add_utxo(utxo, coin, &self.addresses[utxo.0])?;
             } else {
                 return Ok(None);
             }
@@ -286,11 +286,14 @@ impl AssetCategorizer {
                 &used_utxos)?;
 
             for (utxo, coin) in &next_utxos {
-                new_proposal.add_utxo(utxo, coin, &self.addresses[utxo.0]);
+                new_proposal.add_utxo(utxo, coin, &self.addresses[utxo.0])?;
             }
 
             let new_size = self.set_min_ada_for_tx(&mut new_proposal)?;
             if new_size > (self.config.max_tx_size as usize) {
+                if tx_proposal.used_utoxs.is_empty() {
+                    return Err(JsError::from_str("Utxo can not be places into tx, utxo value is too big."));
+                }
                 return Ok(None);
             }
         }
@@ -361,15 +364,20 @@ impl AssetCategorizer {
             let mut assets_for_next_output = asset_for_add;
             let mut create_new_output = false;
             while let Some(next_assets) = self.add_assets_to_proposal_output(
-                create_new_output, &mut new_proposal, &assets_for_next_output) {
+                create_new_output, &mut new_proposal, &assets_for_next_output)? {
                 assets_for_next_output = next_assets;
                 create_new_output = true;
             }
 
-            new_proposal.add_utxo(utxo, &self.utxos_ada[utxo.0], &self.addresses[utxo.0]);
+            new_proposal.add_utxo(utxo, &self.utxos_ada[utxo.0], &self.addresses[utxo.0])?;
             let new_size = self.set_min_ada_for_tx(&mut new_proposal)?;
 
             if new_size > (self.config.max_tx_size as usize) {
+                if tx_proposal.used_utoxs.is_empty() {
+                    return Err(JsError::from_str(
+                        &format!("Utxo can not be places into tx, utxo value is too big. Utxo index {}", utxo.0)));
+                }
+
                 //that means that we above limit of tx size and we cannot create that tx
                 return Ok(None);
             }
@@ -377,7 +385,7 @@ impl AssetCategorizer {
             if new_proposal.get_need_ada()? > Coin::zero() {
                 if let Some(mut proposal_with_ada) = self.try_append_pure_ada_utxo(&new_proposal)? {
                     proposal_with_ada.makes_new_outputs = create_new_output;
-                    proposal_with_ada.asset_utxo = Some(utxo.clone());
+                    proposal_with_ada.asset_utxo.push(utxo.clone());
                     return Ok(Some(proposal_with_ada));
                 } else {
                     return Ok(None);
@@ -385,7 +393,7 @@ impl AssetCategorizer {
             }
 
             let mut changes = TxProposalChanges::new(new_proposal, create_new_output);
-            changes.asset_utxo = Some(utxo.clone());
+            changes.asset_utxo.push(utxo.clone());
             return Ok(Some(changes));
         }
 
@@ -393,7 +401,7 @@ impl AssetCategorizer {
     }
 
     fn add_assets_to_proposal_output(&self, create_new: bool, tx_proposal: &mut TxProposal, assets: &HashSet<AssetIndex>)
-                                     -> Option<HashSet<AssetIndex>> {
+                                     -> Result<Option<HashSet<AssetIndex>>, JsError> {
         let last_output = tx_proposal.get_outputs().last();
         let mut old_value_state = if create_new || last_output.is_none() {
             self.assets_calculator.build_empty_intermediate_value()
@@ -417,6 +425,10 @@ impl AssetCategorizer {
                 asset_to_output.insert(asset.clone());
                 old_value_state = new_value_state.clone();
             } else {
+                if old_value_state.is_empty() {
+                    return Err(JsError::from_str(
+                        &format!("Asset can not be places into tx, asset size is too big. Asset index {}", asset.0)));
+                }
                 new_value_state = old_value_state.clone();
                 asset_to_new_output.insert(asset.clone());
             }
@@ -431,13 +443,13 @@ impl AssetCategorizer {
         }
 
         if asset_to_new_output.is_empty() {
-            None
+            Ok(None)
         } else {
-            Some(asset_to_new_output)
+            Ok(Some(asset_to_new_output))
         }
     }
 
-    fn set_min_ada_for_tx(&self, tx_proposal: &mut TxProposal) -> Result<usize, JsError> {
+    pub(crate) fn set_min_ada_for_tx(&self, tx_proposal: &mut TxProposal) -> Result<usize, JsError> {
         self.recalculate_outputs(tx_proposal)?;
         let (tx_fee, tx_size) = self.estimate_fee(tx_proposal)?;
         tx_proposal.set_fee(&tx_fee);
@@ -446,8 +458,8 @@ impl AssetCategorizer {
     }
 
     fn recalculate_outputs(&self, tx_proposal: &mut TxProposal) -> Result<(), JsError> {
-        let used_utxos = tx_proposal.get_used_utoxs().clone();
-        for output in tx_proposal.get_outputs_mut() {
+        let used_utxos = &tx_proposal.used_utoxs;
+        for output in tx_proposal.tx_output_proposals.iter_mut() {
             let (min_output_ada, output_size) = self.estimate_output_cost(&used_utxos, output)?;
             output.set_min_ada(&min_output_ada);
             output.set_size(output_size);
@@ -458,12 +470,15 @@ impl AssetCategorizer {
         Ok(())
     }
 
-    fn get_tx_proposal_size(&self, tx_proposal: &TxProposal, with_fee: bool) -> usize {
+    pub(super) fn get_tx_proposal_size(&self, tx_proposal: &TxProposal, with_fee: bool) -> usize {
         let mut size = CborCalculator::get_bare_tx_size(false);
         size += CborCalculator::get_bare_tx_body_size(&tx_proposal.used_body_fields);
         size += tx_proposal.witnesses_calculator.get_full_size();
-        for output in tx_proposal.get_outputs() {
-            size += output.size;
+        if !tx_proposal.get_outputs().is_empty() {
+            size += CborCalculator::get_struct_size(tx_proposal.get_outputs().len() as u64);
+            for output in tx_proposal.get_outputs() {
+                size += output.size;
+            }
         }
 
         if with_fee {
@@ -491,11 +506,7 @@ impl AssetCategorizer {
             if ignore_list.contains(&utxo) {
                 continue;
             }
-            if utxo_ada >= &ada_left {
-                ada_left = Coin::zero();
-            } else {
-                ada_left = ada_left.checked_sub(&utxo_ada)?;
-            }
+            ada_left = ada_left.checked_sub(utxo_ada).unwrap_or(Coin::zero());
             utxos.push((utxo.clone(), utxo_ada.clone()));
 
             if ada_left.is_zero() {
@@ -532,7 +543,11 @@ impl AssetCategorizer {
                         if new_txp.makes_new_outputs {
                             txp_with_new_output = Some(new_txp);
                         } else {
-                            txp = Some(new_txp);
+                            return Ok((Some(new_txp), txp_with_new_output));
+                        }
+
+                        if txp.is_some() && txp_with_new_output.is_some() {
+                            return Ok((txp, txp_with_new_output));
                         }
                     }
                 }
@@ -548,7 +563,8 @@ impl AssetCategorizer {
             &output_proposal.grouped_assets,
             used_utoxs,
             &self.assets_amounts)?;
-        let output_size = self.assets_ouput_size + assets_size;
+        let mut output_size = self.output_size + assets_size;
+        output_size += CborCalculator::get_value_struct_size(output_proposal.contains_only_ada());
         CborCalculator::estimate_output_cost(
             &output_proposal.get_total_ada(),
             output_size,
@@ -560,7 +576,7 @@ impl AssetCategorizer {
         let mut dependable_value = None;
         let mut min_value = None;
         if let Some(last_output) = tx_proposal.get_outputs().last() {
-            dependable_value = Some(tx_proposal.get_unsed_ada()?);
+            dependable_value = Some(tx_proposal.get_unused_ada()?);
             min_value = Some(last_output.get_min_ada());
             tx_len -= CborCalculator::get_coin_size(&last_output.get_total_ada());
         }

@@ -12,7 +12,7 @@ pub(super) struct UtxosStat {
 
 impl UtxosStat {
     pub(super) fn new(total_ada: &Coin, policy_to_asset: &HashMap<PolicyIndex, HashSet<AssetIndex>>,
-                      amounts: &HashMap<(AssetIndex, UtxoIndex), Coin>) -> Result<Self, JsError> {
+                      amounts: &Vec<HashMap<UtxoIndex, Coin>>) -> Result<Self, JsError> {
         let mut utxos_stat = UtxosStat {
             total_policies: 0,
             assets_in_policy: HashMap::new(),
@@ -23,13 +23,17 @@ impl UtxosStat {
             utxos_stat.assets_in_policy.insert(policy_index.clone(), assets.len());
         }
 
-        for ((asset_index, _ ), amount) in amounts {
-            if let Some(coins) = utxos_stat.coins_in_assets.get(asset_index) {
-                let new_total = coins.checked_add(amount)?;
-                utxos_stat.coins_in_assets.insert(asset_index.clone(), new_total);
-            } else {
-                utxos_stat.coins_in_assets.insert(asset_index.clone(), amount.clone());
+        for i in 0..amounts.len() {
+            for (_, amount) in &amounts[i] {
+                let asset_index = AssetIndex(i);
+                if let Some(coins) = utxos_stat.coins_in_assets.get(&asset_index) {
+                    let new_total = coins.checked_add(amount)?;
+                    utxos_stat.coins_in_assets.insert(asset_index, new_total);
+                } else {
+                    utxos_stat.coins_in_assets.insert(asset_index, amount.clone());
+                }
             }
+
         }
 
         utxos_stat.total_policies = policy_to_asset.len();

@@ -220,6 +220,15 @@ impl TransactionOutputs {
     }
 }
 
+impl<'a> IntoIterator for &'a TransactionOutputs {
+    type Item = &'a TransactionOutput;
+    type IntoIter = std::slice::Iter<'a, TransactionOutput>;
+
+    fn into_iter(self) -> std::slice::Iter<'a, TransactionOutput> {
+        self.0.iter()
+    }
+}
+
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum DataCostEnum {
     CoinsPerWord(Coin),

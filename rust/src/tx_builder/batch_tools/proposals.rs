@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use crate::serialization_tools::map_names::TxBodyNames;
+use crate::tx_builder::batch_tools::cbor_calculator::CborCalculator;
 use super::super::*;
 use super::indexes::{UtxoIndex, AssetIndex, PolicyIndex};
 use super::asset_categorizer::AssetCategorizer;
@@ -37,6 +38,10 @@ impl TxOutputProposal {
         let policy = self.grouped_assets.entry(policy_index.clone())
             .or_insert(HashSet::new());
         policy.insert(asset.clone());
+    }
+
+    pub(super) fn contains_only_ada(&self) -> bool {
+        self.used_assets.is_empty()
     }
 
     pub(super) fn get_used_assets(&self) -> &HashSet<AssetIndex> {
@@ -120,11 +125,11 @@ impl TxProposal {
     pub(super) fn add_utxo(&mut self, utxo: &UtxoIndex, ada_coins: &Coin, address: &Address) -> Result<(), JsError> {
         self.used_utoxs.insert(utxo.clone());
         self.total_ada = self.total_ada.checked_add(ada_coins)?;
-        self.witnesses_calculator.add_address(address);
+        self.witnesses_calculator.add_address(address)?;
         Ok(())
     }
 
-    pub(super) fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.used_utoxs.is_empty()
     }
 
@@ -142,10 +147,6 @@ impl TxProposal {
 
     pub(super) fn get_outputs(&self) -> &Vec<TxOutputProposal> {
         &self.tx_output_proposals
-    }
-
-    pub(super) fn get_outputs_mut(&mut self) -> &mut Vec<TxOutputProposal> {
-        &mut self.tx_output_proposals
     }
 
     pub(super) fn get_fee(&self) -> &Coin {
@@ -179,27 +180,19 @@ impl TxProposal {
     pub(super) fn get_need_ada(&self) -> Result<Coin, JsError> {
         let need_ada = self.get_total_ada_for_ouputs()?
             .checked_add(&self.fee)?;
-        if need_ada > self.total_ada {
-            need_ada.checked_sub(&self.total_ada)
-        } else {
-            Ok(Coin::zero())
-        }
+         Ok(need_ada.checked_sub(&self.total_ada).unwrap_or(Coin::zero()))
     }
 
-    pub(super) fn get_unsed_ada(&self) -> Result<Coin, JsError> {
+    pub(super) fn get_unused_ada(&self) -> Result<Coin, JsError> {
         let need_ada = self.get_total_ada_for_ouputs()?
             .checked_add(&self.fee)?;
-        if need_ada < self.total_ada {
-            return Ok(self.total_ada.checked_sub(&need_ada)?);
-        } else {
-            return Ok(Coin::zero());
-        }
+        return Ok(self.total_ada.checked_sub(&need_ada).unwrap_or(Coin::zero()));
     }
 
     pub(crate) fn add_last_ada_to_last_output(&mut self) -> Result<(), JsError> {
-        let unsued_ada = self.get_unsed_ada()?;
+        let unused_ada = self.get_unused_ada()?;
         if let Some(output) = self.tx_output_proposals.last_mut() {
-            output.add_ada(&unsued_ada)?;
+            output.add_ada(&unused_ada)?;
         }
 
         Ok(())
@@ -207,7 +200,6 @@ impl TxProposal {
 
     pub(crate) fn create_tx(&self, asset_groups: &AssetCategorizer, utxos: &TransactionUnspentOutputs)
                             -> Result<Transaction, JsError> {
-        let witnesses = TransactionWitnessSet::new();
         let mut outputs = Vec::new();
         for proposal in &self.tx_output_proposals {
             outputs.push(proposal.create_output(asset_groups, &self.used_utoxs)?);
@@ -226,7 +218,7 @@ impl TxProposal {
         );
         let tx = Transaction::new(
             &body,
-            &witnesses,
+            &self.witnesses_calculator.create_mock_witnesses_set(),
             None,
         );
 
