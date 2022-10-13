@@ -230,37 +230,18 @@ impl AssetCategorizer {
 
     pub(crate) fn try_append_next_asset_utxos(&self, tx_proposal: &TxProposal) -> Result<Option<TxProposalChanges>, JsError> {
         let asset_intersections = self.get_asset_intersections(&tx_proposal.used_assets);
-        let (output_utxo, tx_utxo_tmp) =
-            self.make_candidate(&asset_intersections, tx_proposal)?;
-        if let Some(res_utxo) = output_utxo {
+        let asset_intersected_utxo = self.make_candidate(&asset_intersections, tx_proposal, false)?;
+        if let Some(res_utxo) = asset_intersected_utxo {
             return Ok(Some(res_utxo));
         }
-        let mut tx_utxo = tx_utxo_tmp;
 
         let policy_intersections = self.get_policy_intersections(&tx_proposal.used_assets);
-        let (output_utxo, tx_utxo_tmp) =
-            self.make_candidate(&policy_intersections, tx_proposal)?;
-        if let Some(res_utxo) = output_utxo {
+        let policy_intersected_utxo = self.make_candidate(&policy_intersections, tx_proposal, false)?;
+        if let Some(res_utxo) = policy_intersected_utxo {
             return Ok(Some(res_utxo));
         }
-        if tx_utxo.is_none() {
-            tx_utxo = tx_utxo_tmp.clone();
-        }
-        let (output_utxo, tx_utxo_tmp) =
-            self.make_candidate(&self.assets_counts, tx_proposal)?;
 
-        if let Some(res_utxo) = output_utxo {
-            return Ok(Some(res_utxo));
-        }
-        if tx_utxo.is_none() {
-            tx_utxo = tx_utxo_tmp;
-        }
-
-        if let Some(last_utxo) = tx_utxo {
-            return Ok(Some(last_utxo));
-        } else {
-            return Ok(None);
-        }
+        self.make_candidate(&self.assets_counts, tx_proposal, true)
     }
 
     fn try_append_pure_ada_utxo(&self, tx_proposal: &TxProposal) -> Result<Option<TxProposalChanges>, JsError> {
@@ -531,30 +512,29 @@ impl AssetCategorizer {
         grouped_assets
     }
 
-    fn make_candidate(&self, assets: &Vec<(AssetIndex, usize)>, tx_propoasl: &TxProposal)
-                      -> Result<(Option<TxProposalChanges>, Option<TxProposalChanges>), JsError> {
+    fn make_candidate(&self, assets: &Vec<(AssetIndex, usize)>, tx_propoasl: &TxProposal, choose_first: bool)
+                      -> Result<Option<TxProposalChanges>, JsError> {
         let mut txp_with_new_output: Option<TxProposalChanges> = None;
-        let mut txp: Option<TxProposalChanges> = None;
         for (index, _) in assets.iter() {
             let utxos_set = self.free_asset_to_utxos.get(index);
             if let Some(utxos) = utxos_set {
                 for utxo in utxos {
                     if let Some(new_txp) = self.prototype_append(tx_propoasl, utxo)? {
                         if new_txp.makes_new_outputs {
-                            txp_with_new_output = Some(new_txp);
+                            if choose_first {
+                                return Ok(Some(new_txp));
+                            } else {
+                                txp_with_new_output = Some(new_txp);
+                            }
                         } else {
-                            return Ok((Some(new_txp), txp_with_new_output));
-                        }
-
-                        if txp.is_some() && txp_with_new_output.is_some() {
-                            return Ok((txp, txp_with_new_output));
+                            return Ok(Some(new_txp));
                         }
                     }
                 }
             }
         }
 
-        Ok((txp, txp_with_new_output))
+        Ok(txp_with_new_output)
     }
 
     fn estimate_output_cost(&self, used_utoxs: &HashSet<UtxoIndex>, output_proposal: &TxOutputProposal) -> Result<(Coin, usize), JsError> {

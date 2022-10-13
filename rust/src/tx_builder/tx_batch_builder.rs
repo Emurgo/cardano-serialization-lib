@@ -2,7 +2,19 @@ use batch_tools::proposals::{TxProposal};
 use batch_tools::asset_categorizer::{AssetCategorizer};
 use super::*;
 
+#[wasm_bindgen]
 pub struct TransactionBatchList(Vec<TransactionBatch>);
+
+#[wasm_bindgen]
+impl TransactionBatchList {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> TransactionBatch {
+        self.0[index].clone()
+    }
+}
 
 impl<'a> IntoIterator for &'a TransactionBatchList {
     type Item = &'a TransactionBatch;
@@ -13,8 +25,21 @@ impl<'a> IntoIterator for &'a TransactionBatchList {
     }
 }
 
+#[wasm_bindgen]
+#[derive(Clone)]
 pub struct TransactionBatch {
     transactions: Vec<Transaction>,
+}
+
+#[wasm_bindgen]
+impl TransactionBatch {
+    pub fn len(&self) -> usize {
+        self.transactions.len()
+    }
+
+    pub fn get(&self, index: usize) -> Transaction {
+        self.transactions[index].clone()
+    }
 }
 
 impl<'a> IntoIterator for &'a TransactionBatch {
