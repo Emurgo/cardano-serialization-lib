@@ -1412,7 +1412,7 @@ impl MinOutputAdaCalculator {
             .checked_mul(&data_cost.coins_per_byte())
     }
 
-    fn calc_required_coin(output: &TransactionOutput, data_cost: &DataCost) -> Result<Coin, JsError> {
+    pub fn calc_required_coin(output: &TransactionOutput, data_cost: &DataCost) -> Result<Coin, JsError> {
         //according to https://hydra.iohk.io/build/15339994/download/1/babbage-changes.pdf
         //See on the page 9 getValue txout
         Self::calc_size_cost(data_cost,output.to_bytes().len())

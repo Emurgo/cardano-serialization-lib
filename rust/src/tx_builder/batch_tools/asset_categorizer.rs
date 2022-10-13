@@ -45,6 +45,7 @@ pub struct AssetCategorizer {
     inputs_sizes: Vec<usize>,
 
     free_ada_utxos: Vec<(UtxoIndex, Coin)>,
+    //utxos_with_ada_overhead: Vec<(UtxoIndex, Coin)>,
 
     output_size: usize,
 }
@@ -74,12 +75,19 @@ impl AssetCategorizer {
         let mut free_ada_utxos = Vec::new();
         let mut addresses = Vec::new();
 
+        let mut utxos_with_ada_overhead = Vec::new();
+
         for utxo in &utxos.0 {
             total_ada = total_ada.checked_add(&utxo.output.amount.coin)?;
 
             let current_utxo_index = UtxoIndex(current_utxo_num.clone());
             utxos_ada.push(utxo.output.amount.coin.clone());
             addresses.push(utxo.output.address.clone());
+
+            let ada_overhead = Self::calc_utxo_output_overhead(address, &utxo.output.amount, config)?;
+            if ada_overhead > Coin::zero() {
+                utxos_with_ada_overhead.push((current_utxo_index.clone(), ada_overhead));
+            }
 
             if let Some(assests) = &utxo.output.amount.multiasset {
                 for policy in &assests.0 {
@@ -151,6 +159,7 @@ impl AssetCategorizer {
 
         assets_counts.sort_by(|a, b| b.1.cmp(&a.1));
         free_ada_utxos.sort_by(|a, b| a.1.cmp(&b.1));
+        utxos_with_ada_overhead.sort_by(|a, b| a.1.cmp(&b.1));
         let output_size = CborCalculator::get_output_size(address);
 
         Ok(Self {
@@ -169,6 +178,7 @@ impl AssetCategorizer {
             policy_to_asset,
             inputs_sizes,
             free_ada_utxos,
+            //utxos_with_ada_overhead,
             output_size,
         })
     }
@@ -502,16 +512,6 @@ impl AssetCategorizer {
         }
     }
 
-    fn get_grouped_assets(&self, assets: &HashSet<AssetIndex>) -> HashMap<PolicyIndex, HashSet<AssetIndex>> {
-        let mut grouped_assets = HashMap::new();
-        for asset in assets {
-            let policy_index = self.asset_to_policy.get(asset).unwrap();
-            let assets_set = grouped_assets.entry(policy_index.clone()).or_insert(HashSet::new());
-            assets_set.insert(asset.clone());
-        }
-        grouped_assets
-    }
-
     fn make_candidate(&self, assets: &Vec<(AssetIndex, usize)>, tx_propoasl: &TxProposal, choose_first: bool)
                       -> Result<Option<TxProposalChanges>, JsError> {
         let mut txp_with_new_output: Option<TxProposalChanges> = None;
@@ -588,11 +588,12 @@ impl AssetCategorizer {
         }
     }
 
-    fn get_assets_indexes(&self, utxo_index: &UtxoIndex) -> HashSet<AssetIndex> {
-        match self.free_utxo_to_assets.get(utxo_index) {
-            Some(set) => set.clone(),
-            None => HashSet::new()
-        }
+    fn calc_utxo_output_overhead(address: &Address, value: &Value, cfg: &TransactionBuilderConfig)
+        -> Result<Coin, JsError> {
+        let ada = value.coin;
+        let output = TransactionOutput::new(address, value);
+        let req_coin = MinOutputAdaCalculator::calc_required_coin(&output, &cfg.data_cost)?;
+        Ok(ada.checked_sub(&req_coin).unwrap_or(Coin::zero()))
     }
 }
 

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use crate::serialization_tools::map_names::TxBodyNames;
-use crate::tx_builder::batch_tools::cbor_calculator::CborCalculator;
 use super::super::*;
 use super::indexes::{UtxoIndex, AssetIndex, PolicyIndex};
 use super::asset_categorizer::AssetCategorizer;
@@ -68,10 +67,6 @@ impl TxOutputProposal {
         self.size = size;
     }
 
-    pub(super) fn get_size(&self) -> usize {
-        self.size
-    }
-
     fn create_output(&self, asset_groups: &AssetCategorizer, used_utxos: &HashSet<UtxoIndex>)
                      -> Result<TransactionOutput, JsError> {
         Ok(TransactionOutput::new(&self.address, &asset_groups.build_value(used_utxos, self)?))
@@ -85,10 +80,8 @@ pub(crate) struct TxProposal {
     pub(super) used_utoxs: HashSet<UtxoIndex>,
     pub(super) used_assets: HashSet<AssetIndex>,
     pub(super) total_ada: Coin,
-    pub(super) min_outputs_ada: Coin,
     pub(super) fee: Coin,
     pub(super) witnesses_calculator: WitnessesCalculator,
-    pub(super) size: usize,
 }
 
 impl TxProposal {
@@ -104,10 +97,8 @@ impl TxProposal {
             used_utoxs: HashSet::new(),
             used_assets: HashSet::new(),
             total_ada: Coin::zero(),
-            min_outputs_ada: Coin::zero(),
             fee: Coin::zero(),
             witnesses_calculator: WitnessesCalculator::new(),
-            size: 0,
         }
     }
 
@@ -133,16 +124,8 @@ impl TxProposal {
         self.used_utoxs.is_empty()
     }
 
-    pub(super) fn get_used_utoxs(&self) -> &HashSet<UtxoIndex> {
-        &self.used_utoxs
-    }
-
     pub(super) fn get_used_assets(&self) -> &HashSet<AssetIndex> {
         &self.used_assets
-    }
-
-    pub(super) fn get_total_ada(&self) -> &Coin {
-        &self.total_ada
     }
 
     pub(super) fn get_outputs(&self) -> &Vec<TxOutputProposal> {
@@ -157,19 +140,6 @@ impl TxProposal {
         self.fee = fee.clone();
     }
 
-    pub(super) fn get_size(&self) -> usize {
-        self.size
-    }
-
-    pub(super) fn set_size(&mut self, size: usize) {
-        self.size = size;
-    }
-
-    pub(super) fn get_min_ada_for_ouputs(&self) -> Result<Coin, JsError> {
-        self.tx_output_proposals.iter()
-            .map(|output| output.get_min_ada())
-            .try_fold(Coin::zero(), |acc, ada| acc.checked_add(&ada))
-    }
 
     pub(super) fn get_total_ada_for_ouputs(&self) -> Result<Coin, JsError> {
         self.tx_output_proposals.iter()

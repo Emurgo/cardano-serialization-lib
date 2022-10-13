@@ -96,11 +96,6 @@ pub(super) struct AssetsCalculator {
 impl AssetsCalculator {
 
     pub(super) fn new(utxo_stat: UtxosStat, assets_name_sizes: Vec<usize>) -> Self {
-        let min_name_size = match assets_name_sizes.iter().min() {
-            Some(min) => *min,
-            None => 0,
-        };
-
         //28 is the size of a policy id in bytes
         let policy_size= 28 + CborCalculator::get_struct_size(28u64);
 

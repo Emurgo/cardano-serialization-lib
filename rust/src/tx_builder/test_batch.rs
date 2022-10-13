@@ -1,11 +1,10 @@
 #[cfg(test)]
 mod test {
-    use itertools::min;
     use crate::*;
     use crate::fakes::fake_policy_id;
     use crate::fees::{LinearFee, min_fee};
     use crate::tx_builder::{TransactionBuilderConfig, TransactionBuilderConfigBuilder};
-    use crate::tx_builder::tx_batch_builder::{create_send_all, TransactionBatch, TransactionBatchList};
+    use crate::tx_builder::tx_batch_builder::{create_send_all, TransactionBatchList};
 
     fn root_key() -> Bip32PrivateKey {
         // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
@@ -656,7 +655,8 @@ mod test {
         assert!(res.is_ok());
 
         let batches = res.unwrap();
-        assert_eq!(batches.len(), 0);
+        let total_txs = batches.into_iter().fold(0, |acc, batch| acc + batch.len());
+        assert_eq!(total_txs, 0);
 
     }
 
