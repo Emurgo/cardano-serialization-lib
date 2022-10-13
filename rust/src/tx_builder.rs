@@ -4,7 +4,7 @@
 mod test_batch;
 
 pub mod tx_inputs_builder;
-mod tx_batch_builder;
+pub mod tx_batch_builder;
 mod batch_tools;
 
 use super::fees;
