@@ -184,24 +184,33 @@ impl PlutusWitnesses {
     }
 
     pub(crate) fn collect(&self) -> (PlutusScripts, Option<PlutusList>, Redeemers) {
+        let mut used_scripts = BTreeSet::new();
+        let mut used_datums = BTreeSet::new();
+        let mut used_redeemers = BTreeSet::new();
         let mut s = PlutusScripts::new();
         let mut d : Option<PlutusList> = None;
         let mut r = Redeemers::new();
         self.0.iter().for_each(|w| {
             if let PlutusScriptSourceEnum::Script(script) = &w.script {
-                s.add(script);
+                if used_scripts.insert(script.clone()) {
+                    s.add(script);
+                }
             }
             if let DatumSourceEnum::Datum(datum) = &w.datum {
-                match d {
-                    Some(ref mut d) => d.add(datum),
-                    None => d =  {
-                        let mut initial_list = PlutusList::new();
-                        initial_list.add(datum);
-                        Some(initial_list)
+                if used_datums.insert(datum) {
+                    match d {
+                        Some(ref mut d) => d.add(datum),
+                        None => d =  {
+                            let mut initial_list = PlutusList::new();
+                            initial_list.add(datum);
+                            Some(initial_list)
+                        }
                     }
                 }
             }
-            r.add(&w.redeemer);
+            if used_redeemers.insert(w.redeemer.clone()) {
+                r.add(&w.redeemer);
+            }
         });
         (s, d, r)
     }
