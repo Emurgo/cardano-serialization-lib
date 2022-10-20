@@ -544,10 +544,12 @@ impl TxInputsBuilder {
 
     pub(crate) fn get_used_plutus_lang_versions(&self) -> BTreeSet<Language> {
         let mut used_langs = BTreeSet::new();
-        self.input_types.scripts.values().for_each(|option| {
-            if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = option {
-                if let Some(lang) = s.script.language() {
-                    used_langs.insert(lang);
+        self.required_witnesses.scripts.values().for_each(|input_with_wit| {
+            for (_, script_wit) in input_with_wit {
+                if let Some(ScriptWitnessType::PlutusScriptWitness(PlutusWitness { script, .. })) = script_wit {
+                    if let Some(lang) = script.language() {
+                        used_langs.insert(lang);
+                    }
                 }
             }
         });

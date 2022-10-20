@@ -4774,6 +4774,18 @@ declare export class PlutusScriptSource {
     script_hash: ScriptHash,
     input: TransactionInput
   ): PlutusScriptSource;
+
+  /**
+   * @param {ScriptHash} script_hash
+   * @param {TransactionInput} input
+   * @param {Language} lang_ver
+   * @returns {PlutusScriptSource}
+   */
+  static new_ref_input_with_lang_ver(
+    script_hash: ScriptHash,
+    input: TransactionInput,
+    lang_ver: Language
+  ): PlutusScriptSource;
 }
 /**
  */
