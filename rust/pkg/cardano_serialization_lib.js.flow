@@ -6,6 +6,42 @@
  */
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
  * @param {Transaction} tx
  * @param {LinearFee} linear_fee
  * @returns {BigNum}
@@ -195,42 +231,6 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
-): string;
-
-/**
  * @param {string} json
  * @param {number} schema
  * @returns {PlutusData}
@@ -324,6 +324,26 @@ declare export var NetworkIdKind: {|
 /**
  */
 
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
 declare export var CoinSelectionStrategyCIP2: {|
   +LargestFirst: 0, // 0
   +RandomImprove: 1, // 1
@@ -346,26 +366,6 @@ declare export var StakeCredKind: {|
 declare export var ScriptSchema: {|
   +Wallet: 0, // 0
   +Node: 1, // 1
-|};
-
-/**
- */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
 |};
 
 /**
@@ -2951,6 +2951,62 @@ declare export class HeaderBody {
     operational_cert: OperationalCert,
     protocol_version: ProtocolVersion
   ): HeaderBody;
+}
+/**
+ */
+declare export class InputWithScriptWitness {
+  free(): void;
+
+  /**
+   * @param {TransactionInput} input
+   * @param {NativeScript} witness
+   * @returns {InputWithScriptWitness}
+   */
+  static new_with_native_script_witness(
+    input: TransactionInput,
+    witness: NativeScript
+  ): InputWithScriptWitness;
+
+  /**
+   * @param {TransactionInput} input
+   * @param {PlutusWitness} witness
+   * @returns {InputWithScriptWitness}
+   */
+  static new_with_plutus_witness(
+    input: TransactionInput,
+    witness: PlutusWitness
+  ): InputWithScriptWitness;
+
+  /**
+   * @returns {TransactionInput}
+   */
+  input(): TransactionInput;
+}
+/**
+ */
+declare export class InputsWithScriptWitness {
+  free(): void;
+
+  /**
+   * @returns {InputsWithScriptWitness}
+   */
+  static new(): InputsWithScriptWitness;
+
+  /**
+   * @param {InputWithScriptWitness} input
+   */
+  add(input: InputWithScriptWitness): void;
+
+  /**
+   * @param {number} index
+   * @returns {InputWithScriptWitness}
+   */
+  get(index: number): InputWithScriptWitness;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
 }
 /**
  */
@@ -9223,6 +9279,8 @@ declare export class TxInputsBuilder {
   ): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * This function can make a mistake in choosing right input index. Use `.add_native_script_input` or `.add_plutus_script_input` instead.
    * This method adds the input to the builder BUT leaves a missing spot for the witness native script
    *
    * After adding the input with this method, use `.add_required_native_input_scripts`
@@ -9303,6 +9361,8 @@ declare export class TxInputsBuilder {
   add_required_native_input_scripts(scripts: NativeScripts): number;
 
   /**
+   * !!! DEPRECATED !!!
+   * This function can make a mistake in choosing right input index. Use `.add_required_script_input_witnesses` instead.
    * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
    * Any scripts that don't match any of the previously added inputs will be ignored
    * Returns the number of remaining required missing witness scripts
@@ -9311,6 +9371,18 @@ declare export class TxInputsBuilder {
    * @returns {number}
    */
   add_required_plutus_input_scripts(scripts: PlutusWitnesses): number;
+
+  /**
+   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
+   * Any scripts that don't match any of the previously added inputs will be ignored
+   * Returns the number of remaining required missing witness scripts
+   * Use `.count_missing_input_scripts` to find the number of still missing scripts
+   * @param {InputsWithScriptWitness} inputs_with_wit
+   * @returns {number}
+   */
+  add_required_script_input_witnesses(
+    inputs_with_wit: InputsWithScriptWitness
+  ): number;
 
   /**
    * @returns {TransactionInputs}

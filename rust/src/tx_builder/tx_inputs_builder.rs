@@ -7,6 +7,56 @@ pub(crate) struct TxBuilderInput {
     pub(crate) amount: Value, // we need to keep track of the amount in the inputs for input selection
 }
 
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
+pub struct InputWithScriptWitness {
+    pub(crate) input: TransactionInput,
+    pub(crate) witness: ScriptWitnessType
+}
+
+#[wasm_bindgen]
+impl InputWithScriptWitness {
+    pub fn new_with_native_script_witness(input: &TransactionInput, witness: &NativeScript) -> Self {
+        Self {
+            input: input.clone(),
+            witness: ScriptWitnessType::NativeScriptWitness(witness.clone())
+        }
+    }
+
+    pub fn new_with_plutus_witness(input: &TransactionInput, witness: &PlutusWitness) -> Self {
+        Self {
+            input: input.clone(),
+            witness: ScriptWitnessType::PlutusScriptWitness(witness.clone())
+        }
+    }
+
+    pub fn input(&self) -> TransactionInput {
+        self.input.clone()
+    }
+}
+
+#[wasm_bindgen]
+pub struct InputsWithScriptWitness(Vec<InputWithScriptWitness>);
+
+#[wasm_bindgen]
+impl InputsWithScriptWitness {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn add(&mut self, input: &InputWithScriptWitness) {
+        self.0.push(input.clone());
+    }
+
+    pub fn get(&self, index: usize) -> InputWithScriptWitness {
+        self.0[index].clone()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum PlutusScriptSourceEnum {
     Script(PlutusScript),
@@ -148,18 +198,34 @@ impl PlutusWitnesses {
         self.0.push(elem.clone());
     }
 
-    pub(crate) fn collect(&self) -> (PlutusScripts, PlutusList, Redeemers) {
+    pub(crate) fn collect(&self) -> (PlutusScripts, Option<PlutusList>, Redeemers) {
+        let mut used_scripts = BTreeSet::new();
+        let mut used_datums = BTreeSet::new();
+        let mut used_redeemers = BTreeSet::new();
         let mut s = PlutusScripts::new();
-        let mut d = PlutusList::new();
+        let mut d : Option<PlutusList> = None;
         let mut r = Redeemers::new();
         self.0.iter().for_each(|w| {
             if let PlutusScriptSourceEnum::Script(script) = &w.script {
-                s.add(script);
+                if used_scripts.insert(script.clone()) {
+                    s.add(script);
+                }
             }
             if let DatumSourceEnum::Datum(datum) = &w.datum {
-                d.add(datum);
+                if used_datums.insert(datum) {
+                    match d {
+                        Some(ref mut d) => d.add(datum),
+                        None => d =  {
+                            let mut initial_list = PlutusList::new();
+                            initial_list.add(datum);
+                            Some(initial_list)
+                        }
+                    }
+                }
             }
-            r.add(&w.redeemer);
+            if used_redeemers.insert(w.redeemer.clone()) {
+                r.add(&w.redeemer);
+            }
         });
         (s, d, r)
     }
@@ -177,11 +243,20 @@ pub enum ScriptWitnessType {
     PlutusScriptWitness(PlutusWitness),
 }
 
+impl ScriptWitnessType {
+    pub fn script_hash(&self) -> ScriptHash {
+        match self {
+            ScriptWitnessType::NativeScriptWitness(script) => script.hash(),
+            ScriptWitnessType::PlutusScriptWitness(script) => script.script.script_hash(),
+        }
+    }
+}
+
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
 #[derive(Clone, Debug)]
-pub struct MockWitnessSet {
+pub struct RequiredWitnessSet {
     vkeys: RequiredSignersSet,
-    scripts: LinkedHashMap<ScriptHash, Option<ScriptWitnessType>>,
+    scripts: LinkedHashMap<ScriptHash, LinkedHashMap<TransactionInput, Option<ScriptWitnessType>>>,
     bootstraps: BTreeSet<Vec<u8>>,
 }
 
@@ -189,11 +264,11 @@ pub struct MockWitnessSet {
 #[derive(Clone, Debug)]
 pub struct TxInputsBuilder {
     inputs: BTreeMap<TransactionInput, (TxBuilderInput, Option<ScriptHash>)>,
-    input_types: MockWitnessSet,
+    required_witnesses: RequiredWitnessSet,
 }
 
 pub(crate) fn get_bootstraps(inputs: &TxInputsBuilder) -> BTreeSet<Vec<u8>> {
-    inputs.input_types.bootstraps.clone()
+    inputs.required_witnesses.bootstraps.clone()
 }
 
 #[wasm_bindgen]
@@ -201,7 +276,7 @@ impl TxInputsBuilder {
     pub fn new() -> Self {
         Self {
             inputs: BTreeMap::new(),
-            input_types: MockWitnessSet {
+            required_witnesses: RequiredWitnessSet {
                 vkeys: BTreeSet::new(),
                 scripts: LinkedHashMap::new(),
                 bootstraps: BTreeSet::new(),
@@ -227,9 +302,15 @@ impl TxInputsBuilder {
             amount: amount.clone(),
         };
         self.push_input((inp, None));
-        self.input_types.vkeys.insert(hash.clone());
+        self.required_witnesses.vkeys.insert(hash.clone());
     }
 
+    #[deprecated(
+    since = "11.2.0",
+    note = "Use `.add_native_script_input` or `.add_plutus_script_input` instead."
+    )]
+    /// !!! DEPRECATED !!!
+    /// This function can make a mistake in choosing right input index. Use `.add_native_script_input` or `.add_plutus_script_input` instead.
     /// This method adds the input to the builder BUT leaves a missing spot for the witness native script
     ///
     /// After adding the input with this method, use `.add_required_native_input_scripts`
@@ -248,9 +329,7 @@ impl TxInputsBuilder {
             amount: amount.clone(),
         };
         self.push_input((inp, Some(hash.clone())));
-        if !self.input_types.scripts.contains_key(hash) {
-            self.input_types.scripts.insert(hash.clone(), None);
-        }
+        self.insert_input_with_empty_witness(hash, input);
     }
 
     /// This method will add the input to the builder and also register the required native script witness
@@ -262,10 +341,8 @@ impl TxInputsBuilder {
     ) {
         let hash = script.hash();
         self.add_script_input(&hash, input, amount);
-        self.input_types.scripts.insert(
-            hash,
-            Some(ScriptWitnessType::NativeScriptWitness(script.clone())),
-        );
+        let witness = ScriptWitnessType::NativeScriptWitness(script.clone());
+        self.insert_input_with_witness(&hash, input, &witness);
     }
 
     /// This method will add the input to the builder and also register the required plutus witness
@@ -278,10 +355,8 @@ impl TxInputsBuilder {
         let hash = witness.script.script_hash();
 
         self.add_script_input(&hash, input, amount);
-        self.input_types.scripts.insert(
-            hash,
-            Some(ScriptWitnessType::PlutusScriptWitness(witness.clone())),
-        );
+        let witness = ScriptWitnessType::PlutusScriptWitness(witness.clone());
+        self.insert_input_with_witness(&hash, input, &witness);
     }
 
     pub fn add_bootstrap_input(
@@ -295,7 +370,7 @@ impl TxInputsBuilder {
             amount: amount.clone(),
         };
         self.push_input((inp, None));
-        self.input_types.bootstraps.insert(hash.to_bytes());
+        self.required_witnesses.bootstraps.insert(hash.to_bytes());
     }
 
     /// Note that for script inputs this method will use underlying generic `.add_script_input`
@@ -352,9 +427,10 @@ impl TxInputsBuilder {
     /// Returns the number of still missing input scripts (either native or plutus)
     /// Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
     pub fn count_missing_input_scripts(&self) -> usize {
-        self.input_types
+        self.required_witnesses
             .scripts
             .values()
+            .flat_map(|v| v.values())
             .filter(|s| s.is_none())
             .count()
     }
@@ -366,11 +442,50 @@ impl TxInputsBuilder {
     pub fn add_required_native_input_scripts(&mut self, scripts: &NativeScripts) -> usize {
         scripts.0.iter().for_each(|s: &NativeScript| {
             let hash = s.hash();
-            if self.input_types.scripts.contains_key(&hash) {
-                self.input_types.scripts.insert(
-                    hash,
-                    Some(ScriptWitnessType::NativeScriptWitness(s.clone())),
-                );
+            if let Some(script_wits) = self.required_witnesses.scripts.get_mut(&hash) {
+                let mut tx_in = None;
+                for script_wit in script_wits {
+                    if script_wit.1.is_none() {
+                        tx_in = Some(script_wit.0.clone());
+                        break;
+                    }
+                }
+
+                if let Some(tx_in) = tx_in {
+                    let witness = ScriptWitnessType::NativeScriptWitness(s.clone());
+                    self.insert_input_with_witness(&hash, &tx_in, &witness);
+                }
+            }
+        });
+        self.count_missing_input_scripts()
+    }
+
+    #[deprecated(
+    since = "11.2.0",
+    note = "This function can make a mistake in choosing right input index. Use `.add_required_script_input_witnesses` instead."
+    )]
+    /// !!! DEPRECATED !!!
+    /// This function can make a mistake in choosing right input index. Use `.add_required_script_input_witnesses` instead.
+    /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
+    /// Any scripts that don't match any of the previously added inputs will be ignored
+    /// Returns the number of remaining required missing witness scripts
+    /// Use `.count_missing_input_scripts` to find the number of still missing scripts
+    pub fn add_required_plutus_input_scripts(&mut self, scripts: &PlutusWitnesses) -> usize {
+        scripts.0.iter().for_each(|s: &PlutusWitness| {
+            let hash = s.script.script_hash();
+            if let Some(script_wits) = self.required_witnesses.scripts.get_mut(&hash) {
+                let mut tx_in = None;
+                for script_wit in script_wits {
+                    if script_wit.1.is_none() {
+                        tx_in = Some(script_wit.0.clone());
+                        break;
+                    }
+                }
+
+                if let Some(tx_in) = tx_in {
+                    let witness = ScriptWitnessType::PlutusScriptWitness(s.clone());
+                    self.insert_input_with_witness(&hash, &tx_in, &witness);
+                }
             }
         });
         self.count_missing_input_scripts()
@@ -380,23 +495,22 @@ impl TxInputsBuilder {
     /// Any scripts that don't match any of the previously added inputs will be ignored
     /// Returns the number of remaining required missing witness scripts
     /// Use `.count_missing_input_scripts` to find the number of still missing scripts
-    pub fn add_required_plutus_input_scripts(&mut self, scripts: &PlutusWitnesses) -> usize {
-        scripts.0.iter().for_each(|s: &PlutusWitness| {
-            let hash = s.script.script_hash();
-            if self.input_types.scripts.contains_key(&hash) {
-                self.input_types.scripts.insert(
-                    hash,
-                    Some(ScriptWitnessType::PlutusScriptWitness(s.clone())),
-                );
-            }
-        });
+    pub fn add_required_script_input_witnesses(&mut self, inputs_with_wit: &InputsWithScriptWitness) -> usize {
+        inputs_with_wit.0.iter().for_each(|input_with_wit: &InputWithScriptWitness| {
+            let hash = input_with_wit.witness.script_hash();
+            if let Some(script_wits) = self.required_witnesses.scripts.get_mut(&hash) {
+                if script_wits.contains_key(&input_with_wit.input) {
+                    script_wits.insert(input_with_wit.input.clone(), Some(input_with_wit.witness.clone()));
+                }
+            } });
         self.count_missing_input_scripts()
     }
 
     pub fn get_ref_inputs(&self) -> TransactionInputs {
         let mut inputs = Vec::new();
-        for wintess in self.input_types.scripts.iter()
-            .filter_map(|(_, wit)| wit.as_ref() ) {
+        for wintess in self.required_witnesses.scripts.iter()
+            .flat_map(|(_, tx_wits)| tx_wits.values())
+            .filter_map(|wit| wit.as_ref()) {
             if let ScriptWitnessType::PlutusScriptWitness(plutus_witness) = wintess {
                 if let DatumSourceEnum::RefInput(input) = &plutus_witness.datum {
                     inputs.push(input.clone());
@@ -413,8 +527,11 @@ impl TxInputsBuilder {
     /// Returns a copy of the current script input witness scripts in the builder
     pub fn get_native_input_scripts(&self) -> Option<NativeScripts> {
         let mut scripts = NativeScripts::new();
-        self.input_types.scripts.values().for_each(|option| {
-            if let Some(ScriptWitnessType::NativeScriptWitness(s)) = option {
+        self.required_witnesses.scripts
+            .values()
+            .flat_map(|v| v)
+            .for_each(|tx_in_with_wit| {
+            if let Some(ScriptWitnessType::NativeScriptWitness(s)) = tx_in_with_wit.1 {
                 scripts.add(&s);
             }
         });
@@ -451,18 +568,21 @@ impl TxInputsBuilder {
          *
          * The registered witnesses are then each cloned with the new correct redeemer input index.
          */
-        let script_hash_index_map: BTreeMap<&ScriptHash, BigNum> = self
+        let script_hash_index_map: BTreeMap<&TransactionInput, BigNum> = self
             .inputs
             .values()
             .enumerate()
-            .fold(BTreeMap::new(), |mut m, (i, (_, hash_option))| {
-                if let Some(hash) = hash_option {
-                    m.insert(hash, to_bignum(i as u64));
+            .fold(BTreeMap::new(), |mut m, (i, (tx_in, hash_option))| {
+                if hash_option.is_some() {
+                    m.insert(&tx_in.input, to_bignum(i as u64));
                 }
                 m
             });
         let mut scripts = PlutusWitnesses::new();
-        self.input_types.scripts.iter().for_each(|(hash, option)| {
+        self.required_witnesses.scripts
+            .iter()
+            .flat_map(|x| x.1)
+            .for_each(|(hash, option)| {
             if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = option {
                 if let Some(idx) = script_hash_index_map.get(&hash) {
                     scripts.add(&s.clone_with_redeemer_index(&idx));
@@ -485,7 +605,7 @@ impl TxInputsBuilder {
     }
 
     pub fn add_required_signer(&mut self, key: &Ed25519KeyHash) {
-        self.input_types.vkeys.insert(key.clone());
+        self.required_witnesses.vkeys.insert(key.clone());
     }
 
     pub fn add_required_signers(&mut self, keys: &RequiredSigners) {
@@ -516,15 +636,28 @@ impl TxInputsBuilder {
             None
         }
     }
+
+    fn insert_input_with_witness(&mut self, script_hash: &ScriptHash, input: &TransactionInput, witness: &ScriptWitnessType) {
+        let script_inputs =
+            self.required_witnesses.scripts.entry(script_hash.clone()).or_insert(LinkedHashMap::new());
+        script_inputs.insert(input.clone(), Some(witness.clone()));
+    }
+
+    fn insert_input_with_empty_witness(&mut self, script_hash: &ScriptHash, input: &TransactionInput) {
+        let script_inputs =
+            self.required_witnesses.scripts.entry(script_hash.clone()).or_insert(LinkedHashMap::new());
+        script_inputs.insert(input.clone(), None);
+    }
 }
 
 impl From<&TxInputsBuilder> for RequiredSignersSet {
     fn from(inputs: &TxInputsBuilder) -> Self {
-        let mut set = inputs.input_types.vkeys.clone();
+        let mut set = inputs.required_witnesses.vkeys.clone();
         inputs
-            .input_types
+            .required_witnesses
             .scripts
             .values()
+            .flat_map(|tx_wits| tx_wits.values())
             .for_each(|swt: &Option<ScriptWitnessType>| {
                 if let Some(ScriptWitnessType::NativeScriptWitness(s)) = swt {
                     RequiredSignersSet::from(s).iter().for_each(|k| {
