@@ -124,7 +124,7 @@ fn fake_full_tx(
     let (plutus_scripts, plutus_data, redeemers) = {
         if let Some(s) = tx_builder.get_combined_plutus_scripts() {
             let (s, d, r) = s.collect();
-            (Some(s), Some(d), Some(r))
+            (Some(s), d, Some(r))
         } else {
             (None, None, None)
         }
@@ -1676,7 +1676,7 @@ impl TransactionBuilder {
             self.script_data_hash = Some(hash_script_data(
                 &redeemers,
                 &retained_cost_models,
-                Some(datums),
+                datums,
             ));
         }
         Ok(())
@@ -1809,7 +1809,9 @@ impl TransactionBuilder {
         if let Some(pw) = self.get_combined_plutus_scripts() {
             let (scripts, datums, redeemers) = pw.collect();
             wit.set_plutus_scripts(&scripts);
-            wit.set_plutus_data(&datums);
+            if let Some(datums) = &datums {
+                wit.set_plutus_data(datums);
+            }
             wit.set_redeemers(&redeemers);
         }
         wit
