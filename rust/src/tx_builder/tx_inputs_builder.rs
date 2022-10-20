@@ -10,14 +10,21 @@ pub(crate) struct TxBuilderInput {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum PlutusScriptSourceEnum {
     Script(PlutusScript),
-    RefInput(TransactionInput, ScriptHash),
+    RefInput(TransactionInput, ScriptHash, Option<Language>),
 }
 
 impl PlutusScriptSourceEnum {
     pub fn script_hash(&self) -> ScriptHash {
         match self {
             PlutusScriptSourceEnum::Script(script) => script.hash(),
-            PlutusScriptSourceEnum::RefInput(_, script_hash) => script_hash.clone(),
+            PlutusScriptSourceEnum::RefInput(_, script_hash, _) => script_hash.clone(),
+        }
+    }
+
+    pub fn language(&self) -> Option<Language> {
+        match self {
+            PlutusScriptSourceEnum::Script(script) => Some(script.language_version()),
+            PlutusScriptSourceEnum::RefInput(_, _, language) => language.clone(),
         }
     }
 }
@@ -33,7 +40,15 @@ impl PlutusScriptSource {
     }
 
     pub fn new_ref_input(script_hash: &ScriptHash, input: &TransactionInput) -> Self {
-        Self(PlutusScriptSourceEnum::RefInput(input.clone(), script_hash.clone()))
+        Self(PlutusScriptSourceEnum::RefInput(input.clone(),
+                                              script_hash.clone(),
+                                              None))
+    }
+
+    pub fn new_ref_input_with_lang_ver(script_hash: &ScriptHash, input: &TransactionInput, lang_ver: &Language) -> Self {
+        Self(PlutusScriptSourceEnum::RefInput(input.clone(),
+                                              script_hash.clone(),
+                                              Some(lang_ver.clone())))
     }
 }
 
@@ -386,7 +401,7 @@ impl TxInputsBuilder {
                 if let DatumSourceEnum::RefInput(input) = &plutus_witness.datum {
                     inputs.push(input.clone());
                 }
-                if let PlutusScriptSourceEnum::RefInput(input, _) = &plutus_witness.script {
+                if let PlutusScriptSourceEnum::RefInput(input, _, _) = &plutus_witness.script {
                     inputs.push(input.clone());
                 }
             }
@@ -408,6 +423,18 @@ impl TxInputsBuilder {
         } else {
             None
         }
+    }
+
+    pub(crate) fn get_used_plutus_lang_versions(&self) -> BTreeSet<Language> {
+        let mut used_langs = BTreeSet::new();
+        self.input_types.scripts.values().for_each(|option| {
+            if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = option {
+                if let Some(lang) = s.script.language() {
+                    used_langs.insert(lang);
+                }
+            }
+        });
+        used_langs
     }
 
     /// Returns a copy of the current plutus input witness scripts in the builder.
