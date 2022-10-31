@@ -53,7 +53,7 @@ impl NetworkInfo {
     pub fn testnet() -> NetworkInfo {
         NetworkInfo {
             network_id: 0b0000,
-            protocol_magic: 1097911063
+            protocol_magic: 1 
         }
     }
     pub fn mainnet() -> NetworkInfo {
