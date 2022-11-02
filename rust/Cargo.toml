@@ -31,7 +31,7 @@ num-integer = "0.1.45"
 # The default can't be compiled to wasm, so it's necessary to use either the 'nightly'
 # feature or this one
 clear_on_drop = { version = "0.2", features = ["no_cc"] }
-itertools = "0.10.1"
+itertools = "0.10.5"
 rand = "0.8.4"
 schemars = "0.8.8"
 serde = { version = "1.0", features = ["derive"] }
