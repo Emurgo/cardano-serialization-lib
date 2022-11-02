@@ -150,28 +150,30 @@ mod test {
                 0,
                 20,
                 Coin::zero(),
-                Coin::from(5000000u64));
+                Coin::from(50000000u64));
             utxos.push(utxo);
         }
         TransactionUnspentOutputs(utxos)
     }
 
     fn get_utxos_total(utxos: &TransactionUnspentOutputs) -> Value {
-        let total_value = Value::zero();
+        let mut total_value = Value::zero();
         for utxo in utxos {
-            total_value.checked_add(&utxo.output.amount).unwrap();
+            total_value = total_value.checked_add(&utxo.output.amount).unwrap();
         }
 
         total_value
     }
 
     fn get_batch_total(batches: &TransactionBatchList) -> Value {
-        let total_value = Value::zero();
+        let mut total_value = Value::zero();
         for batch in batches {
             for tx in batch {
                 for output in &tx.body.outputs {
-                    total_value.checked_add(&output.amount).unwrap();
+                    total_value = total_value.checked_add(&output.amount).unwrap();
                 }
+                let fee = Value::new(&tx.body.fee);
+                total_value = total_value.checked_add(&fee).unwrap();
             }
         }
 
@@ -692,5 +694,69 @@ mod test {
 
         let res = create_send_all(&generate_address(10000), &utxos, &cfg);
         assert!(res.is_err());
+    }
+
+    #[test]
+    pub fn test_two_asset_utxo_one_ada_utxo() {
+        let address = generate_address(1);
+        let asset_utxo_1 = generate_utxo(
+            &address,
+            1,
+            0,
+            0,
+            1,
+            1,
+            8,
+            Coin::from(1u64),
+            Coin::from(1344798u64));
+
+        let asset_utxo_2 = generate_utxo(
+            &address,
+            2,
+            1,
+            1,
+            1,
+            1,
+            8,
+            Coin::from(1u64),
+            Coin::from(1344798u64));
+
+        let ada_utxo = generate_utxo(
+            &address,
+            3,
+            0,
+            0,
+            0,
+            0,
+            20,
+            Coin::from(1u64),
+            Coin::from(9967920528u64));
+
+        let utxos = TransactionUnspentOutputs(vec![asset_utxo_1, asset_utxo_2, ada_utxo]);
+
+        let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+        let cfg = TransactionBuilderConfigBuilder::new()
+            .fee_algo(&linear_fee)
+            .pool_deposit(&to_bignum(500000000))
+            .key_deposit(&to_bignum(2000000))
+            .max_value_size(4000)
+            .max_tx_size(8000)
+            .coins_per_utxo_word(&to_bignum(34_482))
+            .ex_unit_prices(&ExUnitPrices::new(
+                &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
+                &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            ))
+            .build()
+            .unwrap();
+
+        let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+        assert!(res.is_ok());
+
+        let batches = res.unwrap();
+        check_balance(&utxos, &batches);
+        check_min_adas(&batches, &cfg);
+        check_fees(&batches, &cfg);
+        check_value_size_limit(&batches, &cfg);
+        check_tx_size_limit(&batches, &cfg);
     }
 }

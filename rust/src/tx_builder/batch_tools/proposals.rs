@@ -114,6 +114,9 @@ impl TxProposal {
     }
 
     pub(super) fn add_utxo(&mut self, utxo: &UtxoIndex, ada_coins: &Coin, address: &Address) -> Result<(), JsError> {
+        if self.used_utoxs.contains(utxo) {
+            return Err(JsError::from_str("UTxO already used"));
+        }
         self.used_utoxs.insert(utxo.clone());
         self.total_ada = self.total_ada.checked_add(ada_coins)?;
         self.witnesses_calculator.add_address(address)?;

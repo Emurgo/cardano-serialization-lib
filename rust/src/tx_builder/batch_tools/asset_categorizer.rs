@@ -193,7 +193,7 @@ impl AssetCategorizer {
 
     pub(crate) fn build_value(&self, used_utxos: &HashSet<UtxoIndex>, tx_output_proposal: &TxOutputProposal)
                               -> Result<Value, JsError> {
-        let mut value = Value::new(&tx_output_proposal.min_ada);
+        let mut value = Value::new(&tx_output_proposal.total_ada);
         if tx_output_proposal.used_assets.is_empty() {
             return Ok(value);
         }
@@ -262,14 +262,14 @@ impl AssetCategorizer {
                 if new_proposal.get_outputs().is_empty() {
                     new_proposal.add_new_output(&self.address);
                 }
-                used_utxos.insert(utxo.clone());
                 new_proposal.add_utxo(utxo, coin, &self.addresses[utxo.0])?;
+                used_utxos.insert(utxo.clone());
             } else {
                 return Ok(None);
             }
         }
 
-        self.set_min_ada_for_tx(&mut new_proposal)?;
+        let mut new_size = self.set_min_ada_for_tx(&mut new_proposal)?;
 
         if new_proposal.get_need_ada()? > Coin::zero() {
             let next_utxos = self.get_next_pure_ada_utxo_by_amount(
@@ -278,15 +278,17 @@ impl AssetCategorizer {
 
             for (utxo, coin) in &next_utxos {
                 new_proposal.add_utxo(utxo, coin, &self.addresses[utxo.0])?;
+                used_utxos.insert(utxo.clone());
             }
 
-            let new_size = self.set_min_ada_for_tx(&mut new_proposal)?;
-            if new_size > (self.config.max_tx_size as usize) {
-                if tx_proposal.used_utoxs.is_empty() {
-                    return Err(JsError::from_str("Utxo can not be places into tx, utxo value is too big."));
-                }
-                return Ok(None);
+            new_size = self.set_min_ada_for_tx(&mut new_proposal)?;
+            if new_size > (self.config.max_tx_size as usize) && tx_proposal.used_utoxs.is_empty() {
+                return Err(JsError::from_str("Utxo can not be places into tx, utxo value is too big."));
             }
+        }
+
+        if new_size > (self.config.max_tx_size as usize) {
+            return Ok(None);
         }
 
         let mut changes = TxProposalChanges::new(new_proposal, false);
@@ -551,12 +553,13 @@ impl AssetCategorizer {
             &self.config.data_cost)
     }
 
-    fn estimate_fee(&self, tx_proposal: &TxProposal) -> Result<(Coin, usize), JsError> {
+    pub(crate) fn estimate_fee(&self, tx_proposal: &TxProposal) -> Result<(Coin, usize), JsError> {
         let mut tx_len = self.get_tx_proposal_size(tx_proposal, false);
         let mut dependable_value = None;
         let mut min_value = None;
         if let Some(last_output) = tx_proposal.get_outputs().last() {
-            dependable_value = Some(tx_proposal.get_unused_ada()?);
+            dependable_value = Some(tx_proposal.get_unused_ada()?
+                .checked_add(&last_output.get_total_ada())?);
             min_value = Some(last_output.get_min_ada());
             tx_len -= CborCalculator::get_coin_size(&last_output.get_total_ada());
         }
@@ -583,7 +586,8 @@ impl AssetCategorizer {
 
     fn remove_pure_ada_utxo(&mut self, utxo: &UtxoIndex) {
         let index = self.free_ada_utxos.iter().rev().position(|x| x.0 == *utxo);
-        if let Some(index) = index {
+        if let Some(mut index) = index {
+            index = self.free_ada_utxos.len() - index - 1;
             self.free_ada_utxos.remove(index);
         }
     }
