@@ -1659,7 +1659,7 @@ impl TransactionBuilder {
         let mut retained_cost_models = Costmdls::new();
 
         if let Some(pw) = self.inputs.get_plutus_input_scripts() {
-            let (scripts, datums, redeemers) = pw.collect();
+            let (_scripts, datums, redeemers) = pw.collect();
             let used_langs = self.inputs.get_used_plutus_lang_versions();
             for lang in used_langs {
                 match cost_models.get(&lang) {

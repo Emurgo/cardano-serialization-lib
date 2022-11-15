@@ -3377,6 +3377,11 @@ declare export class Languages {
    * @param {Language} elem
    */
   add(elem: Language): void;
+
+  /**
+   * @returns {Languages}
+   */
+  static list(): Languages;
 }
 /**
  */
