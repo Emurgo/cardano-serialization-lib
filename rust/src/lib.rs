@@ -3450,6 +3450,7 @@ impl PartialOrd for MultiAsset {
     }
 }
 
+#[wasm_bindgen]
 pub struct MintsAssets(Vec<MintAssets>);
 
 impl MintsAssets {
