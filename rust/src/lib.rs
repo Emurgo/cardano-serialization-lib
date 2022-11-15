@@ -3450,6 +3450,22 @@ impl PartialOrd for MultiAsset {
     }
 }
 
+pub struct MintsAssets(Vec<MintAssets>);
+
+impl MintsAssets {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn add(&mut self, mint_assets: MintAssets) {
+        self.0.push(mint_assets)
+    }
+
+    pub fn get(&self, index: usize) -> Option<MintAssets> {
+        self.0.get(index).map(|v| v.clone())
+    }
+}
+
 #[wasm_bindgen]
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
@@ -3494,14 +3510,14 @@ impl MintAssets {
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
-pub struct Mint(std::collections::BTreeMap<PolicyID, MintAssets>);
+pub struct Mint(Vec<(PolicyID, MintAssets)>);
 
 impl_to_from!(Mint);
 
 #[wasm_bindgen]
 impl Mint {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        Self(Vec::new())
     }
 
     pub fn new_from_entry(key: &PolicyID, value: &MintAssets) -> Self {
@@ -3514,25 +3530,51 @@ impl Mint {
         self.0.len()
     }
 
+    //always returns None, because insert doesn't replace an old value
     pub fn insert(&mut self, key: &PolicyID, value: &MintAssets) -> Option<MintAssets> {
-        self.0.insert(key.clone(), value.clone())
+        self.0.push((key.clone(), value.clone()));
+        None
     }
 
+    /// !!! DEPRECATED !!!
+    /// Mint can store multiple entries for the same policy id.
+    /// Use `.get_all` instead.
+    #[deprecated(
+    since = "11.2.0",
+    note = "Mint can store multiple entries for the same policy id. Use `.get_all` instead."
+    )]
     pub fn get(&self, key: &PolicyID) -> Option<MintAssets> {
-        self.0.get(key).map(|v| v.clone())
+        self.0
+            .iter()
+            .filter(|(k, _)| k.eq(key))
+            .next()
+            .map(|(_k, v)| v.clone())
+    }
+
+    pub fn get_all(&self, key: &PolicyID) -> Option<MintsAssets> {
+        let mints : Vec<MintAssets> = self.0
+            .iter()
+            .filter(|(k, _)| k.eq(key))
+            .map(|(_k, v)| v.clone())
+            .collect();
+        if mints.is_empty() {
+            None
+        } else {
+            Some(MintsAssets(mints))
+        }
     }
 
     pub fn keys(&self) -> PolicyIDs {
         ScriptHashes(
             self.0
                 .iter()
-                .map(|(k, _v)| k.clone())
+                .map(|(k, _)| k.clone())
                 .collect::<Vec<ScriptHash>>(),
         )
     }
 
     fn as_multiasset(&self, is_positive: bool) -> MultiAsset {
-        self.0.iter().fold(MultiAsset::new(), |res, e| {
+        self.0.iter().fold(MultiAsset::new(), |res, e : &(PolicyID, MintAssets) | {
             let assets: Assets = (e.1).0.iter().fold(Assets::new(), |res, e| {
                 let mut assets = res;
                 if e.1.is_positive() == is_positive {
@@ -3540,13 +3582,13 @@ impl Mint {
                         true => e.1.as_positive(),
                         false => e.1.as_negative(),
                     };
-                    assets.insert(e.0, &amount.unwrap());
+                    assets.insert(&e.0, &amount.unwrap());
                 }
                 assets
             });
             let mut ma = res;
             if !assets.0.is_empty() {
-                ma.insert(e.0, &assets);
+                ma.insert(&e.0, &assets);
             }
             ma
         })

@@ -4864,11 +4864,11 @@ impl cbor_event::se::Serialize for Mint {
 
 impl Deserialize for Mint {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = std::collections::BTreeMap::new();
+        let mut mints = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len {
-                cbor_event::Len::Len(n) => table.len() < n as usize,
+                cbor_event::Len::Len(n) => mints.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
                 if raw.cbor_type()? == CBORType::Special {
@@ -4877,17 +4877,12 @@ impl Deserialize for Mint {
                 }
                 let key = PolicyID::deserialize(raw)?;
                 let value = MintAssets::deserialize(raw)?;
-                if table.insert(key.clone(), value).is_some() {
-                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from(
-                        "some complicated/unsupported type",
-                    )))
-                    .into());
-                }
+                mints.push((key.clone(), value));
             }
             Ok(())
         })()
         .map_err(|e| e.annotate("Mint"))?;
-        Ok(Self(table))
+        Ok(Self(mints))
     }
 }
 

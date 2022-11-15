@@ -74,7 +74,7 @@ impl PlutusScriptSourceEnum {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct PlutusScriptSource(PlutusScriptSourceEnum);
+pub struct PlutusScriptSource(pub(crate) PlutusScriptSourceEnum);
 
 #[wasm_bindgen]
 impl PlutusScriptSource {
@@ -112,7 +112,7 @@ impl DatumSource {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PlutusWitness {
     script: PlutusScriptSourceEnum,
-    datum: DatumSourceEnum,
+    datum: Option<DatumSourceEnum>,
     redeemer: Redeemer,
 }
 
@@ -121,7 +121,7 @@ impl PlutusWitness {
     pub fn new(script: &PlutusScript, datum: &PlutusData, redeemer: &Redeemer) -> Self {
         Self {
             script: PlutusScriptSourceEnum::Script(script.clone()),
-            datum: DatumSourceEnum::Datum(datum.clone()),
+            datum: Some(DatumSourceEnum::Datum(datum.clone())),
             redeemer: redeemer.clone(),
         }
     }
@@ -129,7 +129,15 @@ impl PlutusWitness {
     pub fn new_with_ref(script: &PlutusScriptSource, datum: &DatumSource, redeemer: &Redeemer) -> Self {
         Self {
             script: script.0.clone(),
-            datum: datum.0.clone(),
+            datum: Some(datum.0.clone()),
+            redeemer: redeemer.clone(),
+        }
+    }
+
+    pub fn new_without_datum(script: &PlutusScript, redeemer: &Redeemer) -> Self {
+        Self {
+            script: PlutusScriptSourceEnum::Script(script.clone()),
+            datum: None,
             redeemer: redeemer.clone(),
         }
     }
@@ -143,7 +151,7 @@ impl PlutusWitness {
 
     pub fn datum(&self) -> Option<PlutusData> {
         match &self.datum {
-            DatumSourceEnum::Datum(datum) => Some(datum.clone()),
+            Some(DatumSourceEnum::Datum(datum)) => Some(datum.clone()),
             _ => None,
         }
     }
@@ -196,7 +204,7 @@ impl PlutusWitnesses {
                     s.add(script);
                 }
             }
-            if let DatumSourceEnum::Datum(datum) = &w.datum {
+            if let Some(DatumSourceEnum::Datum(datum)) = &w.datum {
                 if used_datums.insert(datum) {
                     match d {
                         Some(ref mut d) => d.add(datum),
@@ -497,7 +505,7 @@ impl TxInputsBuilder {
             .flat_map(|(_, tx_wits)| tx_wits.values())
             .filter_map(|wit| wit.as_ref()) {
             if let ScriptWitnessType::PlutusScriptWitness(plutus_witness) = wintess {
-                if let DatumSourceEnum::RefInput(input) = &plutus_witness.datum {
+                if let Some(DatumSourceEnum::RefInput(input)) = &plutus_witness.datum {
                     inputs.push(input.clone());
                 }
                 if let PlutusScriptSourceEnum::RefInput(input, _) = &plutus_witness.script {
