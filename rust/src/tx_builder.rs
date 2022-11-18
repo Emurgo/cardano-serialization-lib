@@ -1647,6 +1647,7 @@ impl TransactionBuilder {
         }
     }
 
+
     /// This method will calculate the script hash data
     /// using the plutus datums and redeemers already present in the builder
     /// along with the provided cost model, and will register the calculated value
@@ -1658,20 +1659,20 @@ impl TransactionBuilder {
     /// Only the cost-models for the present language versions will be used in the hash calculation.
     pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) -> Result<(), JsError> {
         let mut retained_cost_models = Costmdls::new();
+
         if let Some(pw) = self.inputs.get_plutus_input_scripts() {
-            let (scripts, datums, redeemers) = pw.collect();
-            for lang in Languages::list().0 {
-                if scripts.has_version(&lang) {
-                    match cost_models.get(&lang) {
-                        Some(cost) => {
-                            retained_cost_models.insert(&lang, &cost);
-                        }
-                        _ => {
-                            return Err(JsError::from_str(&format!(
-                                "Missing cost model for language version: {:?}",
-                                lang
-                            )))
-                        }
+            let (_scripts, datums, redeemers) = pw.collect();
+            let used_langs = self.inputs.get_used_plutus_lang_versions();
+            for lang in used_langs {
+                match cost_models.get(&lang) {
+                    Some(cost) => {
+                        retained_cost_models.insert(&lang, &cost);
+                    }
+                    _ => {
+                        return Err(JsError::from_str(&format!(
+                            "Missing cost model for language version: {:?}",
+                            lang
+                        )))
                     }
                 }
             }
