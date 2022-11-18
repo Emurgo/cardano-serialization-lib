@@ -201,4 +201,19 @@ impl MintBuilder {
         }
         false
     }
+
+    pub(crate) fn get_used_plutus_lang_versions(&self) -> BTreeSet<Language> {
+        let mut used_langs = BTreeSet::new();
+        for (_, script_mint) in &self.mints {
+            match script_mint {
+                ScriptMint::Plutus(plutus_mints) => {
+                    if let Some(lang) = plutus_mints.script.language() {
+                        used_langs.insert(lang);
+                    }
+                },
+                _ => {},
+            }
+        }
+        used_langs
+    }
 }

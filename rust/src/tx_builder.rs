@@ -1658,11 +1658,24 @@ impl TransactionBuilder {
     /// and will assert and require for a corresponding cost-model to be present in the passed map.
     /// Only the cost-models for the present language versions will be used in the hash calculation.
     pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) -> Result<(), JsError> {
+        let mut used_langs = BTreeSet::new();
         let mut retained_cost_models = Costmdls::new();
+        let mut plutus_witnesses = PlutusWitnesses::new();
+        if let Some(mut inputs_plutus) = self.inputs.get_plutus_input_scripts() {
+            used_langs.append(&mut self.inputs.get_used_plutus_lang_versions());
+            plutus_witnesses.0.append(&mut inputs_plutus.0)
+        }
+        if let Some(mut collateral_plutus) = self.collateral.get_plutus_input_scripts() {
+            used_langs.append(&mut self.collateral.get_used_plutus_lang_versions());
+            plutus_witnesses.0.append(&mut collateral_plutus.0)
+        }
+        if let Some(mint_builder) = &self.mint {
+            used_langs.append(&mut mint_builder.get_used_plutus_lang_versions());
+            plutus_witnesses.0.append(&mut mint_builder.get_plutus_witnesses().0)
+        }
 
-        if let Some(pw) = self.inputs.get_plutus_input_scripts() {
-            let (_scripts, datums, redeemers) = pw.collect();
-            let used_langs = self.inputs.get_used_plutus_lang_versions();
+        if plutus_witnesses.len() > 0 {
+            let (_scripts, datums, redeemers) = plutus_witnesses.collect();
             for lang in used_langs {
                 match cost_models.get(&lang) {
                     Some(cost) => {
