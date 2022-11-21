@@ -1050,7 +1050,13 @@ impl TransactionBuilder {
         self.mint.clone()
     }
 
-
+    /// !!! DEPRECATED !!!
+    /// Mints are defining by MintBuilder now.
+    /// Use `.set_mint_builder()` and `MintBuilder` instead.
+    #[deprecated(
+    since = "11.2.0",
+    note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
+    )]
     /// Set explicit Mint object and the required witnesses to this builder
     /// it will replace any previously existing mint and mint scripts
     /// NOTE! Error will be returned in case a mint policy does not have a matching script
@@ -1078,6 +1084,13 @@ impl TransactionBuilder {
         Ok(())
     }
 
+    /// !!! DEPRECATED !!!
+    /// Mints are defining by MintBuilder now.
+    /// Use `.get_mint_builder()` and `.build()` instead.
+    #[deprecated(
+    since = "11.2.0",
+    note = "Mints are defining by MintBuilder now. Use `.get_mint_builder()` and `.build()` instead."
+    )]
     /// Returns a copy of the current mint state in the builder
     pub fn get_mint(&self) -> Option<Mint> {
         match &self.mint {
@@ -1094,6 +1107,13 @@ impl TransactionBuilder {
         }
     }
 
+    /// !!! DEPRECATED !!!
+    /// Mints are defining by MintBuilder now.
+    /// Use `.set_mint_builder()` and `MintBuilder` instead.
+    #[deprecated(
+    since = "11.2.0",
+    note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
+    )]
     /// Add a mint entry to this builder using a PolicyID and MintAssets object
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any existing mint assets with the same PolicyID
@@ -1112,6 +1132,13 @@ impl TransactionBuilder {
         }
     }
 
+    /// !!! DEPRECATED !!!
+    /// Mints are defining by MintBuilder now.
+    /// Use `.set_mint_builder()` and `MintBuilder` instead.
+    #[deprecated(
+    since = "11.2.0",
+    note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
+    )]
     /// Add a mint entry to this builder using a PolicyID, AssetName, and Int object for amount
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any previous existing amount same PolicyID and AssetName
