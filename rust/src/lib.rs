@@ -22,7 +22,7 @@ use std::io::{BufRead, Seek, Write};
 use noop_proc_macro::wasm_bindgen;
 
 #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 // This file was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
