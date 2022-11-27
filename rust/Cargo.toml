@@ -1,6 +1,6 @@
 [package]
 name = "cardano-serialization-lib"
-version = "11.1.0"
+version = "11.1.1"
 edition = "2018"
 authors = ["EMURGO"]
 license = "MIT"
@@ -44,8 +44,8 @@ getrandom = "0.2.3"
 
 # wasm
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
-serde-wasm-bindgen = "0.4.3"
-wasm-bindgen = "=0.2.78"
+serde-wasm-bindgen = "0.4.5"
+wasm-bindgen = "=0.2.83"
 rand_os = { version = "0.1", features = ["wasm-bindgen"] }
 js-sys = "0.3.51"
 getrandom = { version = "0.2.3", features = ["js"] }
