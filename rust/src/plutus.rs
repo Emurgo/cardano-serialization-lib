@@ -549,7 +549,7 @@ impl Languages {
         self.0.push(elem);
     }
 
-    pub(crate) fn list() -> Languages {
+    pub fn list() -> Languages {
         Languages(vec![Language::new_plutus_v1(), Language::new_plutus_v2()])
     }
 }
