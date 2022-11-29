@@ -408,6 +408,14 @@ impl AuxiliaryData {
     pub fn set_plutus_scripts(&mut self, plutus_scripts: &PlutusScripts) {
         self.plutus_scripts = Some(plutus_scripts.clone())
     }
+
+    pub fn prefer_alonzo_format(&self) -> bool {
+        self.prefer_alonzo_format.clone()
+    }
+
+    pub fn set_prefer_alonzo_format(&mut self, prefer: bool) {
+        self.prefer_alonzo_format = prefer
+    }
 }
 
 // encodes arbitrary bytes into chunks of 64 bytes (the limit for bytes) as a list to be valid Metadata
