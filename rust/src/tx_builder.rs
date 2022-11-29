@@ -124,7 +124,7 @@ fn fake_full_tx(
     let (plutus_scripts, plutus_data, redeemers) = {
         if let Some(s) = tx_builder.get_combined_plutus_scripts() {
             let (s, d, r) = s.collect();
-            (Some(s), Some(d), Some(r))
+            (Some(s), d, Some(r))
         } else {
             (None, None, None)
         }
@@ -1645,6 +1645,7 @@ impl TransactionBuilder {
         }
     }
 
+
     /// This method will calculate the script hash data
     /// using the plutus datums and redeemers already present in the builder
     /// along with the provided cost model, and will register the calculated value
@@ -1656,27 +1657,27 @@ impl TransactionBuilder {
     /// Only the cost-models for the present language versions will be used in the hash calculation.
     pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) -> Result<(), JsError> {
         let mut retained_cost_models = Costmdls::new();
+
         if let Some(pw) = self.inputs.get_plutus_input_scripts() {
-            let (scripts, datums, redeemers) = pw.collect();
-            for lang in Languages::list().0 {
-                if scripts.has_version(&lang) {
-                    match cost_models.get(&lang) {
-                        Some(cost) => {
-                            retained_cost_models.insert(&lang, &cost);
-                        }
-                        _ => {
-                            return Err(JsError::from_str(&format!(
-                                "Missing cost model for language version: {:?}",
-                                lang
-                            )))
-                        }
+            let (_scripts, datums, redeemers) = pw.collect();
+            let used_langs = self.inputs.get_used_plutus_lang_versions();
+            for lang in used_langs {
+                match cost_models.get(&lang) {
+                    Some(cost) => {
+                        retained_cost_models.insert(&lang, &cost);
+                    }
+                    _ => {
+                        return Err(JsError::from_str(&format!(
+                            "Missing cost model for language version: {:?}",
+                            lang
+                        )))
                     }
                 }
             }
             self.script_data_hash = Some(hash_script_data(
                 &redeemers,
                 &retained_cost_models,
-                Some(datums),
+                datums,
             ));
         }
         Ok(())
@@ -1809,7 +1810,9 @@ impl TransactionBuilder {
         if let Some(pw) = self.get_combined_plutus_scripts() {
             let (scripts, datums, redeemers) = pw.collect();
             wit.set_plutus_scripts(&scripts);
-            wit.set_plutus_data(&datums);
+            if let Some(datums) = &datums {
+                wit.set_plutus_data(datums);
+            }
             wit.set_redeemers(&redeemers);
         }
         wit
@@ -4277,6 +4280,13 @@ mod tests {
                 CoinSelectionStrategyCIP2::RandomImproveMultiAsset,
             )
             .unwrap();
+
+        let input_for_cover_change = make_input(10u8, Value::new(&to_bignum(1000)));
+        tx_builder.add_input(
+            &input_for_cover_change.output.address,
+            &input_for_cover_change.input,
+            &input_for_cover_change.output.amount);
+
         let change_addr = ByronAddress::from_base58(
             "Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho",
         )
