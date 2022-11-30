@@ -28,7 +28,11 @@ impl LinearFee {
 
 #[wasm_bindgen]
 pub fn min_fee(tx: &Transaction, linear_fee: &LinearFee) -> Result<Coin, JsError> {
-    to_bignum(tx.to_bytes().len() as u64)
+    min_fee_for_size(tx.to_bytes().len(), linear_fee)
+}
+
+pub fn min_fee_for_size(size: usize, linear_fee: &LinearFee) -> Result<Coin, JsError> {
+    BigNum::from(size)
         .checked_mul(&linear_fee.coefficient())?
         .checked_add(&linear_fee.constant())
 }

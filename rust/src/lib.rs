@@ -22,7 +22,7 @@ use std::io::{BufRead, Seek, Write};
 use noop_proc_macro::wasm_bindgen;
 
 #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 // This file was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
@@ -56,6 +56,7 @@ pub mod typed_bytes;
 pub mod utils;
 mod fakes;
 mod serialization_macros;
+mod serialization_tools;
 
 use crate::traits::NoneOrEmpty;
 use address::*;
@@ -216,6 +217,15 @@ impl TransactionOutputs {
 
     pub fn add(&mut self, elem: &TransactionOutput) {
         self.0.push(elem.clone());
+    }
+}
+
+impl<'a> IntoIterator for &'a TransactionOutputs {
+    type Item = &'a TransactionOutput;
+    type IntoIter = std::slice::Iter<'a, TransactionOutput>;
+
+    fn into_iter(self) -> std::slice::Iter<'a, TransactionOutput> {
+        self.0.iter()
     }
 }
 
@@ -3141,7 +3151,7 @@ impl HeaderBody {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct AssetName(Vec<u8>);
 
 impl Display for AssetName {

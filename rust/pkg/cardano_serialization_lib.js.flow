@@ -26,6 +26,42 @@ declare export function decode_plutus_datum_to_json_str(
 ): string;
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: number
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
  * @param {Transaction} tx
  * @param {LinearFee} linear_fee
  * @returns {BigNum}
@@ -51,30 +87,6 @@ declare export function min_script_fee(
   tx: Transaction,
   ex_unit_prices: ExUnitPrices
 ): BigNum;
-
-/**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
- */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
 
 /**
  * @param {TransactionHash} tx_body_hash
@@ -215,40 +227,40 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: number
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {number} schema
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
  * @returns {string}
  */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: number
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
 ): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
+ * @param {Address} address
+ * @param {TransactionUnspentOutputs} utxos
+ * @param {TransactionBuilderConfig} config
+ * @returns {TransactionBatchList}
+ */
+declare export function create_send_all(
+  address: Address,
+  utxos: TransactionUnspentOutputs,
+  config: TransactionBuilderConfig
+): TransactionBatchList;
 
 /**
  */
@@ -370,6 +382,26 @@ declare export var PlutusDatumSchema: {|
 /**
  */
 
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
 declare export var CoinSelectionStrategyCIP2: {|
   +LargestFirst: 0, // 0
   +RandomImprove: 1, // 1
@@ -392,26 +424,6 @@ declare export var StakeCredKind: {|
 declare export var ScriptSchema: {|
   +Wallet: 0, // 0
   +Node: 1, // 1
-|};
-
-/**
- */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
 |};
 
 /**
@@ -1059,6 +1071,11 @@ declare export class BigNum {
    * @returns {boolean}
    */
   less_than(rhs_value: BigNum): boolean;
+
+  /**
+   * @returns {BigNum}
+   */
+  static max_value(): BigNum;
 
   /**
    * @param {BigNum} a
@@ -3709,19 +3726,10 @@ declare export class Mint {
   insert(key: ScriptHash, value: MintAssets): MintAssets | void;
 
   /**
-   * !!! DEPRECATED !!!
-   * Mint can store multiple entries for the same policy id.
-   * Use `.get_all` instead.
    * @param {ScriptHash} key
    * @returns {MintAssets | void}
    */
   get(key: ScriptHash): MintAssets | void;
-
-  /**
-   * @param {ScriptHash} key
-   * @returns {MintsAssets | void}
-   */
-  get_all(key: ScriptHash): MintsAssets | void;
 
   /**
    * @returns {ScriptHashes}
@@ -3779,86 +3787,6 @@ declare export class MintAssets {
    * @returns {AssetNames}
    */
   keys(): AssetNames;
-}
-/**
- */
-declare export class MintBuilder {
-  free(): void;
-
-  /**
-   * @returns {MintBuilder}
-   */
-  static new(): MintBuilder;
-
-  /**
-   * @param {MintWitness} mint
-   * @param {AssetName} asset_name
-   * @param {Int} amount
-   */
-  add_asset(mint: MintWitness, asset_name: AssetName, amount: Int): void;
-
-  /**
-   * @param {MintWitness} mint
-   * @param {AssetName} asset_name
-   * @param {Int} amount
-   */
-  set_asset(mint: MintWitness, asset_name: AssetName, amount: Int): void;
-
-  /**
-   * @returns {Mint}
-   */
-  build(): Mint;
-
-  /**
-   * @returns {NativeScripts}
-   */
-  get_native_scripts(): NativeScripts;
-
-  /**
-   * @returns {PlutusWitnesses}
-   */
-  get_plutus_witnesses(): PlutusWitnesses;
-
-  /**
-   * @returns {Redeemers}
-   */
-  get_redeeemers(): Redeemers;
-
-  /**
-   * @returns {boolean}
-   */
-  has_plutus_scripts(): boolean;
-
-  /**
-   * @returns {boolean}
-   */
-  has_native_scripts(): boolean;
-}
-/**
- */
-declare export class MintWitness {
-  free(): void;
-
-  /**
-   * @param {NativeScript} native_script
-   * @returns {MintWitness}
-   */
-  static new_native_script(native_script: NativeScript): MintWitness;
-
-  /**
-   * @param {PlutusScriptSource} plutus_script
-   * @param {Redeemer} redeemer
-   * @returns {MintWitness}
-   */
-  static new_plutus_script(
-    plutus_script: PlutusScriptSource,
-    redeemer: Redeemer
-  ): MintWitness;
-}
-/**
- */
-declare export class MintsAssets {
-  free(): void;
 }
 /**
  */
@@ -4971,16 +4899,6 @@ declare export class PlutusWitness {
   static new_with_ref(
     script: PlutusScriptSource,
     datum: DatumSource,
-    redeemer: Redeemer
-  ): PlutusWitness;
-
-  /**
-   * @param {PlutusScript} script
-   * @param {Redeemer} redeemer
-   * @returns {PlutusWitness}
-   */
-  static new_without_datum(
-    script: PlutusScript,
     redeemer: Redeemer
   ): PlutusWitness;
 
@@ -7585,6 +7503,38 @@ declare export class Transaction {
 }
 /**
  */
+declare export class TransactionBatch {
+  free(): void;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {Transaction}
+   */
+  get(index: number): Transaction;
+}
+/**
+ */
+declare export class TransactionBatchList {
+  free(): void;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {TransactionBatch}
+   */
+  get(index: number): TransactionBatch;
+}
+/**
+ */
 declare export class TransactionBodies {
   free(): void;
 
@@ -8206,19 +8156,6 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
-   * @param {MintBuilder} mint_builder
-   */
-  set_mint_builder(mint_builder: MintBuilder): void;
-
-  /**
-   * @returns {MintBuilder | void}
-   */
-  get_mint_builder(): MintBuilder | void;
-
-  /**
-   * !!! DEPRECATED !!!
-   * Mints are defining by MintBuilder now.
-   * Use `.set_mint_builder()` and `MintBuilder` instead.
    * Set explicit Mint object and the required witnesses to this builder
    * it will replace any previously existing mint and mint scripts
    * NOTE! Error will be returned in case a mint policy does not have a matching script
@@ -8228,9 +8165,6 @@ declare export class TransactionBuilder {
   set_mint(mint: Mint, mint_scripts: NativeScripts): void;
 
   /**
-   * !!! DEPRECATED !!!
-   * Mints are defining by MintBuilder now.
-   * Use `.get_mint_builder()` and `.build()` instead.
    * Returns a copy of the current mint state in the builder
    * @returns {Mint | void}
    */
@@ -8243,9 +8177,6 @@ declare export class TransactionBuilder {
   get_mint_scripts(): NativeScripts | void;
 
   /**
-   * !!! DEPRECATED !!!
-   * Mints are defining by MintBuilder now.
-   * Use `.set_mint_builder()` and `MintBuilder` instead.
    * Add a mint entry to this builder using a PolicyID and MintAssets object
    * It will be securely added to existing or new Mint in this builder
    * It will replace any existing mint assets with the same PolicyID
@@ -8255,9 +8186,6 @@ declare export class TransactionBuilder {
   set_mint_asset(policy_script: NativeScript, mint_assets: MintAssets): void;
 
   /**
-   * !!! DEPRECATED !!!
-   * Mints are defining by MintBuilder now.
-   * Use `.set_mint_builder()` and `MintBuilder` instead.
    * Add a mint entry to this builder using a PolicyID, AssetName, and Int object for amount
    * It will be securely added to existing or new Mint in this builder
    * It will replace any previous existing amount same PolicyID and AssetName
@@ -10412,7 +10340,9 @@ export type MIRPotJSON = "Reserves" | "Treasury";
 export interface MIRToStakeCredentialsJSON {
   [k: string]: ProtocolParamUpdateJSON;
 }
-export type MintJSON = [string, MintAssetsJSON][];
+export interface MintJSON {
+  [k: string]: MintAssetsJSON;
+}
 export interface MintAssetsJSON {
   [k: string]: string;
 }
