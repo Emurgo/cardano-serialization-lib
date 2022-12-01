@@ -5,6 +5,7 @@ mod test_batch;
 
 pub mod tx_inputs_builder;
 pub mod tx_batch_builder;
+pub mod mint_builder;
 mod batch_tools;
 
 use super::fees;
@@ -13,8 +14,9 @@ use super::utils;
 use super::*;
 use crate::tx_builder::tx_inputs_builder::{get_bootstraps, TxInputsBuilder};
 use linked_hash_map::LinkedHashMap;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use tx_inputs_builder::{PlutusWitness, PlutusWitnesses};
+use crate::tx_builder::mint_builder::{MintBuilder, MintWitness};
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
@@ -81,8 +83,8 @@ fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
     let mut input_hashes: RequiredSignersSet = RequiredSignersSet::from(&tx_builder.inputs);
     input_hashes.extend(RequiredSignersSet::from(&tx_builder.collateral));
     input_hashes.extend(RequiredSignersSet::from(&tx_builder.required_signers));
-    if let Some(scripts) = &tx_builder.mint_scripts {
-        input_hashes.extend(RequiredSignersSet::from(scripts));
+    if let Some(mint_builder) = &tx_builder.mint {
+        input_hashes.extend(RequiredSignersSet::from(&mint_builder.get_native_scripts()));
     }
     input_hashes.len()
 }
@@ -354,8 +356,7 @@ pub struct TransactionBuilder {
     withdrawals: Option<Withdrawals>,
     auxiliary_data: Option<AuxiliaryData>,
     validity_start_interval: Option<SlotBigNum>,
-    mint: Option<Mint>,
-    mint_scripts: Option<NativeScripts>,
+    mint: Option<MintBuilder>,
     script_data_hash: Option<ScriptDataHash>,
     required_signers: Ed25519KeyHashes,
     collateral_return: Option<TransactionOutput>,
@@ -1046,80 +1047,103 @@ impl TransactionBuilder {
         Ok(())
     }
 
+    pub fn set_mint_builder(&mut self, mint_builder: &MintBuilder) {
+        self.mint = Some(mint_builder.clone());
+    }
+
+    pub fn get_mint_builder(&self) -> Option<MintBuilder> {
+        self.mint.clone()
+    }
+
+    /// !!! DEPRECATED !!!
+    /// Mints are defining by MintBuilder now.
+    /// Use `.set_mint_builder()` and `MintBuilder` instead.
+    #[deprecated(
+    since = "11.2.0",
+    note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
+    )]
     /// Set explicit Mint object and the required witnesses to this builder
     /// it will replace any previously existing mint and mint scripts
     /// NOTE! Error will be returned in case a mint policy does not have a matching script
     pub fn set_mint(&mut self, mint: &Mint, mint_scripts: &NativeScripts) -> Result<(), JsError> {
         assert_required_mint_scripts(mint, Some(mint_scripts))?;
-        self.mint = Some(mint.clone());
-        self.mint_scripts = Some(mint_scripts.clone());
+        let mut scripts_policies = HashMap::new();
+        for scipt in &mint_scripts.0 {
+            scripts_policies.insert(scipt.hash(), scipt.clone());
+        }
+
+        let mut mint_builder = MintBuilder::new();
+
+        for (policy_id, asset_map) in &mint.0 {
+            for (asset_name, amount) in &asset_map.0 {
+                if let Some(script) = scripts_policies.get(policy_id) {
+                    let mint_witness = MintWitness::new_native_script(script);
+                    mint_builder.set_asset(&mint_witness, asset_name, amount);
+                } else {
+                    return Err(JsError::from_str("Mint policy does not have a matching script"));
+                }
+
+            }
+        }
+        self.mint = Some(mint_builder);
         Ok(())
     }
 
+    /// !!! DEPRECATED !!!
+    /// Mints are defining by MintBuilder now.
+    /// Use `.get_mint_builder()` and `.build()` instead.
+    #[deprecated(
+    since = "11.2.0",
+    note = "Mints are defining by MintBuilder now. Use `.get_mint_builder()` and `.build()` instead."
+    )]
     /// Returns a copy of the current mint state in the builder
     pub fn get_mint(&self) -> Option<Mint> {
-        self.mint.clone()
+        match &self.mint {
+            Some(mint) => Some(mint.build()),
+            None => None,
+        }
     }
 
     /// Returns a copy of the current mint witness scripts in the builder
     pub fn get_mint_scripts(&self) -> Option<NativeScripts> {
-        self.mint_scripts.clone()
+        match &self.mint {
+            Some(mint) => Some(mint.get_native_scripts()),
+            None => None,
+        }
     }
 
-    fn _set_mint_asset(
-        &mut self,
-        policy_id: &PolicyID,
-        policy_script: &NativeScript,
-        mint_assets: &MintAssets,
-    ) {
-        let mut mint = self.mint.as_ref().cloned().unwrap_or(Mint::new());
-        let is_new_policy = mint.insert(&policy_id, mint_assets).is_none();
-        let mint_scripts = {
-            let mut witness_scripts = self
-                .mint_scripts
-                .as_ref()
-                .cloned()
-                .unwrap_or(NativeScripts::new());
-            if is_new_policy {
-                // If policy has not been encountered before - insert the script into witnesses
-                witness_scripts.add(&policy_script.clone());
-            }
-            witness_scripts
-        };
-        self.mint = Some(mint);
-        self.mint_scripts = Some(mint_scripts.clone());
-    }
-
+    /// !!! DEPRECATED !!!
+    /// Mints are defining by MintBuilder now.
+    /// Use `.set_mint_builder()` and `MintBuilder` instead.
+    #[deprecated(
+    since = "11.2.0",
+    note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
+    )]
     /// Add a mint entry to this builder using a PolicyID and MintAssets object
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any existing mint assets with the same PolicyID
     pub fn set_mint_asset(&mut self, policy_script: &NativeScript, mint_assets: &MintAssets) {
-        let policy_id: PolicyID = policy_script.hash();
-        self._set_mint_asset(&policy_id, policy_script, mint_assets);
-    }
-
-    fn _add_mint_asset(
-        &mut self,
-        policy_id: &PolicyID,
-        policy_script: &NativeScript,
-        asset_name: &AssetName,
-        amount: Int,
-    ) {
-        let mut asset = self
-            .mint
-            .as_ref()
-            .map(|m| m.get(&policy_id).as_ref().cloned())
-            .unwrap_or(None)
-            .unwrap_or(MintAssets::new());
-        if let Some(mint_amount) = asset.get(asset_name) {
-            let new_amount = mint_amount.0 + amount.0;
-            asset.insert(asset_name, Int(new_amount));
+        let mint_witness = MintWitness::new_native_script(policy_script);
+        if let Some(mint) = &mut self.mint {
+            for (asset, amount) in mint_assets.0.iter() {
+                mint.set_asset(&mint_witness, asset, amount);
+            }
         } else {
-            asset.insert(asset_name, amount);
+            let mut mint = MintBuilder::new();
+            for (asset, amount) in mint_assets.0.iter() {
+                mint.set_asset(&mint_witness, asset, amount);
+            }
+            self.mint = Some(mint);
         }
-        self._set_mint_asset(&policy_id, policy_script, &asset);
     }
 
+    /// !!! DEPRECATED !!!
+    /// Mints are defining by MintBuilder now.
+    /// Use `.set_mint_builder()` and `MintBuilder` instead.
+    #[deprecated(
+    since = "11.2.0",
+    note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
+    )]
     /// Add a mint entry to this builder using a PolicyID, AssetName, and Int object for amount
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any previous existing amount same PolicyID and AssetName
@@ -1129,8 +1153,14 @@ impl TransactionBuilder {
         asset_name: &AssetName,
         amount: Int,
     ) {
-        let policy_id: PolicyID = policy_script.hash();
-        self._add_mint_asset(&policy_id, policy_script, asset_name, amount);
+        let mint_witness = MintWitness::new_native_script(policy_script);
+        if let Some(mint) = &mut self.mint {
+            mint.add_asset(&mint_witness, asset_name, &amount);
+        } else {
+            let mut mint =  MintBuilder::new();
+            mint.add_asset(&mint_witness, asset_name, &amount);
+            self.mint = Some(mint);
+        }
     }
 
     /// Add a mint entry together with an output to this builder
@@ -1149,7 +1179,7 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         let policy_id: PolicyID = policy_script.hash();
-        self._add_mint_asset(&policy_id, policy_script, asset_name, amount.clone());
+        self.add_mint_asset(policy_script, asset_name, amount.clone());
         let multiasset = Mint::new_from_entry(
             &policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone()),
@@ -1179,7 +1209,7 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         let policy_id: PolicyID = policy_script.hash();
-        self._add_mint_asset(&policy_id, policy_script, asset_name, amount.clone());
+        self.add_mint_asset(policy_script, asset_name, amount.clone());
         let multiasset = Mint::new_from_entry(
             &policy_id,
             &MintAssets::new_from_entry(asset_name, amount.clone()),
@@ -1209,7 +1239,6 @@ impl TransactionBuilder {
             auxiliary_data: None,
             validity_start_interval: None,
             mint: None,
-            mint_scripts: None,
             script_data_hash: None,
             required_signers: Ed25519KeyHashes::new(),
             collateral_return: None,
@@ -1253,8 +1282,8 @@ impl TransactionBuilder {
             .as_ref()
             .map(|m| {
                 (
-                    Value::new_from_assets(&m.as_positive_multiasset()),
-                    Value::new_from_assets(&m.as_negative_multiasset()),
+                    Value::new_from_assets(&m.build().as_positive_multiasset()),
+                    Value::new_from_assets(&m.build().as_negative_multiasset()),
                 )
             })
             .unwrap_or((Value::zero(), Value::zero()))
@@ -1661,11 +1690,24 @@ impl TransactionBuilder {
     /// and will assert and require for a corresponding cost-model to be present in the passed map.
     /// Only the cost-models for the present language versions will be used in the hash calculation.
     pub fn calc_script_data_hash(&mut self, cost_models: &Costmdls) -> Result<(), JsError> {
+        let mut used_langs = BTreeSet::new();
         let mut retained_cost_models = Costmdls::new();
+        let mut plutus_witnesses = PlutusWitnesses::new();
+        if let Some(mut inputs_plutus) = self.inputs.get_plutus_input_scripts() {
+            used_langs.append(&mut self.inputs.get_used_plutus_lang_versions());
+            plutus_witnesses.0.append(&mut inputs_plutus.0)
+        }
+        if let Some(mut collateral_plutus) = self.collateral.get_plutus_input_scripts() {
+            used_langs.append(&mut self.collateral.get_used_plutus_lang_versions());
+            plutus_witnesses.0.append(&mut collateral_plutus.0)
+        }
+        if let Some(mint_builder) = &self.mint {
+            used_langs.append(&mut mint_builder.get_used_plutus_lang_versions());
+            plutus_witnesses.0.append(&mut mint_builder.get_plutus_witnesses().0)
+        }
 
-        if let Some(pw) = self.inputs.get_plutus_input_scripts() {
-            let (_scripts, datums, redeemers) = pw.collect();
-            let used_langs = self.inputs.get_used_plutus_lang_versions();
+        if plutus_witnesses.len() > 0 {
+            let (_scripts, datums, redeemers) = plutus_witnesses.collect();
             for lang in used_langs {
                 match cost_models.get(&lang) {
                     Some(cost) => {
@@ -1722,7 +1764,10 @@ impl TransactionBuilder {
                 Some(x) => Some(utils::hash_auxiliary_data(x)),
             },
             validity_start_interval: self.validity_start_interval,
-            mint: self.mint.clone(),
+            mint: match &self.mint {
+                None => None,
+                Some(mint_builder) => Some(mint_builder.build()),
+            },
             script_data_hash: self.script_data_hash.clone(),
             collateral: self.collateral.inputs_option(),
             required_signers: self.required_signers.to_option(),
@@ -1772,8 +1817,8 @@ impl TransactionBuilder {
                 ns.add(s);
             });
         }
-        if let Some(mint_scripts) = &self.mint_scripts {
-            mint_scripts.0.iter().for_each(|s| {
+        if let Some(mint_builder) = &self.mint {
+            mint_builder.get_native_scripts().0.iter().for_each(|s| {
                 ns.add(s);
             });
         }
@@ -1793,6 +1838,11 @@ impl TransactionBuilder {
         }
         if let Some(scripts) = self.collateral.get_plutus_input_scripts() {
             scripts.0.iter().for_each(|s| {
+                res.add(s);
+            })
+        }
+        if let Some(mint_builder) = &self.mint {
+            mint_builder.get_plutus_witnesses().0.iter().for_each(|s| {
                 res.add(s);
             })
         }
@@ -1824,7 +1874,9 @@ impl TransactionBuilder {
     }
 
     fn has_plutus_inputs(&self) -> bool {
-        self.inputs.get_plutus_input_scripts().is_some()
+        let has_in_inputs = self.inputs.get_plutus_input_scripts().is_some();
+        let has_in_mint = self.mint.as_ref().map_or(false, |m| m.has_plutus_scripts());
+        return has_in_inputs || has_in_mint;
     }
 
     /// Returns full Transaction object with the body and the auxiliary data
@@ -1879,6 +1931,7 @@ mod tests {
     use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_policy_id, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2};
     use crate::tx_builder_constants::TxBuilderConstants;
     use fees::*;
+    use crate::tx_builder::tx_inputs_builder::PlutusScriptSource;
 
     const MAX_VALUE_SIZE: u32 = 4000;
     const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
@@ -5068,10 +5121,10 @@ mod tests {
         tx_builder.set_mint_asset(&mint_script, &create_mint_asset());
 
         assert!(tx_builder.mint.is_some());
-        assert!(tx_builder.mint_scripts.is_some());
+        let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
+        assert!(mint_scripts.len() > 0);
 
-        let mint = tx_builder.mint.unwrap();
-        let mint_scripts = tx_builder.mint_scripts.unwrap();
+        let mint = tx_builder.mint.unwrap().build();
 
         assert_eq!(mint.len(), 1);
         assert_mint_asset(&mint, &policy_id);
@@ -5097,10 +5150,10 @@ mod tests {
         tx_builder.set_mint_asset(&mint_script2, &create_mint_asset());
 
         assert!(tx_builder.mint.is_some());
-        assert!(tx_builder.mint_scripts.is_some());
+        let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
+        assert!(mint_scripts.len() > 0);
 
-        let mint = tx_builder.mint.unwrap();
-        let mint_scripts = tx_builder.mint_scripts.unwrap();
+        let mint = tx_builder.mint.unwrap().build();
 
         assert_eq!(mint.len(), 2);
         assert_mint_asset(&mint, &policy_id1);
@@ -5108,8 +5161,9 @@ mod tests {
 
         // Only second script is present in the scripts
         assert_eq!(mint_scripts.len(), 2);
-        assert_eq!(mint_scripts.get(0), mint_script1);
-        assert_eq!(mint_scripts.get(1), mint_script2);
+        let actual_scripts = mint_scripts.0.iter().cloned().collect::<BTreeSet<NativeScript>>();
+        let expected_scripts = vec![mint_script1, mint_script2].iter().cloned().collect::<BTreeSet<NativeScript>>();
+        assert_eq!(actual_scripts, expected_scripts);
     }
 
     #[test]
@@ -5121,10 +5175,10 @@ mod tests {
         tx_builder.add_mint_asset(&mint_script, &create_asset_name(), Int::new_i32(1234));
 
         assert!(tx_builder.mint.is_some());
-        assert!(tx_builder.mint_scripts.is_some());
+        let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
+        assert!(mint_scripts.len() > 0);
 
-        let mint = tx_builder.mint.unwrap();
-        let mint_scripts = tx_builder.mint_scripts.unwrap();
+        let mint = tx_builder.mint.unwrap().build();
 
         assert_eq!(mint.len(), 1);
         assert_mint_asset(&mint, &policy_id);
@@ -5149,18 +5203,19 @@ mod tests {
         tx_builder.add_mint_asset(&mint_script2, &create_asset_name(), Int::new_i32(1234));
 
         assert!(tx_builder.mint.is_some());
-        assert!(tx_builder.mint_scripts.is_some());
+        let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
+        assert!(mint_scripts.len() > 0);
 
-        let mint = tx_builder.mint.unwrap();
-        let mint_scripts = tx_builder.mint_scripts.unwrap();
+        let mint = tx_builder.mint.unwrap().build();
 
         assert_eq!(mint.len(), 2);
         assert_mint_asset(&mint, &policy_id1);
         assert_mint_asset(&mint, &policy_id2);
 
         assert_eq!(mint_scripts.len(), 2);
-        assert_eq!(mint_scripts.get(0), mint_script1);
-        assert_eq!(mint_scripts.get(1), mint_script2);
+        let actual_scripts = mint_scripts.0.iter().cloned().collect::<BTreeSet<NativeScript>>();
+        let expected_scripts = vec![mint_script1, mint_script2].iter().cloned().collect::<BTreeSet<NativeScript>>();
+        assert_eq!(actual_scripts, expected_scripts);
     }
 
     #[test]
@@ -5311,10 +5366,10 @@ mod tests {
             .unwrap();
 
         assert!(tx_builder.mint.is_some());
-        assert!(tx_builder.mint_scripts.is_some());
+        let mint_scripts = &tx_builder.mint.as_ref().unwrap().get_native_scripts();
+        assert!(mint_scripts.len() > 0);
 
-        let mint = tx_builder.mint.as_ref().unwrap();
-        let mint_scripts = tx_builder.mint_scripts.as_ref().unwrap();
+        let mint = &tx_builder.mint.unwrap().build();
 
         // Mint contains two entries
         assert_eq!(mint.len(), 2);
@@ -5322,8 +5377,9 @@ mod tests {
         assert_mint_asset(mint, &policy_id1);
 
         assert_eq!(mint_scripts.len(), 2);
-        assert_eq!(mint_scripts.get(0), mint_script0);
-        assert_eq!(mint_scripts.get(1), mint_script1);
+        let actual_scripts = mint_scripts.0.iter().cloned().collect::<BTreeSet<NativeScript>>();
+        let expected_scripts = vec![mint_script0, mint_script1].iter().cloned().collect::<BTreeSet<NativeScript>>();
+        assert_eq!(actual_scripts, expected_scripts);
 
         // One new output is created
         assert_eq!(tx_builder.outputs.len(), 1);
@@ -5372,10 +5428,10 @@ mod tests {
             .unwrap();
 
         assert!(tx_builder.mint.is_some());
-        assert!(tx_builder.mint_scripts.is_some());
+        let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
+        assert!(mint_scripts.len() > 0);
 
-        let mint = tx_builder.mint.as_ref().unwrap();
-        let mint_scripts = tx_builder.mint_scripts.as_ref().unwrap();
+        let mint = &tx_builder.mint.unwrap().build();
 
         // Mint contains two entries
         assert_eq!(mint.len(), 2);
@@ -5383,8 +5439,9 @@ mod tests {
         assert_mint_asset(mint, &policy_id1);
 
         assert_eq!(mint_scripts.len(), 2);
-        assert_eq!(mint_scripts.get(0), mint_script0);
-        assert_eq!(mint_scripts.get(1), mint_script1);
+        let actual_scripts = mint_scripts.0.iter().cloned().collect::<BTreeSet<NativeScript>>();
+        let expected_scripts = vec![mint_script0, mint_script1].iter().cloned().collect::<BTreeSet<NativeScript>>();
+        assert_eq!(actual_scripts, expected_scripts);
 
         // One new output is created
         assert_eq!(tx_builder.outputs.len(), 1);
@@ -7526,10 +7583,69 @@ mod tests {
   },
   \"script_ref\": null
 }").unwrap();
-        let addr= Address::from_bech32("addr_test1wpv93hm9sqx0ar7pgxwl9jn3xt6lwmxxy27zd932slzvghqg8fe0n").unwrap();
         let mut builder = create_reallistic_tx_builder();
-        builder.add_output(&output);
+        builder.add_output(&output).unwrap();
         let res = builder.add_inputs_from(&utoxs, CoinSelectionStrategyCIP2::RandomImproveMultiAsset);
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn plutus_mint_test() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        let colateral_adress = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w").unwrap();
+        let colateral_input = TransactionInput::from_json("\
+          {
+            \"transaction_id\": \"69b0b867056a2d4fdc3827e23aa7069b125935e2def774941ca8cc7f9e0de774\",
+            \"index\": 1
+          }").unwrap();
+
+        let tx_input = TransactionInput::from_json("\
+          {
+            \"transaction_id\": \"f58a5bc761b1efdcf4b5684f6ad5495854a0d64b866e2f0f525d134750d3511b\",
+            \"index\": 1
+          }").unwrap();
+        let plutus_script = plutus::PlutusScript::from_hex("5907d2010000332323232323232323232323232323322323232323222232325335332201b3333573466e1cd55ce9baa0044800080608c98c8060cd5ce00c80c00b1999ab9a3370e6aae7540092000233221233001003002323232323232323232323232323333573466e1cd55cea8062400046666666666664444444444442466666666666600201a01801601401201000e00c00a00800600466a02a02c6ae854030cd4054058d5d0a80599a80a80b9aba1500a3335501975ca0306ae854024ccd54065d7280c1aba1500833501502035742a00e666aa032042eb4d5d0a8031919191999ab9a3370e6aae75400920002332212330010030023232323333573466e1cd55cea8012400046644246600200600466a056eb4d5d0a80118161aba135744a004464c6405c66ae700bc0b80b04d55cf280089baa00135742a0046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40add69aba15002302c357426ae8940088c98c80b8cd5ce01781701609aab9e5001137540026ae84d5d1280111931901519ab9c02b02a028135573ca00226ea8004d5d0a80299a80abae35742a008666aa03203a40026ae85400cccd54065d710009aba15002301f357426ae8940088c98c8098cd5ce01381301209aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226aae7940044dd50009aba15002300f357426ae8940088c98c8060cd5ce00c80c00b080b89931900b99ab9c4910350543500017135573ca00226ea800448c88c008dd6000990009aa80a911999aab9f0012500a233500930043574200460066ae880080508c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8050cd5ce00a80a00909aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8064cd5ce00d00c80b89aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403666ae7007006c06406005c4d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802c02a02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355012223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301213574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900819ab9c01101000e00d135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01101000e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00d00c00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00580500409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00a00980880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae700340300280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801401200e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7002c02802001c0184d55cea80089baa0012323333573466e1d40052002200723333573466e1d40092000212200123263200633573800e00c00800626aae74dd5000a4c24002920103505431001220021123230010012233003300200200133351222335122335004335500248811c2b194b7d10a3d2d3152c5f3a628ff50cb9fc11e59453e8ac7a1aea4500488104544e4654005005112212330010030021120011122002122122330010040031200101").unwrap();
+        let redeemer = Redeemer::from_json("\
+         {
+            \"tag\": \"Mint\",
+            \"index\": \"0\",
+            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
+            \"ex_units\": {
+              \"mem\": \"1042996\",
+              \"steps\": \"446100241\"
+            }
+          }").unwrap();
+        let asset_name = AssetName::from_hex("44544e4654").unwrap();
+        let mut mint_builder = MintBuilder::new();
+        let plutus_script_source = PlutusScriptSource::new(&plutus_script);
+        let mint_witnes = MintWitness::new_plutus_script(&plutus_script_source, &redeemer);
+        mint_builder.add_asset(&mint_witnes, &asset_name, &Int::new(&BigNum::from(100u64)));
+
+        let output_adress = Address::from_bech32("addr_test1qpm5njmgzf4t7225v6j34wl30xfrufzt3jtqtdzf3en9ahpmnhtmynpasyc8fq75zv0uaj86vzsr7g3g8q5ypgu5fwtqr9zsgj").unwrap();
+        let mut output_assets = MultiAsset::new();
+        let mut asset = Assets::new();
+        asset.insert(&asset_name, &BigNum::from(100u64));
+        output_assets.insert(&plutus_script.hash(), &asset);
+        let output_value = Value::new_with_assets(&Coin::from(50000u64), &output_assets);
+        let output = TransactionOutput::new(&output_adress, &output_value);
+
+        let mut col_builder = TxInputsBuilder::new();
+        col_builder.add_input(&colateral_adress, &colateral_input, &Value::new(&Coin::from(1000000000u64)));
+        tx_builder.set_collateral(&col_builder);
+        tx_builder.add_output(&output);
+        tx_builder.add_input(&output_adress, &tx_input, &Value::new(&BigNum::from(100000000000u64)));
+        tx_builder.set_mint_builder(&mint_builder);
+
+        tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_vasil_cost_models()).unwrap();
+
+        let change_res = tx_builder.add_change_if_needed(&output_adress);
+        assert!(change_res.is_ok());
+
+        let build_res = tx_builder.build_tx();
+        assert!(build_res.is_ok());
+
+        let tx = build_res.unwrap();
+        assert!(tx.body.mint.is_some());
+        assert_eq!(tx.body.mint.unwrap().0.iter().next().unwrap().0, plutus_script.hash());
     }
 }
