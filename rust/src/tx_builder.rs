@@ -846,7 +846,7 @@ impl TransactionBuilder {
 
     /// Returns the number of still missing input scripts (either native or plutus)
     /// Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
-    #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
+    #[deprecated(since = "10.2.0", note = "Use `.count_missing_input_scripts` from `TxInputsBuilder`")]
     pub fn count_missing_input_scripts(&self) -> usize {
         self.inputs.count_missing_input_scripts()
     }
@@ -1931,7 +1931,7 @@ mod tests {
     use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_policy_id, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2};
     use crate::tx_builder_constants::TxBuilderConstants;
     use fees::*;
-    use crate::tx_builder::tx_inputs_builder::PlutusScriptSource;
+    use crate::tx_builder::tx_inputs_builder::{InputsWithScriptWitness, InputWithScriptWitness, PlutusScriptSource};
 
     const MAX_VALUE_SIZE: u32 = 4000;
     const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
@@ -7647,5 +7647,196 @@ mod tests {
         let tx = build_res.unwrap();
         assert!(tx.body.mint.is_some());
         assert_eq!(tx.body.mint.unwrap().0.iter().next().unwrap().0, plutus_script.hash());
+    }
+
+    #[test]
+    fn multiple_plutus_inputs_test() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        let plutus_script = plutus::PlutusScript::from_hex("5907d2010000332323232323232323232323232323322323232323222232325335332201b3333573466e1cd55ce9baa0044800080608c98c8060cd5ce00c80c00b1999ab9a3370e6aae7540092000233221233001003002323232323232323232323232323333573466e1cd55cea8062400046666666666664444444444442466666666666600201a01801601401201000e00c00a00800600466a02a02c6ae854030cd4054058d5d0a80599a80a80b9aba1500a3335501975ca0306ae854024ccd54065d7280c1aba1500833501502035742a00e666aa032042eb4d5d0a8031919191999ab9a3370e6aae75400920002332212330010030023232323333573466e1cd55cea8012400046644246600200600466a056eb4d5d0a80118161aba135744a004464c6405c66ae700bc0b80b04d55cf280089baa00135742a0046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40add69aba15002302c357426ae8940088c98c80b8cd5ce01781701609aab9e5001137540026ae84d5d1280111931901519ab9c02b02a028135573ca00226ea8004d5d0a80299a80abae35742a008666aa03203a40026ae85400cccd54065d710009aba15002301f357426ae8940088c98c8098cd5ce01381301209aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226aae7940044dd50009aba15002300f357426ae8940088c98c8060cd5ce00c80c00b080b89931900b99ab9c4910350543500017135573ca00226ea800448c88c008dd6000990009aa80a911999aab9f0012500a233500930043574200460066ae880080508c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8050cd5ce00a80a00909aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8064cd5ce00d00c80b89aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403666ae7007006c06406005c4d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802c02a02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355012223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301213574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900819ab9c01101000e00d135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01101000e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00d00c00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00580500409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00a00980880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae700340300280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801401200e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7002c02802001c0184d55cea80089baa0012323333573466e1d40052002200723333573466e1d40092000212200123263200633573800e00c00800626aae74dd5000a4c24002920103505431001220021123230010012233003300200200133351222335122335004335500248811c2b194b7d10a3d2d3152c5f3a628ff50cb9fc11e59453e8ac7a1aea4500488104544e4654005005112212330010030021120011122002122122330010040031200101").unwrap();
+        let redeemer1 = Redeemer::from_json("\
+         {
+            \"tag\": \"Mint\",
+            \"index\": \"0\",
+            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
+            \"ex_units\": {
+              \"mem\": \"1042996\",
+              \"steps\": \"446100241\"
+            }
+          }").unwrap();
+
+        let redeemer2 = Redeemer::from_json("\
+         {
+            \"tag\": \"Mint\",
+            \"index\": \"0\",
+            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
+            \"ex_units\": {
+              \"mem\": \"1042996\",
+              \"steps\": \"446100241\"
+            }
+          }").unwrap();
+
+        let mut in_builder = TxInputsBuilder::new();
+        let input_1 = TransactionInput::new(
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+                .unwrap(),
+            1,
+        );
+        let input_2 = TransactionInput::new(
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+                .unwrap(),
+            2,
+        );
+
+        let colateral_adress = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w").unwrap();
+        let colateral_input = TransactionInput::new(
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+                .unwrap(),
+            3
+        );
+
+        let output_adress = Address::from_bech32("addr_test1qpm5njmgzf4t7225v6j34wl30xfrufzt3jtqtdzf3en9ahpmnhtmynpasyc8fq75zv0uaj86vzsr7g3g8q5ypgu5fwtqr9zsgj").unwrap();
+        let output_value = Value::new(&Coin::from(500000u64));
+        let output = TransactionOutput::new(&output_adress, &output_value);
+
+        tx_builder.add_output(&output);
+        let mut col_builder = TxInputsBuilder::new();
+        col_builder.add_input(&colateral_adress, &colateral_input, &Value::new(&Coin::from(1000000000u64)));
+        tx_builder.set_collateral(&col_builder);
+
+        let datum = PlutusData::new_bytes(fake_bytes_32(11));
+        let plutus_wit1 = PlutusWitness::new(
+            &plutus_script,
+            &datum,
+            &redeemer1
+        );
+
+        let plutus_wit2 = PlutusWitness::new(
+            &plutus_script,
+            &datum,
+            &redeemer2
+        );
+
+        let value = Value::new(&Coin::from(100000000u64));
+
+        in_builder.add_plutus_script_input(&plutus_wit1, &input_1, &value);
+        in_builder.add_plutus_script_input(&plutus_wit2, &input_2, &value);
+
+        tx_builder.set_inputs(&in_builder);
+        tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_vasil_cost_models());
+        tx_builder.add_change_if_needed(&output_adress);
+        let build_res = tx_builder.build_tx();
+        assert!(&build_res.is_ok());
+        let tx = build_res.unwrap();
+        assert_eq!(tx.witness_set.plutus_scripts.unwrap().len(), 1usize);
+        assert_eq!(tx.witness_set.redeemers.unwrap().len(), 2usize);
+    }
+
+    #[test]
+    fn multiple_plutus_inputs_with_missed_wit_test() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        let plutus_script = plutus::PlutusScript::from_hex("5907d2010000332323232323232323232323232323322323232323222232325335332201b3333573466e1cd55ce9baa0044800080608c98c8060cd5ce00c80c00b1999ab9a3370e6aae7540092000233221233001003002323232323232323232323232323333573466e1cd55cea8062400046666666666664444444444442466666666666600201a01801601401201000e00c00a00800600466a02a02c6ae854030cd4054058d5d0a80599a80a80b9aba1500a3335501975ca0306ae854024ccd54065d7280c1aba1500833501502035742a00e666aa032042eb4d5d0a8031919191999ab9a3370e6aae75400920002332212330010030023232323333573466e1cd55cea8012400046644246600200600466a056eb4d5d0a80118161aba135744a004464c6405c66ae700bc0b80b04d55cf280089baa00135742a0046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40add69aba15002302c357426ae8940088c98c80b8cd5ce01781701609aab9e5001137540026ae84d5d1280111931901519ab9c02b02a028135573ca00226ea8004d5d0a80299a80abae35742a008666aa03203a40026ae85400cccd54065d710009aba15002301f357426ae8940088c98c8098cd5ce01381301209aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226aae7940044dd50009aba15002300f357426ae8940088c98c8060cd5ce00c80c00b080b89931900b99ab9c4910350543500017135573ca00226ea800448c88c008dd6000990009aa80a911999aab9f0012500a233500930043574200460066ae880080508c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8050cd5ce00a80a00909aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8064cd5ce00d00c80b89aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403666ae7007006c06406005c4d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802c02a02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355012223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301213574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900819ab9c01101000e00d135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01101000e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00d00c00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00580500409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00a00980880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae700340300280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801401200e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7002c02802001c0184d55cea80089baa0012323333573466e1d40052002200723333573466e1d40092000212200123263200633573800e00c00800626aae74dd5000a4c24002920103505431001220021123230010012233003300200200133351222335122335004335500248811c2b194b7d10a3d2d3152c5f3a628ff50cb9fc11e59453e8ac7a1aea4500488104544e4654005005112212330010030021120011122002122122330010040031200101").unwrap();
+        let redeemer1 = Redeemer::from_json("\
+         {
+            \"tag\": \"Mint\",
+            \"index\": \"0\",
+            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
+            \"ex_units\": {
+              \"mem\": \"1042996\",
+              \"steps\": \"446100241\"
+            }
+          }").unwrap();
+
+        let redeemer2 = Redeemer::from_json("\
+         {
+            \"tag\": \"Mint\",
+            \"index\": \"0\",
+            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
+            \"ex_units\": {
+              \"mem\": \"1042996\",
+              \"steps\": \"446100241\"
+            }
+          }").unwrap();
+
+        let mut in_builder = TxInputsBuilder::new();
+        let input_1 = TransactionInput::new(
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+                .unwrap(),
+            1,
+        );
+        let input_2 = TransactionInput::new(
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+                .unwrap(),
+            2,
+        );
+
+        let colateral_adress = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w").unwrap();
+        let colateral_input = TransactionInput::new(
+            &TransactionHash::from_bytes(
+                hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
+                    .unwrap(),
+            )
+                .unwrap(),
+            3
+        );
+
+        let output_adress = Address::from_bech32("addr_test1qpm5njmgzf4t7225v6j34wl30xfrufzt3jtqtdzf3en9ahpmnhtmynpasyc8fq75zv0uaj86vzsr7g3g8q5ypgu5fwtqr9zsgj").unwrap();
+        let output_value = Value::new(&Coin::from(500000u64));
+        let output = TransactionOutput::new(&output_adress, &output_value);
+
+        tx_builder.add_output(&output);
+        let mut col_builder = TxInputsBuilder::new();
+        col_builder.add_input(&colateral_adress, &colateral_input, &Value::new(&Coin::from(1000000000u64)));
+        tx_builder.set_collateral(&col_builder);
+
+        let datum = PlutusData::new_bytes(fake_bytes_32(11));
+        let plutus_wit1 = PlutusWitness::new(
+            &plutus_script,
+            &datum,
+            &redeemer1
+        );
+
+        let plutus_wit2 = PlutusWitness::new(
+            &plutus_script,
+            &datum,
+            &redeemer2
+        );
+
+        let value = Value::new(&Coin::from(100000000u64));
+
+        in_builder.add_plutus_script_input(&plutus_wit1, &input_1, &value);
+        let script_addr = create_base_address_from_script_hash(&plutus_script.hash());
+        in_builder.add_input(&script_addr, &input_2, &value);
+
+        assert_eq!(in_builder.count_missing_input_scripts(), 1usize);
+        let mut inputs_with_wit = InputsWithScriptWitness::new();
+        let in_with_wit = InputWithScriptWitness::new_with_plutus_witness(&input_2,  &plutus_wit2);
+        inputs_with_wit.add(&in_with_wit);
+        in_builder.add_required_script_input_witnesses(&inputs_with_wit);
+
+        tx_builder.set_inputs(&in_builder);
+
+
+        tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_vasil_cost_models());
+        tx_builder.add_change_if_needed(&output_adress);
+        let build_res = tx_builder.build_tx();
+        assert!(&build_res.is_ok());
+        let tx = build_res.unwrap();
+        assert_eq!(tx.witness_set.plutus_scripts.unwrap().len(), 1usize);
+        assert_eq!(tx.witness_set.redeemers.unwrap().len(), 2usize);
     }
 }
