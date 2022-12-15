@@ -53,6 +53,21 @@ impl NetworkInfo {
         self.protocol_magic
     }
 
+    pub fn testnet_preview() -> NetworkInfo {
+        NetworkInfo {
+            network_id: 0b0000,
+            protocol_magic: 2,
+        }
+    }
+    pub fn testnet_preprod() -> NetworkInfo {
+        NetworkInfo {
+            network_id: 0b0000,
+            protocol_magic: 1,
+        }
+    }
+    /// !!! DEPRECATED !!!
+    /// This network does not exist anymore. Use `.testnet_preview()` or `.testnet_preprod()`
+    #[deprecated(since = "11.2.0", note = "Use `.testnet_preview` or `.testnet_preprod`")]
     pub fn testnet() -> NetworkInfo {
         NetworkInfo {
             network_id: 0b0000,
