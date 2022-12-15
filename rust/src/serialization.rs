@@ -3722,6 +3722,12 @@ impl cbor_event::se::Serialize for ProtocolParamUpdate {
             } + match &self.max_value_size {
                 Some(_) => 1,
                 None => 0,
+            } + match &self.collateral_percentage {
+                Some(_) => 1,
+                None => 0,
+            } + match &self.max_collateral_inputs {
+                Some(_) => 1,
+                None => 0,
             },
         ))?;
         if let Some(field) = &self.minfee_a {
