@@ -3695,6 +3695,7 @@ impl From<&NativeScripts> for RequiredSignersSet {
 
 #[cfg(test)]
 mod tests {
+    use crate::tx_builder_constants::TxBuilderConstants;
     use super::*;
 
     #[test]
@@ -3945,5 +3946,40 @@ mod tests {
         assert!(pks4.contains(&keyhash1));
         assert!(pks4.contains(&keyhash2));
         assert!(pks4.contains(&keyhash3));
+    }
+
+    #[test]
+    fn protocol_params_update_cbor_roundtrip() {
+        let mut orig_ppu = ProtocolParamUpdate::new();
+        orig_ppu.set_max_tx_size(1234);
+        orig_ppu.set_max_block_body_size(5678);
+        orig_ppu.set_max_block_header_size(91011);
+        orig_ppu.set_minfee_a(&Coin::from(1u32));
+        orig_ppu.set_minfee_b(&Coin::from(2u32));
+        orig_ppu.set_key_deposit(&Coin::from(3u32));
+        orig_ppu.set_pool_deposit(&Coin::from(4u32));
+        orig_ppu.set_max_epoch(5);
+        orig_ppu.set_n_opt(6);
+        orig_ppu.set_pool_pledge_influence(&Rational::new(&BigNum::from(7u32), &BigNum::from(77u32)));
+        orig_ppu.set_expansion_rate(&UnitInterval::new(&BigNum::from(8u32), &BigNum::from(9u32)));
+        orig_ppu.set_treasury_growth_rate(&UnitInterval::new(&BigNum::from(10u32), &BigNum::from(11u32)));
+        orig_ppu.set_protocol_version(&ProtocolVersion::new(12u32,13u32));
+        orig_ppu.set_min_pool_cost(&Coin::from(14u32));
+        orig_ppu.set_ada_per_utxo_byte(&Coin::from(15u32));
+        orig_ppu.set_cost_models(&TxBuilderConstants::plutus_vasil_cost_models());
+        orig_ppu.set_execution_costs(&ExUnitPrices::new(
+            &SubCoin::new(&BigNum::from(16u32), &BigNum::from(17u32)),
+            &SubCoin::new(&BigNum::from(18u32), &BigNum::from(19u32))));
+        orig_ppu.set_max_tx_ex_units(&ExUnits::new(&BigNum::from(20u32), &BigNum::from(21u32)));
+        orig_ppu.set_max_block_ex_units(&ExUnits::new(&BigNum::from(22u32), &BigNum::from(23u32)));
+        orig_ppu.set_max_value_size(24);
+        orig_ppu.set_collateral_percentage(25);
+        orig_ppu.set_max_collateral_inputs(25);
+
+        let encoded = orig_ppu.to_bytes();
+        let dencoded = ProtocolParamUpdate::from_bytes(encoded).unwrap();
+
+        assert_eq!(dencoded, orig_ppu);
+        assert_eq!(dencoded.to_bytes(), orig_ppu.to_bytes());
     }
 }
