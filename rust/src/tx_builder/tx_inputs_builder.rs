@@ -157,6 +157,14 @@ impl PlutusWitness {
         }
     }
 
+    pub fn new_with_ref_without_datum(script: &PlutusScriptSource, redeemer: &Redeemer) -> Self {
+        Self {
+            script: script.0.clone(),
+            datum: None,
+            redeemer: redeemer.clone(),
+        }
+    }
+
     pub fn script(&self) -> Option<PlutusScript> {
         match &self.script {
             PlutusScriptSourceEnum::Script(script) => Some(script.clone()),
