@@ -11,7 +11,7 @@ pub struct TxBuilderConstants();
 #[wasm_bindgen]
 impl TxBuilderConstants {
     pub fn plutus_default_cost_models() -> Costmdls {
-        TxBuilderConstants::plutus_alonzo_cost_models()
+        TxBuilderConstants::plutus_vasil_cost_models()
     }
 
     pub fn plutus_alonzo_cost_models() -> Costmdls {
