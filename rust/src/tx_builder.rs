@@ -362,6 +362,7 @@ pub struct TransactionBuilder {
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
     reference_inputs: HashSet<TransactionInput>,
+    extra_datun: Option<Vec<PlutusData>>
 }
 
 #[wasm_bindgen]
@@ -1244,6 +1245,7 @@ impl TransactionBuilder {
             collateral_return: None,
             total_collateral: None,
             reference_inputs: HashSet::new(),
+            extra_datun: None,
         }
     }
 
@@ -1711,9 +1713,14 @@ impl TransactionBuilder {
             used_langs.append(&mut mint_builder.get_used_plutus_lang_versions());
             plutus_witnesses.0.append(&mut mint_builder.get_plutus_witnesses().0)
         }
+        if let Some(extra_datun) = &self.extra_datun {
+            for datum in extra_datun {
+                plutus_witnesses.0.push(&mut PlutusWitness::new_datum_only(datum))
+            }
+        }
 
         if plutus_witnesses.len() > 0 {
-            let (_scripts, datums, redeemers) = plutus_witnesses.collect();
+            let (_scripts, mut datums, redeemers) = plutus_witnesses.collect();
             for lang in used_langs {
                 match cost_models.get(&lang) {
                     Some(cost) => {
@@ -1727,6 +1734,19 @@ impl TransactionBuilder {
                     }
                 }
             }
+
+            if let Some(extra_datum) = &self.extra_datun {
+                if datums.is_none() {
+                    datums = Some(PlutusList::new());
+                }
+
+                for datum in extra_datum {
+                    if let Some(datums) = &mut datums {
+                        datums.add(datum);
+                    }
+                }
+            }
+
             self.script_data_hash = Some(hash_script_data(
                 &redeemers,
                 &retained_cost_models,
@@ -1851,6 +1871,11 @@ impl TransactionBuilder {
             mint_builder.get_plutus_witnesses().0.iter().for_each(|s| {
                 res.add(s);
             })
+        }
+        if let Some(extra_datum) = &self.extra_datun {
+            for datum in extra_datum {
+                res.add(&PlutusWitness::new_datum_only(&datum));
+            }
         }
         if res.len() > 0 {
             Some(res)
