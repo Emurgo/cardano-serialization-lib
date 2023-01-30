@@ -52,6 +52,7 @@ pub mod traits;
 pub mod tx_builder;
 pub mod tx_builder_constants;
 pub mod typed_bytes;
+pub mod protocol_types;
 #[macro_use]
 pub mod utils;
 mod fakes;
@@ -109,7 +110,7 @@ type Slot32 = u32;
 type SlotBigNum = BigNum;
 
 #[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Transaction {
     body: TransactionBody,
     witness_set: TransactionWitnessSet,

@@ -6,26 +6,6 @@
  */
 
 /**
- * @param {string} json
- * @param {number} schema
- * @returns {PlutusData}
- */
-declare export function encode_json_str_to_plutus_datum(
-  json: string,
-  schema: number
-): PlutusData;
-
-/**
- * @param {PlutusData} datum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_plutus_datum_to_json_str(
-  datum: PlutusData,
-  schema: number
-): string;
-
-/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -58,6 +38,26 @@ declare export function encode_json_str_to_metadatum(
  */
 declare export function decode_metadatum_to_json_str(
   metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {PlutusData}
+ */
+declare export function encode_json_str_to_plutus_datum(
+  json: string,
+  schema: number
+): PlutusData;
+
+/**
+ * @param {PlutusData} datum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_plutus_datum_to_json_str(
+  datum: PlutusData,
   schema: number
 ): string;
 
@@ -336,6 +336,26 @@ declare export var NetworkIdKind: {|
 /**
  */
 
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
   +PlutusV2: 1, // 1
@@ -377,26 +397,6 @@ declare export var RedeemerTagKind: {|
 declare export var PlutusDatumSchema: {|
   +BasicConversions: 0, // 0
   +DetailedSchema: 1, // 1
-|};
-
-/**
- */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
 |};
 
 /**
@@ -2451,6 +2451,114 @@ declare export class ExUnits {
    * @returns {ExUnits}
    */
   static new(mem: BigNum, steps: BigNum): ExUnits;
+}
+/**
+ */
+declare export class FixedTransaction {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {FixedTransaction}
+   */
+  static from_bytes(bytes: Uint8Array): FixedTransaction;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {FixedTransaction}
+   */
+  static from_hex(hex_str: string): FixedTransaction;
+
+  /**
+   * @param {Uint8Array} raw_body
+   * @param {Uint8Array} raw_witness_set
+   * @param {boolean} is_valid
+   * @returns {FixedTransaction}
+   */
+  static new(
+    raw_body: Uint8Array,
+    raw_witness_set: Uint8Array,
+    is_valid: boolean
+  ): FixedTransaction;
+
+  /**
+   * @param {Uint8Array} raw_body
+   * @param {Uint8Array} raw_witness_set
+   * @param {Uint8Array} raw_auxiliary_data
+   * @param {boolean} is_valid
+   * @returns {FixedTransaction}
+   */
+  static new_with_auxiliary(
+    raw_body: Uint8Array,
+    raw_witness_set: Uint8Array,
+    raw_auxiliary_data: Uint8Array,
+    is_valid: boolean
+  ): FixedTransaction;
+
+  /**
+   * @returns {TransactionBody}
+   */
+  body(): TransactionBody;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  raw_body(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} raw_body
+   */
+  set_body(raw_body: Uint8Array): void;
+
+  /**
+   * @param {Uint8Array} raw_witness_set
+   */
+  set_witness_set(raw_witness_set: Uint8Array): void;
+
+  /**
+   * @returns {TransactionWitnessSet}
+   */
+  witness_set(): TransactionWitnessSet;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  raw_witness_set(): Uint8Array;
+
+  /**
+   * @param {boolean} valid
+   */
+  set_is_valid(valid: boolean): void;
+
+  /**
+   * @returns {boolean}
+   */
+  is_valid(): boolean;
+
+  /**
+   * @param {Uint8Array} raw_auxiliary_data
+   */
+  set_auxiliary_data(raw_auxiliary_data: Uint8Array): void;
+
+  /**
+   * @returns {AuxiliaryData | void}
+   */
+  auxiliary_data(): AuxiliaryData | void;
+
+  /**
+   * @returns {Uint8Array | void}
+   */
+  raw_auxiliary_data(): Uint8Array | void;
 }
 /**
  */
