@@ -5012,6 +5012,10 @@ declare export class PlutusScriptSource {
   static new(script: PlutusScript): PlutusScriptSource;
 
   /**
+   * !!! DEPRECATED !!!
+   * This constructor has missed information about plutus script language vesrion. That can affect
+   * the script data hash calculation.
+   * Use `.new_ref_input_with_lang_ver` instead
    * @param {ScriptHash} script_hash
    * @param {TransactionInput} input
    * @returns {PlutusScriptSource}
