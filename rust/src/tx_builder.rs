@@ -362,7 +362,7 @@ pub struct TransactionBuilder {
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
     reference_inputs: HashSet<TransactionInput>,
-    extra_datums: Option<Vec<PlutusData>>
+    extra_datums: Option<PlutusList>
 }
 
 #[wasm_bindgen]
@@ -1229,13 +1229,15 @@ impl TransactionBuilder {
 
     pub fn add_extra_datum(&mut self, datum: &PlutusData) {
         if let Some(extra_datums) = &mut self.extra_datums {
-            extra_datums.push(datum.clone());
+            extra_datums.add(datum);
         } else {
-            self.extra_datums = Some(vec![datum.clone()]);
+            let mut extra_datums = PlutusList::new();
+            extra_datums.add(datum);
+            self.extra_datums = Some(extra_datums);
         }
     }
 
-    pub fn get_extra_datums(&self) -> Option<Vec<PlutusData>> {
+    pub fn get_extra_datums(&self) -> Option<PlutusList> {
         self.extra_datums.clone()
     }
 
@@ -8100,7 +8102,7 @@ mod tests {
         assert_eq!(tx_builder_script_data_hash.unwrap(), data_hash);
 
         let extra_datums = tx_builder.get_extra_datums().unwrap();
-        assert_eq!(extra_datums.first().unwrap(),& datum);
+        assert_eq!(&extra_datums.get(0), &datum);
         assert_eq!(extra_datums.len(), 1usize);
         assert_eq!(tx_builder.get_witness_set().plutus_data().unwrap().len(), 1usize);
         assert_eq!(tx.witness_set().plutus_data().unwrap().len(), 1usize);
