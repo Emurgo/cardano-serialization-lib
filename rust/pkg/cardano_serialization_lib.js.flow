@@ -2454,6 +2454,114 @@ declare export class ExUnits {
 }
 /**
  */
+declare export class FixedTransaction {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {FixedTransaction}
+   */
+  static from_bytes(bytes: Uint8Array): FixedTransaction;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {FixedTransaction}
+   */
+  static from_hex(hex_str: string): FixedTransaction;
+
+  /**
+   * @param {Uint8Array} raw_body
+   * @param {Uint8Array} raw_witness_set
+   * @param {boolean} is_valid
+   * @returns {FixedTransaction}
+   */
+  static new(
+    raw_body: Uint8Array,
+    raw_witness_set: Uint8Array,
+    is_valid: boolean
+  ): FixedTransaction;
+
+  /**
+   * @param {Uint8Array} raw_body
+   * @param {Uint8Array} raw_witness_set
+   * @param {Uint8Array} raw_auxiliary_data
+   * @param {boolean} is_valid
+   * @returns {FixedTransaction}
+   */
+  static new_with_auxiliary(
+    raw_body: Uint8Array,
+    raw_witness_set: Uint8Array,
+    raw_auxiliary_data: Uint8Array,
+    is_valid: boolean
+  ): FixedTransaction;
+
+  /**
+   * @returns {TransactionBody}
+   */
+  body(): TransactionBody;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  raw_body(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} raw_body
+   */
+  set_body(raw_body: Uint8Array): void;
+
+  /**
+   * @param {Uint8Array} raw_witness_set
+   */
+  set_witness_set(raw_witness_set: Uint8Array): void;
+
+  /**
+   * @returns {TransactionWitnessSet}
+   */
+  witness_set(): TransactionWitnessSet;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  raw_witness_set(): Uint8Array;
+
+  /**
+   * @param {boolean} valid
+   */
+  set_is_valid(valid: boolean): void;
+
+  /**
+   * @returns {boolean}
+   */
+  is_valid(): boolean;
+
+  /**
+   * @param {Uint8Array} raw_auxiliary_data
+   */
+  set_auxiliary_data(raw_auxiliary_data: Uint8Array): void;
+
+  /**
+   * @returns {AuxiliaryData | void}
+   */
+  auxiliary_data(): AuxiliaryData | void;
+
+  /**
+   * @returns {Uint8Array | void}
+   */
+  raw_auxiliary_data(): Uint8Array | void;
+}
+/**
+ */
 declare export class GeneralTransactionMetadata {
   free(): void;
 
