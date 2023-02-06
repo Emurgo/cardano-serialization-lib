@@ -148,15 +148,32 @@ impl MintBuilder {
             match script_mint {
                 ScriptMint::Plutus(plutus_mints) => {
                     for (redeemer, _) in &plutus_mints.redeemer_mints {
-                        if let PlutusScriptSourceEnum::Script(script) = &plutus_mints.script {
-                            plutus_witnesses.push(PlutusWitness::new_without_datum(script, redeemer));
-                        }
+                        plutus_witnesses.push(
+                            PlutusWitness::new_with_ref_without_datum(
+                                &PlutusScriptSource(plutus_mints.script.clone()),
+                                redeemer)
+                        );
                     }
                 },
                 _ => {},
             }
         }
         PlutusWitnesses(plutus_witnesses)
+    }
+
+    pub fn get_ref_inputs(&self) -> TransactionInputs {
+        let mut reference_inputs = Vec::new();
+        for script_mint in self.mints.values() {
+            match script_mint {
+                ScriptMint::Plutus(plutus_mints) => {
+                    if let PlutusScriptSourceEnum::RefInput(ref_input, _, _) = &plutus_mints.script {
+                        reference_inputs.push(ref_input.clone());
+                    }
+                },
+                _ => {},
+            }
+        }
+        TransactionInputs(reference_inputs)
     }
 
     pub fn get_redeeemers(&self) -> Result<Redeemers, JsError> {

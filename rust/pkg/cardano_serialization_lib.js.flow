@@ -3955,6 +3955,11 @@ declare export class MintBuilder {
   get_plutus_witnesses(): PlutusWitnesses;
 
   /**
+   * @returns {TransactionInputs}
+   */
+  get_ref_inputs(): TransactionInputs;
+
+  /**
    * @returns {Redeemers}
    */
   get_redeeemers(): Redeemers;
@@ -5007,6 +5012,10 @@ declare export class PlutusScriptSource {
   static new(script: PlutusScript): PlutusScriptSource;
 
   /**
+   * !!! DEPRECATED !!!
+   * This constructor has missed information about plutus script language vesrion. That can affect
+   * the script data hash calculation.
+   * Use `.new_ref_input_with_lang_ver` instead
    * @param {ScriptHash} script_hash
    * @param {TransactionInput} input
    * @returns {PlutusScriptSource}
@@ -5128,6 +5137,16 @@ declare export class PlutusWitness {
    */
   static new_without_datum(
     script: PlutusScript,
+    redeemer: Redeemer
+  ): PlutusWitness;
+
+  /**
+   * @param {PlutusScriptSource} script
+   * @param {Redeemer} redeemer
+   * @returns {PlutusWitness}
+   */
+  static new_with_ref_without_datum(
+    script: PlutusScriptSource,
     redeemer: Redeemer
   ): PlutusWitness;
 
