@@ -6125,9 +6125,12 @@ mod tests {
         let res2 = tx_builder.build_tx();
         assert!(res2.is_ok());
 
+        let mut used_langs = Languages::new();
+        used_langs.add(Language::new_plutus_v1());
+
         let data_hash = hash_script_data(
             &Redeemers::from(vec![redeemer.clone()]),
-            &TxBuilderConstants::plutus_default_cost_models(),
+            &TxBuilderConstants::plutus_default_cost_models().retain_language_versions(&used_langs),
             Some(PlutusList::from(vec![datum])),
         );
         assert_eq!(tx_builder.script_data_hash.unwrap(), data_hash);
