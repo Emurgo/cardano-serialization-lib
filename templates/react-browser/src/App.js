@@ -7,7 +7,6 @@ function App() {
   const [currentStrValue, setStrValue] = new useState("");
 
   const getBigNumValue = (strValue: string) => {
-    console.log(strValue);
     return BigNum.from_str(strValue)
   };
 
