@@ -1,0 +1,38 @@
+<p></p>
+<div>
+    <div>
+        <label for="enteredValue">
+            Enter value
+        </label>
+        <p></p>
+        <input
+            id="enteredValue"
+            type="text"
+            [(ngModel)]="enteredValue"
+            (ngModelChange)="toBigNum($event)"
+        />
+    </div>
+    <p></p>
+    <div>
+        <label>
+            HEX represantion of the entered value: 
+        </label>
+        <p>
+            <label>
+                {{ hexValue }}
+            </label>
+        </p>
+    </div>
+    <p></p>
+    <div>
+        <label>
+            JSON represantion of the entered value: 
+        </label>
+        <p>
+            <label>
+                {{ jsonValue }}
+            </label>
+        </p>
+    </div>
+    <p></p>
+</div>
