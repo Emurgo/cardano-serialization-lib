@@ -3,9 +3,18 @@
 }
 
 .App-logo {
-  height: 40vmin;
+  height: 20vmin;
   pointer-events: none;
 }
+
+.App-warning {
+  background-color:orangered;
+}
+
+.App-input {
+  font-size: calc(10px + 2vmin);
+}
+
 
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {
