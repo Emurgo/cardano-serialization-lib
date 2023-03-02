@@ -58,7 +58,7 @@ opt-level = "s"
 quickcheck = "0.9.2"
 quickcheck_macros = "0.9.1"
 rand_os = "0.1"
-rand_chacha = "0.1"
+rand_chacha = "0.3"
 
 [build-dependencies]
 schemars = "0.8.8"
