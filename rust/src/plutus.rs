@@ -1,5 +1,8 @@
+use std::hash::Hash;
 use super::*;
 use std::io::{BufRead, Seek, Write};
+use linked_hash_map::LinkedHashMap;
+use core::hash::Hasher;
 
 // This library was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
@@ -208,7 +211,7 @@ impl PlutusScripts {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd,)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct ConstrPlutusData {
     alternative: BigNum,
     data: PlutusList,
@@ -555,15 +558,15 @@ impl Languages {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd,)]
-pub struct PlutusMap(std::collections::BTreeMap<PlutusData, PlutusData>);
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+pub struct PlutusMap(LinkedHashMap<PlutusData, PlutusData>);
 
 to_from_bytes!(PlutusMap);
 
 #[wasm_bindgen]
 impl PlutusMap {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -597,7 +600,7 @@ pub enum PlutusDataKind {
 }
 
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub enum PlutusDataEnum {
     ConstrPlutusData(ConstrPlutusData),
     Map(PlutusMap),
@@ -618,6 +621,12 @@ pub struct PlutusData {
 impl std::cmp::PartialEq<Self> for PlutusData {
     fn eq(&self, other: &Self) -> bool {
         self.datum.eq(&other.datum)
+    }
+}
+
+impl Hash for PlutusData {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.datum.hash(state)
     }
 }
 
@@ -758,7 +767,7 @@ impl <'de> serde::de::Deserialize<'de> for PlutusData {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Ord, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusList {
     elems: Vec<PlutusData>,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
@@ -1624,7 +1633,7 @@ impl cbor_event::se::Serialize for PlutusMap {
 
 impl Deserialize for PlutusMap {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = std::collections::BTreeMap::new();
+        let mut table = LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len {
