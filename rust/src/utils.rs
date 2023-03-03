@@ -881,7 +881,7 @@ pub(crate) fn read_bounded_bytes<R: BufRead + Seek>(
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct BigInt(num_bigint::BigInt);
 
 impl_to_from!(BigInt);
