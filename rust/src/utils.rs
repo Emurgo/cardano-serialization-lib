@@ -2686,7 +2686,7 @@ mod tests {
         );
         assert_eq!(
             hex::encode(hash.to_bytes()),
-            "f4e4522ff98b6ba0ab5042d44da2458cd5fa6f97dc42aca1def58193f17a1375"
+            "887e1b6416d750d871c0f5b7136b54f7b8e8b0e293379d090f38f8f821d08a29"
         );
     }
 
