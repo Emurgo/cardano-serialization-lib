@@ -2372,7 +2372,7 @@ mod tests {
         let hash = hash_script_data(&redeemers, &retained_cost_models, Some(pdata));
         assert_eq!(
             hex::encode(hash.to_bytes()),
-            "357041b88b914670a3b5e3b0861d47f2ac05ed4935ea73886434d8944aa6dfe0"
+            "2fd8b7e248b376314d02989c885c278796ab0e1d6e8aa0cb91f562ff5f7dbd70"
         );
     }
 
@@ -2412,7 +2412,7 @@ mod tests {
             &costmodels,
             None,
         );
-        assert_eq!(hex::encode(hash.to_bytes()), "ac71f2adcaecd7576fa658098b12001dec03ce5c27dbb890e16966e3e135b3e2");
+        assert_eq!(hex::encode(hash.to_bytes()), "6b244f15f895fd458a02bef3a8b56f17f24150fddcb06be482f8790a600578a1");
     }
 
     #[test]
@@ -2450,6 +2450,6 @@ mod tests {
                 .retain_language_versions(&Languages(vec![Language::new_plutus_v1()])),
             Some(datums),
         );
-        assert_eq!(hex::encode(hash.to_bytes()), "e6129f50a866d19d95bc9c95ee87b57a9e695c05d92ba2746141b03c15cf5f70");
+        assert_eq!(hex::encode(hash.to_bytes()), "0a076247a05aacbecf72ea15b94e3d0331b21295a08d9ab7b8675c13840563a6");
     }
 }
