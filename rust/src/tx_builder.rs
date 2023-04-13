@@ -1420,6 +1420,7 @@ impl TransactionBuilder {
                             amount: base_coin.clone(),
                             plutus_data: plutus_data.clone(),
                             script_ref: script_ref.clone(),
+                            serialization_format: None,
                         };
                         // If this becomes slow on large TXs we can optimize it like the following
                         // to avoid cloning + reserializing the entire output.
@@ -1479,6 +1480,7 @@ impl TransactionBuilder {
                                         amount: base_coin.clone(),
                                         plutus_data: plutus_data.clone(),
                                         script_ref: script_ref.clone(),
+                                        serialization_format: None,
                                     };
 
                                     // 3. continue building the new output from the asset we stopped
@@ -1571,6 +1573,7 @@ impl TransactionBuilder {
                                 amount: change_value.clone(),
                                 plutus_data: plutus_data.clone(),
                                 script_ref: script_ref.clone(),
+                                serialization_format: None,
                             };
 
                             // increase fee
@@ -1592,6 +1595,7 @@ impl TransactionBuilder {
                             amount: change_left.clone(),
                             plutus_data: plutus_data.clone(),
                             script_ref: script_ref.clone(),
+                            serialization_format: None,
                         };
                         let additional_fee = self.fee_for_output(&pure_output)?;
                         let potential_pure_value =
@@ -1606,6 +1610,7 @@ impl TransactionBuilder {
                                 amount: potential_pure_value.clone(),
                                 plutus_data: plutus_data.clone(),
                                 script_ref: script_ref.clone(),
+                                serialization_format: None,
                             })?;
                         }
                     }
@@ -1653,6 +1658,7 @@ impl TransactionBuilder {
                                 amount: change_estimator.clone(),
                                 plutus_data: plutus_data.clone(),
                                 script_ref: script_ref.clone(),
+                                serialization_format: None,
                             })?;
 
                             let new_fee = fee.checked_add(&fee_for_change)?;
@@ -1670,6 +1676,7 @@ impl TransactionBuilder {
                                             .checked_sub(&Value::new(&new_fee.clone()))?,
                                         plutus_data: plutus_data.clone(),
                                         script_ref: script_ref.clone(),
+                                        serialization_format: None,
                                     })?;
 
                                     Ok(true)

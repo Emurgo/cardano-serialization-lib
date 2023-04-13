@@ -836,6 +836,7 @@ impl DeserializeEmbeddedGroup for TransactionOutput {
             amount,
             plutus_data: data_hash,
             script_ref: None,
+            serialization_format: Some(CborContainerType::Array),
         })
     }
 }
@@ -928,6 +929,7 @@ fn deserialize_as_postalonzo_output<R: BufRead + Seek>(
             amount,
             plutus_data: data,
             script_ref,
+            serialization_format: Some(CborContainerType::Map),
         })
     })()
     .map_err(|e| e.annotate("TransactionOutput"))
@@ -4938,6 +4940,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_data_hash(&DataHash::from([47u8; DataHash::BYTE_COUNT]));
@@ -4963,6 +4966,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
@@ -4991,6 +4995,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new(
@@ -5018,6 +5023,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
@@ -5043,6 +5049,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5070,6 +5077,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5096,6 +5104,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5128,6 +5137,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_data_hash(&DataHash::from([47u8; DataHash::BYTE_COUNT]));
@@ -5154,6 +5164,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
@@ -5183,6 +5194,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new(
@@ -5211,6 +5223,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
@@ -5237,6 +5250,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5265,6 +5279,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5292,6 +5307,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5507,5 +5523,14 @@ mod tests {
     fn pre_alonzo_block() {
         let bytes = hex::decode("84828f1a002072a81a00ca44f0582070d6f38b4569ba062c09632127db13474f22c534e6d8097895403c431e57f12358204f4d7523e41e058a6cbdefb5538654ffc2a53416a7f5bb99f7eac699d42d5c1f58205e3d96cb8ef0291d2f1df6aa7b5a4496ac8de1dcce100c31274325625102796d82584065417914ca323d842c5861407a638e146e6af55f59aff95f1451839de2aa709151237e24e6db7bf94db97293da9c1e61e68d60c8e2b10a116d3c71067247458b5850dc36a5a88f09f0b7a0b5d5d52d87c7c3e3c20752176a426d182255df3d026392f407990f09e5858de6432263fc167bc890a97d07d2371cd5bb26b12242c1ff6fda184ec78d15493a38a3e0df1494f800825840df4e07d3bca43341e4297e2914ea38363ecea1c17ce9145294c4631e0f09f706cb23a5f27c6b71ae9ac46a7ca25af4d7c156f15444fa41814f7d6a0b6a4e57525850d6073f277ded1ef9e8bfe9f6325858c142fbbbbff4395c45d82f0861a6ef6116204965f807e8650fa4e9ac4aa04aeb03984ea66abb129155a78931d39bbcb7ad64afef3f4f55cfa4eb6c97698e88f1051905db5820c1b1fbd809dc06e0e2dc544312aae2a46c059249f86c24ea0689a0b0944a75f558207ce5ce3992b23cb2bf566c48aba8bfc39eb24c9b43354de0129b81bf9f1414b307186058403ac64d720227c18139132b499046a168eb1c5bdd3983385e3518f33fc7f52fd0be348fe3e14d17e1ba606708c30bda061cf23ea3294b0089d3e1e1d58a7aa50702005901c074d3c2c0b5e17b12ba829017186daa1f7f365bbe5b0e0c038cb0cc05e849f702afd349234353ee3cc8878fa31299e85562f04d3cdd74e1bc73591be48d2fbc0d043f6b41fa527b2f9fb3f77605eee528926e76cc18a1638283e5591170f7073462441d40d7cc2e13a38e7d247928cb15d2e5b2e74a12d07f858f7e922bbff8a91c16e9bb8f5ea101c50d96627fb48a03d8191b5035b5de00b9824867fdffb5a2493799e94676bf685db85517dd8a87a0ba2589b3a8a69d529ae8052680c520c5577adbb91cf931e906b1629e621d5bd5c30eaee77f35c5f0a714827b48afaa4e549c1756e94291f4b083aad9c375caf9a67aeac08f32c91cd0572192267960cd74a85148b5e99d0053804dcfb44785417725c56e0fc5caf2ae50fbf25b92c7b7ebe17aa9e289470041a06fd8986f6f9ebdb12e87a970f1d388963929367013e17513e83cab8c98460cab703d5fdd26eeb079e4db701996f73c694365080236901289c5fc96471e91fb75e0e58560f5d073c3ef79a8f5dd4b45ff7abf9c7d7564232f7897ca3d85ac7bb9ecaa75b7c062f27de8b20f301e5607563b2c904e3c7f113b1eeba8a4d1c82fc1a747c920bac6af9a9f4dae1744847232ea03289e25e482a50082825820478ad95cafe9b1660809d618870c86dda1295764e113886e2b8a1de2de5af17201825820f84508cc7674b663db84ceb9f0790f5527f3c70f2a05e4d7f783cd9890463b4e01018182583900ff7f04abbd3050c0b138c8fa3005d48aaf8b9700d4565758e91a95385667fab107f848cfd4b73a7407a7661600cf68f0efc969ece37665ae1a000f4240021a000f4240031a00ca60f1075820e845fe9180ac36cc0102f892a839ad1ed2ea9a52c605fb8e4e1c2774ef0bb65ba50081825820c4b5ad6873b8581c75b8ee52f58a3eded29acbbb92d874a64228a1ca4e68956700018182581d60daad04ed2b7f69e2a9be582e37091739fa036a14c1c22f88061d43c71b004aca96b58fd90c021a000f4240031a00d986900682a7581c0d06d2547ed371fdf95fb5c4c735eecdd53e6a5bb831561bd0fcfd3da10e820300581c2f56e87d67b8e5216582cfeb95dbdc9083110a3ef68faaa51bef3a80a10e820300581c2fca486b4d8f1a0432f5bf18ef473ee4294c795a1a32e3132bc6b90fa10e820300581c4ee98623920698b77c1c7f77288cbdac5f9011ff8970b1f507567d0da10e820300581c514e81afb082fce01678809eebd90eda4f7918354ec7d0433ad16274a10e820300581c581e23030b6038bae716e5d64b9e053db10541b12e6b0b4eff485454a10e820300581ce5f27655371b54aed91cc916b2569060978be80056768fee2cc5ce1ba10e820300186582a1008182582028364596385174f5eabc763031b8d54b18ed5d06967ff44b3abbdbaca9cb58a75840de49197fed8dd13716c88e68452fb314d418a24fee9cc194308bd47b057d161ae40cd8f49bf6b378e7343ee5d3a7b9bdb1f2e9efeef896adaa9eb7373fbb8502a1008882582032a954b521c0b19514408965831ef6839637de7a1a6168bcf8455c504ba93b9c5840ab2d59239499807e25dc8025940a70cb890a52e8f47f35004cfec623036ca9f5c3e925b32bd23a7d1d044cef915913e853dbb57438f9c92a5d5f9581caa67d098258207ec249d890d0aaf9a81207960c163ae2d6ac5e715ca6b96d5860e50d9f2b2b2a5840f2d8031ac5d79777076dd1176cb7ed91690fcfb6be498320e5de9afbf6ea8e8ced23bff69230d050523a4a7e03c2b0599e18e93b31959063249fb50274a02a068258204f4d7523e41e058a6cbdefb5538654ffc2a53416a7f5bb99f7eac699d42d5c1f5840c5844b849865fed81f67842a4697c3090cf4ecb50510f1e6b379b7c63b78417ca28ea653c016d2e733877e1605e8a1712c42404ca0686f67455c620431d54b07825820e764b0340d7b353f5f745891033774e4beab6aa1458a54ff29a1324c05bb9876584026c35f8ec2102ec8fcc3bd0a1a0760486952e147f44236a35c7d818a7024590e1395f097a0d046085ded24ec8c585008d3ffc0321ad040649ce08eb33614760e82582073ae41eca2be37fc15c55a50d668c8647e10bf222172c2d58abfa6e9310e596258402c3f197360294781841f0669822b0449515a5e0b77b23185652a1b0ea8354537b3e9335577a87fa19e9fe47f1039fa286aaa11859d631f3ff74564c6da14c806825820234fb2b8530114b461c6ca8242c8b86a226c95c4c27479ca850d1aea4a52d2985840ba751817e70695a041a5f455c08947fa4e3d6ffc332adeb25691fac4927bbaafd4b3f5f9855946ad9681083aec277766c7f90da7543e912f46aeae07fdd5b90a825820dfb615a61568d6867f45a85c32227f27025180d738a8a3d7fd3c929f624d72395840cc1f728cce6ce2fec21d2648011c14d244c35ba3cbd553593655f6f07d86b8bdf103d52b61143bc1701319517d4a24b778c02e983e02a0f3fd0cd558d472f009825820e5bc21a83616bcccfe343ec36b9dc4c06c90e913df1d8a0b046008651f42caa95840f85bc5e753beed04b3f9072da7a6adadcdb87769528c59e16162e86782b6ce11feacbd5de97e352121e9509a809f613d5bcebf7413fd55f89776c5606e4a9408a100a119534da261638158220a201f79b4d15fd971297a842ac6a4e953b82886df66c0d9723f5870e5725da6380b617601").unwrap();
         let _block = Block::from_bytes(bytes).unwrap();
+    }
+
+    #[test]
+    fn tx_output_ser_type() {
+        let array_tx_output = TransactionOutput::from_hex("8258390000efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee16400efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee1641a000f4240").unwrap();
+        let map_tx_output = TransactionOutput::from_hex("a30058390000efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee16400efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee164011a00039447028201d81844d9052380").unwrap();
+        assert_eq!(array_tx_output.serialization_format().unwrap(), CborContainerType::Array);
+        assert_eq!(map_tx_output.serialization_format().unwrap(), CborContainerType::Map);
+
     }
 }
