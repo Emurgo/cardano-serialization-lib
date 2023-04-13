@@ -428,6 +428,14 @@ declare export var ScriptSchema: {|
 
 /**
  */
+
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
+|};
+
+/**
+ */
 declare export class Address {
   free(): void;
 
@@ -9130,6 +9138,11 @@ declare export class TransactionOutput {
    * @returns {TransactionOutput}
    */
   static new(address: Address, amount: Value): TransactionOutput;
+
+  /**
+   * @returns {number | void}
+   */
+  serialization_format(): number | void;
 }
 /**
  */
