@@ -120,7 +120,7 @@ pub enum StakeCredKind {
     serde::Deserialize,
     JsonSchema,
 )]
-pub struct StakeCredential(StakeCredType);
+pub struct StakeCredential(pub(crate) StakeCredType);
 
 #[wasm_bindgen]
 impl StakeCredential {
@@ -220,7 +220,7 @@ impl Deserialize for StakeCredential {
 }
 
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
-enum AddrType {
+pub(crate) enum AddrType {
     Base(BaseAddress),
     Ptr(PointerAddress),
     Enterprise(EnterpriseAddress),
@@ -336,7 +336,7 @@ impl ByronAddress {
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Address(AddrType);
+pub struct Address(pub(crate) AddrType);
 
 from_bytes!(Address, data, { Self::from_bytes_impl(data.as_ref()) });
 
