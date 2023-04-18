@@ -765,7 +765,7 @@ impl PlutusData {
 
         let payment_data = PlutusData::from_stake_credential(&payment_cred)?;
         let staking_optional_data = match (staking_data, pointer_data) {
-            (Some(staking_data), Some(pointer_data)) =>
+            (Some(_), Some(_)) =>
                 Err(JsError::from_str("Address can't have both staking and pointer data")),
             (Some(staking_data), None) => Ok(Some(staking_data)),
             (None, Some(pointer_data)) => Ok(Some(pointer_data)),
