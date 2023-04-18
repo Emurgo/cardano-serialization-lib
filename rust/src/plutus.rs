@@ -648,6 +648,12 @@ impl PlutusData {
         Self::new_constr_plutus_data(&ConstrPlutusData::new(alternative, &PlutusList::new()))
     }
 
+    pub fn new_single_value_constr_plutus_data(alternative: &BigNum, plutus_data: &PlutusData) -> Self {
+        let mut list = PlutusList::new();
+        list.add(plutus_data);
+        Self::new_constr_plutus_data(&ConstrPlutusData::new(alternative, &list))
+    }
+
     pub fn new_map(map: &PlutusMap) -> Self {
         Self {
             datum: PlutusDataEnum::Map(map.clone()),
@@ -727,6 +733,82 @@ impl PlutusData {
 
     pub fn from_json(json: &str, schema: PlutusDatumSchema) -> Result<PlutusData, JsError> {
         encode_json_str_to_plutus_datum(json, schema)
+    }
+
+    pub fn from_address(address: &Address) -> Result<PlutusData, JsError> {
+        let payment_cred = match &address.0 {
+            AddrType::Base(addr) => Ok(addr.payment_cred()),
+            AddrType::Enterprise(addr) => Ok(addr.payment_cred()),
+            AddrType::Ptr(addr) => Ok(addr.payment_cred()),
+            AddrType::Reward(addr) => Ok(addr.payment_cred()),
+            AddrType::Byron(_) =>
+                Err(JsError::from_str("Cannot convert Byron address to PlutusData")),
+        }?;
+
+        let staking_data = match &address.0 {
+            AddrType::Base(addr) => {
+                let staking_bytes_data =
+                    PlutusData::from_stake_credential(&addr.stake_cred())?;
+                Some(PlutusData::new_single_value_constr_plutus_data(
+                    &BigNum::from(0u32),
+                    &staking_bytes_data,
+                ))
+            }
+            _ => None,
+        };
+
+        let pointer_data = match &address.0 {
+            AddrType::Ptr(addr) =>
+                Some(PlutusData::from_pointer(&addr.stake_pointer())?),
+            _ => None,
+        };
+
+        let payment_data = PlutusData::from_stake_credential(&payment_cred)?;
+        let staking_optional_data = match (staking_data, pointer_data) {
+            (Some(_), Some(_)) =>
+                Err(JsError::from_str("Address can't have both staking and pointer data")),
+            (Some(staking_data), None) => Ok(Some(staking_data)),
+            (None, Some(pointer_data)) => Ok(Some(pointer_data)),
+            (None, None) => Ok(None)
+        }?;
+
+        let mut data_list = PlutusList::new();
+        data_list.add(&payment_data);
+        if let Some(staking_optional_data) = staking_optional_data {
+            data_list.add(
+                &PlutusData::new_single_value_constr_plutus_data(
+                    &BigNum::from(0u32), &staking_optional_data));
+        } else {
+            data_list.add(&PlutusData::new_empty_constr_plutus_data(
+                &BigNum::from(1u32)));
+        }
+
+
+        Ok(PlutusData::new_constr_plutus_data(&ConstrPlutusData::new(
+            &BigNum::from(0u32),
+            &data_list,
+        )))
+    }
+
+    fn from_stake_credential(stake_credential: &StakeCredential) -> Result<PlutusData, JsError> {
+        let (bytes_plutus_data, index) = match &stake_credential.0 {
+            StakeCredType::Key(key_hash) =>
+                (PlutusData::new_bytes(key_hash.to_bytes().to_vec()), BigNum::from(0u32)),
+            StakeCredType::Script(script_hash) =>
+                (PlutusData::new_bytes(script_hash.to_bytes().to_vec()), BigNum::from(1u32)),
+        };
+
+        Ok(PlutusData::new_single_value_constr_plutus_data(&index, &bytes_plutus_data))
+    }
+
+    fn from_pointer(pointer: &Pointer) -> Result<PlutusData, JsError> {
+        let mut data_list = PlutusList::new();
+        data_list.add(&PlutusData::new_integer(&pointer.slot_bignum().into()));
+        data_list.add(&PlutusData::new_integer(&pointer.tx_index_bignum().into()));
+        data_list.add(&PlutusData::new_integer(&pointer.cert_index_bignum().into()));
+
+        Ok(PlutusData::new_constr_plutus_data(
+            &ConstrPlutusData::new(&BigNum::from(1u32), &data_list)))
     }
 }
 
@@ -2442,5 +2524,59 @@ mod tests {
             Some(datums),
         );
         assert_eq!(hex::encode(hash.to_bytes()), "0a076247a05aacbecf72ea15b94e3d0331b21295a08d9ab7b8675c13840563a6");
+    }
+
+    #[test]
+    fn datum_from_enterprise_key_address() {
+        let address = Address::from_bech32("addr1vxy2c673nsdp0mvgq5d3tpjndngucsytug00k7k6xwlx4lg6dspk5").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}, {\"constructor\": 1, \"fields\": []}]}",
+        PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
+    }
+
+    #[test]
+    fn datum_from_enterprise_script_address() {
+        let address = Address::from_bech32("addr1w8wrk560wcsldjpnqjamn8s0gn9pdrplpyetrdfpacqrpfs3xezd8").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}, {\"constructor\": 1, \"fields\": []}]}",
+                                               PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
+    }
+
+    #[test]
+    fn datum_from_base_key_key_address() {
+        let address = Address::from_bech32("addr1qxy2c673nsdp0mvgq5d3tpjndngucsytug00k7k6xwlx4lvg434ar8q6zlkcspgmzkr9xmx3e3qghcs7ldad5va7dt7s5efyer").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}, {\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}]}]}]}",
+                                               PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
+    }
+
+    #[test]
+    fn datum_from_base_script_script_address() {
+        let address = Address::from_bech32("addr1x8wrk560wcsldjpnqjamn8s0gn9pdrplpyetrdfpacqrpfku8df57a3p7myrxp9mhx0q73x2z6xr7zfjkx6jrmsqxznqh8u5dz").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}, {\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}]}]}]}",
+                                               PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
+    }
+
+    #[test]
+    fn datum_from_base_script_key_address() {
+        let address = Address::from_bech32("addr1z8wrk560wcsldjpnqjamn8s0gn9pdrplpyetrdfpacqrpf5g434ar8q6zlkcspgmzkr9xmx3e3qghcs7ldad5va7dt7sqx2wxh").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}, {\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}]}]}]}",
+                                               PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
+    }
+
+    #[test]
+    fn datum_from_base_key_script_address() {
+        let address = Address::from_bech32("addr1yxy2c673nsdp0mvgq5d3tpjndngucsytug00k7k6xwlx4lwu8df57a3p7myrxp9mhx0q73x2z6xr7zfjkx6jrmsqxznqrcl7jk").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}, {\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}]}]}]}",
+                                               PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
     }
 }
