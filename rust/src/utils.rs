@@ -1103,6 +1103,14 @@ impl<T> std::convert::From<T> for BigInt
     }
 }
 
+impl From<BigNum> for BigInt
+    where
+{
+    fn from(x: BigNum) -> Self {
+        Self(x.0.into())
+    }
+}
+
 // we use the cbor_event::Serialize trait directly
 
 // This is only for use for plain cddl groups who need to be embedded within outer groups.
