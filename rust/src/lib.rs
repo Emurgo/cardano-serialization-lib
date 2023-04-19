@@ -53,6 +53,7 @@ pub mod tx_builder;
 pub mod tx_builder_constants;
 pub mod typed_bytes;
 pub mod protocol_types;
+pub mod ser_info;
 #[macro_use]
 pub mod utils;
 mod fakes;
@@ -71,6 +72,7 @@ use std::collections::BTreeSet;
 use std::fmt::Display;
 use std::fmt;
 use utils::*;
+use ser_info::types::*;
 
 type DeltaCoin = Int;
 
@@ -597,13 +599,16 @@ impl TransactionInput {
 
 #[wasm_bindgen]
 #[derive(
-    Debug, Clone, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Debug, Clone, Eq, Ord, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct TransactionOutput {
     address: Address,
     amount: Value,
     plutus_data: Option<DataOption>,
     script_ref: Option<ScriptRef>,
+
+    #[serde(skip)]
+    serialization_format: Option<CborContainerType>,
 }
 
 impl_to_from!(TransactionOutput);
@@ -672,7 +677,21 @@ impl TransactionOutput {
             amount: amount.clone(),
             plutus_data: None,
             script_ref: None,
+            serialization_format: None,
         }
+    }
+
+    pub fn serialization_format(&self) -> Option<CborContainerType> {
+        self.serialization_format.clone()
+    }
+}
+
+impl PartialEq for TransactionOutput {
+    fn eq(&self, other: &Self) -> bool {
+        self.address == other.address
+            && self.amount == other.amount
+            && self.plutus_data == other.plutus_data
+            && self.script_ref == other.script_ref
     }
 }
 
