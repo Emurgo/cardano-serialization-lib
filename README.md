@@ -18,4 +18,4 @@ This is a library, written in Rust, for serialization & deserialization of data 
 
 ## Documentation
 
-You can find documentation [here](https://docs.cardano.org/cardano-components/cardano-serialization-lib)
+You can find documentation [here](https://developers.cardano.org/docs/get-started/cardano-serialization-lib/overview)
