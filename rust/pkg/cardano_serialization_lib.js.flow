@@ -10939,7 +10939,7 @@ export interface TransactionBodyJSON {
   update?: UpdateJSON | null;
   validity_start_interval?: string | null;
   withdrawals?: {
-    [k: string]: ProtocolParamUpdateJSON,
+    [k: string]: string,
     ...
   } | null;
 }
@@ -11000,5 +11000,5 @@ export interface VkeywitnessJSON {
 }
 export type VkeywitnessesJSON = VkeywitnessJSON[];
 export interface WithdrawalsJSON {
-  [k: string]: ProtocolParamUpdateJSON;
+  [k: string]: string;
 }
