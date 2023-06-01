@@ -62,33 +62,6 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
- * @param {ExUnits} ex_units
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function calculate_ex_units_ceil_cost(
-  ex_units: ExUnits,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
-
-/**
- * @param {Transaction} tx
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function min_script_fee(
-  tx: Transaction,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
-
-/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -123,6 +96,33 @@ declare export function create_send_all(
   utxos: TransactionUnspentOutputs,
   config: TransactionBuilderConfig
 ): TransactionBatchList;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
+ * @param {ExUnits} ex_units
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function calculate_ex_units_ceil_cost(
+  ex_units: ExUnits,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
+
+/**
+ * @param {Transaction} tx
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function min_script_fee(
+  tx: Transaction,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
 
 /**
  * @param {TransactionHash} tx_body_hash
@@ -402,6 +402,14 @@ declare export var MetadataJsonSchema: {|
 /**
  */
 
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ */
+
 declare export var CoinSelectionStrategyCIP2: {|
   +LargestFirst: 0, // 0
   +RandomImprove: 1, // 1
@@ -412,9 +420,9 @@ declare export var CoinSelectionStrategyCIP2: {|
 /**
  */
 
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
 |};
 
 /**
@@ -424,14 +432,6 @@ declare export var StakeCredKind: {|
 declare export var ScriptSchema: {|
   +Wallet: 0, // 0
   +Node: 1, // 1
-|};
-
-/**
- */
-
-declare export var CborContainerType: {|
-  +Array: 0, // 0
-  +Map: 1, // 1
 |};
 
 /**
@@ -1722,6 +1722,11 @@ declare export class Certificate {
    * @returns {MoveInstantaneousRewardsCert | void}
    */
   as_move_instantaneous_rewards_cert(): MoveInstantaneousRewardsCert | void;
+
+  /**
+   * @returns {boolean}
+   */
+  has_required_script_witness(): boolean;
 }
 /**
  */
@@ -1786,6 +1791,75 @@ declare export class Certificates {
    * @param {Certificate} elem
    */
   add(elem: Certificate): void;
+}
+/**
+ */
+declare export class CertificatesBuilder {
+  free(): void;
+
+  /**
+   * @returns {CertificatesBuilder}
+   */
+  static new(): CertificatesBuilder;
+
+  /**
+   * @param {Certificate} cert
+   */
+  add(cert: Certificate): void;
+
+  /**
+   * @param {Certificate} cert
+   * @param {PlutusWitness} witness
+   */
+  add_with_plutus_witness(cert: Certificate, witness: PlutusWitness): void;
+
+  /**
+   * @param {Certificate} cert
+   * @param {NativeScriptSource} native_script_source
+   */
+  add_with_native_script(
+    cert: Certificate,
+    native_script_source: NativeScriptSource
+  ): void;
+
+  /**
+   * @returns {PlutusWitnesses}
+   */
+  get_plutus_witnesses(): PlutusWitnesses;
+
+  /**
+   * @returns {TransactionInputs}
+   */
+  get_ref_inputs(): TransactionInputs;
+
+  /**
+   * @returns {NativeScripts}
+   */
+  get_native_scripts(): NativeScripts;
+
+  /**
+   * @param {BigNum} pool_deposit
+   * @param {BigNum} key_deposit
+   * @returns {Value}
+   */
+  get_certificates_refund(pool_deposit: BigNum, key_deposit: BigNum): Value;
+
+  /**
+   * @param {BigNum} pool_deposit
+   * @param {BigNum} key_deposit
+   * @returns {BigNum}
+   */
+  get_certificates_deposit(pool_deposit: BigNum, key_deposit: BigNum): BigNum;
+
+  /**
+   * @returns {boolean}
+   */
+  has_plutus_scripts(): boolean;
+
+  /**
+   * @returns {Certificates}
+   */
+  build(): Certificates;
 }
 /**
  */
@@ -3970,7 +4044,7 @@ declare export class MintBuilder {
   /**
    * @returns {Redeemers}
    */
-  get_redeeemers(): Redeemers;
+  get_redeemers(): Redeemers;
 
   /**
    * @returns {boolean}
@@ -4430,6 +4504,29 @@ declare export class NativeScript {
    * @returns {Ed25519KeyHashes}
    */
   get_required_signers(): Ed25519KeyHashes;
+}
+/**
+ */
+declare export class NativeScriptSource {
+  free(): void;
+
+  /**
+   * @param {NativeScript} script
+   * @returns {NativeScriptSource}
+   */
+  static new(script: NativeScript): NativeScriptSource;
+
+  /**
+   * @param {ScriptHash} script_hash
+   * @param {TransactionInput} input
+   * @param {Ed25519KeyHashes} required_signers
+   * @returns {NativeScriptSource}
+   */
+  static new_ref_input(
+    script_hash: ScriptHash,
+    input: TransactionInput,
+    required_signers: Ed25519KeyHashes
+  ): NativeScriptSource;
 }
 /**
  */
@@ -7255,6 +7352,11 @@ declare export class StakeCredential {
   kind(): number;
 
   /**
+   * @returns {boolean}
+   */
+  has_script_hash(): boolean;
+
+  /**
    * @returns {Uint8Array}
    */
   to_bytes(): Uint8Array;
@@ -7418,6 +7520,11 @@ declare export class StakeDelegation {
     stake_credential: StakeCredential,
     pool_keyhash: Ed25519KeyHash
   ): StakeDelegation;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
 }
 /**
  */
@@ -7472,6 +7579,11 @@ declare export class StakeDeregistration {
    * @returns {StakeDeregistration}
    */
   static new(stake_credential: StakeCredential): StakeDeregistration;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
 }
 /**
  */
@@ -8370,14 +8482,30 @@ declare export class TransactionBuilder {
   set_validity_start_interval_bignum(validity_start_interval: BigNum): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Can emit error if add a cert with script credential.
+   * Use set_certs_builder instead.
    * @param {Certificates} certs
    */
   set_certs(certs: Certificates): void;
 
   /**
+   * @param {CertificatesBuilder} certs
+   */
+  set_certs_builder(certs: CertificatesBuilder): void;
+
+  /**
+   * !!! DEPRECATED !!!
+   * Can emit error if add a withdrawal with script credential.
+   * Use set_withdrawals_builder instead.
    * @param {Withdrawals} withdrawals
    */
   set_withdrawals(withdrawals: Withdrawals): void;
+
+  /**
+   * @param {WithdrawalsBuilder} withdrawals
+   */
+  set_withdrawals_builder(withdrawals: WithdrawalsBuilder): void;
 
   /**
    * @returns {AuxiliaryData | void}
@@ -10503,6 +10631,74 @@ declare export class Withdrawals {
    * @returns {RewardAddresses}
    */
   keys(): RewardAddresses;
+}
+/**
+ */
+declare export class WithdrawalsBuilder {
+  free(): void;
+
+  /**
+   * @returns {WithdrawalsBuilder}
+   */
+  static new(): WithdrawalsBuilder;
+
+  /**
+   * @param {RewardAddress} address
+   * @param {BigNum} coin
+   */
+  add(address: RewardAddress, coin: BigNum): void;
+
+  /**
+   * @param {RewardAddress} address
+   * @param {BigNum} coin
+   * @param {PlutusWitness} witness
+   */
+  add_with_plutus_witness(
+    address: RewardAddress,
+    coin: BigNum,
+    witness: PlutusWitness
+  ): void;
+
+  /**
+   * @param {RewardAddress} address
+   * @param {BigNum} coin
+   * @param {NativeScriptSource} native_script_source
+   */
+  add_with_native_script(
+    address: RewardAddress,
+    coin: BigNum,
+    native_script_source: NativeScriptSource
+  ): void;
+
+  /**
+   * @returns {PlutusWitnesses}
+   */
+  get_plutus_witnesses(): PlutusWitnesses;
+
+  /**
+   * @returns {TransactionInputs}
+   */
+  get_ref_inputs(): TransactionInputs;
+
+  /**
+   * @returns {NativeScripts}
+   */
+  get_native_scripts(): NativeScripts;
+
+  /**
+   * @returns {Value}
+   */
+  get_total_withdrawals(): Value;
+
+  /**
+   * @returns {boolean}
+   */
+  has_plutus_scripts(): boolean;
+
+  /**
+   * @returns {Withdrawals}
+   */
+  build(): Withdrawals;
 }
 export type AddressJSON = string;
 export type AssetNameJSON = string;

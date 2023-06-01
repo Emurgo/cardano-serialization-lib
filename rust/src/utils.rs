@@ -271,6 +271,13 @@ impl From<BigNum> for u64 {
     }
 }
 
+impl From<BigNum> for usize {
+
+    fn from(value: BigNum) -> Self {
+        value.0 as usize
+    }
+}
+
 impl From<u64> for BigNum {
     fn from(value: u64) -> Self {
         return BigNum(value);
