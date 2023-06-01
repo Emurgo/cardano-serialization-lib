@@ -4044,7 +4044,7 @@ declare export class MintBuilder {
   /**
    * @returns {Redeemers}
    */
-  get_redeemers(): Redeemers;
+  get_redeeemers(): Redeemers;
 
   /**
    * @returns {boolean}
