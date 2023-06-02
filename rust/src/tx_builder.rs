@@ -959,7 +959,7 @@ impl TransactionBuilder {
     /// Use set_certs_builder instead.
     #[deprecated(
         since = "11.4.1",
-        note = "Can emit error if add a cert with script credential. Use set_certs_builder instead."
+        note = "Can emit an error if you add a cert with script credential. Use set_certs_builder instead."
     )]
     pub fn set_certs(&mut self, certs: &Certificates) -> Result<(), JsError> {
         let mut builder = CertificatesBuilder::new();
@@ -981,7 +981,7 @@ impl TransactionBuilder {
     /// Use set_withdrawals_builder instead.
     #[deprecated(
         since = "11.4.1",
-        note = "Can emit error if add a withdrawal with script credential. Use set_withdrawals_builder instead."
+        note = "Can emit an error if you add a withdrawal with script credential. Use set_withdrawals_builder instead."
     )]
     pub fn set_withdrawals(&mut self, withdrawals: &Withdrawals) -> Result<(), JsError>{
         let mut withdrawals_builder = WithdrawalsBuilder::new();

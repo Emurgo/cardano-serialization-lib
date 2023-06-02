@@ -20,7 +20,7 @@ impl WithdrawalsBuilder {
         if address.payment_cred().has_script_hash() {
             return Err(JsError::from_str(
                 "Your address has a required script witness.\
-                Please use .add_with_plutus_witness .add_with_native_script instead.",
+                Please use .add_with_plutus_witness or .add_with_native_script instead.",
             ));
         }
 

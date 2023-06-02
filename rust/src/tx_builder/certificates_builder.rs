@@ -17,7 +17,7 @@ impl CertificatesBuilder {
         if cert.has_required_script_witness() {
             return Err(JsError::from_str(
                 "Your certificate has a required script witness.\
-                Please use .add_with_plutus_witness .add_with_native_script instead.",
+                Please use .add_with_plutus_witness or .add_with_native_script instead.",
             ));
         }
 
