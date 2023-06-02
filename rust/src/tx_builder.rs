@@ -1752,7 +1752,7 @@ impl TransactionBuilder {
             used_langs.append(&mut certs_builder.get_used_plutus_lang_versions());
             plutus_witnesses.0.append(&mut certs_builder.get_plutus_witnesses().0)
         }
-        if let Some(mut withdrawals_builder) = self.withdrawals.clone() {
+        if let Some(withdrawals_builder) = self.withdrawals.clone() {
             used_langs.append(&mut withdrawals_builder.get_used_plutus_lang_versions());
             plutus_witnesses.0.append(&mut withdrawals_builder.get_plutus_witnesses().0)
         }

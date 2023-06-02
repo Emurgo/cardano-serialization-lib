@@ -940,6 +940,7 @@ impl Redeemer {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn clone_with_index(&self, index: &BigNum) -> Self {
         Self {
             tag: self.tag.clone(),

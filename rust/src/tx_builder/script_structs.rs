@@ -191,6 +191,7 @@ impl PlutusWitness {
         self.redeemer.clone()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn clone_with_redeemer_index(&self, index: &BigNum) -> Self {
         Self {
             script: self.script.clone(),
