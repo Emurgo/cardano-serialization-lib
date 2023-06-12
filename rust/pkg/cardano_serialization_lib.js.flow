@@ -4697,6 +4697,33 @@ declare export class OperationalCert {
 }
 /**
  */
+declare export class OutputDatum {
+  free(): void;
+
+  /**
+   * @param {DataHash} data_hash
+   * @returns {OutputDatum}
+   */
+  static new_data_hash(data_hash: DataHash): OutputDatum;
+
+  /**
+   * @param {PlutusData} data
+   * @returns {OutputDatum}
+   */
+  static new_data(data: PlutusData): OutputDatum;
+
+  /**
+   * @returns {DataHash | void}
+   */
+  data_hash(): DataHash | void;
+
+  /**
+   * @returns {PlutusData | void}
+   */
+  data(): PlutusData | void;
+}
+/**
+ */
 declare export class PlutusData {
   free(): void;
 
@@ -8590,6 +8617,16 @@ declare export class TransactionBuilder {
    * @returns {boolean}
    */
   add_change_if_needed(address: Address): boolean;
+
+  /**
+   * @param {Address} address
+   * @param {OutputDatum} plutus_data
+   * @returns {boolean}
+   */
+  add_change_if_needed_with_datum(
+    address: Address,
+    plutus_data: OutputDatum
+  ): boolean;
 
   /**
    * This method will calculate the script hash data
