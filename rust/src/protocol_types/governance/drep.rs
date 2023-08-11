@@ -46,6 +46,7 @@ pub struct DRep(pub(crate) DRepEnum);
 
 impl_to_from!(DRep);
 
+#[wasm_bindgen]
 impl DRep {
     pub fn new_key_hash(key_hash: &Ed25519KeyHash) -> Self {
         Self(DRepEnum::KeyHash(key_hash.clone()))
