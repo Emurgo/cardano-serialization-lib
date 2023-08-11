@@ -1095,6 +1095,7 @@ impl LegacyDaedalusPrivateKey {
 
 impl_hash_type!(Ed25519KeyHash, 28);
 impl_hash_type!(ScriptHash, 28);
+impl_hash_type!(AnchorDataHash, 32);
 impl_hash_type!(TransactionHash, 32);
 impl_hash_type!(GenesisDelegateHash, 28);
 impl_hash_type!(GenesisHash, 28);
