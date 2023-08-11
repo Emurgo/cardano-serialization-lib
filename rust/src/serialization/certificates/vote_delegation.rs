@@ -56,6 +56,6 @@ impl Deserialize for VoteDelegation {
                 drep,
             });
         })()
-        .map_err(|e| e.annotate("StakeDelegation"))
+        .map_err(|e| e.annotate("VoteDelegation"))
     }
 }
