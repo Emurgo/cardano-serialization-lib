@@ -1,6 +1,5 @@
 use crate::*;
 
-#[wasm_bindgen]
 #[derive(
     Clone,
     Debug,
