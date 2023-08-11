@@ -24,3 +24,30 @@ pub use stake_registration::*;
 
 mod vote_delegation;
 pub use vote_delegation::*;
+
+mod stake_and_vote_delegation;
+pub use stake_and_vote_delegation::*;
+
+mod stake_registration_and_delegation;
+pub use stake_registration_and_delegation::*;
+
+mod stake_vote_registration_and_delegation;
+pub use stake_vote_registration_and_delegation::*;
+
+mod vote_registration_and_delegation;
+pub use vote_registration_and_delegation::*;
+
+mod committee_hot_key_registration;
+pub use committee_hot_key_registration::*;
+
+mod committee_hot_key_deregistration;
+pub use committee_hot_key_deregistration::*;
+
+mod drep_registration;
+pub use drep_registration::*;
+
+mod drep_deregistration;
+pub use drep_deregistration::*;
+
+mod drep_update;
+pub use drep_update::*;
