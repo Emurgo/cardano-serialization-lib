@@ -29,7 +29,6 @@ pub enum DRepKind {
     AlwaysNoConfidence,
 }
 
-#[wasm_bindgen]
 #[derive(
     Clone,
     Debug,
@@ -42,6 +41,7 @@ pub enum DRepKind {
     serde::Deserialize,
     JsonSchema,
 )]
+#[wasm_bindgen]
 pub struct DRep(pub(crate) DRepEnum);
 
 impl_to_from!(DRep);
@@ -73,14 +73,14 @@ impl DRep {
         }
     }
 
-    pub fn get_key_hash(&self) -> Option<Ed25519KeyHash> {
+    pub fn to_key_hash(&self) -> Option<Ed25519KeyHash> {
         match &self.0 {
             DRepEnum::KeyHash(keyhash) => Some(keyhash.clone()),
             _ => None,
         }
     }
 
-    pub fn get_script_hash(&self) -> Option<ScriptHash> {
+    pub fn to_script_hash(&self) -> Option<ScriptHash> {
         match &self.0 {
             DRepEnum::ScriptHash(scripthash) => Some(scripthash.clone()),
             _ => None,
