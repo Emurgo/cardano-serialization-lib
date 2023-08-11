@@ -9,8 +9,8 @@ impl cbor_event::se::Serialize for CommitteeHotKeyRegistration {
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(3))?;
         serializer.write_unsigned_integer(REG_COMMITTEE_HOT_KEY_CERT)?;
-        self.committee_cold_keyhash.serialize(serializer)?;
-        self.committee_hot_keyhash.serialize(serializer)?;
+        self.committee_cold_key.serialize(serializer)?;
+        self.committee_hot_key.serialize(serializer)?;
         Ok(serializer)
     }
 }
@@ -25,7 +25,7 @@ impl Deserialize for CommitteeHotKeyRegistration {
                     return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
                         3,
                         len,
-                        "(cert_index, committee_cold_keyhash, committee_hot_keyhash)",
+                        "(cert_index, committee_cold_key, committee_hot_key)",
                     ))
                     .into());
                 }
@@ -40,11 +40,11 @@ impl Deserialize for CommitteeHotKeyRegistration {
                 .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
             }
 
-            let committee_cold_keyhash = Ed25519KeyHash::deserialize(raw)
-                .map_err(|e| e.annotate("committee_cold_keyhash"))?;
+            let committee_cold_key = StakeCredential::deserialize(raw)
+                .map_err(|e| e.annotate("committee_cold_key"))?;
 
-            let committee_hot_keyhash = Ed25519KeyHash::deserialize(raw)
-                .map_err(|e| e.annotate("committee_hot_keyhash"))?;
+            let committee_hot_key = StakeCredential::deserialize(raw)
+                .map_err(|e| e.annotate("committee_hot_key"))?;
 
             if let cbor_event::Len::Indefinite = len {
                 if raw.special()? != CBORSpecial::Break {
@@ -53,8 +53,8 @@ impl Deserialize for CommitteeHotKeyRegistration {
             }
 
             return Ok(CommitteeHotKeyRegistration {
-                committee_cold_keyhash,
-                committee_hot_keyhash,
+                committee_cold_key,
+                committee_hot_key,
             });
         })()
         .map_err(|e| e.annotate("CommitteeHotKeyRegistration"))

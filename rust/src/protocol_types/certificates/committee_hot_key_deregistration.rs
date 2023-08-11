@@ -14,22 +14,22 @@ use crate::*;
 )]
 #[wasm_bindgen]
 pub struct CommitteeHotKeyDeregistration {
-    pub(crate) committee_cold_keyhash: Ed25519KeyHash,
+    pub(crate) committee_cold_key: StakeCredential,
 }
 
 impl_to_from!(CommitteeHotKeyDeregistration);
 
 #[wasm_bindgen]
 impl CommitteeHotKeyDeregistration {
-    pub fn committee_cold_keyhash(&self) -> Ed25519KeyHash {
-        self.committee_cold_keyhash.clone()
+    pub fn committee_cold_key(&self) -> StakeCredential {
+        self.committee_cold_key.clone()
     }
 
     pub fn new(
-        committee_cold_keyhash: &Ed25519KeyHash,
+        committee_cold_key: &StakeCredential,
     ) -> Self {
         Self {
-            committee_cold_keyhash: committee_cold_keyhash.clone(),
+            committee_cold_key: committee_cold_key.clone(),
         }
     }
 }
