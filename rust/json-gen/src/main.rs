@@ -116,6 +116,7 @@ fn main() {
     gen_json_schema!(BlockHash);
     gen_json_schema!(DataHash);
     gen_json_schema!(ScriptDataHash);
+    gen_json_schema!(AnchorDataHash);
     gen_json_schema!(VRFVKey);
     gen_json_schema!(KESVKey);
     gen_json_schema!(Nonce);
@@ -158,4 +159,15 @@ fn main() {
     gen_json_schema!(TransactionUnspentOutputs);
 
     gen_json_schema!(DRep);
+    gen_json_schema!(Anchor);
+    gen_json_schema!(CommitteeHotKeyDeregistration);
+    gen_json_schema!(CommitteeHotKeyRegistration);
+    gen_json_schema!(DrepDeregistration);
+    gen_json_schema!(DrepRegistration);
+    gen_json_schema!(DrepUpdate);
+    gen_json_schema!(StakeAndVoteDelegation);
+    gen_json_schema!(StakeRegistrationAndDelegation);
+    gen_json_schema!(StakeVoteRegistrationAndDelegation);
+    gen_json_schema!(VoteDelegation);
+    gen_json_schema!(VoteRegistrationAndDelegation);
 }
