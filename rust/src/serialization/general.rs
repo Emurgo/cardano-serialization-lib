@@ -1,8 +1,4 @@
-use super::*;
-use crate::utils::*;
-use address::*;
-use crypto::*;
-use error::*;
+use crate::*;
 use std::io::{Seek, SeekFrom};
 
 // This file was code-generated using an experimental CDDL to rust tool:
@@ -1099,226 +1095,6 @@ impl cbor_event::se::Serialize for ScriptRef {
     }
 }
 
-impl cbor_event::se::Serialize for StakeRegistration {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(2))?;
-        self.serialize_as_embedded_group(serializer)
-    }
-}
-
-impl SerializeEmbeddedGroup for StakeRegistration {
-    fn serialize_as_embedded_group<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(0u64)?;
-        self.stake_credential.serialize(serializer)?;
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for StakeRegistration {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("StakeRegistration"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for StakeRegistration {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(
-        raw: &mut Deserializer<R>,
-        _: cbor_event::Len,
-    ) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 0 {
-                return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(0),
-                }
-                .into());
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("index_0"))?;
-        let stake_credential =
-            (|| -> Result<_, DeserializeError> { Ok(StakeCredential::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("stake_credential"))?;
-        Ok(StakeRegistration { stake_credential })
-    }
-}
-
-impl cbor_event::se::Serialize for StakeDeregistration {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(2))?;
-        self.serialize_as_embedded_group(serializer)
-    }
-}
-
-impl SerializeEmbeddedGroup for StakeDeregistration {
-    fn serialize_as_embedded_group<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(1u64)?;
-        self.stake_credential.serialize(serializer)?;
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for StakeDeregistration {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("StakeDeregistration"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for StakeDeregistration {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(
-        raw: &mut Deserializer<R>,
-        _: cbor_event::Len,
-    ) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 1 {
-                return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(1),
-                }
-                .into());
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("index_0"))?;
-        let stake_credential =
-            (|| -> Result<_, DeserializeError> { Ok(StakeCredential::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("stake_credential"))?;
-        Ok(StakeDeregistration { stake_credential })
-    }
-}
-
-impl cbor_event::se::Serialize for StakeDelegation {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(3))?;
-        self.serialize_as_embedded_group(serializer)
-    }
-}
-
-impl SerializeEmbeddedGroup for StakeDelegation {
-    fn serialize_as_embedded_group<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(2u64)?;
-        self.stake_credential.serialize(serializer)?;
-        self.pool_keyhash.serialize(serializer)?;
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for StakeDelegation {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("StakeDelegation"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for StakeDelegation {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(
-        raw: &mut Deserializer<R>,
-        _: cbor_event::Len,
-    ) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 2 {
-                return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(2),
-                }
-                .into());
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("index_0"))?;
-        let stake_credential =
-            (|| -> Result<_, DeserializeError> { Ok(StakeCredential::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("stake_credential"))?;
-        let pool_keyhash =
-            (|| -> Result<_, DeserializeError> { Ok(Ed25519KeyHash::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("pool_keyhash"))?;
-        Ok(StakeDelegation {
-            stake_credential,
-            pool_keyhash,
-        })
-    }
-}
-
 impl cbor_event::se::Serialize for Ed25519KeyHashes {
     fn serialize<'se, W: Write>(
         &self,
@@ -1354,602 +1130,6 @@ impl Deserialize for Ed25519KeyHashes {
     }
 }
 
-impl cbor_event::se::Serialize for Relays {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in &self.0 {
-            element.serialize(serializer)?;
-        }
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for Relays {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut arr = Vec::new();
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            while match len {
-                cbor_event::Len::Len(n) => arr.len() < n as usize,
-                cbor_event::Len::Indefinite => true,
-            } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
-                    break;
-                }
-                arr.push(Relay::deserialize(raw)?);
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("Relays"))?;
-        Ok(Self(arr))
-    }
-}
-
-impl cbor_event::se::Serialize for PoolParams {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(9))?;
-        self.serialize_as_embedded_group(serializer)
-    }
-}
-
-impl SerializeEmbeddedGroup for PoolParams {
-    fn serialize_as_embedded_group<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        self.operator.serialize(serializer)?;
-        self.vrf_keyhash.serialize(serializer)?;
-        self.pledge.serialize(serializer)?;
-        self.cost.serialize(serializer)?;
-        self.margin.serialize(serializer)?;
-        self.reward_account.serialize(serializer)?;
-        self.pool_owners.serialize(serializer)?;
-        self.relays.serialize(serializer)?;
-        match &self.pool_metadata {
-            Some(x) => x.serialize(serializer),
-            None => serializer.write_special(CBORSpecial::Null),
-        }?;
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for PoolParams {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("PoolParams"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for PoolParams {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(
-        raw: &mut Deserializer<R>,
-        _: cbor_event::Len,
-    ) -> Result<Self, DeserializeError> {
-        let operator =
-            (|| -> Result<_, DeserializeError> { Ok(Ed25519KeyHash::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("operator"))?;
-        let vrf_keyhash =
-            (|| -> Result<_, DeserializeError> { Ok(VRFKeyHash::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("vrf_keyhash"))?;
-        let pledge = (|| -> Result<_, DeserializeError> { Ok(Coin::deserialize(raw)?) })()
-            .map_err(|e| e.annotate("pledge"))?;
-        let cost = (|| -> Result<_, DeserializeError> { Ok(Coin::deserialize(raw)?) })()
-            .map_err(|e| e.annotate("cost"))?;
-        let margin = (|| -> Result<_, DeserializeError> { Ok(UnitInterval::deserialize(raw)?) })()
-            .map_err(|e| e.annotate("margin"))?;
-        let reward_account =
-            (|| -> Result<_, DeserializeError> { Ok(RewardAddress::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("reward_account"))?;
-        let pool_owners =
-            (|| -> Result<_, DeserializeError> { Ok(Ed25519KeyHashes::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("pool_owners"))?;
-        let relays = (|| -> Result<_, DeserializeError> { Ok(Relays::deserialize(raw)?) })()
-            .map_err(|e| e.annotate("relays"))?;
-        let pool_metadata = (|| -> Result<_, DeserializeError> {
-            Ok(match raw.cbor_type()? != CBORType::Special {
-                true => Some(PoolMetadata::deserialize(raw)?),
-                false => {
-                    if raw.special()? != CBORSpecial::Null {
-                        return Err(DeserializeFailure::ExpectedNull.into());
-                    }
-                    None
-                }
-            })
-        })()
-        .map_err(|e| e.annotate("pool_metadata"))?;
-        Ok(PoolParams {
-            operator,
-            vrf_keyhash,
-            pledge,
-            cost,
-            margin,
-            reward_account,
-            pool_owners,
-            relays,
-            pool_metadata,
-        })
-    }
-}
-
-impl cbor_event::se::Serialize for PoolRegistration {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(10))?;
-        self.serialize_as_embedded_group(serializer)
-    }
-}
-
-impl SerializeEmbeddedGroup for PoolRegistration {
-    fn serialize_as_embedded_group<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(3u64)?;
-        self.pool_params.serialize_as_embedded_group(serializer)?;
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for PoolRegistration {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("PoolRegistration"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for PoolRegistration {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(
-        raw: &mut Deserializer<R>,
-        len: cbor_event::Len,
-    ) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 3 {
-                return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(3),
-                }
-                .into());
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("index_0"))?;
-        let pool_params = (|| -> Result<_, DeserializeError> {
-            Ok(PoolParams::deserialize_as_embedded_group(raw, len)?)
-        })()
-        .map_err(|e| e.annotate("pool_params"))?;
-        Ok(PoolRegistration { pool_params })
-    }
-}
-
-impl cbor_event::se::Serialize for PoolRetirement {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(3))?;
-        self.serialize_as_embedded_group(serializer)
-    }
-}
-
-impl SerializeEmbeddedGroup for PoolRetirement {
-    fn serialize_as_embedded_group<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(4u64)?;
-        self.pool_keyhash.serialize(serializer)?;
-        self.epoch.serialize(serializer)?;
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for PoolRetirement {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("PoolRetirement"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for PoolRetirement {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(
-        raw: &mut Deserializer<R>,
-        _: cbor_event::Len,
-    ) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 4 {
-                return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(4),
-                }
-                .into());
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("index_0"))?;
-        let pool_keyhash =
-            (|| -> Result<_, DeserializeError> { Ok(Ed25519KeyHash::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("pool_keyhash"))?;
-        let epoch = (|| -> Result<_, DeserializeError> { Ok(Epoch::deserialize(raw)?) })()
-            .map_err(|e| e.annotate("epoch"))?;
-        Ok(PoolRetirement {
-            pool_keyhash,
-            epoch,
-        })
-    }
-}
-
-impl cbor_event::se::Serialize for GenesisKeyDelegation {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(4))?;
-        self.serialize_as_embedded_group(serializer)
-    }
-}
-
-impl SerializeEmbeddedGroup for GenesisKeyDelegation {
-    fn serialize_as_embedded_group<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(5u64)?;
-        self.genesishash.serialize(serializer)?;
-        self.genesis_delegate_hash.serialize(serializer)?;
-        self.vrf_keyhash.serialize(serializer)?;
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for GenesisKeyDelegation {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("GenesisKeyDelegation"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for GenesisKeyDelegation {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(
-        raw: &mut Deserializer<R>,
-        _: cbor_event::Len,
-    ) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 5 {
-                return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(5),
-                }
-                .into());
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("index_0"))?;
-        let genesishash =
-            (|| -> Result<_, DeserializeError> { Ok(GenesisHash::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("genesishash"))?;
-        let genesis_delegate_hash =
-            (|| -> Result<_, DeserializeError> { Ok(GenesisDelegateHash::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("genesis_delegate_hash"))?;
-        let vrf_keyhash =
-            (|| -> Result<_, DeserializeError> { Ok(VRFKeyHash::deserialize(raw)?) })()
-                .map_err(|e| e.annotate("vrf_keyhash"))?;
-        Ok(GenesisKeyDelegation {
-            genesishash,
-            genesis_delegate_hash,
-            vrf_keyhash,
-        })
-    }
-}
-
-impl cbor_event::se::Serialize for MoveInstantaneousRewardsCert {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(2))?;
-        self.serialize_as_embedded_group(serializer)
-    }
-}
-
-impl SerializeEmbeddedGroup for MoveInstantaneousRewardsCert {
-    fn serialize_as_embedded_group<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(6u64)?;
-        self.move_instantaneous_reward.serialize(serializer)?;
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for MoveInstantaneousRewardsCert {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("MoveInstantaneousRewardsCert"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for MoveInstantaneousRewardsCert {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(
-        raw: &mut Deserializer<R>,
-        _: cbor_event::Len,
-    ) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 6 {
-                return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(6),
-                }
-                .into());
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("index_0"))?;
-        let move_instantaneous_reward =
-            (|| -> Result<_, DeserializeError> { Ok(MoveInstantaneousReward::deserialize(raw)?) })(
-            )
-            .map_err(|e| e.annotate("move_instantaneous_reward"))?;
-        Ok(MoveInstantaneousRewardsCert {
-            move_instantaneous_reward,
-        })
-    }
-}
-
-impl cbor_event::se::Serialize for CertificateEnum {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self {
-            CertificateEnum::StakeRegistration(x) => x.serialize(serializer),
-            CertificateEnum::StakeDeregistration(x) => x.serialize(serializer),
-            CertificateEnum::StakeDelegation(x) => x.serialize(serializer),
-            CertificateEnum::PoolRegistration(x) => x.serialize(serializer),
-            CertificateEnum::PoolRetirement(x) => x.serialize(serializer),
-            CertificateEnum::GenesisKeyDelegation(x) => x.serialize(serializer),
-            CertificateEnum::MoveInstantaneousRewardsCert(x) => x.serialize(serializer),
-        }
-    }
-}
-
-impl Deserialize for CertificateEnum {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("CertificateEnum"))
-    }
-}
-
-impl DeserializeEmbeddedGroup for CertificateEnum {
-    fn deserialize_as_embedded_group<R: BufRead + Seek>(
-        raw: &mut Deserializer<R>,
-        len: cbor_event::Len,
-    ) -> Result<Self, DeserializeError> {
-        let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(StakeRegistration::deserialize_as_embedded_group(raw, len)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(CertificateEnum::StakeRegistration(variant)),
-            Err(_) => raw
-                .as_mut_ref()
-                .seek(SeekFrom::Start(initial_position))
-                .unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(StakeDeregistration::deserialize_as_embedded_group(
-                raw, len,
-            )?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(CertificateEnum::StakeDeregistration(variant)),
-            Err(_) => raw
-                .as_mut_ref()
-                .seek(SeekFrom::Start(initial_position))
-                .unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(StakeDelegation::deserialize_as_embedded_group(raw, len)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(CertificateEnum::StakeDelegation(variant)),
-            Err(_) => raw
-                .as_mut_ref()
-                .seek(SeekFrom::Start(initial_position))
-                .unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(PoolRegistration::deserialize_as_embedded_group(raw, len)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(CertificateEnum::PoolRegistration(variant)),
-            Err(_) => raw
-                .as_mut_ref()
-                .seek(SeekFrom::Start(initial_position))
-                .unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(PoolRetirement::deserialize_as_embedded_group(raw, len)?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(CertificateEnum::PoolRetirement(variant)),
-            Err(_) => raw
-                .as_mut_ref()
-                .seek(SeekFrom::Start(initial_position))
-                .unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(GenesisKeyDelegation::deserialize_as_embedded_group(
-                raw, len,
-            )?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(CertificateEnum::GenesisKeyDelegation(variant)),
-            Err(_) => raw
-                .as_mut_ref()
-                .seek(SeekFrom::Start(initial_position))
-                .unwrap(),
-        };
-        match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-            Ok(MoveInstantaneousRewardsCert::deserialize_as_embedded_group(
-                raw, len,
-            )?)
-        })(raw)
-        {
-            Ok(variant) => return Ok(CertificateEnum::MoveInstantaneousRewardsCert(variant)),
-            Err(_) => raw
-                .as_mut_ref()
-                .seek(SeekFrom::Start(initial_position))
-                .unwrap(),
-        };
-        Err(DeserializeError::new(
-            "CertificateEnum",
-            DeserializeFailure::NoVariantMatched.into(),
-        ))
-    }
-}
-
-impl cbor_event::se::Serialize for Certificate {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        self.0.serialize(serializer)
-    }
-}
-
-impl Deserialize for Certificate {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(CertificateEnum::deserialize(raw)?))
-    }
-}
-
 impl cbor_event::se::Serialize for StakeCredentials {
     fn serialize<'se, W: Write>(
         &self,
@@ -1982,108 +1162,6 @@ impl Deserialize for StakeCredentials {
         })()
         .map_err(|e| e.annotate("StakeCredentials"))?;
         Ok(Self(arr))
-    }
-}
-
-impl cbor_event::se::Serialize for MIRToStakeCredentials {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(self.rewards.len() as u64))?;
-        for (key, value) in &self.rewards {
-            key.serialize(serializer)?;
-            value.serialize(serializer)?;
-        }
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for MIRToStakeCredentials {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let mut table = linked_hash_map::LinkedHashMap::new();
-            let len = raw.map()?;
-            while match len {
-                cbor_event::Len::Len(n) => table.len() < n as usize,
-                cbor_event::Len::Indefinite => true,
-            } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
-                    break;
-                }
-                let key = StakeCredential::deserialize(raw)?;
-                let value = DeltaCoin::deserialize(raw)?;
-                if table.insert(key.clone(), value).is_some() {
-                    return Err(DeserializeFailure::DuplicateKey(Key::Str(format!(
-                        "StakeCred: {} (hex bytes)",
-                        hex::encode(key.to_bytes())
-                    )))
-                    .into());
-                }
-            }
-            Ok(Self { rewards: table })
-        })()
-        .map_err(|e| e.annotate("MIRToStakeCredentials"))
-    }
-}
-
-impl cbor_event::se::Serialize for MoveInstantaneousReward {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(2))?;
-        match self.pot {
-            MIRPot::Reserves => serializer.write_unsigned_integer(0u64),
-            MIRPot::Treasury => serializer.write_unsigned_integer(1u64),
-        }?;
-        match &self.variant {
-            MIREnum::ToOtherPot(amount) => amount.serialize(serializer),
-            MIREnum::ToStakeCredentials(amounts) => amounts.serialize(serializer),
-        }
-    }
-}
-
-impl Deserialize for MoveInstantaneousReward {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let outer_len = raw.array()?;
-            let pot = match raw.unsigned_integer()? {
-                0 => MIRPot::Reserves,
-                1 => MIRPot::Treasury,
-                n => return Err(DeserializeFailure::UnknownKey(Key::Uint(n)).into()),
-            };
-            let variant = match raw.cbor_type()? {
-                CBORType::UnsignedInteger => MIREnum::ToOtherPot(Coin::deserialize(raw)?),
-                CBORType::Map => {
-                    MIREnum::ToStakeCredentials(MIRToStakeCredentials::deserialize(raw)?)
-                }
-                _ => return Err(DeserializeFailure::NoVariantMatched.into()),
-            };
-            match outer_len {
-                cbor_event::Len::Len(n) => {
-                    if n != 2 {
-                        return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
-                            n,
-                            outer_len,
-                            "MoveInstantaneousReward",
-                        ))
-                        .into());
-                    }
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            };
-            Ok(Self { pot, variant })
-        })()
-        .map_err(|e| e.annotate("MoveInstantaneousReward"))
     }
 }
 
@@ -4940,7 +4018,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_data_hash(&DataHash::from([47u8; DataHash::BYTE_COUNT]));
@@ -4966,7 +4044,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
@@ -4995,7 +4073,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new(
@@ -5023,7 +4101,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
@@ -5049,7 +4127,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5077,7 +4155,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5104,7 +4182,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5137,7 +4215,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_data_hash(&DataHash::from([47u8; DataHash::BYTE_COUNT]));
@@ -5164,7 +4242,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
@@ -5194,7 +4272,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new(
@@ -5223,7 +4301,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
@@ -5250,7 +4328,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5279,7 +4357,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5307,7 +4385,7 @@ mod tests {
             amount: val.clone(),
             plutus_data: None,
             script_ref: None,
-            serialization_format: None
+            serialization_format: None,
         };
         let mut txo_dh = txo.clone();
         let native_script = NativeScript::new_timelock_start(&TimelockStart::new(20));
@@ -5529,8 +4607,13 @@ mod tests {
     fn tx_output_ser_type() {
         let array_tx_output = TransactionOutput::from_hex("8258390000efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee16400efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee1641a000f4240").unwrap();
         let map_tx_output = TransactionOutput::from_hex("a30058390000efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee16400efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee164011a00039447028201d81844d9052380").unwrap();
-        assert_eq!(array_tx_output.serialization_format().unwrap(), CborContainerType::Array);
-        assert_eq!(map_tx_output.serialization_format().unwrap(), CborContainerType::Map);
-
+        assert_eq!(
+            array_tx_output.serialization_format().unwrap(),
+            CborContainerType::Array
+        );
+        assert_eq!(
+            map_tx_output.serialization_format().unwrap(),
+            CborContainerType::Map
+        );
     }
 }

@@ -34,6 +34,10 @@ pub enum DeserializeFailure {
         found: Key,
         expected: Key,
     },
+    FixedValuesMismatch {
+        found: Key,
+        expected: Vec<Key>,
+    },
     MandatoryFieldMissing(Key),
     Metadata(JsError),
     NoVariantMatched,
@@ -103,6 +107,9 @@ impl std::fmt::Display for DeserializeError {
             DeserializeFailure::ExpectedBool => write!(f, "Expected bool, found other type"),
             DeserializeFailure::FixedValueMismatch { found, expected } => {
                 write!(f, "Expected fixed value {} found {}", expected, found)
+            }
+            DeserializeFailure::FixedValuesMismatch { found, expected } => {
+                write!(f, "Expected fixed value {:?} found {}", expected, found)
             }
             DeserializeFailure::MandatoryFieldMissing(key) => {
                 write!(f, "Mandatory field {} not found", key)

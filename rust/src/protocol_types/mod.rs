@@ -1,5 +1,12 @@
 //TODO: move all protocol types to this module
-pub mod fixed_tx;
+mod fixed_tx;
+pub use fixed_tx::*;
+
+mod certificates;
+pub use certificates::*;
+
+mod governance;
+pub use governance::*;
 
 #[cfg(test)]
 mod tests;
