@@ -161,6 +161,7 @@ impl Transaction {
 type TransactionIndex = u32;
 // index of a cert within a tx
 type CertificateIndex = u32;
+type GovernanceActionIndex = u32;
 
 #[wasm_bindgen]
 #[derive(
