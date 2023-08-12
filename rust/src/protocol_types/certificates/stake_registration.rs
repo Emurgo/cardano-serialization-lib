@@ -15,6 +15,7 @@ use crate::*;
 )]
 pub struct StakeRegistration {
     pub(crate) stake_credential: StakeCredential,
+    pub(crate) coin: Option<Coin>
 }
 
 impl_to_from!(StakeRegistration);
@@ -25,9 +26,21 @@ impl StakeRegistration {
         self.stake_credential.clone()
     }
 
+    pub fn coin(&self) -> Option<Coin> {
+        self.coin.clone()
+    }
+
     pub fn new(stake_credential: &StakeCredential) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
+            coin: None
+        }
+    }
+
+    pub fn new_with_coin(stake_credential: &StakeCredential, coin: &Coin) -> Self {
+        Self {
+            stake_credential: stake_credential.clone(),
+            coin: Some(coin.clone())
         }
     }
 }

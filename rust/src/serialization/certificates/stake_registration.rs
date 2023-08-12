@@ -67,6 +67,9 @@ impl DeserializeEmbeddedGroup for StakeRegistration {
         let stake_credential =
             (|| -> Result<_, DeserializeError> { Ok(StakeCredential::deserialize(raw)?) })()
                 .map_err(|e| e.annotate("stake_credential"))?;
-        Ok(StakeRegistration { stake_credential })
+        Ok(StakeRegistration {
+            stake_credential,
+            coin: None,
+        })
     }
 }
