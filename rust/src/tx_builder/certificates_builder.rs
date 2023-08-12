@@ -145,11 +145,18 @@ impl CertificatesBuilder {
         let mut refund = Coin::zero();
         for (cert, _) in &self.certs {
             match &cert.0 {
-                CertificateEnum::StakeDeregistration(_cert) => {
-                    refund = refund.checked_add(&key_deposit)?;
+                CertificateEnum::StakeDeregistration(cert) => {
+                    if let Some(coin) = cert.coin {
+                        refund = refund.checked_add(&coin)?;
+                    } else {
+                        refund = refund.checked_add(&key_deposit)?;
+                    }
                 }
                 CertificateEnum::PoolRetirement(_cert) => {
                     refund = refund.checked_add(&pool_deposit)?;
+                }
+                CertificateEnum::DrepDeregistration(cert) => {
+                    refund = refund.checked_add(&cert.coin)?;
                 }
                 _ => {}
             }
@@ -168,8 +175,24 @@ impl CertificatesBuilder {
                 CertificateEnum::PoolRegistration(_cert) => {
                     deposit = deposit.checked_add(&pool_deposit)?;
                 }
-                CertificateEnum::StakeRegistration(_cert) => {
-                    deposit = deposit.checked_add(&key_deposit)?;
+                CertificateEnum::StakeRegistration(cert) => {
+                    if let Some(coin) = cert.coin {
+                        deposit = deposit.checked_add(&coin)?;
+                    } else {
+                        deposit = deposit.checked_add(&key_deposit)?;
+                    }
+                }
+                CertificateEnum::DrepRegistration(cert) => {
+                    deposit = deposit.checked_add(&cert.coin)?;
+                }
+                CertificateEnum::StakeRegistrationAndDelegation(cert) => {
+                    deposit = deposit.checked_add(&cert.coin)?;
+                }
+                CertificateEnum::VoteRegistrationAndDelegation(cert) => {
+                    deposit = deposit.checked_add(&cert.coin)?;
+                }
+                CertificateEnum::StakeVoteRegistrationAndDelegation(cert) => {
+                    deposit = deposit.checked_add(&cert.coin)?;
                 }
                 _ => {}
             }
@@ -212,16 +235,62 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
             for owner in &cert.pool_params().pool_owners().0 {
                 set.add(&owner.clone());
             }
-            set.add(&Ed25519KeyHash::from_bytes(cert.pool_params().operator().to_bytes()).unwrap());
+            set.add(&cert.pool_params().operator());
         }
         CertificateEnum::PoolRetirement(cert) => {
-            set.add(&Ed25519KeyHash::from_bytes(cert.pool_keyhash().to_bytes()).unwrap());
+            set.add(&cert.pool_keyhash());
         }
         CertificateEnum::GenesisKeyDelegation(cert) => {
             set.add(&Ed25519KeyHash::from_bytes(cert.genesis_delegate_hash().to_bytes()).unwrap());
         }
         // not witness as there is no single core node or genesis key that posts the certificate
         CertificateEnum::MoveInstantaneousRewardsCert(_cert) => {}
+        CertificateEnum::CommitteeHotKeyRegistration(cert) => {
+            if let StakeCredType::Key(key_hash) = &cert.committee_cold_key.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::CommitteeHotKeyDeregistration(cert) => {
+            if let StakeCredType::Key(key_hash) = &cert.committee_cold_key.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::DrepUpdate(cert) => {
+            if let StakeCredType::Key(key_hash) = &cert.voting_credential.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::DrepDeregistration(cert) => {
+            if let StakeCredType::Key(key_hash) = &cert.voting_credential.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::StakeAndVoteDelegation(cert) => {
+            if let StakeCredType::Key(key_hash) = &cert.stake_credential.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::VoteDelegation(cert) => {
+            if let StakeCredType::Key(key_hash) = &cert.stake_credential.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::StakeRegistrationAndDelegation(cert) => {
+            if let StakeCredType::Key(key_hash) = &cert.stake_credential.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::VoteRegistrationAndDelegation(cert) => {
+            if let StakeCredType::Key(key_hash) = &cert.stake_credential.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::StakeVoteRegistrationAndDelegation(cert) => {
+            if let StakeCredType::Key(key_hash) = &cert.stake_credential.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::DrepRegistration(_) => {}
     }
     set
 }
