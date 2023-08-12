@@ -14,6 +14,16 @@ impl cbor_event::se::Serialize for CertificateEnum {
             CertificateEnum::PoolRetirement(x) => x.serialize(serializer),
             CertificateEnum::GenesisKeyDelegation(x) => x.serialize(serializer),
             CertificateEnum::MoveInstantaneousRewardsCert(x) => x.serialize(serializer),
+            CertificateEnum::CommitteeHotKeyRegistration(x) => x.serialize(serializer),
+            CertificateEnum::CommitteeHotKeyDeregistration(x) => x.serialize(serializer),
+            CertificateEnum::DrepRegistration(x) => x.serialize(serializer),
+            CertificateEnum::DrepDeregistration(x) => x.serialize(serializer),
+            CertificateEnum::DrepUpdate(x) => x.serialize(serializer),
+            CertificateEnum::StakeAndVoteDelegation(x) => x.serialize(serializer),
+            CertificateEnum::StakeRegistrationAndDelegation(x) => x.serialize(serializer),
+            CertificateEnum::StakeVoteRegistrationAndDelegation(x) => x.serialize(serializer),
+            CertificateEnum::VoteDelegation(x) => x.serialize(serializer),
+            CertificateEnum::VoteRegistrationAndDelegation(x) => x.serialize(serializer),
         }
     }
 }
