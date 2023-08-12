@@ -22,11 +22,11 @@ impl_to_from!(CommitteeHotKeyRegistration);
 
 #[wasm_bindgen]
 impl CommitteeHotKeyRegistration {
-    pub fn committee_cold_keyhash(&self) -> StakeCredential {
+    pub fn committee_cold_key(&self) -> StakeCredential {
         self.committee_cold_key.clone()
     }
 
-    pub fn committee_hot_keyhash(&self) -> StakeCredential {
+    pub fn committee_hot_key(&self) -> StakeCredential {
         self.committee_hot_key.clone()
     }
 
@@ -38,5 +38,9 @@ impl CommitteeHotKeyRegistration {
             committee_cold_key: committee_cold_key.clone(),
             committee_hot_key: committee_hot_key.clone(),
         }
+    }
+
+    pub fn has_script_credentials(&self) -> bool {
+        self.committee_cold_key.has_script_hash()
     }
 }

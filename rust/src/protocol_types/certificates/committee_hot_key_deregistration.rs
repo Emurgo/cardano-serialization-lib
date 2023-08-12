@@ -32,4 +32,8 @@ impl CommitteeHotKeyDeregistration {
             committee_cold_key: committee_cold_key.clone(),
         }
     }
+
+    pub fn has_script_credentials(&self) -> bool {
+        self.committee_cold_key.has_script_hash()
+    }
 }
