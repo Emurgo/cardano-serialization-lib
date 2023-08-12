@@ -1368,6 +1368,26 @@ impl TransactionBuilder {
     /// Editing inputs, outputs, mint, etc. after change been calculated
     /// might cause a mismatch in calculated fee versus the required fee
     pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsError> {
+        self.add_change_if_needed_with_optional_script_and_datum(address, None, None)
+    }
+
+    pub fn add_change_if_needed_with_datum(&mut self,
+                                           address: &Address,
+                                           plutus_data: &OutputDatum)
+        -> Result<bool, JsError>
+    {
+        self.add_change_if_needed_with_optional_script_and_datum(
+            address,
+            Some(plutus_data.0.clone()),
+            None)
+    }
+
+
+    fn add_change_if_needed_with_optional_script_and_datum(&mut self, address: &Address,
+                                                           plutus_data: Option<DataOption>,
+                                                           script_ref: Option<ScriptRef>)
+        -> Result<bool, JsError>
+    {
         let fee = match &self.fee {
             None => self.min_fee(),
             // generating the change output involves changing the fee
@@ -1377,11 +1397,6 @@ impl TransactionBuilder {
                 ))
             }
         }?;
-
-        // note: can't add plutus data or data hash and script to change
-        // because we don't know how many change outputs will need to be created
-        let plutus_data: Option<DataOption> = None;
-        let script_ref: Option<ScriptRef> = None;
 
         let input_total = self.get_total_input()?;
         let output_total = self.get_total_output()?;
@@ -2007,7 +2022,7 @@ impl TransactionBuilder {
 mod tests {
     use super::output_builder::TransactionOutputBuilder;
     use super::*;
-    use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2};
+    use crate::fakes::{fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2};
     use crate::tx_builder_constants::TxBuilderConstants;
     use fees::*;
     use crate::tx_builder::script_structs::{PlutusScriptSource};
@@ -2218,6 +2233,87 @@ mod tests {
         );
         assert_eq!(tx_builder.full_size().unwrap(), 285);
         assert_eq!(tx_builder.output_sizes(), vec![62, 65]);
+        let _final_tx = tx_builder.build(); // just test that it doesn't throw
+    }
+
+    #[test]
+    fn build_tx_with_change_with_datum() {
+        let mut tx_builder = create_default_tx_builder();
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+            .to_address();
+        tx_builder.add_key_input(
+            &spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        tx_builder
+            .add_output(
+                &TransactionOutputBuilder::new()
+                    .with_address(&addr_net_0)
+                    .next()
+                    .unwrap()
+                    .with_coin(&to_bignum(222))
+                    .build()
+                    .unwrap(),
+            )
+            .unwrap();
+        tx_builder.set_ttl(1000);
+
+        let datum_hash = fake_data_hash(20);
+        let data_option = OutputDatum::new_data_hash(&datum_hash);
+        let (_, script_hash) = plutus_script_and_hash(15);
+        let change_cred = StakeCredential::from_scripthash(&script_hash);
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+            .to_address();
+        let added_change = tx_builder.add_change_if_needed_with_datum(&change_addr, &data_option);
+        assert!(added_change.unwrap());
+        assert_eq!(tx_builder.outputs.len(), 2);
+        assert_eq!(
+            tx_builder
+                .get_explicit_input()
+                .unwrap()
+                .checked_add(&tx_builder.get_implicit_input().unwrap())
+                .unwrap(),
+            tx_builder
+                .get_explicit_output()
+                .unwrap()
+                .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
+                .unwrap()
+        );
+        assert_eq!(tx_builder.full_size().unwrap(), 319);
+        assert_eq!(tx_builder.output_sizes(), vec![62, 99]);
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
 

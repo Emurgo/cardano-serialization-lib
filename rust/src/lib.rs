@@ -1557,6 +1557,36 @@ pub enum DataOption {
 }
 
 #[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd )]
+pub struct OutputDatum(pub(crate) DataOption);
+
+#[wasm_bindgen]
+impl OutputDatum {
+
+    pub fn new_data_hash(data_hash: &DataHash) -> Self {
+        Self(DataOption::DataHash(data_hash.clone()))
+    }
+
+    pub fn new_data(data: &PlutusData) -> Self {
+        Self(DataOption::Data(data.clone()))
+    }
+
+    pub fn data_hash(&self) -> Option<DataHash> {
+        match &self.0 {
+            DataOption::DataHash(data_hash) => Some(data_hash.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn data(&self) -> Option<PlutusData> {
+        match &self.0 {
+            DataOption::Data(data) => Some(data.clone()),
+            _ => None,
+        }
+    }
+}
+
+#[wasm_bindgen]
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
