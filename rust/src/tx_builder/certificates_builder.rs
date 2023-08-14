@@ -152,7 +152,7 @@ impl CertificatesBuilder {
                         refund = refund.checked_add(&key_deposit)?;
                     }
                 }
-                CertificateEnum::PoolRetirement(_cert) => {
+                CertificateEnum::PoolRetirement(_) => {
                     refund = refund.checked_add(&pool_deposit)?;
                 }
                 CertificateEnum::DrepDeregistration(cert) => {
@@ -172,7 +172,7 @@ impl CertificatesBuilder {
         let mut deposit = Coin::zero();
         for (cert, _) in &self.certs {
             match &cert.0 {
-                CertificateEnum::PoolRegistration(_cert) => {
+                CertificateEnum::PoolRegistration(_) => {
                     deposit = deposit.checked_add(&pool_deposit)?;
                 }
                 CertificateEnum::StakeRegistration(cert) => {
@@ -220,7 +220,7 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
     let mut set = RequiredSigners::new();
     match &cert_enum.0 {
         // stake key registrations do not require a witness
-        CertificateEnum::StakeRegistration(_cert) => {}
+        CertificateEnum::StakeRegistration(_) => {}
         CertificateEnum::StakeDeregistration(cert) => {
             if let Some(key) = cert.stake_credential().to_keyhash() {
                 set.add(&key);
