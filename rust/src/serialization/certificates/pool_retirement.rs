@@ -1,5 +1,13 @@
 use crate::*;
 
+const RETIRE_POOL_CERT_INDEX: u64 = 4;
+
+impl PoolRetirement {
+    pub(crate) const fn serialization_index() -> u64 {
+        RETIRE_POOL_CERT_INDEX
+    }
+}
+
 impl cbor_event::se::Serialize for PoolRetirement {
     fn serialize<'se, W: Write>(
         &self,
@@ -15,7 +23,7 @@ impl SerializeEmbeddedGroup for PoolRetirement {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(4u64)?;
+        serializer.write_unsigned_integer(RETIRE_POOL_CERT_INDEX)?;
         self.pool_keyhash.serialize(serializer)?;
         self.epoch.serialize(serializer)?;
         Ok(serializer)
@@ -54,17 +62,17 @@ impl DeserializeEmbeddedGroup for PoolRetirement {
         _: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 4 {
+            let cert_index = raw.unsigned_integer()?;
+            if cert_index != RETIRE_POOL_CERT_INDEX {
                 return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(4),
+                    found: Key::Uint(cert_index),
+                    expected: Key::Uint(RETIRE_POOL_CERT_INDEX),
                 }
                 .into());
             }
             Ok(())
         })()
-        .map_err(|e| e.annotate("index_0"))?;
+        .map_err(|e| e.annotate("cert_index"))?;
         let pool_keyhash =
             (|| -> Result<_, DeserializeError> { Ok(Ed25519KeyHash::deserialize(raw)?) })()
                 .map_err(|e| e.annotate("pool_keyhash"))?;

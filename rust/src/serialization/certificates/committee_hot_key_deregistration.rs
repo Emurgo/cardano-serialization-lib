@@ -1,6 +1,12 @@
 use crate::*;
 
-const UNREG_COMMITTEE_HOT_KEY_CERT: u64 = 15;
+const UNREG_COMMITTEE_HOT_KEY_CERT_INDEX: u64 = 15;
+
+impl CommitteeHotKeyDeregistration {
+    pub(crate) const fn serialization_index() -> u64 {
+        UNREG_COMMITTEE_HOT_KEY_CERT_INDEX
+    }
+}
 
 impl cbor_event::se::Serialize for CommitteeHotKeyDeregistration {
     fn serialize<'se, W: Write>(
@@ -8,7 +14,7 @@ impl cbor_event::se::Serialize for CommitteeHotKeyDeregistration {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
-        serializer.write_unsigned_integer(UNREG_COMMITTEE_HOT_KEY_CERT)?;
+        serializer.write_unsigned_integer(UNREG_COMMITTEE_HOT_KEY_CERT_INDEX)?;
         self.committee_cold_key.serialize(serializer)?;
         Ok(serializer)
     }
@@ -31,10 +37,10 @@ impl Deserialize for CommitteeHotKeyDeregistration {
             }
 
             let cert_index = raw.unsigned_integer()?;
-            if cert_index != UNREG_COMMITTEE_HOT_KEY_CERT {
+            if cert_index != UNREG_COMMITTEE_HOT_KEY_CERT_INDEX {
                 return Err(DeserializeFailure::FixedValueMismatch {
                     found: Key::Uint(cert_index),
-                    expected: Key::Uint(UNREG_COMMITTEE_HOT_KEY_CERT),
+                    expected: Key::Uint(UNREG_COMMITTEE_HOT_KEY_CERT_INDEX),
                 })
                 .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
             }

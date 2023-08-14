@@ -1,5 +1,13 @@
 use crate::*;
 
+const MIR_CERT_INDEX: u64 = 6;
+
+impl MoveInstantaneousRewardsCert {
+    pub(crate) const fn serialization_index() -> u64 {
+        MIR_CERT_INDEX
+    }
+}
+
 impl cbor_event::se::Serialize for MIRToStakeCredentials {
     fn serialize<'se, W: Write>(
         &self,
@@ -117,7 +125,7 @@ impl SerializeEmbeddedGroup for MoveInstantaneousRewardsCert {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(6u64)?;
+        serializer.write_unsigned_integer(MIR_CERT_INDEX)?;
         self.move_instantaneous_reward.serialize(serializer)?;
         Ok(serializer)
     }
@@ -155,17 +163,17 @@ impl DeserializeEmbeddedGroup for MoveInstantaneousRewardsCert {
         _: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 6 {
+            let cert_index = raw.unsigned_integer()?;
+            if cert_index != MIR_CERT_INDEX {
                 return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(6),
+                    found: Key::Uint(cert_index),
+                    expected: Key::Uint(MIR_CERT_INDEX),
                 }
                 .into());
             }
             Ok(())
         })()
-        .map_err(|e| e.annotate("index_0"))?;
+        .map_err(|e| e.annotate("cert_index"))?;
         let move_instantaneous_reward =
             (|| -> Result<_, DeserializeError> { Ok(MoveInstantaneousReward::deserialize(raw)?) })(
             )

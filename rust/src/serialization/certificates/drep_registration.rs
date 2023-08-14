@@ -2,6 +2,12 @@ use crate::*;
 
 const REG_DREP_CERT_INDEX: u64 = 16;
 
+impl DrepRegistration {
+    pub(crate) const fn serialization_index() -> u64 {
+        REG_DREP_CERT_INDEX
+    }
+}
+
 impl cbor_event::se::Serialize for DrepRegistration {
     fn serialize<'se, W: Write>(
         &self,

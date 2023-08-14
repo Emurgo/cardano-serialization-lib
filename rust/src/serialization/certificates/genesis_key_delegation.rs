@@ -1,5 +1,13 @@
 use crate::*;
 
+const GENESIS_KEY_DELEGATION_INDEX: u64 = 5;
+
+impl GenesisKeyDelegation {
+    pub(crate) const fn serialization_index() -> u64 {
+        GENESIS_KEY_DELEGATION_INDEX
+    }
+}
+
 impl cbor_event::se::Serialize for GenesisKeyDelegation {
     fn serialize<'se, W: Write>(
         &self,
@@ -15,7 +23,7 @@ impl SerializeEmbeddedGroup for GenesisKeyDelegation {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(5u64)?;
+        serializer.write_unsigned_integer(GENESIS_KEY_DELEGATION_INDEX)?;
         self.genesishash.serialize(serializer)?;
         self.genesis_delegate_hash.serialize(serializer)?;
         self.vrf_keyhash.serialize(serializer)?;
@@ -55,17 +63,17 @@ impl DeserializeEmbeddedGroup for GenesisKeyDelegation {
         _: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 5 {
+            let cert_index = raw.unsigned_integer()?;
+            if cert_index != GENESIS_KEY_DELEGATION_INDEX {
                 return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(5),
+                    found: Key::Uint(cert_index),
+                    expected: Key::Uint(GENESIS_KEY_DELEGATION_INDEX),
                 }
                 .into());
             }
             Ok(())
         })()
-        .map_err(|e| e.annotate("index_0"))?;
+        .map_err(|e| e.annotate("cert_index"))?;
         let genesishash =
             (|| -> Result<_, DeserializeError> { Ok(GenesisHash::deserialize(raw)?) })()
                 .map_err(|e| e.annotate("genesishash"))?;

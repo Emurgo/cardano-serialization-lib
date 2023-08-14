@@ -1,5 +1,13 @@
 use crate::*;
 
+const STAKE_DELEGATION_CERT_INDEX: u64 = 2;
+
+impl StakeDelegation {
+    pub(crate) const fn serialization_index() -> u64 {
+        STAKE_DELEGATION_CERT_INDEX
+    }
+}
+
 impl cbor_event::se::Serialize for StakeDelegation {
     fn serialize<'se, W: Write>(
         &self,
@@ -15,7 +23,7 @@ impl SerializeEmbeddedGroup for StakeDelegation {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(2u64)?;
+        serializer.write_unsigned_integer(STAKE_DELEGATION_CERT_INDEX)?;
         self.stake_credential.serialize(serializer)?;
         self.pool_keyhash.serialize(serializer)?;
         Ok(serializer)
@@ -54,17 +62,17 @@ impl DeserializeEmbeddedGroup for StakeDelegation {
         _: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 2 {
+            let cert_index = raw.unsigned_integer()?;
+            if cert_index != STAKE_DELEGATION_CERT_INDEX {
                 return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(2),
+                    found: Key::Uint(cert_index),
+                    expected: Key::Uint(STAKE_DELEGATION_CERT_INDEX),
                 }
                 .into());
             }
             Ok(())
         })()
-        .map_err(|e| e.annotate("index_0"))?;
+        .map_err(|e| e.annotate("cert_index"))?;
         let stake_credential =
             (|| -> Result<_, DeserializeError> { Ok(StakeCredential::deserialize(raw)?) })()
                 .map_err(|e| e.annotate("stake_credential"))?;

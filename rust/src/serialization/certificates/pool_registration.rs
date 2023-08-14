@@ -1,5 +1,13 @@
 use crate::*;
 
+const REG_POOL_CERT_INDEX: u64 = 3;
+
+impl PoolRegistration {
+    pub(crate) const fn serialization_index() -> u64 {
+        REG_POOL_CERT_INDEX
+    }
+}
+
 impl cbor_event::se::Serialize for Relays {
     fn serialize<'se, W: Write>(
         &self,
@@ -158,7 +166,7 @@ impl SerializeEmbeddedGroup for PoolRegistration {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(3u64)?;
+        serializer.write_unsigned_integer(REG_POOL_CERT_INDEX)?;
         self.pool_params.serialize_as_embedded_group(serializer)?;
         Ok(serializer)
     }
@@ -196,17 +204,17 @@ impl DeserializeEmbeddedGroup for PoolRegistration {
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let index_0_value = raw.unsigned_integer()?;
-            if index_0_value != 3 {
+            let cert_index = raw.unsigned_integer()?;
+            if cert_index != REG_POOL_CERT_INDEX {
                 return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(index_0_value),
-                    expected: Key::Uint(3),
+                    found: Key::Uint(cert_index),
+                    expected: Key::Uint(REG_POOL_CERT_INDEX),
                 }
                 .into());
             }
             Ok(())
         })()
-        .map_err(|e| e.annotate("index_0"))?;
+        .map_err(|e| e.annotate("cert_index"))?;
         let pool_params = (|| -> Result<_, DeserializeError> {
             Ok(PoolParams::deserialize_as_embedded_group(raw, len)?)
         })()
