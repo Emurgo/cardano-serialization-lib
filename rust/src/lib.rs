@@ -332,6 +332,7 @@ pub struct TransactionBody {
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
     reference_inputs: Option<TransactionInputs>,
+    voting_procedures: Option<VotingProcedures>,
 }
 
 impl_to_from!(TransactionBody);
@@ -518,6 +519,14 @@ impl TransactionBody {
         self.total_collateral.clone()
     }
 
+    pub fn set_voting_procedures(&mut self, voting_procedures: &VotingProcedures) {
+        self.voting_procedures = Some(voting_procedures.clone());
+    }
+
+    pub fn voting_procedures(&self) -> Option<VotingProcedures> {
+        self.voting_procedures.clone()
+    }
+
     /// !!! DEPRECATED !!!
     /// This constructor uses outdated slot number format for the ttl value.
     /// Use `.new_tx_body` and then `.set_ttl` instead
@@ -564,6 +573,7 @@ impl TransactionBody {
             collateral_return: None,
             total_collateral: None,
             reference_inputs: None,
+            voting_procedures: None,
         }
     }
 }

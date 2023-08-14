@@ -362,6 +362,10 @@ impl cbor_event::se::Serialize for TransactionBody {
             serializer.write_unsigned_integer(18)?;
             field.serialize(serializer)?;
         }
+        if let Some(field) = &self.voting_procedures {
+            serializer.write_unsigned_integer(19)?;
+            field.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
@@ -389,6 +393,7 @@ impl Deserialize for TransactionBody {
             let mut collateral_return = None;
             let mut total_collateral = None;
             let mut reference_inputs = None;
+            let mut voting_procedures = None;
             let mut read = 0;
             while match len {
                 cbor_event::Len::Len(n) => read < n as usize,
@@ -598,6 +603,18 @@ impl Deserialize for TransactionBody {
                                 .map_err(|e| e.annotate("reference_inputs"))?,
                             );
                         }
+                        19 => {
+                            if voting_procedures.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(19)).into());
+                            }
+                            voting_procedures = Some(
+                                (|| -> Result<_, DeserializeError> {
+                                    read_len.read_elems(1)?;
+                                    Ok(VotingProcedures::deserialize(raw)?)
+                                })()
+                                    .map_err(|e| e.annotate("voting_procedures"))?,
+                            );
+                        }
                         unknown_key => {
                             return Err(
                                 DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()
@@ -658,6 +675,7 @@ impl Deserialize for TransactionBody {
                 collateral_return,
                 total_collateral,
                 reference_inputs,
+                voting_procedures,
             })
         })()
         .map_err(|e| e.annotate("TransactionBody"))
