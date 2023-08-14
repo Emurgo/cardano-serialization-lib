@@ -1306,8 +1306,15 @@ pub fn internal_get_implicit_input(
             .0
             .iter()
             .try_fold(to_bignum(0), |acc, ref cert| match &cert.0 {
-                CertificateEnum::PoolRetirement(_cert) => acc.checked_add(&pool_deposit),
-                CertificateEnum::StakeDeregistration(_cert) => acc.checked_add(&key_deposit),
+                CertificateEnum::StakeDeregistration(cert) => {
+                    if let Some(coin) = cert.coin {
+                        acc.checked_add(&coin)
+                    } else {
+                        acc.checked_add(&key_deposit)
+                    }
+                }
+                CertificateEnum::PoolRetirement(_) => acc.checked_add(&pool_deposit),
+                CertificateEnum::DrepDeregistration(cert) => acc.checked_add(&cert.coin),
                 _ => Ok(acc),
             })?,
     };
@@ -1328,8 +1335,18 @@ pub fn internal_get_deposit(
             .0
             .iter()
             .try_fold(to_bignum(0), |acc, ref cert| match &cert.0 {
-                CertificateEnum::PoolRegistration(_cert) => acc.checked_add(&pool_deposit),
-                CertificateEnum::StakeRegistration(_cert) => acc.checked_add(&key_deposit),
+                CertificateEnum::PoolRegistration(_) => acc.checked_add(&pool_deposit),
+                CertificateEnum::StakeRegistration(cert) => {
+                    if let Some(coin) = cert.coin {
+                        acc.checked_add(&coin)
+                    } else {
+                        acc.checked_add(&key_deposit)
+                    }
+                }
+                CertificateEnum::DrepRegistration(cert) => acc.checked_add(&cert.coin),
+                CertificateEnum::StakeRegistrationAndDelegation(cert) => acc.checked_add(&cert.coin),
+                CertificateEnum::VoteRegistrationAndDelegation(cert) => acc.checked_add(&cert.coin),
+                CertificateEnum::StakeVoteRegistrationAndDelegation(cert) => acc.checked_add(&cert.coin),
                 _ => Ok(acc),
             })?,
     };
