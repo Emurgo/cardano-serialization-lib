@@ -14,7 +14,9 @@ use std::collections::BTreeMap;
     JsonSchema,
 )]
 #[wasm_bindgen]
-pub struct VotingProcedures(pub(crate) BTreeMap<Voter, BTreeMap<GovernanceActionId, VotingProcedure>>);
+pub struct VotingProcedures(
+    pub(crate) BTreeMap<Voter, BTreeMap<GovernanceActionId, VotingProcedure>>,
+);
 
 impl_to_from!(VotingProcedures);
 
