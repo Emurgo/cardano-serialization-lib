@@ -8,6 +8,7 @@ pub mod tx_batch_builder;
 pub mod mint_builder;
 pub mod certificates_builder;
 pub mod withdrawals_builder;
+pub mod vote_builder;
 mod batch_tools;
 mod script_structs;
 
@@ -22,6 +23,7 @@ use crate::tx_builder::certificates_builder::CertificatesBuilder;
 use crate::tx_builder::withdrawals_builder::WithdrawalsBuilder;
 use crate::tx_builder::script_structs::{PlutusWitness, PlutusWitnesses};
 use crate::tx_builder::mint_builder::{MintBuilder, MintWitness};
+use crate::tx_builder::vote_builder::VotingBuilder;
 
 pub(crate) fn fake_private_key() -> Bip32PrivateKey {
     Bip32PrivateKey::from_bytes(&[
@@ -66,6 +68,9 @@ fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
     }
     if let Some(certs_builder) = &tx_builder.certs {
         input_hashes.extend(certs_builder.get_required_signers());
+    }
+    if let Some(voting_builder) = &tx_builder.voting {
+        input_hashes.extend(voting_builder.get_required_signers());
     }
     input_hashes.len()
 }
@@ -343,6 +348,7 @@ pub struct TransactionBuilder {
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
     reference_inputs: HashSet<TransactionInput>,
+    voting: Option<VotingBuilder>,
 }
 
 #[wasm_bindgen]
@@ -998,6 +1004,10 @@ impl TransactionBuilder {
         self.withdrawals = Some(withdrawals.clone());
     }
 
+    pub fn set_voting(&mut self, voting: &VotingBuilder) {
+        self.voting = Some(voting.clone());
+    }
+
     pub fn get_auxiliary_data(&self) -> Option<AuxiliaryData> {
         self.auxiliary_data.clone()
     }
@@ -1253,6 +1263,7 @@ impl TransactionBuilder {
             collateral_return: None,
             total_collateral: None,
             reference_inputs: HashSet::new(),
+            voting: None,
         }
     }
 
@@ -1276,6 +1287,12 @@ impl TransactionBuilder {
 
         if let Some(certs) = &self.certs {
             for input in certs.get_ref_inputs().0 {
+                inputs.insert(input);
+            }
+        }
+
+        if let Some(votig) = &self.voting {
+            for input in votig.get_ref_inputs().0 {
                 inputs.insert(input);
             }
         }
@@ -1771,6 +1788,10 @@ impl TransactionBuilder {
             used_langs.append(&mut withdrawals_builder.get_used_plutus_lang_versions());
             plutus_witnesses.0.append(&mut withdrawals_builder.get_plutus_witnesses().0)
         }
+        if let Some(voting_builder) = self.voting.clone() {
+            used_langs.append(&mut voting_builder.get_used_plutus_lang_versions());
+            plutus_witnesses.0.append(&mut voting_builder.get_plutus_witnesses().0)
+        }
 
         if plutus_witnesses.len() > 0 {
             let (_scripts, datums, redeemers) = plutus_witnesses.collect();
@@ -1836,6 +1857,7 @@ impl TransactionBuilder {
             collateral_return: self.collateral_return.clone(),
             total_collateral: self.total_collateral.clone(),
             reference_inputs: self.get_reference_inputs().to_option(),
+            voting_procedures: self.voting.as_ref().map(|x| x.build()),
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;
@@ -1893,6 +1915,11 @@ impl TransactionBuilder {
                 ns.add(s);
             });
         }
+        if let Some(voting_builder) = &self.voting {
+            voting_builder.get_native_scripts().0.iter().for_each(|s| {
+                ns.add(s);
+            });
+        }
 
         if ns.len() > 0 {
             Some(ns)
@@ -1925,6 +1952,11 @@ impl TransactionBuilder {
         }
         if let Some(withdrawals_builder) = &self.withdrawals {
             withdrawals_builder.get_plutus_witnesses().0.iter().for_each(|s| {
+                res.add(s);
+            })
+        }
+        if let Some(voting_builder) = &self.voting {
+            voting_builder.get_plutus_witnesses().0.iter().for_each(|s| {
                 res.add(s);
             })
         }
@@ -1966,6 +1998,9 @@ impl TransactionBuilder {
             return true;
         }
         if self.withdrawals.as_ref().map_or(false, |w| w.has_plutus_scripts()) {
+            return true;
+        }
+        if self.voting.as_ref().map_or(false, |w| w.has_plutus_scripts()) {
             return true;
         }
 
