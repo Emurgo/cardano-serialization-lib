@@ -93,4 +93,21 @@ impl Voter {
             _ => None,
         }
     }
+
+    pub fn has_script_credentials(&self) -> bool {
+        match &self.0 {
+            VoterEnum::ConstitutionalCommitteeHotKey(cred) =>
+                cred.has_script_hash(),
+            VoterEnum::DRep(cred) => cred.has_script_hash(),
+            VoterEnum::StakingPool(_) => false,
+        }
+    }
+
+    pub fn to_keyhash(&self) -> Option<Ed25519KeyHash> {
+        match &self.0 {
+            VoterEnum::ConstitutionalCommitteeHotKey(cred) => cred.to_keyhash(),
+            VoterEnum::DRep(cred) => cred.to_keyhash(),
+            VoterEnum::StakingPool(key_hash) => Some(key_hash.clone()),
+        }
+    }
 }
