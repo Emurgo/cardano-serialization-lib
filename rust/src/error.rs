@@ -55,6 +55,7 @@ pub enum DeserializeFailure {
     UnknownKey(Key),
     UnexpectedKeyType(cbor_event::Type),
     VariableLenNatDecodeFailed,
+    IoError(String),
 }
 
 #[derive(Debug)]
@@ -133,6 +134,7 @@ impl std::fmt::Display for DeserializeError {
             DeserializeFailure::VariableLenNatDecodeFailed => {
                 write!(f, "Variable length natural number decode failed")
             }
+            DeserializeFailure::IoError(e) => write!(f, "IO error: {}", e),
         }
     }
 }
