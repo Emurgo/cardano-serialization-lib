@@ -23,40 +23,7 @@ impl Deserialize for DrepUpdate {
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
 
-            if let cbor_event::Len::Len(n) = len {
-                if n != 3 {
-                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
-                        3,
-                        len,
-                        "(cert_index, voting_credential, anchor / null)",
-                    ))
-                        .into());
-                }
-            }
-
-            let cert_index = raw.unsigned_integer()?;
-            if cert_index != UPDATE_DREP_CERT_INDEX {
-                return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(cert_index),
-                    expected: Key::Uint(UPDATE_DREP_CERT_INDEX),
-                })
-                    .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
-            }
-
-            let voting_credential =
-                StakeCredential::deserialize(raw).map_err(|e| e.annotate("voting_credential"))?;
-
-            let anchor = (|| -> Result<_, DeserializeError> {
-                if raw.cbor_type()? == CBORType::Special {
-                    if raw.special()? != CBORSpecial::Null {
-                        return Err(DeserializeFailure::ExpectedNull.into());
-                    }
-                    Ok(None)
-                }
-                else {
-                    Ok(Some(Anchor::deserialize(raw)?))
-                }
-            })().map_err(|e| e.annotate("anchor"))?;
+            let cert = Self::deserialize_as_embedded_group(raw, len)?;
 
             if let cbor_event::Len::Indefinite = len {
                 if raw.special()? != CBORSpecial::Break {
@@ -64,11 +31,56 @@ impl Deserialize for DrepUpdate {
                 }
             }
 
-            return Ok(DrepUpdate {
-                voting_credential,
-                anchor,
-            });
+           Ok(cert)
         })()
             .map_err(|e| e.annotate("DrepUpdate"))
+    }
+}
+
+impl DeserializeEmbeddedGroup for DrepUpdate {
+    fn deserialize_as_embedded_group<R: BufRead + Seek>(
+        raw: &mut Deserializer<R>,
+        len: cbor_event::Len,
+    ) -> Result<Self, DeserializeError> {
+
+        if let cbor_event::Len::Len(n) = len {
+            if n != 3 {
+                return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
+                    3,
+                    len,
+                    "(cert_index, voting_credential, anchor / null)",
+                ))
+                    .into());
+            }
+        }
+
+        let cert_index = raw.unsigned_integer()?;
+        if cert_index != UPDATE_DREP_CERT_INDEX {
+            return Err(DeserializeFailure::FixedValueMismatch {
+                found: Key::Uint(cert_index),
+                expected: Key::Uint(UPDATE_DREP_CERT_INDEX),
+            })
+                .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
+        }
+
+        let voting_credential =
+            StakeCredential::deserialize(raw).map_err(|e| e.annotate("voting_credential"))?;
+
+        let anchor = (|| -> Result<_, DeserializeError> {
+            if raw.cbor_type()? == CBORType::Special {
+                if raw.special()? != CBORSpecial::Null {
+                    return Err(DeserializeFailure::ExpectedNull.into());
+                }
+                Ok(None)
+            }
+            else {
+                Ok(Some(Anchor::deserialize(raw)?))
+            }
+        })().map_err(|e| e.annotate("anchor"))?;
+
+        Ok(DrepUpdate {
+            voting_credential,
+            anchor,
+        })
     }
 }
