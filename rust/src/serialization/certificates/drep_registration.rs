@@ -34,7 +34,7 @@ impl Deserialize for DrepRegistration {
 
             Ok(cert)
         })()
-            .map_err(|e| e.annotate("DrepRegistration"))
+        .map_err(|e| e.annotate("DrepRegistration"))
     }
 }
 
@@ -43,7 +43,6 @@ impl DeserializeEmbeddedGroup for DrepRegistration {
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-
         if let cbor_event::Len::Len(n) = len {
             if n != 4 {
                 return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
@@ -51,7 +50,7 @@ impl DeserializeEmbeddedGroup for DrepRegistration {
                     len,
                     "(cert_index, voting_credential, coin, anchor / null)",
                 ))
-                    .into());
+                .into());
             }
         }
 
@@ -61,7 +60,7 @@ impl DeserializeEmbeddedGroup for DrepRegistration {
                 found: Key::Uint(cert_index),
                 expected: Key::Uint(REG_DREP_CERT_INDEX),
             })
-                .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
+            .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
         }
 
         let voting_credential =
@@ -75,11 +74,11 @@ impl DeserializeEmbeddedGroup for DrepRegistration {
                     return Err(DeserializeFailure::ExpectedNull.into());
                 }
                 Ok(None)
-            }
-            else {
+            } else {
                 Ok(Some(Anchor::deserialize(raw)?))
             }
-        })().map_err(|e| e.annotate("anchor"))?;
+        })()
+        .map_err(|e| e.annotate("anchor"))?;
 
         Ok(DrepRegistration {
             voting_credential,

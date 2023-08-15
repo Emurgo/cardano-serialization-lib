@@ -59,11 +59,11 @@ impl DeserializeEmbeddedGroup for CommitteeHotKeyRegistration {
             .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
         }
 
-        let committee_cold_key = StakeCredential::deserialize(raw)
-            .map_err(|e| e.annotate("committee_cold_key"))?;
+        let committee_cold_key =
+            StakeCredential::deserialize(raw).map_err(|e| e.annotate("committee_cold_key"))?;
 
-        let committee_hot_key = StakeCredential::deserialize(raw)
-            .map_err(|e| e.annotate("committee_hot_key"))?;
+        let committee_hot_key =
+            StakeCredential::deserialize(raw).map_err(|e| e.annotate("committee_hot_key"))?;
 
         return Ok(CommitteeHotKeyRegistration {
             committee_cold_key,

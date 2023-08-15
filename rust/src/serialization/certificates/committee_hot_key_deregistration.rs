@@ -19,8 +19,7 @@ impl Deserialize for CommitteeHotKeyDeregistration {
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
 
-            let committee_dereg =
-                Self::deserialize_as_embedded_group(raw, len)?;
+            let committee_dereg = Self::deserialize_as_embedded_group(raw, len)?;
             if let cbor_event::Len::Indefinite = len {
                 if raw.special()? != CBORSpecial::Break {
                     return Err(DeserializeFailure::EndingBreakMissing.into());

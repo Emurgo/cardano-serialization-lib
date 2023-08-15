@@ -59,7 +59,6 @@ impl DeserializeEmbeddedGroup for CertificateEnum {
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-
         let cert_index = get_cert_index(raw)?;
 
         match cert_index {
@@ -88,16 +87,12 @@ impl DeserializeEmbeddedGroup for CertificateEnum {
                     StakeDelegation::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::pool_registration::REG_POOL_CERT_INDEX => {
-                Ok(CertificateEnum::PoolRegistration(
-                    PoolRegistration::deserialize_as_embedded_group(raw, len)?,
-                ))
-            }
-            super::pool_retirement::RETIRE_POOL_CERT_INDEX => {
-                Ok(CertificateEnum::PoolRetirement(
-                    PoolRetirement::deserialize_as_embedded_group(raw, len)?,
-                ))
-            }
+            super::pool_registration::REG_POOL_CERT_INDEX => Ok(CertificateEnum::PoolRegistration(
+                PoolRegistration::deserialize_as_embedded_group(raw, len)?,
+            )),
+            super::pool_retirement::RETIRE_POOL_CERT_INDEX => Ok(CertificateEnum::PoolRetirement(
+                PoolRetirement::deserialize_as_embedded_group(raw, len)?,
+            )),
             super::genesis_key_delegation::GENESIS_KEY_DELEGATION_INDEX => {
                 Ok(CertificateEnum::GenesisKeyDelegation(
                     GenesisKeyDelegation::deserialize_as_embedded_group(raw, len)?,
@@ -118,21 +113,17 @@ impl DeserializeEmbeddedGroup for CertificateEnum {
                     CommitteeHotKeyDeregistration::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::drep_registration::REG_DREP_CERT_INDEX => {
-                Ok(CertificateEnum::DrepRegistration(
-                    DrepRegistration::deserialize_as_embedded_group(raw, len)?,
-                ))
-            }
+            super::drep_registration::REG_DREP_CERT_INDEX => Ok(CertificateEnum::DrepRegistration(
+                DrepRegistration::deserialize_as_embedded_group(raw, len)?,
+            )),
             super::drep_deregistration::DEREG_DREP_CERT_INDEX => {
                 Ok(CertificateEnum::DrepDeregistration(
                     DrepDeregistration::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::drep_update::UPDATE_DREP_CERT_INDEX => {
-                Ok(CertificateEnum::DrepUpdate(
-                    DrepUpdate::deserialize_as_embedded_group(raw, len)?,
-                ))
-            }
+            super::drep_update::UPDATE_DREP_CERT_INDEX => Ok(CertificateEnum::DrepUpdate(
+                DrepUpdate::deserialize_as_embedded_group(raw, len)?,
+            )),
             super::stake_and_vote_delegation::STAKE_VOTE_DELEG_CERT_INDEX => {
                 Ok(CertificateEnum::StakeAndVoteDelegation(
                     StakeAndVoteDelegation::deserialize_as_embedded_group(raw, len)?,
@@ -148,11 +139,9 @@ impl DeserializeEmbeddedGroup for CertificateEnum {
                     StakeVoteRegistrationAndDelegation::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::vote_delegation::VOTE_CERT_INDEX => {
-                Ok(CertificateEnum::VoteDelegation(
-                    VoteDelegation::deserialize_as_embedded_group(raw, len)?,
-                ))
-            }
+            super::vote_delegation::VOTE_CERT_INDEX => Ok(CertificateEnum::VoteDelegation(
+                VoteDelegation::deserialize_as_embedded_group(raw, len)?,
+            )),
             super::vote_registration_and_delegation::VOTE_REG_DELEG_CERT_INDEX => {
                 Ok(CertificateEnum::VoteRegistrationAndDelegation(
                     VoteRegistrationAndDelegation::deserialize_as_embedded_group(raw, len)?,
@@ -182,10 +171,13 @@ impl Deserialize for Certificate {
 }
 
 fn get_cert_index<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<u64, DeserializeError> {
-    let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0))
+    let initial_position = raw
+        .as_mut_ref()
+        .seek(SeekFrom::Current(0))
         .map_err(|err| DeserializeFailure::IoError(err.to_string()))?;
     let index = raw.unsigned_integer()?;
-    raw.as_mut_ref().seek(SeekFrom::Start(initial_position))
+    raw.as_mut_ref()
+        .seek(SeekFrom::Start(initial_position))
         .map_err(|err| DeserializeFailure::IoError(err.to_string()))?;
     Ok(index)
 }

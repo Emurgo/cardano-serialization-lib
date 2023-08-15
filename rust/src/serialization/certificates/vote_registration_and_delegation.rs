@@ -31,7 +31,7 @@ impl Deserialize for VoteRegistrationAndDelegation {
 
             Ok(cert)
         })()
-            .map_err(|e| e.annotate("VoteRegistrationAndDelegation"))
+        .map_err(|e| e.annotate("VoteRegistrationAndDelegation"))
     }
 }
 
@@ -40,7 +40,6 @@ impl DeserializeEmbeddedGroup for VoteRegistrationAndDelegation {
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-
         if let cbor_event::Len::Len(n) = len {
             if n != 4 {
                 return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
@@ -48,7 +47,7 @@ impl DeserializeEmbeddedGroup for VoteRegistrationAndDelegation {
                     len,
                     "(cert_index, stake_credential, drep, coin)",
                 ))
-                    .into());
+                .into());
             }
         }
 
@@ -58,7 +57,7 @@ impl DeserializeEmbeddedGroup for VoteRegistrationAndDelegation {
                 found: Key::Uint(cert_index),
                 expected: Key::Uint(VOTE_REG_DELEG_CERT_INDEX),
             })
-                .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
+            .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
         }
 
         let stake_credential =

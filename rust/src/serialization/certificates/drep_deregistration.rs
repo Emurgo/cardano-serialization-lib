@@ -30,7 +30,7 @@ impl Deserialize for DrepDeregistration {
 
             Ok(cert)
         })()
-            .map_err(|e| e.annotate("DrepDeregistration"))
+        .map_err(|e| e.annotate("DrepDeregistration"))
     }
 }
 
@@ -39,7 +39,6 @@ impl DeserializeEmbeddedGroup for DrepDeregistration {
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-
         if let cbor_event::Len::Len(n) = len {
             if n != 3 {
                 return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
@@ -47,7 +46,7 @@ impl DeserializeEmbeddedGroup for DrepDeregistration {
                     len,
                     "(cert_index, voting_credential, coin)",
                 ))
-                    .into());
+                .into());
             }
         }
 
@@ -57,7 +56,7 @@ impl DeserializeEmbeddedGroup for DrepDeregistration {
                 found: Key::Uint(cert_index),
                 expected: Key::Uint(DEREG_DREP_CERT_INDEX),
             })
-                .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
+            .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
         }
 
         let voting_credential =

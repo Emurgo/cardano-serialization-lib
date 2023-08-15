@@ -1,5 +1,5 @@
-use cbor_event::Len;
 use crate::*;
+use cbor_event::Len;
 
 pub(super) const DEREG_STAKE_CERT_LEGACY_INDEX: u64 = 1;
 pub(super) const DEREG_STAKE_CERT_CONWAY_INDEX: u64 = 8;
@@ -74,7 +74,7 @@ impl DeserializeEmbeddedGroup for StakeDeregistration {
                     Key::Uint(DEREG_STAKE_CERT_CONWAY_INDEX),
                 ],
             })
-                .map_err(|e| DeserializeError::from(e).annotate("cert_index")),
+            .map_err(|e| DeserializeError::from(e).annotate("cert_index")),
         }
     }
 }
@@ -92,7 +92,7 @@ fn deserialize_legacy<R: BufRead + Seek>(
                     len,
                     "(cert_index, stake_credential)",
                 ))
-                    .into());
+                .into());
             }
         }
 
@@ -101,7 +101,7 @@ fn deserialize_legacy<R: BufRead + Seek>(
                 found: Key::Uint(cert_index),
                 expected: Key::Uint(DEREG_STAKE_CERT_LEGACY_INDEX),
             })
-                .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
+            .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
         }
 
         let stake_credential =
@@ -112,7 +112,7 @@ fn deserialize_legacy<R: BufRead + Seek>(
             coin: None,
         });
     })()
-        .map_err(|e| e.annotate("StakeDeregistration (legacy)"))
+    .map_err(|e| e.annotate("StakeDeregistration (legacy)"))
 }
 
 fn deserialize_conway<R: BufRead + Seek>(
@@ -128,7 +128,7 @@ fn deserialize_conway<R: BufRead + Seek>(
                     len,
                     "(cert_index, stake_credential, coin)",
                 ))
-                    .into());
+                .into());
             }
         }
 
@@ -137,7 +137,7 @@ fn deserialize_conway<R: BufRead + Seek>(
                 found: Key::Uint(cert_index),
                 expected: Key::Uint(DEREG_STAKE_CERT_CONWAY_INDEX),
             })
-                .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
+            .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
         }
 
         let stake_credential =
@@ -150,6 +150,5 @@ fn deserialize_conway<R: BufRead + Seek>(
             coin: Some(coin),
         });
     })()
-        .map_err(|e| e.annotate("StakeDeregistration (conway)"))
+    .map_err(|e| e.annotate("StakeDeregistration (conway)"))
 }
-

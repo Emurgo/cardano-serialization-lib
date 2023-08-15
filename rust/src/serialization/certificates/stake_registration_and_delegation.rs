@@ -31,7 +31,7 @@ impl Deserialize for StakeRegistrationAndDelegation {
 
             Ok(cert)
         })()
-            .map_err(|e| e.annotate("StakeRegistrationAndDelegation"))
+        .map_err(|e| e.annotate("StakeRegistrationAndDelegation"))
     }
 }
 
@@ -40,7 +40,6 @@ impl DeserializeEmbeddedGroup for StakeRegistrationAndDelegation {
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-
         if let cbor_event::Len::Len(n) = len {
             if n != 4 {
                 return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
@@ -48,7 +47,7 @@ impl DeserializeEmbeddedGroup for StakeRegistrationAndDelegation {
                     len,
                     "(cert_index, stake_credential, pool_keyhash, coin)",
                 ))
-                    .into());
+                .into());
             }
         }
 
@@ -58,7 +57,7 @@ impl DeserializeEmbeddedGroup for StakeRegistrationAndDelegation {
                 found: Key::Uint(cert_index),
                 expected: Key::Uint(STAKE_REG_DELEG_CERT_INDEX),
             })
-                .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
+            .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
         }
 
         let stake_credential =
