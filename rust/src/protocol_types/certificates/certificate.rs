@@ -111,6 +111,86 @@ impl Certificate {
         ))
     }
 
+    pub fn new_committee_hot_key_registration(
+        committee_hot_key_registration: &CommitteeHotKeyRegistration,
+    ) -> Self {
+        Self(CertificateEnum::CommitteeHotKeyRegistration(
+            committee_hot_key_registration.clone(),
+        ))
+    }
+
+    pub fn new_committee_hot_key_deregistration(
+        committee_hot_key_deregistration: &CommitteeHotKeyDeregistration,
+    ) -> Self {
+        Self(CertificateEnum::CommitteeHotKeyDeregistration(
+            committee_hot_key_deregistration.clone(),
+        ))
+    }
+
+    pub fn new_drep_deregistration(
+        drep_deregistration: &DrepDeregistration,
+    ) -> Self {
+        Self(CertificateEnum::DrepDeregistration(
+            drep_deregistration.clone(),
+        ))
+    }
+
+    pub fn new_drep_registration(
+        drep_registration: &DrepRegistration,
+    ) -> Self {
+        Self(CertificateEnum::DrepRegistration(
+            drep_registration.clone(),
+        ))
+    }
+
+    pub fn new_drep_update(
+        drep_update: &DrepUpdate,
+    ) -> Self {
+        Self(CertificateEnum::DrepUpdate(
+            drep_update.clone(),
+        ))
+    }
+
+    pub fn new_stake_and_vote_delegation(
+        stake_and_vote_delegation: &StakeAndVoteDelegation,
+    ) -> Self {
+        Self(CertificateEnum::StakeAndVoteDelegation(
+            stake_and_vote_delegation.clone(),
+        ))
+    }
+
+    pub fn new_stake_registration_and_delegation(
+        stake_registration_and_delegation: &StakeRegistrationAndDelegation,
+    ) -> Self {
+        Self(CertificateEnum::StakeRegistrationAndDelegation(
+            stake_registration_and_delegation.clone(),
+        ))
+    }
+
+    pub fn new_stake_vote_registration_and_delegation(
+        stake_vote_registration_and_delegation: &StakeVoteRegistrationAndDelegation,
+    ) -> Self {
+        Self(CertificateEnum::StakeVoteRegistrationAndDelegation(
+            stake_vote_registration_and_delegation.clone(),
+        ))
+    }
+
+    pub fn new_vote_delegation(
+        vote_delegation: &VoteDelegation,
+    ) -> Self {
+        Self(CertificateEnum::VoteDelegation(
+            vote_delegation.clone(),
+        ))
+    }
+
+    pub fn new_vote_registration_and_delegation(
+        vote_registration_and_delegation: &VoteRegistrationAndDelegation,
+    ) -> Self {
+        Self(CertificateEnum::VoteRegistrationAndDelegation(
+            vote_registration_and_delegation.clone(),
+        ))
+    }
+
     pub fn kind(&self) -> CertificateKind {
         match &self.0 {
             CertificateEnum::StakeRegistration(_) => CertificateKind::StakeRegistration,
