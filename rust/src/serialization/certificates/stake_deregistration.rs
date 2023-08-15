@@ -2,12 +2,6 @@ use crate::*;
 
 pub(super) const DEREG_STAKE_CERT_INDEX: u64 = 1;
 
-impl StakeDeregistration {
-    pub(crate) const fn serialization_index() -> u64 {
-        DEREG_STAKE_CERT_INDEX
-    }
-}
-
 impl cbor_event::se::Serialize for StakeDeregistration {
     fn serialize<'se, W: Write>(
         &self,

@@ -1,12 +1,6 @@
 use crate::*;
 
-const REG_COMMITTEE_HOT_KEY_CERT_INDEX: u64 = 14;
-
-impl CommitteeHotKeyRegistration {
-    pub(crate) const fn serialization_index() -> u64 {
-        REG_COMMITTEE_HOT_KEY_CERT_INDEX
-    }
-}
+pub(super) const REG_COMMITTEE_HOT_KEY_CERT_INDEX: u64 = 14;
 
 impl cbor_event::se::Serialize for CommitteeHotKeyRegistration {
     fn serialize<'se, W: Write>(

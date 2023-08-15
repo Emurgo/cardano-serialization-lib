@@ -1,4 +1,8 @@
 use crate::*;
+use cbor_event::Len;
+
+pub(super) const STAKE_REG_LEGACY_INDEX: u64 = 0;
+pub(super) const STAKE_REG_CONWAY_INDEX: u64 = 7;
 
 impl cbor_event::se::Serialize for StakeRegistration {
     fn serialize<'se, W: Write>(

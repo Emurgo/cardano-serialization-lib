@@ -1,12 +1,6 @@
 use crate::*;
 
-const GENESIS_KEY_DELEGATION_INDEX: u64 = 5;
-
-impl GenesisKeyDelegation {
-    pub(crate) const fn serialization_index() -> u64 {
-        GENESIS_KEY_DELEGATION_INDEX
-    }
-}
+pub(super) const GENESIS_KEY_DELEGATION_INDEX: u64 = 5;
 
 impl cbor_event::se::Serialize for GenesisKeyDelegation {
     fn serialize<'se, W: Write>(

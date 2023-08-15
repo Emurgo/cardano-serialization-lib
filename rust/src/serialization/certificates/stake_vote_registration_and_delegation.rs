@@ -1,12 +1,6 @@
 use crate::*;
 
-const STAKE_VOTE_REG_DELEG_CERT_INDEX: u64 = 13;
-
-impl StakeVoteRegistrationAndDelegation {
-    pub(crate) const fn serialization_index() -> u64 {
-        STAKE_VOTE_REG_DELEG_CERT_INDEX
-    }
-}
+pub(super) const STAKE_VOTE_REG_DELEG_CERT_INDEX: u64 = 13;
 
 impl cbor_event::se::Serialize for StakeVoteRegistrationAndDelegation {
     fn serialize<'se, W: Write>(

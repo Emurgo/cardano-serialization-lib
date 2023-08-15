@@ -1,12 +1,6 @@
 use crate::*;
 
-const RETIRE_POOL_CERT_INDEX: u64 = 4;
-
-impl PoolRetirement {
-    pub(crate) const fn serialization_index() -> u64 {
-        RETIRE_POOL_CERT_INDEX
-    }
-}
+pub(super) const RETIRE_POOL_CERT_INDEX: u64 = 4;
 
 impl cbor_event::se::Serialize for PoolRetirement {
     fn serialize<'se, W: Write>(

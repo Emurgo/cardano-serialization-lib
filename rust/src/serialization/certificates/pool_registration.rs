@@ -1,12 +1,6 @@
 use crate::*;
 
-const REG_POOL_CERT_INDEX: u64 = 3;
-
-impl PoolRegistration {
-    pub(crate) const fn serialization_index() -> u64 {
-        REG_POOL_CERT_INDEX
-    }
-}
+pub (super) const REG_POOL_CERT_INDEX: u64 = 3;
 
 impl cbor_event::se::Serialize for Relays {
     fn serialize<'se, W: Write>(

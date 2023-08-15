@@ -1,12 +1,6 @@
 use crate::*;
 
-const MIR_CERT_INDEX: u64 = 6;
-
-impl MoveInstantaneousRewardsCert {
-    pub(crate) const fn serialization_index() -> u64 {
-        MIR_CERT_INDEX
-    }
-}
+pub(super) const MIR_CERT_INDEX: u64 = 6;
 
 impl cbor_event::se::Serialize for MIRToStakeCredentials {
     fn serialize<'se, W: Write>(
