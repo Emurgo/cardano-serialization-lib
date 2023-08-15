@@ -131,19 +131,11 @@ impl Deserialize for MoveInstantaneousRewardsCert {
             let len = raw.array()?;
             let ret = Self::deserialize_as_embedded_group(raw, len);
             match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
+                    CBORSpecial::Break => {}
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
+                _ => {}
             }
             ret
         })()
@@ -154,9 +146,19 @@ impl Deserialize for MoveInstantaneousRewardsCert {
 impl DeserializeEmbeddedGroup for MoveInstantaneousRewardsCert {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
-        _: cbor_event::Len,
+        len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
+            if let cbor_event::Len::Len(n) = len {
+                if n != 2 {
+                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
+                        2,
+                        len,
+                        "(cert_index, move_instantaneous_reward)",
+                    ))
+                    .into());
+                }
+            }
             let cert_index = raw.unsigned_integer()?;
             if cert_index != MIR_CERT_INDEX {
                 return Err(DeserializeFailure::FixedValueMismatch {

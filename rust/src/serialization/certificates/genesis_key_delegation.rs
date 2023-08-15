@@ -31,19 +31,11 @@ impl Deserialize for GenesisKeyDelegation {
             let len = raw.array()?;
             let ret = Self::deserialize_as_embedded_group(raw, len);
             match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
                 cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
+                    CBORSpecial::Break => {}
                     _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
                 },
+                _ => {}
             }
             ret
         })()
@@ -54,9 +46,20 @@ impl Deserialize for GenesisKeyDelegation {
 impl DeserializeEmbeddedGroup for GenesisKeyDelegation {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
-        _: cbor_event::Len,
+        len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
+            if let cbor_event::Len::Len(n) = len {
+                if n != 4 {
+                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
+                        4,
+                        len,
+                        "(cert_index, genesishash, genesis_delegate_hash, vrf_keyhash)",
+                    ))
+                    .into());
+                }
+            }
+
             let cert_index = raw.unsigned_integer()?;
             if cert_index != GENESIS_KEY_DELEGATION_INDEX {
                 return Err(DeserializeFailure::FixedValueMismatch {
