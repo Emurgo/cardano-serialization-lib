@@ -21,3 +21,6 @@ pub use governance_action_id::*;
 
 mod governance_action_ids;
 pub use governance_action_ids::*;
+
+mod proposals;
+pub use proposals::*;
