@@ -15,3 +15,6 @@ pub use voting_procedures::*;
 
 mod governance_action_id;
 pub use governance_action_id::*;
+
+mod proposals;
+pub use proposals::*;
