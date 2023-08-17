@@ -1,4 +1,6 @@
+use crate::serialization::map_names::CertificateIndexNames;
 use crate::*;
+use num_traits::FromPrimitive;
 use std::io::{Seek, SeekFrom};
 
 impl cbor_event::se::Serialize for CertificateEnum {
@@ -60,97 +62,95 @@ impl DeserializeEmbeddedGroup for CertificateEnum {
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
         let cert_index = get_cert_index(raw)?;
+        let index_enum =
+            CertificateIndexNames::from_u64(cert_index).ok_or(DeserializeError::new(
+                "CertificateEnum",
+                DeserializeFailure::UnknownKey(Key::Uint(cert_index),
+            )))?;
 
-        match cert_index {
-            super::stake_registration::STAKE_REG_LEGACY_INDEX => {
+        match index_enum {
+            CertificateIndexNames::StakeRegistrationLegacy => {
                 Ok(CertificateEnum::StakeRegistration(
                     StakeRegistration::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::stake_registration::STAKE_REG_CONWAY_INDEX => {
+            CertificateIndexNames::StakeRegistrationConway => {
                 Ok(CertificateEnum::StakeRegistration(
                     StakeRegistration::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::stake_deregistration::DEREG_STAKE_CERT_LEGACY_INDEX => {
+            CertificateIndexNames::StakeDeregistrationLegacy => {
                 Ok(CertificateEnum::StakeDeregistration(
                     StakeDeregistration::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::stake_deregistration::DEREG_STAKE_CERT_CONWAY_INDEX => {
+            CertificateIndexNames::StakeDeregistrationConway => {
                 Ok(CertificateEnum::StakeDeregistration(
                     StakeDeregistration::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::stake_delegation::STAKE_DELEGATION_CERT_INDEX => {
-                Ok(CertificateEnum::StakeDelegation(
-                    StakeDelegation::deserialize_as_embedded_group(raw, len)?,
-                ))
-            }
-            super::pool_registration::REG_POOL_CERT_INDEX => Ok(CertificateEnum::PoolRegistration(
+            CertificateIndexNames::StakeDelegation => Ok(CertificateEnum::StakeDelegation(
+                StakeDelegation::deserialize_as_embedded_group(raw, len)?,
+            )),
+
+            CertificateIndexNames::PoolRegistration => Ok(CertificateEnum::PoolRegistration(
                 PoolRegistration::deserialize_as_embedded_group(raw, len)?,
             )),
-            super::pool_retirement::RETIRE_POOL_CERT_INDEX => Ok(CertificateEnum::PoolRetirement(
+            CertificateIndexNames::PoolRetirement => Ok(CertificateEnum::PoolRetirement(
                 PoolRetirement::deserialize_as_embedded_group(raw, len)?,
             )),
-            super::genesis_key_delegation::GENESIS_KEY_DELEGATION_INDEX => {
+            CertificateIndexNames::GenesisKeyDelegation => {
                 Ok(CertificateEnum::GenesisKeyDelegation(
                     GenesisKeyDelegation::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::move_instantaneous_rewards_cert::MIR_CERT_INDEX => {
+            CertificateIndexNames::MoveInstantaneousRewardsCert => {
                 Ok(CertificateEnum::MoveInstantaneousRewardsCert(
                     MoveInstantaneousRewardsCert::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::committee_hot_key_registration::REG_COMMITTEE_HOT_KEY_CERT_INDEX => {
+            CertificateIndexNames::CommitteeHotKeyRegistration => {
                 Ok(CertificateEnum::CommitteeHotKeyRegistration(
                     CommitteeHotKeyRegistration::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::committee_hot_key_deregistration::UNREG_COMMITTEE_HOT_KEY_CERT_INDEX => {
+            CertificateIndexNames::CommitteeHotKeyDeregistration => {
                 Ok(CertificateEnum::CommitteeHotKeyDeregistration(
                     CommitteeHotKeyDeregistration::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::drep_registration::REG_DREP_CERT_INDEX => Ok(CertificateEnum::DrepRegistration(
+            CertificateIndexNames::DrepRegistration => Ok(CertificateEnum::DrepRegistration(
                 DrepRegistration::deserialize_as_embedded_group(raw, len)?,
             )),
-            super::drep_deregistration::DEREG_DREP_CERT_INDEX => {
-                Ok(CertificateEnum::DrepDeregistration(
-                    DrepDeregistration::deserialize_as_embedded_group(raw, len)?,
-                ))
-            }
-            super::drep_update::UPDATE_DREP_CERT_INDEX => Ok(CertificateEnum::DrepUpdate(
+            CertificateIndexNames::DrepDeregistration => Ok(CertificateEnum::DrepDeregistration(
+                DrepDeregistration::deserialize_as_embedded_group(raw, len)?,
+            )),
+            CertificateIndexNames::DrepUpdate => Ok(CertificateEnum::DrepUpdate(
                 DrepUpdate::deserialize_as_embedded_group(raw, len)?,
             )),
-            super::stake_and_vote_delegation::STAKE_VOTE_DELEG_CERT_INDEX => {
+            CertificateIndexNames::StakeAndVoteDelegation => {
                 Ok(CertificateEnum::StakeAndVoteDelegation(
                     StakeAndVoteDelegation::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::stake_registration_and_delegation::STAKE_REG_DELEG_CERT_INDEX => {
+            CertificateIndexNames::StakeRegistrationAndDelegation => {
                 Ok(CertificateEnum::StakeRegistrationAndDelegation(
                     StakeRegistrationAndDelegation::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::stake_vote_registration_and_delegation::STAKE_VOTE_REG_DELEG_CERT_INDEX => {
+            CertificateIndexNames::StakeVoteRegistrationAndDelegation => {
                 Ok(CertificateEnum::StakeVoteRegistrationAndDelegation(
                     StakeVoteRegistrationAndDelegation::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            super::vote_delegation::VOTE_CERT_INDEX => Ok(CertificateEnum::VoteDelegation(
+            CertificateIndexNames::VoteDelegation => Ok(CertificateEnum::VoteDelegation(
                 VoteDelegation::deserialize_as_embedded_group(raw, len)?,
             )),
-            super::vote_registration_and_delegation::VOTE_REG_DELEG_CERT_INDEX => {
+            CertificateIndexNames::VoteRegistrationAndDelegation => {
                 Ok(CertificateEnum::VoteRegistrationAndDelegation(
                     VoteRegistrationAndDelegation::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            _ => Err(DeserializeError::new(
-                "CertificateEnum",
-                DeserializeFailure::UnknownKey(Key::Uint(cert_index)),
-            )),
         }
     }
 }

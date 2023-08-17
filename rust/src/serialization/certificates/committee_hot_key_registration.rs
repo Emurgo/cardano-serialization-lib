@@ -1,6 +1,7 @@
+use num_traits::ToPrimitive;
 use crate::*;
-
-pub(super) const REG_COMMITTEE_HOT_KEY_CERT_INDEX: u64 = 14;
+use crate::serialization::map_names::CertificateIndexNames;
+use crate::serialization::struct_checks::{check_len, deserialize_and_check_index, serialize_and_check_index};
 
 impl cbor_event::se::Serialize for CommitteeHotKeyRegistration {
     fn serialize<'se, W: Write>(
@@ -8,56 +9,28 @@ impl cbor_event::se::Serialize for CommitteeHotKeyRegistration {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(3))?;
-        serializer.write_unsigned_integer(REG_COMMITTEE_HOT_KEY_CERT_INDEX)?;
+
+        let proposal_index = CertificateIndexNames::CommitteeHotKeyRegistration.to_u64();
+        serialize_and_check_index(serializer, proposal_index, "CommitteeHotKeyRegistration")?;
+
         self.committee_cold_key.serialize(serializer)?;
         self.committee_hot_key.serialize(serializer)?;
         Ok(serializer)
     }
 }
 
-impl Deserialize for CommitteeHotKeyRegistration {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-
-            let cert = Self::deserialize_as_embedded_group(raw, len)?;
-
-            if let cbor_event::Len::Indefinite = len {
-                if raw.special()? != CBORSpecial::Break {
-                    return Err(DeserializeFailure::EndingBreakMissing.into());
-                }
-            }
-
-            Ok(cert)
-        })()
-        .map_err(|e| e.annotate("CommitteeHotKeyRegistration"))
-    }
-}
+impl_deserialize_for_tuple!(CommitteeHotKeyRegistration);
 
 impl DeserializeEmbeddedGroup for CommitteeHotKeyRegistration {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-        if let cbor_event::Len::Len(n) = len {
-            if n != 3 {
-                return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
-                    3,
-                    len,
-                    "(cert_index, committee_cold_key, committee_hot_key)",
-                ))
-                .into());
-            }
-        }
 
-        let cert_index = raw.unsigned_integer()?;
-        if cert_index != REG_COMMITTEE_HOT_KEY_CERT_INDEX {
-            return Err(DeserializeFailure::FixedValueMismatch {
-                found: Key::Uint(cert_index),
-                expected: Key::Uint(REG_COMMITTEE_HOT_KEY_CERT_INDEX),
-            })
-            .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
-        }
+        check_len(len, 3, "(cert_index, committee_cold_key, committee_hot_key)")?;
+
+        let cert_index = CertificateIndexNames::CommitteeHotKeyRegistration.to_u64();
+        deserialize_and_check_index(raw, cert_index, "cert_index")?;
 
         let committee_cold_key =
             StakeCredential::deserialize(raw).map_err(|e| e.annotate("committee_cold_key"))?;

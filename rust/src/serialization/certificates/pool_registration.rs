@@ -1,6 +1,7 @@
+use crate::serialization::map_names::CertificateIndexNames;
+use crate::serialization::struct_checks::{check_len, deserialize_and_check_index, serialize_and_check_index};
 use crate::*;
-
-pub(super) const REG_POOL_CERT_INDEX: u64 = 3;
+use num_traits::ToPrimitive;
 
 impl cbor_event::se::Serialize for Relays {
     fn serialize<'se, W: Write>(
@@ -68,31 +69,7 @@ impl SerializeEmbeddedGroup for PoolParams {
     }
 }
 
-impl Deserialize for PoolParams {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Len(_) =>
-                /* TODO: check finite len somewhere */
-                {
-                    ()
-                }
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break =>
-                    /* it's ok */
-                    {
-                        ()
-                    }
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("PoolParams"))
-    }
-}
+impl_deserialize_for_tuple!(PoolParams);
 
 impl DeserializeEmbeddedGroup for PoolParams {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
@@ -160,58 +137,27 @@ impl SerializeEmbeddedGroup for PoolRegistration {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(REG_POOL_CERT_INDEX)?;
+        let proposal_index = CertificateIndexNames::PoolRegistration.to_u64();
+        serialize_and_check_index(serializer, proposal_index, "PoolRegistration")?;
+
         self.pool_params.serialize_as_embedded_group(serializer)?;
         Ok(serializer)
     }
 }
 
-impl Deserialize for PoolRegistration {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => {}
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-                _ => {}
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("PoolRegistration"))
-    }
-}
+impl_deserialize_for_tuple!(PoolRegistration);
 
 impl DeserializeEmbeddedGroup for PoolRegistration {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            if let cbor_event::Len::Len(n) = len {
-                if n != 2 {
-                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
-                        2,
-                        len,
-                        "(cert_index, pool_params)",
-                    ))
-                    .into());
-                }
-            }
 
-            let cert_index = raw.unsigned_integer()?;
-            if cert_index != REG_POOL_CERT_INDEX {
-                return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(cert_index),
-                    expected: Key::Uint(REG_POOL_CERT_INDEX),
-                }
-                .into());
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("cert_index"))?;
+        check_len(len, 2, "(cert_index, pool_params)")?;
+
+        let cert_index = CertificateIndexNames::PoolRegistration.to_u64();
+        deserialize_and_check_index(raw, cert_index, "cert_index")?;
+
         let pool_params = (|| -> Result<_, DeserializeError> {
             Ok(PoolParams::deserialize_as_embedded_group(raw, len)?)
         })()

@@ -1,6 +1,7 @@
+use num_traits::ToPrimitive;
 use crate::*;
-
-pub(super) const STAKE_DELEGATION_CERT_INDEX: u64 = 2;
+use crate::serialization::map_names::CertificateIndexNames;
+use crate::serialization::struct_checks::{check_len, deserialize_and_check_index, serialize_and_check_index};
 
 impl cbor_event::se::Serialize for StakeDelegation {
     fn serialize<'se, W: Write>(
@@ -17,59 +18,28 @@ impl SerializeEmbeddedGroup for StakeDelegation {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_unsigned_integer(STAKE_DELEGATION_CERT_INDEX)?;
+
+        let proposal_index = CertificateIndexNames::StakeDelegation.to_u64();
+        serialize_and_check_index(serializer, proposal_index, "StakeDelegation")?;
+
         self.stake_credential.serialize(serializer)?;
         self.pool_keyhash.serialize(serializer)?;
         Ok(serializer)
     }
 }
 
-impl Deserialize for StakeDelegation {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
-            match len {
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => {}
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-                _ => {}
-            }
-            ret
-        })()
-        .map_err(|e| e.annotate("StakeDelegation"))
-    }
-}
+impl_deserialize_for_tuple!(StakeDelegation);
 
 impl DeserializeEmbeddedGroup for StakeDelegation {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            if let cbor_event::Len::Len(n) = len {
-                if n != 3 {
-                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
-                        3,
-                        len,
-                        "(cert_index, stake_credential, pool_keyhash)",
-                    ))
-                    .into());
-                }
-            }
 
-            let cert_index = raw.unsigned_integer()?;
-            if cert_index != STAKE_DELEGATION_CERT_INDEX {
-                return Err(DeserializeFailure::FixedValueMismatch {
-                    found: Key::Uint(cert_index),
-                    expected: Key::Uint(STAKE_DELEGATION_CERT_INDEX),
-                }
-                .into());
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("cert_index"))?;
+        check_len(len, 3, "(cert_index, stake_credential, pool_keyhash)")?;
+        let cert_index = CertificateIndexNames::StakeDelegation.to_u64();
+        deserialize_and_check_index(raw, cert_index, "cert_index")?;
+
         let stake_credential =
             (|| -> Result<_, DeserializeError> { Ok(StakeCredential::deserialize(raw)?) })()
                 .map_err(|e| e.annotate("stake_credential"))?;

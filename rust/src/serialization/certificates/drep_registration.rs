@@ -1,6 +1,7 @@
+use num_traits::ToPrimitive;
 use crate::*;
-
-pub(super) const REG_DREP_CERT_INDEX: u64 = 16;
+use crate::serialization::map_names::CertificateIndexNames;
+use crate::serialization::struct_checks::{check_len, deserialize_and_check_index, serialize_and_check_index};
 
 impl cbor_event::se::Serialize for DrepRegistration {
     fn serialize<'se, W: Write>(
@@ -8,7 +9,10 @@ impl cbor_event::se::Serialize for DrepRegistration {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(4))?;
-        serializer.write_unsigned_integer(REG_DREP_CERT_INDEX)?;
+
+        let proposal_index = CertificateIndexNames::DrepRegistration.to_u64();
+        serialize_and_check_index(serializer, proposal_index, "DrepRegistration")?;
+
         self.voting_credential.serialize(serializer)?;
         self.coin.serialize(serializer)?;
         match &self.anchor {
@@ -19,66 +23,24 @@ impl cbor_event::se::Serialize for DrepRegistration {
     }
 }
 
-impl Deserialize for DrepRegistration {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-
-            let cert = Self::deserialize_as_embedded_group(raw, len)?;
-
-            if let cbor_event::Len::Indefinite = len {
-                if raw.special()? != CBORSpecial::Break {
-                    return Err(DeserializeFailure::EndingBreakMissing.into());
-                }
-            }
-
-            Ok(cert)
-        })()
-        .map_err(|e| e.annotate("DrepRegistration"))
-    }
-}
+impl_deserialize_for_tuple!(DrepRegistration);
 
 impl DeserializeEmbeddedGroup for DrepRegistration {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-        if let cbor_event::Len::Len(n) = len {
-            if n != 4 {
-                return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
-                    4,
-                    len,
-                    "(cert_index, voting_credential, coin, anchor / null)",
-                ))
-                .into());
-            }
-        }
+        check_len(len, 4, "(cert_index, voting_credential, coin, anchor / null)")?;
 
-        let cert_index = raw.unsigned_integer()?;
-        if cert_index != REG_DREP_CERT_INDEX {
-            return Err(DeserializeFailure::FixedValueMismatch {
-                found: Key::Uint(cert_index),
-                expected: Key::Uint(REG_DREP_CERT_INDEX),
-            })
-            .map_err(|e| DeserializeError::from(e).annotate("cert_index"));
-        }
+        let cert_index = CertificateIndexNames::DrepRegistration.to_u64();
+        deserialize_and_check_index(raw, cert_index, "cert_index")?;
 
         let voting_credential =
             StakeCredential::deserialize(raw).map_err(|e| e.annotate("voting_credential"))?;
 
         let coin = Coin::deserialize(raw).map_err(|e| e.annotate("coin"))?;
 
-        let anchor = (|| -> Result<_, DeserializeError> {
-            if raw.cbor_type()? == CBORType::Special {
-                if raw.special()? != CBORSpecial::Null {
-                    return Err(DeserializeFailure::ExpectedNull.into());
-                }
-                Ok(None)
-            } else {
-                Ok(Some(Anchor::deserialize(raw)?))
-            }
-        })()
-        .map_err(|e| e.annotate("anchor"))?;
+        let anchor = Anchor::deserialize_nullable(raw).map_err(|e| e.annotate("anchor"))?;
 
         Ok(DrepRegistration {
             voting_credential,
