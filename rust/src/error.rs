@@ -9,6 +9,7 @@ use cbor_event::{self};
 pub enum Key {
     Str(String),
     Uint(u64),
+    OptUint(Option<u64>),
 }
 
 impl std::fmt::Display for Key {
@@ -16,6 +17,8 @@ impl std::fmt::Display for Key {
         match self {
             Key::Str(x) => write!(f, "\"{}\"", x),
             Key::Uint(x) => write!(f, "{}", x),
+            Key::OptUint(Some(x)) => write!(f, "{}", x),
+            Key::OptUint(None) => write!(f, "null"),
         }
     }
 }
@@ -56,6 +59,7 @@ pub enum DeserializeFailure {
     UnexpectedKeyType(cbor_event::Type),
     VariableLenNatDecodeFailed,
     IoError(String),
+    CustomError(String),
 }
 
 #[derive(Debug)]
@@ -135,6 +139,7 @@ impl std::fmt::Display for DeserializeError {
                 write!(f, "Variable length natural number decode failed")
             }
             DeserializeFailure::IoError(e) => write!(f, "IO error: {}", e),
+            DeserializeFailure::CustomError(e) => write!(f, "Deserialize error: {}", e),
         }
     }
 }
