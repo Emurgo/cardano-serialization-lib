@@ -1,4 +1,4 @@
-use crate::serialization_tools::map_names::WitnessSetNames;
+use crate::serialization::map_names::WitnessSetNames;
 use crate::tx_builder::batch_tools::cbor_calculator::CborCalculator;
 use super::super::*;
 

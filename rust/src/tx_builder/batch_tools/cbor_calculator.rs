@@ -1,5 +1,6 @@
+use num_traits::ToPrimitive;
 use crate::fees::{LinearFee, min_fee_for_size};
-use crate::serialization_tools::map_names::{TxBodyNames, WitnessSetNames};
+use crate::serialization::map_names::{TxBodyNames, WitnessSetNames};
 use super::super::*;
 
 pub(super) struct CborCalculator();
@@ -69,7 +70,7 @@ impl CborCalculator {
     pub(super) fn get_bare_tx_body_size(body_fields: &HashSet<TxBodyNames>) -> usize {
         let mut size = CborCalculator::get_struct_size(body_fields.len() as u64);
         for field in body_fields {
-            size += CborCalculator::get_struct_size(field.to_number());
+            size += CborCalculator::get_struct_size(field.to_u64().unwrap());
         }
         size
     }
@@ -77,7 +78,7 @@ impl CborCalculator {
     pub(super) fn get_wintnesses_set_struct_size(witnesses_fields: &HashSet<WitnessSetNames>) -> usize {
         let mut size = CborCalculator::get_struct_size(witnesses_fields.len() as u64);
         for field in witnesses_fields {
-            size += CborCalculator::get_struct_size(field.to_number());
+            size += CborCalculator::get_struct_size(field.to_u64().unwrap());
         }
         size
     }

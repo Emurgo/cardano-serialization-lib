@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::serialization_tools::map_names::TxBodyNames;
+use crate::serialization::map_names::TxBodyNames;
 use super::super::*;
 use super::indexes::{UtxoIndex, AssetIndex, PolicyIndex};
 use super::asset_categorizer::AssetCategorizer;
