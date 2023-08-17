@@ -1,7 +1,9 @@
-use num_traits::ToPrimitive;
-use crate::*;
 use crate::serialization::map_names::CertificateIndexNames;
-use crate::serialization::struct_checks::{check_len, deserialize_and_check_index, serialize_and_check_index};
+use crate::serialization::struct_checks::{
+    check_len, deserialize_and_check_index, serialize_and_check_index,
+};
+use crate::*;
+use num_traits::ToPrimitive;
 
 impl cbor_event::se::Serialize for StakeDelegation {
     fn serialize<'se, W: Write>(
@@ -18,7 +20,6 @@ impl SerializeEmbeddedGroup for StakeDelegation {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-
         let proposal_index = CertificateIndexNames::StakeDelegation.to_u64();
         serialize_and_check_index(serializer, proposal_index, "StakeDelegation")?;
 
@@ -35,7 +36,6 @@ impl DeserializeEmbeddedGroup for StakeDelegation {
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-
         check_len(len, 3, "(cert_index, stake_credential, pool_keyhash)")?;
         let cert_index = CertificateIndexNames::StakeDelegation.to_u64();
         deserialize_and_check_index(raw, cert_index, "cert_index")?;

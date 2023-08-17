@@ -1,7 +1,5 @@
 use crate::serialization::map_names::CertificateIndexNames;
-use crate::serialization::struct_checks::{
-    check_index, check_len, serialize_and_check_index,
-};
+use crate::serialization::struct_checks::{check_index, check_len, serialize_and_check_index};
 use crate::*;
 use cbor_event::Len;
 use num_traits::{FromPrimitive, ToPrimitive};

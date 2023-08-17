@@ -65,8 +65,8 @@ impl DeserializeEmbeddedGroup for CertificateEnum {
         let index_enum =
             CertificateIndexNames::from_u64(cert_index).ok_or(DeserializeError::new(
                 "CertificateEnum",
-                DeserializeFailure::UnknownKey(Key::Uint(cert_index),
-            )))?;
+                DeserializeFailure::UnknownKey(Key::Uint(cert_index)),
+            ))?;
 
         match index_enum {
             CertificateIndexNames::StakeRegistrationLegacy => {

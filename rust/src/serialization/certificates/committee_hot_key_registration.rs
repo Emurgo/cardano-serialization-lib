@@ -1,7 +1,9 @@
-use num_traits::ToPrimitive;
-use crate::*;
 use crate::serialization::map_names::CertificateIndexNames;
-use crate::serialization::struct_checks::{check_len, deserialize_and_check_index, serialize_and_check_index};
+use crate::serialization::struct_checks::{
+    check_len, deserialize_and_check_index, serialize_and_check_index,
+};
+use crate::*;
+use num_traits::ToPrimitive;
 
 impl cbor_event::se::Serialize for CommitteeHotKeyRegistration {
     fn serialize<'se, W: Write>(
@@ -26,8 +28,11 @@ impl DeserializeEmbeddedGroup for CommitteeHotKeyRegistration {
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-
-        check_len(len, 3, "(cert_index, committee_cold_key, committee_hot_key)")?;
+        check_len(
+            len,
+            3,
+            "(cert_index, committee_cold_key, committee_hot_key)",
+        )?;
 
         let cert_index = CertificateIndexNames::CommitteeHotKeyRegistration.to_u64();
         deserialize_and_check_index(raw, cert_index, "cert_index")?;

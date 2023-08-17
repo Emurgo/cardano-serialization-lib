@@ -1,8 +1,8 @@
+use crate::serialization::map_names::CertificateIndexNames;
+use crate::serialization::struct_checks::{check_index, check_len, serialize_and_check_index};
 use crate::*;
 use cbor_event::Len;
 use num_traits::{FromPrimitive, ToPrimitive};
-use crate::serialization::map_names::CertificateIndexNames;
-use crate::serialization::struct_checks::{check_index, check_len, serialize_and_check_index};
 
 impl cbor_event::se::Serialize for StakeRegistration {
     fn serialize<'se, W: Write>(
@@ -56,8 +56,12 @@ impl DeserializeEmbeddedGroup for StakeRegistration {
         let cert_index = raw.unsigned_integer()?;
         let index_enum = CertificateIndexNames::from_u64(cert_index);
         match index_enum {
-            Some(CertificateIndexNames::StakeRegistrationLegacy) => deserialize_legacy(raw, cert_index, len),
-            Some(CertificateIndexNames::StakeRegistrationConway) => deserialize_conway(raw, cert_index, len),
+            Some(CertificateIndexNames::StakeRegistrationLegacy) => {
+                deserialize_legacy(raw, cert_index, len)
+            }
+            Some(CertificateIndexNames::StakeRegistrationConway) => {
+                deserialize_conway(raw, cert_index, len)
+            }
             _ => Err(DeserializeFailure::FixedValuesMismatch {
                 found: Key::Uint(cert_index),
                 expected: vec![
@@ -65,7 +69,7 @@ impl DeserializeEmbeddedGroup for StakeRegistration {
                     Key::OptUint(CertificateIndexNames::StakeRegistrationConway.to_u64()),
                 ],
             })
-                .map_err(|e| DeserializeError::from(e).annotate("cert_index")),
+            .map_err(|e| DeserializeError::from(e).annotate("cert_index")),
         }
     }
 }

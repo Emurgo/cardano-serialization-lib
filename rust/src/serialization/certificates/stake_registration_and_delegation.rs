@@ -1,7 +1,9 @@
-use num_traits::ToPrimitive;
-use crate::*;
 use crate::serialization::map_names::CertificateIndexNames;
-use crate::serialization::struct_checks::{check_len, deserialize_and_check_index, serialize_and_check_index};
+use crate::serialization::struct_checks::{
+    check_len, deserialize_and_check_index, serialize_and_check_index,
+};
+use crate::*;
+use num_traits::ToPrimitive;
 
 impl cbor_event::se::Serialize for StakeRegistrationAndDelegation {
     fn serialize<'se, W: Write>(
