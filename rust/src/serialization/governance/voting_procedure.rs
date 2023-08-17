@@ -51,7 +51,7 @@ impl Deserialize for VotingProcedure {
                 }
             };
 
-            let anchor = Anchor::deserialize(raw).map_err(
+            let anchor = Anchor::deserialize_nullable(raw).map_err(
                 |e| e.annotate("anchor")
             )?;
 
