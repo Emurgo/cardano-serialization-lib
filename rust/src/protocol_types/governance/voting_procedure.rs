@@ -41,14 +41,14 @@ impl_to_from!(VotingProcedure);
 
 #[wasm_bindgen]
 impl VotingProcedure {
-    pub fn new(vote: &VoteKind) -> Self {
+    pub fn new(vote: VoteKind) -> Self {
         Self {
             vote: vote.clone(),
             anchor: None,
         }
     }
 
-    pub fn new_with_anchor(vote: &VoteKind, anchor: &Anchor) -> Self {
+    pub fn new_with_anchor(vote: VoteKind, anchor: &Anchor) -> Self {
         Self {
             vote: vote.clone(),
             anchor: Some(anchor.clone()),

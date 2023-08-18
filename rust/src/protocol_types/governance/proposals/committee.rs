@@ -38,9 +38,9 @@ impl Committee {
         self.quorum_threshold.clone()
     }
 
-    pub fn add_member(&mut self, committee_cold_credential: &StakeCredential, epoch: &Epoch) {
+    pub fn add_member(&mut self, committee_cold_credential: &StakeCredential, epoch: Epoch) {
         self.members
-            .insert(committee_cold_credential.clone(), epoch.clone());
+            .insert(committee_cold_credential.clone(), epoch);
     }
 
     pub fn get_member_epoch(&self, committee_cold_credential: &StakeCredential) -> Option<Epoch> {
