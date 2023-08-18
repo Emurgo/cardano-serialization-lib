@@ -15,6 +15,9 @@ extern crate quickcheck;
 extern crate quickcheck_macros;
 extern crate hex;
 
+#[macro_use]
+extern crate num_derive;
+
 use std::convert::TryInto;
 use std::io::{BufRead, Seek, Write};
 
@@ -52,10 +55,10 @@ pub mod tx_builder;
 pub mod tx_builder_constants;
 pub mod typed_bytes;
 mod protocol_types;
+pub use protocol_types::*;
 #[macro_use]
 pub mod utils;
 mod fakes;
-mod serialization_tools;
 mod serialization;
 
 use crate::traits::NoneOrEmpty;
