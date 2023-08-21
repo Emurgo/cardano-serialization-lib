@@ -31,7 +31,7 @@ impl DeserializeEmbeddedGroup for ParameterChangeProposal {
         check_len(
             len,
             3,
-            "(proposal_index, gov_action_id // null), protocol_param_updates",
+            "(proposal_index, gov_action_id // null, protocol_param_updates)",
         )?;
 
         let desired_index = VotingProposalIndexNames::ParameterChangeAction.to_u64();
