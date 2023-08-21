@@ -1227,7 +1227,7 @@ impl TransactionBuilder {
         )
     }
 
-    pub fn add_extra_datum(&mut self, datum: &PlutusData) {
+    pub fn add_extra_witness_datum(&mut self, datum: &PlutusData) {
         if let Some(extra_datums) = &mut self.extra_datums {
             extra_datums.add(datum);
         } else {
@@ -1237,7 +1237,7 @@ impl TransactionBuilder {
         }
     }
 
-    pub fn get_extra_datums(&self) -> Option<PlutusList> {
+    pub fn get_extra_witness_datums(&self) -> Option<PlutusList> {
         self.extra_datums.clone()
     }
 
@@ -8178,7 +8178,7 @@ mod tests {
         tx_builder.set_fee(&to_bignum(42));
 
         let datum = PlutusData::new_bytes(fake_bytes_32(1));
-        tx_builder.add_extra_datum(&datum);
+        tx_builder.add_extra_witness_datum(&datum);
 
         let mut inp = TxInputsBuilder::new();
         inp.add_input(
@@ -8207,7 +8207,7 @@ mod tests {
         let tx_builder_script_data_hash = tx_builder.script_data_hash.clone();
         assert_eq!(tx_builder_script_data_hash.unwrap(), data_hash);
 
-        let extra_datums = tx_builder.get_extra_datums().unwrap();
+        let extra_datums = tx_builder.get_extra_witness_datums().unwrap();
         assert_eq!(&extra_datums.get(0), &datum);
         assert_eq!(extra_datums.len(), 1usize);
         assert_eq!(tx_builder.get_witness_set().plutus_data().unwrap().len(), 1usize);
