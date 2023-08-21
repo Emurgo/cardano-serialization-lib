@@ -3,11 +3,11 @@ use crate::*;
 #[derive(
     Clone,
     Debug,
+    Hash,
     Eq,
     Ord,
     PartialEq,
     PartialOrd,
-    Hash,
     serde::Serialize,
     serde::Deserialize,
     JsonSchema,

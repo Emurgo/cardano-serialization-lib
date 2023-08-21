@@ -3,11 +3,11 @@ use crate::*;
 #[derive(
     Clone,
     Debug,
+    Hash,
     Eq,
     Ord,
     PartialEq,
     PartialOrd,
-    Hash,
     serde::Serialize,
     serde::Deserialize,
     JsonSchema,
@@ -17,6 +17,8 @@ pub struct NewConstitutionProposal {
     pub(crate) gov_action_id: Option<GovernanceActionId>,
     pub(crate) constitution: Constitution,
 }
+
+impl_to_from!(NewConstitutionProposal);
 
 impl NewConstitutionProposal {
     pub fn gov_action_id(&self) -> Option<GovernanceActionId> {

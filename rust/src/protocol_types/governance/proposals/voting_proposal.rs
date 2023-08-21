@@ -58,7 +58,7 @@ pub enum VotingProposalKind {
     JsonSchema,
 )]
 #[wasm_bindgen]
-pub struct VotingProposal(VotingProposalEnum);
+pub struct VotingProposal(pub(crate) VotingProposalEnum);
 
 impl_to_from!(VotingProposal);
 

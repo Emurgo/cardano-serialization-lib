@@ -1,7 +1,16 @@
 use crate::*;
 
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 #[wasm_bindgen]
 pub struct ParameterChangeProposal {
