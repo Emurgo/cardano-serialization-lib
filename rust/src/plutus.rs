@@ -271,7 +271,7 @@ impl ConstrPlutusData {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct CostModel(Vec<Int>);
 
@@ -324,7 +324,7 @@ impl From<Vec<i128>> for CostModel {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct Costmdls(std::collections::BTreeMap<Language, CostModel>);
 
@@ -412,7 +412,7 @@ impl Costmdls {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct ExUnitPrices {
     mem_price: SubCoin,
@@ -441,7 +441,7 @@ impl ExUnitPrices {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct ExUnits {
     mem: BigNum,
@@ -473,6 +473,7 @@ impl ExUnits {
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     Ord,
     PartialEq,
@@ -501,6 +502,7 @@ impl LanguageKind {
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     Ord,
     PartialEq,

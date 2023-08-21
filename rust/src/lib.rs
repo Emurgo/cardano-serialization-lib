@@ -74,7 +74,6 @@ use std::fmt::Display;
 use std::fmt;
 use utils::*;
 use serialization::*;
-use protocol_types::*;
 
 type DeltaCoin = Int;
 
@@ -1920,7 +1919,7 @@ impl ProposedProtocolParameterUpdates {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct ProtocolVersion {
     major: u32,
@@ -1946,7 +1945,7 @@ impl ProtocolVersion {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct ProtocolParamUpdate {
     minfee_a: Option<Coin>,
