@@ -27,3 +27,9 @@ pub use new_constitution_proposal::*;
 
 mod info_proposal;
 pub use info_proposal::*;
+
+mod voting_proposal;
+pub use voting_proposal::*;
+
+mod voting_proposals;
+pub use voting_proposals::*;
