@@ -160,6 +160,10 @@ fn main() {
 
     gen_json_schema!(DRep);
     gen_json_schema!(Anchor);
+    gen_json_schema!(Voter);
+    gen_json_schema!(GovernanceActionId);
+    gen_json_schema!(VotingProcedure);
+    gen_json_schema!(VotingProcedures);
     gen_json_schema!(CommitteeHotKeyDeregistration);
     gen_json_schema!(CommitteeHotKeyRegistration);
     gen_json_schema!(DrepDeregistration);
@@ -170,4 +174,16 @@ fn main() {
     gen_json_schema!(StakeVoteRegistrationAndDelegation);
     gen_json_schema!(VoteDelegation);
     gen_json_schema!(VoteRegistrationAndDelegation);
+
+    gen_json_schema!(VotingProposal);
+    gen_json_schema!(VotingProposals);
+    gen_json_schema!(HardForkInitiationProposal);
+    gen_json_schema!(NewCommitteeProposal);
+    gen_json_schema!(NewConstitutionProposal);
+    gen_json_schema!(NoConfidenceProposal);
+    gen_json_schema!(ParameterChangeProposal);
+    gen_json_schema!(TreasuryWithdrawals);
+    gen_json_schema!(TreasuryWithdrawalsProposal);
+    gen_json_schema!(Committee);
+    gen_json_schema!(Constitution);
 }
