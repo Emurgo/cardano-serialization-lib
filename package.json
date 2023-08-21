@@ -1,6 +1,6 @@
 {
   "name": "cardano-serialization-lib",
-  "version": "11.4.0",
+  "version": "11.5.0",
   "description": "(De)serialization functions for the Cardano blockchain along with related utility functions",
   "scripts": {
     "rust:build-nodejs": "(rimraf ./rust/pkg && cd rust; wasm-pack build --target=nodejs; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run js:flowgen",
@@ -8,7 +8,7 @@
     "rust:build-web": "(rimraf ./rust/pkg && cd rust; wasm-pack build --target=web; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run js:flowgen",
     "rust:build-asm": "(rimraf ./rust/pkg && cd rust; wasm-pack build --target=browser; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run asm:build && npm run js:flowgen",
     "rust:publish": "cd rust && cargo publish && cd ../",
-    "asm:build": "./binaryen/bin/wasm2js ./rust/pkg/cardano_serialization_lib_bg.wasm --output ./rust/pkg/cardano_serialization_lib.asm.js && node ./scripts/wasm-to-asm",
+    "asm:build": "./binaryen/bin/wasm2js ./rust/pkg/cardano_serialization_lib_bg.wasm --output ./rust/pkg/cardano_serialization_lib.asm.js && node ./scripts/wasm-to-asm && node ./scripts/fix-buffer-ref.js",
     "rust:check-warnings": "(cd rust; RUSTFLAGS=\"-D warnings\" cargo +stable build)",
     "rust:test": "(cd rust; cargo test)",
     "js:flowgen": "flowgen ./rust/pkg/cardano_serialization_lib.d.ts -o ./rust/pkg/cardano_serialization_lib.js.flow --add-flow-header",
@@ -34,7 +34,7 @@
     "url": "git+https://github.com/Emurgo/cardano-serialization-lib.git"
   },
   "devDependencies": {
-    "flowgen": "1.11.0",
+    "flowgen": "1.21.0",
     "husky": "4.2.5",
     "json-schema-to-typescript": "^10.1.5",
     "rimraf": "3.0.2"
