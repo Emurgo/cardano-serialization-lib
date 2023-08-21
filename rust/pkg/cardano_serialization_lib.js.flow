@@ -6,28 +6,31 @@
  */
 
 /**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
  */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
 
 /**
- * @param {string} password
- * @param {string} data
- * @returns {string}
+ * @param {ExUnits} ex_units
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
  */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
+declare export function calculate_ex_units_ceil_cost(
+  ex_units: ExUnits,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
+
+/**
+ * @param {Transaction} tx
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function min_script_fee(
+  tx: Transaction,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
 
 /**
  * @param {Address} address
@@ -180,6 +183,30 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
  * @param {string} json
  * @param {number} schema
  * @returns {PlutusData}
@@ -236,62 +263,6 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
- * @param {ExUnits} ex_units
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function calculate_ex_units_ceil_cost(
-  ex_units: ExUnits,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
-
-/**
- * @param {Transaction} tx
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function min_script_fee(
-  tx: Transaction,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
-
-/**
- */
-
-declare export var CertificateKind: {|
-  +StakeRegistration: 0, // 0
-  +StakeDeregistration: 1, // 1
-  +StakeDelegation: 2, // 2
-  +PoolRegistration: 3, // 3
-  +PoolRetirement: 4, // 4
-  +GenesisKeyDelegation: 5, // 5
-  +MoveInstantaneousRewardsCert: 6, // 6
-|};
-
-/**
- */
-
-declare export var MIRPot: {|
-  +Reserves: 0, // 0
-  +Treasury: 1, // 1
-|};
-
-/**
- */
-
-declare export var MIRKind: {|
-  +ToOtherPot: 0, // 0
-  +ToStakeCredentials: 1, // 1
-|};
-
-/**
  */
 
 declare export var RelayKind: {|
@@ -334,12 +305,107 @@ declare export var NetworkIdKind: {|
 |};
 
 /**
+ */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ */
+
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
+|};
+
+/**
+ */
+
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
+|};
+
+/**
+ */
+
+declare export var VoterKind: {|
+  +ConstitutionalCommitteeHotKeyHash: 0, // 0
+  +ConstitutionalCommitteeHotScriptHash: 1, // 1
+  +DRepKeyHash: 2, // 2
+  +DRepScriptHash: 3, // 3
+  +StakingPoolKeyHash: 4, // 4
+|};
+
+/**
+ */
+
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
+|};
+
+/**
+ */
+
+declare export var StakeCredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
  * Used to choosed the schema for a script JSON string
  */
 
 declare export var ScriptSchema: {|
   +Wallet: 0, // 0
   +Node: 1, // 1
+|};
+
+/**
+ */
+
+declare export var DRepKind: {|
+  +KeyHash: 0, // 0
+  +ScriptHash: 1, // 1
+  +AlwaysAbstain: 2, // 2
+  +AlwaysNoConfidence: 3, // 3
+|};
+
+/**
+ */
+
+declare export var CertificateKind: {|
+  +StakeRegistration: 0, // 0
+  +StakeDeregistration: 1, // 1
+  +StakeDelegation: 2, // 2
+  +PoolRegistration: 3, // 3
+  +PoolRetirement: 4, // 4
+  +GenesisKeyDelegation: 5, // 5
+  +MoveInstantaneousRewardsCert: 6, // 6
+  +CommitteeHotKeyRegistration: 7, // 7
+  +CommitteeHotKeyDeregistration: 8, // 8
+  +DrepDeregistration: 9, // 9
+  +DrepRegistration: 10, // 10
+  +DrepUpdate: 11, // 11
+  +StakeAndVoteDelegation: 12, // 12
+  +StakeRegistrationAndDelegation: 13, // 13
+  +StakeVoteRegistrationAndDelegation: 14, // 14
+  +VoteDelegation: 15, // 15
+  +VoteRegistrationAndDelegation: 16, // 16
+|};
+
+/**
+ */
+
+declare export var VoteKind: {|
+  +No: 0, // 0
+  +Yes: 1, // 1
+  +Abstain: 2, // 2
 |};
 
 /**
@@ -369,6 +435,7 @@ declare export var RedeemerTagKind: {|
   +Mint: 1, // 1
   +Cert: 2, // 2
   +Reward: 3, // 3
+  +Vote: 4, // 4
 |};
 
 /**
@@ -411,27 +478,14 @@ declare export var MetadataJsonSchema: {|
 /**
  */
 
-declare export var CborContainerType: {|
-  +Array: 0, // 0
-  +Map: 1, // 1
-|};
-
-/**
- */
-
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-  +LargestFirstMultiAsset: 2, // 2
-  +RandomImproveMultiAsset: 3, // 3
-|};
-
-/**
- */
-
-declare export var StakeCredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
+declare export var VotingProposalKind: {|
+  +ParameterChangeProposal: 0, // 0
+  +HardForkInitiationProposal: 1, // 1
+  +TreasuryWithdrawalsProposal: 2, // 2
+  +NoConfidenceProposal: 3, // 3
+  +NewCommitteeProposal: 4, // 4
+  +NewConstitutionProposal: 5, // 5
+  +InfoProposal: 6, // 6
 |};
 
 /**
@@ -493,6 +547,67 @@ declare export class Address {
    * @returns {number}
    */
   network_id(): number;
+}
+/**
+ */
+declare export class Anchor {
+  free(): void;
+
+  /**
+   * @returns {URL}
+   */
+  anchor_url(): URL;
+
+  /**
+   * @returns {AnchorDataHash}
+   */
+  anchor_data_hash(): AnchorDataHash;
+
+  /**
+   * @param {URL} anchor_url
+   * @param {AnchorDataHash} anchor_data_hash
+   * @returns {Anchor}
+   */
+  static new(anchor_url: URL, anchor_data_hash: AnchorDataHash): Anchor;
+}
+/**
+ */
+declare export class AnchorDataHash {
+  free(): void;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {AnchorDataHash}
+   */
+  static from_bytes(bytes: Uint8Array): AnchorDataHash;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {AnchorDataHash}
+   */
+  static from_bech32(bech_str: string): AnchorDataHash;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex
+   * @returns {AnchorDataHash}
+   */
+  static from_hex(hex: string): AnchorDataHash;
 }
 /**
  */
@@ -1684,6 +1799,82 @@ declare export class Certificate {
   ): Certificate;
 
   /**
+   * @param {CommitteeHotKeyRegistration} committee_hot_key_registration
+   * @returns {Certificate}
+   */
+  static new_committee_hot_key_registration(
+    committee_hot_key_registration: CommitteeHotKeyRegistration
+  ): Certificate;
+
+  /**
+   * @param {CommitteeHotKeyDeregistration} committee_hot_key_deregistration
+   * @returns {Certificate}
+   */
+  static new_committee_hot_key_deregistration(
+    committee_hot_key_deregistration: CommitteeHotKeyDeregistration
+  ): Certificate;
+
+  /**
+   * @param {DrepDeregistration} drep_deregistration
+   * @returns {Certificate}
+   */
+  static new_drep_deregistration(
+    drep_deregistration: DrepDeregistration
+  ): Certificate;
+
+  /**
+   * @param {DrepRegistration} drep_registration
+   * @returns {Certificate}
+   */
+  static new_drep_registration(
+    drep_registration: DrepRegistration
+  ): Certificate;
+
+  /**
+   * @param {DrepUpdate} drep_update
+   * @returns {Certificate}
+   */
+  static new_drep_update(drep_update: DrepUpdate): Certificate;
+
+  /**
+   * @param {StakeAndVoteDelegation} stake_and_vote_delegation
+   * @returns {Certificate}
+   */
+  static new_stake_and_vote_delegation(
+    stake_and_vote_delegation: StakeAndVoteDelegation
+  ): Certificate;
+
+  /**
+   * @param {StakeRegistrationAndDelegation} stake_registration_and_delegation
+   * @returns {Certificate}
+   */
+  static new_stake_registration_and_delegation(
+    stake_registration_and_delegation: StakeRegistrationAndDelegation
+  ): Certificate;
+
+  /**
+   * @param {StakeVoteRegistrationAndDelegation} stake_vote_registration_and_delegation
+   * @returns {Certificate}
+   */
+  static new_stake_vote_registration_and_delegation(
+    stake_vote_registration_and_delegation: StakeVoteRegistrationAndDelegation
+  ): Certificate;
+
+  /**
+   * @param {VoteDelegation} vote_delegation
+   * @returns {Certificate}
+   */
+  static new_vote_delegation(vote_delegation: VoteDelegation): Certificate;
+
+  /**
+   * @param {VoteRegistrationAndDelegation} vote_registration_and_delegation
+   * @returns {Certificate}
+   */
+  static new_vote_registration_and_delegation(
+    vote_registration_and_delegation: VoteRegistrationAndDelegation
+  ): Certificate;
+
+  /**
    * @returns {number}
    */
   kind(): number;
@@ -1722,6 +1913,61 @@ declare export class Certificate {
    * @returns {MoveInstantaneousRewardsCert | void}
    */
   as_move_instantaneous_rewards_cert(): MoveInstantaneousRewardsCert | void;
+
+  /**
+   * @returns {CommitteeHotKeyRegistration | void}
+   */
+  as_committee_hot_key_registration(): CommitteeHotKeyRegistration | void;
+
+  /**
+   * @returns {CommitteeHotKeyDeregistration | void}
+   */
+  as_committee_hot_key_deregistration(): CommitteeHotKeyDeregistration | void;
+
+  /**
+   * @returns {DrepDeregistration | void}
+   */
+  as_drep_deregistration(): DrepDeregistration | void;
+
+  /**
+   * @returns {DrepRegistration | void}
+   */
+  as_drep_registration(): DrepRegistration | void;
+
+  /**
+   * @returns {DrepUpdate | void}
+   */
+  as_drep_update(): DrepUpdate | void;
+
+  /**
+   * @returns {StakeAndVoteDelegation | void}
+   */
+  as_stake_and_vote_delegation(): StakeAndVoteDelegation | void;
+
+  /**
+   * @returns {StakeRegistrationAndDelegation | void}
+   */
+  as_stake_registration_and_delegation(): StakeRegistrationAndDelegation | void;
+
+  /**
+   * @returns {StakeVoteRegistrationAndDelegation | void}
+   */
+  as_stake_vote_registration_and_delegation(): StakeVoteRegistrationAndDelegation | void;
+
+  /**
+   * @returns {VoteDelegation | void}
+   */
+  as_vote_delegation(): VoteDelegation | void;
+
+  /**
+   * @returns {VoteRegistrationAndDelegation | void}
+   */
+  as_vote_registration_and_delegation(): VoteRegistrationAndDelegation | void;
+
+  /**
+   * @returns {boolean}
+   */
+  has_required_script_witness(): boolean;
 }
 /**
  */
@@ -1786,6 +2032,344 @@ declare export class Certificates {
    * @param {Certificate} elem
    */
   add(elem: Certificate): void;
+}
+/**
+ */
+declare export class CertificatesBuilder {
+  free(): void;
+
+  /**
+   * @returns {CertificatesBuilder}
+   */
+  static new(): CertificatesBuilder;
+
+  /**
+   * @param {Certificate} cert
+   */
+  add(cert: Certificate): void;
+
+  /**
+   * @param {Certificate} cert
+   * @param {PlutusWitness} witness
+   */
+  add_with_plutus_witness(cert: Certificate, witness: PlutusWitness): void;
+
+  /**
+   * @param {Certificate} cert
+   * @param {NativeScriptSource} native_script_source
+   */
+  add_with_native_script(
+    cert: Certificate,
+    native_script_source: NativeScriptSource
+  ): void;
+
+  /**
+   * @returns {PlutusWitnesses}
+   */
+  get_plutus_witnesses(): PlutusWitnesses;
+
+  /**
+   * @returns {TransactionInputs}
+   */
+  get_ref_inputs(): TransactionInputs;
+
+  /**
+   * @returns {NativeScripts}
+   */
+  get_native_scripts(): NativeScripts;
+
+  /**
+   * @param {BigNum} pool_deposit
+   * @param {BigNum} key_deposit
+   * @returns {Value}
+   */
+  get_certificates_refund(pool_deposit: BigNum, key_deposit: BigNum): Value;
+
+  /**
+   * @param {BigNum} pool_deposit
+   * @param {BigNum} key_deposit
+   * @returns {BigNum}
+   */
+  get_certificates_deposit(pool_deposit: BigNum, key_deposit: BigNum): BigNum;
+
+  /**
+   * @returns {boolean}
+   */
+  has_plutus_scripts(): boolean;
+
+  /**
+   * @returns {Certificates}
+   */
+  build(): Certificates;
+}
+/**
+ */
+declare export class Committee {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Committee}
+   */
+  static from_bytes(bytes: Uint8Array): Committee;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {Committee}
+   */
+  static from_hex(hex_str: string): Committee;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {CommitteeJSON}
+   */
+  to_js_value(): CommitteeJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Committee}
+   */
+  static from_json(json: string): Committee;
+
+  /**
+   * @param {UnitInterval} quorum_threshold
+   * @returns {Committee}
+   */
+  static new(quorum_threshold: UnitInterval): Committee;
+
+  /**
+   * @returns {StakeCredentials}
+   */
+  members_keys(): StakeCredentials;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  quorum_threshold(): UnitInterval;
+
+  /**
+   * @param {StakeCredential} committee_cold_credential
+   * @param {number} epoch
+   */
+  add_member(committee_cold_credential: StakeCredential, epoch: number): void;
+
+  /**
+   * @param {StakeCredential} committee_cold_credential
+   * @returns {number | void}
+   */
+  get_member_epoch(committee_cold_credential: StakeCredential): number | void;
+}
+/**
+ */
+declare export class CommitteeHotKeyDeregistration {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {CommitteeHotKeyDeregistration}
+   */
+  static from_bytes(bytes: Uint8Array): CommitteeHotKeyDeregistration;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {CommitteeHotKeyDeregistration}
+   */
+  static from_hex(hex_str: string): CommitteeHotKeyDeregistration;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {CommitteeHotKeyDeregistrationJSON}
+   */
+  to_js_value(): CommitteeHotKeyDeregistrationJSON;
+
+  /**
+   * @param {string} json
+   * @returns {CommitteeHotKeyDeregistration}
+   */
+  static from_json(json: string): CommitteeHotKeyDeregistration;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  committee_cold_key(): StakeCredential;
+
+  /**
+   * @param {StakeCredential} committee_cold_key
+   * @returns {CommitteeHotKeyDeregistration}
+   */
+  static new(
+    committee_cold_key: StakeCredential
+  ): CommitteeHotKeyDeregistration;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
+}
+/**
+ */
+declare export class CommitteeHotKeyRegistration {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {CommitteeHotKeyRegistration}
+   */
+  static from_bytes(bytes: Uint8Array): CommitteeHotKeyRegistration;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {CommitteeHotKeyRegistration}
+   */
+  static from_hex(hex_str: string): CommitteeHotKeyRegistration;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {CommitteeHotKeyRegistrationJSON}
+   */
+  to_js_value(): CommitteeHotKeyRegistrationJSON;
+
+  /**
+   * @param {string} json
+   * @returns {CommitteeHotKeyRegistration}
+   */
+  static from_json(json: string): CommitteeHotKeyRegistration;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  committee_cold_key(): StakeCredential;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  committee_hot_key(): StakeCredential;
+
+  /**
+   * @param {StakeCredential} committee_cold_key
+   * @param {StakeCredential} committee_hot_key
+   * @returns {CommitteeHotKeyRegistration}
+   */
+  static new(
+    committee_cold_key: StakeCredential,
+    committee_hot_key: StakeCredential
+  ): CommitteeHotKeyRegistration;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
+}
+/**
+ */
+declare export class Constitution {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Constitution}
+   */
+  static from_bytes(bytes: Uint8Array): Constitution;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {Constitution}
+   */
+  static from_hex(hex_str: string): Constitution;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {ConstitutionJSON}
+   */
+  to_js_value(): ConstitutionJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Constitution}
+   */
+  static from_json(json: string): Constitution;
+
+  /**
+   * @returns {Anchor}
+   */
+  anchor(): Anchor;
+
+  /**
+   * @returns {ScriptHash | void}
+   */
+  script_hash(): ScriptHash | void;
+
+  /**
+   * @param {Anchor} anchor
+   * @returns {Constitution}
+   */
+  static new(anchor: Anchor): Constitution;
+
+  /**
+   * @param {Anchor} anchor
+   * @param {ScriptHash} script_hash
+   * @returns {Constitution}
+   */
+  static new_with_script_hash(
+    anchor: Anchor,
+    script_hash: ScriptHash
+  ): Constitution;
 }
 /**
  */
@@ -2088,6 +2672,86 @@ declare export class DNSRecordSRV {
 }
 /**
  */
+declare export class DRep {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DRep}
+   */
+  static from_bytes(bytes: Uint8Array): DRep;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {DRep}
+   */
+  static from_hex(hex_str: string): DRep;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {DRepJSON}
+   */
+  to_js_value(): DRepJSON;
+
+  /**
+   * @param {string} json
+   * @returns {DRep}
+   */
+  static from_json(json: string): DRep;
+
+  /**
+   * @param {Ed25519KeyHash} key_hash
+   * @returns {DRep}
+   */
+  static new_key_hash(key_hash: Ed25519KeyHash): DRep;
+
+  /**
+   * @param {ScriptHash} script_hash
+   * @returns {DRep}
+   */
+  static new_script_hash(script_hash: ScriptHash): DRep;
+
+  /**
+   * @returns {DRep}
+   */
+  static new_always_abstain(): DRep;
+
+  /**
+   * @returns {DRep}
+   */
+  static new_always_no_confidence(): DRep;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+
+  /**
+   * @returns {Ed25519KeyHash | void}
+   */
+  to_key_hash(): Ed25519KeyHash | void;
+
+  /**
+   * @returns {ScriptHash | void}
+   */
+  to_script_hash(): ScriptHash | void;
+}
+/**
+ */
 declare export class DataCost {
   free(): void;
 
@@ -2165,6 +2829,209 @@ declare export class DatumSource {
    * @returns {DatumSource}
    */
   static new_ref_input(input: TransactionInput): DatumSource;
+}
+/**
+ */
+declare export class DrepDeregistration {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DrepDeregistration}
+   */
+  static from_bytes(bytes: Uint8Array): DrepDeregistration;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {DrepDeregistration}
+   */
+  static from_hex(hex_str: string): DrepDeregistration;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {DrepDeregistrationJSON}
+   */
+  to_js_value(): DrepDeregistrationJSON;
+
+  /**
+   * @param {string} json
+   * @returns {DrepDeregistration}
+   */
+  static from_json(json: string): DrepDeregistration;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  voting_credential(): StakeCredential;
+
+  /**
+   * @returns {BigNum}
+   */
+  coin(): BigNum;
+
+  /**
+   * @param {StakeCredential} voting_credential
+   * @param {BigNum} coin
+   * @returns {DrepDeregistration}
+   */
+  static new(
+    voting_credential: StakeCredential,
+    coin: BigNum
+  ): DrepDeregistration;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
+}
+/**
+ */
+declare export class DrepRegistration {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DrepRegistration}
+   */
+  static from_bytes(bytes: Uint8Array): DrepRegistration;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {DrepRegistration}
+   */
+  static from_hex(hex_str: string): DrepRegistration;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {DrepRegistrationJSON}
+   */
+  to_js_value(): DrepRegistrationJSON;
+
+  /**
+   * @param {string} json
+   * @returns {DrepRegistration}
+   */
+  static from_json(json: string): DrepRegistration;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  voting_credential(): StakeCredential;
+
+  /**
+   * @returns {BigNum}
+   */
+  coin(): BigNum;
+
+  /**
+   * @returns {Anchor | void}
+   */
+  anchor(): Anchor | void;
+
+  /**
+   * @param {StakeCredential} voting_credential
+   * @param {BigNum} coin
+   * @param {Anchor | void} anchor
+   * @returns {DrepRegistration}
+   */
+  static new(
+    voting_credential: StakeCredential,
+    coin: BigNum,
+    anchor?: Anchor
+  ): DrepRegistration;
+}
+/**
+ */
+declare export class DrepUpdate {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DrepUpdate}
+   */
+  static from_bytes(bytes: Uint8Array): DrepUpdate;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {DrepUpdate}
+   */
+  static from_hex(hex_str: string): DrepUpdate;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {DrepUpdateJSON}
+   */
+  to_js_value(): DrepUpdateJSON;
+
+  /**
+   * @param {string} json
+   * @returns {DrepUpdate}
+   */
+  static from_json(json: string): DrepUpdate;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  voting_credential(): StakeCredential;
+
+  /**
+   * @returns {Anchor | void}
+   */
+  anchor(): Anchor | void;
+
+  /**
+   * @param {StakeCredential} voting_credential
+   * @param {Anchor | void} anchor
+   * @returns {DrepUpdate}
+   */
+  static new(voting_credential: StakeCredential, anchor?: Anchor): DrepUpdate;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
 }
 /**
  */
@@ -2853,6 +3720,175 @@ declare export class GenesisKeyDelegation {
 }
 /**
  */
+declare export class GovernanceActionId {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {GovernanceActionId}
+   */
+  static from_bytes(bytes: Uint8Array): GovernanceActionId;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {GovernanceActionId}
+   */
+  static from_hex(hex_str: string): GovernanceActionId;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {GovernanceActionIdJSON}
+   */
+  to_js_value(): GovernanceActionIdJSON;
+
+  /**
+   * @param {string} json
+   * @returns {GovernanceActionId}
+   */
+  static from_json(json: string): GovernanceActionId;
+
+  /**
+   * @returns {TransactionHash}
+   */
+  transaction_id(): TransactionHash;
+
+  /**
+   * @returns {number}
+   */
+  index(): number;
+
+  /**
+   * @param {TransactionHash} transaction_id
+   * @param {number} index
+   * @returns {GovernanceActionId}
+   */
+  static new(
+    transaction_id: TransactionHash,
+    index: number
+  ): GovernanceActionId;
+}
+/**
+ */
+declare export class GovernanceActionIds {
+  free(): void;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {GovernanceActionIdsJSON}
+   */
+  to_js_value(): GovernanceActionIdsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {GovernanceActionIds}
+   */
+  static from_json(json: string): GovernanceActionIds;
+
+  /**
+   * @returns {GovernanceActionIds}
+   */
+  static new(): GovernanceActionIds;
+
+  /**
+   * @param {number} index
+   * @returns {GovernanceActionId | void}
+   */
+  get(index: number): GovernanceActionId | void;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+}
+/**
+ */
+declare export class HardForkInitiationProposal {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {HardForkInitiationProposal}
+   */
+  static from_bytes(bytes: Uint8Array): HardForkInitiationProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {HardForkInitiationProposal}
+   */
+  static from_hex(hex_str: string): HardForkInitiationProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {HardForkInitiationProposalJSON}
+   */
+  to_js_value(): HardForkInitiationProposalJSON;
+
+  /**
+   * @param {string} json
+   * @returns {HardForkInitiationProposal}
+   */
+  static from_json(json: string): HardForkInitiationProposal;
+
+  /**
+   * @returns {GovernanceActionId | void}
+   */
+  gov_action_id(): GovernanceActionId | void;
+
+  /**
+   * @returns {ProtocolVersion}
+   */
+  protocol_version(): ProtocolVersion;
+
+  /**
+   * @param {ProtocolVersion} protocol_version
+   * @returns {HardForkInitiationProposal}
+   */
+  static new(protocol_version: ProtocolVersion): HardForkInitiationProposal;
+
+  /**
+   * @param {GovernanceActionId} gov_action_id
+   * @param {ProtocolVersion} protocol_version
+   * @returns {HardForkInitiationProposal}
+   */
+  static new_with_action_id(
+    gov_action_id: GovernanceActionId,
+    protocol_version: ProtocolVersion
+  ): HardForkInitiationProposal;
+}
+/**
+ */
 declare export class Header {
   free(): void;
 
@@ -3094,6 +4130,16 @@ declare export class HeaderBody {
     operational_cert: OperationalCert,
     protocol_version: ProtocolVersion
   ): HeaderBody;
+}
+/**
+ */
+declare export class InfoProposal {
+  free(): void;
+
+  /**
+   * @returns {InfoProposal}
+   */
+  static new(): InfoProposal;
 }
 /**
  */
@@ -4433,6 +5479,29 @@ declare export class NativeScript {
 }
 /**
  */
+declare export class NativeScriptSource {
+  free(): void;
+
+  /**
+   * @param {NativeScript} script
+   * @returns {NativeScriptSource}
+   */
+  static new(script: NativeScript): NativeScriptSource;
+
+  /**
+   * @param {ScriptHash} script_hash
+   * @param {TransactionInput} input
+   * @param {Ed25519KeyHashes} required_signers
+   * @returns {NativeScriptSource}
+   */
+  static new_ref_input(
+    script_hash: ScriptHash,
+    input: TransactionInput,
+    required_signers: Ed25519KeyHashes
+  ): NativeScriptSource;
+}
+/**
+ */
 declare export class NativeScripts {
   free(): void;
 
@@ -4558,6 +5627,172 @@ declare export class NetworkInfo {
    * @returns {NetworkInfo}
    */
   static mainnet(): NetworkInfo;
+}
+/**
+ */
+declare export class NewCommitteeProposal {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {NewCommitteeProposal}
+   */
+  static from_bytes(bytes: Uint8Array): NewCommitteeProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {NewCommitteeProposal}
+   */
+  static from_hex(hex_str: string): NewCommitteeProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {NewCommitteeProposalJSON}
+   */
+  to_js_value(): NewCommitteeProposalJSON;
+
+  /**
+   * @param {string} json
+   * @returns {NewCommitteeProposal}
+   */
+  static from_json(json: string): NewCommitteeProposal;
+
+  /**
+   * @returns {GovernanceActionId | void}
+   */
+  gov_action_id(): GovernanceActionId | void;
+
+  /**
+   * @returns {Committee}
+   */
+  committee(): Committee;
+
+  /**
+   * @returns {StakeCredentials}
+   */
+  members_to_remove(): StakeCredentials;
+
+  /**
+   * @param {Committee} committee
+   * @param {StakeCredentials} members_to_remove
+   * @returns {NewCommitteeProposal}
+   */
+  static new(
+    committee: Committee,
+    members_to_remove: StakeCredentials
+  ): NewCommitteeProposal;
+
+  /**
+   * @param {GovernanceActionId} gov_action_id
+   * @param {Committee} committee
+   * @param {StakeCredentials} members_to_remove
+   * @returns {NewCommitteeProposal}
+   */
+  static new_with_action_id(
+    gov_action_id: GovernanceActionId,
+    committee: Committee,
+    members_to_remove: StakeCredentials
+  ): NewCommitteeProposal;
+}
+/**
+ */
+declare export class NewConstitutionProposal {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {NewConstitutionProposal}
+   */
+  static from_bytes(bytes: Uint8Array): NewConstitutionProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {NewConstitutionProposal}
+   */
+  static from_hex(hex_str: string): NewConstitutionProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {NewConstitutionProposalJSON}
+   */
+  to_js_value(): NewConstitutionProposalJSON;
+
+  /**
+   * @param {string} json
+   * @returns {NewConstitutionProposal}
+   */
+  static from_json(json: string): NewConstitutionProposal;
+}
+/**
+ */
+declare export class NoConfidenceProposal {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {NoConfidenceProposal}
+   */
+  static from_bytes(bytes: Uint8Array): NoConfidenceProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {NoConfidenceProposal}
+   */
+  static from_hex(hex_str: string): NoConfidenceProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {NoConfidenceProposalJSON}
+   */
+  to_js_value(): NoConfidenceProposalJSON;
+
+  /**
+   * @param {string} json
+   * @returns {NoConfidenceProposal}
+   */
+  static from_json(json: string): NoConfidenceProposal;
 }
 /**
  */
@@ -4721,6 +5956,77 @@ declare export class OutputDatum {
    * @returns {PlutusData | void}
    */
   data(): PlutusData | void;
+}
+/**
+ */
+declare export class ParameterChangeProposal {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {ParameterChangeProposal}
+   */
+  static from_bytes(bytes: Uint8Array): ParameterChangeProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {ParameterChangeProposal}
+   */
+  static from_hex(hex_str: string): ParameterChangeProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {ParameterChangeProposalJSON}
+   */
+  to_js_value(): ParameterChangeProposalJSON;
+
+  /**
+   * @param {string} json
+   * @returns {ParameterChangeProposal}
+   */
+  static from_json(json: string): ParameterChangeProposal;
+
+  /**
+   * @returns {GovernanceActionId | void}
+   */
+  gov_action_id(): GovernanceActionId | void;
+
+  /**
+   * @returns {ProtocolParamUpdate}
+   */
+  protocol_param_updates(): ProtocolParamUpdate;
+
+  /**
+   * @param {ProtocolParamUpdate} protocol_param_updates
+   * @returns {ParameterChangeProposal}
+   */
+  static new(
+    protocol_param_updates: ProtocolParamUpdate
+  ): ParameterChangeProposal;
+
+  /**
+   * @param {GovernanceActionId} gov_action_id
+   * @param {ProtocolParamUpdate} protocol_param_updates
+   * @returns {ParameterChangeProposal}
+   */
+  static new_with_action_id(
+    gov_action_id: GovernanceActionId,
+    protocol_param_updates: ProtocolParamUpdate
+  ): ParameterChangeProposal;
 }
 /**
  */
@@ -6378,6 +7684,11 @@ declare export class RedeemerTag {
   static new_reward(): RedeemerTag;
 
   /**
+   * @returns {RedeemerTag}
+   */
+  static new_vote(): RedeemerTag;
+
+  /**
    * @returns {number}
    */
   kind(): number;
@@ -7255,6 +8566,81 @@ declare export class SingleHostName {
 }
 /**
  */
+declare export class StakeAndVoteDelegation {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {StakeAndVoteDelegation}
+   */
+  static from_bytes(bytes: Uint8Array): StakeAndVoteDelegation;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {StakeAndVoteDelegation}
+   */
+  static from_hex(hex_str: string): StakeAndVoteDelegation;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {StakeAndVoteDelegationJSON}
+   */
+  to_js_value(): StakeAndVoteDelegationJSON;
+
+  /**
+   * @param {string} json
+   * @returns {StakeAndVoteDelegation}
+   */
+  static from_json(json: string): StakeAndVoteDelegation;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  stake_credential(): StakeCredential;
+
+  /**
+   * @returns {Ed25519KeyHash}
+   */
+  pool_keyhash(): Ed25519KeyHash;
+
+  /**
+   * @returns {DRep}
+   */
+  drep(): DRep;
+
+  /**
+   * @param {StakeCredential} stake_credential
+   * @param {Ed25519KeyHash} pool_keyhash
+   * @param {DRep} drep
+   * @returns {StakeAndVoteDelegation}
+   */
+  static new(
+    stake_credential: StakeCredential,
+    pool_keyhash: Ed25519KeyHash,
+    drep: DRep
+  ): StakeAndVoteDelegation;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
+}
+/**
+ */
 declare export class StakeCredential {
   free(): void;
 
@@ -7284,6 +8670,11 @@ declare export class StakeCredential {
    * @returns {number}
    */
   kind(): number;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_hash(): boolean;
 
   /**
    * @returns {Uint8Array}
@@ -7449,6 +8840,11 @@ declare export class StakeDelegation {
     stake_credential: StakeCredential,
     pool_keyhash: Ed25519KeyHash
   ): StakeDelegation;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
 }
 /**
  */
@@ -7499,10 +8895,30 @@ declare export class StakeDeregistration {
   stake_credential(): StakeCredential;
 
   /**
+   * @returns {BigNum | void}
+   */
+  coin(): BigNum | void;
+
+  /**
    * @param {StakeCredential} stake_credential
    * @returns {StakeDeregistration}
    */
   static new(stake_credential: StakeCredential): StakeDeregistration;
+
+  /**
+   * @param {StakeCredential} stake_credential
+   * @param {BigNum} coin
+   * @returns {StakeDeregistration}
+   */
+  static new_with_coin(
+    stake_credential: StakeCredential,
+    coin: BigNum
+  ): StakeDeregistration;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
 }
 /**
  */
@@ -7553,10 +8969,182 @@ declare export class StakeRegistration {
   stake_credential(): StakeCredential;
 
   /**
+   * @returns {BigNum | void}
+   */
+  coin(): BigNum | void;
+
+  /**
    * @param {StakeCredential} stake_credential
    * @returns {StakeRegistration}
    */
   static new(stake_credential: StakeCredential): StakeRegistration;
+
+  /**
+   * @param {StakeCredential} stake_credential
+   * @param {BigNum} coin
+   * @returns {StakeRegistration}
+   */
+  static new_with_coin(
+    stake_credential: StakeCredential,
+    coin: BigNum
+  ): StakeRegistration;
+}
+/**
+ */
+declare export class StakeRegistrationAndDelegation {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {StakeRegistrationAndDelegation}
+   */
+  static from_bytes(bytes: Uint8Array): StakeRegistrationAndDelegation;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {StakeRegistrationAndDelegation}
+   */
+  static from_hex(hex_str: string): StakeRegistrationAndDelegation;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {StakeRegistrationAndDelegationJSON}
+   */
+  to_js_value(): StakeRegistrationAndDelegationJSON;
+
+  /**
+   * @param {string} json
+   * @returns {StakeRegistrationAndDelegation}
+   */
+  static from_json(json: string): StakeRegistrationAndDelegation;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  stake_credential(): StakeCredential;
+
+  /**
+   * @returns {Ed25519KeyHash}
+   */
+  pool_keyhash(): Ed25519KeyHash;
+
+  /**
+   * @returns {BigNum}
+   */
+  coin(): BigNum;
+
+  /**
+   * @param {StakeCredential} stake_credential
+   * @param {Ed25519KeyHash} pool_keyhash
+   * @param {BigNum} coin
+   * @returns {StakeRegistrationAndDelegation}
+   */
+  static new(
+    stake_credential: StakeCredential,
+    pool_keyhash: Ed25519KeyHash,
+    coin: BigNum
+  ): StakeRegistrationAndDelegation;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
+}
+/**
+ */
+declare export class StakeVoteRegistrationAndDelegation {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {StakeVoteRegistrationAndDelegation}
+   */
+  static from_bytes(bytes: Uint8Array): StakeVoteRegistrationAndDelegation;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {StakeVoteRegistrationAndDelegation}
+   */
+  static from_hex(hex_str: string): StakeVoteRegistrationAndDelegation;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {StakeVoteRegistrationAndDelegationJSON}
+   */
+  to_js_value(): StakeVoteRegistrationAndDelegationJSON;
+
+  /**
+   * @param {string} json
+   * @returns {StakeVoteRegistrationAndDelegation}
+   */
+  static from_json(json: string): StakeVoteRegistrationAndDelegation;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  stake_credential(): StakeCredential;
+
+  /**
+   * @returns {Ed25519KeyHash}
+   */
+  pool_keyhash(): Ed25519KeyHash;
+
+  /**
+   * @returns {DRep}
+   */
+  drep(): DRep;
+
+  /**
+   * @returns {BigNum}
+   */
+  coin(): BigNum;
+
+  /**
+   * @param {StakeCredential} stake_credential
+   * @param {Ed25519KeyHash} pool_keyhash
+   * @param {DRep} drep
+   * @param {BigNum} coin
+   * @returns {StakeVoteRegistrationAndDelegation}
+   */
+  static new(
+    stake_credential: StakeCredential,
+    pool_keyhash: Ed25519KeyHash,
+    drep: DRep,
+    coin: BigNum
+  ): StakeVoteRegistrationAndDelegation;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
 }
 /**
  */
@@ -8134,6 +9722,16 @@ declare export class TransactionBody {
   total_collateral(): BigNum | void;
 
   /**
+   * @param {VotingProcedures} voting_procedures
+   */
+  set_voting_procedures(voting_procedures: VotingProcedures): void;
+
+  /**
+   * @returns {VotingProcedures | void}
+   */
+  voting_procedures(): VotingProcedures | void;
+
+  /**
    * !!! DEPRECATED !!!
    * This constructor uses outdated slot number format for the ttl value.
    * Use `.new_tx_body` and then `.set_ttl` instead
@@ -8401,14 +9999,42 @@ declare export class TransactionBuilder {
   set_validity_start_interval_bignum(validity_start_interval: BigNum): void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Can emit error if add a cert with script credential.
+   * Use set_certs_builder instead.
    * @param {Certificates} certs
    */
   set_certs(certs: Certificates): void;
 
   /**
+   * @param {CertificatesBuilder} certs
+   */
+  set_certs_builder(certs: CertificatesBuilder): void;
+
+  /**
+   * !!! DEPRECATED !!!
+   * Can emit error if add a withdrawal with script credential.
+   * Use set_withdrawals_builder instead.
    * @param {Withdrawals} withdrawals
    */
   set_withdrawals(withdrawals: Withdrawals): void;
+
+  /**
+   * @param {WithdrawalsBuilder} withdrawals
+   */
+  set_withdrawals_builder(withdrawals: WithdrawalsBuilder): void;
+
+  /**
+   * @param {VotingBuilder} voting_builder
+   */
+  set_voting_builder(voting_builder: VotingBuilder): void;
+
+  /**
+   * @param {VotingProposalBuilder} voting_proposal_builder
+   */
+  set_voting_proposal_builder(
+    voting_proposal_builder: VotingProposalBuilder
+  ): void;
 
   /**
    * @returns {AuxiliaryData | void}
@@ -8781,6 +10407,14 @@ declare export class TransactionBuilderConfigBuilder {
    */
   prefer_pure_change(
     prefer_pure_change: boolean
+  ): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {BigNum} voting_proposal_deposit
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  voting_proposal_deposit(
+    voting_proposal_deposit: BigNum
   ): TransactionBuilderConfigBuilder;
 
   /**
@@ -9642,6 +11276,108 @@ declare export class TransactionWitnessSets {
 }
 /**
  */
+declare export class TreasuryWithdrawals {
+  free(): void;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {TreasuryWithdrawalsJSON}
+   */
+  to_js_value(): TreasuryWithdrawalsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {TreasuryWithdrawals}
+   */
+  static from_json(json: string): TreasuryWithdrawals;
+
+  /**
+   * @returns {TreasuryWithdrawals}
+   */
+  static new(): TreasuryWithdrawals;
+
+  /**
+   * @param {RewardAddress} key
+   * @returns {BigNum | void}
+   */
+  get(key: RewardAddress): BigNum | void;
+
+  /**
+   * @param {RewardAddress} key
+   * @param {BigNum} value
+   */
+  insert(key: RewardAddress, value: BigNum): void;
+
+  /**
+   * @returns {RewardAddresses}
+   */
+  keys(): RewardAddresses;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+}
+/**
+ */
+declare export class TreasuryWithdrawalsProposal {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {TreasuryWithdrawalsProposal}
+   */
+  static from_bytes(bytes: Uint8Array): TreasuryWithdrawalsProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {TreasuryWithdrawalsProposal}
+   */
+  static from_hex(hex_str: string): TreasuryWithdrawalsProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {TreasuryWithdrawalsProposalJSON}
+   */
+  to_js_value(): TreasuryWithdrawalsProposalJSON;
+
+  /**
+   * @param {string} json
+   * @returns {TreasuryWithdrawalsProposal}
+   */
+  static from_json(json: string): TreasuryWithdrawalsProposal;
+
+  /**
+   * @returns {TreasuryWithdrawals}
+   */
+  withdrawals(): TreasuryWithdrawals;
+
+  /**
+   * @param {TreasuryWithdrawals} withdrawals
+   * @returns {TreasuryWithdrawalsProposal}
+   */
+  static new(withdrawals: TreasuryWithdrawals): TreasuryWithdrawalsProposal;
+}
+/**
+ */
 declare export class TxBuilderConstants {
   free(): void;
 
@@ -10476,6 +12212,611 @@ declare export class Vkeywitnesses {
 }
 /**
  */
+declare export class VoteDelegation {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {VoteDelegation}
+   */
+  static from_bytes(bytes: Uint8Array): VoteDelegation;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {VoteDelegation}
+   */
+  static from_hex(hex_str: string): VoteDelegation;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {VoteDelegationJSON}
+   */
+  to_js_value(): VoteDelegationJSON;
+
+  /**
+   * @param {string} json
+   * @returns {VoteDelegation}
+   */
+  static from_json(json: string): VoteDelegation;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  stake_credential(): StakeCredential;
+
+  /**
+   * @returns {DRep}
+   */
+  drep(): DRep;
+
+  /**
+   * @param {StakeCredential} stake_credential
+   * @param {DRep} drep
+   * @returns {VoteDelegation}
+   */
+  static new(stake_credential: StakeCredential, drep: DRep): VoteDelegation;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
+}
+/**
+ */
+declare export class VoteRegistrationAndDelegation {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {VoteRegistrationAndDelegation}
+   */
+  static from_bytes(bytes: Uint8Array): VoteRegistrationAndDelegation;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {VoteRegistrationAndDelegation}
+   */
+  static from_hex(hex_str: string): VoteRegistrationAndDelegation;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {VoteRegistrationAndDelegationJSON}
+   */
+  to_js_value(): VoteRegistrationAndDelegationJSON;
+
+  /**
+   * @param {string} json
+   * @returns {VoteRegistrationAndDelegation}
+   */
+  static from_json(json: string): VoteRegistrationAndDelegation;
+
+  /**
+   * @returns {StakeCredential}
+   */
+  stake_credential(): StakeCredential;
+
+  /**
+   * @returns {DRep}
+   */
+  drep(): DRep;
+
+  /**
+   * @returns {BigNum}
+   */
+  coin(): BigNum;
+
+  /**
+   * @param {StakeCredential} stake_credential
+   * @param {DRep} drep
+   * @param {BigNum} coin
+   * @returns {VoteRegistrationAndDelegation}
+   */
+  static new(
+    stake_credential: StakeCredential,
+    drep: DRep,
+    coin: BigNum
+  ): VoteRegistrationAndDelegation;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
+}
+/**
+ */
+declare export class Voter {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Voter}
+   */
+  static from_bytes(bytes: Uint8Array): Voter;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {Voter}
+   */
+  static from_hex(hex_str: string): Voter;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {VoterJSON}
+   */
+  to_js_value(): VoterJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Voter}
+   */
+  static from_json(json: string): Voter;
+
+  /**
+   * @param {StakeCredential} cred
+   * @returns {Voter}
+   */
+  static new_constitutional_committee_hot_key(cred: StakeCredential): Voter;
+
+  /**
+   * @param {StakeCredential} cred
+   * @returns {Voter}
+   */
+  static new_drep(cred: StakeCredential): Voter;
+
+  /**
+   * @param {Ed25519KeyHash} key_hash
+   * @returns {Voter}
+   */
+  static new_staking_pool(key_hash: Ed25519KeyHash): Voter;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+
+  /**
+   * @returns {StakeCredential | void}
+   */
+  to_constitutional_committee_hot_key(): StakeCredential | void;
+
+  /**
+   * @returns {StakeCredential | void}
+   */
+  to_drep(): StakeCredential | void;
+
+  /**
+   * @returns {Ed25519KeyHash | void}
+   */
+  to_staking_pool(): Ed25519KeyHash | void;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_credentials(): boolean;
+
+  /**
+   * @returns {Ed25519KeyHash | void}
+   */
+  to_keyhash(): Ed25519KeyHash | void;
+}
+/**
+ */
+declare export class Voters {
+  free(): void;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {VotersJSON}
+   */
+  to_js_value(): VotersJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Voters}
+   */
+  static from_json(json: string): Voters;
+
+  /**
+   * @returns {Voters}
+   */
+  static new(): Voters;
+
+  /**
+   * @param {number} index
+   * @returns {Voter | void}
+   */
+  get(index: number): Voter | void;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+}
+/**
+ */
+declare export class VotingBuilder {
+  free(): void;
+
+  /**
+   * @returns {VotingBuilder}
+   */
+  static new(): VotingBuilder;
+
+  /**
+   * @param {Voter} voter
+   * @param {GovernanceActionId} gov_action_id
+   * @param {VotingProcedure} voting_procedure
+   */
+  add(
+    voter: Voter,
+    gov_action_id: GovernanceActionId,
+    voting_procedure: VotingProcedure
+  ): void;
+
+  /**
+   * @param {Voter} voter
+   * @param {GovernanceActionId} gov_action_id
+   * @param {VotingProcedure} voting_procedure
+   * @param {PlutusWitness} witness
+   */
+  add_with_plutus_witness(
+    voter: Voter,
+    gov_action_id: GovernanceActionId,
+    voting_procedure: VotingProcedure,
+    witness: PlutusWitness
+  ): void;
+
+  /**
+   * @param {Voter} voter
+   * @param {GovernanceActionId} gov_action_id
+   * @param {VotingProcedure} voting_procedure
+   * @param {NativeScriptSource} native_script_source
+   */
+  add_with_native_script(
+    voter: Voter,
+    gov_action_id: GovernanceActionId,
+    voting_procedure: VotingProcedure,
+    native_script_source: NativeScriptSource
+  ): void;
+
+  /**
+   * @returns {PlutusWitnesses}
+   */
+  get_plutus_witnesses(): PlutusWitnesses;
+
+  /**
+   * @returns {TransactionInputs}
+   */
+  get_ref_inputs(): TransactionInputs;
+
+  /**
+   * @returns {NativeScripts}
+   */
+  get_native_scripts(): NativeScripts;
+
+  /**
+   * @returns {boolean}
+   */
+  has_plutus_scripts(): boolean;
+
+  /**
+   * @returns {VotingProcedures}
+   */
+  build(): VotingProcedures;
+}
+/**
+ */
+declare export class VotingProcedure {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {VotingProcedure}
+   */
+  static from_bytes(bytes: Uint8Array): VotingProcedure;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {VotingProcedure}
+   */
+  static from_hex(hex_str: string): VotingProcedure;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {VotingProcedureJSON}
+   */
+  to_js_value(): VotingProcedureJSON;
+
+  /**
+   * @param {string} json
+   * @returns {VotingProcedure}
+   */
+  static from_json(json: string): VotingProcedure;
+
+  /**
+   * @param {number} vote
+   * @returns {VotingProcedure}
+   */
+  static new(vote: number): VotingProcedure;
+
+  /**
+   * @param {number} vote
+   * @param {Anchor} anchor
+   * @returns {VotingProcedure}
+   */
+  static new_with_anchor(vote: number, anchor: Anchor): VotingProcedure;
+
+  /**
+   * @returns {number}
+   */
+  vote(): number;
+
+  /**
+   * @returns {Anchor | void}
+   */
+  anchor(): Anchor | void;
+}
+/**
+ */
+declare export class VotingProcedures {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {VotingProcedures}
+   */
+  static from_bytes(bytes: Uint8Array): VotingProcedures;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {VotingProcedures}
+   */
+  static from_hex(hex_str: string): VotingProcedures;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {VotingProceduresJSON}
+   */
+  to_js_value(): VotingProceduresJSON;
+
+  /**
+   * @param {string} json
+   * @returns {VotingProcedures}
+   */
+  static from_json(json: string): VotingProcedures;
+
+  /**
+   * @returns {VotingProcedures}
+   */
+  static new(): VotingProcedures;
+
+  /**
+   * @param {Voter} voter
+   * @param {GovernanceActionId} governance_action_id
+   * @returns {VotingProcedure | void}
+   */
+  get(
+    voter: Voter,
+    governance_action_id: GovernanceActionId
+  ): VotingProcedure | void;
+
+  /**
+   * @returns {Voters}
+   */
+  get_voters(): Voters;
+
+  /**
+   * @param {Voter} voter
+   * @returns {GovernanceActionIds}
+   */
+  get_governance_action_ids_by_voter(voter: Voter): GovernanceActionIds;
+}
+/**
+ */
+declare export class VotingProposal {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {VotingProposal}
+   */
+  static from_bytes(bytes: Uint8Array): VotingProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {VotingProposal}
+   */
+  static from_hex(hex_str: string): VotingProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {VotingProposalJSON}
+   */
+  to_js_value(): VotingProposalJSON;
+
+  /**
+   * @param {string} json
+   * @returns {VotingProposal}
+   */
+  static from_json(json: string): VotingProposal;
+}
+/**
+ */
+declare export class VotingProposalBuilder {
+  free(): void;
+
+  /**
+   * @returns {VotingProposalBuilder}
+   */
+  static new(): VotingProposalBuilder;
+
+  /**
+   * @param {VotingProposal} proposal
+   */
+  add(proposal: VotingProposal): void;
+
+  /**
+   * @param {VotingProposal} proposal
+   * @param {PlutusWitness} witness
+   */
+  add_with_plutus_witness(
+    proposal: VotingProposal,
+    witness: PlutusWitness
+  ): void;
+
+  /**
+   * @returns {PlutusWitnesses}
+   */
+  get_plutus_witnesses(): PlutusWitnesses;
+
+  /**
+   * @returns {TransactionInputs}
+   */
+  get_ref_inputs(): TransactionInputs;
+
+  /**
+   * @returns {boolean}
+   */
+  has_plutus_scripts(): boolean;
+
+  /**
+   * @returns {VotingProposals}
+   */
+  build(): VotingProposals;
+}
+/**
+ */
+declare export class VotingProposals {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {VotingProposals}
+   */
+  static from_bytes(bytes: Uint8Array): VotingProposals;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {VotingProposals}
+   */
+  static from_hex(hex_str: string): VotingProposals;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {VotingProposalsJSON}
+   */
+  to_js_value(): VotingProposalsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {VotingProposals}
+   */
+  static from_json(json: string): VotingProposals;
+}
+/**
+ */
 declare export class Withdrawals {
   free(): void;
 
@@ -10545,7 +12886,80 @@ declare export class Withdrawals {
    */
   keys(): RewardAddresses;
 }
+/**
+ */
+declare export class WithdrawalsBuilder {
+  free(): void;
+
+  /**
+   * @returns {WithdrawalsBuilder}
+   */
+  static new(): WithdrawalsBuilder;
+
+  /**
+   * @param {RewardAddress} address
+   * @param {BigNum} coin
+   */
+  add(address: RewardAddress, coin: BigNum): void;
+
+  /**
+   * @param {RewardAddress} address
+   * @param {BigNum} coin
+   * @param {PlutusWitness} witness
+   */
+  add_with_plutus_witness(
+    address: RewardAddress,
+    coin: BigNum,
+    witness: PlutusWitness
+  ): void;
+
+  /**
+   * @param {RewardAddress} address
+   * @param {BigNum} coin
+   * @param {NativeScriptSource} native_script_source
+   */
+  add_with_native_script(
+    address: RewardAddress,
+    coin: BigNum,
+    native_script_source: NativeScriptSource
+  ): void;
+
+  /**
+   * @returns {PlutusWitnesses}
+   */
+  get_plutus_witnesses(): PlutusWitnesses;
+
+  /**
+   * @returns {TransactionInputs}
+   */
+  get_ref_inputs(): TransactionInputs;
+
+  /**
+   * @returns {NativeScripts}
+   */
+  get_native_scripts(): NativeScripts;
+
+  /**
+   * @returns {Value}
+   */
+  get_total_withdrawals(): Value;
+
+  /**
+   * @returns {boolean}
+   */
+  has_plutus_scripts(): boolean;
+
+  /**
+   * @returns {Withdrawals}
+   */
+  build(): Withdrawals;
+}
 export type AddressJSON = string;
+export interface AnchorJSON {
+  anchor_data_hash: string;
+  anchor_url: URLJSON;
+}
+export type AnchorDataHashJSON = string;
 export type AssetNameJSON = string;
 export type AssetNamesJSON = string[];
 export interface AssetsJSON {
@@ -10611,14 +13025,82 @@ export type CertificateEnumJSON =
   | {
       MoveInstantaneousRewardsCertJSON: MoveInstantaneousRewardsCert,
       ...
+    }
+  | {
+      CommitteeHotKeyRegistrationJSON: CommitteeHotKeyRegistration,
+      ...
+    }
+  | {
+      CommitteeHotKeyDeregistrationJSON: CommitteeHotKeyDeregistration,
+      ...
+    }
+  | {
+      DrepDeregistrationJSON: DrepDeregistration,
+      ...
+    }
+  | {
+      DrepRegistrationJSON: DrepRegistration,
+      ...
+    }
+  | {
+      DrepUpdateJSON: DrepUpdate,
+      ...
+    }
+  | {
+      StakeAndVoteDelegationJSON: StakeAndVoteDelegation,
+      ...
+    }
+  | {
+      StakeRegistrationAndDelegationJSON: StakeRegistrationAndDelegation,
+      ...
+    }
+  | {
+      StakeVoteRegistrationAndDelegationJSON: StakeVoteRegistrationAndDelegation,
+      ...
+    }
+  | {
+      VoteDelegationJSON: VoteDelegation,
+      ...
+    }
+  | {
+      VoteRegistrationAndDelegationJSON: VoteRegistrationAndDelegation,
+      ...
     };
 export type CertificatesJSON = CertificateJSON[];
+export interface CommitteeJSON {
+  members: {
+    [k: string]: number,
+  };
+  quorum_threshold: UnitIntervalJSON;
+}
+export interface CommitteeHotKeyDeregistrationJSON {
+  committee_cold_key: StakeCredTypeJSON;
+}
+export interface CommitteeHotKeyRegistrationJSON {
+  committee_cold_key: StakeCredTypeJSON;
+  committee_hot_key: StakeCredTypeJSON;
+}
+export interface ConstitutionJSON {
+  anchor: AnchorJSON;
+  script_hash?: string | null;
+}
 export type CostModelJSON = string[];
 export interface CostmdlsJSON {
   [k: string]: CostModelJSON;
 }
 export type DNSRecordAorAAAAJSON = string;
 export type DNSRecordSRVJSON = string;
+export type DRepJSON = DRepEnumJSON;
+export type DRepEnumJSON =
+  | ("AlwaysAbstain" | "AlwaysNoConfidence")
+  | {
+      KeyHash: string,
+      ...
+    }
+  | {
+      ScriptHashJSON: string,
+      ...
+    };
 export type DataHashJSON = string;
 export type DataOptionJSON =
   | {
@@ -10629,6 +13111,19 @@ export type DataOptionJSON =
       Data: string,
       ...
     };
+export interface DrepDeregistrationJSON {
+  coin: string;
+  voting_credential: StakeCredTypeJSON;
+}
+export interface DrepRegistrationJSON {
+  anchor?: AnchorJSON | null;
+  coin: string;
+  voting_credential: StakeCredTypeJSON;
+}
+export interface DrepUpdateJSON {
+  anchor?: AnchorJSON | null;
+  voting_credential: StakeCredTypeJSON;
+}
 export type Ed25519KeyHashJSON = string;
 export type Ed25519KeyHashesJSON = string[];
 export type Ed25519SignatureJSON = string;
@@ -10650,6 +13145,14 @@ export interface GenesisKeyDelegationJSON {
   genesis_delegate_hash: string;
   genesishash: string;
   vrf_keyhash: string;
+}
+export interface GovernanceActionIdJSON {
+  index: number;
+  transaction_id: string;
+}
+export interface HardForkInitiationProposalJSON {
+  gov_action_id?: GovernanceActionIdJSON | null;
+  protocol_version: ProtocolVersionJSON;
 }
 export interface HeaderJSON {
   body_signature: string;
@@ -10761,6 +13264,18 @@ export type NativeScript1JSON =
 export type NativeScriptsJSON = NativeScriptJSON[];
 export type NetworkIdJSON = NetworkIdKindJSON;
 export type NetworkIdKindJSON = "Testnet" | "Mainnet";
+export interface NewCommitteeProposalJSON {
+  committee: CommitteeJSON;
+  gov_action_id?: GovernanceActionIdJSON | null;
+  members_to_remove: StakeCredTypeJSON[];
+}
+export interface NewConstitutionProposalJSON {
+  constitution: ConstitutionJSON;
+  gov_action_id?: GovernanceActionIdJSON | null;
+}
+export interface NoConfidenceProposalJSON {
+  gov_action_id?: GovernanceActionIdJSON | null;
+}
 export interface NonceJSON {
   hash?:
     | [
@@ -10804,6 +13319,10 @@ export interface OperationalCertJSON {
   kes_period: number;
   sequence_number: number;
   sigma: string;
+}
+export interface ParameterChangeProposalJSON {
+  gov_action_id?: GovernanceActionIdJSON | null;
+  protocol_param_updates: ProtocolParamUpdateJSON;
 }
 export type PlutusScriptJSON = string;
 export type PlutusScriptsJSON = string[];
@@ -10871,7 +13390,12 @@ export interface RedeemerJSON {
   tag: RedeemerTagJSON;
 }
 export type RedeemerTagJSON = RedeemerTagKindJSON;
-export type RedeemerTagKindJSON = "Spend" | "MintJSON" | "Cert" | "Reward";
+export type RedeemerTagKindJSON =
+  | "Spend"
+  | "MintJSON"
+  | "Cert"
+  | "Reward"
+  | "Vote";
 export type RedeemersJSON = RedeemerJSON[];
 export type RelayJSON = RelayEnumJSON;
 export type RelayEnumJSON =
@@ -10925,6 +13449,11 @@ export interface SingleHostNameJSON {
   dns_name: DNSRecordAorAAAAJSON;
   port?: number | null;
 }
+export interface StakeAndVoteDelegationJSON {
+  drep: DRepJSON;
+  pool_keyhash: string;
+  stake_credential: StakeCredTypeJSON;
+}
 export type StakeCredTypeJSON =
   | {
       Key: string,
@@ -10941,9 +13470,22 @@ export interface StakeDelegationJSON {
   stake_credential: StakeCredTypeJSON;
 }
 export interface StakeDeregistrationJSON {
+  coin?: string | null;
   stake_credential: StakeCredTypeJSON;
 }
 export interface StakeRegistrationJSON {
+  coin?: string | null;
+  stake_credential: StakeCredTypeJSON;
+}
+export interface StakeRegistrationAndDelegationJSON {
+  coin: string;
+  pool_keyhash: string;
+  stake_credential: StakeCredTypeJSON;
+}
+export interface StakeVoteRegistrationAndDelegationJSON {
+  coin: string;
+  drep: DRepJSON;
+  pool_keyhash: string;
   stake_credential: StakeCredTypeJSON;
 }
 export interface TimelockExpiryJSON {
@@ -10976,6 +13518,8 @@ export interface TransactionBodyJSON {
   ttl?: string | null;
   update?: UpdateJSON | null;
   validity_start_interval?: string | null;
+  voting_procedures?: VotingProceduresJSON | null;
+  voting_proposals?: VotingProposalsJSON | null;
   withdrawals?: {
     [k: string]: ProtocolParamUpdateJSON,
   } | null;
@@ -11008,6 +13552,12 @@ export interface TransactionWitnessSetJSON {
   vkeys?: VkeywitnessesJSON | null;
 }
 export type TransactionWitnessSetsJSON = TransactionWitnessSetJSON[];
+export interface TreasuryWithdrawalsJSON {
+  [k: string]: string;
+}
+export interface TreasuryWithdrawalsProposalJSON {
+  withdrawals: TreasuryWithdrawalsJSON;
+}
 export type URLJSON = string;
 export interface UnitIntervalJSON {
   denominator: string;
@@ -11035,6 +13585,69 @@ export interface VkeywitnessJSON {
   vkey: VkeyJSON;
 }
 export type VkeywitnessesJSON = VkeywitnessJSON[];
+export interface VoteDelegationJSON {
+  drep: DRepJSON;
+  stake_credential: StakeCredTypeJSON;
+}
+export interface VoteRegistrationAndDelegationJSON {
+  coin: string;
+  drep: DRepJSON;
+  stake_credential: StakeCredTypeJSON;
+}
+export type VoterJSON = VoterEnumJSON;
+export type VoterEnumJSON =
+  | {
+      ConstitutionalCommitteeHotKey: StakeCredTypeJSON,
+      ...
+    }
+  | {
+      DRepJSON: StakeCredTypeJSON,
+      ...
+    }
+  | {
+      StakingPool: string,
+      ...
+    };
+export interface VotingProcedureJSON {
+  anchor?: AnchorJSON | null;
+  vote: $Values<typeof VoteKind>;
+}
+export interface VotingProceduresJSON {
+  [k: string]: {
+    [k: string]: VotingProcedureJSON,
+  };
+}
+export type VotingProposalJSON = VotingProposalEnumJSON;
+export type VotingProposalEnumJSON =
+  | {
+      ParameterChangeProposalJSON: ParameterChangeProposal,
+      ...
+    }
+  | {
+      HardForkInitiationProposalJSON: HardForkInitiationProposal,
+      ...
+    }
+  | {
+      TreasuryWithdrawalsProposalJSON: TreasuryWithdrawalsProposal,
+      ...
+    }
+  | {
+      NoConfidenceProposalJSON: NoConfidenceProposal,
+      ...
+    }
+  | {
+      NewCommitteeProposalJSON: NewCommitteeProposal,
+      ...
+    }
+  | {
+      NewConstitutionProposalJSON: NewConstitutionProposal,
+      ...
+    }
+  | {
+      InfoProposal: InfoProposal,
+      ...
+    };
+export type VotingProposalsJSON = VotingProposalJSON[];
 export interface WithdrawalsJSON {
   [k: string]: ProtocolParamUpdateJSON;
 }
