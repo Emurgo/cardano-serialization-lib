@@ -7,5 +7,5 @@ rust/.idea
 binaryen/
 rust/json-gen/target
 rust/json-gen/output
-rust/json-gen/schema
+rust/json-gen/schemas
 .DS_Store
