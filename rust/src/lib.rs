@@ -335,6 +335,7 @@ pub struct TransactionBody {
     total_collateral: Option<Coin>,
     reference_inputs: Option<TransactionInputs>,
     voting_procedures: Option<VotingProcedures>,
+    voting_proposals: Option<VotingProposals>,
 }
 
 impl_to_from!(TransactionBody);
@@ -576,6 +577,7 @@ impl TransactionBody {
             total_collateral: None,
             reference_inputs: None,
             voting_procedures: None,
+            voting_proposals: None,
         }
     }
 }

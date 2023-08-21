@@ -298,7 +298,9 @@ impl cbor_event::se::Serialize for TransactionBody {
                 + opt64(&self.network_id)
                 + opt64(&self.collateral_return)
                 + opt64(&self.total_collateral)
-                + opt64(&self.reference_inputs),
+                + opt64(&self.reference_inputs)
+                + opt64(&self.voting_procedures)
+                + opt64(&self.voting_proposals),
         ))?;
         serializer.write_unsigned_integer(0)?;
         self.inputs.serialize(serializer)?;
@@ -366,6 +368,10 @@ impl cbor_event::se::Serialize for TransactionBody {
             serializer.write_unsigned_integer(19)?;
             field.serialize(serializer)?;
         }
+        if let Some(field) = &self.voting_proposals {
+            serializer.write_unsigned_integer(20)?;
+            field.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
@@ -394,6 +400,7 @@ impl Deserialize for TransactionBody {
             let mut total_collateral = None;
             let mut reference_inputs = None;
             let mut voting_procedures = None;
+            let mut voting_proposals = None;
             let mut read = 0;
             while match len {
                 cbor_event::Len::Len(n) => read < n as usize,
@@ -615,6 +622,18 @@ impl Deserialize for TransactionBody {
                                     .map_err(|e| e.annotate("voting_procedures"))?,
                             );
                         }
+                        20 => {
+                            if voting_proposals.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(20)).into());
+                            }
+                            voting_proposals = Some(
+                                (|| -> Result<_, DeserializeError> {
+                                    read_len.read_elems(1)?;
+                                    Ok(VotingProposals::deserialize(raw)?)
+                                })()
+                                    .map_err(|e| e.annotate("voting_proposals"))?,
+                            );
+                        }
                         unknown_key => {
                             return Err(
                                 DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()
@@ -676,6 +695,7 @@ impl Deserialize for TransactionBody {
                 total_collateral,
                 reference_inputs,
                 voting_procedures,
+                voting_proposals,
             })
         })()
         .map_err(|e| e.annotate("TransactionBody"))

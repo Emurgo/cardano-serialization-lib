@@ -8,9 +8,11 @@ pub mod tx_batch_builder;
 pub mod mint_builder;
 pub mod certificates_builder;
 pub mod withdrawals_builder;
-pub mod vote_builder;
+pub mod voting_proposal_builder;
+pub mod voting_builder;
 mod batch_tools;
 mod script_structs;
+
 
 use super::fees;
 use super::output_builder::TransactionOutputAmountBuilder;
@@ -23,7 +25,8 @@ use crate::tx_builder::certificates_builder::CertificatesBuilder;
 use crate::tx_builder::withdrawals_builder::WithdrawalsBuilder;
 use crate::tx_builder::script_structs::{PlutusWitness, PlutusWitnesses};
 use crate::tx_builder::mint_builder::{MintBuilder, MintWitness};
-use crate::tx_builder::vote_builder::VotingBuilder;
+use crate::tx_builder::voting_builder::VotingBuilder;
+use crate::tx_builder::voting_proposal_builder::VotingProposalBuilder;
 
 pub(crate) fn fake_private_key() -> Bip32PrivateKey {
     Bip32PrivateKey::from_bytes(&[
@@ -69,7 +72,7 @@ fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
     if let Some(certs_builder) = &tx_builder.certs {
         input_hashes.extend(certs_builder.get_required_signers());
     }
-    if let Some(voting_builder) = &tx_builder.voting {
+    if let Some(voting_builder) = &tx_builder.voting_procedures {
         input_hashes.extend(voting_builder.get_required_signers());
     }
     input_hashes.len()
@@ -201,6 +204,7 @@ pub struct TransactionBuilderConfig {
     fee_algo: fees::LinearFee,
     pool_deposit: Coin,                   // protocol parameter
     key_deposit: Coin,                    // protocol parameter
+    voting_proposal_deposit: Coin,        // protocol parameter
     max_value_size: u32,                  // protocol parameter
     max_tx_size: u32,                     // protocol parameter
     data_cost: DataCost,                  // protocol parameter
@@ -220,6 +224,7 @@ pub struct TransactionBuilderConfigBuilder {
     fee_algo: Option<fees::LinearFee>,
     pool_deposit: Option<Coin>,           // protocol parameter
     key_deposit: Option<Coin>,            // protocol parameter
+    voting_proposal_deposit: Option<Coin>, // protocol parameter
     max_value_size: Option<u32>,          // protocol parameter
     max_tx_size: Option<u32>,             // protocol parameter
     data_cost: Option<DataCost>,          // protocol parameter
@@ -234,6 +239,7 @@ impl TransactionBuilderConfigBuilder {
             fee_algo: None,
             pool_deposit: None,
             key_deposit: None,
+            voting_proposal_deposit: None,
             max_value_size: None,
             max_tx_size: None,
             data_cost: None,
@@ -302,6 +308,12 @@ impl TransactionBuilderConfigBuilder {
         cfg
     }
 
+    pub fn voting_proposal_deposit(&self, voting_proposal_deposit: &Coin) -> Self {
+        let mut cfg = self.clone();
+        cfg.voting_proposal_deposit = Some(voting_proposal_deposit.clone());
+        cfg
+    }
+
     pub fn build(&self) -> Result<TransactionBuilderConfig, JsError> {
         let cfg: Self = self.clone();
         Ok(TransactionBuilderConfig {
@@ -311,6 +323,11 @@ impl TransactionBuilderConfigBuilder {
             pool_deposit: cfg
                 .pool_deposit
                 .ok_or(JsError::from_str("uninitialized field: pool_deposit"))?,
+            voting_proposal_deposit: cfg
+                .voting_proposal_deposit
+                .ok_or(JsError::from_str(
+                "uninitialized field: voting_proposal_deposit",
+            ))?,
             key_deposit: cfg
                 .key_deposit
                 .ok_or(JsError::from_str("uninitialized field: key_deposit"))?,
@@ -348,7 +365,8 @@ pub struct TransactionBuilder {
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
     reference_inputs: HashSet<TransactionInput>,
-    voting: Option<VotingBuilder>,
+    voting_procedures: Option<VotingBuilder>,
+    voting_proposals: Option<VotingProposalBuilder>,
 }
 
 #[wasm_bindgen]
@@ -1004,8 +1022,12 @@ impl TransactionBuilder {
         self.withdrawals = Some(withdrawals.clone());
     }
 
-    pub fn set_voting(&mut self, voting: &VotingBuilder) {
-        self.voting = Some(voting.clone());
+    pub fn set_voting_builder(&mut self, voting_builder: &VotingBuilder) {
+        self.voting_procedures = Some(voting_builder.clone());
+    }
+
+    pub fn set_voting_proposal_builder(&mut self, voting_proposal_builder: &VotingProposalBuilder) {
+        self.voting_proposals = Some(voting_proposal_builder.clone());
     }
 
     pub fn get_auxiliary_data(&self) -> Option<AuxiliaryData> {
@@ -1263,7 +1285,8 @@ impl TransactionBuilder {
             collateral_return: None,
             total_collateral: None,
             reference_inputs: HashSet::new(),
-            voting: None,
+            voting_procedures: None,
+            voting_proposals: None,
         }
     }
 
@@ -1291,8 +1314,14 @@ impl TransactionBuilder {
             }
         }
 
-        if let Some(votig) = &self.voting {
-            for input in votig.get_ref_inputs().0 {
+        if let Some(voting_procedures) = &self.voting_procedures {
+            for input in voting_procedures.get_ref_inputs().0 {
+                inputs.insert(input);
+            }
+        }
+
+        if let Some(voting_proposals) = &self.voting_proposals {
+            for input in voting_proposals.get_ref_inputs().0 {
                 inputs.insert(input);
             }
         }
@@ -1784,13 +1813,18 @@ impl TransactionBuilder {
             used_langs.append(&mut certs_builder.get_used_plutus_lang_versions());
             plutus_witnesses.0.append(&mut certs_builder.get_plutus_witnesses().0)
         }
-        if let Some(withdrawals_builder) = self.withdrawals.clone() {
+        if let Some(withdrawals_builder) = &self.withdrawals {
             used_langs.append(&mut withdrawals_builder.get_used_plutus_lang_versions());
             plutus_witnesses.0.append(&mut withdrawals_builder.get_plutus_witnesses().0)
         }
-        if let Some(voting_builder) = self.voting.clone() {
+        if let Some(voting_builder) = &self.voting_procedures {
             used_langs.append(&mut voting_builder.get_used_plutus_lang_versions());
             plutus_witnesses.0.append(&mut voting_builder.get_plutus_witnesses().0)
+        }
+
+        if let Some(voting_proposal_builder) = &self.voting_proposals {
+            used_langs.append(&mut voting_proposal_builder.get_used_plutus_lang_versions());
+            plutus_witnesses.0.append(&mut voting_proposal_builder.get_plutus_witnesses().0)
         }
 
         if plutus_witnesses.len() > 0 {
@@ -1857,7 +1891,8 @@ impl TransactionBuilder {
             collateral_return: self.collateral_return.clone(),
             total_collateral: self.total_collateral.clone(),
             reference_inputs: self.get_reference_inputs().to_option(),
-            voting_procedures: self.voting.as_ref().map(|x| x.build()),
+            voting_procedures: self.voting_procedures.as_ref().map(|x| x.build()),
+            voting_proposals: self.voting_proposals.as_ref().map(|x| x.build()),
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;
@@ -1915,7 +1950,7 @@ impl TransactionBuilder {
                 ns.add(s);
             });
         }
-        if let Some(voting_builder) = &self.voting {
+        if let Some(voting_builder) = &self.voting_procedures {
             voting_builder.get_native_scripts().0.iter().for_each(|s| {
                 ns.add(s);
             });
@@ -1955,8 +1990,13 @@ impl TransactionBuilder {
                 res.add(s);
             })
         }
-        if let Some(voting_builder) = &self.voting {
+        if let Some(voting_builder) = &self.voting_procedures {
             voting_builder.get_plutus_witnesses().0.iter().for_each(|s| {
+                res.add(s);
+            })
+        }
+        if let Some(voting_proposal_builder) = &self.voting_proposals {
+            voting_proposal_builder.get_plutus_witnesses().0.iter().for_each(|s| {
                 res.add(s);
             })
         }
@@ -2000,7 +2040,10 @@ impl TransactionBuilder {
         if self.withdrawals.as_ref().map_or(false, |w| w.has_plutus_scripts()) {
             return true;
         }
-        if self.voting.as_ref().map_or(false, |w| w.has_plutus_scripts()) {
+        if self.voting_procedures.as_ref().map_or(false, |w| w.has_plutus_scripts()) {
+            return true;
+        }
+        if self.voting_proposals.as_ref().map_or(false, |w| w.has_plutus_scripts()) {
             return true;
         }
 
@@ -2123,6 +2166,7 @@ mod tests {
             .fee_algo(linear_fee)
             .pool_deposit(&to_bignum(pool_deposit))
             .key_deposit(&to_bignum(key_deposit))
+            .voting_proposal_deposit(&to_bignum(500000000))
             .max_value_size(max_val_size)
             .max_tx_size(MAX_TX_SIZE)
             .coins_per_utxo_word(&to_bignum(coins_per_utxo_word))
@@ -2176,6 +2220,7 @@ mod tests {
                 .fee_algo(linear_fee)
                 .pool_deposit(&to_bignum(1))
                 .key_deposit(&to_bignum(1))
+                .voting_proposal_deposit(&to_bignum(1))
                 .max_value_size(MAX_VALUE_SIZE)
                 .max_tx_size(MAX_TX_SIZE)
                 .coins_per_utxo_word(&to_bignum(8))
@@ -4648,6 +4693,7 @@ mod tests {
             .fee_algo(&linear_fee)
             .pool_deposit(&to_bignum(0))
             .key_deposit(&to_bignum(0))
+            .voting_proposal_deposit(&to_bignum(500000000))
             .max_value_size(9999)
             .max_tx_size(9999)
             .coins_per_utxo_word(&Coin::zero())
@@ -4687,6 +4733,7 @@ mod tests {
             .fee_algo(&linear_fee)
             .pool_deposit(&to_bignum(0))
             .key_deposit(&to_bignum(0))
+            .voting_proposal_deposit(&to_bignum(500000000))
             .max_value_size(9999)
             .max_tx_size(9999)
             .coins_per_utxo_word(&Coin::zero())
@@ -5012,6 +5059,7 @@ mod tests {
                 .fee_algo(&linear_fee)
                 .pool_deposit(&to_bignum(0))
                 .key_deposit(&to_bignum(0))
+                .voting_proposal_deposit(&to_bignum(500000000))
                 .max_value_size(max_value_size)
                 .max_tx_size(MAX_TX_SIZE)
                 .coins_per_utxo_word(&to_bignum(8))
