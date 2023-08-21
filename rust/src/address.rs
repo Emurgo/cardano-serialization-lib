@@ -120,7 +120,7 @@ pub enum StakeCredKind {
     serde::Deserialize,
     JsonSchema,
 )]
-pub struct StakeCredential(StakeCredType);
+pub struct StakeCredential(pub(crate) StakeCredType);
 
 #[wasm_bindgen]
 impl StakeCredential {
@@ -220,7 +220,7 @@ impl Deserialize for StakeCredential {
 }
 
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
-enum AddrType {
+pub(crate) enum AddrType {
     Base(BaseAddress),
     Ptr(PointerAddress),
     Enterprise(EnterpriseAddress),
@@ -278,6 +278,12 @@ impl ByronAddress {
             magic if magic == NetworkInfo::testnet().protocol_magic() => {
                 Ok(NetworkInfo::testnet().network_id())
             }
+            magic if magic == NetworkInfo::testnet_preprod().protocol_magic() => {
+                Ok(NetworkInfo::testnet_preprod().network_id())
+            }
+            magic if magic == NetworkInfo::testnet_preview().protocol_magic() => {
+                Ok(NetworkInfo::testnet_preview().network_id())
+            }
             _ => Err(JsError::from_str(
                 &format! {"Unknown network {}", protocol_magic},
             )),
@@ -330,7 +336,7 @@ impl ByronAddress {
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Address(AddrType);
+pub struct Address(pub(crate) AddrType);
 
 from_bytes!(Address, data, { Self::from_bytes_impl(data.as_ref()) });
 
@@ -582,6 +588,8 @@ impl Address {
                 };
                 let prefix_tail = match self.network_id()? {
                     id if id == NetworkInfo::testnet().network_id() => "_test",
+                    id if id == NetworkInfo::testnet_preprod().network_id() => "_test",
+                    id if id == NetworkInfo::testnet_preview().network_id() => "_test",
                     _ => "",
                 };
                 format!("{}{}", prefix_header, prefix_tail)
@@ -1456,5 +1464,12 @@ mod tests {
         let p1 = Pointer::new(10, 20, 30);
         let p2 = Pointer::new_pointer(&to_bignum(10), &to_bignum(20), &to_bignum(30));
         assert_eq!(p1, p2);
+    }
+
+    #[test]
+    fn prepod_network_id_test() {
+        let address = "KjgoiXJS2coTnqpCLHXFtd89Hv9ttjsE6yW4msyLXFNkykUpTsyBs85r2rDDia2uKrhdpGKCJnmFXwvPSWLe75564ixZWdTxRh7TnuaDLnHx";
+        let network_id = ByronAddress::from_base58(address).unwrap().to_address().network_id().unwrap();
+        assert_eq!(network_id, NetworkInfo::testnet_preprod().network_id());
     }
 }

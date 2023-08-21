@@ -881,7 +881,7 @@ pub(crate) fn read_bounded_bytes<R: BufRead + Seek>(
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct BigInt(num_bigint::BigInt);
 
 impl_to_from!(BigInt);
@@ -1100,6 +1100,14 @@ impl<T> std::convert::From<T> for BigInt
 {
     fn from(x: T) -> Self {
         Self(x.into())
+    }
+}
+
+impl From<BigNum> for BigInt
+    where
+{
+    fn from(x: BigNum) -> Self {
+        Self(x.0.into())
     }
 }
 
@@ -2686,7 +2694,7 @@ mod tests {
         );
         assert_eq!(
             hex::encode(hash.to_bytes()),
-            "f4e4522ff98b6ba0ab5042d44da2458cd5fa6f97dc42aca1def58193f17a1375"
+            "887e1b6416d750d871c0f5b7136b54f7b8e8b0e293379d090f38f8f821d08a29"
         );
     }
 

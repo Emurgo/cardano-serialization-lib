@@ -1,5 +1,8 @@
+use std::hash::Hash;
 use super::*;
 use std::io::{BufRead, Seek, Write};
+use linked_hash_map::LinkedHashMap;
+use core::hash::Hasher;
 
 // This library was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
@@ -208,7 +211,7 @@ impl PlutusScripts {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd,)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct ConstrPlutusData {
     alternative: BigNum,
     data: PlutusList,
@@ -555,15 +558,15 @@ impl Languages {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd,)]
-pub struct PlutusMap(std::collections::BTreeMap<PlutusData, PlutusData>);
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+pub struct PlutusMap(LinkedHashMap<PlutusData, PlutusData>);
 
 to_from_bytes!(PlutusMap);
 
 #[wasm_bindgen]
 impl PlutusMap {
     pub fn new() -> Self {
-        Self(std::collections::BTreeMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -597,7 +600,7 @@ pub enum PlutusDataKind {
 }
 
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub enum PlutusDataEnum {
     ConstrPlutusData(ConstrPlutusData),
     Map(PlutusMap),
@@ -621,6 +624,12 @@ impl std::cmp::PartialEq<Self> for PlutusData {
     }
 }
 
+impl Hash for PlutusData {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.datum.hash(state)
+    }
+}
+
 impl std::cmp::Eq for PlutusData {}
 
 to_from_bytes!(PlutusData);
@@ -637,6 +646,12 @@ impl PlutusData {
     /// Same as `.new_constr_plutus_data` but creates constr with empty data list
     pub fn new_empty_constr_plutus_data(alternative: &BigNum) -> Self {
         Self::new_constr_plutus_data(&ConstrPlutusData::new(alternative, &PlutusList::new()))
+    }
+
+    pub fn new_single_value_constr_plutus_data(alternative: &BigNum, plutus_data: &PlutusData) -> Self {
+        let mut list = PlutusList::new();
+        list.add(plutus_data);
+        Self::new_constr_plutus_data(&ConstrPlutusData::new(alternative, &list))
     }
 
     pub fn new_map(map: &PlutusMap) -> Self {
@@ -719,6 +734,82 @@ impl PlutusData {
     pub fn from_json(json: &str, schema: PlutusDatumSchema) -> Result<PlutusData, JsError> {
         encode_json_str_to_plutus_datum(json, schema)
     }
+
+    pub fn from_address(address: &Address) -> Result<PlutusData, JsError> {
+        let payment_cred = match &address.0 {
+            AddrType::Base(addr) => Ok(addr.payment_cred()),
+            AddrType::Enterprise(addr) => Ok(addr.payment_cred()),
+            AddrType::Ptr(addr) => Ok(addr.payment_cred()),
+            AddrType::Reward(addr) => Ok(addr.payment_cred()),
+            AddrType::Byron(_) =>
+                Err(JsError::from_str("Cannot convert Byron address to PlutusData")),
+        }?;
+
+        let staking_data = match &address.0 {
+            AddrType::Base(addr) => {
+                let staking_bytes_data =
+                    PlutusData::from_stake_credential(&addr.stake_cred())?;
+                Some(PlutusData::new_single_value_constr_plutus_data(
+                    &BigNum::from(0u32),
+                    &staking_bytes_data,
+                ))
+            }
+            _ => None,
+        };
+
+        let pointer_data = match &address.0 {
+            AddrType::Ptr(addr) =>
+                Some(PlutusData::from_pointer(&addr.stake_pointer())?),
+            _ => None,
+        };
+
+        let payment_data = PlutusData::from_stake_credential(&payment_cred)?;
+        let staking_optional_data = match (staking_data, pointer_data) {
+            (Some(_), Some(_)) =>
+                Err(JsError::from_str("Address can't have both staking and pointer data")),
+            (Some(staking_data), None) => Ok(Some(staking_data)),
+            (None, Some(pointer_data)) => Ok(Some(pointer_data)),
+            (None, None) => Ok(None)
+        }?;
+
+        let mut data_list = PlutusList::new();
+        data_list.add(&payment_data);
+        if let Some(staking_optional_data) = staking_optional_data {
+            data_list.add(
+                &PlutusData::new_single_value_constr_plutus_data(
+                    &BigNum::from(0u32), &staking_optional_data));
+        } else {
+            data_list.add(&PlutusData::new_empty_constr_plutus_data(
+                &BigNum::from(1u32)));
+        }
+
+
+        Ok(PlutusData::new_constr_plutus_data(&ConstrPlutusData::new(
+            &BigNum::from(0u32),
+            &data_list,
+        )))
+    }
+
+    fn from_stake_credential(stake_credential: &StakeCredential) -> Result<PlutusData, JsError> {
+        let (bytes_plutus_data, index) = match &stake_credential.0 {
+            StakeCredType::Key(key_hash) =>
+                (PlutusData::new_bytes(key_hash.to_bytes().to_vec()), BigNum::from(0u32)),
+            StakeCredType::Script(script_hash) =>
+                (PlutusData::new_bytes(script_hash.to_bytes().to_vec()), BigNum::from(1u32)),
+        };
+
+        Ok(PlutusData::new_single_value_constr_plutus_data(&index, &bytes_plutus_data))
+    }
+
+    fn from_pointer(pointer: &Pointer) -> Result<PlutusData, JsError> {
+        let mut data_list = PlutusList::new();
+        data_list.add(&PlutusData::new_integer(&pointer.slot_bignum().into()));
+        data_list.add(&PlutusData::new_integer(&pointer.tx_index_bignum().into()));
+        data_list.add(&PlutusData::new_integer(&pointer.cert_index_bignum().into()));
+
+        Ok(PlutusData::new_constr_plutus_data(
+            &ConstrPlutusData::new(&BigNum::from(1u32), &data_list)))
+    }
 }
 
 //TODO: replace this by cardano-node schemas
@@ -758,7 +849,7 @@ impl <'de> serde::de::Deserialize<'de> for PlutusData {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Ord, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct PlutusList {
     elems: Vec<PlutusData>,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
@@ -1624,7 +1715,7 @@ impl cbor_event::se::Serialize for PlutusMap {
 
 impl Deserialize for PlutusMap {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = std::collections::BTreeMap::new();
+        let mut table = LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len {
@@ -2354,7 +2445,7 @@ mod tests {
         let hash = hash_script_data(&redeemers, &retained_cost_models, Some(pdata));
         assert_eq!(
             hex::encode(hash.to_bytes()),
-            "357041b88b914670a3b5e3b0861d47f2ac05ed4935ea73886434d8944aa6dfe0"
+            "2fd8b7e248b376314d02989c885c278796ab0e1d6e8aa0cb91f562ff5f7dbd70"
         );
     }
 
@@ -2394,7 +2485,7 @@ mod tests {
             &costmodels,
             None,
         );
-        assert_eq!(hex::encode(hash.to_bytes()), "ac71f2adcaecd7576fa658098b12001dec03ce5c27dbb890e16966e3e135b3e2");
+        assert_eq!(hex::encode(hash.to_bytes()), "6b244f15f895fd458a02bef3a8b56f17f24150fddcb06be482f8790a600578a1");
     }
 
     #[test]
@@ -2432,6 +2523,60 @@ mod tests {
                 .retain_language_versions(&Languages(vec![Language::new_plutus_v1()])),
             Some(datums),
         );
-        assert_eq!(hex::encode(hash.to_bytes()), "e6129f50a866d19d95bc9c95ee87b57a9e695c05d92ba2746141b03c15cf5f70");
+        assert_eq!(hex::encode(hash.to_bytes()), "0a076247a05aacbecf72ea15b94e3d0331b21295a08d9ab7b8675c13840563a6");
+    }
+
+    #[test]
+    fn datum_from_enterprise_key_address() {
+        let address = Address::from_bech32("addr1vxy2c673nsdp0mvgq5d3tpjndngucsytug00k7k6xwlx4lg6dspk5").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}, {\"constructor\": 1, \"fields\": []}]}",
+        PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
+    }
+
+    #[test]
+    fn datum_from_enterprise_script_address() {
+        let address = Address::from_bech32("addr1w8wrk560wcsldjpnqjamn8s0gn9pdrplpyetrdfpacqrpfs3xezd8").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}, {\"constructor\": 1, \"fields\": []}]}",
+                                               PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
+    }
+
+    #[test]
+    fn datum_from_base_key_key_address() {
+        let address = Address::from_bech32("addr1qxy2c673nsdp0mvgq5d3tpjndngucsytug00k7k6xwlx4lvg434ar8q6zlkcspgmzkr9xmx3e3qghcs7ldad5va7dt7s5efyer").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}, {\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}]}]}]}",
+                                               PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
+    }
+
+    #[test]
+    fn datum_from_base_script_script_address() {
+        let address = Address::from_bech32("addr1x8wrk560wcsldjpnqjamn8s0gn9pdrplpyetrdfpacqrpfku8df57a3p7myrxp9mhx0q73x2z6xr7zfjkx6jrmsqxznqh8u5dz").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}, {\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}]}]}]}",
+                                               PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
+    }
+
+    #[test]
+    fn datum_from_base_script_key_address() {
+        let address = Address::from_bech32("addr1z8wrk560wcsldjpnqjamn8s0gn9pdrplpyetrdfpacqrpf5g434ar8q6zlkcspgmzkr9xmx3e3qghcs7ldad5va7dt7sqx2wxh").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}, {\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}]}]}]}",
+                                               PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
+    }
+
+    #[test]
+    fn datum_from_base_key_script_address() {
+        let address = Address::from_bech32("addr1yxy2c673nsdp0mvgq5d3tpjndngucsytug00k7k6xwlx4lwu8df57a3p7myrxp9mhx0q73x2z6xr7zfjkx6jrmsqxznqrcl7jk").unwrap();
+        let datum = PlutusData::from_address(&address).unwrap();
+        let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}, {\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}]}]}]}",
+                                               PlutusDatumSchema::DetailedSchema).unwrap();
+        assert_eq!(datum, orig_datum);
     }
 }
