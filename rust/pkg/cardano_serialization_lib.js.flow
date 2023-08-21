@@ -436,6 +436,7 @@ declare export var RedeemerTagKind: {|
   +Cert: 2, // 2
   +Reward: 3, // 3
   +Vote: 4, // 4
+  +VotingProposal: 5, // 5
 |};
 
 /**
@@ -7689,6 +7690,11 @@ declare export class RedeemerTag {
   static new_vote(): RedeemerTag;
 
   /**
+   * @returns {RedeemerTag}
+   */
+  static new_voting_proposal(): RedeemerTag;
+
+  /**
    * @returns {number}
    */
   kind(): number;
@@ -13395,7 +13401,8 @@ export type RedeemerTagKindJSON =
   | "MintJSON"
   | "Cert"
   | "Reward"
-  | "Vote";
+  | "Vote"
+  | "VotingProposalJSON";
 export type RedeemersJSON = RedeemerJSON[];
 export type RelayJSON = RelayEnumJSON;
 export type RelayEnumJSON =
