@@ -982,6 +982,7 @@ pub enum RedeemerTagKind {
     Cert,
     Reward,
     Vote,
+    VotingProposal,
 }
 
 #[wasm_bindgen]
@@ -1012,6 +1013,10 @@ impl RedeemerTag {
 
     pub fn new_vote() -> Self {
         Self(RedeemerTagKind::Vote)
+    }
+
+    pub fn new_voting_proposal() -> Self {
+        Self(RedeemerTagKind::VotingProposal)
     }
 
     pub fn kind(&self) -> RedeemerTagKind {
@@ -1974,6 +1979,7 @@ impl cbor_event::se::Serialize for RedeemerTagKind {
             RedeemerTagKind::Cert => serializer.write_unsigned_integer(2u64),
             RedeemerTagKind::Reward => serializer.write_unsigned_integer(3u64),
             RedeemerTagKind::Vote => serializer.write_unsigned_integer(4u64),
+            RedeemerTagKind::VotingProposal => serializer.write_unsigned_integer(5u64),
         }
     }
 }
@@ -1987,6 +1993,7 @@ impl Deserialize for RedeemerTagKind {
                 Ok(2) => Ok(RedeemerTagKind::Cert),
                 Ok(3) => Ok(RedeemerTagKind::Reward),
                 Ok(4) => Ok(RedeemerTagKind::Vote),
+                Ok(5) => Ok(RedeemerTagKind::VotingProposal),
                 Ok(_) | Err(_) => Err(DeserializeFailure::NoVariantMatched.into()),
             }
         })()

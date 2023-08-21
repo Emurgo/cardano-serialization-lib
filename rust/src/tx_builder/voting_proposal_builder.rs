@@ -43,7 +43,7 @@ impl VotingProposalBuilder {
     }
 
     pub fn get_plutus_witnesses(&self) -> PlutusWitnesses {
-        let tag = RedeemerTag::new_vote();
+        let tag = RedeemerTag::new_voting_proposal();
         let mut scripts = PlutusWitnesses::new();
         for (i, (_, script_wit)) in self.votes.iter().enumerate() {
             if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = script_wit {
