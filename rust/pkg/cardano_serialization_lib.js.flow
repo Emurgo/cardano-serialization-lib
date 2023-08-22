@@ -207,26 +207,6 @@ declare export function decrypt_with_password(
 ): string;
 
 /**
- * @param {string} json
- * @param {number} schema
- * @returns {PlutusData}
- */
-declare export function encode_json_str_to_plutus_datum(
-  json: string,
-  schema: number
-): PlutusData;
-
-/**
- * @param {PlutusData} datum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_plutus_datum_to_json_str(
-  datum: PlutusData,
-  schema: number
-): string;
-
-/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -259,6 +239,26 @@ declare export function encode_json_str_to_metadatum(
  */
 declare export function decode_metadatum_to_json_str(
   metadatum: TransactionMetadatum,
+  schema: number
+): string;
+
+/**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {PlutusData}
+ */
+declare export function encode_json_str_to_plutus_datum(
+  json: string,
+  schema: number
+): PlutusData;
+
+/**
+ * @param {PlutusData} datum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_plutus_datum_to_json_str(
+  datum: PlutusData,
   schema: number
 ): string;
 
@@ -411,6 +411,39 @@ declare export var VoteKind: {|
 /**
  */
 
+declare export var VotingProposalKind: {|
+  +ParameterChangeProposal: 0, // 0
+  +HardForkInitiationProposal: 1, // 1
+  +TreasuryWithdrawalsProposal: 2, // 2
+  +NoConfidenceProposal: 3, // 3
+  +NewCommitteeProposal: 4, // 4
+  +NewConstitutionProposal: 5, // 5
+  +InfoProposal: 6, // 6
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
   +PlutusV2: 1, // 1
@@ -454,39 +487,6 @@ declare export var RedeemerTagKind: {|
 declare export var PlutusDatumSchema: {|
   +BasicConversions: 0, // 0
   +DetailedSchema: 1, // 1
-|};
-
-/**
- */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
-declare export var VotingProposalKind: {|
-  +ParameterChangeProposal: 0, // 0
-  +HardForkInitiationProposal: 1, // 1
-  +TreasuryWithdrawalsProposal: 2, // 2
-  +NoConfidenceProposal: 3, // 3
-  +NewCommitteeProposal: 4, // 4
-  +NewConstitutionProposal: 5, // 5
-  +InfoProposal: 6, // 6
 |};
 
 /**
@@ -5751,6 +5751,32 @@ declare export class NewConstitutionProposal {
    * @returns {NewConstitutionProposal}
    */
   static from_json(json: string): NewConstitutionProposal;
+
+  /**
+   * @returns {GovernanceActionId | void}
+   */
+  gov_action_id(): GovernanceActionId | void;
+
+  /**
+   * @returns {Constitution}
+   */
+  constitution(): Constitution;
+
+  /**
+   * @param {Constitution} constitution
+   * @returns {NewConstitutionProposal}
+   */
+  static new(constitution: Constitution): NewConstitutionProposal;
+
+  /**
+   * @param {GovernanceActionId} gov_action_id
+   * @param {Constitution} constitution
+   * @returns {NewConstitutionProposal}
+   */
+  static new_with_action_id(
+    gov_action_id: GovernanceActionId,
+    constitution: Constitution
+  ): NewConstitutionProposal;
 }
 /**
  */
@@ -5794,6 +5820,24 @@ declare export class NoConfidenceProposal {
    * @returns {NoConfidenceProposal}
    */
   static from_json(json: string): NoConfidenceProposal;
+
+  /**
+   * @returns {GovernanceActionId | void}
+   */
+  gov_action_id(): GovernanceActionId | void;
+
+  /**
+   * @returns {NoConfidenceProposal}
+   */
+  static new(): NoConfidenceProposal;
+
+  /**
+   * @param {GovernanceActionId} gov_action_id
+   * @returns {NoConfidenceProposal}
+   */
+  static new_with_action_id(
+    gov_action_id: GovernanceActionId
+  ): NoConfidenceProposal;
 }
 /**
  */
@@ -12733,6 +12777,100 @@ declare export class VotingProposal {
    * @returns {VotingProposal}
    */
   static from_json(json: string): VotingProposal;
+
+  /**
+   * @param {ParameterChangeProposal} parameter_change_proposal
+   * @returns {VotingProposal}
+   */
+  static new_parameter_change_proposal(
+    parameter_change_proposal: ParameterChangeProposal
+  ): VotingProposal;
+
+  /**
+   * @param {HardForkInitiationProposal} hard_fork_initiation_proposal
+   * @returns {VotingProposal}
+   */
+  static new_hard_fork_initiation_proposal(
+    hard_fork_initiation_proposal: HardForkInitiationProposal
+  ): VotingProposal;
+
+  /**
+   * @param {TreasuryWithdrawalsProposal} treasury_withdrawals_proposal
+   * @returns {VotingProposal}
+   */
+  static new_treasury_withdrawals_proposal(
+    treasury_withdrawals_proposal: TreasuryWithdrawalsProposal
+  ): VotingProposal;
+
+  /**
+   * @param {NoConfidenceProposal} no_confidence_proposal
+   * @returns {VotingProposal}
+   */
+  static new_no_confidence_proposal(
+    no_confidence_proposal: NoConfidenceProposal
+  ): VotingProposal;
+
+  /**
+   * @param {NewCommitteeProposal} new_committee_proposal
+   * @returns {VotingProposal}
+   */
+  static new_new_committee_proposal(
+    new_committee_proposal: NewCommitteeProposal
+  ): VotingProposal;
+
+  /**
+   * @param {NewConstitutionProposal} new_constitution_proposal
+   * @returns {VotingProposal}
+   */
+  static new_new_constitution_proposal(
+    new_constitution_proposal: NewConstitutionProposal
+  ): VotingProposal;
+
+  /**
+   * @param {InfoProposal} info_proposal
+   * @returns {VotingProposal}
+   */
+  static new_info_proposal(info_proposal: InfoProposal): VotingProposal;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+
+  /**
+   * @returns {ParameterChangeProposal | void}
+   */
+  as_parameter_change_proposal(): ParameterChangeProposal | void;
+
+  /**
+   * @returns {HardForkInitiationProposal | void}
+   */
+  as_hard_fork_initiation_proposal(): HardForkInitiationProposal | void;
+
+  /**
+   * @returns {TreasuryWithdrawalsProposal | void}
+   */
+  as_treasury_withdrawals_proposal(): TreasuryWithdrawalsProposal | void;
+
+  /**
+   * @returns {NoConfidenceProposal | void}
+   */
+  as_no_confidence_proposal(): NoConfidenceProposal | void;
+
+  /**
+   * @returns {NewCommitteeProposal | void}
+   */
+  as_new_committee_proposal(): NewCommitteeProposal | void;
+
+  /**
+   * @returns {NewConstitutionProposal | void}
+   */
+  as_new_constitution_proposal(): NewConstitutionProposal | void;
+
+  /**
+   * @returns {InfoProposal | void}
+   */
+  as_info_proposal(): InfoProposal | void;
 }
 /**
  */
@@ -12820,6 +12958,27 @@ declare export class VotingProposals {
    * @returns {VotingProposals}
    */
   static from_json(json: string): VotingProposals;
+
+  /**
+   * @returns {VotingProposals}
+   */
+  static new(): VotingProposals;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {VotingProposal}
+   */
+  get(index: number): VotingProposal;
+
+  /**
+   * @param {VotingProposal} proposal
+   */
+  add(proposal: VotingProposal): void;
 }
 /**
  */
