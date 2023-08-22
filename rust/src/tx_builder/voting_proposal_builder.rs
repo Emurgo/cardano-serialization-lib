@@ -79,7 +79,7 @@ impl VotingProposalBuilder {
 
     pub(crate) fn get_total_deposit(&self, proposal_deposit: &Coin) -> Result<Coin, JsError> {
         proposal_deposit.checked_mul(&Coin::from(self.votes.len()))
-            .or_else(|e|
+            .or_else(|_|
                 Err(JsError::from_str("Overflow when calculating total deposit")))
     }
 
