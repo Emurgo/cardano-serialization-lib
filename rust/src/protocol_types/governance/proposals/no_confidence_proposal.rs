@@ -19,6 +19,7 @@ pub struct NoConfidenceProposal {
 
 impl_to_from!(NoConfidenceProposal);
 
+#[wasm_bindgen]
 impl NoConfidenceProposal {
     pub fn gov_action_id(&self) -> Option<GovernanceActionId> {
         self.gov_action_id.clone()

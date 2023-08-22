@@ -20,6 +20,7 @@ pub struct NewConstitutionProposal {
 
 impl_to_from!(NewConstitutionProposal);
 
+#[wasm_bindgen]
 impl NewConstitutionProposal {
     pub fn gov_action_id(&self) -> Option<GovernanceActionId> {
         self.gov_action_id.clone()

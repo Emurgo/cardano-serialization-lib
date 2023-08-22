@@ -62,6 +62,7 @@ pub struct VotingProposal(pub(crate) VotingProposalEnum);
 
 impl_to_from!(VotingProposal);
 
+#[wasm_bindgen]
 impl VotingProposal {
     pub fn new_parameter_change_proposal(
         parameter_change_proposal: &ParameterChangeProposal,

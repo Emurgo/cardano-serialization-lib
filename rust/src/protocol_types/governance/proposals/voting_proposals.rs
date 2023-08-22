@@ -17,6 +17,7 @@ pub struct VotingProposals(pub(crate) Vec<VotingProposal>);
 
 impl_to_from!(VotingProposals);
 
+#[wasm_bindgen]
 impl VotingProposals {
     pub fn new() -> Self {
         Self(Vec::new())
