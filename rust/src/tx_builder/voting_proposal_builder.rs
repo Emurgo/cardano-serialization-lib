@@ -79,7 +79,8 @@ impl VotingProposalBuilder {
 
     pub(crate) fn get_total_deposit(&self, proposal_deposit: &Coin) -> Result<Coin, JsError> {
         proposal_deposit.checked_mul(&Coin::from(self.votes.len()))
-            .ok_or_else(|| JsError::from_str("Overflow when calculating total deposit"))
+            .or_else(|e|
+                Err(JsError::from_str("Overflow when calculating total deposit")))
     }
 
     pub(crate) fn get_used_plutus_lang_versions(&self) -> BTreeSet<Language> {
