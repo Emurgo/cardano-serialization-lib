@@ -1,4 +1,5 @@
 use crate::*;
+use crate::serialization::struct_checks::check_len;
 
 impl cbor_event::se::Serialize for Anchor {
     fn serialize<'se, W: Write>(
@@ -17,16 +18,7 @@ impl Deserialize for Anchor {
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
 
-            if let cbor_event::Len::Len(n) = len {
-                if n != 2 {
-                    return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
-                        2,
-                        len,
-                        "(anchor_url, anchor_data_hash)",
-                    ))
-                    .into());
-                }
-            }
+            check_len(len, 2, "(anchor_url, anchor_data_hash)")?;
 
             let anchor_url = URL::deserialize(raw).map_err(|e| e.annotate("anchor_url"))?;
 

@@ -17,7 +17,7 @@ impl cbor_event::se::Serialize for VotingProcedure {
                 serializer.write_unsigned_integer(2u64)?;
             }
         };
-        self.anchor.serialize(serializer)?;
+        self.anchor.serialize_nullable(serializer)?;
         Ok(serializer)
     }
 }
@@ -31,7 +31,7 @@ impl Deserialize for VotingProcedure {
                     return Err(DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
                         2,
                         len,
-                        "[vote, anchor]",
+                        "[vote, anchor / null]",
                     ))
                     .into());
                 }
