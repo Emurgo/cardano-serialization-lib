@@ -1395,14 +1395,25 @@ impl TransactionBuilder {
     }
 
     pub fn get_deposit(&self) -> Result<Coin, JsError> {
+        let mut total_deposit = Coin::zero();
         if let Some(certs) = &self.certs {
-            Ok(certs.get_certificates_deposit(
-                &self.config.pool_deposit,
-                &self.config.key_deposit,
-            )?)
-        } else {
-            Ok(Coin::zero())
+            total_deposit = total_deposit.checked_add(
+                &certs.get_certificates_deposit(
+                    &self.config.pool_deposit,
+                    &self.config.key_deposit,
+                )?,
+            )?;
         }
+
+        if let Some(voting_proposal_builder) = &self.voting_proposals {
+            total_deposit = total_deposit.checked_add(
+                &voting_proposal_builder.get_total_deposit(
+                    &self.config.voting_proposal_deposit,
+                )?,
+            )?;
+        }
+
+        Ok(total_deposit)
     }
 
     pub fn get_fee_if_set(&self) -> Option<Coin> {
