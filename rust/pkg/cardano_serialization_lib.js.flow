@@ -10978,6 +10978,7 @@ export interface TransactionBodyJSON {
   validity_start_interval?: string | null;
   withdrawals?: {
     [k: string]: string,
+    ...
   } | null;
 }
 export type TransactionHashJSON = string;
