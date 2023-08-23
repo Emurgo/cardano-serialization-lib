@@ -362,6 +362,7 @@ pub struct TransactionBuilder {
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
     reference_inputs: HashSet<TransactionInput>,
+    extra_datums: Option<PlutusList>
 }
 
 #[wasm_bindgen]
@@ -1226,6 +1227,20 @@ impl TransactionBuilder {
         )
     }
 
+    pub fn add_extra_witness_datum(&mut self, datum: &PlutusData) {
+        if let Some(extra_datums) = &mut self.extra_datums {
+            extra_datums.add(datum);
+        } else {
+            let mut extra_datums = PlutusList::new();
+            extra_datums.add(datum);
+            self.extra_datums = Some(extra_datums);
+        }
+    }
+
+    pub fn get_extra_witness_datums(&self) -> Option<PlutusList> {
+        self.extra_datums.clone()
+    }
+
     pub fn new(cfg: &TransactionBuilderConfig) -> Self {
         Self {
             config: cfg.clone(),
@@ -1244,6 +1259,7 @@ impl TransactionBuilder {
             collateral_return: None,
             total_collateral: None,
             reference_inputs: HashSet::new(),
+            extra_datums: None,
         }
     }
 
@@ -1734,27 +1750,41 @@ impl TransactionBuilder {
             plutus_witnesses.0.append(&mut mint_builder.get_plutus_witnesses().0)
         }
 
-        if plutus_witnesses.len() > 0 {
-            let (_scripts, datums, redeemers) = plutus_witnesses.collect();
-            for lang in used_langs {
-                match cost_models.get(&lang) {
-                    Some(cost) => {
-                        retained_cost_models.insert(&lang, &cost);
-                    }
-                    _ => {
-                        return Err(JsError::from_str(&format!(
-                            "Missing cost model for language version: {:?}",
-                            lang
-                        )))
-                    }
+        let (_scripts, mut datums, redeemers) = plutus_witnesses.collect();
+        for lang in used_langs {
+            match cost_models.get(&lang) {
+                Some(cost) => {
+                    retained_cost_models.insert(&lang, &cost);
+                }
+                _ => {
+                    return Err(JsError::from_str(&format!(
+                        "Missing cost model for language version: {:?}",
+                        lang
+                    )))
                 }
             }
+        }
+
+        if let Some(extra_datum) = &self.extra_datums {
+            if datums.is_none() {
+                datums = Some(PlutusList::new());
+            }
+
+            for datum in extra_datum {
+                if let Some(datums) = &mut datums {
+                    datums.add(datum);
+                }
+            }
+        }
+
+        if datums.is_some() || redeemers.len() > 0 || retained_cost_models.len() > 0 {
             self.script_data_hash = Some(hash_script_data(
                 &redeemers,
                 &retained_cost_models,
                 datums,
             ));
         }
+
         Ok(())
     }
 
@@ -1890,14 +1920,30 @@ impl TransactionBuilder {
         if let Some(scripts) = self.get_combined_native_scripts() {
             wit.set_native_scripts(&scripts);
         }
+        let mut all_datums = None;
         if let Some(pw) = self.get_combined_plutus_scripts() {
             let (scripts, datums, redeemers) = pw.collect();
             wit.set_plutus_scripts(&scripts);
-            if let Some(datums) = &datums {
-                wit.set_plutus_data(datums);
-            }
+            all_datums = datums;
             wit.set_redeemers(&redeemers);
         }
+
+        if let Some(extra_datum) = &self.extra_datums {
+            if all_datums.is_none() {
+                all_datums = Some(PlutusList::new());
+            }
+
+            for datum in extra_datum {
+                if let Some(datums) = &mut all_datums {
+                    datums.add(datum);
+                }
+            }
+        }
+
+        if let Some(datums) = &all_datums {
+            wit.set_plutus_data(datums);
+        }
+
         wit
     }
 
@@ -8124,5 +8170,48 @@ mod tests {
         let tx = build_res.unwrap();
         assert_eq!(tx.witness_set.plutus_scripts.unwrap().len(), 1usize);
         assert_eq!(tx.witness_set.redeemers.unwrap().len(), 2usize);
+    }
+
+    #[test]
+    pub fn test_extra_datum() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+
+        let datum = PlutusData::new_bytes(fake_bytes_32(1));
+        tx_builder.add_extra_witness_datum(&datum);
+
+        let mut inp = TxInputsBuilder::new();
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &Value::new(&to_bignum(1000000u64)),
+        );
+
+        tx_builder.set_inputs(&inp);
+        tx_builder
+            .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
+            .unwrap();
+
+
+        let res = tx_builder.build_tx();
+        assert!(res.is_ok());
+
+        let tx = res.unwrap();
+
+        let data_hash = hash_script_data(
+            &Redeemers::new(),
+            &Costmdls::new(),
+            Some(PlutusList::from(vec![datum.clone()])),
+        );
+
+        let tx_builder_script_data_hash = tx_builder.script_data_hash.clone();
+        assert_eq!(tx_builder_script_data_hash.unwrap(), data_hash);
+
+        let extra_datums = tx_builder.get_extra_witness_datums().unwrap();
+        assert_eq!(&extra_datums.get(0), &datum);
+        assert_eq!(extra_datums.len(), 1usize);
+        assert_eq!(tx_builder.get_witness_set().plutus_data().unwrap().len(), 1usize);
+        assert_eq!(tx.witness_set().plutus_data().unwrap().len(), 1usize);
+        assert_eq!(tx.witness_set().plutus_data().unwrap().get(0), datum);
     }
 }
