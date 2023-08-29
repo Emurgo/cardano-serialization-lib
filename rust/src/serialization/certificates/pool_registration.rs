@@ -154,7 +154,7 @@ impl DeserializeEmbeddedGroup for PoolRegistration {
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-        check_len(len, 2, "(cert_index, pool_params)")?;
+        check_len(len, 10, "(cert_index, pool_params (without array) )")?;
 
         let cert_index = CertificateIndexNames::PoolRegistration.to_u64();
         deserialize_and_check_index(raw, cert_index, "cert_index")?;
