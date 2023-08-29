@@ -30,7 +30,7 @@ impl DrepDeregistration {
         self.coin.clone()
     }
 
-    pub fn new(voting_credential: &StakeCredential, coin: Coin) -> Self {
+    pub fn new(voting_credential: &StakeCredential, coin: &Coin) -> Self {
         Self {
             voting_credential: voting_credential.clone(),
             coin: coin.clone(),
