@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::{to_bignum, Address, BaseAddress, Bip32PrivateKey, DataHash, Ed25519KeyHash, Ed25519Signature, NetworkInfo, StakeCredential, TransactionHash, TransactionIndex, TransactionInput, TransactionOutput, Value, Vkey, PolicyID};
-use crate::crypto::ScriptHash;
+use crate::crypto::{AnchorDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, ScriptHash, VRFKeyHash};
 
 pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
     vec![
@@ -11,6 +11,26 @@ pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
 
 pub(crate) fn fake_data_hash(x: u8) -> DataHash {
     DataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_anchor_data_hash(x: u8) -> AnchorDataHash {
+    AnchorDataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_pool_metadata_hash(x: u8) -> PoolMetadataHash {
+    PoolMetadataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_genesis_hash(x: u8) -> GenesisHash {
+    GenesisHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_genesis_delegate_hash(x: u8) -> GenesisDelegateHash {
+    GenesisDelegateHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_vrf_key_hash(x: u8) -> VRFKeyHash {
+    VRFKeyHash::from_bytes(fake_bytes_32(x)).unwrap()
 }
 
 pub(crate) fn fake_key_hash(x: u8) -> Ed25519KeyHash {
