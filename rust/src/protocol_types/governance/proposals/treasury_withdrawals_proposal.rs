@@ -25,7 +25,7 @@ impl TreasuryWithdrawalsProposal {
         self.withdrawals.clone()
     }
 
-    pub fn new(withdrawals: TreasuryWithdrawals) -> Self {
+    pub fn new(withdrawals: &TreasuryWithdrawals) -> Self {
         Self {
             withdrawals: withdrawals.clone(),
         }

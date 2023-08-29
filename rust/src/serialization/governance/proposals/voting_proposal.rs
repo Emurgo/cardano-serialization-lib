@@ -40,6 +40,8 @@ impl Deserialize for VotingProposal {
                     }
                     .into());
                 }
+
+                return Ok(Self(VotingProposalEnum::InfoProposal(InfoProposal::new())));
             }
 
             let len = raw.array()?;
