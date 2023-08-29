@@ -55,7 +55,7 @@ impl VotingProcedure {
         }
     }
 
-    pub fn vote(&self) -> VoteKind {
+    pub fn vote_kind(&self) -> VoteKind {
         self.vote.clone()
     }
 

@@ -61,6 +61,18 @@ impl VotingProcedures {
         Self(BTreeMap::new())
     }
 
+    pub fn insert(
+        &mut self,
+        voter: &Voter,
+        governance_action_id: &GovernanceActionId,
+        voting_procedure: &VotingProcedure,
+    ) {
+        self.0
+            .entry(voter.clone())
+            .or_insert_with(BTreeMap::new)
+            .insert(governance_action_id.clone(), voting_procedure.clone());
+    }
+
     pub fn get(
         &self,
         voter: &Voter,
@@ -107,7 +119,7 @@ impl serde::ser::Serialize for VotingProcedures {
     {
         let mut seq = serializer.serialize_seq(Some(self.0.len()))?;
         for (voter, votes) in &self.0 {
-            let voterVotes = VoterVotes {
+            let voter_votes = VoterVotes {
                 voter: voter.clone(),
                 votes: votes
                     .iter()
@@ -117,7 +129,7 @@ impl serde::ser::Serialize for VotingProcedures {
                     })
                     .collect(),
             };
-            seq.serialize_element(&voterVotes)?;
+            seq.serialize_element(&voter_votes)?;
         }
         seq.end()
     }
