@@ -365,7 +365,7 @@ pub struct TransactionBuilder {
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
     reference_inputs: HashSet<TransactionInput>,
-    extra_datums: Option<PlutusList>
+    extra_datums: Option<PlutusList>,
     voting_procedures: Option<VotingBuilder>,
     voting_proposals: Option<VotingProposalBuilder>,
 }
