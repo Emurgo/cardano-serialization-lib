@@ -153,6 +153,13 @@ impl StakeCredential {
         }
     }
 
+    pub fn has_script_hash(&self) -> bool {
+        match &self.0 {
+            StakeCredType::Key(_) => false,
+            StakeCredType::Script(_) => true,
+        }
+    }
+
     fn to_raw_bytes(&self) -> Vec<u8> {
         match &self.0 {
             StakeCredType::Key(hash) => hash.to_bytes(),

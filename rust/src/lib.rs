@@ -78,7 +78,7 @@ type DeltaCoin = Int;
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct UnitInterval {
     numerator: BigNum,
@@ -697,7 +697,7 @@ impl PartialEq for TransactionOutput {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct StakeRegistration {
     stake_credential: StakeCredential,
@@ -720,10 +720,10 @@ impl StakeRegistration {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct StakeDeregistration {
-    stake_credential: StakeCredential,
+   pub(crate) stake_credential: StakeCredential,
 }
 
 impl_to_from!(StakeDeregistration);
@@ -739,11 +739,15 @@ impl StakeDeregistration {
             stake_credential: stake_credential.clone(),
         }
     }
+
+    pub fn has_script_credentials(&self) -> bool {
+        self.stake_credential.has_script_hash()
+    }
 }
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct StakeDelegation {
     stake_credential: StakeCredential,
@@ -768,13 +772,17 @@ impl StakeDelegation {
             pool_keyhash: pool_keyhash.clone(),
         }
     }
+
+    pub fn has_script_credentials(&self) -> bool {
+        self.stake_credential.has_script_hash()
+    }
 }
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
-pub struct Ed25519KeyHashes(Vec<Ed25519KeyHash>);
+pub struct Ed25519KeyHashes(pub(crate) Vec<Ed25519KeyHash>);
 
 impl_to_from!(Ed25519KeyHashes);
 
@@ -805,9 +813,18 @@ impl Ed25519KeyHashes {
     }
 }
 
+impl IntoIterator for Ed25519KeyHashes {
+    type Item = Ed25519KeyHash;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct Relays(Vec<Relay>);
 
@@ -834,7 +851,7 @@ impl Relays {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct PoolParams {
     operator: Ed25519KeyHash,
@@ -915,7 +932,7 @@ impl PoolParams {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct PoolRegistration {
     pool_params: PoolParams,
@@ -938,7 +955,7 @@ impl PoolRegistration {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct PoolRetirement {
     pool_keyhash: Ed25519KeyHash,
@@ -967,7 +984,7 @@ impl PoolRetirement {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct GenesisKeyDelegation {
     genesishash: GenesisHash,
@@ -1006,7 +1023,7 @@ impl GenesisKeyDelegation {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct MoveInstantaneousRewardsCert {
     move_instantaneous_reward: MoveInstantaneousReward,
@@ -1040,7 +1057,7 @@ pub enum CertificateKind {
 }
 
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub enum CertificateEnum {
     StakeRegistration(StakeRegistration),
@@ -1054,7 +1071,7 @@ pub enum CertificateEnum {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct Certificate(CertificateEnum);
 
@@ -1162,6 +1179,14 @@ impl Certificate {
             _ => None,
         }
     }
+
+    pub fn has_required_script_witness(&self) -> bool {
+        match &self.0 {
+            CertificateEnum::StakeDeregistration(x) => x.has_script_credentials(),
+            CertificateEnum::StakeDelegation(x) => x.has_script_credentials(),
+            _ => false,
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -1169,6 +1194,7 @@ impl Certificate {
     Clone,
     Copy,
     Debug,
+    Hash,
     Eq,
     Ord,
     PartialEq,
@@ -1183,7 +1209,7 @@ pub enum MIRPot {
 }
 
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub enum MIREnum {
     ToOtherPot(Coin),
@@ -1200,7 +1226,7 @@ pub enum MIRKind {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MIRToStakeCredentials {
     rewards: linked_hash_map::LinkedHashMap<StakeCredential, DeltaCoin>,
 }
@@ -1278,7 +1304,7 @@ impl JsonSchema for MIRToStakeCredentials {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct MoveInstantaneousReward {
     pot: MIRPot,
@@ -1333,7 +1359,7 @@ type Port = u16;
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct Ipv4([u8; 4]);
 
@@ -1363,7 +1389,7 @@ impl Ipv4 {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct Ipv6([u8; 16]);
 
@@ -1395,7 +1421,7 @@ static URL_MAX_LEN: usize = 64;
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct URL(String);
 
@@ -1431,7 +1457,7 @@ static DNS_NAME_MAX_LEN: usize = 64;
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct DNSRecordAorAAAA(String);
 
@@ -1465,7 +1491,7 @@ impl DNSRecordAorAAAA {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct DNSRecordSRV(String);
 
@@ -1499,7 +1525,7 @@ impl DNSRecordSRV {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct SingleHostAddr {
     port: Option<Port>,
@@ -1534,7 +1560,7 @@ impl SingleHostAddr {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct SingleHostName {
     port: Option<Port>,
@@ -1563,7 +1589,7 @@ impl SingleHostName {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct MultiHostName {
     dns_name: DNSRecordSRV,
@@ -1593,7 +1619,7 @@ pub enum RelayKind {
 }
 
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub enum RelayEnum {
     SingleHostAddr(SingleHostAddr),
@@ -1603,7 +1629,7 @@ pub enum RelayEnum {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct Relay(RelayEnum);
 
@@ -1655,7 +1681,7 @@ impl Relay {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct PoolMetadata {
     url: URL,

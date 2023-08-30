@@ -1,6 +1,7 @@
 use super::*;
 use crate::plutus::Redeemer;
-use crate::tx_builder::tx_inputs_builder::{PlutusScriptSource, PlutusScriptSourceEnum};
+use crate::tx_builder::script_structs::PlutusScriptSourceEnum;
+use crate::tx_builder::script_structs::PlutusScriptSource;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum MintWitnessEnum {
@@ -177,13 +178,14 @@ impl MintBuilder {
     }
 
     pub fn get_redeeemers(&self) -> Result<Redeemers, JsError> {
+        let tag = RedeemerTag::new_mint();
         let mut redeeemers = Vec::new();
         let mut index = BigNum::zero();
         for (_, script_mint) in &self.mints {
             match script_mint {
                 ScriptMint::Plutus(plutus_mints) => {
                     for (redeemer, _) in &plutus_mints.redeemer_mints {
-                        redeeemers.push(redeemer.clone_with_index(&index));
+                        redeeemers.push(redeemer.clone_with_index_and_tag(&index, &tag));
                         index = index.checked_add(&BigNum::one())?;
                     }
                 },

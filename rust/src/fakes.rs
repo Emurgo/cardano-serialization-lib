@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::{to_bignum, Address, BaseAddress, Bip32PrivateKey, DataHash, Ed25519KeyHash, Ed25519Signature, NetworkInfo, StakeCredential, TransactionHash, TransactionIndex, TransactionInput, TransactionOutput, Value, Vkey, PolicyID};
+use crate::crypto::ScriptHash;
 
 pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
     vec![
@@ -14,6 +15,10 @@ pub(crate) fn fake_data_hash(x: u8) -> DataHash {
 
 pub(crate) fn fake_key_hash(x: u8) -> Ed25519KeyHash {
     Ed25519KeyHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_script_hash(x: u8) -> ScriptHash {
+    ScriptHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
 }
 
 pub(crate) fn fake_base_address(x: u8) -> Address {

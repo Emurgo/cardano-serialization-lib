@@ -949,9 +949,19 @@ impl Redeemer {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn clone_with_index(&self, index: &BigNum) -> Self {
         Self {
             tag: self.tag.clone(),
+            index: index.clone(),
+            data: self.data.clone(),
+            ex_units: self.ex_units.clone(),
+        }
+    }
+
+    pub(crate) fn clone_with_index_and_tag(&self, index: &BigNum, tag: &RedeemerTag) -> Self {
+        Self {
+            tag: tag.clone(),
             index: index.clone(),
             data: self.data.clone(),
             ex_units: self.ex_units.clone(),
@@ -964,6 +974,7 @@ impl Redeemer {
     Copy,
     Clone,
     Debug,
+    Hash,
     Eq,
     Ord,
     PartialEq,
@@ -981,7 +992,7 @@ pub enum RedeemerTagKind {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct RedeemerTag(RedeemerTagKind);
 
