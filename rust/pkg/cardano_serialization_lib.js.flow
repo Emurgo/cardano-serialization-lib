@@ -6,6 +6,30 @@
  */
 
 /**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
  * @param {Transaction} tx
  * @param {LinearFee} linear_fee
  * @returns {BigNum}
@@ -183,30 +207,6 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
- */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
-
-/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -307,32 +307,6 @@ declare export var NetworkIdKind: {|
 /**
  */
 
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-  +LargestFirstMultiAsset: 2, // 2
-  +RandomImproveMultiAsset: 3, // 3
-|};
-
-/**
- */
-
-declare export var MIRPot: {|
-  +Reserves: 0, // 0
-  +Treasury: 1, // 1
-|};
-
-/**
- */
-
-declare export var MIRKind: {|
-  +ToOtherPot: 0, // 0
-  +ToStakeCredentials: 1, // 1
-|};
-
-/**
- */
-
 declare export var VoterKind: {|
   +ConstitutionalCommitteeHotKeyHash: 0, // 0
   +ConstitutionalCommitteeHotScriptHash: 1, // 1
@@ -344,26 +318,9 @@ declare export var VoterKind: {|
 /**
  */
 
-declare export var CborContainerType: {|
-  +Array: 0, // 0
-  +Map: 1, // 1
-|};
-
-/**
- */
-
 declare export var StakeCredKind: {|
   +Key: 0, // 0
   +Script: 1, // 1
-|};
-
-/**
- * Used to choosed the schema for a script JSON string
- */
-
-declare export var ScriptSchema: {|
-  +Wallet: 0, // 0
-  +Node: 1, // 1
 |};
 
 /**
@@ -374,6 +331,15 @@ declare export var DRepKind: {|
   +ScriptHash: 1, // 1
   +AlwaysAbstain: 2, // 2
   +AlwaysNoConfidence: 3, // 3
+|};
+
+/**
+ * Used to choosed the schema for a script JSON string
+ */
+
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
 |};
 
 /**
@@ -491,6 +457,40 @@ declare export var PlutusDatumSchema: {|
 
 /**
  */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ */
+
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
+|};
+
+/**
+ */
+
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
+|};
+
+/**
+ */
+
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
+|};
+
+/**
+ */
 declare export class Address {
   free(): void;
 
@@ -553,6 +553,44 @@ declare export class Address {
  */
 declare export class Anchor {
   free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Anchor}
+   */
+  static from_bytes(bytes: Uint8Array): Anchor;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {Anchor}
+   */
+  static from_hex(hex_str: string): Anchor;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {AnchorJSON}
+   */
+  to_js_value(): AnchorJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Anchor}
+   */
+  static from_json(json: string): Anchor;
 
   /**
    * @returns {URL}
@@ -966,25 +1004,25 @@ declare export class BaseAddress {
 
   /**
    * @param {number} network
-   * @param {StakeCredential} payment
-   * @param {StakeCredential} stake
+   * @param {Credential} payment
+   * @param {Credential} stake
    * @returns {BaseAddress}
    */
   static new(
     network: number,
-    payment: StakeCredential,
-    stake: StakeCredential
+    payment: Credential,
+    stake: Credential
   ): BaseAddress;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  payment_cred(): StakeCredential;
+  payment_cred(): Credential;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  stake_cred(): StakeCredential;
+  stake_cred(): Credential;
 
   /**
    * @returns {Address}
@@ -2163,16 +2201,16 @@ declare export class Committee {
   quorum_threshold(): UnitInterval;
 
   /**
-   * @param {StakeCredential} committee_cold_credential
+   * @param {Credential} committee_cold_credential
    * @param {number} epoch
    */
-  add_member(committee_cold_credential: StakeCredential, epoch: number): void;
+  add_member(committee_cold_credential: Credential, epoch: number): void;
 
   /**
-   * @param {StakeCredential} committee_cold_credential
+   * @param {Credential} committee_cold_credential
    * @returns {number | void}
    */
-  get_member_epoch(committee_cold_credential: StakeCredential): number | void;
+  get_member_epoch(committee_cold_credential: Credential): number | void;
 }
 /**
  */
@@ -2218,17 +2256,15 @@ declare export class CommitteeHotKeyDeregistration {
   static from_json(json: string): CommitteeHotKeyDeregistration;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  committee_cold_key(): StakeCredential;
+  committee_cold_key(): Credential;
 
   /**
-   * @param {StakeCredential} committee_cold_key
+   * @param {Credential} committee_cold_key
    * @returns {CommitteeHotKeyDeregistration}
    */
-  static new(
-    committee_cold_key: StakeCredential
-  ): CommitteeHotKeyDeregistration;
+  static new(committee_cold_key: Credential): CommitteeHotKeyDeregistration;
 
   /**
    * @returns {boolean}
@@ -2279,23 +2315,23 @@ declare export class CommitteeHotKeyRegistration {
   static from_json(json: string): CommitteeHotKeyRegistration;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  committee_cold_key(): StakeCredential;
+  committee_cold_key(): Credential;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  committee_hot_key(): StakeCredential;
+  committee_hot_key(): Credential;
 
   /**
-   * @param {StakeCredential} committee_cold_key
-   * @param {StakeCredential} committee_hot_key
+   * @param {Credential} committee_cold_key
+   * @param {Credential} committee_hot_key
    * @returns {CommitteeHotKeyRegistration}
    */
   static new(
-    committee_cold_key: StakeCredential,
-    committee_hot_key: StakeCredential
+    committee_cold_key: Credential,
+    committee_hot_key: Credential
   ): CommitteeHotKeyRegistration;
 
   /**
@@ -2562,6 +2598,81 @@ declare export class Costmdls {
    * @returns {Costmdls}
    */
   retain_language_versions(languages: Languages): Costmdls;
+}
+/**
+ */
+declare export class Credential {
+  free(): void;
+
+  /**
+   * @param {Ed25519KeyHash} hash
+   * @returns {Credential}
+   */
+  static from_keyhash(hash: Ed25519KeyHash): Credential;
+
+  /**
+   * @param {ScriptHash} hash
+   * @returns {Credential}
+   */
+  static from_scripthash(hash: ScriptHash): Credential;
+
+  /**
+   * @returns {Ed25519KeyHash | void}
+   */
+  to_keyhash(): Ed25519KeyHash | void;
+
+  /**
+   * @returns {ScriptHash | void}
+   */
+  to_scripthash(): ScriptHash | void;
+
+  /**
+   * @returns {number}
+   */
+  kind(): number;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_hash(): boolean;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Credential}
+   */
+  static from_bytes(bytes: Uint8Array): Credential;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {Credential}
+   */
+  static from_hex(hex_str: string): Credential;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {CredentialJSON}
+   */
+  to_js_value(): CredentialJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Credential}
+   */
+  static from_json(json: string): Credential;
 }
 /**
  */
@@ -2875,9 +2986,9 @@ declare export class DrepDeregistration {
   static from_json(json: string): DrepDeregistration;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  voting_credential(): StakeCredential;
+  voting_credential(): Credential;
 
   /**
    * @returns {BigNum}
@@ -2885,14 +2996,11 @@ declare export class DrepDeregistration {
   coin(): BigNum;
 
   /**
-   * @param {StakeCredential} voting_credential
+   * @param {Credential} voting_credential
    * @param {BigNum} coin
    * @returns {DrepDeregistration}
    */
-  static new(
-    voting_credential: StakeCredential,
-    coin: BigNum
-  ): DrepDeregistration;
+  static new(voting_credential: Credential, coin: BigNum): DrepDeregistration;
 
   /**
    * @returns {boolean}
@@ -2943,9 +3051,9 @@ declare export class DrepRegistration {
   static from_json(json: string): DrepRegistration;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  voting_credential(): StakeCredential;
+  voting_credential(): Credential;
 
   /**
    * @returns {BigNum}
@@ -2958,15 +3066,22 @@ declare export class DrepRegistration {
   anchor(): Anchor | void;
 
   /**
-   * @param {StakeCredential} voting_credential
+   * @param {Credential} voting_credential
    * @param {BigNum} coin
-   * @param {Anchor | void} anchor
    * @returns {DrepRegistration}
    */
-  static new(
-    voting_credential: StakeCredential,
+  static new(voting_credential: Credential, coin: BigNum): DrepRegistration;
+
+  /**
+   * @param {Credential} voting_credential
+   * @param {BigNum} coin
+   * @param {Anchor} anchor
+   * @returns {DrepRegistration}
+   */
+  static new_with_anchor(
+    voting_credential: Credential,
     coin: BigNum,
-    anchor?: Anchor
+    anchor: Anchor
   ): DrepRegistration;
 }
 /**
@@ -3013,9 +3128,9 @@ declare export class DrepUpdate {
   static from_json(json: string): DrepUpdate;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  voting_credential(): StakeCredential;
+  voting_credential(): Credential;
 
   /**
    * @returns {Anchor | void}
@@ -3023,11 +3138,20 @@ declare export class DrepUpdate {
   anchor(): Anchor | void;
 
   /**
-   * @param {StakeCredential} voting_credential
-   * @param {Anchor | void} anchor
+   * @param {Credential} voting_credential
    * @returns {DrepUpdate}
    */
-  static new(voting_credential: StakeCredential, anchor?: Anchor): DrepUpdate;
+  static new(voting_credential: Credential): DrepUpdate;
+
+  /**
+   * @param {Credential} voting_credential
+   * @param {Anchor} anchor
+   * @returns {DrepUpdate}
+   */
+  static new_with_anchor(
+    voting_credential: Credential,
+    anchor: Anchor
+  ): DrepUpdate;
 
   /**
    * @returns {boolean}
@@ -3187,15 +3311,15 @@ declare export class EnterpriseAddress {
 
   /**
    * @param {number} network
-   * @param {StakeCredential} payment
+   * @param {Credential} payment
    * @returns {EnterpriseAddress}
    */
-  static new(network: number, payment: StakeCredential): EnterpriseAddress;
+  static new(network: number, payment: Credential): EnterpriseAddress;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  payment_cred(): StakeCredential;
+  payment_cred(): Credential;
 
   /**
    * @returns {Address}
@@ -4670,17 +4794,17 @@ declare export class MIRToStakeCredentials {
   len(): number;
 
   /**
-   * @param {StakeCredential} cred
+   * @param {Credential} cred
    * @param {Int} delta
    * @returns {Int | void}
    */
-  insert(cred: StakeCredential, delta: Int): Int | void;
+  insert(cred: Credential, delta: Int): Int | void;
 
   /**
-   * @param {StakeCredential} cred
+   * @param {Credential} cred
    * @returns {Int | void}
    */
-  get(cred: StakeCredential): Int | void;
+  get(cred: Credential): Int | void;
 
   /**
    * @returns {StakeCredentials}
@@ -6662,20 +6786,20 @@ declare export class PointerAddress {
 
   /**
    * @param {number} network
-   * @param {StakeCredential} payment
+   * @param {Credential} payment
    * @param {Pointer} stake
    * @returns {PointerAddress}
    */
   static new(
     network: number,
-    payment: StakeCredential,
+    payment: Credential,
     stake: Pointer
   ): PointerAddress;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  payment_cred(): StakeCredential;
+  payment_cred(): Credential;
 
   /**
    * @returns {Pointer}
@@ -7964,15 +8088,15 @@ declare export class RewardAddress {
 
   /**
    * @param {number} network
-   * @param {StakeCredential} payment
+   * @param {Credential} payment
    * @returns {RewardAddress}
    */
-  static new(network: number, payment: StakeCredential): RewardAddress;
+  static new(network: number, payment: Credential): RewardAddress;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  payment_cred(): StakeCredential;
+  payment_cred(): Credential;
 
   /**
    * @returns {Address}
@@ -8658,9 +8782,9 @@ declare export class StakeAndVoteDelegation {
   static from_json(json: string): StakeAndVoteDelegation;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  stake_credential(): StakeCredential;
+  stake_credential(): Credential;
 
   /**
    * @returns {Ed25519KeyHash}
@@ -8673,13 +8797,13 @@ declare export class StakeAndVoteDelegation {
   drep(): DRep;
 
   /**
-   * @param {StakeCredential} stake_credential
+   * @param {Credential} stake_credential
    * @param {Ed25519KeyHash} pool_keyhash
    * @param {DRep} drep
    * @returns {StakeAndVoteDelegation}
    */
   static new(
-    stake_credential: StakeCredential,
+    stake_credential: Credential,
     pool_keyhash: Ed25519KeyHash,
     drep: DRep
   ): StakeAndVoteDelegation;
@@ -8688,81 +8812,6 @@ declare export class StakeAndVoteDelegation {
    * @returns {boolean}
    */
   has_script_credentials(): boolean;
-}
-/**
- */
-declare export class StakeCredential {
-  free(): void;
-
-  /**
-   * @param {Ed25519KeyHash} hash
-   * @returns {StakeCredential}
-   */
-  static from_keyhash(hash: Ed25519KeyHash): StakeCredential;
-
-  /**
-   * @param {ScriptHash} hash
-   * @returns {StakeCredential}
-   */
-  static from_scripthash(hash: ScriptHash): StakeCredential;
-
-  /**
-   * @returns {Ed25519KeyHash | void}
-   */
-  to_keyhash(): Ed25519KeyHash | void;
-
-  /**
-   * @returns {ScriptHash | void}
-   */
-  to_scripthash(): ScriptHash | void;
-
-  /**
-   * @returns {number}
-   */
-  kind(): number;
-
-  /**
-   * @returns {boolean}
-   */
-  has_script_hash(): boolean;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {StakeCredential}
-   */
-  static from_bytes(bytes: Uint8Array): StakeCredential;
-
-  /**
-   * @returns {string}
-   */
-  to_hex(): string;
-
-  /**
-   * @param {string} hex_str
-   * @returns {StakeCredential}
-   */
-  static from_hex(hex_str: string): StakeCredential;
-
-  /**
-   * @returns {string}
-   */
-  to_json(): string;
-
-  /**
-   * @returns {StakeCredentialJSON}
-   */
-  to_js_value(): StakeCredentialJSON;
-
-  /**
-   * @param {string} json
-   * @returns {StakeCredential}
-   */
-  static from_json(json: string): StakeCredential;
 }
 /**
  */
@@ -8819,14 +8868,14 @@ declare export class StakeCredentials {
 
   /**
    * @param {number} index
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  get(index: number): StakeCredential;
+  get(index: number): Credential;
 
   /**
-   * @param {StakeCredential} elem
+   * @param {Credential} elem
    */
-  add(elem: StakeCredential): void;
+  add(elem: Credential): void;
 }
 /**
  */
@@ -8872,9 +8921,9 @@ declare export class StakeDelegation {
   static from_json(json: string): StakeDelegation;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  stake_credential(): StakeCredential;
+  stake_credential(): Credential;
 
   /**
    * @returns {Ed25519KeyHash}
@@ -8882,12 +8931,12 @@ declare export class StakeDelegation {
   pool_keyhash(): Ed25519KeyHash;
 
   /**
-   * @param {StakeCredential} stake_credential
+   * @param {Credential} stake_credential
    * @param {Ed25519KeyHash} pool_keyhash
    * @returns {StakeDelegation}
    */
   static new(
-    stake_credential: StakeCredential,
+    stake_credential: Credential,
     pool_keyhash: Ed25519KeyHash
   ): StakeDelegation;
 
@@ -8940,9 +8989,9 @@ declare export class StakeDeregistration {
   static from_json(json: string): StakeDeregistration;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  stake_credential(): StakeCredential;
+  stake_credential(): Credential;
 
   /**
    * @returns {BigNum | void}
@@ -8950,18 +8999,18 @@ declare export class StakeDeregistration {
   coin(): BigNum | void;
 
   /**
-   * @param {StakeCredential} stake_credential
+   * @param {Credential} stake_credential
    * @returns {StakeDeregistration}
    */
-  static new(stake_credential: StakeCredential): StakeDeregistration;
+  static new(stake_credential: Credential): StakeDeregistration;
 
   /**
-   * @param {StakeCredential} stake_credential
+   * @param {Credential} stake_credential
    * @param {BigNum} coin
    * @returns {StakeDeregistration}
    */
   static new_with_coin(
-    stake_credential: StakeCredential,
+    stake_credential: Credential,
     coin: BigNum
   ): StakeDeregistration;
 
@@ -9014,9 +9063,9 @@ declare export class StakeRegistration {
   static from_json(json: string): StakeRegistration;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  stake_credential(): StakeCredential;
+  stake_credential(): Credential;
 
   /**
    * @returns {BigNum | void}
@@ -9024,18 +9073,18 @@ declare export class StakeRegistration {
   coin(): BigNum | void;
 
   /**
-   * @param {StakeCredential} stake_credential
+   * @param {Credential} stake_credential
    * @returns {StakeRegistration}
    */
-  static new(stake_credential: StakeCredential): StakeRegistration;
+  static new(stake_credential: Credential): StakeRegistration;
 
   /**
-   * @param {StakeCredential} stake_credential
+   * @param {Credential} stake_credential
    * @param {BigNum} coin
    * @returns {StakeRegistration}
    */
   static new_with_coin(
-    stake_credential: StakeCredential,
+    stake_credential: Credential,
     coin: BigNum
   ): StakeRegistration;
 }
@@ -9083,9 +9132,9 @@ declare export class StakeRegistrationAndDelegation {
   static from_json(json: string): StakeRegistrationAndDelegation;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  stake_credential(): StakeCredential;
+  stake_credential(): Credential;
 
   /**
    * @returns {Ed25519KeyHash}
@@ -9098,13 +9147,13 @@ declare export class StakeRegistrationAndDelegation {
   coin(): BigNum;
 
   /**
-   * @param {StakeCredential} stake_credential
+   * @param {Credential} stake_credential
    * @param {Ed25519KeyHash} pool_keyhash
    * @param {BigNum} coin
    * @returns {StakeRegistrationAndDelegation}
    */
   static new(
-    stake_credential: StakeCredential,
+    stake_credential: Credential,
     pool_keyhash: Ed25519KeyHash,
     coin: BigNum
   ): StakeRegistrationAndDelegation;
@@ -9158,9 +9207,9 @@ declare export class StakeVoteRegistrationAndDelegation {
   static from_json(json: string): StakeVoteRegistrationAndDelegation;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  stake_credential(): StakeCredential;
+  stake_credential(): Credential;
 
   /**
    * @returns {Ed25519KeyHash}
@@ -9178,14 +9227,14 @@ declare export class StakeVoteRegistrationAndDelegation {
   coin(): BigNum;
 
   /**
-   * @param {StakeCredential} stake_credential
+   * @param {Credential} stake_credential
    * @param {Ed25519KeyHash} pool_keyhash
    * @param {DRep} drep
    * @param {BigNum} coin
    * @returns {StakeVoteRegistrationAndDelegation}
    */
   static new(
-    stake_credential: StakeCredential,
+    stake_credential: Credential,
     pool_keyhash: Ed25519KeyHash,
     drep: DRep,
     coin: BigNum
@@ -10236,6 +10285,16 @@ declare export class TransactionBuilder {
     amount: Int,
     output_builder: TransactionOutputAmountBuilder
   ): void;
+
+  /**
+   * @param {PlutusData} datum
+   */
+  add_extra_witness_datum(datum: PlutusData): void;
+
+  /**
+   * @returns {PlutusList | void}
+   */
+  get_extra_witness_datums(): PlutusList | void;
 
   /**
    * @param {TransactionBuilderConfig} cfg
@@ -12304,9 +12363,9 @@ declare export class VoteDelegation {
   static from_json(json: string): VoteDelegation;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  stake_credential(): StakeCredential;
+  stake_credential(): Credential;
 
   /**
    * @returns {DRep}
@@ -12314,11 +12373,11 @@ declare export class VoteDelegation {
   drep(): DRep;
 
   /**
-   * @param {StakeCredential} stake_credential
+   * @param {Credential} stake_credential
    * @param {DRep} drep
    * @returns {VoteDelegation}
    */
-  static new(stake_credential: StakeCredential, drep: DRep): VoteDelegation;
+  static new(stake_credential: Credential, drep: DRep): VoteDelegation;
 
   /**
    * @returns {boolean}
@@ -12369,9 +12428,9 @@ declare export class VoteRegistrationAndDelegation {
   static from_json(json: string): VoteRegistrationAndDelegation;
 
   /**
-   * @returns {StakeCredential}
+   * @returns {Credential}
    */
-  stake_credential(): StakeCredential;
+  stake_credential(): Credential;
 
   /**
    * @returns {DRep}
@@ -12384,13 +12443,13 @@ declare export class VoteRegistrationAndDelegation {
   coin(): BigNum;
 
   /**
-   * @param {StakeCredential} stake_credential
+   * @param {Credential} stake_credential
    * @param {DRep} drep
    * @param {BigNum} coin
    * @returns {VoteRegistrationAndDelegation}
    */
   static new(
-    stake_credential: StakeCredential,
+    stake_credential: Credential,
     drep: DRep,
     coin: BigNum
   ): VoteRegistrationAndDelegation;
@@ -12444,16 +12503,16 @@ declare export class Voter {
   static from_json(json: string): Voter;
 
   /**
-   * @param {StakeCredential} cred
+   * @param {Credential} cred
    * @returns {Voter}
    */
-  static new_constitutional_committee_hot_key(cred: StakeCredential): Voter;
+  static new_constitutional_committee_hot_key(cred: Credential): Voter;
 
   /**
-   * @param {StakeCredential} cred
+   * @param {Credential} cred
    * @returns {Voter}
    */
-  static new_drep(cred: StakeCredential): Voter;
+  static new_drep(cred: Credential): Voter;
 
   /**
    * @param {Ed25519KeyHash} key_hash
@@ -12467,14 +12526,14 @@ declare export class Voter {
   kind(): number;
 
   /**
-   * @returns {StakeCredential | void}
+   * @returns {Credential | void}
    */
-  to_constitutional_committee_hot_key(): StakeCredential | void;
+  to_constitutional_committee_hot_key(): Credential | void;
 
   /**
-   * @returns {StakeCredential | void}
+   * @returns {Credential | void}
    */
-  to_drep(): StakeCredential | void;
+  to_drep(): Credential | void;
 
   /**
    * @returns {Ed25519KeyHash | void}
@@ -12659,7 +12718,7 @@ declare export class VotingProcedure {
   /**
    * @returns {number}
    */
-  vote(): number;
+  vote_kind(): number;
 
   /**
    * @returns {Anchor | void}
@@ -12713,6 +12772,17 @@ declare export class VotingProcedures {
    * @returns {VotingProcedures}
    */
   static new(): VotingProcedures;
+
+  /**
+   * @param {Voter} voter
+   * @param {GovernanceActionId} governance_action_id
+   * @param {VotingProcedure} voting_procedure
+   */
+  insert(
+    voter: Voter,
+    governance_action_id: GovernanceActionId,
+    voting_procedure: VotingProcedure
+  ): void;
 
   /**
    * @param {Voter} voter
@@ -13233,17 +13303,15 @@ export type CertificateEnumJSON =
     };
 export type CertificatesJSON = CertificateJSON[];
 export interface CommitteeJSON {
-  members: {
-    [k: string]: number,
-  };
+  members: CommitteeMember[];
   quorum_threshold: UnitIntervalJSON;
 }
 export interface CommitteeHotKeyDeregistrationJSON {
-  committee_cold_key: StakeCredTypeJSON;
+  committee_cold_key: CredentialJSON;
 }
 export interface CommitteeHotKeyRegistrationJSON {
-  committee_cold_key: StakeCredTypeJSON;
-  committee_hot_key: StakeCredTypeJSON;
+  committee_cold_key: CredentialJSON;
+  committee_hot_key: CredentialJSON;
 }
 export interface ConstitutionJSON {
   anchor: AnchorJSON;
@@ -13253,6 +13321,16 @@ export type CostModelJSON = string[];
 export interface CostmdlsJSON {
   [k: string]: CostModelJSON;
 }
+export type CredentialJSON = StakeCredTypeJSON;
+export type StakeCredTypeJSON =
+  | {
+      Key: string,
+      ...
+    }
+  | {
+      Script: string,
+      ...
+    };
 export type DNSRecordAorAAAAJSON = string;
 export type DNSRecordSRVJSON = string;
 export type DRepJSON = DRepEnumJSON;
@@ -13278,16 +13356,16 @@ export type DataOptionJSON =
     };
 export interface DrepDeregistrationJSON {
   coin: string;
-  voting_credential: StakeCredTypeJSON;
+  voting_credential: CredentialJSON;
 }
 export interface DrepRegistrationJSON {
   anchor?: AnchorJSON | null;
   coin: string;
-  voting_credential: StakeCredTypeJSON;
+  voting_credential: CredentialJSON;
 }
 export interface DrepUpdateJSON {
   anchor?: AnchorJSON | null;
-  voting_credential: StakeCredTypeJSON;
+  voting_credential: CredentialJSON;
 }
 export type Ed25519KeyHashJSON = string;
 export type Ed25519KeyHashesJSON = string[];
@@ -13374,15 +13452,11 @@ export type MIREnumJSON =
       ...
     }
   | {
-      ToStakeCredentials: {
-        [k: string]: ProtocolParamUpdateJSON,
-      },
+      ToStakeCredentials: StakeToCoinJson[],
       ...
     };
 export type MIRPotJSON = "Reserves" | "Treasury";
-export interface MIRToStakeCredentialsJSON {
-  [k: string]: ProtocolParamUpdateJSON;
-}
+export type MIRToStakeCredentialsJSON = StakeToCoinJson[];
 export type MintJSON = [string, MintAssetsJSON][];
 export interface MintAssetsJSON {
   [k: string]: string;
@@ -13432,7 +13506,7 @@ export type NetworkIdKindJSON = "Testnet" | "Mainnet";
 export interface NewCommitteeProposalJSON {
   committee: CommitteeJSON;
   gov_action_id?: GovernanceActionIdJSON | null;
-  members_to_remove: StakeCredTypeJSON[];
+  members_to_remove: CredentialJSON[];
 }
 export interface NewConstitutionProposalJSON {
   constitution: ConstitutionJSON;
@@ -13618,41 +13692,31 @@ export interface SingleHostNameJSON {
 export interface StakeAndVoteDelegationJSON {
   drep: DRepJSON;
   pool_keyhash: string;
-  stake_credential: StakeCredTypeJSON;
+  stake_credential: CredentialJSON;
 }
-export type StakeCredTypeJSON =
-  | {
-      Key: string,
-      ...
-    }
-  | {
-      Script: string,
-      ...
-    };
-export type StakeCredentialJSON = StakeCredTypeJSON;
-export type StakeCredentialsJSON = StakeCredTypeJSON[];
+export type StakeCredentialsJSON = CredentialJSON[];
 export interface StakeDelegationJSON {
   pool_keyhash: string;
-  stake_credential: StakeCredTypeJSON;
+  stake_credential: CredentialJSON;
 }
 export interface StakeDeregistrationJSON {
   coin?: string | null;
-  stake_credential: StakeCredTypeJSON;
+  stake_credential: CredentialJSON;
 }
 export interface StakeRegistrationJSON {
   coin?: string | null;
-  stake_credential: StakeCredTypeJSON;
+  stake_credential: CredentialJSON;
 }
 export interface StakeRegistrationAndDelegationJSON {
   coin: string;
   pool_keyhash: string;
-  stake_credential: StakeCredTypeJSON;
+  stake_credential: CredentialJSON;
 }
 export interface StakeVoteRegistrationAndDelegationJSON {
   coin: string;
   drep: DRepJSON;
   pool_keyhash: string;
-  stake_credential: StakeCredTypeJSON;
+  stake_credential: CredentialJSON;
 }
 export interface TimelockExpiryJSON {
   slot: string;
@@ -13684,10 +13748,10 @@ export interface TransactionBodyJSON {
   ttl?: string | null;
   update?: UpdateJSON | null;
   validity_start_interval?: string | null;
-  voting_procedures?: VotingProceduresJSON | null;
+  voting_procedures?: VoterVotes[] | null;
   voting_proposals?: VotingProposalsJSON | null;
   withdrawals?: {
-    [k: string]: ProtocolParamUpdateJSON,
+    [k: string]: string,
   } | null;
 }
 export type TransactionHashJSON = string;
@@ -13753,21 +13817,21 @@ export interface VkeywitnessJSON {
 export type VkeywitnessesJSON = VkeywitnessJSON[];
 export interface VoteDelegationJSON {
   drep: DRepJSON;
-  stake_credential: StakeCredTypeJSON;
+  stake_credential: CredentialJSON;
 }
 export interface VoteRegistrationAndDelegationJSON {
   coin: string;
   drep: DRepJSON;
-  stake_credential: StakeCredTypeJSON;
+  stake_credential: CredentialJSON;
 }
 export type VoterJSON = VoterEnumJSON;
 export type VoterEnumJSON =
   | {
-      ConstitutionalCommitteeHotKey: StakeCredTypeJSON,
+      ConstitutionalCommitteeHotKey: CredentialJSON,
       ...
     }
   | {
-      DRepJSON: StakeCredTypeJSON,
+      DRepJSON: CredentialJSON,
       ...
     }
   | {
@@ -13778,11 +13842,7 @@ export interface VotingProcedureJSON {
   anchor?: AnchorJSON | null;
   vote: $Values<typeof VoteKind>;
 }
-export interface VotingProceduresJSON {
-  [k: string]: {
-    [k: string]: VotingProcedureJSON,
-  };
-}
+export type VotingProceduresJSON = VoterVotes[];
 export type VotingProposalJSON = VotingProposalEnumJSON;
 export type VotingProposalEnumJSON =
   | {
@@ -13815,5 +13875,5 @@ export type VotingProposalEnumJSON =
     };
 export type VotingProposalsJSON = VotingProposalJSON[];
 export interface WithdrawalsJSON {
-  [k: string]: ProtocolParamUpdateJSON;
+  [k: string]: string;
 }
