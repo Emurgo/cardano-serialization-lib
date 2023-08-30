@@ -1,4 +1,5 @@
 use crate::*;
+use std::vec::Vec;
 
 #[wasm_bindgen]
 #[derive(
@@ -115,16 +116,37 @@ impl MIRToStakeCredentials {
     }
 }
 
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
+)]
+struct StakeToCoinJson {
+    stake_cred: StakeCredential,
+    amount: DeltaCoin,
+}
+
 impl serde::Serialize for MIRToStakeCredentials {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let map = self
+        let vec = self
             .rewards
             .iter()
-            .collect::<std::collections::BTreeMap<_, _>>();
-        map.serialize(serializer)
+            .map(|(k, v)| StakeToCoinJson {
+                stake_cred: k.clone(),
+                amount: v.clone(),
+            })
+            .collect::<Vec<StakeToCoinJson>>();
+        vec.serialize(serializer)
     }
 }
 
@@ -133,11 +155,12 @@ impl<'de> serde::de::Deserialize<'de> for MIRToStakeCredentials {
     where
         D: serde::de::Deserializer<'de>,
     {
-        let map = <std::collections::BTreeMap<_, _> as serde::de::Deserialize>::deserialize(
-            deserializer,
-        )?;
+        let map = Vec::<StakeToCoinJson>::deserialize(deserializer)?
+            .into_iter()
+            .map(|v| (v.stake_cred, v.amount));
+
         Ok(Self {
-            rewards: map.into_iter().collect(),
+            rewards: map.collect(),
         })
     }
 }
@@ -147,10 +170,10 @@ impl JsonSchema for MIRToStakeCredentials {
         String::from("MIRToStakeCredentials")
     }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::json_schema(gen)
+       Vec::<StakeToCoinJson>::json_schema(gen)
     }
     fn is_referenceable() -> bool {
-        std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::is_referenceable()
+        Vec::<StakeToCoinJson>::is_referenceable()
     }
 }
 

@@ -154,7 +154,7 @@ fn move_instantaneous_reward_to_pot_ser_round_trip() {
     );
 }
 
-//#[test]
+#[test]
 fn move_instantaneous_reward_to_stake_creds_ser_round_trip() {
     let mut amounts = MIRToStakeCredentials::new();
     amounts.insert(
