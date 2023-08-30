@@ -1,9 +1,9 @@
 use crate::*;
 use schemars::gen::SchemaGenerator;
 use schemars::schema::Schema;
+use serde::ser::SerializeSeq;
 use std::collections::BTreeMap;
 use std::vec::Vec;
-use serde::ser::SerializeSeq;
 
 #[derive(
     Clone,
@@ -39,15 +39,7 @@ struct Vote {
     voting_procedure: VotingProcedure,
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Hash,
-)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[wasm_bindgen]
 pub struct VotingProcedures(
     pub(crate) BTreeMap<Voter, BTreeMap<GovernanceActionId, VotingProcedure>>,
