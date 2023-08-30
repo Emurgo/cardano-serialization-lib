@@ -1,10 +1,7 @@
 mod certificate;
-pub use certificate::*;
-
+mod certificates_collection;
 mod genesis_key_delegation;
-
 mod move_instantaneous_rewards_cert;
-
 mod committee_hot_key_deregistration;
 mod committee_hot_key_registration;
 mod drep_deregistration;

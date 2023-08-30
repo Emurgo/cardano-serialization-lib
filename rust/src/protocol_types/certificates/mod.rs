@@ -1,6 +1,9 @@
 mod certificate;
 pub use certificate::*;
 
+mod certificates_collection;
+pub use certificates_collection::*;
+
 mod genesis_key_delegation;
 pub use genesis_key_delegation::*;
 
