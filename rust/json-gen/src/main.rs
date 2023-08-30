@@ -122,7 +122,7 @@ fn main() {
     gen_json_schema!(Nonce);
     gen_json_schema!(VRFCert);
     // address.rs
-    gen_json_schema!(StakeCredential);
+    gen_json_schema!(Credential);
     gen_json_schema!(StakeCredType);
     gen_json_schema!(Address);
     gen_json_schema!(RewardAddress);
