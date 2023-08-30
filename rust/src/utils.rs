@@ -862,11 +862,11 @@ pub(crate) fn read_bounded_bytes<R: BufRead + Seek>(
                             .into());
                     }
                     cbor_event::Len::Len(len) => {
-                        if chunk_len_sz > BOUNDED_BYTES_CHUNK_SIZE {
+                        if len as usize > BOUNDED_BYTES_CHUNK_SIZE {
                             return Err(DeserializeFailure::OutOfRange {
                                 min: 0,
                                 max: BOUNDED_BYTES_CHUNK_SIZE,
-                                found: chunk_len_sz,
+                                found: len as usize,
                             }
                                 .into());
                         }

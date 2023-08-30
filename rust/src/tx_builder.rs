@@ -343,6 +343,7 @@ pub struct TransactionBuilder {
     collateral_return: Option<TransactionOutput>,
     total_collateral: Option<Coin>,
     reference_inputs: HashSet<TransactionInput>,
+    extra_datums: Option<PlutusList>
 }
 
 #[wasm_bindgen]
@@ -1235,6 +1236,20 @@ impl TransactionBuilder {
         )
     }
 
+    pub fn add_extra_witness_datum(&mut self, datum: &PlutusData) {
+        if let Some(extra_datums) = &mut self.extra_datums {
+            extra_datums.add(datum);
+        } else {
+            let mut extra_datums = PlutusList::new();
+            extra_datums.add(datum);
+            self.extra_datums = Some(extra_datums);
+        }
+    }
+
+    pub fn get_extra_witness_datums(&self) -> Option<PlutusList> {
+        self.extra_datums.clone()
+    }
+
     pub fn new(cfg: &TransactionBuilderConfig) -> Self {
         Self {
             config: cfg.clone(),
@@ -1253,6 +1268,7 @@ impl TransactionBuilder {
             collateral_return: None,
             total_collateral: None,
             reference_inputs: HashSet::new(),
+            extra_datums: None,
         }
     }
 
@@ -1368,6 +1384,26 @@ impl TransactionBuilder {
     /// Editing inputs, outputs, mint, etc. after change been calculated
     /// might cause a mismatch in calculated fee versus the required fee
     pub fn add_change_if_needed(&mut self, address: &Address) -> Result<bool, JsError> {
+        self.add_change_if_needed_with_optional_script_and_datum(address, None, None)
+    }
+
+    pub fn add_change_if_needed_with_datum(&mut self,
+                                           address: &Address,
+                                           plutus_data: &OutputDatum)
+        -> Result<bool, JsError>
+    {
+        self.add_change_if_needed_with_optional_script_and_datum(
+            address,
+            Some(plutus_data.0.clone()),
+            None)
+    }
+
+
+    fn add_change_if_needed_with_optional_script_and_datum(&mut self, address: &Address,
+                                                           plutus_data: Option<DataOption>,
+                                                           script_ref: Option<ScriptRef>)
+        -> Result<bool, JsError>
+    {
         let fee = match &self.fee {
             None => self.min_fee(),
             // generating the change output involves changing the fee
@@ -1377,11 +1413,6 @@ impl TransactionBuilder {
                 ))
             }
         }?;
-
-        // note: can't add plutus data or data hash and script to change
-        // because we don't know how many change outputs will need to be created
-        let plutus_data: Option<DataOption> = None;
-        let script_ref: Option<ScriptRef> = None;
 
         let input_total = self.get_total_input()?;
         let output_total = self.get_total_output()?;
@@ -1757,27 +1788,41 @@ impl TransactionBuilder {
             plutus_witnesses.0.append(&mut withdrawals_builder.get_plutus_witnesses().0)
         }
 
-        if plutus_witnesses.len() > 0 {
-            let (_scripts, datums, redeemers) = plutus_witnesses.collect();
-            for lang in used_langs {
-                match cost_models.get(&lang) {
-                    Some(cost) => {
-                        retained_cost_models.insert(&lang, &cost);
-                    }
-                    _ => {
-                        return Err(JsError::from_str(&format!(
-                            "Missing cost model for language version: {:?}",
-                            lang
-                        )))
-                    }
+        let (_scripts, mut datums, redeemers) = plutus_witnesses.collect();
+        for lang in used_langs {
+            match cost_models.get(&lang) {
+                Some(cost) => {
+                    retained_cost_models.insert(&lang, &cost);
+                }
+                _ => {
+                    return Err(JsError::from_str(&format!(
+                        "Missing cost model for language version: {:?}",
+                        lang
+                    )))
                 }
             }
+        }
+
+        if let Some(extra_datum) = &self.extra_datums {
+            if datums.is_none() {
+                datums = Some(PlutusList::new());
+            }
+
+            for datum in extra_datum {
+                if let Some(datums) = &mut datums {
+                    datums.add(datum);
+                }
+            }
+        }
+
+        if datums.is_some() || redeemers.len() > 0 || retained_cost_models.len() > 0 {
             self.script_data_hash = Some(hash_script_data(
                 &redeemers,
                 &retained_cost_models,
                 datums,
             ));
         }
+
         Ok(())
     }
 
@@ -1929,14 +1974,30 @@ impl TransactionBuilder {
         if let Some(scripts) = self.get_combined_native_scripts() {
             wit.set_native_scripts(&scripts);
         }
+        let mut all_datums = None;
         if let Some(pw) = self.get_combined_plutus_scripts() {
             let (scripts, datums, redeemers) = pw.collect();
             wit.set_plutus_scripts(&scripts);
-            if let Some(datums) = &datums {
-                wit.set_plutus_data(datums);
-            }
+            all_datums = datums;
             wit.set_redeemers(&redeemers);
         }
+
+        if let Some(extra_datum) = &self.extra_datums {
+            if all_datums.is_none() {
+                all_datums = Some(PlutusList::new());
+            }
+
+            for datum in extra_datum {
+                if let Some(datums) = &mut all_datums {
+                    datums.add(datum);
+                }
+            }
+        }
+
+        if let Some(datums) = &all_datums {
+            wit.set_plutus_data(datums);
+        }
+
         wit
     }
 
@@ -2007,7 +2068,7 @@ impl TransactionBuilder {
 mod tests {
     use super::output_builder::TransactionOutputBuilder;
     use super::*;
-    use crate::fakes::{fake_base_address, fake_bytes_32, fake_key_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2};
+    use crate::fakes::{fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2};
     use crate::tx_builder_constants::TxBuilderConstants;
     use fees::*;
     use crate::tx_builder::script_structs::{PlutusScriptSource};
@@ -2218,6 +2279,87 @@ mod tests {
         );
         assert_eq!(tx_builder.full_size().unwrap(), 285);
         assert_eq!(tx_builder.output_sizes(), vec![62, 65]);
+        let _final_tx = tx_builder.build(); // just test that it doesn't throw
+    }
+
+    #[test]
+    fn build_tx_with_change_with_datum() {
+        let mut tx_builder = create_default_tx_builder();
+        let spend = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(0)
+            .derive(0)
+            .to_public();
+        let change_key = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(1)
+            .derive(0)
+            .to_public();
+        let stake = root_key_15()
+            .derive(harden(1852))
+            .derive(harden(1815))
+            .derive(harden(0))
+            .derive(2)
+            .derive(0)
+            .to_public();
+
+        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let addr_net_0 = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &spend_cred,
+            &stake_cred,
+        )
+            .to_address();
+        tx_builder.add_key_input(
+            &spend.to_raw_key().hash(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        );
+        tx_builder
+            .add_output(
+                &TransactionOutputBuilder::new()
+                    .with_address(&addr_net_0)
+                    .next()
+                    .unwrap()
+                    .with_coin(&to_bignum(222))
+                    .build()
+                    .unwrap(),
+            )
+            .unwrap();
+        tx_builder.set_ttl(1000);
+
+        let datum_hash = fake_data_hash(20);
+        let data_option = OutputDatum::new_data_hash(&datum_hash);
+        let (_, script_hash) = plutus_script_and_hash(15);
+        let change_cred = StakeCredential::from_scripthash(&script_hash);
+        let change_addr = BaseAddress::new(
+            NetworkInfo::testnet().network_id(),
+            &change_cred,
+            &stake_cred,
+        )
+            .to_address();
+        let added_change = tx_builder.add_change_if_needed_with_datum(&change_addr, &data_option);
+        assert!(added_change.unwrap());
+        assert_eq!(tx_builder.outputs.len(), 2);
+        assert_eq!(
+            tx_builder
+                .get_explicit_input()
+                .unwrap()
+                .checked_add(&tx_builder.get_implicit_input().unwrap())
+                .unwrap(),
+            tx_builder
+                .get_explicit_output()
+                .unwrap()
+                .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
+                .unwrap()
+        );
+        assert_eq!(tx_builder.full_size().unwrap(), 319);
+        assert_eq!(tx_builder.output_sizes(), vec![62, 99]);
         let _final_tx = tx_builder.build(); // just test that it doesn't throw
     }
 
@@ -8357,5 +8499,48 @@ mod tests {
                 assert!(withdraw.payment_cred().has_script_hash());
             }
         }
+    }
+
+    #[test]
+    pub fn test_extra_datum() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        tx_builder.set_fee(&to_bignum(42));
+
+        let datum = PlutusData::new_bytes(fake_bytes_32(1));
+        tx_builder.add_extra_witness_datum(&datum);
+
+        let mut inp = TxInputsBuilder::new();
+        inp.add_input(
+            &fake_base_address(0),
+            &fake_tx_input(0),
+            &Value::new(&to_bignum(1000000u64)),
+        );
+
+        tx_builder.set_inputs(&inp);
+        tx_builder
+            .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
+            .unwrap();
+
+
+        let res = tx_builder.build_tx();
+        assert!(res.is_ok());
+
+        let tx = res.unwrap();
+
+        let data_hash = hash_script_data(
+            &Redeemers::new(),
+            &Costmdls::new(),
+            Some(PlutusList::from(vec![datum.clone()])),
+        );
+
+        let tx_builder_script_data_hash = tx_builder.script_data_hash.clone();
+        assert_eq!(tx_builder_script_data_hash.unwrap(), data_hash);
+
+        let extra_datums = tx_builder.get_extra_witness_datums().unwrap();
+        assert_eq!(&extra_datums.get(0), &datum);
+        assert_eq!(extra_datums.len(), 1usize);
+        assert_eq!(tx_builder.get_witness_set().plutus_data().unwrap().len(), 1usize);
+        assert_eq!(tx.witness_set().plutus_data().unwrap().len(), 1usize);
+        assert_eq!(tx.witness_set().plutus_data().unwrap().get(0), datum);
     }
 }

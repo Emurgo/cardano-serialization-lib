@@ -1823,10 +1823,10 @@ impl JsonSchema for Withdrawals {
         String::from("Withdrawals")
     }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::json_schema(gen)
+        std::collections::BTreeMap::<RewardAddress, Coin>::json_schema(gen)
     }
     fn is_referenceable() -> bool {
-        std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::is_referenceable()
+        std::collections::BTreeMap::<RewardAddress, Coin>::is_referenceable()
     }
 }
 
@@ -2169,6 +2169,36 @@ impl ScriptRef {
 pub enum DataOption {
     DataHash(DataHash),
     Data(PlutusData),
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd )]
+pub struct OutputDatum(pub(crate) DataOption);
+
+#[wasm_bindgen]
+impl OutputDatum {
+
+    pub fn new_data_hash(data_hash: &DataHash) -> Self {
+        Self(DataOption::DataHash(data_hash.clone()))
+    }
+
+    pub fn new_data(data: &PlutusData) -> Self {
+        Self(DataOption::Data(data.clone()))
+    }
+
+    pub fn data_hash(&self) -> Option<DataHash> {
+        match &self.0 {
+            DataOption::DataHash(data_hash) => Some(data_hash.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn data(&self) -> Option<PlutusData> {
+        match &self.0 {
+            DataOption::Data(data) => Some(data.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[wasm_bindgen]
