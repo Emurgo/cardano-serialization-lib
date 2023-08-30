@@ -16,7 +16,7 @@ use crate::*;
 pub struct NewCommitteeProposal {
     pub(crate) gov_action_id: Option<GovernanceActionId>,
     pub(crate) committee: Committee,
-    pub(crate) members_to_remove: BTreeSet<StakeCredential>,
+    pub(crate) members_to_remove: BTreeSet<Credential>,
 }
 
 impl_to_from!(NewCommitteeProposal);

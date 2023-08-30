@@ -14,7 +14,7 @@ use crate::*;
 )]
 #[wasm_bindgen]
 pub struct VoteRegistrationAndDelegation {
-    pub(crate) stake_credential: StakeCredential,
+    pub(crate) stake_credential: Credential,
     pub(crate) drep: DRep,
     pub(crate) coin: Coin,
 }
@@ -23,7 +23,7 @@ impl_to_from!(VoteRegistrationAndDelegation);
 
 #[wasm_bindgen]
 impl VoteRegistrationAndDelegation {
-    pub fn stake_credential(&self) -> StakeCredential {
+    pub fn stake_credential(&self) -> Credential {
         self.stake_credential.clone()
     }
 
@@ -35,7 +35,7 @@ impl VoteRegistrationAndDelegation {
         self.coin.clone()
     }
 
-    pub fn new(stake_credential: &StakeCredential, drep: &DRep, coin: &Coin) -> Self {
+    pub fn new(stake_credential: &Credential, drep: &DRep, coin: &Coin) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
             drep: drep.clone(),

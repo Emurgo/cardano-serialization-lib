@@ -2320,8 +2320,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &spend_cred,
@@ -2346,7 +2346,7 @@ mod tests {
             .unwrap();
         tx_builder.set_ttl(1000);
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -2398,8 +2398,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &spend_cred,
@@ -2427,7 +2427,7 @@ mod tests {
         let datum_hash = fake_data_hash(20);
         let data_option = OutputDatum::new_data_hash(&datum_hash);
         let (_, script_hash) = plutus_script_and_hash(15);
-        let change_cred = StakeCredential::from_scripthash(&script_hash);
+        let change_cred = Credential::from_scripthash(&script_hash);
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -2479,8 +2479,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &spend_cred,
@@ -2505,7 +2505,7 @@ mod tests {
             .unwrap();
         tx_builder.set_ttl(1000);
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -2555,7 +2555,7 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
@@ -2573,7 +2573,7 @@ mod tests {
         )));
         tx_builder.set_certs(&certs).unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -2632,8 +2632,8 @@ mod tests {
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&to_bignum(222)),
         );
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &spend_cred,
@@ -2653,7 +2653,7 @@ mod tests {
             .unwrap();
         tx_builder.set_ttl(0);
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -2696,8 +2696,8 @@ mod tests {
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&to_bignum(700)),
         );
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &spend_cred,
@@ -2717,7 +2717,7 @@ mod tests {
             .unwrap();
         tx_builder.set_ttl(0);
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -2762,8 +2762,8 @@ mod tests {
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&to_bignum(5)),
         );
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &spend_cred,
@@ -2790,7 +2790,7 @@ mod tests {
         ));
         tx_builder.set_certs(&certs);
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -2819,8 +2819,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
         {
             assert_eq!(
@@ -2909,8 +2909,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
         tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 1));
         tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 2));
@@ -2949,7 +2949,7 @@ mod tests {
             )
             .unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -2990,8 +2990,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
         tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 1));
         tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 2));
@@ -3030,7 +3030,7 @@ mod tests {
             )
             .unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -3071,8 +3071,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
         tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 1));
         tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 2));
@@ -3111,7 +3111,7 @@ mod tests {
             )
             .unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -3154,8 +3154,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
         // Input with 150 coins
         tx_builder.add_input(
@@ -3199,7 +3199,7 @@ mod tests {
             )
             .unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -3242,8 +3242,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
         // Input with 600 coins
         tx_builder.add_input(
@@ -3289,7 +3289,7 @@ mod tests {
             )
             .unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -3339,8 +3339,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
         let (min_script, policy_id) = mint_script_and_policy(0);
         let asset_name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
@@ -3397,7 +3397,7 @@ mod tests {
             )
             .unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -3434,8 +3434,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
         let (min_script, policy_id) = mint_script_and_policy(0);
         let asset_name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
@@ -3492,7 +3492,7 @@ mod tests {
             )
             .unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -3564,8 +3564,8 @@ mod tests {
             );
         }
 
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
 
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
@@ -3589,7 +3589,7 @@ mod tests {
             )
             .unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -3679,8 +3679,8 @@ mod tests {
             );
         }
 
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
 
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
@@ -3704,7 +3704,7 @@ mod tests {
             )
             .unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -3806,8 +3806,8 @@ mod tests {
             );
         }
 
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
 
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
@@ -3831,7 +3831,7 @@ mod tests {
             )
             .unwrap();
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -3888,8 +3888,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &spend_cred,
@@ -3927,7 +3927,7 @@ mod tests {
             .unwrap();
         tx_builder.set_ttl(1000);
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -4851,8 +4851,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
@@ -4935,9 +4935,9 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let addr_multisig = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &spend_cred,
@@ -5028,8 +5028,8 @@ mod tests {
             .derive(0)
             .to_public();
 
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         let addr_net_0 = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &spend_cred,
@@ -6035,8 +6035,8 @@ mod tests {
     fn create_base_address_from_script_hash(sh: &ScriptHash) -> Address {
         BaseAddress::new(
             NetworkInfo::testnet().network_id(),
-            &StakeCredential::from_scripthash(sh),
-            &StakeCredential::from_keyhash(&fake_key_hash(0)),
+            &Credential::from_scripthash(sh),
+            &Credential::from_keyhash(&fake_key_hash(0)),
         )
         .to_address()
     }
@@ -8420,7 +8420,7 @@ mod tests {
             }
           }").unwrap();
 
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         tx_builder.add_key_input(
             &spend.to_raw_key().hash(),
             &TransactionInput::new(&genesis_id(), 0),
@@ -8428,19 +8428,19 @@ mod tests {
         );
         tx_builder.set_ttl(1000);
         let (cert_script1, cert_script_hash1) = plutus_script_and_hash(1);
-        let cert_script_cred1 = StakeCredential::from_scripthash(&cert_script_hash1);
+        let cert_script_cred1 = Credential::from_scripthash(&cert_script_hash1);
 
         let (cert_script2, cert_script_hash2) = plutus_script_and_hash(2);
-        let cert_script_cred2 = StakeCredential::from_scripthash(&cert_script_hash2);
+        let cert_script_cred2 = Credential::from_scripthash(&cert_script_hash2);
 
         let cert_script_hash3 = fake_script_hash(3);
-        let cert_script_cred3 = StakeCredential::from_scripthash(&cert_script_hash3);
+        let cert_script_cred3 = Credential::from_scripthash(&cert_script_hash3);
 
         let (withdraw_script1, withdraw_script_hash1) = plutus_script_and_hash(3);
-        let withdraw_script_cred1 = StakeCredential::from_scripthash(&withdraw_script_hash1);
+        let withdraw_script_cred1 = Credential::from_scripthash(&withdraw_script_hash1);
 
         let withdraw_script_hash2 = fake_script_hash(3);
-        let withdraw_script_cred2 = StakeCredential::from_scripthash(&withdraw_script_hash2);
+        let withdraw_script_cred2 = Credential::from_scripthash(&withdraw_script_hash2);
 
         let cert_witness_1 = PlutusWitness::new_without_datum(
             &cert_script1,
@@ -8510,7 +8510,7 @@ mod tests {
         tx_builder.set_certs_builder(&certs);
 
         let mut withdrawals = WithdrawalsBuilder::new();
-        let reward_cred = StakeCredential::from_keyhash(&reward.to_raw_key().hash());
+        let reward_cred = Credential::from_keyhash(&reward.to_raw_key().hash());
         withdrawals.add(
             &RewardAddress::new(NetworkInfo::testnet().network_id(), &reward_cred),
             &Coin::from(1u32),
@@ -8527,7 +8527,7 @@ mod tests {
         ).unwrap();
         tx_builder.set_withdrawals_builder(&withdrawals);
 
-        let change_cred = StakeCredential::from_keyhash(&change_key.to_raw_key().hash());
+        let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
         let change_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &change_cred,
@@ -8538,8 +8538,8 @@ mod tests {
         let collateral_input = fake_tx_input(1);
         let collateral_addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
-            &StakeCredential::from_keyhash(&fake_key_hash(1)),
-            &StakeCredential::from_keyhash(&fake_key_hash(2)),
+            &Credential::from_keyhash(&fake_key_hash(1)),
+            &Credential::from_keyhash(&fake_key_hash(2)),
         ).to_address();
         let mut collateral_builder = TxInputsBuilder::new();
         collateral_builder.add_input(&collateral_addr, &collateral_input, &Value::new(&Coin::from(123u32)));

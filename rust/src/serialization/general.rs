@@ -1194,7 +1194,7 @@ impl Deserialize for StakeCredentials {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
                 }
-                arr.push(StakeCredential::deserialize(raw)?);
+                arr.push(Credential::deserialize(raw)?);
             }
             Ok(())
         })()
@@ -4474,7 +4474,7 @@ mod tests {
         assert_eq!(treasury_to_pot.to_bytes(), treasury_to_pot_deser.to_bytes());
         let mut stake_creds = MIRToStakeCredentials::new();
         stake_creds.insert(
-            &StakeCredential::from_scripthash(&ScriptHash([54u8; ScriptHash::BYTE_COUNT])),
+            &Credential::from_scripthash(&ScriptHash([54u8; ScriptHash::BYTE_COUNT])),
             &Int::new_i32(-314159265),
         );
         let to_stake_creds =

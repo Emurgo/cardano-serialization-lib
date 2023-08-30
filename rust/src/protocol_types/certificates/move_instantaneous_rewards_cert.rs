@@ -81,7 +81,7 @@ pub enum MIRKind {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MIRToStakeCredentials {
-    pub(crate) rewards: linked_hash_map::LinkedHashMap<StakeCredential, DeltaCoin>,
+    pub(crate) rewards: linked_hash_map::LinkedHashMap<Credential, DeltaCoin>,
 }
 
 impl_to_from!(MIRToStakeCredentials);
@@ -98,11 +98,11 @@ impl MIRToStakeCredentials {
         self.rewards.len()
     }
 
-    pub fn insert(&mut self, cred: &StakeCredential, delta: &DeltaCoin) -> Option<DeltaCoin> {
+    pub fn insert(&mut self, cred: &Credential, delta: &DeltaCoin) -> Option<DeltaCoin> {
         self.rewards.insert(cred.clone(), delta.clone())
     }
 
-    pub fn get(&self, cred: &StakeCredential) -> Option<DeltaCoin> {
+    pub fn get(&self, cred: &Credential) -> Option<DeltaCoin> {
         self.rewards.get(cred).map(|v| v.clone())
     }
 
@@ -111,7 +111,7 @@ impl MIRToStakeCredentials {
             self.rewards
                 .iter()
                 .map(|(k, _v)| k.clone())
-                .collect::<Vec<StakeCredential>>(),
+                .collect::<Vec<Credential>>(),
         )
     }
 }
@@ -129,7 +129,7 @@ impl MIRToStakeCredentials {
     JsonSchema,
 )]
 struct StakeToCoinJson {
-    stake_cred: StakeCredential,
+    stake_cred: Credential,
     amount: DeltaCoin,
 }
 

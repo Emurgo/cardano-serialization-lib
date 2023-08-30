@@ -34,7 +34,7 @@ impl DeserializeEmbeddedGroup for DrepDeregistration {
         deserialize_and_check_index(raw, cert_index, "cert_index")?;
 
         let voting_credential =
-            StakeCredential::deserialize(raw).map_err(|e| e.annotate("voting_credential"))?;
+            Credential::deserialize(raw).map_err(|e| e.annotate("voting_credential"))?;
 
         let coin = Coin::deserialize(raw).map_err(|e| e.annotate("coin"))?;
 

@@ -14,7 +14,7 @@ use crate::*;
     JsonSchema,
 )]
 pub struct VoteDelegation {
-    pub(crate) stake_credential: StakeCredential,
+    pub(crate) stake_credential: Credential,
     pub(crate) drep: DRep,
 }
 
@@ -22,7 +22,7 @@ impl_to_from!(VoteDelegation);
 
 #[wasm_bindgen]
 impl VoteDelegation {
-    pub fn stake_credential(&self) -> StakeCredential {
+    pub fn stake_credential(&self) -> Credential {
         self.stake_credential.clone()
     }
 
@@ -30,7 +30,7 @@ impl VoteDelegation {
         self.drep.clone()
     }
 
-    pub fn new(stake_credential: &StakeCredential, drep: &DRep) -> Self {
+    pub fn new(stake_credential: &Credential, drep: &DRep) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
             drep: drep.clone(),

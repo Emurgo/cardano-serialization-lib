@@ -792,7 +792,7 @@ impl PlutusData {
         )))
     }
 
-    fn from_stake_credential(stake_credential: &StakeCredential) -> Result<PlutusData, JsError> {
+    fn from_stake_credential(stake_credential: &Credential) -> Result<PlutusData, JsError> {
         let (bytes_plutus_data, index) = match &stake_credential.0 {
             StakeCredType::Key(key_hash) =>
                 (PlutusData::new_bytes(key_hash.to_bytes().to_vec()), BigNum::from(0u32)),

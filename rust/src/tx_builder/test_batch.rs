@@ -34,8 +34,8 @@ mod test {
             .derive(2)
             .derive(0)
             .to_public();
-        let spend_cred = StakeCredential::from_keyhash(&spend.to_raw_key().hash());
-        let stake_cred = StakeCredential::from_keyhash(&stake.to_raw_key().hash());
+        let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+        let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
         let addr = BaseAddress::new(
             NetworkInfo::testnet().network_id(),
             &spend_cred,

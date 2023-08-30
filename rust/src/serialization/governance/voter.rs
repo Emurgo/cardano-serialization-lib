@@ -70,16 +70,16 @@ impl Deserialize for VoterEnum {
                 }
             }
             let voter = match raw.unsigned_integer()? {
-                0 => VoterEnum::ConstitutionalCommitteeHotKey(StakeCredential(StakeCredType::Key(
+                0 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(StakeCredType::Key(
                     Ed25519KeyHash::deserialize(raw)?,
                 ))),
-                1 => VoterEnum::ConstitutionalCommitteeHotKey(StakeCredential(
+                1 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(
                     StakeCredType::Script(ScriptHash::deserialize(raw)?),
                 )),
-                2 => VoterEnum::DRep(StakeCredential(StakeCredType::Key(
+                2 => VoterEnum::DRep(Credential(StakeCredType::Key(
                     Ed25519KeyHash::deserialize(raw)?,
                 ))),
-                3 => VoterEnum::DRep(StakeCredential(StakeCredType::Script(
+                3 => VoterEnum::DRep(Credential(StakeCredType::Script(
                     ScriptHash::deserialize(raw)?,
                 ))),
                 4 => VoterEnum::StakingPool(Ed25519KeyHash::deserialize(raw)?),

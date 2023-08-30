@@ -41,7 +41,7 @@ impl DeserializeEmbeddedGroup for StakeDelegation {
         deserialize_and_check_index(raw, cert_index, "cert_index")?;
 
         let stake_credential =
-            (|| -> Result<_, DeserializeError> { Ok(StakeCredential::deserialize(raw)?) })()
+            (|| -> Result<_, DeserializeError> { Ok(Credential::deserialize(raw)?) })()
                 .map_err(|e| e.annotate("stake_credential"))?;
         let pool_keyhash =
             (|| -> Result<_, DeserializeError> { Ok(Ed25519KeyHash::deserialize(raw)?) })()

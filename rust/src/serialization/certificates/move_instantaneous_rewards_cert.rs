@@ -32,7 +32,7 @@ impl Deserialize for MIRToStakeCredentials {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
                 }
-                let key = StakeCredential::deserialize(raw)?;
+                let key = Credential::deserialize(raw)?;
                 let value = DeltaCoin::deserialize(raw)?;
                 if table.insert(key.clone(), value).is_some() {
                     return Err(DeserializeFailure::DuplicateKey(Key::Str(format!(

@@ -14,7 +14,7 @@ use crate::*;
     JsonSchema,
 )]
 pub struct StakeDelegation {
-    pub(crate) stake_credential: StakeCredential,
+    pub(crate) stake_credential: Credential,
     pub(crate) pool_keyhash: Ed25519KeyHash,
 }
 
@@ -22,7 +22,7 @@ impl_to_from!(StakeDelegation);
 
 #[wasm_bindgen]
 impl StakeDelegation {
-    pub fn stake_credential(&self) -> StakeCredential {
+    pub fn stake_credential(&self) -> Credential {
         self.stake_credential.clone()
     }
 
@@ -30,7 +30,7 @@ impl StakeDelegation {
         self.pool_keyhash.clone()
     }
 
-    pub fn new(stake_credential: &StakeCredential, pool_keyhash: &Ed25519KeyHash) -> Self {
+    pub fn new(stake_credential: &Credential, pool_keyhash: &Ed25519KeyHash) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
             pool_keyhash: pool_keyhash.clone(),

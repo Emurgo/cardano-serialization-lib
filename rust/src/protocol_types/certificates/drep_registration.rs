@@ -14,7 +14,7 @@ use crate::*;
 )]
 #[wasm_bindgen]
 pub struct DrepRegistration {
-    pub(crate) voting_credential: StakeCredential,
+    pub(crate) voting_credential: Credential,
     pub(crate) coin: Coin,
     pub(crate) anchor: Option<Anchor>,
 }
@@ -23,7 +23,7 @@ impl_to_from!(DrepRegistration);
 
 #[wasm_bindgen]
 impl DrepRegistration {
-    pub fn voting_credential(&self) -> StakeCredential {
+    pub fn voting_credential(&self) -> Credential {
         self.voting_credential.clone()
     }
 
@@ -35,7 +35,7 @@ impl DrepRegistration {
         self.anchor.clone()
     }
 
-    pub fn new(voting_credential: &StakeCredential, coin: &Coin) -> Self {
+    pub fn new(voting_credential: &Credential, coin: &Coin) -> Self {
         Self {
             voting_credential: voting_credential.clone(),
             coin: coin.clone(),
@@ -44,7 +44,7 @@ impl DrepRegistration {
     }
 
     pub fn new_with_anchor(
-        voting_credential: &StakeCredential,
+        voting_credential: &Credential,
         coin: &Coin,
         anchor: &Anchor,
     ) -> Self {

@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
     JsonSchema,
 )]
 struct CommitteeMember {
-    stake_credential: StakeCredential,
+    stake_credential: Credential,
     term_limit: Epoch,
 }
 
@@ -40,7 +40,7 @@ struct CommitteeJsonStruct {
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[wasm_bindgen]
 pub struct Committee {
-    pub(crate) members: BTreeMap<StakeCredential, Epoch>,
+    pub(crate) members: BTreeMap<Credential, Epoch>,
     pub(crate) quorum_threshold: UnitInterval,
 }
 
@@ -63,12 +63,12 @@ impl Committee {
         self.quorum_threshold.clone()
     }
 
-    pub fn add_member(&mut self, committee_cold_credential: &StakeCredential, epoch: Epoch) {
+    pub fn add_member(&mut self, committee_cold_credential: &Credential, epoch: Epoch) {
         self.members
             .insert(committee_cold_credential.clone(), epoch);
     }
 
-    pub fn get_member_epoch(&self, committee_cold_credential: &StakeCredential) -> Option<Epoch> {
+    pub fn get_member_epoch(&self, committee_cold_credential: &Credential) -> Option<Epoch> {
         self.members.get(committee_cold_credential).cloned()
     }
 }

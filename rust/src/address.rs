@@ -120,16 +120,16 @@ pub enum StakeCredKind {
     serde::Deserialize,
     JsonSchema,
 )]
-pub struct StakeCredential(pub(crate) StakeCredType);
+pub struct Credential(pub(crate) StakeCredType);
 
 #[wasm_bindgen]
-impl StakeCredential {
+impl Credential {
     pub fn from_keyhash(hash: &Ed25519KeyHash) -> Self {
-        StakeCredential(StakeCredType::Key(hash.clone()))
+        Credential(StakeCredType::Key(hash.clone()))
     }
 
     pub fn from_scripthash(hash: &ScriptHash) -> Self {
-        StakeCredential(StakeCredType::Script(hash.clone()))
+        Credential(StakeCredType::Script(hash.clone()))
     }
 
     pub fn to_keyhash(&self) -> Option<Ed25519KeyHash> {
@@ -168,9 +168,9 @@ impl StakeCredential {
     }
 }
 
-impl_to_from!(StakeCredential);
+impl_to_from!(Credential);
 
-impl cbor_event::se::Serialize for StakeCredential {
+impl cbor_event::se::Serialize for Credential {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
@@ -189,7 +189,7 @@ impl cbor_event::se::Serialize for StakeCredential {
     }
 }
 
-impl Deserialize for StakeCredential {
+impl Deserialize for Credential {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
@@ -220,7 +220,7 @@ impl Deserialize for StakeCredential {
                     return Err(DeserializeFailure::EndingBreakMissing.into());
                 }
             }
-            Ok(StakeCredential(cred_type))
+            Ok(Credential(cred_type))
         })()
         .map_err(|e| e.annotate("StakeCredential"))
     }
@@ -471,9 +471,9 @@ impl Address {
             let read_addr_cred = |bit: u8, pos: usize| {
                 let hash_bytes: [u8; HASH_LEN] = data[pos..pos + HASH_LEN].try_into().unwrap();
                 let x = if header & (1 << bit) == 0 {
-                    StakeCredential::from_keyhash(&Ed25519KeyHash::from(hash_bytes))
+                    Credential::from_keyhash(&Ed25519KeyHash::from(hash_bytes))
                 } else {
-                    StakeCredential::from_scripthash(&ScriptHash::from(hash_bytes))
+                    Credential::from_scripthash(&ScriptHash::from(hash_bytes))
                 };
                 x
             };
@@ -643,13 +643,13 @@ impl Deserialize for Address {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BaseAddress {
     network: u8,
-    payment: StakeCredential,
-    stake: StakeCredential,
+    payment: Credential,
+    stake: Credential,
 }
 
 #[wasm_bindgen]
 impl BaseAddress {
-    pub fn new(network: u8, payment: &StakeCredential, stake: &StakeCredential) -> Self {
+    pub fn new(network: u8, payment: &Credential, stake: &Credential) -> Self {
         Self {
             network,
             payment: payment.clone(),
@@ -657,11 +657,11 @@ impl BaseAddress {
         }
     }
 
-    pub fn payment_cred(&self) -> StakeCredential {
+    pub fn payment_cred(&self) -> Credential {
         self.payment.clone()
     }
 
-    pub fn stake_cred(&self) -> StakeCredential {
+    pub fn stake_cred(&self) -> Credential {
         self.stake.clone()
     }
 
@@ -681,19 +681,19 @@ impl BaseAddress {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EnterpriseAddress {
     network: u8,
-    payment: StakeCredential,
+    payment: Credential,
 }
 
 #[wasm_bindgen]
 impl EnterpriseAddress {
-    pub fn new(network: u8, payment: &StakeCredential) -> Self {
+    pub fn new(network: u8, payment: &Credential) -> Self {
         Self {
             network,
             payment: payment.clone(),
         }
     }
 
-    pub fn payment_cred(&self) -> StakeCredential {
+    pub fn payment_cred(&self) -> Credential {
         self.payment.clone()
     }
 
@@ -713,19 +713,19 @@ impl EnterpriseAddress {
 #[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RewardAddress {
     network: u8,
-    payment: StakeCredential,
+    payment: Credential,
 }
 
 #[wasm_bindgen]
 impl RewardAddress {
-    pub fn new(network: u8, payment: &StakeCredential) -> Self {
+    pub fn new(network: u8, payment: &Credential) -> Self {
         Self {
             network,
             payment: payment.clone(),
         }
     }
 
-    pub fn payment_cred(&self) -> StakeCredential {
+    pub fn payment_cred(&self) -> Credential {
         self.payment.clone()
     }
 
@@ -870,13 +870,13 @@ impl Pointer {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PointerAddress {
     pub(crate) network: u8,
-    pub(crate) payment: StakeCredential,
+    pub(crate) payment: Credential,
     pub(crate) stake: Pointer,
 }
 
 #[wasm_bindgen]
 impl PointerAddress {
-    pub fn new(network: u8, payment: &StakeCredential, stake: &Pointer) -> Self {
+    pub fn new(network: u8, payment: &Credential, stake: &Pointer) -> Self {
         Self {
             network,
             payment: payment.clone(),
@@ -884,7 +884,7 @@ impl PointerAddress {
         }
     }
 
-    pub fn payment_cred(&self) -> StakeCredential {
+    pub fn payment_cred(&self) -> Credential {
         self.payment.clone()
     }
 

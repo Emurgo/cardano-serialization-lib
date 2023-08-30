@@ -36,7 +36,7 @@ macro_rules! to_from_test {
 #[test]
 fn committee_hot_key_deregistration_key_hash_ser_round_trip() {
     let cert =
-        CommitteeHotKeyDeregistration::new(&StakeCredential::from_keyhash(&fake_key_hash(1)));
+        CommitteeHotKeyDeregistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let cert_wrapped = Certificate::new_committee_hot_key_deregistration(&cert);
     to_from_test!(CommitteeHotKeyDeregistration, cert, cert_wrapped);
     assert_eq!(
@@ -48,7 +48,7 @@ fn committee_hot_key_deregistration_key_hash_ser_round_trip() {
 #[test]
 fn committee_hot_key_deregistration_script_hash_ser_round_trip() {
     let cert =
-        CommitteeHotKeyDeregistration::new(&StakeCredential::from_scripthash(&fake_script_hash(1)));
+        CommitteeHotKeyDeregistration::new(&Credential::from_scripthash(&fake_script_hash(1)));
     let cert_wrapped = Certificate::new_committee_hot_key_deregistration(&cert);
     to_from_test!(CommitteeHotKeyDeregistration, cert, cert_wrapped);
     assert_eq!(
@@ -60,8 +60,8 @@ fn committee_hot_key_deregistration_script_hash_ser_round_trip() {
 #[test]
 fn committee_hot_key_registration_ser_round_trip() {
     let cert = CommitteeHotKeyRegistration::new(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
-        &StakeCredential::from_keyhash(&fake_key_hash(2)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(2)),
     );
     let cert_wrapped = Certificate::new_committee_hot_key_registration(&cert);
     to_from_test!(CommitteeHotKeyRegistration, cert, cert_wrapped);
@@ -74,7 +74,7 @@ fn committee_hot_key_registration_ser_round_trip() {
 #[test]
 fn drep_registration_ser_round_trip() {
     let cert = DrepRegistration::new(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
     let cert_wrapped = Certificate::new_drep_registration(&cert);
@@ -88,7 +88,7 @@ fn drep_registration_with_anchor_ser_round_trip() {
     let anchor = Anchor::new(&url, &fake_anchor_data_hash(255));
 
     let cert = DrepRegistration::new_with_anchor(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
         &anchor,
     );
@@ -100,7 +100,7 @@ fn drep_registration_with_anchor_ser_round_trip() {
 #[test]
 fn drep_deregistration_ser_round_trip() {
     let cert = DrepDeregistration::new(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
     let cert_wrapped = Certificate::new_drep_deregistration(&cert);
@@ -110,7 +110,7 @@ fn drep_deregistration_ser_round_trip() {
 
 #[test]
 fn drep_update_ser_round_trip() {
-    let cert = DrepUpdate::new(&StakeCredential::from_keyhash(&fake_key_hash(1)));
+    let cert = DrepUpdate::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let cert_wrapped = Certificate::new_drep_update(&cert);
     to_from_test!(DrepUpdate, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_update().unwrap());
@@ -121,7 +121,7 @@ fn drep_update_with_anchor_ser_round_trip() {
     let url = URL::new("https://iohk.io".to_string()).unwrap();
     let anchor = Anchor::new(&url, &fake_anchor_data_hash(255));
     let cert =
-        DrepUpdate::new_with_anchor(&StakeCredential::from_keyhash(&fake_key_hash(1)), &anchor);
+        DrepUpdate::new_with_anchor(&Credential::from_keyhash(&fake_key_hash(1)), &anchor);
     let cert_wrapped = Certificate::new_drep_update(&cert);
     to_from_test!(DrepUpdate, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_update().unwrap());
@@ -158,12 +158,12 @@ fn move_instantaneous_reward_to_pot_ser_round_trip() {
 fn move_instantaneous_reward_to_stake_creds_ser_round_trip() {
     let mut amounts = MIRToStakeCredentials::new();
     amounts.insert(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &DeltaCoin::new(&BigNum::from(100u64)),
     );
     let mut amounts = MIRToStakeCredentials::new();
     amounts.insert(
-        &StakeCredential::from_keyhash(&fake_key_hash(2)),
+        &Credential::from_keyhash(&fake_key_hash(2)),
         &DeltaCoin::new(&BigNum::from(1200u64)),
     );
     let cert = MoveInstantaneousReward::new_to_stake_creds(MIRPot::Treasury, &amounts);
@@ -181,7 +181,7 @@ fn move_instantaneous_reward_to_stake_creds_ser_round_trip() {
 
 #[test]
 fn pool_registration_ser_round_trip() {
-    let staking_cred = StakeCredential::from_keyhash(&fake_key_hash(1));
+    let staking_cred = Credential::from_keyhash(&fake_key_hash(1));
     let reward_address = RewardAddress::new(NetworkInfo::testnet().network_id(), &staking_cred);
     let mut owners = Ed25519KeyHashes::new();
     owners.add(&fake_key_hash(2));
@@ -235,7 +235,7 @@ fn stake_and_vote_delegation_ser_round_trip() {
     let drep = DRep::new_key_hash(&fake_key_hash(3));
 
     let cert = StakeAndVoteDelegation::new(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &fake_key_hash(2),
         &drep,
     );
@@ -247,7 +247,7 @@ fn stake_and_vote_delegation_ser_round_trip() {
 #[test]
 fn stake_delegation_ser_round_trip() {
     let cert = StakeDelegation::new(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &fake_key_hash(2),
     );
     let cert_wrapped = Certificate::new_stake_delegation(&cert);
@@ -257,7 +257,7 @@ fn stake_delegation_ser_round_trip() {
 
 #[test]
 fn stake_deregistration_ser_round_trip() {
-    let cert = StakeDeregistration::new(&StakeCredential::from_keyhash(&fake_key_hash(1)));
+    let cert = StakeDeregistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let cert_wrapped = Certificate::new_stake_deregistration(&cert);
     to_from_test!(StakeDeregistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_stake_deregistration().unwrap());
@@ -266,7 +266,7 @@ fn stake_deregistration_ser_round_trip() {
 #[test]
 fn stake_deregistration_with_coin_ser_round_trip() {
     let cert = StakeDeregistration::new_with_coin(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
     let cert_wrapped = Certificate::new_stake_deregistration(&cert);
@@ -276,7 +276,7 @@ fn stake_deregistration_with_coin_ser_round_trip() {
 
 #[test]
 fn stake_registration_ser_round_trip() {
-    let cert = StakeRegistration::new(&StakeCredential::from_keyhash(&fake_key_hash(1)));
+    let cert = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let cert_wrapped = Certificate::new_stake_registration(&cert);
     to_from_test!(StakeRegistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_stake_registration().unwrap());
@@ -285,7 +285,7 @@ fn stake_registration_ser_round_trip() {
 #[test]
 fn stake_registration_with_coin_ser_round_trip() {
     let cert = StakeRegistration::new_with_coin(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
     let cert_wrapped = Certificate::new_stake_registration(&cert);
@@ -296,7 +296,7 @@ fn stake_registration_with_coin_ser_round_trip() {
 #[test]
 fn stake_registration_and_delegation_ser_round_trip() {
     let cert = StakeRegistrationAndDelegation::new(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &fake_key_hash(2),
         &Coin::from(100u64),
     );
@@ -312,7 +312,7 @@ fn stake_registration_and_delegation_ser_round_trip() {
 fn stake_vote_registration_and_delegation_ser_round_trip() {
     let drep = DRep::new_key_hash(&fake_key_hash(3));
     let cert = StakeVoteRegistrationAndDelegation::new(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &fake_key_hash(2),
         &drep,
         &Coin::from(100u64),
@@ -331,7 +331,7 @@ fn stake_vote_registration_and_delegation_ser_round_trip() {
 fn vote_delegation_ser_round_trip() {
     let drep = DRep::new_key_hash(&fake_key_hash(3));
     let cert = VoteDelegation::new(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &drep
     );
     let cert_wrapped = Certificate::new_vote_delegation(&cert);
@@ -343,7 +343,7 @@ fn vote_delegation_ser_round_trip() {
 fn vote_registration_and_delegation_ser_round_trip() {
     let drep = DRep::new_key_hash(&fake_key_hash(3));
     let cert = VoteRegistrationAndDelegation::new(
-        &StakeCredential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(1)),
         &drep,
         &Coin::from(100u64),
     );

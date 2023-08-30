@@ -85,7 +85,7 @@ fn deserialize_legacy<R: BufRead + Seek>(
         check_index(cert_index, desired_index, "cert_index")?;
 
         let stake_credential =
-            StakeCredential::deserialize(raw).map_err(|e| e.annotate("stake_credential"))?;
+            Credential::deserialize(raw).map_err(|e| e.annotate("stake_credential"))?;
 
         return Ok(StakeDeregistration {
             stake_credential,
@@ -106,7 +106,7 @@ fn deserialize_conway<R: BufRead + Seek>(
         check_index(cert_index, desired_index, "cert_index")?;
 
         let stake_credential =
-            StakeCredential::deserialize(raw).map_err(|e| e.annotate("stake_credential"))?;
+            Credential::deserialize(raw).map_err(|e| e.annotate("stake_credential"))?;
 
         let coin = Coin::deserialize(raw).map_err(|e| e.annotate("coin"))?;
 

@@ -13,8 +13,8 @@ use crate::*;
     JsonSchema,
 )]
 pub(crate) enum VoterEnum {
-    ConstitutionalCommitteeHotKey(StakeCredential),
-    DRep(StakeCredential),
+    ConstitutionalCommitteeHotKey(Credential),
+    DRep(Credential),
     StakingPool(Ed25519KeyHash),
 }
 
@@ -47,11 +47,11 @@ impl_to_from!(Voter);
 
 #[wasm_bindgen]
 impl Voter {
-    pub fn new_constitutional_committee_hot_key(cred: &StakeCredential) -> Self {
+    pub fn new_constitutional_committee_hot_key(cred: &Credential) -> Self {
         Self(VoterEnum::ConstitutionalCommitteeHotKey(cred.clone()))
     }
 
-    pub fn new_drep(cred: &StakeCredential) -> Self {
+    pub fn new_drep(cred: &Credential) -> Self {
         Self(VoterEnum::DRep(cred.clone()))
     }
 
@@ -73,14 +73,14 @@ impl Voter {
         }
     }
 
-    pub fn to_constitutional_committee_hot_key(&self) -> Option<StakeCredential> {
+    pub fn to_constitutional_committee_hot_key(&self) -> Option<Credential> {
         match &self.0 {
             VoterEnum::ConstitutionalCommitteeHotKey(cred) => Some(cred.clone()),
             _ => None,
         }
     }
 
-    pub fn to_drep(&self) -> Option<StakeCredential> {
+    pub fn to_drep(&self) -> Option<Credential> {
         match &self.0 {
             VoterEnum::DRep(cred) => Some(cred.clone()),
             _ => None,

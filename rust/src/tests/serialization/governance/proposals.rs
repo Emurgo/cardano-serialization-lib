@@ -38,8 +38,8 @@ macro_rules! to_from_test {
 fn committee_ser_round_trip() {
     let mut committee =
         Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
-    committee.add_member(&StakeCredential::from_keyhash(&fake_key_hash(1)), 1);
-    committee.add_member(&StakeCredential::from_scripthash(&fake_script_hash(2)), 2);
+    committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
+    committee.add_member(&Credential::from_scripthash(&fake_script_hash(2)), 2);
 
     let cbor = committee.to_bytes();
     let cbor_hex = committee.to_hex();
@@ -132,12 +132,12 @@ fn hard_fork_initiation_proposal_with_action_id_ser_round_trip() {
 fn new_committee_proposal_ser_round_trip() {
     let mut committee =
         Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
-    committee.add_member(&StakeCredential::from_keyhash(&fake_key_hash(1)), 1);
-    committee.add_member(&StakeCredential::from_scripthash(&fake_script_hash(2)), 2);
+    committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
+    committee.add_member(&Credential::from_scripthash(&fake_script_hash(2)), 2);
 
     let mut members_to_remove = StakeCredentials::new();
-    members_to_remove.add(&StakeCredential::from_keyhash(&fake_key_hash(1)));
-    members_to_remove.add(&StakeCredential::from_scripthash(&fake_script_hash(2)));
+    members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
+    members_to_remove.add(&Credential::from_scripthash(&fake_script_hash(2)));
 
     let proposal = NewCommitteeProposal::new(&committee, &members_to_remove);
 
@@ -155,12 +155,12 @@ fn new_committee_proposal_with_action_id_ser_round_trip() {
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
     let mut committee =
         Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
-    committee.add_member(&StakeCredential::from_keyhash(&fake_key_hash(1)), 1);
-    committee.add_member(&StakeCredential::from_scripthash(&fake_script_hash(2)), 2);
+    committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
+    committee.add_member(&Credential::from_scripthash(&fake_script_hash(2)), 2);
 
     let mut members_to_remove = StakeCredentials::new();
-    members_to_remove.add(&StakeCredential::from_keyhash(&fake_key_hash(1)));
-    members_to_remove.add(&StakeCredential::from_scripthash(&fake_script_hash(2)));
+    members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
+    members_to_remove.add(&Credential::from_scripthash(&fake_script_hash(2)));
 
     let proposal =
         NewCommitteeProposal::new_with_action_id(&action_id, &committee, &members_to_remove);
@@ -284,8 +284,8 @@ fn parameter_change_proposal_with_action_id_ser_round_trip() {
 #[test]
 fn treasury_withdrawals_ser_round_trip() {
     let mut withdrawals = TreasuryWithdrawals::new();
-    let addr1 = RewardAddress::new(1, &StakeCredential::from_keyhash(&fake_key_hash(1)));
-    let addr2 = RewardAddress::new(2, &StakeCredential::from_keyhash(&fake_key_hash(2)));
+    let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
+    let addr2 = RewardAddress::new(2, &Credential::from_keyhash(&fake_key_hash(2)));
     withdrawals.insert(&addr1, &Coin::from(1u32));
     withdrawals.insert(&addr2, &Coin::from(2u32));
 
@@ -297,8 +297,8 @@ fn treasury_withdrawals_ser_round_trip() {
 #[test]
 fn treasury_withdrawals_proposal_ser_round_trip() {
     let mut withdrawals = TreasuryWithdrawals::new();
-    let addr1 = RewardAddress::new(1, &StakeCredential::from_keyhash(&fake_key_hash(1)));
-    let addr2 = RewardAddress::new(2, &StakeCredential::from_keyhash(&fake_key_hash(2)));
+    let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
+    let addr2 = RewardAddress::new(2, &Credential::from_keyhash(&fake_key_hash(2)));
     withdrawals.insert(&addr1, &Coin::from(1u32));
     withdrawals.insert(&addr2, &Coin::from(2u32));
 
@@ -317,8 +317,8 @@ fn treasury_withdrawals_proposal_ser_round_trip() {
 fn voting_proposals_ser_round_trip() {
     let mut proposals = VotingProposals::new();
     let mut withdrawals = TreasuryWithdrawals::new();
-    let addr1 = RewardAddress::new(1, &StakeCredential::from_keyhash(&fake_key_hash(1)));
-    let addr2 = RewardAddress::new(2, &StakeCredential::from_keyhash(&fake_key_hash(2)));
+    let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
+    let addr2 = RewardAddress::new(2, &Credential::from_keyhash(&fake_key_hash(2)));
     withdrawals.insert(&addr1, &Coin::from(1u32));
     withdrawals.insert(&addr2, &Coin::from(2u32));
 

@@ -43,7 +43,7 @@ impl DeserializeEmbeddedGroup for StakeVoteRegistrationAndDelegation {
         deserialize_and_check_index(raw, cert_index, "cert_index")?;
 
         let stake_credential =
-            StakeCredential::deserialize(raw).map_err(|e| e.annotate("stake_credential"))?;
+            Credential::deserialize(raw).map_err(|e| e.annotate("stake_credential"))?;
 
         let pool_keyhash =
             Ed25519KeyHash::deserialize(raw).map_err(|e| e.annotate("pool_keyhash"))?;

@@ -32,7 +32,7 @@ impl DeserializeEmbeddedGroup for CommitteeHotKeyDeregistration {
         deserialize_and_check_index(raw, cert_index, "cert_index")?;
 
         let committee_cold_key =
-            StakeCredential::deserialize(raw).map_err(|e| e.annotate("committee_cold_key"))?;
+            Credential::deserialize(raw).map_err(|e| e.annotate("committee_cold_key"))?;
 
         Ok(CommitteeHotKeyDeregistration { committee_cold_key })
     }

@@ -35,7 +35,7 @@ impl DeserializeEmbeddedGroup for VoteRegistrationAndDelegation {
         deserialize_and_check_index(raw, desired_index, "cert_index")?;
 
         let stake_credential =
-            StakeCredential::deserialize(raw).map_err(|e| e.annotate("stake_credential"))?;
+            Credential::deserialize(raw).map_err(|e| e.annotate("stake_credential"))?;
 
         let drep = DRep::deserialize(raw).map_err(|e| e.annotate("drep"))?;
 

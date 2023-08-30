@@ -1114,7 +1114,7 @@ impl PoolMetadata {
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
-pub struct StakeCredentials(Vec<StakeCredential>);
+pub struct StakeCredentials(Vec<Credential>);
 
 impl_to_from!(StakeCredentials);
 
@@ -1128,11 +1128,11 @@ impl StakeCredentials {
         self.0.len()
     }
 
-    pub fn get(&self, index: usize) -> StakeCredential {
+    pub fn get(&self, index: usize) -> Credential {
         self.0[index].clone()
     }
 
-    pub fn add(&mut self, elem: &StakeCredential) {
+    pub fn add(&mut self, elem: &Credential) {
         self.0.push(elem.clone());
     }
 }

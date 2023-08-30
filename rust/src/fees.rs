@@ -356,7 +356,7 @@ mod tests {
             &UnitInterval::new(&to_bignum(3), &to_bignum(100)), // margin
             &RewardAddress::new(
                 network,
-                &StakeCredential::from_keyhash(
+                &Credential::from_keyhash(
                     &PublicKey::from_bytes(
                         &hex::decode(
                             "54d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f3",
