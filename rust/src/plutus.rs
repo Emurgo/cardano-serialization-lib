@@ -860,6 +860,15 @@ pub struct PlutusList {
     pub(crate) definite_encoding: Option<bool>,
 }
 
+impl<'a> IntoIterator for &'a PlutusList {
+    type Item = &'a PlutusData;
+    type IntoIter = std::slice::Iter<'a, PlutusData>;
+
+    fn into_iter(self) -> std::slice::Iter<'a, PlutusData> {
+        self.elems.iter()
+    }
+}
+
 impl std::cmp::PartialEq<Self> for PlutusList {
     fn eq(&self, other: &Self) -> bool {
         self.elems.eq(&other.elems)

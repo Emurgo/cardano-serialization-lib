@@ -1225,10 +1225,10 @@ impl JsonSchema for Withdrawals {
         String::from("Withdrawals")
     }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::json_schema(gen)
+        std::collections::BTreeMap::<RewardAddress, Coin>::json_schema(gen)
     }
     fn is_referenceable() -> bool {
-        std::collections::BTreeMap::<GenesisHash, ProtocolParamUpdate>::is_referenceable()
+        std::collections::BTreeMap::<RewardAddress, Coin>::is_referenceable()
     }
 }
 

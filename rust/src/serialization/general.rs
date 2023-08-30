@@ -3770,12 +3770,21 @@ impl DeserializeEmbeddedGroup for HeaderBody {
         let block_body_hash =
             (|| -> Result<_, DeserializeError> { Ok(BlockHash::deserialize(raw)?) })()
                 .map_err(|e| e.annotate("block_body_hash"))?;
+
         let operational_cert = (|| -> Result<_, DeserializeError> {
-            Ok(OperationalCert::deserialize_as_embedded_group(raw, len)?)
+            if raw.cbor_type()? == CBORType::Array {
+                Ok(OperationalCert::deserialize(raw)?)
+            } else {
+                Ok(OperationalCert::deserialize_as_embedded_group(raw, len)?)
+            }
         })()
         .map_err(|e| e.annotate("operational_cert"))?;
         let protocol_version = (|| -> Result<_, DeserializeError> {
-            Ok(ProtocolVersion::deserialize_as_embedded_group(raw, len)?)
+            if raw.cbor_type()? == CBORType::Array {
+                Ok(ProtocolVersion::deserialize(raw)?)
+            } else {
+                Ok(ProtocolVersion::deserialize_as_embedded_group(raw, len)?)
+            }
         })()
         .map_err(|e| e.annotate("protocol_version"))?;
         Ok(HeaderBody {
