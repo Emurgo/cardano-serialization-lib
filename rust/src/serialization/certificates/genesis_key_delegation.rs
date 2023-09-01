@@ -30,7 +30,7 @@ impl SerializeEmbeddedGroup for GenesisKeyDelegation {
     }
 }
 
-impl_deserialize_for_tuple!(GenesisKeyDelegation);
+impl_deserialize_for_wrapped_tuple!(GenesisKeyDelegation);
 
 impl DeserializeEmbeddedGroup for GenesisKeyDelegation {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

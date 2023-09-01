@@ -29,7 +29,7 @@ impl SerializeEmbeddedGroup for PoolRetirement {
     }
 }
 
-impl_deserialize_for_tuple!(PoolRetirement);
+impl_deserialize_for_wrapped_tuple!(PoolRetirement);
 
 impl DeserializeEmbeddedGroup for PoolRetirement {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

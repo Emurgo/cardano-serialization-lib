@@ -18,7 +18,7 @@ impl Serialize for Committee {
     }
 }
 
-impl_deserialize_for_tuple!(Committee);
+impl_deserialize_for_wrapped_tuple!(Committee);
 
 impl DeserializeEmbeddedGroup for Committee {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

@@ -22,7 +22,7 @@ impl Serialize for NewConstitutionProposal {
     }
 }
 
-impl_deserialize_for_tuple!(NewConstitutionProposal);
+impl_deserialize_for_wrapped_tuple!(NewConstitutionProposal);
 
 impl DeserializeEmbeddedGroup for NewConstitutionProposal {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

@@ -20,7 +20,7 @@ impl Serialize for TreasuryWithdrawalsProposal {
     }
 }
 
-impl_deserialize_for_tuple!(TreasuryWithdrawalsProposal);
+impl_deserialize_for_wrapped_tuple!(TreasuryWithdrawalsProposal);
 
 impl DeserializeEmbeddedGroup for TreasuryWithdrawalsProposal {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

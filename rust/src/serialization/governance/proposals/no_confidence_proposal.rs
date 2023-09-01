@@ -20,7 +20,7 @@ impl cbor_event::se::Serialize for NoConfidenceProposal {
     }
 }
 
-impl_deserialize_for_tuple!(NoConfidenceProposal);
+impl_deserialize_for_wrapped_tuple!(NoConfidenceProposal);
 
 impl DeserializeEmbeddedGroup for NoConfidenceProposal {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

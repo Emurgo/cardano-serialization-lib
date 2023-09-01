@@ -29,7 +29,7 @@ impl SerializeEmbeddedGroup for StakeDelegation {
     }
 }
 
-impl_deserialize_for_tuple!(StakeDelegation);
+impl_deserialize_for_wrapped_tuple!(StakeDelegation);
 
 impl DeserializeEmbeddedGroup for StakeDelegation {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

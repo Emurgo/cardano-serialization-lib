@@ -13,7 +13,7 @@ impl Serialize for Constitution {
     }
 }
 
-impl_deserialize_for_tuple!(Constitution);
+impl_deserialize_for_wrapped_tuple!(Constitution);
 
 impl DeserializeEmbeddedGroup for Constitution {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

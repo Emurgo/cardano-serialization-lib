@@ -46,7 +46,7 @@ fn serialize_as_conway<'se, W: Write>(
     Ok(serializer)
 }
 
-impl_deserialize_for_tuple!(StakeRegistration);
+impl_deserialize_for_wrapped_tuple!(StakeRegistration);
 
 impl DeserializeEmbeddedGroup for StakeRegistration {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

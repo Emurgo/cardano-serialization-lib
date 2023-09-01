@@ -71,7 +71,7 @@ impl SerializeEmbeddedGroup for PoolParams {
     }
 }
 
-impl_deserialize_for_tuple!(PoolParams);
+impl_deserialize_for_wrapped_tuple!(PoolParams);
 
 impl DeserializeEmbeddedGroup for PoolParams {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
@@ -147,7 +147,7 @@ impl SerializeEmbeddedGroup for PoolRegistration {
     }
 }
 
-impl_deserialize_for_tuple!(PoolRegistration);
+impl_deserialize_for_wrapped_tuple!(PoolRegistration);
 
 impl DeserializeEmbeddedGroup for PoolRegistration {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

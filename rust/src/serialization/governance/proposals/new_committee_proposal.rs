@@ -25,7 +25,7 @@ impl Serialize for NewCommitteeProposal {
     }
 }
 
-impl_deserialize_for_tuple!(NewCommitteeProposal);
+impl_deserialize_for_wrapped_tuple!(NewCommitteeProposal);
 
 impl DeserializeEmbeddedGroup for NewCommitteeProposal {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

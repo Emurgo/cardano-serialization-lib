@@ -22,7 +22,7 @@ impl cbor_event::se::Serialize for StakeRegistrationAndDelegation {
     }
 }
 
-impl_deserialize_for_tuple!(StakeRegistrationAndDelegation);
+impl_deserialize_for_wrapped_tuple!(StakeRegistrationAndDelegation);
 
 impl DeserializeEmbeddedGroup for StakeRegistrationAndDelegation {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

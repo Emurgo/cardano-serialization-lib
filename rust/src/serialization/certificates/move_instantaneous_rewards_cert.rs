@@ -130,7 +130,7 @@ impl SerializeEmbeddedGroup for MoveInstantaneousRewardsCert {
     }
 }
 
-impl_deserialize_for_tuple!(MoveInstantaneousRewardsCert);
+impl_deserialize_for_wrapped_tuple!(MoveInstantaneousRewardsCert);
 
 impl DeserializeEmbeddedGroup for MoveInstantaneousRewardsCert {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

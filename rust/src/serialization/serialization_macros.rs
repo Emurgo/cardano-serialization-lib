@@ -137,7 +137,7 @@ macro_rules! impl_to_from {
 }
 
 #[macro_export]
-macro_rules! impl_deserialize_for_tuple {
+macro_rules! impl_deserialize_for_wrapped_tuple {
     ($type:ty) => {
         impl Deserialize for $type {
             fn deserialize<R: BufRead + Seek>(

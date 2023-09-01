@@ -21,7 +21,7 @@ impl cbor_event::se::Serialize for ParameterChangeProposal {
     }
 }
 
-impl_deserialize_for_tuple!(ParameterChangeProposal);
+impl_deserialize_for_wrapped_tuple!(ParameterChangeProposal);
 
 impl DeserializeEmbeddedGroup for ParameterChangeProposal {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

@@ -19,7 +19,7 @@ impl cbor_event::se::Serialize for CommitteeHotKeyDeregistration {
     }
 }
 
-impl_deserialize_for_tuple!(CommitteeHotKeyDeregistration);
+impl_deserialize_for_wrapped_tuple!(CommitteeHotKeyDeregistration);
 
 impl DeserializeEmbeddedGroup for CommitteeHotKeyDeregistration {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

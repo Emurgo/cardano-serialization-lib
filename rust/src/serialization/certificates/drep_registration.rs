@@ -25,7 +25,7 @@ impl cbor_event::se::Serialize for DrepRegistration {
     }
 }
 
-impl_deserialize_for_tuple!(DrepRegistration);
+impl_deserialize_for_wrapped_tuple!(DrepRegistration);
 
 impl DeserializeEmbeddedGroup for DrepRegistration {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(

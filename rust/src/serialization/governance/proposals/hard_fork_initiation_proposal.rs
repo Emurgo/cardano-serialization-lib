@@ -27,7 +27,7 @@ impl cbor_event::se::Serialize for HardForkInitiationProposal {
     }
 }
 
-impl_deserialize_for_tuple!(HardForkInitiationProposal);
+impl_deserialize_for_wrapped_tuple!(HardForkInitiationProposal);
 
 impl DeserializeEmbeddedGroup for HardForkInitiationProposal {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
