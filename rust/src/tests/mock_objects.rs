@@ -1,3 +1,4 @@
+use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_pool_metadata_hash, fake_tx_hash, fake_vrf_key_hash};
 use crate::*;
 
 pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
@@ -44,6 +45,25 @@ pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
     }
 }
 
+pub(crate) fn crate_full_pool_params() -> PoolParams {
+    PoolParams {
+        operator: fake_key_hash(1),
+        vrf_keyhash: fake_vrf_key_hash(2),
+        pledge: Coin::from(44_444u32),
+        cost: Coin::from(44_444u32),
+        margin: UnitInterval::new(&BigNum::from(44_444u32), &BigNum::from(44_444u32)),
+        reward_account: RewardAddress::new(2, &Credential::from_keyhash(&fake_key_hash(3))),
+        pool_owners: Ed25519KeyHashes(vec![fake_key_hash(4), fake_key_hash(5)]),
+        relays: Relays(vec![Relay::new_multi_host_name(&MultiHostName::new(
+            &DNSRecordSRV::new("iohk.io".to_string()).unwrap(),
+        ))]),
+        pool_metadata: Some(PoolMetadata::new(
+            &URL::new("https://iohk.io".to_string()).unwrap(),
+            &fake_pool_metadata_hash(6),
+        )),
+    }
+}
+
 pub(crate) fn create_cost_models() -> Costmdls {
     let mut res = Costmdls::new();
     res.insert(
@@ -63,4 +83,15 @@ pub(crate) fn create_cost_models() -> Costmdls {
         ]),
     );
     res
+}
+
+pub(crate) fn create_anchor() -> Anchor {
+    Anchor::new(
+        &URL::new("https://iohk.io".to_string()).unwrap(),
+        &fake_anchor_data_hash(1),
+    )
+}
+
+pub(crate) fn create_action_id() -> GovernanceActionId {
+    GovernanceActionId::new(&fake_tx_hash(1), 1)
 }
