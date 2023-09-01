@@ -23,6 +23,10 @@ impl Voters {
         Self(Vec::new())
     }
 
+    pub fn add(&mut self, voter: &Voter) {
+        self.0.push(voter.clone());
+    }
+
     pub fn get(&self, index: usize) -> Option<Voter> {
         self.0.get(index).cloned()
     }

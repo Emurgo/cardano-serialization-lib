@@ -73,21 +73,21 @@ impl Voter {
         }
     }
 
-    pub fn to_constitutional_committee_hot_key(&self) -> Option<Credential> {
+    pub fn to_constitutional_committee_hot_cred(&self) -> Option<Credential> {
         match &self.0 {
             VoterEnum::ConstitutionalCommitteeHotKey(cred) => Some(cred.clone()),
             _ => None,
         }
     }
 
-    pub fn to_drep(&self) -> Option<Credential> {
+    pub fn to_drep_cred(&self) -> Option<Credential> {
         match &self.0 {
             VoterEnum::DRep(cred) => Some(cred.clone()),
             _ => None,
         }
     }
 
-    pub fn to_staking_pool(&self) -> Option<Ed25519KeyHash> {
+    pub fn to_staking_pool_key_hash(&self) -> Option<Ed25519KeyHash> {
         match &self.0 {
             VoterEnum::StakingPool(key_hash) => Some(key_hash.clone()),
             _ => None,
@@ -103,7 +103,7 @@ impl Voter {
         }
     }
 
-    pub fn to_keyhash(&self) -> Option<Ed25519KeyHash> {
+    pub fn to_key_hash(&self) -> Option<Ed25519KeyHash> {
         match &self.0 {
             VoterEnum::ConstitutionalCommitteeHotKey(cred) => cred.to_keyhash(),
             VoterEnum::DRep(cred) => cred.to_keyhash(),

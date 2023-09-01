@@ -98,7 +98,7 @@ impl VotingBuilder {
     pub(crate) fn get_required_signers(&self) -> RequiredSignersSet {
         let mut set = RequiredSignersSet::new();
         for (voter, voter_votes) in &self.votes {
-            let req_signature = voter.to_keyhash();
+            let req_signature = voter.to_key_hash();
             if let Some(req_signature) = req_signature {
                 set.insert(req_signature);
             }

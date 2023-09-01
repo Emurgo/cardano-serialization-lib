@@ -23,6 +23,10 @@ impl GovernanceActionIds {
         Self(Vec::new())
     }
 
+    pub fn add(&mut self, governance_action_id: &GovernanceActionId) {
+        self.0.push(governance_action_id.clone());
+    }
+
     pub fn get(&self, index: usize) -> Option<GovernanceActionId> {
         self.0.get(index).cloned()
     }
