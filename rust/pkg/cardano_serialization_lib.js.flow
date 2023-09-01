@@ -318,6 +318,14 @@ declare export var VoterKind: {|
 /**
  */
 
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
+|};
+
+/**
+ */
+
 declare export var StakeCredKind: {|
   +Key: 0, // 0
   +Script: 1, // 1
@@ -483,14 +491,6 @@ declare export var MIRKind: {|
 
 /**
  */
-
-declare export var CborContainerType: {|
-  +Array: 0, // 0
-  +Map: 1, // 1
-|};
-
-/**
- */
 declare export class Address {
   free(): void;
 
@@ -595,7 +595,7 @@ declare export class Anchor {
   /**
    * @returns {URL}
    */
-  anchor_url(): URL;
+  url(): URL;
 
   /**
    * @returns {AnchorDataHash}
@@ -3931,6 +3931,11 @@ declare export class GovernanceActionIds {
    * @returns {GovernanceActionIds}
    */
   static new(): GovernanceActionIds;
+
+  /**
+   * @param {GovernanceActionId} governance_action_id
+   */
+  add(governance_action_id: GovernanceActionId): void;
 
   /**
    * @param {number} index
@@ -12528,17 +12533,17 @@ declare export class Voter {
   /**
    * @returns {Credential | void}
    */
-  to_constitutional_committee_hot_key(): Credential | void;
+  to_constitutional_committee_hot_cred(): Credential | void;
 
   /**
    * @returns {Credential | void}
    */
-  to_drep(): Credential | void;
+  to_drep_cred(): Credential | void;
 
   /**
    * @returns {Ed25519KeyHash | void}
    */
-  to_staking_pool(): Ed25519KeyHash | void;
+  to_staking_pool_key_hash(): Ed25519KeyHash | void;
 
   /**
    * @returns {boolean}
@@ -12548,7 +12553,7 @@ declare export class Voter {
   /**
    * @returns {Ed25519KeyHash | void}
    */
-  to_keyhash(): Ed25519KeyHash | void;
+  to_key_hash(): Ed25519KeyHash | void;
 }
 /**
  */
@@ -12575,6 +12580,11 @@ declare export class Voters {
    * @returns {Voters}
    */
   static new(): Voters;
+
+  /**
+   * @param {Voter} voter
+   */
+  add(voter: Voter): void;
 
   /**
    * @param {number} index
