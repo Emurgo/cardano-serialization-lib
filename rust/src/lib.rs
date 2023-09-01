@@ -1114,7 +1114,7 @@ impl StakeCredentials {
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
-pub struct RewardAddresses(Vec<RewardAddress>);
+pub struct RewardAddresses(pub(crate) Vec<RewardAddress>);
 
 impl_to_from!(RewardAddresses);
 
