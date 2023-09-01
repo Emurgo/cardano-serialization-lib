@@ -1,5 +1,12 @@
 use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_pool_metadata_hash, fake_tx_hash, fake_vrf_key_hash};
 use crate::*;
+use crate::fees::LinearFee;
+use crate::tx_builder::{TransactionBuilder, TransactionBuilderConfigBuilder};
+
+const MAX_VALUE_SIZE: u32 = 4000;
+const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
+// this is what is used in mainnet
+static COINS_PER_UTXO_WORD: u64 = 34_482;
 
 pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
     ProtocolParamUpdate {
@@ -94,4 +101,100 @@ pub(crate) fn create_anchor() -> Anchor {
 
 pub(crate) fn create_action_id() -> GovernanceActionId {
     GovernanceActionId::new(&fake_tx_hash(1), 1)
+}
+pub(crate) fn byron_address() -> Address {
+    ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
+        .unwrap()
+        .to_address()
+}
+
+pub(crate) fn create_linear_fee(coefficient: u64, constant: u64) -> LinearFee {
+    LinearFee::new(&to_bignum(coefficient), &to_bignum(constant))
+}
+
+pub(crate) fn create_default_linear_fee() -> LinearFee {
+    create_linear_fee(500, 2)
+}
+
+pub(crate) fn create_tx_builder_full(
+    linear_fee: &LinearFee,
+    pool_deposit: u64,
+    key_deposit: u64,
+    max_val_size: u32,
+    coins_per_utxo_word: u64,
+) -> TransactionBuilder {
+    let cfg = TransactionBuilderConfigBuilder::new()
+        .fee_algo(linear_fee)
+        .pool_deposit(&to_bignum(pool_deposit))
+        .key_deposit(&to_bignum(key_deposit))
+        .voting_proposal_deposit(&to_bignum(500000000))
+        .max_value_size(max_val_size)
+        .max_tx_size(MAX_TX_SIZE)
+        .coins_per_utxo_word(&to_bignum(coins_per_utxo_word))
+        .ex_unit_prices(&ExUnitPrices::new(
+            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
+            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+        ))
+        .build()
+        .unwrap();
+    TransactionBuilder::new(&cfg)
+}
+
+pub(crate) fn create_tx_builder(
+    linear_fee: &LinearFee,
+    coins_per_utxo_word: u64,
+    pool_deposit: u64,
+    key_deposit: u64,
+) -> TransactionBuilder {
+    create_tx_builder_full(
+        linear_fee,
+        pool_deposit,
+        key_deposit,
+        MAX_VALUE_SIZE,
+        coins_per_utxo_word,
+    )
+}
+
+pub(crate) fn create_reallistic_tx_builder() -> TransactionBuilder {
+    create_tx_builder(
+        &create_linear_fee(44, 155381),
+        COINS_PER_UTXO_WORD,
+        500000000,
+        2000000,
+    )
+}
+
+pub(crate) fn create_tx_builder_with_fee_and_val_size(
+    linear_fee: &LinearFee,
+    max_val_size: u32,
+) -> TransactionBuilder {
+    create_tx_builder_full(linear_fee, 1, 1, max_val_size, 8)
+}
+
+pub(crate) fn create_tx_builder_with_fee(linear_fee: &LinearFee) -> TransactionBuilder {
+    create_tx_builder(linear_fee, 8, 1, 1)
+}
+
+pub(crate) fn create_tx_builder_with_fee_and_pure_change(linear_fee: &LinearFee) -> TransactionBuilder {
+    TransactionBuilder::new(
+        &TransactionBuilderConfigBuilder::new()
+            .fee_algo(linear_fee)
+            .pool_deposit(&to_bignum(1))
+            .key_deposit(&to_bignum(1))
+            .voting_proposal_deposit(&to_bignum(1))
+            .max_value_size(MAX_VALUE_SIZE)
+            .max_tx_size(MAX_TX_SIZE)
+            .coins_per_utxo_word(&to_bignum(8))
+            .prefer_pure_change(true)
+            .build()
+            .unwrap(),
+    )
+}
+
+pub(crate) fn create_tx_builder_with_key_deposit(deposit: u64) -> TransactionBuilder {
+    create_tx_builder(&create_default_linear_fee(), 8, 1, deposit)
+}
+
+pub(crate) fn create_default_tx_builder() -> TransactionBuilder {
+    create_tx_builder_with_fee(&create_default_linear_fee())
 }
