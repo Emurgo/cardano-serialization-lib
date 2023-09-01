@@ -22,7 +22,7 @@ impl_to_from!(Anchor);
 
 #[wasm_bindgen]
 impl Anchor {
-    pub fn anchor_url(&self) -> URL {
+    pub fn url(&self) -> URL {
         self.anchor_url.clone()
     }
 
