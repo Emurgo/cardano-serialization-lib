@@ -7,6 +7,3 @@ pub use certificates::*;
 
 mod governance;
 pub use governance::*;
-
-#[cfg(test)]
-mod tests;
