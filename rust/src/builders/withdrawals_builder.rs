@@ -1,4 +1,3 @@
-use crate::tx_builder::script_structs::*;
 use crate::*;
 use linked_hash_map::LinkedHashMap;
 

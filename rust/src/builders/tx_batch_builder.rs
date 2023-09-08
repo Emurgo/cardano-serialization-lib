@@ -1,6 +1,6 @@
-use batch_tools::proposals::{TxProposal};
-use batch_tools::asset_categorizer::{AssetCategorizer};
-use super::*;
+use crate::*;
+use batch_tools::asset_categorizer::AssetCategorizer;
+use batch_tools::proposals::TxProposal;
 
 #[wasm_bindgen]
 pub struct TransactionBatchList(Vec<TransactionBatch>);
@@ -18,7 +18,7 @@ impl TransactionBatchList {
 
 impl<'a> IntoIterator for &'a TransactionBatchList {
     type Item = &'a TransactionBatch;
-    type IntoIter =  std::slice::Iter<'a, TransactionBatch>;
+    type IntoIter = std::slice::Iter<'a, TransactionBatch>;
 
     fn into_iter(self) -> std::slice::Iter<'a, TransactionBatch> {
         self.0.iter()
@@ -69,7 +69,11 @@ struct TxBatchBuilder {
 }
 
 impl TxBatchBuilder {
-    pub fn new(utxos: &TransactionUnspentOutputs, address: &Address, config: &TransactionBuilderConfig) -> Result<Self, JsError> {
+    pub fn new(
+        utxos: &TransactionUnspentOutputs,
+        address: &Address,
+        config: &TransactionBuilderConfig,
+    ) -> Result<Self, JsError> {
         let asset_groups = AssetCategorizer::new(config, utxos, address)?;
         Ok(Self {
             asset_groups,
@@ -77,19 +81,28 @@ impl TxBatchBuilder {
         })
     }
 
-    pub fn build(&mut self, utxos: &TransactionUnspentOutputs) -> Result<TransactionBatch, JsError> {
+    pub fn build(
+        &mut self,
+        utxos: &TransactionUnspentOutputs,
+    ) -> Result<TransactionBatch, JsError> {
         while self.asset_groups.has_assets() || self.asset_groups.has_ada() {
             let mut current_tx_proposal = TxProposal::new();
-            while let Some(tx_proposal) = self.asset_groups.try_append_next_utxos(&current_tx_proposal)? {
+            while let Some(tx_proposal) = self
+                .asset_groups
+                .try_append_next_utxos(&current_tx_proposal)?
+            {
                 current_tx_proposal = tx_proposal;
             }
 
-            if current_tx_proposal.is_empty() && (self.asset_groups.has_assets() || self.asset_groups.has_ada()) {
+            if current_tx_proposal.is_empty()
+                && (self.asset_groups.has_assets() || self.asset_groups.has_ada())
+            {
                 return Err(JsError::from_str("Unable to build transaction batch"));
             }
 
             current_tx_proposal.add_last_ada_to_last_output()?;
-            self.asset_groups.set_min_ada_for_tx(&mut current_tx_proposal)?;
+            self.asset_groups
+                .set_min_ada_for_tx(&mut current_tx_proposal)?;
             self.tx_proposals.push(current_tx_proposal);
         }
 
@@ -103,10 +116,12 @@ impl TxBatchBuilder {
 }
 
 #[wasm_bindgen]
-pub fn create_send_all(address: &Address, utxos: &TransactionUnspentOutputs, config: &TransactionBuilderConfig)
-    -> Result<TransactionBatchList, JsError> {
+pub fn create_send_all(
+    address: &Address,
+    utxos: &TransactionUnspentOutputs,
+    config: &TransactionBuilderConfig,
+) -> Result<TransactionBatchList, JsError> {
     let mut tx_batch_builder = TxBatchBuilder::new(utxos, address, config)?;
     let batch = tx_batch_builder.build(utxos)?;
     Ok(TransactionBatchList(vec![batch]))
 }
-

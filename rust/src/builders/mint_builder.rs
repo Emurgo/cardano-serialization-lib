@@ -1,7 +1,6 @@
-use super::*;
 use crate::plutus::Redeemer;
-use crate::tx_builder::script_structs::PlutusScriptSourceEnum;
-use crate::tx_builder::script_structs::PlutusScriptSource;
+use crate::*;
+use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum MintWitnessEnum {
@@ -19,15 +18,21 @@ impl MintWitness {
         MintWitness(MintWitnessEnum::NativeScript(native_script.clone()))
     }
 
-    pub fn new_plutus_script(plutus_script: &PlutusScriptSource, redeemer: &Redeemer) -> MintWitness {
-        MintWitness(MintWitnessEnum::Plutus(plutus_script.0.clone(), redeemer.clone()))
+    pub fn new_plutus_script(
+        plutus_script: &PlutusScriptSource,
+        redeemer: &Redeemer,
+    ) -> MintWitness {
+        MintWitness(MintWitnessEnum::Plutus(
+            plutus_script.0.clone(),
+            redeemer.clone(),
+        ))
     }
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct NativeMints {
     script: NativeScript,
-    mints: BTreeMap<AssetName, Int>
+    mints: BTreeMap<AssetName, Int>,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -45,7 +50,7 @@ enum ScriptMint {
 #[derive(Clone, Debug)]
 #[wasm_bindgen]
 pub struct MintBuilder {
-    mints: BTreeMap<PolicyID, ScriptMint>
+    mints: BTreeMap<PolicyID, ScriptMint>,
 }
 
 #[wasm_bindgen]
@@ -64,43 +69,63 @@ impl MintBuilder {
         self.update_mint_value(mint, asset_name, amount, true);
     }
 
-    fn update_mint_value(&mut self, mint: &MintWitness, asset_name: &AssetName, amount: &Int, overwrite: bool) {
+    fn update_mint_value(
+        &mut self,
+        mint: &MintWitness,
+        asset_name: &AssetName,
+        amount: &Int,
+        overwrite: bool,
+    ) {
         match &mint.0 {
             MintWitnessEnum::NativeScript(native_script) => {
-                let script_mint = self.mints.entry(native_script.hash()).or_insert(ScriptMint::Native(NativeMints {
-                    script: native_script.clone(),
-                    mints: BTreeMap::new(),
-                }));
+                let script_mint =
+                    self.mints
+                        .entry(native_script.hash())
+                        .or_insert(ScriptMint::Native(NativeMints {
+                            script: native_script.clone(),
+                            mints: BTreeMap::new(),
+                        }));
                 match script_mint {
                     ScriptMint::Native(native_mints) => {
-                        let mint = native_mints.mints.entry(asset_name.clone()).or_insert(Int::new(&BigNum::zero()));
+                        let mint = native_mints
+                            .mints
+                            .entry(asset_name.clone())
+                            .or_insert(Int::new(&BigNum::zero()));
                         if overwrite {
                             mint.0 = amount.0;
                         } else {
                             mint.0 += amount.0;
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
-            },
+            }
             MintWitnessEnum::Plutus(plutus_script, redeemer) => {
-                let script_mint = self.mints.entry(plutus_script.script_hash()).or_insert(ScriptMint::Plutus(PlutusMints {
-                    script: plutus_script.clone(),
-                    redeemer_mints: BTreeMap::new(),
-                }));
+                let script_mint =
+                    self.mints
+                        .entry(plutus_script.script_hash())
+                        .or_insert(ScriptMint::Plutus(PlutusMints {
+                            script: plutus_script.clone(),
+                            redeemer_mints: BTreeMap::new(),
+                        }));
                 match script_mint {
                     ScriptMint::Plutus(plutus_mints) => {
-                        let redeemer_mints = plutus_mints.redeemer_mints.entry(redeemer.clone()).or_insert(BTreeMap::new());
-                        let mint = redeemer_mints.entry(asset_name.clone()).or_insert(Int::new(&BigNum::zero()));
+                        let redeemer_mints = plutus_mints
+                            .redeemer_mints
+                            .entry(redeemer.clone())
+                            .or_insert(BTreeMap::new());
+                        let mint = redeemer_mints
+                            .entry(asset_name.clone())
+                            .or_insert(Int::new(&BigNum::zero()));
                         if overwrite {
                             mint.0 = amount.0;
                         } else {
                             mint.0 += amount.0;
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
-            },
+            }
         }
     }
 
@@ -114,13 +139,12 @@ impl MintBuilder {
                         mint_asset.insert(asset_name, amount.clone());
                     }
                     mint.insert(&native_mints.script.hash(), &mint_asset);
-                },
+                }
                 ScriptMint::Plutus(plutus_mints) => {
                     for (_, redeemer_mints) in &plutus_mints.redeemer_mints {
                         let mut mint_asset = MintAssets::new();
                         for (asset_name, amount) in redeemer_mints {
                             mint_asset.insert(asset_name, amount.clone());
-
                         }
                         mint.insert(&plutus_mints.script.script_hash(), &mint_asset);
                     }
@@ -136,8 +160,8 @@ impl MintBuilder {
             match script_mint {
                 ScriptMint::Native(native_mints) => {
                     native_scripts.push(native_mints.script.clone());
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
         NativeScripts(native_scripts)
@@ -149,14 +173,13 @@ impl MintBuilder {
             match script_mint {
                 ScriptMint::Plutus(plutus_mints) => {
                     for (redeemer, _) in &plutus_mints.redeemer_mints {
-                        plutus_witnesses.push(
-                            PlutusWitness::new_with_ref_without_datum(
-                                &PlutusScriptSource(plutus_mints.script.clone()),
-                                redeemer)
-                        );
+                        plutus_witnesses.push(PlutusWitness::new_with_ref_without_datum(
+                            &PlutusScriptSource(plutus_mints.script.clone()),
+                            redeemer,
+                        ));
                     }
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
         PlutusWitnesses(plutus_witnesses)
@@ -167,11 +190,12 @@ impl MintBuilder {
         for script_mint in self.mints.values() {
             match script_mint {
                 ScriptMint::Plutus(plutus_mints) => {
-                    if let PlutusScriptSourceEnum::RefInput(ref_input, _, _) = &plutus_mints.script {
+                    if let PlutusScriptSourceEnum::RefInput(ref_input, _, _) = &plutus_mints.script
+                    {
                         reference_inputs.push(ref_input.clone());
                     }
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
         TransactionInputs(reference_inputs)
@@ -188,10 +212,10 @@ impl MintBuilder {
                         redeeemers.push(redeemer.clone_with_index_and_tag(&index, &tag));
                         index = index.checked_add(&BigNum::one())?;
                     }
-                },
+                }
                 _ => {
                     index = index.checked_add(&BigNum::one())?;
-                },
+                }
             }
         }
         Ok(Redeemers(redeeemers))
@@ -202,8 +226,8 @@ impl MintBuilder {
             match script_mint {
                 ScriptMint::Plutus(_) => {
                     return true;
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
         false
@@ -214,8 +238,8 @@ impl MintBuilder {
             match script_mint {
                 ScriptMint::Native(_) => {
                     return true;
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
         false
@@ -229,8 +253,8 @@ impl MintBuilder {
                     if let Some(lang) = plutus_mints.script.language() {
                         used_langs.insert(lang);
                     }
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
         used_langs

@@ -1,6 +1,6 @@
-use super::*;
+use crate::*;
+use linked_hash_map::LinkedHashMap;
 use std::collections::{BTreeMap, BTreeSet};
-use crate::tx_builder::script_structs::*;
 
 #[derive(Clone, Debug)]
 pub(crate) struct TxBuilderInput {
@@ -12,23 +12,27 @@ pub(crate) struct TxBuilderInput {
 #[derive(Clone, Debug)]
 pub struct InputWithScriptWitness {
     pub(crate) input: TransactionInput,
-    pub(crate) witness: ScriptWitnessType
+    pub(crate) witness: ScriptWitnessType,
 }
 
 #[wasm_bindgen]
 impl InputWithScriptWitness {
-    pub fn new_with_native_script_witness(input: &TransactionInput, witness: &NativeScript) -> Self {
+    pub fn new_with_native_script_witness(
+        input: &TransactionInput,
+        witness: &NativeScript,
+    ) -> Self {
         Self {
             input: input.clone(),
-            witness: ScriptWitnessType::NativeScriptWitness(
-                NativeScriptSourceEnum::NativeScript(witness.clone()))
+            witness: ScriptWitnessType::NativeScriptWitness(NativeScriptSourceEnum::NativeScript(
+                witness.clone(),
+            )),
         }
     }
 
     pub fn new_with_plutus_witness(input: &TransactionInput, witness: &PlutusWitness) -> Self {
         Self {
             input: input.clone(),
-            witness: ScriptWitnessType::PlutusScriptWitness(witness.clone())
+            witness: ScriptWitnessType::PlutusScriptWitness(witness.clone()),
         }
     }
 
@@ -113,8 +117,8 @@ impl TxInputsBuilder {
     }
 
     #[deprecated(
-    since = "11.2.0",
-    note = "Use `.add_native_script_input` or `.add_plutus_script_input` instead."
+        since = "11.2.0",
+        note = "Use `.add_native_script_input` or `.add_plutus_script_input` instead."
     )]
     /// !!! DEPRECATED !!!
     /// This function can make a mistake in choosing right input index. Use `.add_native_script_input` or `.add_plutus_script_input` instead.
@@ -148,8 +152,9 @@ impl TxInputsBuilder {
     ) {
         let hash = script.hash();
         self.add_script_input(&hash, input, amount);
-        let witness = ScriptWitnessType::NativeScriptWitness(
-            NativeScriptSourceEnum::NativeScript(script.clone()));
+        let witness = ScriptWitnessType::NativeScriptWitness(NativeScriptSourceEnum::NativeScript(
+            script.clone(),
+        ));
         self.insert_input_with_witness(&hash, input, &witness);
     }
 
@@ -261,7 +266,8 @@ impl TxInputsBuilder {
 
                 if let Some(tx_in) = tx_in {
                     let witness = ScriptWitnessType::NativeScriptWitness(
-                        NativeScriptSourceEnum::NativeScript(s.clone()));
+                        NativeScriptSourceEnum::NativeScript(s.clone()),
+                    );
                     self.insert_input_with_witness(&hash, &tx_in, &witness);
                 }
             }
@@ -270,8 +276,8 @@ impl TxInputsBuilder {
     }
 
     #[deprecated(
-    since = "11.2.0",
-    note = "This function can make a mistake in choosing right input index. Use `.add_required_script_input_witnesses` instead."
+        since = "11.2.0",
+        note = "This function can make a mistake in choosing right input index. Use `.add_required_script_input_witnesses` instead."
     )]
     /// !!! DEPRECATED !!!
     /// This function can make a mistake in choosing right input index. Use `.add_required_script_input_witnesses` instead.
@@ -304,26 +310,44 @@ impl TxInputsBuilder {
     /// Any scripts that don't match any of the previously added inputs will be ignored
     /// Returns the number of remaining required missing witness scripts
     /// Use `.count_missing_input_scripts` to find the number of still missing scripts
-    pub fn add_required_script_input_witnesses(&mut self, inputs_with_wit: &InputsWithScriptWitness) -> usize {
-        inputs_with_wit.0.iter().for_each(|input_with_wit: &InputWithScriptWitness| {
-            let hash = input_with_wit.witness.script_hash();
-            if let Some(script_wits) = self.required_witnesses.scripts.get_mut(&hash) {
-                if script_wits.contains_key(&input_with_wit.input) {
-                    script_wits.insert(input_with_wit.input.clone(), Some(input_with_wit.witness.clone()));
+    pub fn add_required_script_input_witnesses(
+        &mut self,
+        inputs_with_wit: &InputsWithScriptWitness,
+    ) -> usize {
+        inputs_with_wit
+            .0
+            .iter()
+            .for_each(|input_with_wit: &InputWithScriptWitness| {
+                let hash = input_with_wit.witness.script_hash();
+                if let Some(script_wits) = self.required_witnesses.scripts.get_mut(&hash) {
+                    if script_wits.contains_key(&input_with_wit.input) {
+                        script_wits.insert(
+                            input_with_wit.input.clone(),
+                            Some(input_with_wit.witness.clone()),
+                        );
+                    }
                 }
-            } });
+            });
         self.count_missing_input_scripts()
     }
 
     pub fn get_ref_inputs(&self) -> TransactionInputs {
         let mut inputs = Vec::new();
-        for wintess in self.required_witnesses.scripts.iter()
+        for wintess in self
+            .required_witnesses
+            .scripts
+            .iter()
             .flat_map(|(_, tx_wits)| tx_wits.values())
-            .filter_map(|wit| wit.as_ref()) {
+            .filter_map(|wit| wit.as_ref())
+        {
             match wintess {
-                ScriptWitnessType::NativeScriptWitness(NativeScriptSourceEnum::RefInput(input, _, _)) => {
+                ScriptWitnessType::NativeScriptWitness(NativeScriptSourceEnum::RefInput(
+                    input,
+                    _,
+                    _,
+                )) => {
                     inputs.push(input.clone());
-                },
+                }
                 ScriptWitnessType::PlutusScriptWitness(plutus_witness) => {
                     if let Some(DatumSourceEnum::RefInput(input)) = &plutus_witness.datum {
                         inputs.push(input.clone());
@@ -331,8 +355,8 @@ impl TxInputsBuilder {
                     if let PlutusScriptSourceEnum::RefInput(input, _, _) = &plutus_witness.script {
                         inputs.push(input.clone());
                     }
-                },
-                _ => ()
+                }
+                _ => (),
             }
         }
         TransactionInputs(inputs)
@@ -341,15 +365,18 @@ impl TxInputsBuilder {
     /// Returns a copy of the current script input witness scripts in the builder
     pub fn get_native_input_scripts(&self) -> Option<NativeScripts> {
         let mut scripts = NativeScripts::new();
-        self.required_witnesses.scripts
+        self.required_witnesses
+            .scripts
             .values()
             .flat_map(|v| v)
             .for_each(|tx_in_with_wit| {
-            if let Some(ScriptWitnessType::NativeScriptWitness(
-                            NativeScriptSourceEnum::NativeScript(s))) = tx_in_with_wit.1 {
-                scripts.add(&s);
-            }
-        });
+                if let Some(ScriptWitnessType::NativeScriptWitness(
+                    NativeScriptSourceEnum::NativeScript(s),
+                )) = tx_in_with_wit.1
+                {
+                    scripts.add(&s);
+                }
+            });
         if scripts.len() > 0 {
             Some(scripts)
         } else {
@@ -359,15 +386,22 @@ impl TxInputsBuilder {
 
     pub(crate) fn get_used_plutus_lang_versions(&self) -> BTreeSet<Language> {
         let mut used_langs = BTreeSet::new();
-        self.required_witnesses.scripts.values().for_each(|input_with_wit| {
-            for (_, script_wit) in input_with_wit {
-                if let Some(ScriptWitnessType::PlutusScriptWitness(PlutusWitness { script, .. })) = script_wit {
-                    if let Some(lang) = script.language() {
-                        used_langs.insert(lang);
+        self.required_witnesses
+            .scripts
+            .values()
+            .for_each(|input_with_wit| {
+                for (_, script_wit) in input_with_wit {
+                    if let Some(ScriptWitnessType::PlutusScriptWitness(PlutusWitness {
+                        script,
+                        ..
+                    })) = script_wit
+                    {
+                        if let Some(lang) = script.language() {
+                            used_langs.insert(lang);
+                        }
                     }
                 }
-            }
-        });
+            });
         used_langs
     }
 
@@ -398,16 +432,17 @@ impl TxInputsBuilder {
                 m
             });
         let mut scripts = PlutusWitnesses::new();
-        self.required_witnesses.scripts
+        self.required_witnesses
+            .scripts
             .iter()
             .flat_map(|x| x.1)
             .for_each(|(hash, option)| {
-            if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = option {
-                if let Some(idx) = script_hash_index_map.get(&hash) {
-                    scripts.add(&s.clone_with_redeemer_index_and_tag(&idx, &tag));
+                if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = option {
+                    if let Some(idx) = script_hash_index_map.get(&hash) {
+                        scripts.add(&s.clone_with_redeemer_index_and_tag(&idx, &tag));
+                    }
                 }
-            }
-        });
+            });
         if scripts.len() > 0 {
             Some(scripts)
         } else {
@@ -416,10 +451,10 @@ impl TxInputsBuilder {
     }
 
     pub(crate) fn has_plutus_scripts(&self) -> bool {
-        self.required_witnesses.scripts.values()
-            .any(|x| x.iter()
-                .any(|(_, w)|
-                    matches!(w, Some(ScriptWitnessType::PlutusScriptWitness(_)))))
+        self.required_witnesses.scripts.values().any(|x| {
+            x.iter()
+                .any(|(_, w)| matches!(w, Some(ScriptWitnessType::PlutusScriptWitness(_))))
+        })
     }
 
     pub(crate) fn iter(&self) -> impl std::iter::Iterator<Item = &TxBuilderInput> + '_ {
@@ -463,15 +498,30 @@ impl TxInputsBuilder {
         }
     }
 
-    fn insert_input_with_witness(&mut self, script_hash: &ScriptHash, input: &TransactionInput, witness: &ScriptWitnessType) {
-        let script_inputs =
-            self.required_witnesses.scripts.entry(script_hash.clone()).or_insert(LinkedHashMap::new());
+    fn insert_input_with_witness(
+        &mut self,
+        script_hash: &ScriptHash,
+        input: &TransactionInput,
+        witness: &ScriptWitnessType,
+    ) {
+        let script_inputs = self
+            .required_witnesses
+            .scripts
+            .entry(script_hash.clone())
+            .or_insert(LinkedHashMap::new());
         script_inputs.insert(input.clone(), Some(witness.clone()));
     }
 
-    fn insert_input_with_empty_witness(&mut self, script_hash: &ScriptHash, input: &TransactionInput) {
-        let script_inputs =
-            self.required_witnesses.scripts.entry(script_hash.clone()).or_insert(LinkedHashMap::new());
+    fn insert_input_with_empty_witness(
+        &mut self,
+        script_hash: &ScriptHash,
+        input: &TransactionInput,
+    ) {
+        let script_inputs = self
+            .required_witnesses
+            .scripts
+            .entry(script_hash.clone())
+            .or_insert(LinkedHashMap::new());
         script_inputs.insert(input.clone(), None);
     }
 }
@@ -486,7 +536,7 @@ impl From<&TxInputsBuilder> for RequiredSignersSet {
             .flat_map(|tx_wits| tx_wits.values())
             .for_each(|swt: &Option<ScriptWitnessType>| {
                 if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = swt {
-                   set.extend(script_source.required_signers());
+                    set.extend(script_source.required_signers());
                 }
             });
         set

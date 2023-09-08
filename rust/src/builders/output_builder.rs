@@ -1,4 +1,4 @@
-use super::*;
+use crate::*;
 
 /// We introduce a builder-pattern format for creating transaction outputs
 /// This is because:
@@ -152,7 +152,7 @@ impl TransactionOutputAmountBuilder {
             ))?,
             plutus_data: self.data.clone(),
             script_ref: self.script_ref.clone(),
-            serialization_format: None
+            serialization_format: None,
         })
     }
 }

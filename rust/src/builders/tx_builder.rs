@@ -1,29 +1,11 @@
 #![allow(deprecated)]
 
-pub mod tx_inputs_builder;
-pub mod tx_batch_builder;
-pub mod mint_builder;
-pub mod certificates_builder;
-pub mod withdrawals_builder;
-pub mod voting_proposal_builder;
-pub mod voting_builder;
-mod batch_tools;
-pub(crate) mod script_structs;
+use crate::*;
 
-
-use super::fees;
-use super::output_builder::TransactionOutputAmountBuilder;
-use super::utils;
 use super::*;
-use crate::tx_builder::tx_inputs_builder::{get_bootstraps, TxInputsBuilder};
-use linked_hash_map::LinkedHashMap;
+use crate::fees;
+use crate::utils;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use crate::tx_builder::certificates_builder::CertificatesBuilder;
-use crate::tx_builder::withdrawals_builder::WithdrawalsBuilder;
-use crate::tx_builder::script_structs::{PlutusWitness, PlutusWitnesses};
-use crate::tx_builder::mint_builder::{MintBuilder, MintWitness};
-use crate::tx_builder::voting_builder::VotingBuilder;
-use crate::tx_builder::voting_proposal_builder::VotingProposalBuilder;
 
 pub(crate) fn fake_private_key() -> Bip32PrivateKey {
     Bip32PrivateKey::from_bytes(&[
@@ -199,12 +181,12 @@ pub enum CoinSelectionStrategyCIP2 {
 #[derive(Clone, Debug)]
 pub struct TransactionBuilderConfig {
     pub(crate) fee_algo: fees::LinearFee,
-    pub(crate) pool_deposit: Coin,                   // protocol parameter
-    pub(crate) key_deposit: Coin,                    // protocol parameter
-    pub(crate) voting_proposal_deposit: Coin,        // protocol parameter
-    pub(crate) max_value_size: u32,                  // protocol parameter
-    pub(crate) max_tx_size: u32,                     // protocol parameter
-    pub(crate) data_cost: DataCost,                  // protocol parameter
+    pub(crate) pool_deposit: Coin,            // protocol parameter
+    pub(crate) key_deposit: Coin,             // protocol parameter
+    pub(crate) voting_proposal_deposit: Coin, // protocol parameter
+    pub(crate) max_value_size: u32,           // protocol parameter
+    pub(crate) max_tx_size: u32,              // protocol parameter
+    pub(crate) data_cost: DataCost,           // protocol parameter
     pub(crate) ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     pub(crate) prefer_pure_change: bool,
 }
@@ -219,13 +201,13 @@ impl TransactionBuilderConfig {
 #[derive(Clone, Debug)]
 pub struct TransactionBuilderConfigBuilder {
     fee_algo: Option<fees::LinearFee>,
-    pool_deposit: Option<Coin>,           // protocol parameter
-    key_deposit: Option<Coin>,            // protocol parameter
+    pool_deposit: Option<Coin>,            // protocol parameter
+    key_deposit: Option<Coin>,             // protocol parameter
     voting_proposal_deposit: Option<Coin>, // protocol parameter
-    max_value_size: Option<u32>,          // protocol parameter
-    max_tx_size: Option<u32>,             // protocol parameter
-    data_cost: Option<DataCost>,          // protocol parameter
-    ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
+    max_value_size: Option<u32>,           // protocol parameter
+    max_tx_size: Option<u32>,              // protocol parameter
+    data_cost: Option<DataCost>,           // protocol parameter
+    ex_unit_prices: Option<ExUnitPrices>,  // protocol parameter
     prefer_pure_change: bool,
 }
 
@@ -320,9 +302,7 @@ impl TransactionBuilderConfigBuilder {
             pool_deposit: cfg
                 .pool_deposit
                 .ok_or(JsError::from_str("uninitialized field: pool_deposit"))?,
-            voting_proposal_deposit: cfg
-                .voting_proposal_deposit
-                .ok_or(JsError::from_str(
+            voting_proposal_deposit: cfg.voting_proposal_deposit.ok_or(JsError::from_str(
                 "uninitialized field: voting_proposal_deposit",
             ))?,
             key_deposit: cfg
@@ -675,8 +655,11 @@ impl TransactionBuilder {
             if let Some(associated) = associated_indices.get(output) {
                 for i in associated.iter() {
                     let input = &available_inputs[*i];
-                    let input_fee =
-                        self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
+                    let input_fee = self.fee_for_input(
+                        &input.output.address,
+                        &input.input,
+                        &input.output.amount,
+                    )?;
                     self.add_input(&input.output.address, &input.input, &input.output.amount);
                     *input_total = input_total.checked_add(&input.output.amount)?;
                     *output_total = output_total.checked_add(&Value::new(&input_fee))?;
@@ -849,7 +832,10 @@ impl TransactionBuilder {
 
     /// Returns the number of still missing input scripts (either native or plutus)
     /// Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
-    #[deprecated(since = "10.2.0", note = "Use `.count_missing_input_scripts` from `TxInputsBuilder`")]
+    #[deprecated(
+        since = "10.2.0",
+        note = "Use `.count_missing_input_scripts` from `TxInputsBuilder`"
+    )]
     pub fn count_missing_input_scripts(&self) -> usize {
         self.inputs.count_missing_input_scripts()
     }
@@ -1005,9 +991,9 @@ impl TransactionBuilder {
         since = "11.4.1",
         note = "Can emit an error if you add a withdrawal with script credential. Use set_withdrawals_builder instead."
     )]
-    pub fn set_withdrawals(&mut self, withdrawals: &Withdrawals) -> Result<(), JsError>{
+    pub fn set_withdrawals(&mut self, withdrawals: &Withdrawals) -> Result<(), JsError> {
         let mut withdrawals_builder = WithdrawalsBuilder::new();
-        for(withdrawal, coin) in &withdrawals.0 {
+        for (withdrawal, coin) in &withdrawals.0 {
             withdrawals_builder.add(&withdrawal, &coin)?;
         }
 
@@ -1098,8 +1084,8 @@ impl TransactionBuilder {
     /// Mints are defining by MintBuilder now.
     /// Use `.set_mint_builder()` and `MintBuilder` instead.
     #[deprecated(
-    since = "11.2.0",
-    note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
+        since = "11.2.0",
+        note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
     )]
     /// Set explicit Mint object and the required witnesses to this builder
     /// it will replace any previously existing mint and mint scripts
@@ -1119,9 +1105,10 @@ impl TransactionBuilder {
                     let mint_witness = MintWitness::new_native_script(script);
                     mint_builder.set_asset(&mint_witness, asset_name, amount);
                 } else {
-                    return Err(JsError::from_str("Mint policy does not have a matching script"));
+                    return Err(JsError::from_str(
+                        "Mint policy does not have a matching script",
+                    ));
                 }
-
             }
         }
         self.mint = Some(mint_builder);
@@ -1132,8 +1119,8 @@ impl TransactionBuilder {
     /// Mints are defining by MintBuilder now.
     /// Use `.get_mint_builder()` and `.build()` instead.
     #[deprecated(
-    since = "11.2.0",
-    note = "Mints are defining by MintBuilder now. Use `.get_mint_builder()` and `.build()` instead."
+        since = "11.2.0",
+        note = "Mints are defining by MintBuilder now. Use `.get_mint_builder()` and `.build()` instead."
     )]
     /// Returns a copy of the current mint state in the builder
     pub fn get_mint(&self) -> Option<Mint> {
@@ -1155,8 +1142,8 @@ impl TransactionBuilder {
     /// Mints are defining by MintBuilder now.
     /// Use `.set_mint_builder()` and `MintBuilder` instead.
     #[deprecated(
-    since = "11.2.0",
-    note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
+        since = "11.2.0",
+        note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
     )]
     /// Add a mint entry to this builder using a PolicyID and MintAssets object
     /// It will be securely added to existing or new Mint in this builder
@@ -1180,8 +1167,8 @@ impl TransactionBuilder {
     /// Mints are defining by MintBuilder now.
     /// Use `.set_mint_builder()` and `MintBuilder` instead.
     #[deprecated(
-    since = "11.2.0",
-    note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
+        since = "11.2.0",
+        note = "Mints are defining by MintBuilder now. Use `.set_mint_builder()` and `MintBuilder` instead."
     )]
     /// Add a mint entry to this builder using a PolicyID, AssetName, and Int object for amount
     /// It will be securely added to existing or new Mint in this builder
@@ -1196,7 +1183,7 @@ impl TransactionBuilder {
         if let Some(mint) = &mut self.mint {
             mint.add_asset(&mint_witness, asset_name, &amount);
         } else {
-            let mut mint =  MintBuilder::new();
+            let mut mint = MintBuilder::new();
             mint.add_asset(&mint_witness, asset_name, &amount);
             self.mint = Some(mint);
         }
@@ -1359,10 +1346,10 @@ impl TransactionBuilder {
             implicit_input = implicit_input.checked_add(&withdrawals.get_total_withdrawals()?)?;
         }
         if let Some(refunds) = &self.certs {
-            implicit_input = implicit_input.checked_add(&refunds.get_certificates_refund(
-                &self.config.pool_deposit,
-                &self.config.key_deposit
-            )?)?;
+            implicit_input = implicit_input.checked_add(
+                &refunds
+                    .get_certificates_refund(&self.config.pool_deposit, &self.config.key_deposit)?,
+            )?;
         }
 
         Ok(implicit_input)
@@ -1410,19 +1397,16 @@ impl TransactionBuilder {
     pub fn get_deposit(&self) -> Result<Coin, JsError> {
         let mut total_deposit = Coin::zero();
         if let Some(certs) = &self.certs {
-            total_deposit = total_deposit.checked_add(
-                &certs.get_certificates_deposit(
+            total_deposit =
+                total_deposit.checked_add(&certs.get_certificates_deposit(
                     &self.config.pool_deposit,
                     &self.config.key_deposit,
-                )?,
-            )?;
+                )?)?;
         }
 
         if let Some(voting_proposal_builder) = &self.voting_proposals {
             total_deposit = total_deposit.checked_add(
-                &voting_proposal_builder.get_total_deposit(
-                    &self.config.voting_proposal_deposit,
-                )?,
+                &voting_proposal_builder.get_total_deposit(&self.config.voting_proposal_deposit)?,
             )?;
         }
 
@@ -1441,23 +1425,24 @@ impl TransactionBuilder {
         self.add_change_if_needed_with_optional_script_and_datum(address, None, None)
     }
 
-    pub fn add_change_if_needed_with_datum(&mut self,
-                                           address: &Address,
-                                           plutus_data: &OutputDatum)
-        -> Result<bool, JsError>
-    {
+    pub fn add_change_if_needed_with_datum(
+        &mut self,
+        address: &Address,
+        plutus_data: &OutputDatum,
+    ) -> Result<bool, JsError> {
         self.add_change_if_needed_with_optional_script_and_datum(
             address,
             Some(plutus_data.0.clone()),
-            None)
+            None,
+        )
     }
 
-
-    fn add_change_if_needed_with_optional_script_and_datum(&mut self, address: &Address,
-                                                           plutus_data: Option<DataOption>,
-                                                           script_ref: Option<ScriptRef>)
-        -> Result<bool, JsError>
-    {
+    fn add_change_if_needed_with_optional_script_and_datum(
+        &mut self,
+        address: &Address,
+        plutus_data: Option<DataOption>,
+        script_ref: Option<ScriptRef>,
+    ) -> Result<bool, JsError> {
         let fee = match &self.fee {
             None => self.min_fee(),
             // generating the change output involves changing the fee
@@ -1473,7 +1458,10 @@ impl TransactionBuilder {
 
         let shortage = get_input_shortage(&input_total, &output_total, &fee)?;
         if let Some(shortage) = shortage {
-            return Err(JsError::from_str(&format!("Insufficient input in transaction. {}", shortage)));
+            return Err(JsError::from_str(&format!(
+                "Insufficient input in transaction. {}",
+                shortage
+            )));
         }
 
         use std::cmp::Ordering;
@@ -1807,7 +1795,6 @@ impl TransactionBuilder {
         }
     }
 
-
     /// This method will calculate the script hash data
     /// using the plutus datums and redeemers already present in the builder
     /// along with the provided cost model, and will register the calculated value
@@ -1831,24 +1818,34 @@ impl TransactionBuilder {
         }
         if let Some(mint_builder) = &self.mint {
             used_langs.append(&mut mint_builder.get_used_plutus_lang_versions());
-            plutus_witnesses.0.append(&mut mint_builder.get_plutus_witnesses().0)
+            plutus_witnesses
+                .0
+                .append(&mut mint_builder.get_plutus_witnesses().0)
         }
         if let Some(certs_builder) = &self.certs {
             used_langs.append(&mut certs_builder.get_used_plutus_lang_versions());
-            plutus_witnesses.0.append(&mut certs_builder.get_plutus_witnesses().0)
+            plutus_witnesses
+                .0
+                .append(&mut certs_builder.get_plutus_witnesses().0)
         }
         if let Some(withdrawals_builder) = &self.withdrawals {
             used_langs.append(&mut withdrawals_builder.get_used_plutus_lang_versions());
-            plutus_witnesses.0.append(&mut withdrawals_builder.get_plutus_witnesses().0)
+            plutus_witnesses
+                .0
+                .append(&mut withdrawals_builder.get_plutus_witnesses().0)
         }
         if let Some(voting_builder) = &self.voting_procedures {
             used_langs.append(&mut voting_builder.get_used_plutus_lang_versions());
-            plutus_witnesses.0.append(&mut voting_builder.get_plutus_witnesses().0)
+            plutus_witnesses
+                .0
+                .append(&mut voting_builder.get_plutus_witnesses().0)
         }
 
         if let Some(voting_proposal_builder) = &self.voting_proposals {
             used_langs.append(&mut voting_proposal_builder.get_used_plutus_lang_versions());
-            plutus_witnesses.0.append(&mut voting_proposal_builder.get_plutus_witnesses().0)
+            plutus_witnesses
+                .0
+                .append(&mut voting_proposal_builder.get_plutus_witnesses().0)
         }
 
         let (_scripts, mut datums, redeemers) = plutus_witnesses.collect();
@@ -1879,11 +1876,8 @@ impl TransactionBuilder {
         }
 
         if datums.is_some() || redeemers.len() > 0 || retained_cost_models.len() > 0 {
-            self.script_data_hash = Some(hash_script_data(
-                &redeemers,
-                &retained_cost_models,
-                datums,
-            ));
+            self.script_data_hash =
+                Some(hash_script_data(&redeemers, &retained_cost_models, datums));
         }
 
         Ok(())
@@ -1919,7 +1913,10 @@ impl TransactionBuilder {
             certs: self.certs.as_ref().map(|x| x.build()),
             withdrawals: self.withdrawals.as_ref().map(|x| x.build()),
             update: None,
-            auxiliary_data_hash: self.auxiliary_data.as_ref().map(|x| utils::hash_auxiliary_data(x)),
+            auxiliary_data_hash: self
+                .auxiliary_data
+                .as_ref()
+                .map(|x| utils::hash_auxiliary_data(x)),
             validity_start_interval: self.validity_start_interval,
             mint: self.mint.as_ref().map(|x| x.build()),
             script_data_hash: self.script_data_hash.clone(),
@@ -1979,14 +1976,22 @@ impl TransactionBuilder {
             });
         }
         if let Some(certificates_builder) = &self.certs {
-            certificates_builder.get_native_scripts().0.iter().for_each(|s| {
-                ns.add(s);
-            });
+            certificates_builder
+                .get_native_scripts()
+                .0
+                .iter()
+                .for_each(|s| {
+                    ns.add(s);
+                });
         }
         if let Some(withdrawals_builder) = &self.withdrawals {
-            withdrawals_builder.get_native_scripts().0.iter().for_each(|s| {
-                ns.add(s);
-            });
+            withdrawals_builder
+                .get_native_scripts()
+                .0
+                .iter()
+                .for_each(|s| {
+                    ns.add(s);
+                });
         }
         if let Some(voting_builder) = &self.voting_procedures {
             voting_builder.get_native_scripts().0.iter().for_each(|s| {
@@ -2019,24 +2024,40 @@ impl TransactionBuilder {
             })
         }
         if let Some(certificates_builder) = &self.certs {
-            certificates_builder.get_plutus_witnesses().0.iter().for_each(|s| {
-                res.add(s);
-            })
+            certificates_builder
+                .get_plutus_witnesses()
+                .0
+                .iter()
+                .for_each(|s| {
+                    res.add(s);
+                })
         }
         if let Some(withdrawals_builder) = &self.withdrawals {
-            withdrawals_builder.get_plutus_witnesses().0.iter().for_each(|s| {
-                res.add(s);
-            })
+            withdrawals_builder
+                .get_plutus_witnesses()
+                .0
+                .iter()
+                .for_each(|s| {
+                    res.add(s);
+                })
         }
         if let Some(voting_builder) = &self.voting_procedures {
-            voting_builder.get_plutus_witnesses().0.iter().for_each(|s| {
-                res.add(s);
-            })
+            voting_builder
+                .get_plutus_witnesses()
+                .0
+                .iter()
+                .for_each(|s| {
+                    res.add(s);
+                })
         }
         if let Some(voting_proposal_builder) = &self.voting_proposals {
-            voting_proposal_builder.get_plutus_witnesses().0.iter().for_each(|s| {
-                res.add(s);
-            })
+            voting_proposal_builder
+                .get_plutus_witnesses()
+                .0
+                .iter()
+                .for_each(|s| {
+                    res.add(s);
+                })
         }
         if res.len() > 0 {
             Some(res)
@@ -2088,21 +2109,36 @@ impl TransactionBuilder {
         if self.mint.as_ref().map_or(false, |m| m.has_plutus_scripts()) {
             return true;
         }
-        if self.certs.as_ref().map_or(false, |c| c.has_plutus_scripts()) {
+        if self
+            .certs
+            .as_ref()
+            .map_or(false, |c| c.has_plutus_scripts())
+        {
             return true;
         }
-        if self.withdrawals.as_ref().map_or(false, |w| w.has_plutus_scripts()) {
+        if self
+            .withdrawals
+            .as_ref()
+            .map_or(false, |w| w.has_plutus_scripts())
+        {
             return true;
         }
-        if self.voting_procedures.as_ref().map_or(false, |w| w.has_plutus_scripts()) {
+        if self
+            .voting_procedures
+            .as_ref()
+            .map_or(false, |w| w.has_plutus_scripts())
+        {
             return true;
         }
-        if self.voting_proposals.as_ref().map_or(false, |w| w.has_plutus_scripts()) {
+        if self
+            .voting_proposals
+            .as_ref()
+            .map_or(false, |w| w.has_plutus_scripts())
+        {
             return true;
         }
 
         return false;
-
     }
 
     /// Returns full Transaction object with the body and the auxiliary data

@@ -1,4 +1,3 @@
-use crate::tx_builder::script_structs::*;
 use crate::*;
 
 #[wasm_bindgen]
