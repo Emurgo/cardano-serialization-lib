@@ -1,4 +1,3 @@
-use crate::tx_builder::script_structs::*;
 use crate::*;
 use std::collections::BTreeMap;
 
@@ -16,27 +15,19 @@ impl VotingProposalBuilder {
         }
     }
 
-    pub fn add(
-        &mut self,
-        proposal: VotingProposal,
-    ) -> Result<(), JsError> {
-
-        self.votes.insert(
-            proposal,
-            None,
-        );
+    pub fn add(&mut self, proposal: VotingProposal) -> Result<(), JsError> {
+        self.votes.insert(proposal, None);
 
         Ok(())
     }
 
     pub fn add_with_plutus_witness(
         &mut self,
-        proposal: VotingProposal,
+        proposal: &VotingProposal,
         witness: &PlutusWitness,
     ) -> Result<(), JsError> {
-
         self.votes.insert(
-            proposal,
+            proposal.clone(),
             Some(ScriptWitnessType::PlutusScriptWitness(witness.clone())),
         );
         Ok(())
@@ -78,9 +69,9 @@ impl VotingProposalBuilder {
     }
 
     pub(crate) fn get_total_deposit(&self, proposal_deposit: &Coin) -> Result<Coin, JsError> {
-        proposal_deposit.checked_mul(&Coin::from(self.votes.len()))
-            .or_else(|_|
-                Err(JsError::from_str("Overflow when calculating total deposit")))
+        proposal_deposit
+            .checked_mul(&Coin::from(self.votes.len()))
+            .or_else(|_| Err(JsError::from_str("Overflow when calculating total deposit")))
     }
 
     pub(crate) fn get_used_plutus_lang_versions(&self) -> BTreeSet<Language> {

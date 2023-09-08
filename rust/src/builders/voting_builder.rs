@@ -1,4 +1,3 @@
-use crate::tx_builder::script_structs::*;
 use crate::*;
 use std::collections::BTreeMap;
 
@@ -24,9 +23,9 @@ impl VotingBuilder {
 
     pub fn add(
         &mut self,
-        voter: Voter,
-        gov_action_id: GovernanceActionId,
-        voting_procedure: VotingProcedure,
+        voter: &Voter,
+        gov_action_id: &GovernanceActionId,
+        voting_procedure: &VotingProcedure,
     ) -> Result<(), JsError> {
         if voter.has_script_credentials() {
             return Err(JsError::from_str(
@@ -35,21 +34,23 @@ impl VotingBuilder {
             ));
         }
 
-        let voter_votes = self.votes.entry(voter).or_insert(VoterVotes {
+        let voter_votes = self.votes.entry(voter.clone()).or_insert(VoterVotes {
             script_witness: None,
             votes: BTreeMap::new(),
         });
 
-        voter_votes.votes.insert(gov_action_id, voting_procedure);
+        voter_votes
+            .votes
+            .insert(gov_action_id.clone(), voting_procedure.clone());
 
         Ok(())
     }
 
     pub fn add_with_plutus_witness(
         &mut self,
-        voter: Voter,
-        gov_action_id: GovernanceActionId,
-        voting_procedure: VotingProcedure,
+        voter: &Voter,
+        gov_action_id: &GovernanceActionId,
+        voting_procedure: &VotingProcedure,
         witness: &PlutusWitness,
     ) -> Result<(), JsError> {
         if !voter.has_script_credentials() {
@@ -59,21 +60,23 @@ impl VotingBuilder {
             ));
         }
 
-        let voter_votes = self.votes.entry(voter).or_insert(VoterVotes {
+        let voter_votes = self.votes.entry(voter.clone()).or_insert(VoterVotes {
             script_witness: Some(ScriptWitnessType::PlutusScriptWitness(witness.clone())),
             votes: BTreeMap::new(),
         });
 
-        voter_votes.votes.insert(gov_action_id, voting_procedure);
+        voter_votes
+            .votes
+            .insert(gov_action_id.clone(), voting_procedure.clone());
 
         Ok(())
     }
 
     pub fn add_with_native_script(
         &mut self,
-        voter: Voter,
-        gov_action_id: GovernanceActionId,
-        voting_procedure: VotingProcedure,
+        voter: &Voter,
+        gov_action_id: &GovernanceActionId,
+        voting_procedure: &VotingProcedure,
         native_script_source: &NativeScriptSource,
     ) -> Result<(), JsError> {
         if !voter.has_script_credentials() {
@@ -83,14 +86,16 @@ impl VotingBuilder {
             ));
         }
 
-        let voter_votes = self.votes.entry(voter).or_insert(VoterVotes {
+        let voter_votes = self.votes.entry(voter.clone()).or_insert(VoterVotes {
             script_witness: Some(ScriptWitnessType::NativeScriptWitness(
                 native_script_source.0.clone(),
             )),
             votes: BTreeMap::new(),
         });
 
-        voter_votes.votes.insert(gov_action_id, voting_procedure);
+        voter_votes
+            .votes
+            .insert(gov_action_id.clone(), voting_procedure.clone());
 
         Ok(())
     }
