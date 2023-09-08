@@ -1,6 +1,6 @@
 use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
-use crate::*;
 use crate::tests::mock_objects::crate_full_protocol_param_update;
+use crate::*;
 
 macro_rules! to_from_test {
     ($proposal_type: ty, $variable_name: ident,  $variable_wrapped_name: ident) => {
@@ -52,8 +52,7 @@ fn committee_ser_round_trip() {
 
 #[test]
 fn committee_empty_ser_round_trip() {
-    let committee =
-        Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
+    let committee = Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
 
     let cbor = committee.to_bytes();
     let cbor_hex = committee.to_hex();
@@ -271,8 +270,7 @@ fn parameter_change_proposal_ser_round_trip() {
 fn parameter_change_proposal_with_action_id_ser_round_trip() {
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
     let parameters_update = crate_full_protocol_param_update();
-    let proposal =
-        ParameterChangeProposal::new_with_action_id(&action_id, &parameters_update);
+    let proposal = ParameterChangeProposal::new_with_action_id(&action_id, &parameters_update);
     let proposal_wrapped = VotingProposal::new_parameter_change_proposal(&proposal);
     to_from_test!(ParameterChangeProposal, proposal, proposal_wrapped);
     assert_eq!(
@@ -326,7 +324,9 @@ fn voting_proposals_ser_round_trip() {
     let proposal2 = NoConfidenceProposal::new();
     let proposal3 = InfoProposal::new();
 
-    proposals.add(&VotingProposal::new_treasury_withdrawals_proposal(&proposal1));
+    proposals.add(&VotingProposal::new_treasury_withdrawals_proposal(
+        &proposal1,
+    ));
     proposals.add(&VotingProposal::new_no_confidence_proposal(&proposal2));
     proposals.add(&VotingProposal::new_info_proposal(&proposal3));
 

@@ -35,8 +35,7 @@ macro_rules! to_from_test {
 
 #[test]
 fn committee_hot_key_deregistration_key_hash_ser_round_trip() {
-    let cert =
-        CommitteeHotKeyDeregistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
+    let cert = CommitteeHotKeyDeregistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let cert_wrapped = Certificate::new_committee_hot_key_deregistration(&cert);
     to_from_test!(CommitteeHotKeyDeregistration, cert, cert_wrapped);
     assert_eq!(
@@ -120,8 +119,7 @@ fn drep_update_ser_round_trip() {
 fn drep_update_with_anchor_ser_round_trip() {
     let url = URL::new("https://iohk.io".to_string()).unwrap();
     let anchor = Anchor::new(&url, &fake_anchor_data_hash(255));
-    let cert =
-        DrepUpdate::new_with_anchor(&Credential::from_keyhash(&fake_key_hash(1)), &anchor);
+    let cert = DrepUpdate::new_with_anchor(&Credential::from_keyhash(&fake_key_hash(1)), &anchor);
     let cert_wrapped = Certificate::new_drep_update(&cert);
     to_from_test!(DrepUpdate, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_update().unwrap());
@@ -330,10 +328,7 @@ fn stake_vote_registration_and_delegation_ser_round_trip() {
 #[test]
 fn vote_delegation_ser_round_trip() {
     let drep = DRep::new_key_hash(&fake_key_hash(3));
-    let cert = VoteDelegation::new(
-        &Credential::from_keyhash(&fake_key_hash(1)),
-        &drep
-    );
+    let cert = VoteDelegation::new(&Credential::from_keyhash(&fake_key_hash(1)), &drep);
     let cert_wrapped = Certificate::new_vote_delegation(&cert);
     to_from_test!(VoteDelegation, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_vote_delegation().unwrap());
@@ -351,8 +346,6 @@ fn vote_registration_and_delegation_ser_round_trip() {
     to_from_test!(VoteRegistrationAndDelegation, cert, cert_wrapped);
     assert_eq!(
         cert,
-        cert_wrapped
-            .as_vote_registration_and_delegation()
-            .unwrap()
+        cert_wrapped.as_vote_registration_and_delegation().unwrap()
     );
 }
