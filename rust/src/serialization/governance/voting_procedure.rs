@@ -46,14 +46,13 @@ impl Deserialize for VotingProcedure {
                         DeserializeError::from(DeserializeFailure::FixedValuesMismatch {
                             found: Key::Uint(n),
                             expected: vec![Key::Uint(0), Key::Uint(1), Key::Uint(2)],
-                        }).annotate("vote")
+                        })
+                        .annotate("vote"),
                     )
                 }
             };
 
-            let anchor = Anchor::deserialize_nullable(raw).map_err(
-                |e| e.annotate("anchor")
-            )?;
+            let anchor = Anchor::deserialize_nullable(raw).map_err(|e| e.annotate("anchor"))?;
 
             if let cbor_event::Len::Indefinite = len {
                 if raw.special()? != CBORSpecial::Break {

@@ -1,5 +1,5 @@
-use crate::*;
 use crate::serialization::struct_checks::check_len;
+use crate::*;
 
 impl cbor_event::se::Serialize for Anchor {
     fn serialize<'se, W: Write>(

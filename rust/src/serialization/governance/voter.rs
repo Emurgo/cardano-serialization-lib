@@ -73,15 +73,15 @@ impl Deserialize for VoterEnum {
                 0 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(StakeCredType::Key(
                     Ed25519KeyHash::deserialize(raw)?,
                 ))),
-                1 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(
-                    StakeCredType::Script(ScriptHash::deserialize(raw)?),
-                )),
-                2 => VoterEnum::DRep(Credential(StakeCredType::Key(
-                    Ed25519KeyHash::deserialize(raw)?,
-                ))),
-                3 => VoterEnum::DRep(Credential(StakeCredType::Script(
+                1 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(StakeCredType::Script(
                     ScriptHash::deserialize(raw)?,
                 ))),
+                2 => VoterEnum::DRep(Credential(StakeCredType::Key(Ed25519KeyHash::deserialize(
+                    raw,
+                )?))),
+                3 => VoterEnum::DRep(Credential(StakeCredType::Script(ScriptHash::deserialize(
+                    raw,
+                )?))),
                 4 => VoterEnum::StakingPool(Ed25519KeyHash::deserialize(raw)?),
                 n => {
                     return Err(DeserializeFailure::FixedValuesMismatch {

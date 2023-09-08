@@ -23,17 +23,14 @@ impl Deserialize for GovernanceActionId {
                         len,
                         "[transaction_id, gov_action_index]",
                     ))
-                        .into());
+                    .into());
                 }
             }
 
-            let transaction_id = TransactionHash::deserialize(raw).map_err(
-                |e| e.annotate("transaction_id")
-            )?;
+            let transaction_id =
+                TransactionHash::deserialize(raw).map_err(|e| e.annotate("transaction_id"))?;
 
-            let index = GovernanceActionIndex::deserialize(raw).map_err(
-                |e| e.annotate("index")
-            )?;
+            let index = GovernanceActionIndex::deserialize(raw).map_err(|e| e.annotate("index"))?;
 
             if let cbor_event::Len::Indefinite = len {
                 if raw.special()? != CBORSpecial::Break {
@@ -45,8 +42,7 @@ impl Deserialize for GovernanceActionId {
                 transaction_id,
                 index,
             })
-
         })()
-            .map_err(|e| e.annotate("GovernanceActionId"))
+        .map_err(|e| e.annotate("GovernanceActionId"))
     }
 }

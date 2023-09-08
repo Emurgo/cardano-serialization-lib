@@ -1,4 +1,4 @@
-#[derive(Eq, Hash, PartialEq, Clone, Debug , FromPrimitive, ToPrimitive)]
+#[derive(Eq, Hash, PartialEq, Clone, Debug, FromPrimitive, ToPrimitive)]
 pub(crate) enum VotingProposalIndexNames {
     ParameterChangeAction = 0,
     HardForkInitiationAction = 1,
