@@ -28,7 +28,7 @@ use std::io::{BufRead, Seek, Write};
 use noop_proc_macro::wasm_bindgen;
 
 #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
+use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
 // This file was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
@@ -42,6 +42,7 @@ use cbor_event::{
 };
 
 pub mod address;
+mod builders;
 pub mod chain_core;
 pub mod chain_crypto;
 pub mod crypto;
@@ -51,17 +52,15 @@ pub mod fees;
 pub mod impl_mockchain;
 pub mod legacy_address;
 pub mod metadata;
-pub mod output_builder;
 pub mod plutus;
 pub mod traits;
-pub mod tx_builder;
-pub mod tx_builder_constants;
-pub mod typed_bytes;
+pub use builders::*;
 mod protocol_types;
+pub mod typed_bytes;
 pub use protocol_types::*;
 #[macro_use]
 pub mod utils;
-mod fakes;
+pub(crate) mod fakes;
 mod serialization;
 
 use crate::traits::NoneOrEmpty;
@@ -71,18 +70,27 @@ use error::*;
 use metadata::*;
 use plutus::*;
 use schemars::JsonSchema;
+use serialization::*;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
-use std::fmt::Display;
 use std::fmt;
+use std::fmt::Display;
 use utils::*;
-use serialization::*;
 
 type DeltaCoin = Int;
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct UnitInterval {
     numerator: BigNum,
@@ -560,7 +568,16 @@ impl TransactionBody {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct TransactionInput {
     transaction_id: TransactionHash,
@@ -588,9 +605,7 @@ impl TransactionInput {
 }
 
 #[wasm_bindgen]
-#[derive(
-    Debug, Clone, Eq, Ord, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
+#[derive(Debug, Clone, Eq, Ord, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionOutput {
     address: Address,
     amount: Value,
@@ -687,7 +702,16 @@ impl PartialEq for TransactionOutput {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct Ed25519KeyHashes(pub(crate) Vec<Ed25519KeyHash>);
 
@@ -729,12 +753,20 @@ impl IntoIterator for Ed25519KeyHashes {
     }
 }
 
-
 type Port = u16;
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct Ipv4([u8; 4]);
 
@@ -764,7 +796,16 @@ impl Ipv4 {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct Ipv6([u8; 16]);
 
@@ -796,7 +837,16 @@ static URL_MAX_LEN: usize = 64;
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct URL(String);
 
@@ -832,7 +882,16 @@ static DNS_NAME_MAX_LEN: usize = 64;
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct DNSRecordAorAAAA(String);
 
@@ -866,7 +925,16 @@ impl DNSRecordAorAAAA {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct DNSRecordSRV(String);
 
@@ -900,7 +968,16 @@ impl DNSRecordSRV {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct SingleHostAddr {
     port: Option<Port>,
@@ -935,7 +1012,16 @@ impl SingleHostAddr {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct SingleHostName {
     port: Option<Port>,
@@ -964,7 +1050,16 @@ impl SingleHostName {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct MultiHostName {
     dns_name: DNSRecordSRV,
@@ -994,7 +1089,16 @@ pub enum RelayKind {
 }
 
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub enum RelayEnum {
     SingleHostAddr(SingleHostAddr),
@@ -1004,7 +1108,16 @@ pub enum RelayEnum {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct Relay(RelayEnum);
 
@@ -1056,7 +1169,16 @@ impl Relay {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct PoolMetadata {
     url: URL,
@@ -1547,12 +1669,11 @@ pub enum DataOption {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd )]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct OutputDatum(pub(crate) DataOption);
 
 #[wasm_bindgen]
 impl OutputDatum {
-
     pub fn new_data_hash(data_hash: &DataHash) -> Self {
         Self(DataOption::DataHash(data_hash.clone()))
     }
@@ -1897,7 +2018,16 @@ impl ProposedProtocolParameterUpdates {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct ProtocolVersion {
     major: u32,
@@ -1923,7 +2053,16 @@ impl ProtocolVersion {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct ProtocolParamUpdate {
     minfee_a: Option<Coin>,
@@ -3002,8 +3141,8 @@ impl Mint {
     /// Mint can store multiple entries for the same policy id.
     /// Use `.get_all` instead.
     #[deprecated(
-    since = "11.2.0",
-    note = "Mint can store multiple entries for the same policy id. Use `.get_all` instead."
+        since = "11.2.0",
+        note = "Mint can store multiple entries for the same policy id. Use `.get_all` instead."
     )]
     pub fn get(&self, key: &PolicyID) -> Option<MintAssets> {
         self.0
@@ -3014,7 +3153,8 @@ impl Mint {
     }
 
     pub fn get_all(&self, key: &PolicyID) -> Option<MintsAssets> {
-        let mints : Vec<MintAssets> = self.0
+        let mints: Vec<MintAssets> = self
+            .0
             .iter()
             .filter(|(k, _)| k.eq(key))
             .map(|(_k, v)| v.clone())
@@ -3036,24 +3176,26 @@ impl Mint {
     }
 
     fn as_multiasset(&self, is_positive: bool) -> MultiAsset {
-        self.0.iter().fold(MultiAsset::new(), |res, e : &(PolicyID, MintAssets) | {
-            let assets: Assets = (e.1).0.iter().fold(Assets::new(), |res, e| {
-                let mut assets = res;
-                if e.1.is_positive() == is_positive {
-                    let amount = match is_positive {
-                        true => e.1.as_positive(),
-                        false => e.1.as_negative(),
-                    };
-                    assets.insert(&e.0, &amount.unwrap());
+        self.0
+            .iter()
+            .fold(MultiAsset::new(), |res, e: &(PolicyID, MintAssets)| {
+                let assets: Assets = (e.1).0.iter().fold(Assets::new(), |res, e| {
+                    let mut assets = res;
+                    if e.1.is_positive() == is_positive {
+                        let amount = match is_positive {
+                            true => e.1.as_positive(),
+                            false => e.1.as_negative(),
+                        };
+                        assets.insert(&e.0, &amount.unwrap());
+                    }
+                    assets
+                });
+                let mut ma = res;
+                if !assets.0.is_empty() {
+                    ma.insert(&e.0, &assets);
                 }
-                assets
-            });
-            let mut ma = res;
-            if !assets.0.is_empty() {
-                ma.insert(&e.0, &assets);
-            }
-            ma
-        })
+                ma
+            })
     }
 
     /// Returns the multiasset where only positive (minting) entries are present
@@ -3143,4 +3285,3 @@ impl From<&NativeScripts> for RequiredSignersSet {
         })
     }
 }
-

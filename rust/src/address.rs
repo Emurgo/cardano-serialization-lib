@@ -67,7 +67,10 @@ impl NetworkInfo {
     }
     /// !!! DEPRECATED !!!
     /// This network does not exist anymore. Use `.testnet_preview()` or `.testnet_preprod()`
-    #[deprecated(since = "11.2.0", note = "Use `.testnet_preview` or `.testnet_preprod`")]
+    #[deprecated(
+        since = "11.2.0",
+        note = "Use `.testnet_preview` or `.testnet_preprod`"
+    )]
     pub fn testnet() -> NetworkInfo {
         NetworkInfo {
             network_id: 0b0000,
@@ -212,7 +215,7 @@ impl Deserialize for Credential {
                         // TODO: change codegen to make FixedValueMismatch support Vec<Key> or ranges or something
                         expected: Key::Uint(0),
                     }
-                    .into())
+                    .into());
                 }
             };
             if let cbor_event::Len::Indefinite = len {

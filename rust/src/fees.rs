@@ -89,8 +89,8 @@ pub fn min_script_fee(tx: &Transaction, ex_unit_prices: &ExUnitPrices) -> Result
 
 #[cfg(test)]
 mod tests {
-    use super::output_builder::TransactionOutputBuilder;
     use super::*;
+    use crate::TransactionOutputBuilder;
     use address::*;
     use crypto::*;
 

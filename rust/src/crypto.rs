@@ -5,10 +5,10 @@ use cbor_event::{de::Deserializer, se::Serializer};
 use chain::key;
 use crypto::bech32::Bech32 as _;
 use rand_os::OsRng;
+use std::fmt;
+use std::fmt::Display;
 use std::io::{BufRead, Seek, Write};
 use std::str::FromStr;
-use std::fmt::Display;
-use std::fmt;
 
 use cryptoxide::blake2b::Blake2b;
 
@@ -1217,7 +1217,16 @@ impl JsonSchema for KESSignature {
 // Evolving nonce type (used for Update's crypto)
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct Nonce {
     hash: Option<[u8; 32]>,

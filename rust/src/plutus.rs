@@ -1,8 +1,8 @@
-use std::hash::Hash;
 use super::*;
-use std::io::{BufRead, Seek, Write};
-use linked_hash_map::LinkedHashMap;
 use core::hash::Hasher;
+use linked_hash_map::LinkedHashMap;
+use std::hash::Hash;
+use std::io::{BufRead, Seek, Write};
 
 // This library was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
@@ -271,7 +271,16 @@ impl ConstrPlutusData {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct CostModel(Vec<Int>);
 
@@ -324,7 +333,16 @@ impl From<Vec<i128>> for CostModel {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct Costmdls(std::collections::BTreeMap<Language, CostModel>);
 
@@ -402,7 +420,9 @@ impl Costmdls {
         let mut result = Costmdls::new();
         for lang in &languages.0 {
             match self.get(&lang) {
-                Some(costmodel) => { result.insert(&lang, &costmodel); },
+                Some(costmodel) => {
+                    result.insert(&lang, &costmodel);
+                }
                 _ => {}
             }
         }
@@ -412,7 +432,16 @@ impl Costmdls {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct ExUnitPrices {
     mem_price: SubCoin,
@@ -441,7 +470,16 @@ impl ExUnitPrices {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct ExUnits {
     mem: BigNum,
@@ -601,8 +639,7 @@ pub enum PlutusDataKind {
     Bytes,
 }
 
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub enum PlutusDataEnum {
     ConstrPlutusData(ConstrPlutusData),
     Map(PlutusMap),
@@ -650,7 +687,10 @@ impl PlutusData {
         Self::new_constr_plutus_data(&ConstrPlutusData::new(alternative, &PlutusList::new()))
     }
 
-    pub fn new_single_value_constr_plutus_data(alternative: &BigNum, plutus_data: &PlutusData) -> Self {
+    pub fn new_single_value_constr_plutus_data(
+        alternative: &BigNum,
+        plutus_data: &PlutusData,
+    ) -> Self {
         let mut list = PlutusList::new();
         list.add(plutus_data);
         Self::new_constr_plutus_data(&ConstrPlutusData::new(alternative, &list))
@@ -743,14 +783,14 @@ impl PlutusData {
             AddrType::Enterprise(addr) => Ok(addr.payment_cred()),
             AddrType::Ptr(addr) => Ok(addr.payment_cred()),
             AddrType::Reward(addr) => Ok(addr.payment_cred()),
-            AddrType::Byron(_) =>
-                Err(JsError::from_str("Cannot convert Byron address to PlutusData")),
+            AddrType::Byron(_) => Err(JsError::from_str(
+                "Cannot convert Byron address to PlutusData",
+            )),
         }?;
 
         let staking_data = match &address.0 {
             AddrType::Base(addr) => {
-                let staking_bytes_data =
-                    PlutusData::from_stake_credential(&addr.stake_cred())?;
+                let staking_bytes_data = PlutusData::from_stake_credential(&addr.stake_cred())?;
                 Some(PlutusData::new_single_value_constr_plutus_data(
                     &BigNum::from(0u32),
                     &staking_bytes_data,
@@ -760,31 +800,32 @@ impl PlutusData {
         };
 
         let pointer_data = match &address.0 {
-            AddrType::Ptr(addr) =>
-                Some(PlutusData::from_pointer(&addr.stake_pointer())?),
+            AddrType::Ptr(addr) => Some(PlutusData::from_pointer(&addr.stake_pointer())?),
             _ => None,
         };
 
         let payment_data = PlutusData::from_stake_credential(&payment_cred)?;
         let staking_optional_data = match (staking_data, pointer_data) {
-            (Some(_), Some(_)) =>
-                Err(JsError::from_str("Address can't have both staking and pointer data")),
+            (Some(_), Some(_)) => Err(JsError::from_str(
+                "Address can't have both staking and pointer data",
+            )),
             (Some(staking_data), None) => Ok(Some(staking_data)),
             (None, Some(pointer_data)) => Ok(Some(pointer_data)),
-            (None, None) => Ok(None)
+            (None, None) => Ok(None),
         }?;
 
         let mut data_list = PlutusList::new();
         data_list.add(&payment_data);
         if let Some(staking_optional_data) = staking_optional_data {
-            data_list.add(
-                &PlutusData::new_single_value_constr_plutus_data(
-                    &BigNum::from(0u32), &staking_optional_data));
+            data_list.add(&PlutusData::new_single_value_constr_plutus_data(
+                &BigNum::from(0u32),
+                &staking_optional_data,
+            ));
         } else {
-            data_list.add(&PlutusData::new_empty_constr_plutus_data(
-                &BigNum::from(1u32)));
+            data_list.add(&PlutusData::new_empty_constr_plutus_data(&BigNum::from(
+                1u32,
+            )));
         }
-
 
         Ok(PlutusData::new_constr_plutus_data(&ConstrPlutusData::new(
             &BigNum::from(0u32),
@@ -794,23 +835,34 @@ impl PlutusData {
 
     fn from_stake_credential(stake_credential: &Credential) -> Result<PlutusData, JsError> {
         let (bytes_plutus_data, index) = match &stake_credential.0 {
-            StakeCredType::Key(key_hash) =>
-                (PlutusData::new_bytes(key_hash.to_bytes().to_vec()), BigNum::from(0u32)),
-            StakeCredType::Script(script_hash) =>
-                (PlutusData::new_bytes(script_hash.to_bytes().to_vec()), BigNum::from(1u32)),
+            StakeCredType::Key(key_hash) => (
+                PlutusData::new_bytes(key_hash.to_bytes().to_vec()),
+                BigNum::from(0u32),
+            ),
+            StakeCredType::Script(script_hash) => (
+                PlutusData::new_bytes(script_hash.to_bytes().to_vec()),
+                BigNum::from(1u32),
+            ),
         };
 
-        Ok(PlutusData::new_single_value_constr_plutus_data(&index, &bytes_plutus_data))
+        Ok(PlutusData::new_single_value_constr_plutus_data(
+            &index,
+            &bytes_plutus_data,
+        ))
     }
 
     fn from_pointer(pointer: &Pointer) -> Result<PlutusData, JsError> {
         let mut data_list = PlutusList::new();
         data_list.add(&PlutusData::new_integer(&pointer.slot_bignum().into()));
         data_list.add(&PlutusData::new_integer(&pointer.tx_index_bignum().into()));
-        data_list.add(&PlutusData::new_integer(&pointer.cert_index_bignum().into()));
+        data_list.add(&PlutusData::new_integer(
+            &pointer.cert_index_bignum().into(),
+        ));
 
-        Ok(PlutusData::new_constr_plutus_data(
-            &ConstrPlutusData::new(&BigNum::from(1u32), &data_list)))
+        Ok(PlutusData::new_constr_plutus_data(&ConstrPlutusData::new(
+            &BigNum::from(1u32),
+            &data_list,
+        )))
     }
 }
 
@@ -832,21 +884,26 @@ impl JsonSchema for PlutusData {
 //TODO: need to figure out what schema to use here
 impl serde::Serialize for PlutusData {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: serde::Serializer {
-        let json = decode_plutus_datum_to_json_str(
-            self,
-            PlutusDatumSchema::DetailedSchema)
-            .map_err(|ser_err| serde::ser::Error::custom(&format!("Serialization error: {:?}", ser_err)))?;
+    where
+        S: serde::Serializer,
+    {
+        let json = decode_plutus_datum_to_json_str(self, PlutusDatumSchema::DetailedSchema)
+            .map_err(|ser_err| {
+                serde::ser::Error::custom(&format!("Serialization error: {:?}", ser_err))
+            })?;
         serializer.serialize_str(&json)
     }
 }
 
-impl <'de> serde::de::Deserialize<'de> for PlutusData {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where
-        D: serde::de::Deserializer<'de> {
+impl<'de> serde::de::Deserialize<'de> for PlutusData {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
         let datum_json = <String as serde::Deserialize>::deserialize(deserializer)?;
-        encode_json_str_to_plutus_datum(&datum_json, PlutusDatumSchema::DetailedSchema)
-            .map_err(|ser_err| serde::de::Error::custom(&format!("Deserialization error: {:?}", ser_err)))
+        encode_json_str_to_plutus_datum(&datum_json, PlutusDatumSchema::DetailedSchema).map_err(
+            |ser_err| serde::de::Error::custom(&format!("Deserialization error: {:?}", ser_err)),
+        )
     }
 }
 
@@ -996,7 +1053,16 @@ pub enum RedeemerTagKind {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone,
+    Debug,
+    Hash,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    JsonSchema,
 )]
 pub struct RedeemerTag(RedeemerTagKind);
 
@@ -2098,8 +2164,8 @@ impl Deserialize for Strings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::TxBuilderConstants;
     use hex::*;
-    use crate::tx_builder_constants::TxBuilderConstants;
 
     #[test]
     pub fn plutus_constr_data() {
@@ -2416,7 +2482,7 @@ mod tests {
 
     #[test]
     fn test_cost_model_roundtrip() {
-        use crate::tx_builder_constants::TxBuilderConstants;
+        use crate::TxBuilderConstants;
         let costmodels = TxBuilderConstants::plutus_vasil_cost_models();
         assert_eq!(
             costmodels,
@@ -2426,7 +2492,7 @@ mod tests {
 
     #[test]
     fn test_known_plutus_data_hash() {
-        use crate::tx_builder_constants::TxBuilderConstants;
+        use crate::TxBuilderConstants;
         let pdata = PlutusList::from(vec![PlutusData::new_constr_plutus_data(
             &ConstrPlutusData::new(
                 &BigNum::zero(),
@@ -2507,64 +2573,68 @@ mod tests {
         let mut costmodels = Costmdls::new();
         costmodels.insert(
             &Language::new_plutus_v2(),
-            &TxBuilderConstants::plutus_vasil_cost_models().get(&Language::new_plutus_v2()).unwrap(),
+            &TxBuilderConstants::plutus_vasil_cost_models()
+                .get(&Language::new_plutus_v2())
+                .unwrap(),
         );
         let hash = hash_script_data(
-            &Redeemers(vec![
-                Redeemer::new(
-                    &RedeemerTag::new_spend(),
-                    &BigNum::zero(),
-                    &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
-                    &ExUnits::new(&to_bignum(842996), &to_bignum(246100241)),
-                ),
-            ]),
+            &Redeemers(vec![Redeemer::new(
+                &RedeemerTag::new_spend(),
+                &BigNum::zero(),
+                &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
+                &ExUnits::new(&to_bignum(842996), &to_bignum(246100241)),
+            )]),
             &costmodels,
             None,
         );
-        assert_eq!(hex::encode(hash.to_bytes()), "6b244f15f895fd458a02bef3a8b56f17f24150fddcb06be482f8790a600578a1");
+        assert_eq!(
+            hex::encode(hash.to_bytes()),
+            "6b244f15f895fd458a02bef3a8b56f17f24150fddcb06be482f8790a600578a1"
+        );
     }
 
     #[test]
     fn test_known_plutus_data_hash_2() {
-        let datums = PlutusList::from(vec![
-            PlutusData::new_constr_plutus_data(
-                &ConstrPlutusData::new(
-                    &BigNum::zero(),
-                    &PlutusList::from(vec![
-                        PlutusData::new_bytes(
-                            hex::decode("45F6A506A49A38263C4A8BBB2E1E369DD8732FB1F9A281F3E8838387").unwrap(),
-                        ),
-                        PlutusData::new_integer(&BigInt::from_str("60000000").unwrap()),
-                        PlutusData::new_bytes(
-                            hex::decode("EE8E37676F6EBB8E031DFF493F88FF711D24AA68666A09D61F1D3FB3").unwrap(),
-                        ),
-                        PlutusData::new_bytes(
-                            hex::decode("43727970746F44696E6F3036333039").unwrap(),
-                        ),
-                    ]),
-                )
-            )
-        ]);
-        let redeemers = Redeemers(vec![
-            Redeemer::new(
-                &RedeemerTag::new_spend(),
-                &BigNum::one(),
-                &PlutusData::new_empty_constr_plutus_data(&BigNum::one()),
-                &ExUnits::new(&to_bignum(61300), &to_bignum(18221176)),
+        let datums = PlutusList::from(vec![PlutusData::new_constr_plutus_data(
+            &ConstrPlutusData::new(
+                &BigNum::zero(),
+                &PlutusList::from(vec![
+                    PlutusData::new_bytes(
+                        hex::decode("45F6A506A49A38263C4A8BBB2E1E369DD8732FB1F9A281F3E8838387")
+                            .unwrap(),
+                    ),
+                    PlutusData::new_integer(&BigInt::from_str("60000000").unwrap()),
+                    PlutusData::new_bytes(
+                        hex::decode("EE8E37676F6EBB8E031DFF493F88FF711D24AA68666A09D61F1D3FB3")
+                            .unwrap(),
+                    ),
+                    PlutusData::new_bytes(hex::decode("43727970746F44696E6F3036333039").unwrap()),
+                ]),
             ),
-        ]);
+        )]);
+        let redeemers = Redeemers(vec![Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &BigNum::one(),
+            &PlutusData::new_empty_constr_plutus_data(&BigNum::one()),
+            &ExUnits::new(&to_bignum(61300), &to_bignum(18221176)),
+        )]);
         let hash = hash_script_data(
             &redeemers,
             &TxBuilderConstants::plutus_vasil_cost_models()
                 .retain_language_versions(&Languages(vec![Language::new_plutus_v1()])),
             Some(datums),
         );
-        assert_eq!(hex::encode(hash.to_bytes()), "0a076247a05aacbecf72ea15b94e3d0331b21295a08d9ab7b8675c13840563a6");
+        assert_eq!(
+            hex::encode(hash.to_bytes()),
+            "0a076247a05aacbecf72ea15b94e3d0331b21295a08d9ab7b8675c13840563a6"
+        );
     }
 
     #[test]
     fn datum_from_enterprise_key_address() {
-        let address = Address::from_bech32("addr1vxy2c673nsdp0mvgq5d3tpjndngucsytug00k7k6xwlx4lg6dspk5").unwrap();
+        let address =
+            Address::from_bech32("addr1vxy2c673nsdp0mvgq5d3tpjndngucsytug00k7k6xwlx4lg6dspk5")
+                .unwrap();
         let datum = PlutusData::from_address(&address).unwrap();
         let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}, {\"constructor\": 1, \"fields\": []}]}",
         PlutusDatumSchema::DetailedSchema).unwrap();
@@ -2573,7 +2643,9 @@ mod tests {
 
     #[test]
     fn datum_from_enterprise_script_address() {
-        let address = Address::from_bech32("addr1w8wrk560wcsldjpnqjamn8s0gn9pdrplpyetrdfpacqrpfs3xezd8").unwrap();
+        let address =
+            Address::from_bech32("addr1w8wrk560wcsldjpnqjamn8s0gn9pdrplpyetrdfpacqrpfs3xezd8")
+                .unwrap();
         let datum = PlutusData::from_address(&address).unwrap();
         let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}, {\"constructor\": 1, \"fields\": []}]}",
                                                PlutusDatumSchema::DetailedSchema).unwrap();

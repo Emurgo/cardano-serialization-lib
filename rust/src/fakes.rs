@@ -1,6 +1,12 @@
 #![allow(dead_code)]
-use crate::{to_bignum, Address, BaseAddress, Bip32PrivateKey, DataHash, Ed25519KeyHash, Ed25519Signature, NetworkInfo, Credential, TransactionHash, TransactionIndex, TransactionInput, TransactionOutput, Value, Vkey, PolicyID};
-use crate::crypto::{AnchorDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, ScriptHash, VRFKeyHash};
+use crate::crypto::{
+    AnchorDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, ScriptHash, VRFKeyHash,
+};
+use crate::{
+    to_bignum, Address, BaseAddress, Bip32PrivateKey, Credential, DataHash, Ed25519KeyHash,
+    Ed25519Signature, NetworkInfo, PolicyID, TransactionHash, TransactionIndex, TransactionInput,
+    TransactionOutput, Value, Vkey,
+};
 
 pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
     vec![
