@@ -584,7 +584,7 @@ impl Deserialize for TransactionBody {
                                     read_len.read_elems(1)?;
                                     Ok(VotingProcedures::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("voting_procedures"))?,
+                                .map_err(|e| e.annotate("voting_procedures"))?,
                             );
                         }
                         20 => {
@@ -596,7 +596,7 @@ impl Deserialize for TransactionBody {
                                     read_len.read_elems(1)?;
                                     Ok(VotingProposals::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("voting_proposals"))?,
+                                .map_err(|e| e.annotate("voting_proposals"))?,
                             );
                         }
                         unknown_key => {
