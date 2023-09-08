@@ -1,12 +1,48 @@
-use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_pool_metadata_hash, fake_tx_hash, fake_vrf_key_hash};
-use crate::*;
+use crate::fakes::{
+    fake_anchor_data_hash, fake_key_hash, fake_pool_metadata_hash, fake_tx_hash, fake_vrf_key_hash,
+};
 use crate::fees::LinearFee;
-use crate::tx_builder::{TransactionBuilder, TransactionBuilderConfigBuilder};
+use crate::tests::helpers::harden;
+use crate::*;
 
 const MAX_VALUE_SIZE: u32 = 4000;
 const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
-// this is what is used in mainnet
+                               // this is what is used in mainnet
 static COINS_PER_UTXO_WORD: u64 = 34_482;
+
+pub(crate) fn root_key() -> Bip32PrivateKey {
+    // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
+    let entropy = [
+        0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4,
+        0xd8, 0x09, 0x7c, 0x64, 0x12,
+    ];
+    Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
+}
+
+pub(crate) fn generate_address(index: u32) -> Address {
+    let spend = root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(0)
+        .derive(index)
+        .to_public();
+    let stake = root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(2)
+        .derive(0)
+        .to_public();
+    let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+    let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
+    let addr = BaseAddress::new(
+        NetworkInfo::testnet().network_id(),
+        &spend_cred,
+        &stake_cred,
+    );
+    addr.to_address()
+}
 
 pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
     ProtocolParamUpdate {
@@ -175,7 +211,9 @@ pub(crate) fn create_tx_builder_with_fee(linear_fee: &LinearFee) -> TransactionB
     create_tx_builder(linear_fee, 8, 1, 1)
 }
 
-pub(crate) fn create_tx_builder_with_fee_and_pure_change(linear_fee: &LinearFee) -> TransactionBuilder {
+pub(crate) fn create_tx_builder_with_fee_and_pure_change(
+    linear_fee: &LinearFee,
+) -> TransactionBuilder {
     TransactionBuilder::new(
         &TransactionBuilderConfigBuilder::new()
             .fee_algo(linear_fee)
@@ -197,4 +235,50 @@ pub(crate) fn create_tx_builder_with_key_deposit(deposit: u64) -> TransactionBui
 
 pub(crate) fn create_default_tx_builder() -> TransactionBuilder {
     create_tx_builder_with_fee(&create_default_linear_fee())
+}
+
+pub(crate) fn crate_change_address() -> Address {
+    let spend = root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(1)
+        .derive(0)
+        .to_public();
+    let stake = root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(2)
+        .derive(0)
+        .to_public();
+    let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+    let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
+    let addr = BaseAddress::new(
+        NetworkInfo::testnet().network_id(),
+        &spend_cred,
+        &stake_cred,
+    );
+    addr.to_address()
+}
+
+pub(crate) fn create_rich_tx_builder(with_collateral: bool) -> TransactionBuilder {
+    let mut tx_builder = create_reallistic_tx_builder();
+    let input = TransactionInput::new(&fake_tx_hash(1), 0);
+    let address = generate_address(1);
+    let mut input_builder = TxInputsBuilder::new();
+    input_builder.add_input(&address, &input, &Value::new(&Coin::from(u64::MAX / 2)));
+    tx_builder.set_inputs(&input_builder);
+    if with_collateral {
+        tx_builder.set_collateral(&input_builder);
+    }
+
+    tx_builder
+}
+
+pub(crate) fn create_plutus_script(x: u8, lang: &Language) -> PlutusScript {
+    let mut bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
+    let pos = bytes.len() - 1;
+    bytes[pos] = x;
+    PlutusScript::from_bytes_with_version(bytes, lang).unwrap()
 }
