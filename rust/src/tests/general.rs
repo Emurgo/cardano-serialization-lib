@@ -1,5 +1,4 @@
 use crate::*;
-use crate::tx_builder_constants::TxBuilderConstants;
 
 #[test]
 fn native_script_hash() {

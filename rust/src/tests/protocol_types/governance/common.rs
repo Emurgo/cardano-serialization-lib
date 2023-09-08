@@ -1,6 +1,6 @@
-use crate::*;
 use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
 use crate::tests::mock_objects::create_anchor;
+use crate::*;
 
 #[test]
 fn drep_abstain_setters_getters_test() {
@@ -40,10 +40,7 @@ fn drep_script_hash_setters_getters_test() {
 fn anchor_setters_getters_test() {
     let data_hash = fake_anchor_data_hash(1);
     let url = URL::new("https://example.com".to_string()).unwrap();
-    let anchor = Anchor::new(
-        &url,
-        &data_hash,
-    );
+    let anchor = Anchor::new(&url, &data_hash);
     assert_eq!(anchor.url(), url);
     assert_eq!(anchor.anchor_data_hash(), data_hash);
 }
@@ -79,7 +76,10 @@ fn voter_drep_key_hash_setters_getters_test() {
     let key_hash = fake_key_hash(1);
     let voter = Voter::new_drep(&Credential::from_keyhash(&key_hash));
     assert_eq!(voter.kind(), VoterKind::DRepKeyHash);
-    assert_eq!(voter.to_drep_cred(), Some(Credential::from_keyhash(&key_hash)));
+    assert_eq!(
+        voter.to_drep_cred(),
+        Some(Credential::from_keyhash(&key_hash))
+    );
     assert_eq!(voter.to_staking_pool_key_hash(), None);
     assert_eq!(voter.to_constitutional_committee_hot_cred(), None);
     assert_eq!(voter.has_script_credentials(), false);
@@ -91,7 +91,10 @@ fn voter_drep_script_hash_setters_getters_test() {
     let script_hash = fake_script_hash(1);
     let voter = Voter::new_drep(&Credential::from_scripthash(&script_hash));
     assert_eq!(voter.kind(), VoterKind::DRepScriptHash);
-    assert_eq!(voter.to_drep_cred(), Some(Credential::from_scripthash(&script_hash)));
+    assert_eq!(
+        voter.to_drep_cred(),
+        Some(Credential::from_scripthash(&script_hash))
+    );
     assert_eq!(voter.to_staking_pool_key_hash(), None);
     assert_eq!(voter.to_constitutional_committee_hot_cred(), None);
     assert_eq!(voter.has_script_credentials(), true);
@@ -103,7 +106,10 @@ fn voter_constitutional_committee_hot_key_hash_setters_getters_test() {
     let key_hash = fake_key_hash(1);
     let voter = Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&key_hash));
     assert_eq!(voter.kind(), VoterKind::ConstitutionalCommitteeHotKeyHash);
-    assert_eq!(voter.to_constitutional_committee_hot_cred(), Some(Credential::from_keyhash(&key_hash)));
+    assert_eq!(
+        voter.to_constitutional_committee_hot_cred(),
+        Some(Credential::from_keyhash(&key_hash))
+    );
     assert_eq!(voter.to_staking_pool_key_hash(), None);
     assert_eq!(voter.to_drep_cred(), None);
     assert_eq!(voter.has_script_credentials(), false);
@@ -113,9 +119,16 @@ fn voter_constitutional_committee_hot_key_hash_setters_getters_test() {
 #[test]
 fn voter_constitutional_committee_hot_script_hash_setters_getters_test() {
     let script_hash = fake_script_hash(1);
-    let voter = Voter::new_constitutional_committee_hot_key(&Credential::from_scripthash(&script_hash));
-    assert_eq!(voter.kind(), VoterKind::ConstitutionalCommitteeHotScriptHash);
-    assert_eq!(voter.to_constitutional_committee_hot_cred(), Some(Credential::from_scripthash(&script_hash)));
+    let voter =
+        Voter::new_constitutional_committee_hot_key(&Credential::from_scripthash(&script_hash));
+    assert_eq!(
+        voter.kind(),
+        VoterKind::ConstitutionalCommitteeHotScriptHash
+    );
+    assert_eq!(
+        voter.to_constitutional_committee_hot_cred(),
+        Some(Credential::from_scripthash(&script_hash))
+    );
     assert_eq!(voter.to_staking_pool_key_hash(), None);
     assert_eq!(voter.to_drep_cred(), None);
     assert_eq!(voter.has_script_credentials(), true);
@@ -197,12 +210,30 @@ fn voting_procedures_setters_getters_test() {
     voting_procedures.insert(&voter_2, &governance_action_id_2, &voting_procedure_2);
     voting_procedures.insert(&voter_2, &governance_action_id_3, &voting_procedure_3);
 
-    assert_eq!(voting_procedures.get(&voter_1, &governance_action_id_1), Some(voting_procedure_1));
-    assert_eq!(voting_procedures.get(&voter_2, &governance_action_id_2), Some(voting_procedure_2));
-    assert_eq!(voting_procedures.get(&voter_2, &governance_action_id_3), Some(voting_procedure_3));
-    assert_eq!(voting_procedures.get(&voter_1, &governance_action_id_2), None);
-    assert_eq!(voting_procedures.get(&voter_1, &governance_action_id_3), None);
-    assert_eq!(voting_procedures.get(&voter_2, &governance_action_id_1), None);
+    assert_eq!(
+        voting_procedures.get(&voter_1, &governance_action_id_1),
+        Some(voting_procedure_1)
+    );
+    assert_eq!(
+        voting_procedures.get(&voter_2, &governance_action_id_2),
+        Some(voting_procedure_2)
+    );
+    assert_eq!(
+        voting_procedures.get(&voter_2, &governance_action_id_3),
+        Some(voting_procedure_3)
+    );
+    assert_eq!(
+        voting_procedures.get(&voter_1, &governance_action_id_2),
+        None
+    );
+    assert_eq!(
+        voting_procedures.get(&voter_1, &governance_action_id_3),
+        None
+    );
+    assert_eq!(
+        voting_procedures.get(&voter_2, &governance_action_id_1),
+        None
+    );
 
     let voters = voting_procedures.get_voters();
     assert_eq!(voters.len(), 2);

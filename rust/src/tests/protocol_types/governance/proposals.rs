@@ -149,13 +149,16 @@ fn treasury_withdrawals_proposal() {
 
 #[test]
 fn voting_proposals_setters_getters_test() {
-    let action_id = create_action_id();
     let mut proposals = VotingProposals::new();
     let no_confidence_proposal = NoConfidenceProposal::new();
     let parameter_change_proposal =
         ParameterChangeProposal::new(&crate_full_protocol_param_update());
-    proposals.add(&VotingProposal::new_no_confidence_proposal(&no_confidence_proposal));
-    proposals.add(&VotingProposal::new_parameter_change_proposal(&parameter_change_proposal));
+    proposals.add(&VotingProposal::new_no_confidence_proposal(
+        &no_confidence_proposal,
+    ));
+    proposals.add(&VotingProposal::new_parameter_change_proposal(
+        &parameter_change_proposal,
+    ));
     assert_eq!(proposals.len(), 2);
     assert_eq!(
         proposals.get(0),

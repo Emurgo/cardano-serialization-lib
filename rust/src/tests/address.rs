@@ -201,6 +201,7 @@ fn bip32_12_pointer() {
         .derive(0)
         .derive(0)
         .to_public();
+
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 = PointerAddress::new(
         NetworkInfo::testnet().network_id(),
