@@ -43,11 +43,7 @@ impl DrepRegistration {
         }
     }
 
-    pub fn new_with_anchor(
-        voting_credential: &Credential,
-        coin: &Coin,
-        anchor: &Anchor,
-    ) -> Self {
+    pub fn new_with_anchor(voting_credential: &Credential, coin: &Coin, anchor: &Anchor) -> Self {
         Self {
             voting_credential: voting_credential.clone(),
             coin: coin.clone(),

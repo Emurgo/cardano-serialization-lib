@@ -35,11 +35,7 @@ impl StakeAndVoteDelegation {
         self.drep.clone()
     }
 
-    pub fn new(
-        stake_credential: &Credential,
-        pool_keyhash: &Ed25519KeyHash,
-        drep: &DRep,
-    ) -> Self {
+    pub fn new(stake_credential: &Credential, pool_keyhash: &Ed25519KeyHash, drep: &DRep) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
             pool_keyhash: pool_keyhash.clone(),

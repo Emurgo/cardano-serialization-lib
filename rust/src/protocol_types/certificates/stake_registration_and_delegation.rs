@@ -35,11 +35,7 @@ impl StakeRegistrationAndDelegation {
         self.coin.clone()
     }
 
-    pub fn new(
-        stake_credential: &Credential,
-        pool_keyhash: &Ed25519KeyHash,
-        coin: &Coin,
-    ) -> Self {
+    pub fn new(stake_credential: &Credential, pool_keyhash: &Ed25519KeyHash, coin: &Coin) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
             pool_keyhash: pool_keyhash.clone(),

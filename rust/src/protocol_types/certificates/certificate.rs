@@ -127,28 +127,18 @@ impl Certificate {
         ))
     }
 
-    pub fn new_drep_deregistration(
-        drep_deregistration: &DrepDeregistration,
-    ) -> Self {
+    pub fn new_drep_deregistration(drep_deregistration: &DrepDeregistration) -> Self {
         Self(CertificateEnum::DrepDeregistration(
             drep_deregistration.clone(),
         ))
     }
 
-    pub fn new_drep_registration(
-        drep_registration: &DrepRegistration,
-    ) -> Self {
-        Self(CertificateEnum::DrepRegistration(
-            drep_registration.clone(),
-        ))
+    pub fn new_drep_registration(drep_registration: &DrepRegistration) -> Self {
+        Self(CertificateEnum::DrepRegistration(drep_registration.clone()))
     }
 
-    pub fn new_drep_update(
-        drep_update: &DrepUpdate,
-    ) -> Self {
-        Self(CertificateEnum::DrepUpdate(
-            drep_update.clone(),
-        ))
+    pub fn new_drep_update(drep_update: &DrepUpdate) -> Self {
+        Self(CertificateEnum::DrepUpdate(drep_update.clone()))
     }
 
     pub fn new_stake_and_vote_delegation(
@@ -175,12 +165,8 @@ impl Certificate {
         ))
     }
 
-    pub fn new_vote_delegation(
-        vote_delegation: &VoteDelegation,
-    ) -> Self {
-        Self(CertificateEnum::VoteDelegation(
-            vote_delegation.clone(),
-        ))
+    pub fn new_vote_delegation(vote_delegation: &VoteDelegation) -> Self {
+        Self(CertificateEnum::VoteDelegation(vote_delegation.clone()))
     }
 
     pub fn new_vote_registration_and_delegation(
@@ -199,23 +185,29 @@ impl Certificate {
             CertificateEnum::PoolRegistration(_) => CertificateKind::PoolRegistration,
             CertificateEnum::PoolRetirement(_) => CertificateKind::PoolRetirement,
             CertificateEnum::GenesisKeyDelegation(_) => CertificateKind::GenesisKeyDelegation,
-            CertificateEnum::MoveInstantaneousRewardsCert(_) =>
-                CertificateKind::MoveInstantaneousRewardsCert,
-            CertificateEnum::CommitteeHotKeyRegistration(_) =>
-                CertificateKind::CommitteeHotKeyRegistration,
-            CertificateEnum::CommitteeHotKeyDeregistration(_) =>
-                CertificateKind::CommitteeHotKeyDeregistration,
+            CertificateEnum::MoveInstantaneousRewardsCert(_) => {
+                CertificateKind::MoveInstantaneousRewardsCert
+            }
+            CertificateEnum::CommitteeHotKeyRegistration(_) => {
+                CertificateKind::CommitteeHotKeyRegistration
+            }
+            CertificateEnum::CommitteeHotKeyDeregistration(_) => {
+                CertificateKind::CommitteeHotKeyDeregistration
+            }
             CertificateEnum::DrepDeregistration(_) => CertificateKind::DrepDeregistration,
             CertificateEnum::DrepRegistration(_) => CertificateKind::DrepRegistration,
             CertificateEnum::DrepUpdate(_) => CertificateKind::DrepUpdate,
             CertificateEnum::StakeAndVoteDelegation(_) => CertificateKind::StakeAndVoteDelegation,
-            CertificateEnum::StakeRegistrationAndDelegation(_) =>
-                CertificateKind::StakeRegistrationAndDelegation,
-            CertificateEnum::StakeVoteRegistrationAndDelegation(_) =>
-                CertificateKind::StakeVoteRegistrationAndDelegation,
+            CertificateEnum::StakeRegistrationAndDelegation(_) => {
+                CertificateKind::StakeRegistrationAndDelegation
+            }
+            CertificateEnum::StakeVoteRegistrationAndDelegation(_) => {
+                CertificateKind::StakeVoteRegistrationAndDelegation
+            }
             CertificateEnum::VoteDelegation(_) => CertificateKind::VoteDelegation,
-            CertificateEnum::VoteRegistrationAndDelegation(_) =>
+            CertificateEnum::VoteRegistrationAndDelegation(_) => {
                 CertificateKind::VoteRegistrationAndDelegation
+            }
         }
     }
 
@@ -317,7 +309,9 @@ impl Certificate {
         }
     }
 
-    pub fn as_stake_vote_registration_and_delegation(&self) -> Option<StakeVoteRegistrationAndDelegation> {
+    pub fn as_stake_vote_registration_and_delegation(
+        &self,
+    ) -> Option<StakeVoteRegistrationAndDelegation> {
         match &self.0 {
             CertificateEnum::StakeVoteRegistrationAndDelegation(x) => Some(x.clone()),
             _ => None,

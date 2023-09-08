@@ -25,9 +25,7 @@ impl CommitteeHotKeyDeregistration {
         self.committee_cold_key.clone()
     }
 
-    pub fn new(
-        committee_cold_key: &Credential,
-    ) -> Self {
+    pub fn new(committee_cold_key: &Credential) -> Self {
         Self {
             committee_cold_key: committee_cold_key.clone(),
         }

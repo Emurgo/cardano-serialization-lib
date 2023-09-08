@@ -30,10 +30,7 @@ impl CommitteeHotKeyRegistration {
         self.committee_hot_key.clone()
     }
 
-    pub fn new(
-        committee_cold_key: &Credential,
-        committee_hot_key: &Credential,
-    ) -> Self {
+    pub fn new(committee_cold_key: &Credential, committee_hot_key: &Credential) -> Self {
         Self {
             committee_cold_key: committee_cold_key.clone(),
             committee_hot_key: committee_hot_key.clone(),

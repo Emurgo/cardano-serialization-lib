@@ -37,10 +37,7 @@ impl DrepUpdate {
         }
     }
 
-    pub fn new_with_anchor(
-        voting_credential: &Credential,
-        anchor: &Anchor,
-    ) -> Self {
+    pub fn new_with_anchor(voting_credential: &Credential, anchor: &Anchor) -> Self {
         Self {
             voting_credential: voting_credential.clone(),
             anchor: Some(anchor.clone()),

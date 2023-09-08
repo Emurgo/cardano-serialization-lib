@@ -15,7 +15,7 @@ use crate::*;
 )]
 pub struct StakeDeregistration {
     pub(crate) stake_credential: Credential,
-    pub(crate) coin: Option<Coin>
+    pub(crate) coin: Option<Coin>,
 }
 
 impl_to_from!(StakeDeregistration);
@@ -40,7 +40,7 @@ impl StakeDeregistration {
     pub fn new_with_coin(stake_credential: &Credential, coin: &Coin) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
-            coin: Some(coin.clone())
+            coin: Some(coin.clone()),
         }
     }
 

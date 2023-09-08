@@ -170,7 +170,7 @@ impl JsonSchema for MIRToStakeCredentials {
         String::from("MIRToStakeCredentials")
     }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-       Vec::<StakeToCoinJson>::json_schema(gen)
+        Vec::<StakeToCoinJson>::json_schema(gen)
     }
     fn is_referenceable() -> bool {
         Vec::<StakeToCoinJson>::is_referenceable()
