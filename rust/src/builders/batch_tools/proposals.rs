@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use crate::serialization::map_names::TxBodyNames;
-use super::super::*;
-use super::indexes::{UtxoIndex, AssetIndex, PolicyIndex};
 use super::asset_categorizer::AssetCategorizer;
+use super::indexes::{AssetIndex, PolicyIndex, UtxoIndex};
 use super::witnesses_calculator::WitnessesCalculator;
+use crate::serialization::map_names::TxBodyNames;
+use crate::*;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone)]
 pub(crate) struct TxOutputProposal {
@@ -34,7 +34,9 @@ impl TxOutputProposal {
 
     pub(super) fn add_asset(&mut self, asset: &AssetIndex, policy_index: &PolicyIndex) {
         self.used_assets.insert(asset.clone());
-        let policy = self.grouped_assets.entry(policy_index.clone())
+        let policy = self
+            .grouped_assets
+            .entry(policy_index.clone())
             .or_insert(HashSet::new());
         policy.insert(asset.clone());
     }
@@ -67,9 +69,15 @@ impl TxOutputProposal {
         self.size = size;
     }
 
-    fn create_output(&self, asset_groups: &AssetCategorizer, used_utxos: &HashSet<UtxoIndex>)
-                     -> Result<TransactionOutput, JsError> {
-        Ok(TransactionOutput::new(&self.address, &asset_groups.build_value(used_utxos, self)?))
+    fn create_output(
+        &self,
+        asset_groups: &AssetCategorizer,
+        used_utxos: &HashSet<UtxoIndex>,
+    ) -> Result<TransactionOutput, JsError> {
+        Ok(TransactionOutput::new(
+            &self.address,
+            &asset_groups.build_value(used_utxos, self)?,
+        ))
     }
 }
 
@@ -103,7 +111,8 @@ impl TxProposal {
     }
 
     pub(super) fn add_new_output(&mut self, address: &Address) {
-        self.tx_output_proposals.push(TxOutputProposal::new(address));
+        self.tx_output_proposals
+            .push(TxOutputProposal::new(address));
     }
 
     pub(super) fn add_asset(&mut self, asset: &AssetIndex, policy_index: &PolicyIndex) {
@@ -113,7 +122,12 @@ impl TxProposal {
         }
     }
 
-    pub(super) fn add_utxo(&mut self, utxo: &UtxoIndex, ada_coins: &Coin, address: &Address) -> Result<(), JsError> {
+    pub(super) fn add_utxo(
+        &mut self,
+        utxo: &UtxoIndex,
+        ada_coins: &Coin,
+        address: &Address,
+    ) -> Result<(), JsError> {
         if self.used_utoxs.contains(utxo) {
             return Err(JsError::from_str("UTxO already used"));
         }
@@ -143,23 +157,26 @@ impl TxProposal {
         self.fee = fee.clone();
     }
 
-
     pub(super) fn get_total_ada_for_ouputs(&self) -> Result<Coin, JsError> {
-        self.tx_output_proposals.iter()
+        self.tx_output_proposals
+            .iter()
             .map(|output| output.get_total_ada())
             .try_fold(Coin::zero(), |acc, ada| acc.checked_add(&ada))
     }
 
     pub(super) fn get_need_ada(&self) -> Result<Coin, JsError> {
-        let need_ada = self.get_total_ada_for_ouputs()?
-            .checked_add(&self.fee)?;
-         Ok(need_ada.checked_sub(&self.total_ada).unwrap_or(Coin::zero()))
+        let need_ada = self.get_total_ada_for_ouputs()?.checked_add(&self.fee)?;
+        Ok(need_ada
+            .checked_sub(&self.total_ada)
+            .unwrap_or(Coin::zero()))
     }
 
     pub(super) fn get_unused_ada(&self) -> Result<Coin, JsError> {
-        let need_ada = self.get_total_ada_for_ouputs()?
-            .checked_add(&self.fee)?;
-        return Ok(self.total_ada.checked_sub(&need_ada).unwrap_or(Coin::zero()));
+        let need_ada = self.get_total_ada_for_ouputs()?.checked_add(&self.fee)?;
+        return Ok(self
+            .total_ada
+            .checked_sub(&need_ada)
+            .unwrap_or(Coin::zero()));
     }
 
     pub(crate) fn add_last_ada_to_last_output(&mut self) -> Result<(), JsError> {
@@ -171,8 +188,11 @@ impl TxProposal {
         Ok(())
     }
 
-    pub(crate) fn create_tx(&self, asset_groups: &AssetCategorizer, utxos: &TransactionUnspentOutputs)
-                            -> Result<Transaction, JsError> {
+    pub(crate) fn create_tx(
+        &self,
+        asset_groups: &AssetCategorizer,
+        utxos: &TransactionUnspentOutputs,
+    ) -> Result<Transaction, JsError> {
         let mut outputs = Vec::new();
         for proposal in &self.tx_output_proposals {
             outputs.push(proposal.create_output(asset_groups, &self.used_utoxs)?);

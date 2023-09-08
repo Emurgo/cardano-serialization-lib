@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use super::utxo_stat::UtxosStat;
 use super::cbor_calculator::CborCalculator;
-use super::indexes::{UtxoIndex, AssetIndex, PolicyIndex};
+use super::indexes::{AssetIndex, PolicyIndex, UtxoIndex};
+use super::utxo_stat::UtxosStat;
 use crate::utils::*;
-use super::super::*;
+use crate::*;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone)]
 struct IntermediatePolicyState {
@@ -19,7 +19,12 @@ impl IntermediatePolicyState {
         }
     }
 
-    pub(super) fn add_asset(&mut self, asset_index: &AssetIndex, size: usize, coin_size: usize) -> usize {
+    pub(super) fn add_asset(
+        &mut self,
+        asset_index: &AssetIndex,
+        size: usize,
+        coin_size: usize,
+    ) -> usize {
         if !self.assets.contains(asset_index) {
             let mut new_size = self.total_size;
             if self.assets.len() > 0 {
@@ -48,13 +53,19 @@ impl IntermediateOutputValue {
         }
     }
 
-    pub(super) fn set_coin(&mut self, coin: &Coin) -> usize{
+    pub(super) fn set_coin(&mut self, coin: &Coin) -> usize {
         self.total_size += CborCalculator::get_coin_size(coin);
         self.total_size
     }
 
-    pub(super) fn add_asset(&mut self, policy_index: &PolicyIndex, asset_index: &AssetIndex,
-                            policy_size: usize, asset_size: usize, coin_size: usize) -> usize {
+    pub(super) fn add_asset(
+        &mut self,
+        policy_index: &PolicyIndex,
+        asset_index: &AssetIndex,
+        policy_size: usize,
+        asset_size: usize,
+        coin_size: usize,
+    ) -> usize {
         if self.is_empty() {
             //value with assets and ada is array of 2 elements
             self.total_size += CborCalculator::get_struct_size(2);
@@ -79,12 +90,13 @@ impl IntermediateOutputValue {
     }
 
     pub(super) fn is_empty(&self) -> bool {
-        self.multi_asset.iter()
-            .map(|(_, policy)| policy.assets.len()).sum::<usize>() <= 0
+        self.multi_asset
+            .iter()
+            .map(|(_, policy)| policy.assets.len())
+            .sum::<usize>()
+            <= 0
     }
 }
-
-
 
 #[derive(Clone)]
 pub(super) struct AssetsCalculator {
@@ -94,10 +106,9 @@ pub(super) struct AssetsCalculator {
 }
 
 impl AssetsCalculator {
-
     pub(super) fn new(utxo_stat: UtxosStat, assets_name_sizes: Vec<usize>) -> Self {
         //28 is the size of a policy id in bytes
-        let policy_size= 28 + CborCalculator::get_struct_size(28u64);
+        let policy_size = 28 + CborCalculator::get_struct_size(28u64);
 
         Self {
             assets_name_sizes,
@@ -106,11 +117,13 @@ impl AssetsCalculator {
         }
     }
 
-    pub(super) fn calc_value_size(&self,
-                                  coin: &Coin,
-                                  grouped_assets: &HashMap<PolicyIndex, HashSet<AssetIndex>>,
-                                  utxos: &HashSet<UtxoIndex>,
-                                  assets_amounts: &Vec<HashMap<UtxoIndex, Coin>>) -> Result<usize, JsError> {
+    pub(super) fn calc_value_size(
+        &self,
+        coin: &Coin,
+        grouped_assets: &HashMap<PolicyIndex, HashSet<AssetIndex>>,
+        utxos: &HashSet<UtxoIndex>,
+        assets_amounts: &Vec<HashMap<UtxoIndex, Coin>>,
+    ) -> Result<usize, JsError> {
         let mut size = 0;
 
         size += CborCalculator::get_coin_size(coin);
@@ -127,7 +140,7 @@ impl AssetsCalculator {
                 let mut asset_coins = Coin::zero();
                 for (utxo, coins) in &assets_amounts[asset_in_policy.0] {
                     if utxos.contains(utxo) {
-                       asset_coins = asset_coins.checked_add(coins)?;
+                        asset_coins = asset_coins.checked_add(coins)?;
                     }
                 }
                 size += CborCalculator::get_coin_size(&asset_coins);
@@ -136,24 +149,38 @@ impl AssetsCalculator {
         Ok(size)
     }
 
-    pub(super) fn add_asset_to_intermediate_value(&self, intermediate_value: &mut IntermediateOutputValue, asset_index: &AssetIndex,
-                                                  policy_index: &PolicyIndex) -> usize {
-        intermediate_value.add_asset(policy_index, asset_index,
-                                     self.policy_size,
-                                     self.assets_name_sizes[asset_index.0],
-                                     CborCalculator::get_coin_size(&self.utxo_stat.coins_in_assets[asset_index]))
+    pub(super) fn add_asset_to_intermediate_value(
+        &self,
+        intermediate_value: &mut IntermediateOutputValue,
+        asset_index: &AssetIndex,
+        policy_index: &PolicyIndex,
+    ) -> usize {
+        intermediate_value.add_asset(
+            policy_index,
+            asset_index,
+            self.policy_size,
+            self.assets_name_sizes[asset_index.0],
+            CborCalculator::get_coin_size(&self.utxo_stat.coins_in_assets[asset_index]),
+        )
     }
 
-    pub(super) fn build_intermediate_value(&self, assets_ids: &HashSet<AssetIndex>,
-                                           asset_to_policy: &HashMap<AssetIndex, PolicyIndex>) -> IntermediateOutputValue {
+    pub(super) fn build_intermediate_value(
+        &self,
+        assets_ids: &HashSet<AssetIndex>,
+        asset_to_policy: &HashMap<AssetIndex, PolicyIndex>,
+    ) -> IntermediateOutputValue {
         let mut intermediate_data = IntermediateOutputValue::new();
         for asset_index in assets_ids {
-            let asset_coin_size = CborCalculator::get_coin_size(&self.utxo_stat.coins_in_assets[asset_index]);
+            let asset_coin_size =
+                CborCalculator::get_coin_size(&self.utxo_stat.coins_in_assets[asset_index]);
             let policy_index = &asset_to_policy[asset_index];
-            intermediate_data.add_asset(policy_index, asset_index,
-                                        self.policy_size,
-                                         self.assets_name_sizes[asset_index.0],
-                                         asset_coin_size);
+            intermediate_data.add_asset(
+                policy_index,
+                asset_index,
+                self.policy_size,
+                self.assets_name_sizes[asset_index.0],
+                asset_coin_size,
+            );
         }
         intermediate_data.set_coin(&self.utxo_stat.ada_coins);
         intermediate_data

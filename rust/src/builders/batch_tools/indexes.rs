@@ -1,4 +1,4 @@
-use super::super::*;
+use crate::*;
 
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub struct UtxoIndex(pub(super) usize);
