@@ -96,8 +96,7 @@ impl Voter {
 
     pub fn has_script_credentials(&self) -> bool {
         match &self.0 {
-            VoterEnum::ConstitutionalCommitteeHotKey(cred) =>
-                cred.has_script_hash(),
+            VoterEnum::ConstitutionalCommitteeHotKey(cred) => cred.has_script_hash(),
             VoterEnum::DRep(cred) => cred.has_script_hash(),
             VoterEnum::StakingPool(_) => false,
         }

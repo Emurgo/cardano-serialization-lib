@@ -30,7 +30,7 @@ impl Deserialize for Certificates {
             }
             Ok(())
         })()
-            .map_err(|e| e.annotate("Certificates"))?;
+        .map_err(|e| e.annotate("Certificates"))?;
         Ok(Self(arr))
     }
 }
