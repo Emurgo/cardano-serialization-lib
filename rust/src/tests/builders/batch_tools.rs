@@ -1,46 +1,7 @@
 use crate::fakes::fake_policy_id;
 use crate::fees::{min_fee, LinearFee};
-use crate::tx_builder::tx_batch_builder::{create_send_all, TransactionBatchList};
-use crate::tx_builder::{TransactionBuilderConfig, TransactionBuilderConfigBuilder};
+use crate::tests::mock_objects::generate_address;
 use crate::*;
-
-fn root_key() -> Bip32PrivateKey {
-    // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
-    let entropy = [
-        0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4,
-        0xd8, 0x09, 0x7c, 0x64, 0x12,
-    ];
-    Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
-}
-
-fn harden(index: u32) -> u32 {
-    index | 0x80_00_00_00
-}
-
-fn generate_address(index: u32) -> Address {
-    let spend = root_key()
-        .derive(harden(1852))
-        .derive(harden(1815))
-        .derive(harden(0))
-        .derive(0)
-        .derive(index)
-        .to_public();
-    let stake = root_key()
-        .derive(harden(1852))
-        .derive(harden(1815))
-        .derive(harden(0))
-        .derive(2)
-        .derive(0)
-        .to_public();
-    let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
-    let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
-    let addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
-        &spend_cred,
-        &stake_cred,
-    );
-    addr.to_address()
-}
 
 fn generate_assets(
     from_policy: usize,
