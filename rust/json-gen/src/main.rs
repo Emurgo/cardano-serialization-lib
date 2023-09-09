@@ -186,4 +186,6 @@ fn main() {
     gen_json_schema!(TreasuryWithdrawalsProposal);
     gen_json_schema!(Committee);
     gen_json_schema!(Constitution);
+    gen_json_schema!(DrepVotingThresholds);
+    gen_json_schema!(PoolVotingThresholds);
 }
