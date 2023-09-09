@@ -1179,7 +1179,7 @@ impl TransactionBuilder {
         &mut self,
         policy_script: &NativeScript,
         asset_name: &AssetName,
-        amount: Int,
+        amount: &Int,
     ) {
         let mint_witness = MintWitness::new_native_script(policy_script);
         if let Some(mint) = &mut self.mint {
@@ -1199,7 +1199,7 @@ impl TransactionBuilder {
         &mut self,
         policy_script: &NativeScript,
         asset_name: &AssetName,
-        amount: Int,
+        amount: &Int,
         output_builder: &TransactionOutputAmountBuilder,
         output_coin: &Coin,
     ) -> Result<(), JsError> {
@@ -1207,10 +1207,10 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         let policy_id: PolicyID = policy_script.hash();
-        self.add_mint_asset(policy_script, asset_name, amount.clone());
+        self.add_mint_asset(policy_script, asset_name, amount);
         let multiasset = Mint::new_from_entry(
             &policy_id,
-            &MintAssets::new_from_entry(asset_name, amount.clone())?,
+            &MintAssets::new_from_entry(asset_name, amount)?,
         )
         .as_positive_multiasset();
 
@@ -1230,17 +1230,17 @@ impl TransactionBuilder {
         &mut self,
         policy_script: &NativeScript,
         asset_name: &AssetName,
-        amount: Int,
+        amount: &Int,
         output_builder: &TransactionOutputAmountBuilder,
     ) -> Result<(), JsError> {
         if !amount.is_positive() {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         let policy_id: PolicyID = policy_script.hash();
-        self.add_mint_asset(policy_script, asset_name, amount.clone());
+        self.add_mint_asset(policy_script, asset_name, amount);
         let multiasset = Mint::new_from_entry(
             &policy_id,
-            &MintAssets::new_from_entry(asset_name, amount.clone())?,
+            &MintAssets::new_from_entry(asset_name, amount)?,
         )
         .as_positive_multiasset();
 

@@ -910,7 +910,7 @@ fn build_tx_with_mint_all_sent() {
     let amount = to_bignum(1234);
 
     // Adding mint of the asset - which should work as an input
-    tx_builder.add_mint_asset(&min_script, &name, Int::new(&amount));
+    tx_builder.add_mint_asset(&min_script, &name, &Int::new(&amount));
 
     let mut ass = Assets::new();
     ass.insert(&name, &amount);
@@ -1000,7 +1000,7 @@ fn build_tx_with_mint_in_change() {
     let amount_sent = to_bignum(500);
 
     // Adding mint of the asset - which should work as an input
-    tx_builder.add_mint_asset(&min_script, &name, Int::new(&amount_minted));
+    tx_builder.add_mint_asset(&min_script, &name, &Int::new(&amount_minted));
 
     let mut ass = Assets::new();
     ass.insert(&name, &amount_sent);
@@ -1109,7 +1109,7 @@ fn change_with_input_and_mint_not_enough_ada() {
     .to_address();
 
     // Adding mint of the asset - which should work as an input
-    tx_builder.add_mint_asset(&min_script, &asset_name, Int::new(&amount_minted));
+    tx_builder.add_mint_asset(&min_script, &asset_name, &Int::new(&amount_minted));
 
     let mut asset = Assets::new();
     asset.insert(&asset_name, &amount_sent);
@@ -1205,7 +1205,7 @@ fn change_with_input_and_mint_not_enough_assets() {
     .to_address();
 
     // Adding mint of the asset - which should work as an input
-    tx_builder.add_mint_asset(&min_script, &asset_name, Int::new(&amount_minted));
+    tx_builder.add_mint_asset(&min_script, &asset_name, &Int::new(&amount_minted));
 
     let mut asset = Assets::new();
     asset.insert(&asset_name, &amount_sent);
@@ -3081,7 +3081,7 @@ fn create_asset_name() -> AssetName {
 }
 
 fn create_mint_asset() -> MintAssets {
-    MintAssets::new_from_entry(&create_asset_name(), Int::new_i32(1234)).unwrap()
+    MintAssets::new_from_entry(&create_asset_name(), &Int::new_i32(1234)).unwrap()
 }
 
 fn create_assets() -> Assets {
@@ -3193,7 +3193,7 @@ fn add_mint_asset_with_empty_mint() {
 
     let (mint_script, policy_id) = mint_script_and_policy(0);
 
-    tx_builder.add_mint_asset(&mint_script, &create_asset_name(), Int::new_i32(1234));
+    tx_builder.add_mint_asset(&mint_script, &create_asset_name(), &Int::new_i32(1234));
 
     assert!(tx_builder.mint.is_some());
     let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
@@ -3221,7 +3221,7 @@ fn add_mint_asset_with_existing_mint() {
             &NativeScripts::from(vec![mint_script1.clone()]),
         )
         .unwrap();
-    tx_builder.add_mint_asset(&mint_script2, &create_asset_name(), Int::new_i32(1234));
+    tx_builder.add_mint_asset(&mint_script2, &create_asset_name(), &Int::new_i32(1234));
 
     assert!(tx_builder.mint.is_some());
     let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
@@ -3378,13 +3378,13 @@ fn add_mint_asset_and_output() {
     let coin = to_bignum(249);
 
     // Add unrelated mint first to check it is NOT added to output later
-    tx_builder.add_mint_asset(&mint_script0, &name, amount.clone());
+    tx_builder.add_mint_asset(&mint_script0, &name, &amount.clone());
 
     tx_builder
         .add_mint_asset_and_output(
             &mint_script1,
             &name,
-            amount.clone(),
+            &amount,
             &TransactionOutputBuilder::new()
                 .with_address(&address)
                 .next()
@@ -3448,13 +3448,13 @@ fn add_mint_asset_and_min_required_coin() {
     let address = byron_address();
 
     // Add unrelated mint first to check it is NOT added to output later
-    tx_builder.add_mint_asset(&mint_script0, &name, amount.clone());
+    tx_builder.add_mint_asset(&mint_script0, &name, &amount);
 
     tx_builder
         .add_mint_asset_and_output_min_required_coin(
             &mint_script1,
             &name,
-            amount.clone(),
+            &amount,
             &TransactionOutputBuilder::new()
                 .with_address(&address)
                 .next()
@@ -3539,10 +3539,10 @@ fn add_mint_includes_witnesses_into_fee_estimation() {
     assert_eq!(original_tx_fee, to_bignum(168361));
 
     // Add minting four assets from three different policies
-    tx_builder.add_mint_asset(&mint_script1, &name1, amount.clone());
-    tx_builder.add_mint_asset(&mint_script2, &name2, amount.clone());
-    tx_builder.add_mint_asset(&mint_script3, &name3, amount.clone());
-    tx_builder.add_mint_asset(&mint_script3, &name4, amount.clone());
+    tx_builder.add_mint_asset(&mint_script1, &name1, &amount);
+    tx_builder.add_mint_asset(&mint_script2, &name2, &amount);
+    tx_builder.add_mint_asset(&mint_script3, &name3, &amount);
+    tx_builder.add_mint_asset(&mint_script3, &name4, &amount);
 
     let mint = tx_builder.get_mint().unwrap();
     let mint_len = mint.to_bytes().len();
@@ -3604,7 +3604,7 @@ fn fee_estimation_fails_on_missing_mint_scripts() {
     let mut mint = Mint::new();
     mint.insert(
         &policy_id1,
-        &MintAssets::new_from_entry(&name1, amount.clone()).unwrap(),
+        &MintAssets::new_from_entry(&name1, &amount.clone()).unwrap(),
     );
 
     tx_builder
@@ -3614,7 +3614,7 @@ fn fee_estimation_fails_on_missing_mint_scripts() {
     let est1 = tx_builder.min_fee();
     assert!(est1.is_ok());
 
-    tx_builder.add_mint_asset(&mint_script2, &name1, amount.clone());
+    tx_builder.add_mint_asset(&mint_script2, &name1, &amount);
 
     let est2 = tx_builder.min_fee();
     assert!(est2.is_ok());
@@ -3732,10 +3732,10 @@ fn total_input_output_with_mint_and_burn() {
     assert!(ma1_output.is_none());
 
     // Adding mint
-    tx_builder.add_mint_asset(&mint_script1, &name, Int::new_i32(40));
+    tx_builder.add_mint_asset(&mint_script1, &name, &Int::new_i32(40));
 
     // Adding burn
-    tx_builder.add_mint_asset(&mint_script2, &name, Int::new_i32(-40));
+    tx_builder.add_mint_asset(&mint_script2, &name, &Int::new_i32(-40));
 
     let total_input_after_mint = tx_builder.get_total_input().unwrap();
     let total_output_after_mint = tx_builder.get_total_output().unwrap();
