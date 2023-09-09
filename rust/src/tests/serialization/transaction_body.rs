@@ -1,6 +1,4 @@
-use crate::fakes::{
-    fake_auxiliary_data_hash, fake_base_address, fake_script_data_hash, fake_tx_input,
-};
+use crate::fakes::{fake_asset_name, fake_auxiliary_data_hash, fake_base_address, fake_policy_id, fake_script_data_hash, fake_tx_input};
 use crate::*;
 
 #[test]
@@ -11,6 +9,12 @@ fn transaction_round_trip_test() {
     let outputs = TransactionOutputs(vec![output]);
     let fee = Coin::from(1_000_002u64);
     let mut body = TransactionBody::new_tx_body(&inputs, &outputs, &fee);
+    let mut mint = Mint::new();
+    let mint_asset = MintAssets::new_from_entry(
+        &fake_asset_name(4),
+        &Int::new(&to_bignum(1_000_003u64)),
+    ).unwrap();
+    mint.insert(&fake_policy_id(3), &mint_asset);
 
     body.set_ttl(&to_bignum(1_000_003u64));
     body.set_certs(&Certificates::new());
@@ -18,7 +22,7 @@ fn transaction_round_trip_test() {
     body.set_update(&Update::new(&ProposedProtocolParameterUpdates::new(), 1));
     body.set_auxiliary_data_hash(&fake_auxiliary_data_hash(2));
     body.set_validity_start_interval_bignum(&SlotBigNum::from(1_000_004u64));
-    body.set_mint(&Mint::new());
+    body.set_mint(&mint);
     body.set_reference_inputs(&TransactionInputs::new());
     body.set_script_data_hash(&fake_script_data_hash(3));
     body.set_collateral(&TransactionInputs::new());
