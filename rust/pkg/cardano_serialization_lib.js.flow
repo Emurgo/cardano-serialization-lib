@@ -6,28 +6,16 @@
  */
 
 /**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
+ * @param {Address} address
+ * @param {TransactionUnspentOutputs} utxos
+ * @param {TransactionBuilderConfig} config
+ * @returns {TransactionBatchList}
  */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
+declare export function create_send_all(
+  address: Address,
+  utxos: TransactionUnspentOutputs,
+  config: TransactionBuilderConfig
+): TransactionBatchList;
 
 /**
  * @param {Transaction} tx
@@ -57,16 +45,28 @@ declare export function min_script_fee(
 ): BigNum;
 
 /**
- * @param {Address} address
- * @param {TransactionUnspentOutputs} utxos
- * @param {TransactionBuilderConfig} config
- * @returns {TransactionBatchList}
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
  */
-declare export function create_send_all(
-  address: Address,
-  utxos: TransactionUnspentOutputs,
-  config: TransactionBuilderConfig
-): TransactionBatchList;
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
 
 /**
  * @param {TransactionHash} tx_body_hash
@@ -207,6 +207,26 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * @param {string} json
+ * @param {number} schema
+ * @returns {PlutusData}
+ */
+declare export function encode_json_str_to_plutus_datum(
+  json: string,
+  schema: number
+): PlutusData;
+
+/**
+ * @param {PlutusData} datum
+ * @param {number} schema
+ * @returns {string}
+ */
+declare export function decode_plutus_datum_to_json_str(
+  datum: PlutusData,
+  schema: number
+): string;
+
+/**
  * @param {Uint8Array} bytes
  * @returns {TransactionMetadatum}
  */
@@ -241,68 +261,6 @@ declare export function decode_metadatum_to_json_str(
   metadatum: TransactionMetadatum,
   schema: number
 ): string;
-
-/**
- * @param {string} json
- * @param {number} schema
- * @returns {PlutusData}
- */
-declare export function encode_json_str_to_plutus_datum(
-  json: string,
-  schema: number
-): PlutusData;
-
-/**
- * @param {PlutusData} datum
- * @param {number} schema
- * @returns {string}
- */
-declare export function decode_plutus_datum_to_json_str(
-  datum: PlutusData,
-  schema: number
-): string;
-
-/**
- */
-
-declare export var RelayKind: {|
-  +SingleHostAddr: 0, // 0
-  +SingleHostName: 1, // 1
-  +MultiHostName: 2, // 2
-|};
-
-/**
- */
-
-declare export var NativeScriptKind: {|
-  +ScriptPubkey: 0, // 0
-  +ScriptAll: 1, // 1
-  +ScriptAny: 2, // 2
-  +ScriptNOfK: 3, // 3
-  +TimelockStart: 4, // 4
-  +TimelockExpiry: 5, // 5
-|};
-
-/**
- * Each new language uses a different namespace for hashing its script
- * This is because you could have a language where the same bytes have different semantics
- * So this avoids scripts in different languages mapping to the same hash
- * Note that the enum value here is different than the enum value for deciding the cost model of a script
- */
-
-declare export var ScriptHashNamespace: {|
-  +NativeScript: 0, // 0
-  +PlutusScript: 1, // 1
-  +PlutusScriptV2: 2, // 2
-|};
-
-/**
- */
-
-declare export var NetworkIdKind: {|
-  +Testnet: 0, // 0
-  +Mainnet: 1, // 1
-|};
 
 /**
  */
@@ -353,6 +311,58 @@ declare export var ScriptSchema: {|
 /**
  */
 
+declare export var RelayKind: {|
+  +SingleHostAddr: 0, // 0
+  +SingleHostName: 1, // 1
+  +MultiHostName: 2, // 2
+|};
+
+/**
+ */
+
+declare export var NativeScriptKind: {|
+  +ScriptPubkey: 0, // 0
+  +ScriptAll: 1, // 1
+  +ScriptAny: 2, // 2
+  +ScriptNOfK: 3, // 3
+  +TimelockStart: 4, // 4
+  +TimelockExpiry: 5, // 5
+|};
+
+/**
+ * Each new language uses a different namespace for hashing its script
+ * This is because you could have a language where the same bytes have different semantics
+ * So this avoids scripts in different languages mapping to the same hash
+ * Note that the enum value here is different than the enum value for deciding the cost model of a script
+ */
+
+declare export var ScriptHashNamespace: {|
+  +NativeScript: 0, // 0
+  +PlutusScript: 1, // 1
+  +PlutusScriptV2: 2, // 2
+  +PlutusScriptV3: 3, // 3
+|};
+
+/**
+ */
+
+declare export var NetworkIdKind: {|
+  +Testnet: 0, // 0
+  +Mainnet: 1, // 1
+|};
+
+/**
+ */
+
+declare export var VoteKind: {|
+  +No: 0, // 0
+  +Yes: 1, // 1
+  +Abstain: 2, // 2
+|};
+
+/**
+ */
+
 declare export var CertificateKind: {|
   +StakeRegistration: 0, // 0
   +StakeDeregistration: 1, // 1
@@ -376,15 +386,6 @@ declare export var CertificateKind: {|
 /**
  */
 
-declare export var VoteKind: {|
-  +No: 0, // 0
-  +Yes: 1, // 1
-  +Abstain: 2, // 2
-|};
-
-/**
- */
-
 declare export var VotingProposalKind: {|
   +ParameterChangeProposal: 0, // 0
   +HardForkInitiationProposal: 1, // 1
@@ -398,29 +399,10 @@ declare export var VotingProposalKind: {|
 /**
  */
 
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
 declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
   +PlutusV2: 1, // 1
+  +PlutusV3: 2, // 2
 |};
 
 /**
@@ -461,6 +443,26 @@ declare export var RedeemerTagKind: {|
 declare export var PlutusDatumSchema: {|
   +BasicConversions: 0, // 0
   +DetailedSchema: 1, // 1
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
 |};
 
 /**
@@ -3160,6 +3162,180 @@ declare export class DrepUpdate {
 }
 /**
  */
+declare export class DrepVotingThresholds {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DrepVotingThresholds}
+   */
+  static from_bytes(bytes: Uint8Array): DrepVotingThresholds;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {DrepVotingThresholds}
+   */
+  static from_hex(hex_str: string): DrepVotingThresholds;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {DrepVotingThresholdsJSON}
+   */
+  to_js_value(): DrepVotingThresholdsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {DrepVotingThresholds}
+   */
+  static from_json(json: string): DrepVotingThresholds;
+
+  /**
+   * @param {UnitInterval} motion_no_confidence
+   * @param {UnitInterval} committee_normal
+   * @param {UnitInterval} committee_no_confidence
+   * @param {UnitInterval} update_constitution
+   * @param {UnitInterval} hard_fork_initiation
+   * @param {UnitInterval} pp_network_group
+   * @param {UnitInterval} pp_economic_group
+   * @param {UnitInterval} pp_technical_group
+   * @param {UnitInterval} pp_governance_group
+   * @param {UnitInterval} treasury_withdrawal
+   * @returns {DrepVotingThresholds}
+   */
+  static new(
+    motion_no_confidence: UnitInterval,
+    committee_normal: UnitInterval,
+    committee_no_confidence: UnitInterval,
+    update_constitution: UnitInterval,
+    hard_fork_initiation: UnitInterval,
+    pp_network_group: UnitInterval,
+    pp_economic_group: UnitInterval,
+    pp_technical_group: UnitInterval,
+    pp_governance_group: UnitInterval,
+    treasury_withdrawal: UnitInterval
+  ): DrepVotingThresholds;
+
+  /**
+   * @returns {DrepVotingThresholds}
+   */
+  static new_default(): DrepVotingThresholds;
+
+  /**
+   * @param {UnitInterval} motion_no_confidence
+   */
+  set_motion_no_confidence(motion_no_confidence: UnitInterval): void;
+
+  /**
+   * @param {UnitInterval} committee_normal
+   */
+  set_committee_normal(committee_normal: UnitInterval): void;
+
+  /**
+   * @param {UnitInterval} committee_no_confidence
+   */
+  set_committee_no_confidence(committee_no_confidence: UnitInterval): void;
+
+  /**
+   * @param {UnitInterval} update_constitution
+   */
+  set_update_constitution(update_constitution: UnitInterval): void;
+
+  /**
+   * @param {UnitInterval} hard_fork_initiation
+   */
+  set_hard_fork_initiation(hard_fork_initiation: UnitInterval): void;
+
+  /**
+   * @param {UnitInterval} pp_network_group
+   */
+  set_pp_network_group(pp_network_group: UnitInterval): void;
+
+  /**
+   * @param {UnitInterval} pp_economic_group
+   */
+  set_pp_economic_group(pp_economic_group: UnitInterval): void;
+
+  /**
+   * @param {UnitInterval} pp_technical_group
+   */
+  set_pp_technical_group(pp_technical_group: UnitInterval): void;
+
+  /**
+   * @param {UnitInterval} pp_governance_group
+   */
+  set_pp_governance_group(pp_governance_group: UnitInterval): void;
+
+  /**
+   * @param {UnitInterval} treasury_withdrawal
+   */
+  set_treasury_withdrawal(treasury_withdrawal: UnitInterval): void;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  motion_no_confidence(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  committee_normal(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  committee_no_confidence(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  update_constitution(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  hard_fork_initiation(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  pp_network_group(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  pp_economic_group(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  pp_technical_group(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  pp_governance_group(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  treasury_withdrawal(): UnitInterval;
+}
+/**
+ */
 declare export class Ed25519KeyHash {
   free(): void;
 
@@ -4665,6 +4841,11 @@ declare export class Language {
    * @returns {Language}
    */
   static new_plutus_v2(): Language;
+
+  /**
+   * @returns {Language}
+   */
+  static new_plutus_v3(): Language;
 
   /**
    * @returns {number}
@@ -6483,6 +6664,16 @@ declare export class PlutusScript {
    * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
    * * If you creating this from those you should use PlutusScript::from_bytes() instead.
    * @param {Uint8Array} bytes
+   * @returns {PlutusScript}
+   */
+  static new_v3(bytes: Uint8Array): PlutusScript;
+
+  /**
+   *
+   * * Creates a new Plutus script from the RAW bytes of the compiled script.
+   * * This does NOT include any CBOR encoding around these bytes (e.g. from "cborBytes" in cardano-cli)
+   * * If you creating this from those you should use PlutusScript::from_bytes() instead.
+   * @param {Uint8Array} bytes
    * @param {Language} language
    * @returns {PlutusScript}
    */
@@ -6502,6 +6693,13 @@ declare export class PlutusScript {
    * @returns {PlutusScript}
    */
   static from_bytes_v2(bytes: Uint8Array): PlutusScript;
+
+  /**
+   * Same as `.from_bytes` but will consider the script as requiring the Plutus Language V3
+   * @param {Uint8Array} bytes
+   * @returns {PlutusScript}
+   */
+  static from_bytes_v3(bytes: Uint8Array): PlutusScript;
 
   /**
    * Same as `.from_bytes` but will consider the script as requiring the specified language version
@@ -7149,6 +7347,83 @@ declare export class PoolRetirement {
 }
 /**
  */
+declare export class PoolVotingThresholds {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {PoolVotingThresholds}
+   */
+  static from_bytes(bytes: Uint8Array): PoolVotingThresholds;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {PoolVotingThresholds}
+   */
+  static from_hex(hex_str: string): PoolVotingThresholds;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {PoolVotingThresholdsJSON}
+   */
+  to_js_value(): PoolVotingThresholdsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {PoolVotingThresholds}
+   */
+  static from_json(json: string): PoolVotingThresholds;
+
+  /**
+   * @param {UnitInterval} motion_no_confidence
+   * @param {UnitInterval} committee_normal
+   * @param {UnitInterval} committee_no_confidence
+   * @param {UnitInterval} hard_fork_initiation
+   * @returns {PoolVotingThresholds}
+   */
+  static new(
+    motion_no_confidence: UnitInterval,
+    committee_normal: UnitInterval,
+    committee_no_confidence: UnitInterval,
+    hard_fork_initiation: UnitInterval
+  ): PoolVotingThresholds;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  motion_no_confidence(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  committee_normal(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  committee_no_confidence(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  hard_fork_initiation(): UnitInterval;
+}
+/**
+ */
 declare export class PrivateKey {
   free(): void;
 
@@ -7570,6 +7845,92 @@ declare export class ProtocolParamUpdate {
    * @returns {number | void}
    */
   max_collateral_inputs(): number | void;
+
+  /**
+   * @param {PoolVotingThresholds} pool_voting_thresholds
+   */
+  set_pool_voting_thresholds(
+    pool_voting_thresholds: PoolVotingThresholds
+  ): void;
+
+  /**
+   * @returns {PoolVotingThresholds | void}
+   */
+  pool_voting_thresholds(): PoolVotingThresholds | void;
+
+  /**
+   * @param {DrepVotingThresholds} drep_voting_thresholds
+   */
+  set_drep_voting_thresholds(
+    drep_voting_thresholds: DrepVotingThresholds
+  ): void;
+
+  /**
+   * @returns {DrepVotingThresholds | void}
+   */
+  drep_voting_thresholds(): DrepVotingThresholds | void;
+
+  /**
+   * @param {number} min_committee_size
+   */
+  set_min_committee_size(min_committee_size: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  min_committee_size(): number | void;
+
+  /**
+   * @param {number} committee_term_limit
+   */
+  set_committee_term_limit(committee_term_limit: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  committee_term_limit(): number | void;
+
+  /**
+   * @param {number} governance_action_validity_period
+   */
+  set_governance_action_validity_period(
+    governance_action_validity_period: number
+  ): void;
+
+  /**
+   * @returns {number | void}
+   */
+  governance_action_validity_period(): number | void;
+
+  /**
+   * @param {BigNum} governance_action_deposit
+   */
+  set_governance_action_deposit(governance_action_deposit: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  governance_action_deposit(): BigNum | void;
+
+  /**
+   * @param {BigNum} drep_deposit
+   */
+  set_drep_deposit(drep_deposit: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  drep_deposit(): BigNum | void;
+
+  /**
+   * @param {number} drep_inactivity_period
+   */
+  set_drep_inactivity_period(drep_inactivity_period: number): void;
+
+  /**
+   * @returns {number | void}
+   */
+  drep_inactivity_period(): number | void;
 
   /**
    * @returns {ProtocolParamUpdate}
@@ -9836,6 +10197,36 @@ declare export class TransactionBody {
   voting_procedures(): VotingProcedures | void;
 
   /**
+   * @param {VotingProposals} voting_proposals
+   */
+  set_voting_proposals(voting_proposals: VotingProposals): void;
+
+  /**
+   * @returns {VotingProposals | void}
+   */
+  voting_proposals(): VotingProposals | void;
+
+  /**
+   * @param {BigNum} donation
+   */
+  set_donation(donation: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  donation(): BigNum | void;
+
+  /**
+   * @param {BigNum} current_treasury_value
+   */
+  set_current_treasury_value(current_treasury_value: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  current_treasury_value(): BigNum | void;
+
+  /**
    * !!! DEPRECATED !!!
    * This constructor uses outdated slot number format for the ttl value.
    * Use `.new_tx_body` and then `.set_ttl` instead
@@ -10300,6 +10691,26 @@ declare export class TransactionBuilder {
    * @returns {PlutusList | void}
    */
   get_extra_witness_datums(): PlutusList | void;
+
+  /**
+   * @param {BigNum} donation
+   */
+  set_donation(donation: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  get_donation(): BigNum | void;
+
+  /**
+   * @param {BigNum} current_treasury_value
+   */
+  set_current_treasury_value(current_treasury_value: BigNum): void;
+
+  /**
+   * @returns {BigNum | void}
+   */
+  get_current_treasury_value(): BigNum | void;
 
   /**
    * @param {TransactionBuilderConfig} cfg
@@ -13377,6 +13788,18 @@ export interface DrepUpdateJSON {
   anchor?: AnchorJSON | null;
   voting_credential: CredentialJSON;
 }
+export interface DrepVotingThresholdsJSON {
+  committee_no_confidence: UnitIntervalJSON;
+  committee_normal: UnitIntervalJSON;
+  hard_fork_initiation: UnitIntervalJSON;
+  motion_no_confidence: UnitIntervalJSON;
+  pp_economic_group: UnitIntervalJSON;
+  pp_governance_group: UnitIntervalJSON;
+  pp_network_group: UnitIntervalJSON;
+  pp_technical_group: UnitIntervalJSON;
+  treasury_withdrawal: UnitIntervalJSON;
+  update_constitution: UnitIntervalJSON;
+}
 export type Ed25519KeyHashJSON = string;
 export type Ed25519KeyHashesJSON = string[];
 export type Ed25519SignatureJSON = string;
@@ -13454,7 +13877,7 @@ export type Ipv6JSON = [
 ];
 export type KESVKeyJSON = string;
 export type LanguageJSON = LanguageKindJSON;
-export type LanguageKindJSON = "PlutusV1" | "PlutusV2";
+export type LanguageKindJSON = "PlutusV1" | "PlutusV2" | "PlutusV3";
 export type LanguagesJSON = LanguageJSON[];
 export type MIREnumJSON =
   | {
@@ -13598,17 +14021,29 @@ export interface PoolRetirementJSON {
   epoch: number;
   pool_keyhash: string;
 }
+export interface PoolVotingThresholdsJSON {
+  committee_no_confidence: UnitIntervalJSON;
+  committee_normal: UnitIntervalJSON;
+  hard_fork_initiation: UnitIntervalJSON;
+  motion_no_confidence: UnitIntervalJSON;
+}
 export interface ProposedProtocolParameterUpdatesJSON {
   [k: string]: ProtocolParamUpdateJSON;
 }
 export interface ProtocolParamUpdateJSON {
   ada_per_utxo_byte?: string | null;
   collateral_percentage?: number | null;
+  committee_term_limit?: number | null;
   cost_models?: CostmdlsJSON | null;
   d?: UnitIntervalJSON | null;
+  drep_deposit?: string | null;
+  drep_inactivity_period?: number | null;
+  drep_voting_thresholds?: DrepVotingThresholdsJSON | null;
   execution_costs?: ExUnitPricesJSON | null;
   expansion_rate?: UnitIntervalJSON | null;
   extra_entropy?: NonceJSON | null;
+  governance_action_deposit?: string | null;
+  governance_action_validity_period?: number | null;
   key_deposit?: string | null;
   max_block_body_size?: number | null;
   max_block_ex_units?: ExUnitsJSON | null;
@@ -13618,12 +14053,14 @@ export interface ProtocolParamUpdateJSON {
   max_tx_ex_units?: ExUnitsJSON | null;
   max_tx_size?: number | null;
   max_value_size?: number | null;
+  min_committee_size?: number | null;
   min_pool_cost?: string | null;
   minfee_a?: string | null;
   minfee_b?: string | null;
   n_opt?: number | null;
   pool_deposit?: string | null;
   pool_pledge_influence?: UnitIntervalJSON | null;
+  pool_voting_thresholds?: PoolVotingThresholdsJSON | null;
   protocol_version?: ProtocolVersionJSON | null;
   treasury_growth_rate?: UnitIntervalJSON | null;
 }
@@ -13746,6 +14183,8 @@ export interface TransactionBodyJSON {
   certs?: CertificatesJSON | null;
   collateral?: TransactionInputsJSON | null;
   collateral_return?: TransactionOutputJSON | null;
+  current_treasury_value?: string | null;
+  donation?: string | null;
   fee: string;
   inputs: TransactionInputsJSON;
   mint?: MintJSON | null;
