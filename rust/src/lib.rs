@@ -51,8 +51,6 @@ pub mod error;
 pub mod fees;
 pub mod impl_mockchain;
 pub mod legacy_address;
-pub mod metadata;
-pub mod plutus;
 pub mod traits;
 pub use builders::*;
 mod protocol_types;
@@ -67,8 +65,6 @@ use crate::traits::NoneOrEmpty;
 use address::*;
 use crypto::*;
 use error::*;
-use metadata::*;
-use plutus::*;
 use schemars::JsonSchema;
 use serialization::*;
 use std::cmp::Ordering;
@@ -1723,6 +1719,7 @@ pub enum ScriptHashNamespace {
     NativeScript = 0,
     PlutusScript = 1,
     PlutusScriptV2 = 2,
+    PlutusScriptV3 = 3,
 }
 
 #[wasm_bindgen]

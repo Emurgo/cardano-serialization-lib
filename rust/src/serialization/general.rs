@@ -1,5 +1,6 @@
 use crate::*;
 use std::io::{Seek, SeekFrom};
+use crate::serialization::utils::merge_option_plutus_list;
 
 // This file was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
@@ -1029,6 +1030,9 @@ impl Deserialize for ScriptRefEnum {
                 2 => ScriptRefEnum::PlutusScript(
                     PlutusScript::deserialize(raw)?.clone_as_version(&Language::new_plutus_v2()),
                 ),
+                3 => ScriptRefEnum::PlutusScript(
+                    PlutusScript::deserialize(raw)?.clone_as_version(&Language::new_plutus_v3()),
+                ),
                 n => {
                     return Err(DeserializeFailure::FixedValueMismatch {
                         found: Key::Uint(n),
@@ -1751,8 +1755,14 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
+        let mut has_plutus_v2 = false;
+        let mut has_plutus_v3 = false;
         let plutus_added_length = match &self.plutus_scripts {
-            Some(scripts) => 1 + (scripts.has_version(&Language::new_plutus_v2()) as u64),
+            Some(scripts) => {
+                has_plutus_v2 = scripts.has_version(&Language::new_plutus_v2());
+                has_plutus_v3 = scripts.has_version(&Language::new_plutus_v3());
+                1 + (has_plutus_v2 as u64) + (has_plutus_v3 as u64)
+            },
             _ => 0,
         };
         serializer.write_map(cbor_event::Len::Len(
@@ -1780,10 +1790,16 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
             plutus_scripts
                 .by_version(&Language::new_plutus_v1())
                 .serialize(serializer)?;
-            if plutus_added_length > 1 {
+            if has_plutus_v2 {
                 serializer.write_unsigned_integer(6)?;
                 plutus_scripts
                     .by_version(&Language::new_plutus_v2())
+                    .serialize(serializer)?;
+            }
+            if has_plutus_v3 {
+                serializer.write_unsigned_integer(7)?;
+                plutus_scripts
+                    .by_version(&Language::new_plutus_v3())
                     .serialize(serializer)?;
             }
         }
@@ -1809,6 +1825,7 @@ impl Deserialize for TransactionWitnessSet {
             let mut bootstraps = None;
             let mut plutus_scripts_v1 = None;
             let mut plutus_scripts_v2 = None;
+            let mut plutus_scripts_v3 = None;
             let mut plutus_data = None;
             let mut redeemers = None;
             let mut read = 0;
@@ -1903,6 +1920,19 @@ impl Deserialize for TransactionWitnessSet {
                                 .map_err(|e| e.annotate("plutus_scripts_v2"))?,
                             );
                         }
+                        7 => {
+                            if plutus_scripts_v3.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(7)).into());
+                            }
+                            plutus_scripts_v3 = Some(
+                                (|| -> Result<_, DeserializeError> {
+                                    read_len.read_elems(1)?;
+                                    Ok(PlutusScripts::deserialize(raw)?
+                                        .map_as_version(&Language::new_plutus_v3()))
+                                })()
+                                    .map_err(|e| e.annotate("plutus_scripts_v3"))?,
+                            );
+                        }
                         unknown_key => {
                             return Err(
                                 DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()
@@ -1933,12 +1963,11 @@ impl Deserialize for TransactionWitnessSet {
                 read += 1;
             }
             read_len.finish()?;
-            let plutus_scripts = match (plutus_scripts_v1, plutus_scripts_v2) {
-                (Some(v1), Some(v2)) => Some(v1.merge(&v2)),
-                (Some(v1), _) => Some(v1),
-                (_, Some(v2)) => Some(v2),
-                _ => None,
-            };
+            let mut plutus_scripts = None;
+            plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v1);
+            plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v2);
+            plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v3);
+
             Ok(Self {
                 vkeys,
                 native_scripts,
@@ -4539,11 +4568,14 @@ mod tests {
         let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
         let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
         let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+        let script_v3 = PlutusScript::from_bytes_v3(bytes.clone()).unwrap();
 
         witness_set_roundtrip(&PlutusScripts(vec![]));
         witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone()]));
         witness_set_roundtrip(&PlutusScripts(vec![script_v2.clone()]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v3.clone()]));
         witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone(), script_v2.clone()]));
+        witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone(), script_v2.clone(), script_v3.clone()]));
     }
 
     #[test]
@@ -4556,12 +4588,16 @@ mod tests {
         let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
         let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
         let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+        let script_v3 = PlutusScript::from_bytes_v3(bytes.clone()).unwrap();
 
         let ref1 = ScriptRef::new_plutus_script(&script_v1);
         assert_eq!(ScriptRef::from_bytes(ref1.to_bytes()).unwrap(), ref1);
 
         let ref2 = ScriptRef::new_plutus_script(&script_v2);
         assert_eq!(ScriptRef::from_bytes(ref2.to_bytes()).unwrap(), ref2);
+
+        let ref3 = ScriptRef::new_plutus_script(&script_v3);
+        assert_eq!(ScriptRef::from_bytes(ref3.to_bytes()).unwrap(), ref3);
     }
 
     #[test]
@@ -4589,6 +4625,7 @@ mod tests {
         let bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
         let script_v1 = PlutusScript::from_bytes(bytes.clone()).unwrap();
         let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
+        let script_v3 = PlutusScript::from_bytes_v3(bytes.clone()).unwrap();
 
         let mut o3 = TransactionOutput::new(&fake_base_address(2), &fake_value2(234569));
         o3.set_script_ref(&ScriptRef::new_plutus_script(&script_v1));
@@ -4607,6 +4644,10 @@ mod tests {
         o6.set_data_hash(&fake_data_hash(222));
         o6.set_script_ref(&ScriptRef::new_plutus_script(&script_v2));
         assert_eq!(TransactionOutput::from_bytes(o6.to_bytes()).unwrap(), o6);
+
+        let mut o7 = TransactionOutput::new(&fake_base_address(6), &fake_value2(234573));
+        o7.set_script_ref(&ScriptRef::new_plutus_script(&script_v3));
+        assert_eq!(TransactionOutput::from_bytes(o7.to_bytes()).unwrap(), o7);
     }
 
     #[test]

@@ -7,3 +7,9 @@ pub use certificates::*;
 
 mod governance;
 pub use governance::*;
+
+mod plutus;
+pub use plutus::*;
+
+mod metadata;
+pub use metadata::*;

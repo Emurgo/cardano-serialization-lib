@@ -74,3 +74,15 @@ pub(super) fn check_len_indefinite<R: BufRead + Seek>(
     }
     Ok(())
 }
+
+pub(crate) fn merge_option_plutus_list(left: Option<PlutusScripts>, right: Option<PlutusScripts>) -> Option<PlutusScripts> {
+    if let Some(left) = left {
+        if let Some(right) = right {
+            return Some(left.merge(&right));
+        } else {
+            return Some(left);
+        }
+    } else {
+        return right;
+    }
+}
