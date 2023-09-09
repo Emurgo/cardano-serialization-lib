@@ -60,12 +60,20 @@ impl MintBuilder {
         }
     }
 
-    pub fn add_asset(&mut self, mint: &MintWitness, asset_name: &AssetName, amount: &Int) {
-        self.update_mint_value(mint, asset_name, amount, false);
+    pub fn add_asset(&mut self, mint: &MintWitness, asset_name: &AssetName, amount: &Int) -> Result<(), JsError> {
+        if amount.0 == 0 {
+            return Err(JsError::from_str("Mint cannot be zero."));
+        }
+        self.update_mint_value(mint, asset_name, amount, false)?;
+        Ok(())
     }
 
-    pub fn set_asset(&mut self, mint: &MintWitness, asset_name: &AssetName, amount: &Int) {
-        self.update_mint_value(mint, asset_name, amount, true);
+    pub fn set_asset(&mut self, mint: &MintWitness, asset_name: &AssetName, amount: &Int) -> Result<(), JsError> {
+        if amount.0 == 0 {
+            return Err(JsError::from_str("Mint cannot be zero."));
+        }
+        self.update_mint_value(mint, asset_name, amount, true)?;
+        Ok(())
     }
 
     fn update_mint_value(
@@ -74,7 +82,10 @@ impl MintBuilder {
         asset_name: &AssetName,
         amount: &Int,
         overwrite: bool,
-    ) {
+    ) -> Result<(), JsError> {
+        if amount.0 == 0 {
+            return Err(JsError::from_str("Mint cannot be zero."));
+        }
         match &mint.0 {
             MintWitnessEnum::NativeScript(native_script) => {
                 let script_mint =
@@ -126,6 +137,7 @@ impl MintBuilder {
                 }
             }
         }
+        Ok(())
     }
 
     pub fn build(&self) -> Mint {
