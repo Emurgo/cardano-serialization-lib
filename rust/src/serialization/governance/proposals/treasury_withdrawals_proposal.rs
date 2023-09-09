@@ -1,4 +1,4 @@
-use crate::serialization::struct_checks::serialize_and_check_index;
+use crate::serialization::utils::serialize_and_check_index;
 use crate::serialization::{check_len, deserialize_and_check_index};
 use crate::*;
 use map_names::VotingProposalIndexNames;

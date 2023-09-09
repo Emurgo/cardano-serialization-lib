@@ -1,5 +1,5 @@
 use crate::serialization::map_names::VotingProposalIndexNames;
-use crate::serialization::struct_checks::{check_len_indefinite, serialize_and_check_index};
+use crate::serialization::utils::{check_len_indefinite, serialize_and_check_index};
 use crate::*;
 use num_traits::{FromPrimitive, ToPrimitive};
 use std::io::{Seek, SeekFrom};

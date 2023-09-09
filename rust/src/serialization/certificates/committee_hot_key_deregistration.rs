@@ -1,5 +1,5 @@
 use crate::serialization::map_names::CertificateIndexNames;
-use crate::serialization::struct_checks::{
+use crate::serialization::utils::{
     check_len, deserialize_and_check_index, serialize_and_check_index,
 };
 use crate::*;

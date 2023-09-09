@@ -1,6 +1,6 @@
 use crate::*;
 
-use crate::serialization::struct_checks::serialize_and_check_index;
+use crate::serialization::utils::serialize_and_check_index;
 use crate::serialization::{check_len, deserialize_and_check_index};
 use map_names::VotingProposalIndexNames;
 use num_traits::ToPrimitive;

@@ -17,7 +17,7 @@ pub mod map_names;
 pub mod traits;
 pub(super) use traits::*;
 
-mod struct_checks;
+mod utils;
 mod fixed_tx;
 
-use struct_checks::*;
+use utils::*;

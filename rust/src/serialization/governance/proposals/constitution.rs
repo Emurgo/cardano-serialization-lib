@@ -1,4 +1,4 @@
-use crate::serialization::struct_checks::check_len;
+use crate::serialization::utils::check_len;
 use crate::*;
 
 impl Serialize for Constitution {
