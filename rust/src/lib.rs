@@ -2537,12 +2537,12 @@ impl MintAssets {
         Self(std::collections::BTreeMap::new())
     }
 
-    pub fn new_from_entry(key: &AssetName, value: Int) -> Result<Self, JsError> {
+    pub fn new_from_entry(key: &AssetName, value: &Int) -> Result<MintAssets, JsError> {
         if value.0 == 0 {
             return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
         }
         let mut ma = MintAssets::new();
-        ma.insert(key, value);
+        ma.insert(key, value.clone())?;
         Ok(ma)
     }
 
