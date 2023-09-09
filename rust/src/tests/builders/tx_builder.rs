@@ -3,11 +3,7 @@ use crate::fakes::{
     fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2,
 };
 use crate::tests::helpers::harden;
-use crate::tests::mock_objects::{
-    byron_address, create_default_tx_builder, create_linear_fee, create_reallistic_tx_builder,
-    create_tx_builder_with_fee, create_tx_builder_with_fee_and_pure_change,
-    create_tx_builder_with_fee_and_val_size, create_tx_builder_with_key_deposit,
-};
+use crate::tests::mock_objects::{byron_address, create_change_address, create_default_tx_builder, create_linear_fee, create_reallistic_tx_builder, create_rich_tx_builder, create_tx_builder_with_amount, create_tx_builder_with_fee, create_tx_builder_with_fee_and_pure_change, create_tx_builder_with_fee_and_val_size, create_tx_builder_with_key_deposit};
 use crate::*;
 
 use fees::*;
@@ -6447,4 +6443,60 @@ pub fn test_extra_datum() {
     );
     assert_eq!(tx.witness_set().plutus_data().unwrap().len(), 1usize);
     assert_eq!(tx.witness_set().plutus_data().unwrap().get(0), datum);
+}
+
+#[test]
+fn current_treasure_value_test() {
+    let input_amount = 10000000000;
+    let mut builder = create_tx_builder_with_amount(input_amount, false);
+    let treasure_value = Coin::from(1000000000u64);
+
+    assert_eq!(builder.get_current_treasury_value(), None);
+
+    builder.set_current_treasury_value(&treasure_value).unwrap();
+    builder.add_change_if_needed(&create_change_address()).unwrap();
+
+    assert_eq!(builder.get_current_treasury_value().unwrap(), treasure_value);
+
+    let tx = builder.build_tx().unwrap();
+    assert_eq!(tx.body().outputs().len(), 1);
+
+    let mut total_out = tx.body().outputs().get(0).amount().coin();
+    total_out = total_out.checked_add(&tx.body().fee()).unwrap();
+
+    assert_eq!(total_out, Coin::from(input_amount));
+}
+
+#[test]
+fn current_treasure_value_zero_error_test() {
+    let mut builder = create_rich_tx_builder(false);
+    let treasure_value = Coin::from(0u64);
+
+    assert_eq!(builder.get_current_treasury_value(), None);
+
+    let res = builder.set_current_treasury_value(&treasure_value);
+    assert!(res.is_err());
+}
+
+#[test]
+fn donation_test() {
+    let input_amount = 10000000000;
+    let mut builder = create_tx_builder_with_amount(input_amount, false);
+    let donation = Coin::from(1000u64);
+
+    assert_eq!(builder.get_donation(), None);
+
+    builder.set_donation(&donation);
+    builder.add_change_if_needed(&create_change_address()).unwrap();
+
+    assert_eq!(builder.get_donation().unwrap(), donation);
+
+    let tx = builder.build_tx().unwrap();
+    assert_eq!(tx.body().outputs().len(), 1);
+
+    let mut total_out = tx.body().outputs().get(0).amount().coin();
+    total_out = total_out.checked_add(&tx.body().fee()).unwrap();
+    total_out = total_out.checked_add(&donation).unwrap();
+
+    assert_eq!(total_out, Coin::from(input_amount));
 }

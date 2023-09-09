@@ -1,7 +1,5 @@
 #![allow(dead_code)]
-use crate::crypto::{
-    AnchorDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, ScriptHash, VRFKeyHash,
-};
+use crate::crypto::{AnchorDataHash, AuxiliaryDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, ScriptDataHash, ScriptHash, VRFKeyHash};
 use crate::{
     to_bignum, Address, BaseAddress, Bip32PrivateKey, Credential, DataHash, Ed25519KeyHash,
     Ed25519Signature, NetworkInfo, PolicyID, TransactionHash, TransactionIndex, TransactionInput,
@@ -21,6 +19,10 @@ pub(crate) fn fake_data_hash(x: u8) -> DataHash {
 
 pub(crate) fn fake_anchor_data_hash(x: u8) -> AnchorDataHash {
     AnchorDataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_auxiliary_data_hash(x: u8) -> AuxiliaryDataHash {
+    AuxiliaryDataHash::from_bytes(fake_bytes_32(x)).unwrap()
 }
 
 pub(crate) fn fake_pool_metadata_hash(x: u8) -> PoolMetadataHash {
@@ -45,6 +47,10 @@ pub(crate) fn fake_key_hash(x: u8) -> Ed25519KeyHash {
 
 pub(crate) fn fake_script_hash(x: u8) -> ScriptHash {
     ScriptHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_script_data_hash(x: u8) -> ScriptDataHash {
+    ScriptDataHash::from_bytes(fake_bytes_32(x)).unwrap()
 }
 
 pub(crate) fn fake_base_address(x: u8) -> Address {

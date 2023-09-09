@@ -85,7 +85,39 @@ pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
         max_value_size: Some(44_444u32),
         collateral_percentage: Some(44_444u32),
         max_collateral_inputs: Some(44_444u32),
+        pool_voting_thresholds: Some(create_pool_voting_thresholds()),
+        drep_voting_thresholds: Some(create_drep_voting_thresholds()),
+        min_committee_size: Some(44_444u32),
+        committee_term_limit: Some(44_444u32),
+        governance_action_validity_period: Some(44_444u32),
+        governance_action_deposit: Some(Coin::from(44_444u32)),
+        drep_deposit: Some(Coin::from(44_444u32)),
+        drep_inactivity_period: Some(44_444u32),
     }
+}
+
+pub(crate) fn create_pool_voting_thresholds() -> PoolVotingThresholds {
+    PoolVotingThresholds::new(
+        &UnitInterval::new(&BigNum::from(44_401u32), &BigNum::from(44_402u32)),
+        &UnitInterval::new(&BigNum::from(44_403u32), &BigNum::from(44_404u32)),
+        &UnitInterval::new(&BigNum::from(44_405u32), &BigNum::from(44_406u32)),
+        &UnitInterval::new(&BigNum::from(44_406u32), &BigNum::from(44_407u32)),
+    )
+}
+
+pub(crate) fn create_drep_voting_thresholds() -> DrepVotingThresholds {
+    DrepVotingThresholds::new(
+        &UnitInterval::new(&BigNum::from(44_401u32), &BigNum::from(44_402u32)),
+        &UnitInterval::new(&BigNum::from(44_403u32), &BigNum::from(44_404u32)),
+        &UnitInterval::new(&BigNum::from(44_405u32), &BigNum::from(44_406u32)),
+        &UnitInterval::new(&BigNum::from(44_406u32), &BigNum::from(44_407u32)),
+        &UnitInterval::new(&BigNum::from(44_408u32), &BigNum::from(44_409u32)),
+        &UnitInterval::new(&BigNum::from(44_410u32), &BigNum::from(44_411u32)),
+        &UnitInterval::new(&BigNum::from(44_412u32), &BigNum::from(44_412u32)),
+        &UnitInterval::new(&BigNum::from(44_414u32), &BigNum::from(44_415u32)),
+        &UnitInterval::new(&BigNum::from(44_416u32), &BigNum::from(44_417u32)),
+        &UnitInterval::new(&BigNum::from(44_418u32), &BigNum::from(44_419u32)),
+    )
 }
 
 pub(crate) fn crate_full_pool_params() -> PoolParams {

@@ -345,6 +345,8 @@ pub struct TransactionBuilder {
     pub(crate) extra_datums: Option<PlutusList>,
     pub(crate) voting_procedures: Option<VotingBuilder>,
     pub(crate) voting_proposals: Option<VotingProposalBuilder>,
+    pub(crate) current_treasury_value: Option<Coin>,
+    pub(crate) donation: Option<Coin>,
 }
 
 #[wasm_bindgen]
@@ -1266,6 +1268,26 @@ impl TransactionBuilder {
         self.extra_datums.clone()
     }
 
+    pub fn set_donation(&mut self, donation: &Coin) {
+        self.donation = Some(donation.clone());
+    }
+
+    pub fn get_donation(&self) -> Option<Coin> {
+        self.donation.clone()
+    }
+
+    pub fn set_current_treasury_value(&mut self, current_treasury_value: &Coin) -> Result<(), JsError> {
+        if current_treasury_value == &Coin::zero() {
+            return Err(JsError::from_str("Current treasury value cannot be zero!"));
+        }
+        self.current_treasury_value = Some(current_treasury_value.clone());
+        Ok(())
+    }
+
+    pub fn get_current_treasury_value(&self) -> Option<Coin> {
+        self.current_treasury_value.clone()
+    }
+
     pub fn new(cfg: &TransactionBuilderConfig) -> Self {
         Self {
             config: cfg.clone(),
@@ -1287,6 +1309,8 @@ impl TransactionBuilder {
             extra_datums: None,
             voting_procedures: None,
             voting_proposals: None,
+            donation: None,
+            current_treasury_value: None,
         }
     }
 
@@ -1379,9 +1403,13 @@ impl TransactionBuilder {
     /// Return explicit output plus deposit plus burn
     pub fn get_total_output(&self) -> Result<Value, JsError> {
         let (_, burn_value) = self.get_mint_as_values();
-        self.get_explicit_output()?
+        let mut total = self.get_explicit_output()?
             .checked_add(&Value::new(&self.get_deposit()?))?
-            .checked_add(&burn_value)
+            .checked_add(&burn_value)?;
+        if let Some(donation) = &self.donation {
+            total = total.checked_add(&Value::new(donation))?;
+        }
+        Ok(total)
     }
 
     /// does not include fee
@@ -1928,6 +1956,8 @@ impl TransactionBuilder {
             reference_inputs: self.get_reference_inputs().to_option(),
             voting_procedures: self.voting_procedures.as_ref().map(|x| x.build()),
             voting_proposals: self.voting_proposals.as_ref().map(|x| x.build()),
+            donation: self.donation.clone(),
+            current_treasury_value: self.current_treasury_value.clone(),
         };
         // we must build a tx with fake data (of correct size) to check the final Transaction size
         let full_tx = fake_full_tx(self, built)?;

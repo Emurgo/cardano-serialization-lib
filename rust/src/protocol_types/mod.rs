@@ -13,3 +13,9 @@ pub use plutus::*;
 
 mod metadata;
 pub use metadata::*;
+
+mod transaction_body;
+pub use transaction_body::*;
+
+mod protocol_param_update;
+pub use protocol_param_update::*;

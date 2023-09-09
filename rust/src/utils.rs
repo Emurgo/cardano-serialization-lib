@@ -152,7 +152,7 @@ impl<'a> IntoIterator for &'a TransactionUnspentOutputs {
 // This is an unsigned type - no negative numbers.
 // Can be converted to/from plain rust
 #[wasm_bindgen]
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Default)]
 pub struct BigNum(u64);
 
 impl_to_from!(BigNum);
