@@ -369,6 +369,12 @@ impl ProtocolParamUpdate {
         self.extra_entropy.clone()
     }
 
+    /// !!! DEPRECATED !!!
+    /// Since conway era this param is outdated. But this param you can meet in a pre-conway block.
+    #[deprecated(
+        since = "12.0.0",
+        note = "Since conway era this param is outdated. But this param you can meet in a pre-conway block."
+    )]
     pub fn set_protocol_version(&mut self, protocol_version: &ProtocolVersion) {
         self.protocol_version = Some(protocol_version.clone())
     }
