@@ -2537,18 +2537,24 @@ impl MintAssets {
         Self(std::collections::BTreeMap::new())
     }
 
-    pub fn new_from_entry(key: &AssetName, value: Int) -> Self {
+    pub fn new_from_entry(key: &AssetName, value: Int) -> Result<Self, JsError> {
+        if value.0 == 0 {
+            return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
+        }
         let mut ma = MintAssets::new();
         ma.insert(key, value);
-        ma
+        Ok(ma)
     }
 
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &AssetName, value: Int) -> Option<Int> {
-        self.0.insert(key.clone(), value)
+    pub fn insert(&mut self, key: &AssetName, value: Int) -> Result<Option<Int>, JsError> {
+        if value.0 == 0 {
+            return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
+        }
+        Ok(self.0.insert(key.clone(), value))
     }
 
     pub fn get(&self, key: &AssetName) -> Option<Int> {

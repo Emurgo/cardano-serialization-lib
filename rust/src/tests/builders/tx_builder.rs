@@ -3081,7 +3081,7 @@ fn create_asset_name() -> AssetName {
 }
 
 fn create_mint_asset() -> MintAssets {
-    MintAssets::new_from_entry(&create_asset_name(), Int::new_i32(1234))
+    MintAssets::new_from_entry(&create_asset_name(), Int::new_i32(1234)).unwrap()
 }
 
 fn create_assets() -> Assets {
@@ -3604,7 +3604,7 @@ fn fee_estimation_fails_on_missing_mint_scripts() {
     let mut mint = Mint::new();
     mint.insert(
         &policy_id1,
-        &MintAssets::new_from_entry(&name1, amount.clone()),
+        &MintAssets::new_from_entry(&name1, amount.clone()).unwrap(),
     );
 
     tx_builder

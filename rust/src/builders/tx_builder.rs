@@ -1210,7 +1210,7 @@ impl TransactionBuilder {
         self.add_mint_asset(policy_script, asset_name, amount.clone());
         let multiasset = Mint::new_from_entry(
             &policy_id,
-            &MintAssets::new_from_entry(asset_name, amount.clone()),
+            &MintAssets::new_from_entry(asset_name, amount.clone())?,
         )
         .as_positive_multiasset();
 
@@ -1240,7 +1240,7 @@ impl TransactionBuilder {
         self.add_mint_asset(policy_script, asset_name, amount.clone());
         let multiasset = Mint::new_from_entry(
             &policy_id,
-            &MintAssets::new_from_entry(asset_name, amount.clone()),
+            &MintAssets::new_from_entry(asset_name, amount.clone())?,
         )
         .as_positive_multiasset();
 
