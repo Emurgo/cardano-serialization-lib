@@ -5,6 +5,11 @@ impl cbor_event::se::Serialize for TransactionBody {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
+        let has_mint = match &self.mint {
+            Some(mint) => mint.len() > 0,
+            None => false,
+        };
+
         serializer.write_map(cbor_event::Len::Len(
             3 + opt64(&self.ttl)
                 + opt64(&self.certs)
@@ -12,7 +17,7 @@ impl cbor_event::se::Serialize for TransactionBody {
                 + opt64(&self.update)
                 + opt64(&self.auxiliary_data_hash)
                 + opt64(&self.validity_start_interval)
-                + opt64(&self.mint)
+                + has_mint as u64
                 + opt64(&self.script_data_hash)
                 + opt64(&self.collateral)
                 + opt64(&self.required_signers)
@@ -56,8 +61,10 @@ impl cbor_event::se::Serialize for TransactionBody {
             field.serialize(serializer)?;
         }
         if let Some(field) = &self.mint {
-            serializer.write_unsigned_integer(9)?;
-            field.serialize(serializer)?;
+            if has_mint {
+                serializer.write_unsigned_integer(9)?;
+                field.serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.script_data_hash {
             serializer.write_unsigned_integer(11)?;

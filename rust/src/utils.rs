@@ -555,14 +555,22 @@ impl cbor_event::se::Serialize for Value {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match &self.multiasset {
-            Some(multiasset) => {
-                serializer.write_array(cbor_event::Len::Len(2))?;
-                self.coin.serialize(serializer)?;
-                multiasset.serialize(serializer)
+        let multiasset_len = match &self.multiasset {
+            Some(multiasset) => multiasset.len(),
+            None => 0,
+        };
+
+        if multiasset_len == 0 {
+            self.coin.serialize(serializer)?;
+        } else {
+            serializer.write_array(cbor_event::Len::Len(2))?;
+            self.coin.serialize(serializer)?;
+            if let Some(multiasset) = &self.multiasset {
+                multiasset.serialize(serializer)?;
             }
-            None => self.coin.serialize(serializer),
         }
+
+        Ok(serializer)
     }
 }
 
