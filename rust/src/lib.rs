@@ -180,7 +180,7 @@ type GovernanceActionIndex = u32;
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
-pub struct TransactionInputs(Vec<TransactionInput>);
+pub struct TransactionInputs(pub(crate) Vec<TransactionInput>);
 
 impl_to_from!(TransactionInputs);
 
@@ -512,6 +512,14 @@ impl TransactionBody {
 
     pub fn voting_procedures(&self) -> Option<VotingProcedures> {
         self.voting_procedures.clone()
+    }
+
+    pub fn set_voting_proposals(&mut self, voting_proposals: &VotingProposals) {
+        self.voting_proposals = Some(voting_proposals.clone());
+    }
+
+    pub fn voting_proposals(&self) -> Option<VotingProposals> {
+        self.voting_proposals.clone()
     }
 
     /// !!! DEPRECATED !!!

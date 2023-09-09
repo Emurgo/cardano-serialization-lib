@@ -156,6 +156,7 @@ pub(crate) fn create_tx_builder_full(
     linear_fee: &LinearFee,
     pool_deposit: u64,
     key_deposit: u64,
+    voting_proposal_deposit: u64,
     max_val_size: u32,
     coins_per_utxo_word: u64,
 ) -> TransactionBuilder {
@@ -163,7 +164,7 @@ pub(crate) fn create_tx_builder_full(
         .fee_algo(linear_fee)
         .pool_deposit(&to_bignum(pool_deposit))
         .key_deposit(&to_bignum(key_deposit))
-        .voting_proposal_deposit(&to_bignum(500000000))
+        .voting_proposal_deposit(&to_bignum(voting_proposal_deposit))
         .max_value_size(max_val_size)
         .max_tx_size(MAX_TX_SIZE)
         .coins_per_utxo_word(&to_bignum(coins_per_utxo_word))
@@ -181,11 +182,13 @@ pub(crate) fn create_tx_builder(
     coins_per_utxo_word: u64,
     pool_deposit: u64,
     key_deposit: u64,
+    voting_proposal_deposit: u64,
 ) -> TransactionBuilder {
     create_tx_builder_full(
         linear_fee,
         pool_deposit,
         key_deposit,
+        voting_proposal_deposit,
         MAX_VALUE_SIZE,
         coins_per_utxo_word,
     )
@@ -197,6 +200,7 @@ pub(crate) fn create_reallistic_tx_builder() -> TransactionBuilder {
         COINS_PER_UTXO_WORD,
         500000000,
         2000000,
+        500000000,
     )
 }
 
@@ -204,11 +208,11 @@ pub(crate) fn create_tx_builder_with_fee_and_val_size(
     linear_fee: &LinearFee,
     max_val_size: u32,
 ) -> TransactionBuilder {
-    create_tx_builder_full(linear_fee, 1, 1, max_val_size, 8)
+    create_tx_builder_full(linear_fee, 1, 1, 1, max_val_size, 8)
 }
 
 pub(crate) fn create_tx_builder_with_fee(linear_fee: &LinearFee) -> TransactionBuilder {
-    create_tx_builder(linear_fee, 8, 1, 1)
+    create_tx_builder(linear_fee, 8, 1, 1, 1)
 }
 
 pub(crate) fn create_tx_builder_with_fee_and_pure_change(
@@ -230,14 +234,14 @@ pub(crate) fn create_tx_builder_with_fee_and_pure_change(
 }
 
 pub(crate) fn create_tx_builder_with_key_deposit(deposit: u64) -> TransactionBuilder {
-    create_tx_builder(&create_default_linear_fee(), 8, 1, deposit)
+    create_tx_builder(&create_default_linear_fee(), 8, 1, deposit, 1)
 }
 
 pub(crate) fn create_default_tx_builder() -> TransactionBuilder {
     create_tx_builder_with_fee(&create_default_linear_fee())
 }
 
-pub(crate) fn crate_change_address() -> Address {
+pub(crate) fn create_change_address() -> Address {
     let spend = root_key()
         .derive(harden(1852))
         .derive(harden(1815))
@@ -271,6 +275,55 @@ pub(crate) fn create_rich_tx_builder(with_collateral: bool) -> TransactionBuilde
     tx_builder.set_inputs(&input_builder);
     if with_collateral {
         tx_builder.set_collateral(&input_builder);
+    }
+
+    tx_builder
+}
+
+pub(crate) fn create_tx_builder_with_amount(
+    amount: u64,
+    with_collateral: bool,
+) -> TransactionBuilder {
+    let mut tx_builder = create_reallistic_tx_builder();
+    let input = TransactionInput::new(&fake_tx_hash(1), 0);
+    let address = generate_address(1);
+    let mut input_builder = TxInputsBuilder::new();
+    input_builder.add_input(&address, &input, &Value::new(&Coin::from(amount)));
+    tx_builder.set_inputs(&input_builder);
+    if with_collateral {
+        let col_input = TransactionInput::new(&fake_tx_hash(1), 0);
+        let mut col_input_builder = TxInputsBuilder::new();
+        col_input_builder.add_input(&address, &col_input, &Value::new(&Coin::from(u64::MAX / 2)));
+        tx_builder.set_collateral(&col_input_builder);
+    }
+
+    tx_builder
+}
+
+pub(crate) fn create_tx_builder_with_amount_and_deposit_params(
+    amount: u64,
+    pool_deposit: u64,
+    key_deposit: u64,
+    voting_proposal_deposit: u64,
+    with_collateral: bool,
+) -> TransactionBuilder {
+    let mut tx_builder = create_tx_builder(
+        &create_linear_fee(44, 155381),
+        COINS_PER_UTXO_WORD,
+        pool_deposit,
+        key_deposit,
+        voting_proposal_deposit,
+    );
+    let input = TransactionInput::new(&fake_tx_hash(1), 0);
+    let address = generate_address(1);
+    let mut input_builder = TxInputsBuilder::new();
+    input_builder.add_input(&address, &input, &Value::new(&Coin::from(amount)));
+    tx_builder.set_inputs(&input_builder);
+    if with_collateral {
+        let col_input = TransactionInput::new(&fake_tx_hash(1), 0);
+        let mut col_input_builder = TxInputsBuilder::new();
+        col_input_builder.add_input(&address, &col_input, &Value::new(&Coin::from(u64::MAX / 2)));
+        tx_builder.set_collateral(&col_input_builder);
     }
 
     tx_builder

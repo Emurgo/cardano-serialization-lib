@@ -15,8 +15,8 @@ impl VotingProposalBuilder {
         }
     }
 
-    pub fn add(&mut self, proposal: VotingProposal) -> Result<(), JsError> {
-        self.votes.insert(proposal, None);
+    pub fn add(&mut self, proposal: &VotingProposal) -> Result<(), JsError> {
+        self.votes.insert(proposal.clone(), None);
 
         Ok(())
     }

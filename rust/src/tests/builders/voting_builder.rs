@@ -1,7 +1,7 @@
 use crate::fakes::{fake_key_hash, fake_script_hash, fake_tx_hash, fake_vkey};
 use crate::fees::min_fee_for_size;
 use crate::tests::mock_objects::{
-    crate_change_address, create_linear_fee, create_plutus_script, create_rich_tx_builder,
+    create_change_address, create_linear_fee, create_plutus_script, create_rich_tx_builder,
 };
 use crate::*;
 
@@ -34,7 +34,7 @@ fn voting_builder_key_signers_test() {
     let mut tx_builder = create_rich_tx_builder(false);
     tx_builder.set_voting_builder(&builder);
     tx_builder
-        .add_change_if_needed(&crate_change_address())
+        .add_change_if_needed(&create_change_address())
         .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
@@ -129,7 +129,7 @@ fn voting_builder_plutus_witness() {
     let mut tx_builder = create_rich_tx_builder(true);
     tx_builder.set_voting_builder(&builder);
     tx_builder
-        .add_change_if_needed(&crate_change_address())
+        .add_change_if_needed(&create_change_address())
         .unwrap();
 
     let mut cost_models = TxBuilderConstants::plutus_default_cost_models();
@@ -224,7 +224,7 @@ fn voting_builder_plutus_ref_witness() {
     let mut tx_builder = create_rich_tx_builder(true);
     tx_builder.set_voting_builder(&builder);
     tx_builder
-        .add_change_if_needed(&crate_change_address())
+        .add_change_if_needed(&create_change_address())
         .unwrap();
 
     let mut cost_models = TxBuilderConstants::plutus_default_cost_models();
@@ -290,7 +290,7 @@ fn voting_builder_native_script_witness() {
     let mut tx_builder = create_rich_tx_builder(false);
     tx_builder.set_voting_builder(&builder);
     tx_builder
-        .add_change_if_needed(&crate_change_address())
+        .add_change_if_needed(&create_change_address())
         .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
@@ -363,7 +363,7 @@ fn voting_builder_native_script_ref_witness() {
     let mut tx_builder = create_rich_tx_builder(false);
     tx_builder.set_voting_builder(&builder);
     tx_builder
-        .add_change_if_needed(&crate_change_address())
+        .add_change_if_needed(&create_change_address())
         .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
