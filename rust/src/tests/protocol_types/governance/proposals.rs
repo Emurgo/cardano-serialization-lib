@@ -58,7 +58,7 @@ fn hard_fork_initiation_proposal_setters_getters_test() {
 fn new_committee_proposal_setters_getters_test() {
     let action_id = create_action_id();
     let committee = Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
-    let members_to_remove = StakeCredentials(
+    let members_to_remove = Credentials(
         vec![
             Credential::from_keyhash(&fake_key_hash(1)),
             Credential::from_keyhash(&fake_key_hash(2)),

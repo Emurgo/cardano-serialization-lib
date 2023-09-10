@@ -31,11 +31,11 @@ impl NewCommitteeProposal {
         self.committee.clone()
     }
 
-    pub fn members_to_remove(&self) -> StakeCredentials {
-        StakeCredentials(self.members_to_remove.iter().cloned().collect())
+    pub fn members_to_remove(&self) -> Credentials {
+        Credentials(self.members_to_remove.iter().cloned().collect())
     }
 
-    pub fn new(committee: &Committee, members_to_remove: &StakeCredentials) -> Self {
+    pub fn new(committee: &Committee, members_to_remove: &Credentials) -> Self {
         let members_to_remove = members_to_remove.0.iter().cloned().collect();
         Self {
             gov_action_id: None,
@@ -47,7 +47,7 @@ impl NewCommitteeProposal {
     pub fn new_with_action_id(
         gov_action_id: &GovernanceActionId,
         committee: &Committee,
-        members_to_remove: &StakeCredentials,
+        members_to_remove: &Credentials,
     ) -> Self {
         let members_to_remove = members_to_remove.0.iter().cloned().collect();
         Self {

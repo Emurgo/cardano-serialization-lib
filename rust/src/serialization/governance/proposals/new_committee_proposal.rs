@@ -16,7 +16,7 @@ impl Serialize for NewCommitteeProposal {
 
         self.gov_action_id.serialize_nullable(serializer)?;
 
-        let members_to_remove = StakeCredentials(self.members_to_remove.iter().cloned().collect());
+        let members_to_remove = Credentials(self.members_to_remove.iter().cloned().collect());
         members_to_remove.serialize(serializer)?;
 
         self.committee.serialize(serializer)?;
@@ -45,7 +45,7 @@ impl DeserializeEmbeddedGroup for NewCommitteeProposal {
             .map_err(|e| e.annotate("gov_action_id"))?;
 
         let members_to_remove =
-            StakeCredentials::deserialize(raw).map_err(|e| e.annotate("members_to_remove"))?;
+            Credentials::deserialize(raw).map_err(|e| e.annotate("members_to_remove"))?;
 
         let committee = Committee::deserialize(raw).map_err(|e| e.annotate("committee"))?;
 

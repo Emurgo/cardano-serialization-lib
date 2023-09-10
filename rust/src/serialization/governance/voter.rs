@@ -27,21 +27,21 @@ impl cbor_event::se::Serialize for VoterEnum {
         serializer.write_array(cbor_event::Len::Len(2))?;
         match &self {
             VoterEnum::ConstitutionalCommitteeHotKey(cred) => match &cred.0 {
-                StakeCredType::Key(key_hash) => {
+                CredType::Key(key_hash) => {
                     serializer.write_unsigned_integer(0u64)?;
                     key_hash.serialize(serializer)?;
                 }
-                StakeCredType::Script(script_hash) => {
+                CredType::Script(script_hash) => {
                     serializer.write_unsigned_integer(1u64)?;
                     script_hash.serialize(serializer)?;
                 }
             },
             VoterEnum::DRep(cred) => match &cred.0 {
-                StakeCredType::Key(key_hash) => {
+                CredType::Key(key_hash) => {
                     serializer.write_unsigned_integer(2u64)?;
                     key_hash.serialize(serializer)?;
                 }
-                StakeCredType::Script(script_hash) => {
+                CredType::Script(script_hash) => {
                     serializer.write_unsigned_integer(3u64)?;
                     script_hash.serialize(serializer)?;
                 }
@@ -70,16 +70,16 @@ impl Deserialize for VoterEnum {
                 }
             }
             let voter = match raw.unsigned_integer()? {
-                0 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(StakeCredType::Key(
+                0 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(CredType::Key(
                     Ed25519KeyHash::deserialize(raw)?,
                 ))),
-                1 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(StakeCredType::Script(
+                1 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(CredType::Script(
                     ScriptHash::deserialize(raw)?,
                 ))),
-                2 => VoterEnum::DRep(Credential(StakeCredType::Key(Ed25519KeyHash::deserialize(
+                2 => VoterEnum::DRep(Credential(CredType::Key(Ed25519KeyHash::deserialize(
                     raw,
                 )?))),
-                3 => VoterEnum::DRep(Credential(StakeCredType::Script(ScriptHash::deserialize(
+                3 => VoterEnum::DRep(Credential(CredType::Script(ScriptHash::deserialize(
                     raw,
                 )?))),
                 4 => VoterEnum::StakingPool(Ed25519KeyHash::deserialize(raw)?),

@@ -58,7 +58,7 @@ fn main() {
     gen_json_schema!(Relay);
     //gen_json_schema!(RelayEnum);
     gen_json_schema!(PoolMetadata);
-    gen_json_schema!(StakeCredentials);
+    gen_json_schema!(Credentials);
     gen_json_schema!(RewardAddresses);
     gen_json_schema!(Withdrawals);
     gen_json_schema!(TransactionWitnessSet);
@@ -123,7 +123,7 @@ fn main() {
     gen_json_schema!(VRFCert);
     // address.rs
     gen_json_schema!(Credential);
-    gen_json_schema!(StakeCredType);
+    gen_json_schema!(CredType);
     gen_json_schema!(Address);
     gen_json_schema!(RewardAddress);
     // plutus.rs

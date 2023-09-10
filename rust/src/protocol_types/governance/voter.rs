@@ -62,12 +62,12 @@ impl Voter {
     pub fn kind(&self) -> VoterKind {
         match &self.0 {
             VoterEnum::ConstitutionalCommitteeHotKey(cred) => match cred.kind() {
-                StakeCredKind::Key => VoterKind::ConstitutionalCommitteeHotKeyHash,
-                StakeCredKind::Script => VoterKind::ConstitutionalCommitteeHotScriptHash,
+                CredKind::Key => VoterKind::ConstitutionalCommitteeHotKeyHash,
+                CredKind::Script => VoterKind::ConstitutionalCommitteeHotScriptHash,
             },
             VoterEnum::DRep(cred) => match cred.kind() {
-                StakeCredKind::Key => VoterKind::DRepKeyHash,
-                StakeCredKind::Script => VoterKind::DRepScriptHash,
+                CredKind::Key => VoterKind::DRepKeyHash,
+                CredKind::Script => VoterKind::DRepScriptHash,
             },
             VoterEnum::StakingPool(_) => VoterKind::StakingPoolKeyHash,
         }
