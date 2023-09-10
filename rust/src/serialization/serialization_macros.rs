@@ -144,7 +144,7 @@ macro_rules! impl_deserialize_for_wrapped_tuple {
                 raw: &mut Deserializer<R>,
             ) -> Result<Self, DeserializeError> {
                 (|| -> Result<_, DeserializeError> {
-                    use crate::serialization::struct_checks::check_len_indefinite;
+                    use crate::serialization::utils::check_len_indefinite;
                     let len = raw.array()?;
 
                     let cert = Self::deserialize_as_embedded_group(raw, len)?;
