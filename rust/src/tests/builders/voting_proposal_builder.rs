@@ -67,7 +67,7 @@ fn voting_proposal_builder_all_proposals() {
     let mut committee =
         Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
     committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
-    let mut members_to_remove = StakeCredentials::new();
+    let mut members_to_remove = Credentials::new();
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
     let committee_proposal = NewCommitteeProposal::new(&committee, &members_to_remove);
     let wrapped_committee_proposal = VotingProposal::new_new_committee_proposal(&committee_proposal);
@@ -165,7 +165,7 @@ fn voting_proposal_builder_with_plutus_script_witness() {
     let mut committee =
         Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
     committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
-    let mut members_to_remove = StakeCredentials::new();
+    let mut members_to_remove = Credentials::new();
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
     let committee_proposal = NewCommitteeProposal::new(&committee, &members_to_remove);
     let wrapped_committee_proposal = VotingProposal::new_new_committee_proposal(&committee_proposal);
@@ -262,7 +262,7 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
     let mut committee =
         Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
     committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
-    let mut members_to_remove = StakeCredentials::new();
+    let mut members_to_remove = Credentials::new();
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
     let committee_proposal = NewCommitteeProposal::new(&committee, &members_to_remove);
     let wrapped_committee_proposal = VotingProposal::new_new_committee_proposal(&committee_proposal);

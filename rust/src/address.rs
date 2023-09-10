@@ -97,7 +97,7 @@ impl NetworkInfo {
     serde::Deserialize,
     JsonSchema,
 )]
-pub enum StakeCredType {
+pub enum CredType {
     Key(Ed25519KeyHash),
     Script(ScriptHash),
 }
@@ -105,7 +105,7 @@ pub enum StakeCredType {
 #[wasm_bindgen]
 #[repr(u8)]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum StakeCredKind {
+pub enum CredKind {
     Key,
     Script,
 }
@@ -123,50 +123,50 @@ pub enum StakeCredKind {
     serde::Deserialize,
     JsonSchema,
 )]
-pub struct Credential(pub(crate) StakeCredType);
+pub struct Credential(pub(crate) CredType);
 
 #[wasm_bindgen]
 impl Credential {
     pub fn from_keyhash(hash: &Ed25519KeyHash) -> Self {
-        Credential(StakeCredType::Key(hash.clone()))
+        Credential(CredType::Key(hash.clone()))
     }
 
     pub fn from_scripthash(hash: &ScriptHash) -> Self {
-        Credential(StakeCredType::Script(hash.clone()))
+        Credential(CredType::Script(hash.clone()))
     }
 
     pub fn to_keyhash(&self) -> Option<Ed25519KeyHash> {
         match &self.0 {
-            StakeCredType::Key(hash) => Some(hash.clone()),
-            StakeCredType::Script(_) => None,
+            CredType::Key(hash) => Some(hash.clone()),
+            CredType::Script(_) => None,
         }
     }
 
     pub fn to_scripthash(&self) -> Option<ScriptHash> {
         match &self.0 {
-            StakeCredType::Key(_) => None,
-            StakeCredType::Script(hash) => Some(hash.clone()),
+            CredType::Key(_) => None,
+            CredType::Script(hash) => Some(hash.clone()),
         }
     }
 
-    pub fn kind(&self) -> StakeCredKind {
+    pub fn kind(&self) -> CredKind {
         match &self.0 {
-            StakeCredType::Key(_) => StakeCredKind::Key,
-            StakeCredType::Script(_) => StakeCredKind::Script,
+            CredType::Key(_) => CredKind::Key,
+            CredType::Script(_) => CredKind::Script,
         }
     }
 
     pub fn has_script_hash(&self) -> bool {
         match &self.0 {
-            StakeCredType::Key(_) => false,
-            StakeCredType::Script(_) => true,
+            CredType::Key(_) => false,
+            CredType::Script(_) => true,
         }
     }
 
     fn to_raw_bytes(&self) -> Vec<u8> {
         match &self.0 {
-            StakeCredType::Key(hash) => hash.to_bytes(),
-            StakeCredType::Script(hash) => hash.to_bytes(),
+            CredType::Key(hash) => hash.to_bytes(),
+            CredType::Script(hash) => hash.to_bytes(),
         }
     }
 }
@@ -180,11 +180,11 @@ impl cbor_event::se::Serialize for Credential {
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
         match &self.0 {
-            StakeCredType::Key(keyhash) => {
+            CredType::Key(keyhash) => {
                 serializer.write_unsigned_integer(0u64)?;
                 serializer.write_bytes(keyhash.to_bytes())
             }
-            StakeCredType::Script(scripthash) => {
+            CredType::Script(scripthash) => {
                 serializer.write_unsigned_integer(1u64)?;
                 serializer.write_bytes(scripthash.to_bytes())
             }
@@ -207,8 +207,8 @@ impl Deserialize for Credential {
                 }
             }
             let cred_type = match raw.unsigned_integer()? {
-                0 => StakeCredType::Key(Ed25519KeyHash::deserialize(raw)?),
-                1 => StakeCredType::Script(ScriptHash::deserialize(raw)?),
+                0 => CredType::Key(Ed25519KeyHash::deserialize(raw)?),
+                1 => CredType::Script(ScriptHash::deserialize(raw)?),
                 n => {
                     return Err(DeserializeFailure::FixedValueMismatch {
                         found: Key::Uint(n),

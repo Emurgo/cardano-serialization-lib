@@ -714,7 +714,7 @@ impl Deserialize for Ed25519KeyHashes {
     }
 }
 
-impl cbor_event::se::Serialize for StakeCredentials {
+impl cbor_event::se::Serialize for Credentials {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
@@ -727,7 +727,7 @@ impl cbor_event::se::Serialize for StakeCredentials {
     }
 }
 
-impl Deserialize for StakeCredentials {
+impl Deserialize for Credentials {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {

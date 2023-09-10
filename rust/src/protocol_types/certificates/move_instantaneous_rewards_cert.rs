@@ -106,8 +106,8 @@ impl MIRToStakeCredentials {
         self.rewards.get(cred).map(|v| v.clone())
     }
 
-    pub fn keys(&self) -> StakeCredentials {
-        StakeCredentials(
+    pub fn keys(&self) -> Credentials {
+        Credentials(
             self.rewards
                 .iter()
                 .map(|(k, _v)| k.clone())

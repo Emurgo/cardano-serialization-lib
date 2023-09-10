@@ -938,12 +938,12 @@ impl PoolMetadata {
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
-pub struct StakeCredentials(Vec<Credential>);
+pub struct Credentials(Vec<Credential>);
 
-impl_to_from!(StakeCredentials);
+impl_to_from!(Credentials);
 
 #[wasm_bindgen]
-impl StakeCredentials {
+impl Credentials {
     pub fn new() -> Self {
         Self(Vec::new())
     }

@@ -55,8 +55,8 @@ impl Committee {
         }
     }
 
-    pub fn members_keys(&self) -> StakeCredentials {
-        StakeCredentials(self.members.keys().cloned().collect())
+    pub fn members_keys(&self) -> Credentials {
+        Credentials(self.members.keys().cloned().collect())
     }
 
     pub fn quorum_threshold(&self) -> UnitInterval {

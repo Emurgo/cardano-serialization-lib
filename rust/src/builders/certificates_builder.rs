@@ -245,47 +245,47 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
         // not witness as there is no single core node or genesis key that posts the certificate
         CertificateEnum::MoveInstantaneousRewardsCert(_cert) => {}
         CertificateEnum::CommitteeHotKeyRegistration(cert) => {
-            if let StakeCredType::Key(key_hash) = &cert.committee_cold_key.0 {
+            if let CredType::Key(key_hash) = &cert.committee_cold_key.0 {
                 set.add(key_hash);
             }
         }
         CertificateEnum::CommitteeHotKeyDeregistration(cert) => {
-            if let StakeCredType::Key(key_hash) = &cert.committee_cold_key.0 {
+            if let CredType::Key(key_hash) = &cert.committee_cold_key.0 {
                 set.add(key_hash);
             }
         }
         CertificateEnum::DrepUpdate(cert) => {
-            if let StakeCredType::Key(key_hash) = &cert.voting_credential.0 {
+            if let CredType::Key(key_hash) = &cert.voting_credential.0 {
                 set.add(key_hash);
             }
         }
         CertificateEnum::DrepDeregistration(cert) => {
-            if let StakeCredType::Key(key_hash) = &cert.voting_credential.0 {
+            if let CredType::Key(key_hash) = &cert.voting_credential.0 {
                 set.add(key_hash);
             }
         }
         CertificateEnum::StakeAndVoteDelegation(cert) => {
-            if let StakeCredType::Key(key_hash) = &cert.stake_credential.0 {
+            if let CredType::Key(key_hash) = &cert.stake_credential.0 {
                 set.add(key_hash);
             }
         }
         CertificateEnum::VoteDelegation(cert) => {
-            if let StakeCredType::Key(key_hash) = &cert.stake_credential.0 {
+            if let CredType::Key(key_hash) = &cert.stake_credential.0 {
                 set.add(key_hash);
             }
         }
         CertificateEnum::StakeRegistrationAndDelegation(cert) => {
-            if let StakeCredType::Key(key_hash) = &cert.stake_credential.0 {
+            if let CredType::Key(key_hash) = &cert.stake_credential.0 {
                 set.add(key_hash);
             }
         }
         CertificateEnum::VoteRegistrationAndDelegation(cert) => {
-            if let StakeCredType::Key(key_hash) = &cert.stake_credential.0 {
+            if let CredType::Key(key_hash) = &cert.stake_credential.0 {
                 set.add(key_hash);
             }
         }
         CertificateEnum::StakeVoteRegistrationAndDelegation(cert) => {
-            if let StakeCredType::Key(key_hash) = &cert.stake_credential.0 {
+            if let CredType::Key(key_hash) = &cert.stake_credential.0 {
                 set.add(key_hash);
             }
         }
