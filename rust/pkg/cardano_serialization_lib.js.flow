@@ -284,7 +284,7 @@ declare export var CborContainerType: {|
 /**
  */
 
-declare export var StakeCredKind: {|
+declare export var CredKind: {|
   +Key: 0, // 0
   +Script: 1, // 1
 |};
@@ -2193,9 +2193,9 @@ declare export class Committee {
   static new(quorum_threshold: UnitInterval): Committee;
 
   /**
-   * @returns {StakeCredentials}
+   * @returns {Credentials}
    */
-  members_keys(): StakeCredentials;
+  members_keys(): Credentials;
 
   /**
    * @returns {UnitInterval}
@@ -2675,6 +2675,70 @@ declare export class Credential {
    * @returns {Credential}
    */
   static from_json(json: string): Credential;
+}
+/**
+ */
+declare export class Credentials {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Credentials}
+   */
+  static from_bytes(bytes: Uint8Array): Credentials;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {Credentials}
+   */
+  static from_hex(hex_str: string): Credentials;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {CredentialsJSON}
+   */
+  to_js_value(): CredentialsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {Credentials}
+   */
+  static from_json(json: string): Credentials;
+
+  /**
+   * @returns {Credentials}
+   */
+  static new(): Credentials;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {Credential}
+   */
+  get(index: number): Credential;
+
+  /**
+   * @param {Credential} elem
+   */
+  add(elem: Credential): void;
 }
 /**
  */
@@ -4993,9 +5057,9 @@ declare export class MIRToStakeCredentials {
   get(cred: Credential): Int | void;
 
   /**
-   * @returns {StakeCredentials}
+   * @returns {Credentials}
    */
-  keys(): StakeCredentials;
+  keys(): Credentials;
 }
 /**
  */
@@ -5993,30 +6057,30 @@ declare export class NewCommitteeProposal {
   committee(): Committee;
 
   /**
-   * @returns {StakeCredentials}
+   * @returns {Credentials}
    */
-  members_to_remove(): StakeCredentials;
+  members_to_remove(): Credentials;
 
   /**
    * @param {Committee} committee
-   * @param {StakeCredentials} members_to_remove
+   * @param {Credentials} members_to_remove
    * @returns {NewCommitteeProposal}
    */
   static new(
     committee: Committee,
-    members_to_remove: StakeCredentials
+    members_to_remove: Credentials
   ): NewCommitteeProposal;
 
   /**
    * @param {GovernanceActionId} gov_action_id
    * @param {Committee} committee
-   * @param {StakeCredentials} members_to_remove
+   * @param {Credentials} members_to_remove
    * @returns {NewCommitteeProposal}
    */
   static new_with_action_id(
     gov_action_id: GovernanceActionId,
     committee: Committee,
-    members_to_remove: StakeCredentials
+    members_to_remove: Credentials
   ): NewCommitteeProposal;
 }
 /**
@@ -7747,6 +7811,8 @@ declare export class ProtocolParamUpdate {
   extra_entropy(): Nonce | void;
 
   /**
+   * !!! DEPRECATED !!!
+   * Since conway era this param is outdated. But this param you can meet in a pre-conway block.
    * @param {ProtocolVersion} protocol_version
    */
   set_protocol_version(protocol_version: ProtocolVersion): void;
@@ -9178,70 +9244,6 @@ declare export class StakeAndVoteDelegation {
    * @returns {boolean}
    */
   has_script_credentials(): boolean;
-}
-/**
- */
-declare export class StakeCredentials {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {StakeCredentials}
-   */
-  static from_bytes(bytes: Uint8Array): StakeCredentials;
-
-  /**
-   * @returns {string}
-   */
-  to_hex(): string;
-
-  /**
-   * @param {string} hex_str
-   * @returns {StakeCredentials}
-   */
-  static from_hex(hex_str: string): StakeCredentials;
-
-  /**
-   * @returns {string}
-   */
-  to_json(): string;
-
-  /**
-   * @returns {StakeCredentialsJSON}
-   */
-  to_js_value(): StakeCredentialsJSON;
-
-  /**
-   * @param {string} json
-   * @returns {StakeCredentials}
-   */
-  static from_json(json: string): StakeCredentials;
-
-  /**
-   * @returns {StakeCredentials}
-   */
-  static new(): StakeCredentials;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {number} index
-   * @returns {Credential}
-   */
-  get(index: number): Credential;
-
-  /**
-   * @param {Credential} elem
-   */
-  add(elem: Credential): void;
 }
 /**
  */
@@ -13728,11 +13730,11 @@ export interface CommitteeJSON {
   quorum_threshold: UnitIntervalJSON;
 }
 export interface CommitteeHotKeyDeregistrationJSON {
-  committee_cold_key: CredentialJSON;
+  committee_cold_key: CredTypeJSON;
 }
 export interface CommitteeHotKeyRegistrationJSON {
-  committee_cold_key: CredentialJSON;
-  committee_hot_key: CredentialJSON;
+  committee_cold_key: CredTypeJSON;
+  committee_hot_key: CredTypeJSON;
 }
 export interface ConstitutionJSON {
   anchor: AnchorJSON;
@@ -13742,8 +13744,7 @@ export type CostModelJSON = string[];
 export interface CostmdlsJSON {
   [k: string]: CostModelJSON;
 }
-export type CredentialJSON = StakeCredTypeJSON;
-export type StakeCredTypeJSON =
+export type CredTypeJSON =
   | {
       Key: string,
       ...
@@ -13752,6 +13753,8 @@ export type StakeCredTypeJSON =
       Script: string,
       ...
     };
+export type CredentialJSON = CredTypeJSON;
+export type CredentialsJSON = CredTypeJSON[];
 export type DNSRecordAorAAAAJSON = string;
 export type DNSRecordSRVJSON = string;
 export type DRepJSON = DRepEnumJSON;
@@ -13777,16 +13780,16 @@ export type DataOptionJSON =
     };
 export interface DrepDeregistrationJSON {
   coin: string;
-  voting_credential: CredentialJSON;
+  voting_credential: CredTypeJSON;
 }
 export interface DrepRegistrationJSON {
   anchor?: AnchorJSON | null;
   coin: string;
-  voting_credential: CredentialJSON;
+  voting_credential: CredTypeJSON;
 }
 export interface DrepUpdateJSON {
   anchor?: AnchorJSON | null;
-  voting_credential: CredentialJSON;
+  voting_credential: CredTypeJSON;
 }
 export interface DrepVotingThresholdsJSON {
   committee_no_confidence: UnitIntervalJSON;
@@ -13939,7 +13942,7 @@ export type NetworkIdKindJSON = "Testnet" | "Mainnet";
 export interface NewCommitteeProposalJSON {
   committee: CommitteeJSON;
   gov_action_id?: GovernanceActionIdJSON | null;
-  members_to_remove: CredentialJSON[];
+  members_to_remove: CredTypeJSON[];
 }
 export interface NewConstitutionProposalJSON {
   constitution: ConstitutionJSON;
@@ -14139,31 +14142,40 @@ export interface SingleHostNameJSON {
 export interface StakeAndVoteDelegationJSON {
   drep: DRepJSON;
   pool_keyhash: string;
-  stake_credential: CredentialJSON;
+  stake_credential: CredTypeJSON;
 }
+export type StakeCredTypeJSON =
+  | {
+      Key: string,
+      ...
+    }
+  | {
+      Script: string,
+      ...
+    };
 export type StakeCredentialsJSON = CredentialJSON[];
 export interface StakeDelegationJSON {
   pool_keyhash: string;
-  stake_credential: CredentialJSON;
+  stake_credential: CredTypeJSON;
 }
 export interface StakeDeregistrationJSON {
   coin?: string | null;
-  stake_credential: CredentialJSON;
+  stake_credential: CredTypeJSON;
 }
 export interface StakeRegistrationJSON {
   coin?: string | null;
-  stake_credential: CredentialJSON;
+  stake_credential: CredTypeJSON;
 }
 export interface StakeRegistrationAndDelegationJSON {
   coin: string;
   pool_keyhash: string;
-  stake_credential: CredentialJSON;
+  stake_credential: CredTypeJSON;
 }
 export interface StakeVoteRegistrationAndDelegationJSON {
   coin: string;
   drep: DRepJSON;
   pool_keyhash: string;
-  stake_credential: CredentialJSON;
+  stake_credential: CredTypeJSON;
 }
 export interface TimelockExpiryJSON {
   slot: string;
@@ -14266,21 +14278,21 @@ export interface VkeywitnessJSON {
 export type VkeywitnessesJSON = VkeywitnessJSON[];
 export interface VoteDelegationJSON {
   drep: DRepJSON;
-  stake_credential: CredentialJSON;
+  stake_credential: CredTypeJSON;
 }
 export interface VoteRegistrationAndDelegationJSON {
   coin: string;
   drep: DRepJSON;
-  stake_credential: CredentialJSON;
+  stake_credential: CredTypeJSON;
 }
 export type VoterJSON = VoterEnumJSON;
 export type VoterEnumJSON =
   | {
-      ConstitutionalCommitteeHotKey: CredentialJSON,
+      ConstitutionalCommitteeHotKey: CredTypeJSON,
       ...
     }
   | {
-      DRepJSON: CredentialJSON,
+      DRepJSON: CredTypeJSON,
       ...
     }
   | {
