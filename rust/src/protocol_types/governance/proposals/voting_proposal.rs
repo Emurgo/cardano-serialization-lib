@@ -17,7 +17,7 @@ pub(crate) enum VotingProposalEnum {
     HardForkInitiationProposal(HardForkInitiationProposal),
     TreasuryWithdrawalsProposal(TreasuryWithdrawalsProposal),
     NoConfidenceProposal(NoConfidenceProposal),
-    NewCommitteeProposal(NewCommitteeProposal),
+    UpdateCommitteeProposal(UpdateCommitteeProposal),
     NewConstitutionProposal(NewConstitutionProposal),
     InfoProposal(InfoProposal),
 }
@@ -40,7 +40,7 @@ pub enum VotingProposalKind {
     HardForkInitiationProposal = 1,
     TreasuryWithdrawalsProposal = 2,
     NoConfidenceProposal = 3,
-    NewCommitteeProposal = 4,
+    UpdateCommitteeProposal = 4,
     NewConstitutionProposal = 5,
     InfoProposal = 6,
 }
@@ -94,8 +94,8 @@ impl VotingProposal {
         ))
     }
 
-    pub fn new_new_committee_proposal(new_committee_proposal: &NewCommitteeProposal) -> Self {
-        Self(VotingProposalEnum::NewCommitteeProposal(
+    pub fn new_new_committee_proposal(new_committee_proposal: &UpdateCommitteeProposal) -> Self {
+        Self(VotingProposalEnum::UpdateCommitteeProposal(
             new_committee_proposal.clone(),
         ))
     }
@@ -124,7 +124,7 @@ impl VotingProposal {
                 VotingProposalKind::TreasuryWithdrawalsProposal
             }
             VotingProposalEnum::NoConfidenceProposal(_) => VotingProposalKind::NoConfidenceProposal,
-            VotingProposalEnum::NewCommitteeProposal(_) => VotingProposalKind::NewCommitteeProposal,
+            VotingProposalEnum::UpdateCommitteeProposal(_) => VotingProposalKind::UpdateCommitteeProposal,
             VotingProposalEnum::NewConstitutionProposal(_) => {
                 VotingProposalKind::NewConstitutionProposal
             }
@@ -160,9 +160,9 @@ impl VotingProposal {
         }
     }
 
-    pub fn as_new_committee_proposal(&self) -> Option<NewCommitteeProposal> {
+    pub fn as_new_committee_proposal(&self) -> Option<UpdateCommitteeProposal> {
         match &self.0 {
-            VotingProposalEnum::NewCommitteeProposal(p) => Some(p.clone()),
+            VotingProposalEnum::UpdateCommitteeProposal(p) => Some(p.clone()),
             _ => None,
         }
     }

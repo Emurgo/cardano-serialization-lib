@@ -14,7 +14,7 @@ impl Serialize for VotingProposal {
             VotingProposalEnum::HardForkInitiationProposal(x) => x.serialize(serializer),
             VotingProposalEnum::TreasuryWithdrawalsProposal(x) => x.serialize(serializer),
             VotingProposalEnum::NoConfidenceProposal(x) => x.serialize(serializer),
-            VotingProposalEnum::NewCommitteeProposal(x) => x.serialize(serializer),
+            VotingProposalEnum::UpdateCommitteeProposal(x) => x.serialize(serializer),
             VotingProposalEnum::NewConstitutionProposal(x) => x.serialize(serializer),
             VotingProposalEnum::InfoProposal(_) => {
                 let index = VotingProposalIndexNames::InfoAction.to_u64();
@@ -88,9 +88,9 @@ impl DeserializeEmbeddedGroup for VotingProposal {
                     NoConfidenceProposal::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            VotingProposalIndexNames::NewCommitteeAction => {
-                Ok(VotingProposalEnum::NewCommitteeProposal(
-                    NewCommitteeProposal::deserialize_as_embedded_group(raw, len)?,
+            VotingProposalIndexNames::UpdateCommitteeAction => {
+                Ok(VotingProposalEnum::UpdateCommitteeProposal(
+                    UpdateCommitteeProposal::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
             VotingProposalIndexNames::NewConstitutionAction => {

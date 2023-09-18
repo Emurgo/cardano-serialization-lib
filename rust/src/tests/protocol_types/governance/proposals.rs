@@ -67,9 +67,9 @@ fn new_committee_proposal_setters_getters_test() {
         .collect(),
     );
 
-    let proposal = NewCommitteeProposal::new(&committee, &members_to_remove);
+    let proposal = UpdateCommitteeProposal::new(&committee, &members_to_remove);
     let proposal_with_action_id =
-        NewCommitteeProposal::new_with_action_id(&action_id, &committee, &members_to_remove);
+        UpdateCommitteeProposal::new_with_action_id(&action_id, &committee, &members_to_remove);
     assert_eq!(proposal.gov_action_id(), None);
     assert_eq!(proposal.committee(), committee);
     assert_eq!(proposal.members_to_remove(), members_to_remove);

@@ -178,7 +178,7 @@ fn main() {
     gen_json_schema!(VotingProposal);
     gen_json_schema!(VotingProposals);
     gen_json_schema!(HardForkInitiationProposal);
-    gen_json_schema!(NewCommitteeProposal);
+    gen_json_schema!(UpdateCommitteeProposal);
     gen_json_schema!(NewConstitutionProposal);
     gen_json_schema!(NoConfidenceProposal);
     gen_json_schema!(ParameterChangeProposal);
