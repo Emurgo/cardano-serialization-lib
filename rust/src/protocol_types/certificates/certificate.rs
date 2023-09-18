@@ -10,8 +10,8 @@ pub enum CertificateKind {
     PoolRetirement,
     GenesisKeyDelegation,
     MoveInstantaneousRewardsCert,
-    CommitteeHotKeyRegistration,
-    CommitteeHotKeyDeregistration,
+    CommitteeHotAuth,
+    CommitteeColdResign,
     DrepDeregistration,
     DrepRegistration,
     DrepUpdate,
@@ -42,8 +42,8 @@ pub enum CertificateEnum {
     PoolRetirement(PoolRetirement),
     GenesisKeyDelegation(GenesisKeyDelegation),
     MoveInstantaneousRewardsCert(MoveInstantaneousRewardsCert),
-    CommitteeHotKeyRegistration(CommitteeHotKeyRegistration),
-    CommitteeHotKeyDeregistration(CommitteeHotKeyDeregistration),
+    CommitteeHotAuth(CommitteeHotAuth),
+    CommitteeColdResign(CommitteeColdResign),
     DrepDeregistration(DrepDeregistration),
     DrepRegistration(DrepRegistration),
     DrepUpdate(DrepUpdate),
@@ -112,17 +112,17 @@ impl Certificate {
     }
 
     pub fn new_committee_hot_key_registration(
-        committee_hot_key_registration: &CommitteeHotKeyRegistration,
+        committee_hot_key_registration: &CommitteeHotAuth,
     ) -> Self {
-        Self(CertificateEnum::CommitteeHotKeyRegistration(
+        Self(CertificateEnum::CommitteeHotAuth(
             committee_hot_key_registration.clone(),
         ))
     }
 
     pub fn new_committee_hot_key_deregistration(
-        committee_hot_key_deregistration: &CommitteeHotKeyDeregistration,
+        committee_hot_key_deregistration: &CommitteeColdResign,
     ) -> Self {
-        Self(CertificateEnum::CommitteeHotKeyDeregistration(
+        Self(CertificateEnum::CommitteeColdResign(
             committee_hot_key_deregistration.clone(),
         ))
     }
@@ -188,11 +188,11 @@ impl Certificate {
             CertificateEnum::MoveInstantaneousRewardsCert(_) => {
                 CertificateKind::MoveInstantaneousRewardsCert
             }
-            CertificateEnum::CommitteeHotKeyRegistration(_) => {
-                CertificateKind::CommitteeHotKeyRegistration
+            CertificateEnum::CommitteeHotAuth(_) => {
+                CertificateKind::CommitteeHotAuth
             }
-            CertificateEnum::CommitteeHotKeyDeregistration(_) => {
-                CertificateKind::CommitteeHotKeyDeregistration
+            CertificateEnum::CommitteeColdResign(_) => {
+                CertificateKind::CommitteeColdResign
             }
             CertificateEnum::DrepDeregistration(_) => CertificateKind::DrepDeregistration,
             CertificateEnum::DrepRegistration(_) => CertificateKind::DrepRegistration,
@@ -260,16 +260,16 @@ impl Certificate {
         }
     }
 
-    pub fn as_committee_hot_key_registration(&self) -> Option<CommitteeHotKeyRegistration> {
+    pub fn as_committee_hot_key_registration(&self) -> Option<CommitteeHotAuth> {
         match &self.0 {
-            CertificateEnum::CommitteeHotKeyRegistration(x) => Some(x.clone()),
+            CertificateEnum::CommitteeHotAuth(x) => Some(x.clone()),
             _ => None,
         }
     }
 
-    pub fn as_committee_hot_key_deregistration(&self) -> Option<CommitteeHotKeyDeregistration> {
+    pub fn as_committee_hot_key_deregistration(&self) -> Option<CommitteeColdResign> {
         match &self.0 {
-            CertificateEnum::CommitteeHotKeyDeregistration(x) => Some(x.clone()),
+            CertificateEnum::CommitteeColdResign(x) => Some(x.clone()),
             _ => None,
         }
     }
@@ -341,8 +341,8 @@ impl Certificate {
             CertificateEnum::StakeRegistrationAndDelegation(x) => x.has_script_credentials(),
             CertificateEnum::StakeVoteRegistrationAndDelegation(x) => x.has_script_credentials(),
             CertificateEnum::VoteRegistrationAndDelegation(x) => x.has_script_credentials(),
-            CertificateEnum::CommitteeHotKeyRegistration(x) => x.has_script_credentials(),
-            CertificateEnum::CommitteeHotKeyDeregistration(x) => x.has_script_credentials(),
+            CertificateEnum::CommitteeHotAuth(x) => x.has_script_credentials(),
+            CertificateEnum::CommitteeColdResign(x) => x.has_script_credentials(),
             CertificateEnum::DrepDeregistration(x) => x.has_script_credentials(),
             CertificateEnum::DrepUpdate(x) => x.has_script_credentials(),
             _ => false,

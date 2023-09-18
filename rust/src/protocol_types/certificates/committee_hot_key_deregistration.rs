@@ -13,14 +13,14 @@ use crate::*;
     JsonSchema,
 )]
 #[wasm_bindgen]
-pub struct CommitteeHotKeyDeregistration {
+pub struct CommitteeColdResign {
     pub(crate) committee_cold_key: Credential,
 }
 
-impl_to_from!(CommitteeHotKeyDeregistration);
+impl_to_from!(CommitteeColdResign);
 
 #[wasm_bindgen]
-impl CommitteeHotKeyDeregistration {
+impl CommitteeColdResign {
     pub fn committee_cold_key(&self) -> Credential {
         self.committee_cold_key.clone()
     }

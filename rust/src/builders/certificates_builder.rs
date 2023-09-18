@@ -244,12 +244,12 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
         }
         // not witness as there is no single core node or genesis key that posts the certificate
         CertificateEnum::MoveInstantaneousRewardsCert(_cert) => {}
-        CertificateEnum::CommitteeHotKeyRegistration(cert) => {
+        CertificateEnum::CommitteeHotAuth(cert) => {
             if let CredType::Key(key_hash) = &cert.committee_cold_key.0 {
                 set.add(key_hash);
             }
         }
-        CertificateEnum::CommitteeHotKeyDeregistration(cert) => {
+        CertificateEnum::CommitteeColdResign(cert) => {
             if let CredType::Key(key_hash) = &cert.committee_cold_key.0 {
                 set.add(key_hash);
             }

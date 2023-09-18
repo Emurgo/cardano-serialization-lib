@@ -9,9 +9,9 @@ use crate::*;
 fn committee_hot_key_deregistration_setters_getters_test() {
     let cred_key_hash = Credential::from_keyhash(&fake_key_hash(1));
     let cred_script_hash = Credential::from_scripthash(&fake_script_hash(2));
-    let committee_hot_key_deregistration_1 = CommitteeHotKeyDeregistration::new(&cred_key_hash);
+    let committee_hot_key_deregistration_1 = CommitteeColdResign::new(&cred_key_hash);
 
-    let committee_hot_key_deregistration_2 = CommitteeHotKeyDeregistration::new(&cred_script_hash);
+    let committee_hot_key_deregistration_2 = CommitteeColdResign::new(&cred_script_hash);
 
     assert_eq!(
         committee_hot_key_deregistration_1.committee_cold_key(),
@@ -30,7 +30,7 @@ fn committee_hot_key_registration_setters_getters_test() {
     let cold_cred_key_hash = Credential::from_keyhash(&fake_key_hash(1));
     let hot_cred_key_hash = Credential::from_keyhash(&fake_key_hash(1));
     let committee_hot_key_registration =
-        CommitteeHotKeyRegistration::new(&cold_cred_key_hash, &hot_cred_key_hash);
+        CommitteeHotAuth::new(&cold_cred_key_hash, &hot_cred_key_hash);
 
     assert_eq!(
         committee_hot_key_registration.committee_cold_key(),
