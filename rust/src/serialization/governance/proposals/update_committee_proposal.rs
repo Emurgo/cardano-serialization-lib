@@ -34,8 +34,8 @@ impl DeserializeEmbeddedGroup for UpdateCommitteeProposal {
     ) -> Result<Self, DeserializeError> {
         check_len(
             len,
-            4,
-            "(proposal_index, gov_action_id / null, set<$committee_cold_credential>, committee)",
+            5,
+            "(proposal_index, gov_action_id / null, set<$committee_cold_credential>, { committee_cold_credential => epoch }, unit_interval)",
         )?;
 
         let desired_index = VotingProposalIndexNames::UpdateCommitteeAction.to_u64();
@@ -47,7 +47,8 @@ impl DeserializeEmbeddedGroup for UpdateCommitteeProposal {
         let members_to_remove =
             Credentials::deserialize(raw).map_err(|e| e.annotate("members_to_remove"))?;
 
-        let committee = Committee::deserialize(raw).map_err(|e| e.annotate("committee"))?;
+        let committee = Committee::deserialize_as_embedded_group(raw, cbor_event::Len::Len(2))
+            .map_err(|e| e.annotate("committee"))?;
 
         return Ok(UpdateCommitteeProposal {
             gov_action_id,

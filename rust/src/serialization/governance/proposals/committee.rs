@@ -8,12 +8,19 @@ impl Serialize for Committee {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
-        self.quorum_threshold.serialize(serializer)?;
+        self.serialize_as_embedded_group(serializer)?;
+        Ok(serializer)
+    }
+}
+
+impl SerializeEmbeddedGroup for Committee {
+    fn serialize_as_embedded_group<'a, W: Write + Sized>(&self, serializer: &'a mut Serializer<W>) -> cbor_event::Result<&'a mut Serializer<W>> {
         serializer.write_map(cbor_event::Len::Len(self.members.len() as u64))?;
         for (key, value) in &self.members {
             key.serialize(serializer)?;
             value.serialize(serializer)?;
         }
+        self.quorum_threshold.serialize(serializer)?;
         Ok(serializer)
     }
 }
@@ -25,7 +32,7 @@ impl DeserializeEmbeddedGroup for Committee {
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-        check_len(len, 2, "(quorum_threshold, members)")?;
+        check_len(len, 2, "(members, quorum_threshold)")?;
         let quorum_threshold = UnitInterval::deserialize(raw)?;
 
         let mut table = BTreeMap::new();
