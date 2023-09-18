@@ -33,7 +33,6 @@ impl DeserializeEmbeddedGroup for Committee {
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
         check_len(len, 2, "(members, quorum_threshold)")?;
-        let quorum_threshold = UnitInterval::deserialize(raw)?;
 
         let mut table = BTreeMap::new();
         let map_len = raw.map()?;
@@ -54,6 +53,8 @@ impl DeserializeEmbeddedGroup for Committee {
                 .into());
             }
         }
+        let quorum_threshold = UnitInterval::deserialize(raw)?;
+
         Ok(Committee {
             quorum_threshold,
             members: table,

@@ -9,7 +9,7 @@ impl Serialize for UpdateCommitteeProposal {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(4))?;
+        serializer.write_array(cbor_event::Len::Len(5))?;
 
         let proposal_index = VotingProposalIndexNames::UpdateCommitteeAction.to_u64();
         serialize_and_check_index(serializer, proposal_index, "UpdateCommitteeAction")?;
@@ -19,7 +19,7 @@ impl Serialize for UpdateCommitteeProposal {
         let members_to_remove = Credentials(self.members_to_remove.iter().cloned().collect());
         members_to_remove.serialize(serializer)?;
 
-        self.committee.serialize(serializer)?;
+        self.committee.serialize_as_embedded_group(serializer)?;
 
         Ok(serializer)
     }
