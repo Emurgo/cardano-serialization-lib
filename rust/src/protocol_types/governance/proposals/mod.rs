@@ -16,8 +16,8 @@ pub use no_confidence_proposal::*;
 mod committee;
 pub use committee::*;
 
-mod new_committee_proposal;
-pub use new_committee_proposal::*;
+mod update_committee_proposal;
+pub use update_committee_proposal::*;
 
 mod constitution;
 pub use constitution::*;

@@ -16,8 +16,8 @@ impl cbor_event::se::Serialize for CertificateEnum {
             CertificateEnum::PoolRetirement(x) => x.serialize(serializer),
             CertificateEnum::GenesisKeyDelegation(x) => x.serialize(serializer),
             CertificateEnum::MoveInstantaneousRewardsCert(x) => x.serialize(serializer),
-            CertificateEnum::CommitteeHotKeyRegistration(x) => x.serialize(serializer),
-            CertificateEnum::CommitteeHotKeyDeregistration(x) => x.serialize(serializer),
+            CertificateEnum::CommitteeHotAuth(x) => x.serialize(serializer),
+            CertificateEnum::CommitteeColdResign(x) => x.serialize(serializer),
             CertificateEnum::DrepRegistration(x) => x.serialize(serializer),
             CertificateEnum::DrepDeregistration(x) => x.serialize(serializer),
             CertificateEnum::DrepUpdate(x) => x.serialize(serializer),
@@ -109,14 +109,14 @@ impl DeserializeEmbeddedGroup for CertificateEnum {
                     MoveInstantaneousRewardsCert::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            CertificateIndexNames::CommitteeHotKeyRegistration => {
-                Ok(CertificateEnum::CommitteeHotKeyRegistration(
-                    CommitteeHotKeyRegistration::deserialize_as_embedded_group(raw, len)?,
+            CertificateIndexNames::CommitteeHotAuth => {
+                Ok(CertificateEnum::CommitteeHotAuth(
+                    CommitteeHotAuth::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            CertificateIndexNames::CommitteeHotKeyDeregistration => {
-                Ok(CertificateEnum::CommitteeHotKeyDeregistration(
-                    CommitteeHotKeyDeregistration::deserialize_as_embedded_group(raw, len)?,
+            CertificateIndexNames::CommitteeColdResign => {
+                Ok(CertificateEnum::CommitteeColdResign(
+                    CommitteeColdResign::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
             CertificateIndexNames::DrepRegistration => Ok(CertificateEnum::DrepRegistration(

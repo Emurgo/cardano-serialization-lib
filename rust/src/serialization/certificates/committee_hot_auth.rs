@@ -5,15 +5,15 @@ use crate::serialization::utils::{
 use crate::*;
 use num_traits::ToPrimitive;
 
-impl cbor_event::se::Serialize for CommitteeHotKeyRegistration {
+impl cbor_event::se::Serialize for CommitteeHotAuth {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(3))?;
 
-        let proposal_index = CertificateIndexNames::CommitteeHotKeyRegistration.to_u64();
-        serialize_and_check_index(serializer, proposal_index, "CommitteeHotKeyRegistration")?;
+        let proposal_index = CertificateIndexNames::CommitteeHotAuth.to_u64();
+        serialize_and_check_index(serializer, proposal_index, "CommitteeHotAuth")?;
 
         self.committee_cold_key.serialize(serializer)?;
         self.committee_hot_key.serialize(serializer)?;
@@ -21,9 +21,9 @@ impl cbor_event::se::Serialize for CommitteeHotKeyRegistration {
     }
 }
 
-impl_deserialize_for_wrapped_tuple!(CommitteeHotKeyRegistration);
+impl_deserialize_for_wrapped_tuple!(CommitteeHotAuth);
 
-impl DeserializeEmbeddedGroup for CommitteeHotKeyRegistration {
+impl DeserializeEmbeddedGroup for CommitteeHotAuth {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
@@ -34,7 +34,7 @@ impl DeserializeEmbeddedGroup for CommitteeHotKeyRegistration {
             "(cert_index, committee_cold_key, committee_hot_key)",
         )?;
 
-        let cert_index = CertificateIndexNames::CommitteeHotKeyRegistration.to_u64();
+        let cert_index = CertificateIndexNames::CommitteeHotAuth.to_u64();
         deserialize_and_check_index(raw, cert_index, "cert_index")?;
 
         let committee_cold_key =
@@ -43,7 +43,7 @@ impl DeserializeEmbeddedGroup for CommitteeHotKeyRegistration {
         let committee_hot_key =
             Credential::deserialize(raw).map_err(|e| e.annotate("committee_hot_key"))?;
 
-        return Ok(CommitteeHotKeyRegistration {
+        return Ok(CommitteeHotAuth {
             committee_cold_key,
             committee_hot_key,
         });

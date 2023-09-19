@@ -13,16 +13,16 @@ use crate::*;
     JsonSchema,
 )]
 #[wasm_bindgen]
-pub struct NewCommitteeProposal {
+pub struct UpdateCommitteeProposal {
     pub(crate) gov_action_id: Option<GovernanceActionId>,
     pub(crate) committee: Committee,
     pub(crate) members_to_remove: BTreeSet<Credential>,
 }
 
-impl_to_from!(NewCommitteeProposal);
+impl_to_from!(UpdateCommitteeProposal);
 
 #[wasm_bindgen]
-impl NewCommitteeProposal {
+impl UpdateCommitteeProposal {
     pub fn gov_action_id(&self) -> Option<GovernanceActionId> {
         self.gov_action_id.clone()
     }

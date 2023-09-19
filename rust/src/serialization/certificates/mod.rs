@@ -1,7 +1,7 @@
 mod certificate;
 mod certificates_collection;
-mod committee_hot_key_deregistration;
-mod committee_hot_key_registration;
+mod committee_cold_resign;
+mod committee_hot_auth;
 mod drep_deregistration;
 mod drep_registration;
 mod drep_update;

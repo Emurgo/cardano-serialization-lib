@@ -138,11 +138,11 @@ fn new_committee_proposal_ser_round_trip() {
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
     members_to_remove.add(&Credential::from_scripthash(&fake_script_hash(2)));
 
-    let proposal = NewCommitteeProposal::new(&committee, &members_to_remove);
+    let proposal = UpdateCommitteeProposal::new(&committee, &members_to_remove);
 
     let proposal_wrapped = VotingProposal::new_new_committee_proposal(&proposal);
 
-    to_from_test!(NewCommitteeProposal, proposal, proposal_wrapped);
+    to_from_test!(UpdateCommitteeProposal, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
         proposal_wrapped.as_new_committee_proposal().unwrap()
@@ -162,11 +162,11 @@ fn new_committee_proposal_with_action_id_ser_round_trip() {
     members_to_remove.add(&Credential::from_scripthash(&fake_script_hash(2)));
 
     let proposal =
-        NewCommitteeProposal::new_with_action_id(&action_id, &committee, &members_to_remove);
+        UpdateCommitteeProposal::new_with_action_id(&action_id, &committee, &members_to_remove);
 
     let proposal_wrapped = VotingProposal::new_new_committee_proposal(&proposal);
 
-    to_from_test!(NewCommitteeProposal, proposal, proposal_wrapped);
+    to_from_test!(UpdateCommitteeProposal, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
         proposal_wrapped.as_new_committee_proposal().unwrap()
@@ -177,11 +177,11 @@ fn new_committee_proposal_with_action_id_ser_round_trip() {
 fn new_committee_proposal_with_empty_ser_round_trip() {
     let committee = Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
     let members_to_remove = Credentials::new();
-    let proposal = NewCommitteeProposal::new(&committee, &members_to_remove);
+    let proposal = UpdateCommitteeProposal::new(&committee, &members_to_remove);
 
     let proposal_wrapped = VotingProposal::new_new_committee_proposal(&proposal);
 
-    to_from_test!(NewCommitteeProposal, proposal, proposal_wrapped);
+    to_from_test!(UpdateCommitteeProposal, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
         proposal_wrapped.as_new_committee_proposal().unwrap()

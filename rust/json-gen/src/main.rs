@@ -162,8 +162,8 @@ fn main() {
     gen_json_schema!(GovernanceActionId);
     gen_json_schema!(VotingProcedure);
     gen_json_schema!(VotingProcedures);
-    gen_json_schema!(CommitteeHotKeyDeregistration);
-    gen_json_schema!(CommitteeHotKeyRegistration);
+    gen_json_schema!(CommitteeHotAuth);
+    gen_json_schema!(CommitteeColdResign);
     gen_json_schema!(DrepDeregistration);
     gen_json_schema!(DrepRegistration);
     gen_json_schema!(DrepUpdate);
@@ -176,7 +176,7 @@ fn main() {
     gen_json_schema!(VotingProposal);
     gen_json_schema!(VotingProposals);
     gen_json_schema!(HardForkInitiationProposal);
-    gen_json_schema!(NewCommitteeProposal);
+    gen_json_schema!(UpdateCommitteeProposal);
     gen_json_schema!(NewConstitutionProposal);
     gen_json_schema!(NoConfidenceProposal);
     gen_json_schema!(ParameterChangeProposal);

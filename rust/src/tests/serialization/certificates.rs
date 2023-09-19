@@ -35,9 +35,9 @@ macro_rules! to_from_test {
 
 #[test]
 fn committee_hot_key_deregistration_key_hash_ser_round_trip() {
-    let cert = CommitteeHotKeyDeregistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
+    let cert = CommitteeColdResign::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let cert_wrapped = Certificate::new_committee_hot_key_deregistration(&cert);
-    to_from_test!(CommitteeHotKeyDeregistration, cert, cert_wrapped);
+    to_from_test!(CommitteeColdResign, cert, cert_wrapped);
     assert_eq!(
         cert,
         cert_wrapped.as_committee_hot_key_deregistration().unwrap()
@@ -47,9 +47,9 @@ fn committee_hot_key_deregistration_key_hash_ser_round_trip() {
 #[test]
 fn committee_hot_key_deregistration_script_hash_ser_round_trip() {
     let cert =
-        CommitteeHotKeyDeregistration::new(&Credential::from_scripthash(&fake_script_hash(1)));
+        CommitteeColdResign::new(&Credential::from_scripthash(&fake_script_hash(1)));
     let cert_wrapped = Certificate::new_committee_hot_key_deregistration(&cert);
-    to_from_test!(CommitteeHotKeyDeregistration, cert, cert_wrapped);
+    to_from_test!(CommitteeColdResign, cert, cert_wrapped);
     assert_eq!(
         cert,
         cert_wrapped.as_committee_hot_key_deregistration().unwrap()
@@ -58,12 +58,12 @@ fn committee_hot_key_deregistration_script_hash_ser_round_trip() {
 
 #[test]
 fn committee_hot_key_registration_ser_round_trip() {
-    let cert = CommitteeHotKeyRegistration::new(
+    let cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Credential::from_keyhash(&fake_key_hash(2)),
     );
     let cert_wrapped = Certificate::new_committee_hot_key_registration(&cert);
-    to_from_test!(CommitteeHotKeyRegistration, cert, cert_wrapped);
+    to_from_test!(CommitteeHotAuth, cert, cert_wrapped);
     assert_eq!(
         cert,
         cert_wrapped.as_committee_hot_key_registration().unwrap()

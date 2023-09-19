@@ -13,11 +13,11 @@ fn certificatess_builder_deposit_test() {
     let drep_reg_deposit = 400u64;
 
     let committee_hot_key_dereg_cert =
-        CommitteeHotKeyDeregistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
+        CommitteeColdResign::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let committee_hot_key_dereg_cert_wrapped =
         Certificate::new_committee_hot_key_deregistration(&committee_hot_key_dereg_cert);
 
-    let committee_hot_key_reg_cert = CommitteeHotKeyRegistration::new(
+    let committee_hot_key_reg_cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&fake_key_hash(2)),
         &Credential::from_keyhash(&fake_key_hash(3)),
     );
@@ -187,11 +187,11 @@ fn certificatess_builder_no_deposit_test() {
     let drep_reg_deposit = 400u64;
 
     let committee_hot_key_dereg_cert =
-        CommitteeHotKeyDeregistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
+        CommitteeColdResign::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let committee_hot_key_dereg_cert_wrapped =
         Certificate::new_committee_hot_key_deregistration(&committee_hot_key_dereg_cert);
 
-    let committee_hot_key_reg_cert = CommitteeHotKeyRegistration::new(
+    let committee_hot_key_reg_cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&fake_key_hash(2)),
         &Credential::from_keyhash(&fake_key_hash(3)),
     );
@@ -341,11 +341,11 @@ fn certificatess_builder_req_signers_test() {
     let key_hash_33 = fake_key_hash(33);
 
     let committee_hot_key_dereg_cert =
-        CommitteeHotKeyDeregistration::new(&Credential::from_keyhash(&key_hash_1));
+        CommitteeColdResign::new(&Credential::from_keyhash(&key_hash_1));
     let committee_hot_key_dereg_cert_wrapped =
         Certificate::new_committee_hot_key_deregistration(&committee_hot_key_dereg_cert);
 
-    let committee_hot_key_reg_cert = CommitteeHotKeyRegistration::new(
+    let committee_hot_key_reg_cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&key_hash_2),
         &Credential::from_keyhash(&key_hash_3),
     );
