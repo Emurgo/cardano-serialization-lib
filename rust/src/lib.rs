@@ -181,6 +181,12 @@ pub struct TransactionInputs(pub(crate) Vec<TransactionInput>);
 
 impl_to_from!(TransactionInputs);
 
+impl NoneOrEmpty for TransactionInputs {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[wasm_bindgen]
 impl TransactionInputs {
     pub fn new() -> Self {
@@ -285,6 +291,12 @@ impl DataCost {
 
 pub type RequiredSigners = Ed25519KeyHashes;
 pub type RequiredSignersSet = BTreeSet<Ed25519KeyHash>;
+
+impl NoneOrEmpty for RequiredSigners {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
 
 impl From<&Ed25519KeyHashes> for RequiredSignersSet {
     fn from(keys: &Ed25519KeyHashes) -> Self {
@@ -993,6 +1005,12 @@ impl RewardAddresses {
 pub struct Withdrawals(linked_hash_map::LinkedHashMap<RewardAddress, Coin>);
 
 impl_to_from!(Withdrawals);
+
+impl NoneOrEmpty for Withdrawals {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
 
 #[wasm_bindgen]
 impl Withdrawals {
@@ -2578,6 +2596,12 @@ impl MintAssets {
 pub struct Mint(Vec<(PolicyID, MintAssets)>);
 
 impl_to_from!(Mint);
+
+impl NoneOrEmpty for Mint {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
 
 #[wasm_bindgen]
 impl Mint {

@@ -47,6 +47,12 @@ pub struct VotingProcedures(
 
 impl_to_from!(VotingProcedures);
 
+impl NoneOrEmpty for VotingProcedures {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[wasm_bindgen]
 impl VotingProcedures {
     pub fn new() -> Self {

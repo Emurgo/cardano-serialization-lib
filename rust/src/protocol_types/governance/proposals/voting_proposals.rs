@@ -17,6 +17,12 @@ pub struct VotingProposals(pub(crate) Vec<VotingProposal>);
 
 impl_to_from!(VotingProposals);
 
+impl NoneOrEmpty for VotingProposals {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[wasm_bindgen]
 impl VotingProposals {
     pub fn new() -> Self {

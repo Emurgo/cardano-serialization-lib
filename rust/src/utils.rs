@@ -1654,6 +1654,10 @@ pub(crate) fn opt64<T>(o: &Option<T>) -> u64 {
     o.is_some() as u64
 }
 
+pub(crate) fn opt64_non_empty<T: NoneOrEmpty>(o: &Option<T>) -> u64 {
+    (!o.is_none_or_empty()) as u64
+}
+
 pub struct ValueShortage {
     pub(crate) ada_shortage: Option<(Coin, Coin, Coin)>,
     pub(crate) asset_shortage: Vec<(PolicyID, AssetName, Coin, Coin)>,

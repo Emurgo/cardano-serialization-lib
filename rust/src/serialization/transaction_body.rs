@@ -5,28 +5,23 @@ impl cbor_event::se::Serialize for TransactionBody {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        let has_mint = match &self.mint {
-            Some(mint) => mint.len() > 0,
-            None => false,
-        };
-
         serializer.write_map(cbor_event::Len::Len(
             3 + opt64(&self.ttl)
-                + opt64(&self.certs)
-                + opt64(&self.withdrawals)
+                + opt64_non_empty(&self.certs)
+                + opt64_non_empty(&self.withdrawals)
                 + opt64(&self.update)
                 + opt64(&self.auxiliary_data_hash)
                 + opt64(&self.validity_start_interval)
-                + has_mint as u64
+                + opt64_non_empty(&self.mint)
                 + opt64(&self.script_data_hash)
-                + opt64(&self.collateral)
-                + opt64(&self.required_signers)
+                + opt64_non_empty(&self.collateral)
+                + opt64_non_empty(&self.required_signers)
                 + opt64(&self.network_id)
                 + opt64(&self.collateral_return)
                 + opt64(&self.total_collateral)
-                + opt64(&self.reference_inputs)
-                + opt64(&self.voting_procedures)
-                + opt64(&self.voting_proposals)
+                + opt64_non_empty(&self.reference_inputs)
+                + opt64_non_empty(&self.voting_procedures)
+                + opt64_non_empty(&self.voting_proposals)
                 + opt64(&self.donation)
                 + opt64(&self.current_treasury_value),
         ))?;
@@ -41,12 +36,16 @@ impl cbor_event::se::Serialize for TransactionBody {
             field.serialize(serializer)?;
         }
         if let Some(field) = &self.certs {
-            serializer.write_unsigned_integer(4)?;
-            field.serialize(serializer)?;
+            if !field.is_none_or_empty() {
+                serializer.write_unsigned_integer(4)?;
+                field.serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.withdrawals {
-            serializer.write_unsigned_integer(5)?;
-            field.serialize(serializer)?;
+            if !field.is_none_or_empty() {
+                serializer.write_unsigned_integer(5)?;
+                field.serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.update {
             serializer.write_unsigned_integer(6)?;
@@ -61,7 +60,7 @@ impl cbor_event::se::Serialize for TransactionBody {
             field.serialize(serializer)?;
         }
         if let Some(field) = &self.mint {
-            if has_mint {
+            if !field.is_none_or_empty() {
                 serializer.write_unsigned_integer(9)?;
                 field.serialize(serializer)?;
             }
@@ -71,12 +70,16 @@ impl cbor_event::se::Serialize for TransactionBody {
             field.serialize(serializer)?;
         }
         if let Some(field) = &self.collateral {
-            serializer.write_unsigned_integer(13)?;
-            field.serialize(serializer)?;
+            if !field.is_none_or_empty() {
+                serializer.write_unsigned_integer(13)?;
+                field.serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.required_signers {
-            serializer.write_unsigned_integer(14)?;
-            field.serialize(serializer)?;
+            if !field.is_none_or_empty() {
+                serializer.write_unsigned_integer(14)?;
+                field.serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.network_id {
             serializer.write_unsigned_integer(15)?;
@@ -91,16 +94,22 @@ impl cbor_event::se::Serialize for TransactionBody {
             field.serialize(serializer)?;
         }
         if let Some(field) = &self.reference_inputs {
-            serializer.write_unsigned_integer(18)?;
-            field.serialize(serializer)?;
+            if !field.is_none_or_empty() {
+                serializer.write_unsigned_integer(18)?;
+                field.serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.voting_procedures {
-            serializer.write_unsigned_integer(19)?;
-            field.serialize(serializer)?;
+            if !field.is_none_or_empty() {
+                serializer.write_unsigned_integer(19)?;
+                field.serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.voting_proposals {
-            serializer.write_unsigned_integer(20)?;
-            field.serialize(serializer)?;
+            if !field.is_none_or_empty() {
+                serializer.write_unsigned_integer(20)?;
+                field.serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.current_treasury_value {
             serializer.write_unsigned_integer(21)?;

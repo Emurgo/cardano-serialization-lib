@@ -8,6 +8,12 @@ pub struct Certificates(pub(crate) Vec<Certificate>);
 
 impl_to_from!(Certificates);
 
+impl NoneOrEmpty for Certificates {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[wasm_bindgen]
 impl Certificates {
     pub fn new() -> Self {
