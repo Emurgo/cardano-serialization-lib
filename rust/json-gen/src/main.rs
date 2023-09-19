@@ -19,7 +19,19 @@ fn main() {
     let schema_path = Path::new(&"schemas");
     if !schema_path.exists() {
         fs::create_dir(schema_path).unwrap();
+    } else {
+        let files = schema_path.read_dir().unwrap();
+        for file in files {
+            let file = file.unwrap();
+            if file.file_type().unwrap().is_file() {
+                let filename = file.file_name().into_string().unwrap();
+                if filename.ends_with(".json") {
+                    fs::remove_file(file.path()).unwrap();
+                }
+            }
+        }
     }
+
     // lib.rs
     gen_json_schema!(UnitInterval);
     gen_json_schema!(Transaction);
