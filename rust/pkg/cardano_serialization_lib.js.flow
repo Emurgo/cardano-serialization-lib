@@ -371,8 +371,8 @@ declare export var CertificateKind: {|
   +PoolRetirement: 4, // 4
   +GenesisKeyDelegation: 5, // 5
   +MoveInstantaneousRewardsCert: 6, // 6
-  +CommitteeHotKeyRegistration: 7, // 7
-  +CommitteeHotKeyDeregistration: 8, // 8
+  +CommitteeHotAuth: 7, // 7
+  +CommitteeColdResign: 8, // 8
   +DrepDeregistration: 9, // 9
   +DrepRegistration: 10, // 10
   +DrepUpdate: 11, // 11
@@ -391,7 +391,7 @@ declare export var VotingProposalKind: {|
   +HardForkInitiationProposal: 1, // 1
   +TreasuryWithdrawalsProposal: 2, // 2
   +NoConfidenceProposal: 3, // 3
-  +NewCommitteeProposal: 4, // 4
+  +UpdateCommitteeProposal: 4, // 4
   +NewConstitutionProposal: 5, // 5
   +InfoProposal: 6, // 6
 |};
@@ -1840,19 +1840,19 @@ declare export class Certificate {
   ): Certificate;
 
   /**
-   * @param {CommitteeHotKeyRegistration} committee_hot_key_registration
+   * @param {CommitteeHotAuth} committee_hot_key_registration
    * @returns {Certificate}
    */
   static new_committee_hot_key_registration(
-    committee_hot_key_registration: CommitteeHotKeyRegistration
+    committee_hot_key_registration: CommitteeHotAuth
   ): Certificate;
 
   /**
-   * @param {CommitteeHotKeyDeregistration} committee_hot_key_deregistration
+   * @param {CommitteeColdResign} committee_hot_key_deregistration
    * @returns {Certificate}
    */
   static new_committee_hot_key_deregistration(
-    committee_hot_key_deregistration: CommitteeHotKeyDeregistration
+    committee_hot_key_deregistration: CommitteeColdResign
   ): Certificate;
 
   /**
@@ -1956,14 +1956,14 @@ declare export class Certificate {
   as_move_instantaneous_rewards_cert(): MoveInstantaneousRewardsCert | void;
 
   /**
-   * @returns {CommitteeHotKeyRegistration | void}
+   * @returns {CommitteeHotAuth | void}
    */
-  as_committee_hot_key_registration(): CommitteeHotKeyRegistration | void;
+  as_committee_hot_key_registration(): CommitteeHotAuth | void;
 
   /**
-   * @returns {CommitteeHotKeyDeregistration | void}
+   * @returns {CommitteeColdResign | void}
    */
-  as_committee_hot_key_deregistration(): CommitteeHotKeyDeregistration | void;
+  as_committee_hot_key_deregistration(): CommitteeColdResign | void;
 
   /**
    * @returns {DrepDeregistration | void}
@@ -2216,7 +2216,7 @@ declare export class Committee {
 }
 /**
  */
-declare export class CommitteeHotKeyDeregistration {
+declare export class CommitteeColdResign {
   free(): void;
 
   /**
@@ -2226,9 +2226,9 @@ declare export class CommitteeHotKeyDeregistration {
 
   /**
    * @param {Uint8Array} bytes
-   * @returns {CommitteeHotKeyDeregistration}
+   * @returns {CommitteeColdResign}
    */
-  static from_bytes(bytes: Uint8Array): CommitteeHotKeyDeregistration;
+  static from_bytes(bytes: Uint8Array): CommitteeColdResign;
 
   /**
    * @returns {string}
@@ -2237,9 +2237,9 @@ declare export class CommitteeHotKeyDeregistration {
 
   /**
    * @param {string} hex_str
-   * @returns {CommitteeHotKeyDeregistration}
+   * @returns {CommitteeColdResign}
    */
-  static from_hex(hex_str: string): CommitteeHotKeyDeregistration;
+  static from_hex(hex_str: string): CommitteeColdResign;
 
   /**
    * @returns {string}
@@ -2247,15 +2247,15 @@ declare export class CommitteeHotKeyDeregistration {
   to_json(): string;
 
   /**
-   * @returns {CommitteeHotKeyDeregistrationJSON}
+   * @returns {CommitteeColdResignJSON}
    */
-  to_js_value(): CommitteeHotKeyDeregistrationJSON;
+  to_js_value(): CommitteeColdResignJSON;
 
   /**
    * @param {string} json
-   * @returns {CommitteeHotKeyDeregistration}
+   * @returns {CommitteeColdResign}
    */
-  static from_json(json: string): CommitteeHotKeyDeregistration;
+  static from_json(json: string): CommitteeColdResign;
 
   /**
    * @returns {Credential}
@@ -2264,9 +2264,9 @@ declare export class CommitteeHotKeyDeregistration {
 
   /**
    * @param {Credential} committee_cold_key
-   * @returns {CommitteeHotKeyDeregistration}
+   * @returns {CommitteeColdResign}
    */
-  static new(committee_cold_key: Credential): CommitteeHotKeyDeregistration;
+  static new(committee_cold_key: Credential): CommitteeColdResign;
 
   /**
    * @returns {boolean}
@@ -2275,7 +2275,7 @@ declare export class CommitteeHotKeyDeregistration {
 }
 /**
  */
-declare export class CommitteeHotKeyRegistration {
+declare export class CommitteeHotAuth {
   free(): void;
 
   /**
@@ -2285,9 +2285,9 @@ declare export class CommitteeHotKeyRegistration {
 
   /**
    * @param {Uint8Array} bytes
-   * @returns {CommitteeHotKeyRegistration}
+   * @returns {CommitteeHotAuth}
    */
-  static from_bytes(bytes: Uint8Array): CommitteeHotKeyRegistration;
+  static from_bytes(bytes: Uint8Array): CommitteeHotAuth;
 
   /**
    * @returns {string}
@@ -2296,9 +2296,9 @@ declare export class CommitteeHotKeyRegistration {
 
   /**
    * @param {string} hex_str
-   * @returns {CommitteeHotKeyRegistration}
+   * @returns {CommitteeHotAuth}
    */
-  static from_hex(hex_str: string): CommitteeHotKeyRegistration;
+  static from_hex(hex_str: string): CommitteeHotAuth;
 
   /**
    * @returns {string}
@@ -2306,15 +2306,15 @@ declare export class CommitteeHotKeyRegistration {
   to_json(): string;
 
   /**
-   * @returns {CommitteeHotKeyRegistrationJSON}
+   * @returns {CommitteeHotAuthJSON}
    */
-  to_js_value(): CommitteeHotKeyRegistrationJSON;
+  to_js_value(): CommitteeHotAuthJSON;
 
   /**
    * @param {string} json
-   * @returns {CommitteeHotKeyRegistration}
+   * @returns {CommitteeHotAuth}
    */
-  static from_json(json: string): CommitteeHotKeyRegistration;
+  static from_json(json: string): CommitteeHotAuth;
 
   /**
    * @returns {Credential}
@@ -2329,12 +2329,12 @@ declare export class CommitteeHotKeyRegistration {
   /**
    * @param {Credential} committee_cold_key
    * @param {Credential} committee_hot_key
-   * @returns {CommitteeHotKeyRegistration}
+   * @returns {CommitteeHotAuth}
    */
   static new(
     committee_cold_key: Credential,
     committee_hot_key: Credential
-  ): CommitteeHotKeyRegistration;
+  ): CommitteeHotAuth;
 
   /**
    * @returns {boolean}
@@ -6002,86 +6002,6 @@ declare export class NetworkInfo {
    * @returns {NetworkInfo}
    */
   static mainnet(): NetworkInfo;
-}
-/**
- */
-declare export class NewCommitteeProposal {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {NewCommitteeProposal}
-   */
-  static from_bytes(bytes: Uint8Array): NewCommitteeProposal;
-
-  /**
-   * @returns {string}
-   */
-  to_hex(): string;
-
-  /**
-   * @param {string} hex_str
-   * @returns {NewCommitteeProposal}
-   */
-  static from_hex(hex_str: string): NewCommitteeProposal;
-
-  /**
-   * @returns {string}
-   */
-  to_json(): string;
-
-  /**
-   * @returns {NewCommitteeProposalJSON}
-   */
-  to_js_value(): NewCommitteeProposalJSON;
-
-  /**
-   * @param {string} json
-   * @returns {NewCommitteeProposal}
-   */
-  static from_json(json: string): NewCommitteeProposal;
-
-  /**
-   * @returns {GovernanceActionId | void}
-   */
-  gov_action_id(): GovernanceActionId | void;
-
-  /**
-   * @returns {Committee}
-   */
-  committee(): Committee;
-
-  /**
-   * @returns {Credentials}
-   */
-  members_to_remove(): Credentials;
-
-  /**
-   * @param {Committee} committee
-   * @param {Credentials} members_to_remove
-   * @returns {NewCommitteeProposal}
-   */
-  static new(
-    committee: Committee,
-    members_to_remove: Credentials
-  ): NewCommitteeProposal;
-
-  /**
-   * @param {GovernanceActionId} gov_action_id
-   * @param {Committee} committee
-   * @param {Credentials} members_to_remove
-   * @returns {NewCommitteeProposal}
-   */
-  static new_with_action_id(
-    gov_action_id: GovernanceActionId,
-    committee: Committee,
-    members_to_remove: Credentials
-  ): NewCommitteeProposal;
 }
 /**
  */
@@ -12280,6 +12200,86 @@ declare export class Update {
 }
 /**
  */
+declare export class UpdateCommitteeProposal {
+  free(): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {UpdateCommitteeProposal}
+   */
+  static from_bytes(bytes: Uint8Array): UpdateCommitteeProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {UpdateCommitteeProposal}
+   */
+  static from_hex(hex_str: string): UpdateCommitteeProposal;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {UpdateCommitteeProposalJSON}
+   */
+  to_js_value(): UpdateCommitteeProposalJSON;
+
+  /**
+   * @param {string} json
+   * @returns {UpdateCommitteeProposal}
+   */
+  static from_json(json: string): UpdateCommitteeProposal;
+
+  /**
+   * @returns {GovernanceActionId | void}
+   */
+  gov_action_id(): GovernanceActionId | void;
+
+  /**
+   * @returns {Committee}
+   */
+  committee(): Committee;
+
+  /**
+   * @returns {Credentials}
+   */
+  members_to_remove(): Credentials;
+
+  /**
+   * @param {Committee} committee
+   * @param {Credentials} members_to_remove
+   * @returns {UpdateCommitteeProposal}
+   */
+  static new(
+    committee: Committee,
+    members_to_remove: Credentials
+  ): UpdateCommitteeProposal;
+
+  /**
+   * @param {GovernanceActionId} gov_action_id
+   * @param {Committee} committee
+   * @param {Credentials} members_to_remove
+   * @returns {UpdateCommitteeProposal}
+   */
+  static new_with_action_id(
+    gov_action_id: GovernanceActionId,
+    committee: Committee,
+    members_to_remove: Credentials
+  ): UpdateCommitteeProposal;
+}
+/**
+ */
 declare export class VRFCert {
   free(): void;
 
@@ -13304,11 +13304,11 @@ declare export class VotingProposal {
   ): VotingProposal;
 
   /**
-   * @param {NewCommitteeProposal} new_committee_proposal
+   * @param {UpdateCommitteeProposal} new_committee_proposal
    * @returns {VotingProposal}
    */
   static new_new_committee_proposal(
-    new_committee_proposal: NewCommitteeProposal
+    new_committee_proposal: UpdateCommitteeProposal
   ): VotingProposal;
 
   /**
@@ -13351,9 +13351,9 @@ declare export class VotingProposal {
   as_no_confidence_proposal(): NoConfidenceProposal | void;
 
   /**
-   * @returns {NewCommitteeProposal | void}
+   * @returns {UpdateCommitteeProposal | void}
    */
-  as_new_committee_proposal(): NewCommitteeProposal | void;
+  as_new_committee_proposal(): UpdateCommitteeProposal | void;
 
   /**
    * @returns {NewConstitutionProposal | void}
@@ -13685,11 +13685,11 @@ export type CertificateEnumJSON =
       ...
     }
   | {
-      CommitteeHotKeyRegistrationJSON: CommitteeHotKeyRegistration,
+      CommitteeHotAuthJSON: CommitteeHotAuth,
       ...
     }
   | {
-      CommitteeHotKeyDeregistrationJSON: CommitteeHotKeyDeregistration,
+      CommitteeColdResignJSON: CommitteeColdResign,
       ...
     }
   | {
@@ -13729,10 +13729,10 @@ export interface CommitteeJSON {
   members: CommitteeMember[];
   quorum_threshold: UnitIntervalJSON;
 }
-export interface CommitteeHotKeyDeregistrationJSON {
+export interface CommitteeColdResignJSON {
   committee_cold_key: CredTypeJSON;
 }
-export interface CommitteeHotKeyRegistrationJSON {
+export interface CommitteeHotAuthJSON {
   committee_cold_key: CredTypeJSON;
   committee_hot_key: CredTypeJSON;
 }
@@ -13939,11 +13939,6 @@ export type NativeScript1JSON =
 export type NativeScriptsJSON = NativeScriptJSON[];
 export type NetworkIdJSON = NetworkIdKindJSON;
 export type NetworkIdKindJSON = "Testnet" | "Mainnet";
-export interface NewCommitteeProposalJSON {
-  committee: CommitteeJSON;
-  gov_action_id?: GovernanceActionIdJSON | null;
-  members_to_remove: CredTypeJSON[];
-}
 export interface NewConstitutionProposalJSON {
   constitution: ConstitutionJSON;
   gov_action_id?: GovernanceActionIdJSON | null;
@@ -14144,16 +14139,6 @@ export interface StakeAndVoteDelegationJSON {
   pool_keyhash: string;
   stake_credential: CredTypeJSON;
 }
-export type StakeCredTypeJSON =
-  | {
-      Key: string,
-      ...
-    }
-  | {
-      Script: string,
-      ...
-    };
-export type StakeCredentialsJSON = CredentialJSON[];
 export interface StakeDelegationJSON {
   pool_keyhash: string;
   stake_credential: CredTypeJSON;
@@ -14260,6 +14245,11 @@ export interface UpdateJSON {
     [k: string]: ProtocolParamUpdateJSON,
   };
 }
+export interface UpdateCommitteeProposalJSON {
+  committee: CommitteeJSON;
+  gov_action_id?: GovernanceActionIdJSON | null;
+  members_to_remove: CredTypeJSON[];
+}
 export interface VRFCertJSON {
   output: number[];
   proof: number[];
@@ -14323,7 +14313,7 @@ export type VotingProposalEnumJSON =
       ...
     }
   | {
-      NewCommitteeProposalJSON: NewCommitteeProposal,
+      UpdateCommitteeProposalJSON: UpdateCommitteeProposal,
       ...
     }
   | {
