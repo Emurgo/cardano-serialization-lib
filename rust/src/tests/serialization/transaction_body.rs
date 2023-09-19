@@ -42,7 +42,7 @@ fn transaction_round_trip_test() {
 
     let mut voting_procedures = VotingProcedures::new();
     let voter = Voter::new_drep(&Credential::from_keyhash(&fake_key_hash(1)));
-    let gov_action_id = GovernanceActionId::new((&fake_tx_hash(2)), 0);
+    let gov_action_id = GovernanceActionId::new(&fake_tx_hash(2), 0);
     let procedure = VotingProcedure::new(VoteKind::Abstain);
     voting_procedures.insert(&voter, &gov_action_id, &procedure);
 
