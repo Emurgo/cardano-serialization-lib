@@ -128,7 +128,7 @@ impl MIRToStakeCredentials {
     serde::Deserialize,
     JsonSchema,
 )]
-struct StakeToCoinJson {
+struct StakeToCoin {
     stake_cred: Credential,
     amount: DeltaCoin,
 }
@@ -141,11 +141,11 @@ impl serde::Serialize for MIRToStakeCredentials {
         let vec = self
             .rewards
             .iter()
-            .map(|(k, v)| StakeToCoinJson {
+            .map(|(k, v)| StakeToCoin {
                 stake_cred: k.clone(),
                 amount: v.clone(),
             })
-            .collect::<Vec<StakeToCoinJson>>();
+            .collect::<Vec<StakeToCoin>>();
         vec.serialize(serializer)
     }
 }
@@ -155,7 +155,7 @@ impl<'de> serde::de::Deserialize<'de> for MIRToStakeCredentials {
     where
         D: serde::de::Deserializer<'de>,
     {
-        let map = Vec::<StakeToCoinJson>::deserialize(deserializer)?
+        let map = Vec::<StakeToCoin>::deserialize(deserializer)?
             .into_iter()
             .map(|v| (v.stake_cred, v.amount));
 
@@ -170,10 +170,10 @@ impl JsonSchema for MIRToStakeCredentials {
         String::from("MIRToStakeCredentials")
     }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        Vec::<StakeToCoinJson>::json_schema(gen)
+        Vec::<StakeToCoin>::json_schema(gen)
     }
     fn is_referenceable() -> bool {
-        Vec::<StakeToCoinJson>::is_referenceable()
+        Vec::<StakeToCoin>::is_referenceable()
     }
 }
 
