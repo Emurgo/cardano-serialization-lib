@@ -8,8 +8,8 @@ pub mod tx_batch_builder;
 pub mod mint_builder;
 pub mod certificates_builder;
 pub mod withdrawals_builder;
-mod batch_tools;
-mod script_structs;
+pub mod batch_tools;
+pub mod script_structs;
 
 use super::fees;
 use super::output_builder::TransactionOutputAmountBuilder;
