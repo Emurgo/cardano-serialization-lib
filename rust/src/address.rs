@@ -623,7 +623,7 @@ impl Address {
         }
     }
     
-    pub fn payment_cred(&self) -> Result<u8, JsError> {
+    pub fn payment_cred(&self) -> Result<&StakeCredential, JsError> {
         match &self.0 {
             AddrType::Base(a) => Ok(a.payment),
             AddrType::Enterprise(a) => Ok(a.payment),
