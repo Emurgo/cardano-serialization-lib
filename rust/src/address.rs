@@ -622,6 +622,16 @@ impl Address {
             AddrType::Byron(a) => a.network_id(),
         }
     }
+    
+    pub fn payment_cred(&self) -> Result<u8, JsError> {
+        match &self.0 {
+            AddrType::Base(a) => Ok(a.payment),
+            AddrType::Enterprise(a) => Ok(a.payment),
+            AddrType::Ptr(a) => Ok(a.payment),
+            AddrType::Reward(a) => Ok(a.payment),
+            AddrType::Byron(a) =>  Err(JsError::from_str("byron not supported"))
+        }
+    }
 }
 
 impl cbor_event::se::Serialize for Address {
