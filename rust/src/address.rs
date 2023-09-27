@@ -625,10 +625,10 @@ impl Address {
     
     pub fn payment_cred(&self) -> Result<&StakeCredential, JsError> {
         match &self.0 {
-            AddrType::Base(a) => Ok(a.payment),
-            AddrType::Enterprise(a) => Ok(a.payment),
-            AddrType::Ptr(a) => Ok(a.payment),
-            AddrType::Reward(a) => Ok(a.payment),
+            AddrType::Base(a) => Ok(&a.payment),
+            AddrType::Enterprise(a) => Ok(&a.payment),
+            AddrType::Ptr(a) => Ok(&a.payment),
+            AddrType::Reward(a) => Ok(&a.payment),
             AddrType::Byron(a) =>  Err(JsError::from_str("byron not supported"))
         }
     }
