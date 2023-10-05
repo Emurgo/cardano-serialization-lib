@@ -16,9 +16,9 @@ fn voting_proposal_builder_one_proposal() {
     let proposal_deposit = Coin::from(1000u64);
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
     let proposal =
-        HardForkInitiationProposal::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
+        HardForkInitiationAction::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
     let mut builder = VotingProposalBuilder::new();
-    let wrapped_proposal = VotingProposal::new_hard_fork_initiation_proposal(&proposal);
+    let wrapped_proposal = GovernanceAction::new_hard_fork_initiation_action(&proposal);
     builder.add(&wrapped_proposal).unwrap();
 
     let witnesses = builder.get_plutus_witnesses();
@@ -59,9 +59,9 @@ fn voting_proposal_builder_all_proposals() {
 
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
     let hf_proposal =
-        HardForkInitiationProposal::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
+        HardForkInitiationAction::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
     let mut builder = VotingProposalBuilder::new();
-    let wrapped_hf_proposal = VotingProposal::new_hard_fork_initiation_proposal(&hf_proposal);
+    let wrapped_hf_proposal = GovernanceAction::new_hard_fork_initiation_action(&hf_proposal);
     builder.add(&wrapped_hf_proposal).unwrap();
 
     let mut committee =
@@ -69,34 +69,34 @@ fn voting_proposal_builder_all_proposals() {
     committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
     let mut members_to_remove = Credentials::new();
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
-    let committee_proposal = UpdateCommitteeProposal::new(&committee, &members_to_remove);
-    let wrapped_committee_proposal = VotingProposal::new_new_committee_proposal(&committee_proposal);
+    let committee_proposal = UpdateCommitteeAction::new(&committee, &members_to_remove);
+    let wrapped_committee_proposal = GovernanceAction::new_new_committee_action(&committee_proposal);
     builder.add(&wrapped_committee_proposal).unwrap();
 
     let anchor = create_anchor();
     let constitution = Constitution::new(&anchor);
-    let constitution_proposal = NewConstitutionProposal::new(&constitution);
-    let wrapped_constitution_proposal = VotingProposal::new_new_constitution_proposal(&constitution_proposal);
+    let constitution_proposal = NewConstitutionAction::new(&constitution);
+    let wrapped_constitution_proposal = GovernanceAction::new_new_constitution_action(&constitution_proposal);
     builder.add(&wrapped_constitution_proposal).unwrap();
 
-    let no_conf_proposal = NoConfidenceProposal::new();
-    let wrapped_no_conf_proposal = VotingProposal::new_no_confidence_proposal(&no_conf_proposal);
+    let no_conf_proposal = NoConfidenceAction::new();
+    let wrapped_no_conf_proposal = GovernanceAction::new_no_confidence_action(&no_conf_proposal);
     builder.add(&wrapped_no_conf_proposal).unwrap();
 
     let parameters_update = crate_full_protocol_param_update();
-    let pp_update_proposal = ParameterChangeProposal::new(&parameters_update);
-    let wrapped_pp_update_proposal = VotingProposal::new_parameter_change_proposal(&pp_update_proposal);
+    let pp_update_proposal = ParameterChangeAction::new(&parameters_update);
+    let wrapped_pp_update_proposal = GovernanceAction::new_parameter_change_action(&pp_update_proposal);
     builder.add(&wrapped_pp_update_proposal).unwrap();
 
     let mut withdrawals = TreasuryWithdrawals::new();
     let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
     withdrawals.insert(&addr1, &Coin::from(1u32));
-    let withdrawal_proposal = TreasuryWithdrawalsProposal::new(&withdrawals);
-    let wrapped_withdrawal_proposal = VotingProposal::new_treasury_withdrawals_proposal(&withdrawal_proposal);
+    let withdrawal_proposal = TreasuryWithdrawalsAction::new(&withdrawals);
+    let wrapped_withdrawal_proposal = GovernanceAction::new_treasury_withdrawals_action(&withdrawal_proposal);
     builder.add(&wrapped_withdrawal_proposal).unwrap();
 
-    let info_proposal = InfoProposal::new();
-    let wrapped_info_proposal = VotingProposal::new_info_proposal(&info_proposal);
+    let info_proposal = InfoAction::new();
+    let wrapped_info_proposal = GovernanceAction::new_info_action(&info_proposal);
     builder.add(&wrapped_info_proposal).unwrap();
 
     let witnesses = builder.get_plutus_witnesses();
@@ -143,9 +143,9 @@ fn voting_proposal_builder_with_plutus_script_witness() {
 
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
     let hf_proposal =
-        HardForkInitiationProposal::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
+        HardForkInitiationAction::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
     let mut builder = VotingProposalBuilder::new();
-    let wrapped_hf_proposal = VotingProposal::new_hard_fork_initiation_proposal(&hf_proposal);
+    let wrapped_hf_proposal = GovernanceAction::new_hard_fork_initiation_action(&hf_proposal);
     builder.add(&wrapped_hf_proposal).unwrap();
 
     let script = create_plutus_script(1, &Language::new_plutus_v2());
@@ -167,8 +167,8 @@ fn voting_proposal_builder_with_plutus_script_witness() {
     committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
     let mut members_to_remove = Credentials::new();
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
-    let committee_proposal = UpdateCommitteeProposal::new(&committee, &members_to_remove);
-    let wrapped_committee_proposal = VotingProposal::new_new_committee_proposal(&committee_proposal);
+    let committee_proposal = UpdateCommitteeAction::new(&committee, &members_to_remove);
+    let wrapped_committee_proposal = GovernanceAction::new_new_committee_action(&committee_proposal);
     builder.add_with_plutus_witness(&wrapped_committee_proposal, &plutus_witness).unwrap();
 
     let witnesses = builder.get_plutus_witnesses();
@@ -238,9 +238,9 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
 
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
     let hf_proposal =
-        HardForkInitiationProposal::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
+        HardForkInitiationAction::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
     let mut builder = VotingProposalBuilder::new();
-    let wrapped_hf_proposal = VotingProposal::new_hard_fork_initiation_proposal(&hf_proposal);
+    let wrapped_hf_proposal = GovernanceAction::new_hard_fork_initiation_action(&hf_proposal);
     builder.add(&wrapped_hf_proposal).unwrap();
 
     let script_hash = fake_script_hash(1);
@@ -264,8 +264,8 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
     committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
     let mut members_to_remove = Credentials::new();
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
-    let committee_proposal = UpdateCommitteeProposal::new(&committee, &members_to_remove);
-    let wrapped_committee_proposal = VotingProposal::new_new_committee_proposal(&committee_proposal);
+    let committee_proposal = UpdateCommitteeAction::new(&committee, &members_to_remove);
+    let wrapped_committee_proposal = GovernanceAction::new_new_committee_action(&committee_proposal);
     builder.add_with_plutus_witness(&wrapped_committee_proposal, &plutus_witness).unwrap();
 
     let witnesses = builder.get_plutus_witnesses();

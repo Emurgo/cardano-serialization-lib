@@ -13,37 +13,37 @@ use crate::*;
     JsonSchema,
 )]
 #[wasm_bindgen]
-pub struct NewConstitutionProposal {
+pub struct HardForkInitiationAction {
     pub(crate) gov_action_id: Option<GovernanceActionId>,
-    pub(crate) constitution: Constitution,
+    pub(crate) protocol_version: ProtocolVersion,
 }
 
-impl_to_from!(NewConstitutionProposal);
+impl_to_from!(HardForkInitiationAction);
 
 #[wasm_bindgen]
-impl NewConstitutionProposal {
+impl HardForkInitiationAction {
     pub fn gov_action_id(&self) -> Option<GovernanceActionId> {
         self.gov_action_id.clone()
     }
 
-    pub fn constitution(&self) -> Constitution {
-        self.constitution.clone()
+    pub fn protocol_version(&self) -> ProtocolVersion {
+        self.protocol_version.clone()
     }
 
-    pub fn new(constitution: &Constitution) -> Self {
+    pub fn new(protocol_version: &ProtocolVersion) -> Self {
         Self {
             gov_action_id: None,
-            constitution: constitution.clone(),
+            protocol_version: protocol_version.clone(),
         }
     }
 
     pub fn new_with_action_id(
         gov_action_id: &GovernanceActionId,
-        constitution: &Constitution,
+        protocol_version: &ProtocolVersion,
     ) -> Self {
         Self {
             gov_action_id: Some(gov_action_id.clone()),
-            constitution: constitution.clone(),
+            protocol_version: protocol_version.clone(),
         }
     }
 }

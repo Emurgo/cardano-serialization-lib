@@ -21,15 +21,15 @@ macro_rules! to_from_test {
 
         assert_eq!(
             $variable_wrapped_name,
-            VotingProposal::from_json(&json_wrapped).unwrap()
+            GovernanceAction::from_json(&json_wrapped).unwrap()
         );
         assert_eq!(
             $variable_wrapped_name,
-            VotingProposal::from_bytes(cbor_wrapped).unwrap()
+            GovernanceAction::from_bytes(cbor_wrapped).unwrap()
         );
         assert_eq!(
             $variable_wrapped_name,
-            VotingProposal::from_hex(&hex_cbor_wrapped).unwrap()
+            GovernanceAction::from_hex(&hex_cbor_wrapped).unwrap()
         );
     };
 }
@@ -100,35 +100,35 @@ fn constitution_with_script_hash_ser_round_trip() {
 }
 
 #[test]
-fn hard_fork_initiation_proposal_ser_round_trip() {
-    let proposal = HardForkInitiationProposal::new(&ProtocolVersion::new(1, 2));
+fn hard_fork_initiation_action_ser_round_trip() {
+    let proposal = HardForkInitiationAction::new(&ProtocolVersion::new(1, 2));
 
-    let proposal_wrapped = VotingProposal::new_hard_fork_initiation_proposal(&proposal);
+    let proposal_wrapped = GovernanceAction::new_hard_fork_initiation_action(&proposal);
 
-    to_from_test!(HardForkInitiationProposal, proposal, proposal_wrapped);
+    to_from_test!(HardForkInitiationAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_hard_fork_initiation_proposal().unwrap()
+        proposal_wrapped.as_hard_fork_initiation_action().unwrap()
     );
 }
 
 #[test]
-fn hard_fork_initiation_proposal_with_action_id_ser_round_trip() {
+fn hard_fork_initiation_action_with_action_id_ser_round_trip() {
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
     let proposal =
-        HardForkInitiationProposal::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
+        HardForkInitiationAction::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
 
-    let proposal_wrapped = VotingProposal::new_hard_fork_initiation_proposal(&proposal);
+    let proposal_wrapped = GovernanceAction::new_hard_fork_initiation_action(&proposal);
 
-    to_from_test!(HardForkInitiationProposal, proposal, proposal_wrapped);
+    to_from_test!(HardForkInitiationAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_hard_fork_initiation_proposal().unwrap()
+        proposal_wrapped.as_hard_fork_initiation_action().unwrap()
     );
 }
 
 #[test]
-fn new_committee_proposal_ser_round_trip() {
+fn new_committee_action_ser_round_trip() {
     let mut committee =
         Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
     committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
@@ -138,19 +138,19 @@ fn new_committee_proposal_ser_round_trip() {
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
     members_to_remove.add(&Credential::from_scripthash(&fake_script_hash(2)));
 
-    let proposal = UpdateCommitteeProposal::new(&committee, &members_to_remove);
+    let proposal = UpdateCommitteeAction::new(&committee, &members_to_remove);
 
-    let proposal_wrapped = VotingProposal::new_new_committee_proposal(&proposal);
+    let proposal_wrapped = GovernanceAction::new_new_committee_action(&proposal);
 
-    to_from_test!(UpdateCommitteeProposal, proposal, proposal_wrapped);
+    to_from_test!(UpdateCommitteeAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_new_committee_proposal().unwrap()
+        proposal_wrapped.as_new_committee_action().unwrap()
     );
 }
 
 #[test]
-fn new_committee_proposal_with_action_id_ser_round_trip() {
+fn new_committee_action_with_action_id_ser_round_trip() {
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
     let mut committee =
         Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
@@ -162,53 +162,53 @@ fn new_committee_proposal_with_action_id_ser_round_trip() {
     members_to_remove.add(&Credential::from_scripthash(&fake_script_hash(2)));
 
     let proposal =
-        UpdateCommitteeProposal::new_with_action_id(&action_id, &committee, &members_to_remove);
+        UpdateCommitteeAction::new_with_action_id(&action_id, &committee, &members_to_remove);
 
-    let proposal_wrapped = VotingProposal::new_new_committee_proposal(&proposal);
+    let proposal_wrapped = GovernanceAction::new_new_committee_action(&proposal);
 
-    to_from_test!(UpdateCommitteeProposal, proposal, proposal_wrapped);
+    to_from_test!(UpdateCommitteeAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_new_committee_proposal().unwrap()
+        proposal_wrapped.as_new_committee_action().unwrap()
     );
 }
 
 #[test]
-fn new_committee_proposal_with_empty_ser_round_trip() {
+fn new_committee_action_with_empty_ser_round_trip() {
     let committee = Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
     let members_to_remove = Credentials::new();
-    let proposal = UpdateCommitteeProposal::new(&committee, &members_to_remove);
+    let proposal = UpdateCommitteeAction::new(&committee, &members_to_remove);
 
-    let proposal_wrapped = VotingProposal::new_new_committee_proposal(&proposal);
+    let proposal_wrapped = GovernanceAction::new_new_committee_action(&proposal);
 
-    to_from_test!(UpdateCommitteeProposal, proposal, proposal_wrapped);
+    to_from_test!(UpdateCommitteeAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_new_committee_proposal().unwrap()
+        proposal_wrapped.as_new_committee_action().unwrap()
     );
 }
 
 #[test]
-fn new_constitution_proposal_ser_round_trip() {
+fn new_constitution_action_ser_round_trip() {
     let anchor = Anchor::new(
         &URL::new("https://iohk.io".to_string()).unwrap(),
         &fake_anchor_data_hash(1),
     );
 
     let constitution = Constitution::new(&anchor);
-    let proposal = NewConstitutionProposal::new(&constitution);
+    let proposal = NewConstitutionAction::new(&constitution);
 
-    let proposal_wrapped = VotingProposal::new_new_constitution_proposal(&proposal);
+    let proposal_wrapped = GovernanceAction::new_new_constitution_action(&proposal);
 
-    to_from_test!(NewConstitutionProposal, proposal, proposal_wrapped);
+    to_from_test!(NewConstitutionAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_new_constitution_proposal().unwrap()
+        proposal_wrapped.as_new_constitution_action().unwrap()
     );
 }
 
 #[test]
-fn new_constitution_proposal_with_action_id_ser_round_trip() {
+fn new_constitution_action_with_action_id_ser_round_trip() {
     let anchor = Anchor::new(
         &URL::new("https://iohk.io".to_string()).unwrap(),
         &fake_anchor_data_hash(1),
@@ -216,66 +216,66 @@ fn new_constitution_proposal_with_action_id_ser_round_trip() {
 
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
     let constitution = Constitution::new(&anchor);
-    let proposal = NewConstitutionProposal::new_with_action_id(&action_id, &constitution);
+    let proposal = NewConstitutionAction::new_with_action_id(&action_id, &constitution);
 
-    let proposal_wrapped = VotingProposal::new_new_constitution_proposal(&proposal);
+    let proposal_wrapped = GovernanceAction::new_new_constitution_action(&proposal);
 
-    to_from_test!(NewConstitutionProposal, proposal, proposal_wrapped);
+    to_from_test!(NewConstitutionAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_new_constitution_proposal().unwrap()
+        proposal_wrapped.as_new_constitution_action().unwrap()
     );
 }
 
 #[test]
-fn no_confidence_proposal_ser_round_trip() {
-    let proposal = NoConfidenceProposal::new();
+fn no_confidence_action_ser_round_trip() {
+    let proposal = NoConfidenceAction::new();
 
-    let proposal_wrapped = VotingProposal::new_no_confidence_proposal(&proposal);
+    let proposal_wrapped = GovernanceAction::new_no_confidence_action(&proposal);
 
-    to_from_test!(NoConfidenceProposal, proposal, proposal_wrapped);
+    to_from_test!(NoConfidenceAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_no_confidence_proposal().unwrap()
+        proposal_wrapped.as_no_confidence_action().unwrap()
     );
 }
 
 #[test]
-fn no_confidence_proposal_with_action_id_ser_round_trip() {
+fn no_confidence_action_with_action_id_ser_round_trip() {
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
-    let proposal = NoConfidenceProposal::new_with_action_id(&action_id);
+    let proposal = NoConfidenceAction::new_with_action_id(&action_id);
 
-    let proposal_wrapped = VotingProposal::new_no_confidence_proposal(&proposal);
+    let proposal_wrapped = GovernanceAction::new_no_confidence_action(&proposal);
 
-    to_from_test!(NoConfidenceProposal, proposal, proposal_wrapped);
+    to_from_test!(NoConfidenceAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_no_confidence_proposal().unwrap()
+        proposal_wrapped.as_no_confidence_action().unwrap()
     );
 }
 
 #[test]
-fn parameter_change_proposal_ser_round_trip() {
+fn parameter_change_action_ser_round_trip() {
     let parameters_update = crate_full_protocol_param_update();
-    let proposal = ParameterChangeProposal::new(&parameters_update);
-    let proposal_wrapped = VotingProposal::new_parameter_change_proposal(&proposal);
-    to_from_test!(ParameterChangeProposal, proposal, proposal_wrapped);
+    let proposal = ParameterChangeAction::new(&parameters_update);
+    let proposal_wrapped = GovernanceAction::new_parameter_change_action(&proposal);
+    to_from_test!(ParameterChangeAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_parameter_change_proposal().unwrap()
+        proposal_wrapped.as_parameter_change_action().unwrap()
     );
 }
 
 #[test]
-fn parameter_change_proposal_with_action_id_ser_round_trip() {
+fn parameter_change_action_with_action_id_ser_round_trip() {
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
     let parameters_update = crate_full_protocol_param_update();
-    let proposal = ParameterChangeProposal::new_with_action_id(&action_id, &parameters_update);
-    let proposal_wrapped = VotingProposal::new_parameter_change_proposal(&proposal);
-    to_from_test!(ParameterChangeProposal, proposal, proposal_wrapped);
+    let proposal = ParameterChangeAction::new_with_action_id(&action_id, &parameters_update);
+    let proposal_wrapped = GovernanceAction::new_parameter_change_action(&proposal);
+    to_from_test!(ParameterChangeAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_parameter_change_proposal().unwrap()
+        proposal_wrapped.as_parameter_change_action().unwrap()
     );
 }
 
@@ -293,21 +293,21 @@ fn treasury_withdrawals_ser_round_trip() {
 }
 
 #[test]
-fn treasury_withdrawals_proposal_ser_round_trip() {
+fn treasury_withdrawals_action_ser_round_trip() {
     let mut withdrawals = TreasuryWithdrawals::new();
     let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
     let addr2 = RewardAddress::new(2, &Credential::from_keyhash(&fake_key_hash(2)));
     withdrawals.insert(&addr1, &Coin::from(1u32));
     withdrawals.insert(&addr2, &Coin::from(2u32));
 
-    let proposal = TreasuryWithdrawalsProposal::new(&withdrawals);
+    let proposal = TreasuryWithdrawalsAction::new(&withdrawals);
 
-    let proposal_wrapped = VotingProposal::new_treasury_withdrawals_proposal(&proposal);
+    let proposal_wrapped = GovernanceAction::new_treasury_withdrawals_action(&proposal);
 
-    to_from_test!(TreasuryWithdrawalsProposal, proposal, proposal_wrapped);
+    to_from_test!(TreasuryWithdrawalsAction, proposal, proposal_wrapped);
     assert_eq!(
         proposal,
-        proposal_wrapped.as_treasury_withdrawals_proposal().unwrap()
+        proposal_wrapped.as_treasury_withdrawals_action().unwrap()
     );
 }
 
@@ -320,15 +320,15 @@ fn voting_proposals_ser_round_trip() {
     withdrawals.insert(&addr1, &Coin::from(1u32));
     withdrawals.insert(&addr2, &Coin::from(2u32));
 
-    let proposal1 = TreasuryWithdrawalsProposal::new(&withdrawals);
-    let proposal2 = NoConfidenceProposal::new();
-    let proposal3 = InfoProposal::new();
+    let proposal1 = TreasuryWithdrawalsAction::new(&withdrawals);
+    let proposal2 = NoConfidenceAction::new();
+    let proposal3 = InfoAction::new();
 
-    proposals.add(&VotingProposal::new_treasury_withdrawals_proposal(
+    proposals.add(&GovernanceAction::new_treasury_withdrawals_action(
         &proposal1,
     ));
-    proposals.add(&VotingProposal::new_no_confidence_proposal(&proposal2));
-    proposals.add(&VotingProposal::new_info_proposal(&proposal3));
+    proposals.add(&GovernanceAction::new_no_confidence_action(&proposal2));
+    proposals.add(&GovernanceAction::new_info_action(&proposal3));
 
     let cbor = proposals.to_bytes();
     let cbor_hex = proposals.to_hex();

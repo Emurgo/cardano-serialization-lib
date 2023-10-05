@@ -13,14 +13,14 @@ use crate::*;
     JsonSchema,
 )]
 #[wasm_bindgen]
-pub struct TreasuryWithdrawalsProposal {
+pub struct TreasuryWithdrawalsAction {
     pub(crate) withdrawals: TreasuryWithdrawals,
 }
 
-impl_to_from!(TreasuryWithdrawalsProposal);
+impl_to_from!(TreasuryWithdrawalsAction);
 
 #[wasm_bindgen]
-impl TreasuryWithdrawalsProposal {
+impl TreasuryWithdrawalsAction {
     pub fn withdrawals(&self) -> TreasuryWithdrawals {
         self.withdrawals.clone()
     }

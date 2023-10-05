@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct VotingProposalBuilder {
-    votes: BTreeMap<VotingProposal, Option<ScriptWitnessType>>,
+    votes: BTreeMap<GovernanceAction, Option<ScriptWitnessType>>,
 }
 
 #[wasm_bindgen]
@@ -15,7 +15,7 @@ impl VotingProposalBuilder {
         }
     }
 
-    pub fn add(&mut self, proposal: &VotingProposal) -> Result<(), JsError> {
+    pub fn add(&mut self, proposal: &GovernanceAction) -> Result<(), JsError> {
         self.votes.insert(proposal.clone(), None);
 
         Ok(())
@@ -23,7 +23,7 @@ impl VotingProposalBuilder {
 
     pub fn add_with_plutus_witness(
         &mut self,
-        proposal: &VotingProposal,
+        proposal: &GovernanceAction,
         witness: &PlutusWitness,
     ) -> Result<(), JsError> {
         self.votes.insert(

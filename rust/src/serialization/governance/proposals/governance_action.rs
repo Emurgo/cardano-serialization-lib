@@ -4,19 +4,19 @@ use crate::*;
 use num_traits::{FromPrimitive, ToPrimitive};
 use std::io::{Seek, SeekFrom};
 
-impl Serialize for VotingProposal {
+impl Serialize for GovernanceAction {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         match &self.0 {
-            VotingProposalEnum::ParameterChangeProposal(x) => x.serialize(serializer),
-            VotingProposalEnum::HardForkInitiationProposal(x) => x.serialize(serializer),
-            VotingProposalEnum::TreasuryWithdrawalsProposal(x) => x.serialize(serializer),
-            VotingProposalEnum::NoConfidenceProposal(x) => x.serialize(serializer),
-            VotingProposalEnum::UpdateCommitteeProposal(x) => x.serialize(serializer),
-            VotingProposalEnum::NewConstitutionProposal(x) => x.serialize(serializer),
-            VotingProposalEnum::InfoProposal(_) => {
+            GovernanceActionEnum::ParameterChangeAction(x) => x.serialize(serializer),
+            GovernanceActionEnum::HardForkInitiationAction(x) => x.serialize(serializer),
+            GovernanceActionEnum::TreasuryWithdrawalsAction(x) => x.serialize(serializer),
+            GovernanceActionEnum::NoConfidenceAction(x) => x.serialize(serializer),
+            GovernanceActionEnum::UpdateCommitteeAction(x) => x.serialize(serializer),
+            GovernanceActionEnum::NewConstitutionAction(x) => x.serialize(serializer),
+            GovernanceActionEnum::InfoAction(_) => {
                 let index = VotingProposalIndexNames::InfoAction.to_u64();
                 serialize_and_check_index(serializer, index, "VotingProposalEnum::InfoProposal")
             }
@@ -24,7 +24,7 @@ impl Serialize for VotingProposal {
     }
 }
 
-impl Deserialize for VotingProposal {
+impl Deserialize for GovernanceAction {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
             if let Ok(index) = raw.unsigned_integer() {
@@ -41,19 +41,19 @@ impl Deserialize for VotingProposal {
                     .into());
                 }
 
-                return Ok(Self(VotingProposalEnum::InfoProposal(InfoProposal::new())));
+                return Ok(Self(GovernanceActionEnum::InfoAction(InfoAction::new())));
             }
 
             let len = raw.array()?;
-            let ret = Self::deserialize_as_embedded_group(raw, len);
+            let ret = Self::deserialize_as_embedded_group(raw, len)?;
             check_len_indefinite(raw, len)?;
-            ret
+            Ok(ret)
         })()
         .map_err(|e| e.annotate("VotingProposal"))
     }
 }
 
-impl DeserializeEmbeddedGroup for VotingProposal {
+impl DeserializeEmbeddedGroup for GovernanceAction {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
@@ -67,39 +67,39 @@ impl DeserializeEmbeddedGroup for VotingProposal {
 
         let proposal_enum = match index_enum {
             VotingProposalIndexNames::ParameterChangeAction => {
-                Ok::<VotingProposalEnum, DeserializeError>(
-                    VotingProposalEnum::ParameterChangeProposal(
-                        ParameterChangeProposal::deserialize_as_embedded_group(raw, len)?,
+                Ok::<GovernanceActionEnum, DeserializeError>(
+                    GovernanceActionEnum::ParameterChangeAction(
+                        ParameterChangeAction::deserialize_as_embedded_group(raw, len)?,
                     ),
                 )
             }
             VotingProposalIndexNames::HardForkInitiationAction => {
-                Ok(VotingProposalEnum::HardForkInitiationProposal(
-                    HardForkInitiationProposal::deserialize_as_embedded_group(raw, len)?,
+                Ok(GovernanceActionEnum::HardForkInitiationAction(
+                    HardForkInitiationAction::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
             VotingProposalIndexNames::TreasuryWithdrawalsAction => {
-                Ok(VotingProposalEnum::TreasuryWithdrawalsProposal(
-                    TreasuryWithdrawalsProposal::deserialize_as_embedded_group(raw, len)?,
+                Ok(GovernanceActionEnum::TreasuryWithdrawalsAction(
+                    TreasuryWithdrawalsAction::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
             VotingProposalIndexNames::NoConfidenceAction => {
-                Ok(VotingProposalEnum::NoConfidenceProposal(
-                    NoConfidenceProposal::deserialize_as_embedded_group(raw, len)?,
+                Ok(GovernanceActionEnum::NoConfidenceAction(
+                    NoConfidenceAction::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
             VotingProposalIndexNames::UpdateCommitteeAction => {
-                Ok(VotingProposalEnum::UpdateCommitteeProposal(
-                    UpdateCommitteeProposal::deserialize_as_embedded_group(raw, len)?,
+                Ok(GovernanceActionEnum::UpdateCommitteeAction(
+                    UpdateCommitteeAction::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
             VotingProposalIndexNames::NewConstitutionAction => {
-                Ok(VotingProposalEnum::NewConstitutionProposal(
-                    NewConstitutionProposal::deserialize_as_embedded_group(raw, len)?,
+                Ok(GovernanceActionEnum::NewConstitutionAction(
+                    NewConstitutionAction::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
             VotingProposalIndexNames::InfoAction => {
-                Ok(VotingProposalEnum::InfoProposal(InfoProposal::new()))
+                Ok(GovernanceActionEnum::InfoAction(InfoAction::new()))
             }
         }?;
 
