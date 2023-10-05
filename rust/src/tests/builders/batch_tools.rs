@@ -223,7 +223,6 @@ pub fn test_big_utoxs_batch() {
         .max_value_size(4000)
         .max_tx_size(8000)
         .coins_per_utxo_word(&to_bignum(34_482))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .ex_unit_prices(&ExUnitPrices::new(
             &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
             &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
@@ -253,7 +252,6 @@ pub fn test_big_utoxs_ada_batch() {
         .max_value_size(4000)
         .max_tx_size(8000)
         .coins_per_utxo_word(&to_bignum(34_482))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .ex_unit_prices(&ExUnitPrices::new(
             &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
             &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
@@ -294,10 +292,8 @@ pub fn test_one_utxo() {
         .fee_algo(&linear_fee)
         .pool_deposit(&to_bignum(500000000))
         .key_deposit(&to_bignum(2000000))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .max_value_size(4000)
         .max_tx_size(8000)
-        .voting_proposal_deposit(&to_bignum(500000000))
         .coins_per_utxo_word(&to_bignum(34_482))
         .ex_unit_prices(&ExUnitPrices::new(
             &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
@@ -363,7 +359,6 @@ pub fn test_one_utxo_one_asset_per_output() {
         .fee_algo(&linear_fee)
         .pool_deposit(&to_bignum(500000000))
         .key_deposit(&to_bignum(2000000))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .max_value_size(80)
         .max_tx_size(8000)
         .coins_per_utxo_word(&to_bignum(34_482))
@@ -443,7 +438,6 @@ pub fn test_one_utxo_one_asset_per_tx() {
         .fee_algo(&linear_fee)
         .pool_deposit(&to_bignum(500000000))
         .key_deposit(&to_bignum(2000000))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .max_value_size(80)
         .max_tx_size(300)
         .coins_per_utxo_word(&to_bignum(34_482))
@@ -500,7 +494,6 @@ pub fn test_only_ada_utxo() {
         .fee_algo(&linear_fee)
         .pool_deposit(&to_bignum(500000000))
         .key_deposit(&to_bignum(2000000))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .max_value_size(4000)
         .max_tx_size(8000)
         .coins_per_utxo_word(&to_bignum(34_482))
@@ -534,7 +527,6 @@ pub fn test_not_enough_ada() {
         .fee_algo(&linear_fee)
         .pool_deposit(&to_bignum(500000000))
         .key_deposit(&to_bignum(2000000))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .max_value_size(4000)
         .max_tx_size(8000)
         .coins_per_utxo_word(&to_bignum(34_482))
@@ -571,7 +563,6 @@ pub fn test_value_limit_error() {
         .fee_algo(&linear_fee)
         .pool_deposit(&to_bignum(500000000))
         .key_deposit(&to_bignum(2000000))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .max_value_size(10)
         .max_tx_size(8000000)
         .coins_per_utxo_word(&to_bignum(34_482))
@@ -608,7 +599,6 @@ pub fn test_tx_limit_error() {
         .fee_algo(&linear_fee)
         .pool_deposit(&to_bignum(500000000))
         .key_deposit(&to_bignum(2000000))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .max_value_size(100)
         .max_tx_size(2000)
         .coins_per_utxo_word(&to_bignum(34_482))
@@ -632,7 +622,6 @@ pub fn test_no_utxos() {
         .fee_algo(&linear_fee)
         .pool_deposit(&to_bignum(500000000))
         .key_deposit(&to_bignum(2000000))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .max_value_size(10)
         .max_tx_size(8000000)
         .coins_per_utxo_word(&to_bignum(34_482))
@@ -662,7 +651,6 @@ pub fn test_script_input_error() {
         .fee_algo(&linear_fee)
         .pool_deposit(&to_bignum(500000000))
         .key_deposit(&to_bignum(2000000))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .max_value_size(10)
         .max_tx_size(8000000)
         .coins_per_utxo_word(&to_bignum(34_482))
@@ -723,7 +711,6 @@ pub fn test_two_asset_utxo_one_ada_utxo() {
         .fee_algo(&linear_fee)
         .pool_deposit(&to_bignum(500000000))
         .key_deposit(&to_bignum(2000000))
-        .voting_proposal_deposit(&to_bignum(500000000))
         .max_value_size(4000)
         .max_tx_size(8000)
         .coins_per_utxo_word(&to_bignum(34_482))

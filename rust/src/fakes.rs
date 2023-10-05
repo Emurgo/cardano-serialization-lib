@@ -7,6 +7,7 @@ use crate::{
     Ed25519Signature, NetworkInfo, PolicyID, TransactionHash, TransactionIndex, TransactionInput,
     TransactionOutput, Value, Vkey,
 };
+use crate::address::RewardAddress;
 
 pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
     vec![
@@ -54,6 +55,13 @@ pub(crate) fn fake_base_address(x: u8) -> Address {
         &Credential::from_keyhash(&fake_key_hash(0)),
     )
     .to_address()
+}
+
+pub(crate) fn fake_reward_address(x: u8) -> RewardAddress {
+    RewardAddress::new(
+        NetworkInfo::testnet().network_id(),
+        &Credential::from_keyhash(&fake_key_hash(x)),
+    )
 }
 
 pub(crate) fn fake_tx_hash(input_hash_byte: u8) -> TransactionHash {

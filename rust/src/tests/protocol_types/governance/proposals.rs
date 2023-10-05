@@ -1,4 +1,4 @@
-use crate::fakes::{fake_key_hash, fake_script_hash};
+use crate::fakes::{fake_key_hash, fake_reward_address, fake_script_hash};
 use crate::tests::mock_objects::{
     crate_full_protocol_param_update, create_action_id, create_anchor,
 };
@@ -150,22 +150,31 @@ fn treasury_withdrawals_action() {
 #[test]
 fn voting_proposals_setters_getters_test() {
     let mut proposals = VotingProposals::new();
-    let no_confidence_proposal = NoConfidenceAction::new();
-    let parameter_change_proposal =
+    let no_confidence_action = NoConfidenceAction::new();
+    let parameter_change_action =
         ParameterChangeAction::new(&crate_full_protocol_param_update());
-    proposals.add(&GovernanceAction::new_no_confidence_action(
-        &no_confidence_proposal,
-    ));
-    proposals.add(&GovernanceAction::new_parameter_change_action(
-        &parameter_change_proposal,
-    ));
+
+    let proposal1 = VotingProposal::new(
+        &GovernanceAction::new_no_confidence_action(&no_confidence_action),
+        &create_anchor(),
+        &fake_reward_address(1),
+        &Coin::from(100u32),
+    );
+    let proposal2 = VotingProposal::new(
+        &GovernanceAction::new_parameter_change_action(&parameter_change_action),
+        &create_anchor(),
+        &fake_reward_address(2),
+        &Coin::from(100u32),
+    );
+    proposals.add(&proposal1);
+    proposals.add(&proposal2);
     assert_eq!(proposals.len(), 2);
     assert_eq!(
         proposals.get(0),
-        GovernanceAction::new_no_confidence_action(&no_confidence_proposal)
+        proposal1
     );
     assert_eq!(
         proposals.get(1),
-        GovernanceAction::new_parameter_change_action(&parameter_change_proposal)
+        proposal2
     );
 }

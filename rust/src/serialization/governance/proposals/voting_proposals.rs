@@ -26,7 +26,7 @@ impl Deserialize for VotingProposals {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
                 }
-                arr.push(GovernanceAction::deserialize(raw)?);
+                arr.push(VotingProposal::deserialize(raw)?);
             }
             Ok(())
         })()

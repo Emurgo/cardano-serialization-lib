@@ -183,7 +183,6 @@ pub struct TransactionBuilderConfig {
     pub(crate) fee_algo: fees::LinearFee,
     pub(crate) pool_deposit: Coin,            // protocol parameter
     pub(crate) key_deposit: Coin,             // protocol parameter
-    pub(crate) voting_proposal_deposit: Coin, // protocol parameter
     pub(crate) max_value_size: u32,           // protocol parameter
     pub(crate) max_tx_size: u32,              // protocol parameter
     pub(crate) data_cost: DataCost,           // protocol parameter
@@ -203,7 +202,6 @@ pub struct TransactionBuilderConfigBuilder {
     fee_algo: Option<fees::LinearFee>,
     pool_deposit: Option<Coin>,            // protocol parameter
     key_deposit: Option<Coin>,             // protocol parameter
-    voting_proposal_deposit: Option<Coin>, // protocol parameter
     max_value_size: Option<u32>,           // protocol parameter
     max_tx_size: Option<u32>,              // protocol parameter
     data_cost: Option<DataCost>,           // protocol parameter
@@ -218,7 +216,6 @@ impl TransactionBuilderConfigBuilder {
             fee_algo: None,
             pool_deposit: None,
             key_deposit: None,
-            voting_proposal_deposit: None,
             max_value_size: None,
             max_tx_size: None,
             data_cost: None,
@@ -287,12 +284,6 @@ impl TransactionBuilderConfigBuilder {
         cfg
     }
 
-    pub fn voting_proposal_deposit(&self, voting_proposal_deposit: &Coin) -> Self {
-        let mut cfg = self.clone();
-        cfg.voting_proposal_deposit = Some(voting_proposal_deposit.clone());
-        cfg
-    }
-
     pub fn build(&self) -> Result<TransactionBuilderConfig, JsError> {
         let cfg: Self = self.clone();
         Ok(TransactionBuilderConfig {
@@ -302,9 +293,6 @@ impl TransactionBuilderConfigBuilder {
             pool_deposit: cfg
                 .pool_deposit
                 .ok_or(JsError::from_str("uninitialized field: pool_deposit"))?,
-            voting_proposal_deposit: cfg.voting_proposal_deposit.ok_or(JsError::from_str(
-                "uninitialized field: voting_proposal_deposit",
-            ))?,
             key_deposit: cfg
                 .key_deposit
                 .ok_or(JsError::from_str("uninitialized field: key_deposit"))?,
@@ -1406,7 +1394,7 @@ impl TransactionBuilder {
 
         if let Some(voting_proposal_builder) = &self.voting_proposals {
             total_deposit = total_deposit.checked_add(
-                &voting_proposal_builder.get_total_deposit(&self.config.voting_proposal_deposit)?,
+                &voting_proposal_builder.get_total_deposit()?,
             )?;
         }
 

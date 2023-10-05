@@ -13,7 +13,7 @@ use crate::*;
     JsonSchema,
 )]
 #[wasm_bindgen]
-pub struct VotingProposals(pub(crate) Vec<GovernanceAction>);
+pub struct VotingProposals(pub(crate) Vec<VotingProposal>);
 
 impl_to_from!(VotingProposals);
 
@@ -27,11 +27,11 @@ impl VotingProposals {
         self.0.len()
     }
 
-    pub fn get(&self, index: usize) -> GovernanceAction {
+    pub fn get(&self, index: usize) -> VotingProposal {
         self.0[index].clone()
     }
 
-    pub fn add(&mut self, proposal: &GovernanceAction) {
+    pub fn add(&mut self, proposal: &VotingProposal) {
         self.0.push(proposal.clone());
     }
 }

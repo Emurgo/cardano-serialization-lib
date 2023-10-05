@@ -1,5 +1,7 @@
-use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
-use crate::tests::mock_objects::crate_full_protocol_param_update;
+use crate::fakes::{
+    fake_anchor_data_hash, fake_key_hash, fake_reward_address, fake_script_hash, fake_tx_hash,
+};
+use crate::tests::mock_objects::{crate_full_protocol_param_update, create_anchor};
 use crate::*;
 
 macro_rules! to_from_test {
@@ -320,15 +322,34 @@ fn voting_proposals_ser_round_trip() {
     withdrawals.insert(&addr1, &Coin::from(1u32));
     withdrawals.insert(&addr2, &Coin::from(2u32));
 
-    let proposal1 = TreasuryWithdrawalsAction::new(&withdrawals);
-    let proposal2 = NoConfidenceAction::new();
-    let proposal3 = InfoAction::new();
+    let action1 = GovernanceAction::new_treasury_withdrawals_action(
+        &TreasuryWithdrawalsAction::new(&withdrawals),
+    );
+    let action2 = GovernanceAction::new_no_confidence_action(&NoConfidenceAction::new());
+    let action3 = GovernanceAction::new_info_action(&InfoAction::new());
 
-    proposals.add(&GovernanceAction::new_treasury_withdrawals_action(
-        &proposal1,
-    ));
-    proposals.add(&GovernanceAction::new_no_confidence_action(&proposal2));
-    proposals.add(&GovernanceAction::new_info_action(&proposal3));
+    let proposal1 = VotingProposal::new(
+        &action1,
+        &create_anchor(),
+        &fake_reward_address(1),
+        &Coin::from(100u32),
+    );
+    let proposal2 = VotingProposal::new(
+        &action2,
+        &create_anchor(),
+        &fake_reward_address(2),
+        &Coin::from(200u32),
+    );
+    let proposal3 = VotingProposal::new(
+        &action3,
+        &create_anchor(),
+        &fake_reward_address(3),
+        &Coin::from(300u32),
+    );
+
+    proposals.add(&proposal1);
+    proposals.add(&proposal2);
+    proposals.add(&proposal3);
 
     let cbor = proposals.to_bytes();
     let cbor_hex = proposals.to_hex();
