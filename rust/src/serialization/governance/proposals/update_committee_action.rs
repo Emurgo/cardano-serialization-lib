@@ -4,7 +4,7 @@ use crate::*;
 use map_names::VotingProposalIndexNames;
 use num_traits::ToPrimitive;
 
-impl Serialize for UpdateCommitteeProposal {
+impl Serialize for UpdateCommitteeAction {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
@@ -25,9 +25,9 @@ impl Serialize for UpdateCommitteeProposal {
     }
 }
 
-impl_deserialize_for_wrapped_tuple!(UpdateCommitteeProposal);
+impl_deserialize_for_wrapped_tuple!(UpdateCommitteeAction);
 
-impl DeserializeEmbeddedGroup for UpdateCommitteeProposal {
+impl DeserializeEmbeddedGroup for UpdateCommitteeAction {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
@@ -50,7 +50,7 @@ impl DeserializeEmbeddedGroup for UpdateCommitteeProposal {
         let committee = Committee::deserialize_as_embedded_group(raw, cbor_event::Len::Len(2))
             .map_err(|e| e.annotate("committee"))?;
 
-        return Ok(UpdateCommitteeProposal {
+        return Ok(UpdateCommitteeAction {
             gov_action_id,
             members_to_remove: members_to_remove.0.iter().cloned().collect(),
             committee,

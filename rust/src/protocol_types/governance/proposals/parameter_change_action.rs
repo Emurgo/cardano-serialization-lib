@@ -13,37 +13,37 @@ use crate::*;
     JsonSchema,
 )]
 #[wasm_bindgen]
-pub struct HardForkInitiationProposal {
+pub struct ParameterChangeAction {
     pub(crate) gov_action_id: Option<GovernanceActionId>,
-    pub(crate) protocol_version: ProtocolVersion,
+    pub(crate) protocol_param_updates: ProtocolParamUpdate,
 }
 
-impl_to_from!(HardForkInitiationProposal);
+impl_to_from!(ParameterChangeAction);
 
 #[wasm_bindgen]
-impl HardForkInitiationProposal {
+impl ParameterChangeAction {
     pub fn gov_action_id(&self) -> Option<GovernanceActionId> {
         self.gov_action_id.clone()
     }
 
-    pub fn protocol_version(&self) -> ProtocolVersion {
-        self.protocol_version.clone()
+    pub fn protocol_param_updates(&self) -> ProtocolParamUpdate {
+        self.protocol_param_updates.clone()
     }
 
-    pub fn new(protocol_version: &ProtocolVersion) -> Self {
+    pub fn new(protocol_param_updates: &ProtocolParamUpdate) -> Self {
         Self {
             gov_action_id: None,
-            protocol_version: protocol_version.clone(),
+            protocol_param_updates: protocol_param_updates.clone(),
         }
     }
 
     pub fn new_with_action_id(
         gov_action_id: &GovernanceActionId,
-        protocol_version: &ProtocolVersion,
+        protocol_param_updates: &ProtocolParamUpdate,
     ) -> Self {
         Self {
             gov_action_id: Some(gov_action_id.clone()),
-            protocol_version: protocol_version.clone(),
+            protocol_param_updates: protocol_param_updates.clone(),
         }
     }
 }

@@ -4,7 +4,7 @@ use crate::*;
 use map_names::VotingProposalIndexNames;
 use num_traits::ToPrimitive;
 
-impl cbor_event::se::Serialize for HardForkInitiationProposal {
+impl cbor_event::se::Serialize for HardForkInitiationAction {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
@@ -27,9 +27,9 @@ impl cbor_event::se::Serialize for HardForkInitiationProposal {
     }
 }
 
-impl_deserialize_for_wrapped_tuple!(HardForkInitiationProposal);
+impl_deserialize_for_wrapped_tuple!(HardForkInitiationAction);
 
-impl DeserializeEmbeddedGroup for HardForkInitiationProposal {
+impl DeserializeEmbeddedGroup for HardForkInitiationAction {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
@@ -48,7 +48,7 @@ impl DeserializeEmbeddedGroup for HardForkInitiationProposal {
 
         let protocol_version = deserialize_embedded_protocol_version(raw)?;
 
-        return Ok(HardForkInitiationProposal {
+        return Ok(HardForkInitiationAction {
             gov_action_id,
             protocol_version,
         });

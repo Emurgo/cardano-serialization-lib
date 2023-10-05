@@ -187,13 +187,14 @@ fn main() {
 
     gen_json_schema!(VotingProposal);
     gen_json_schema!(VotingProposals);
-    gen_json_schema!(HardForkInitiationProposal);
-    gen_json_schema!(UpdateCommitteeProposal);
-    gen_json_schema!(NewConstitutionProposal);
-    gen_json_schema!(NoConfidenceProposal);
-    gen_json_schema!(ParameterChangeProposal);
+    gen_json_schema!(GovernanceAction);
+    gen_json_schema!(HardForkInitiationAction);
+    gen_json_schema!(UpdateCommitteeAction);
+    gen_json_schema!(NewConstitutionAction);
+    gen_json_schema!(NoConfidenceAction);
+    gen_json_schema!(ParameterChangeAction);
     gen_json_schema!(TreasuryWithdrawals);
-    gen_json_schema!(TreasuryWithdrawalsProposal);
+    gen_json_schema!(TreasuryWithdrawalsAction);
     gen_json_schema!(Committee);
     gen_json_schema!(Constitution);
     gen_json_schema!(DrepVotingThresholds);

@@ -4,7 +4,7 @@ use crate::*;
 use map_names::VotingProposalIndexNames;
 use num_traits::ToPrimitive;
 
-impl cbor_event::se::Serialize for NoConfidenceProposal {
+impl cbor_event::se::Serialize for NoConfidenceAction {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
@@ -20,9 +20,9 @@ impl cbor_event::se::Serialize for NoConfidenceProposal {
     }
 }
 
-impl_deserialize_for_wrapped_tuple!(NoConfidenceProposal);
+impl_deserialize_for_wrapped_tuple!(NoConfidenceAction);
 
-impl DeserializeEmbeddedGroup for NoConfidenceProposal {
+impl DeserializeEmbeddedGroup for NoConfidenceAction {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
@@ -35,6 +35,6 @@ impl DeserializeEmbeddedGroup for NoConfidenceProposal {
         let gov_action_id = GovernanceActionId::deserialize_nullable(raw)
             .map_err(|e| e.annotate("gov_action_id"))?;
 
-        return Ok(NoConfidenceProposal { gov_action_id });
+        return Ok(NoConfidenceAction { gov_action_id });
     }
 }

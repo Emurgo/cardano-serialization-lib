@@ -188,7 +188,6 @@ pub(crate) fn create_tx_builder_full(
     linear_fee: &LinearFee,
     pool_deposit: u64,
     key_deposit: u64,
-    voting_proposal_deposit: u64,
     max_val_size: u32,
     coins_per_utxo_word: u64,
 ) -> TransactionBuilder {
@@ -196,7 +195,6 @@ pub(crate) fn create_tx_builder_full(
         .fee_algo(linear_fee)
         .pool_deposit(&to_bignum(pool_deposit))
         .key_deposit(&to_bignum(key_deposit))
-        .voting_proposal_deposit(&to_bignum(voting_proposal_deposit))
         .max_value_size(max_val_size)
         .max_tx_size(MAX_TX_SIZE)
         .coins_per_utxo_word(&to_bignum(coins_per_utxo_word))
@@ -214,13 +212,11 @@ pub(crate) fn create_tx_builder(
     coins_per_utxo_word: u64,
     pool_deposit: u64,
     key_deposit: u64,
-    voting_proposal_deposit: u64,
 ) -> TransactionBuilder {
     create_tx_builder_full(
         linear_fee,
         pool_deposit,
         key_deposit,
-        voting_proposal_deposit,
         MAX_VALUE_SIZE,
         coins_per_utxo_word,
     )
@@ -232,7 +228,6 @@ pub(crate) fn create_reallistic_tx_builder() -> TransactionBuilder {
         COINS_PER_UTXO_WORD,
         500000000,
         2000000,
-        500000000,
     )
 }
 
@@ -240,11 +235,11 @@ pub(crate) fn create_tx_builder_with_fee_and_val_size(
     linear_fee: &LinearFee,
     max_val_size: u32,
 ) -> TransactionBuilder {
-    create_tx_builder_full(linear_fee, 1, 1, 1, max_val_size, 8)
+    create_tx_builder_full(linear_fee, 1, 1, max_val_size, 8)
 }
 
 pub(crate) fn create_tx_builder_with_fee(linear_fee: &LinearFee) -> TransactionBuilder {
-    create_tx_builder(linear_fee, 8, 1, 1, 1)
+    create_tx_builder(linear_fee, 8, 1, 1)
 }
 
 pub(crate) fn create_tx_builder_with_fee_and_pure_change(
@@ -255,7 +250,6 @@ pub(crate) fn create_tx_builder_with_fee_and_pure_change(
             .fee_algo(linear_fee)
             .pool_deposit(&to_bignum(1))
             .key_deposit(&to_bignum(1))
-            .voting_proposal_deposit(&to_bignum(1))
             .max_value_size(MAX_VALUE_SIZE)
             .max_tx_size(MAX_TX_SIZE)
             .coins_per_utxo_word(&to_bignum(8))
@@ -266,7 +260,7 @@ pub(crate) fn create_tx_builder_with_fee_and_pure_change(
 }
 
 pub(crate) fn create_tx_builder_with_key_deposit(deposit: u64) -> TransactionBuilder {
-    create_tx_builder(&create_default_linear_fee(), 8, 1, deposit, 1)
+    create_tx_builder(&create_default_linear_fee(), 8, 1, deposit)
 }
 
 pub(crate) fn create_default_tx_builder() -> TransactionBuilder {
@@ -336,15 +330,13 @@ pub(crate) fn create_tx_builder_with_amount_and_deposit_params(
     amount: u64,
     pool_deposit: u64,
     key_deposit: u64,
-    voting_proposal_deposit: u64,
     with_collateral: bool,
 ) -> TransactionBuilder {
     let mut tx_builder = create_tx_builder(
         &create_linear_fee(44, 155381),
         COINS_PER_UTXO_WORD,
         pool_deposit,
-        key_deposit,
-        voting_proposal_deposit,
+        key_deposit
     );
     let input = TransactionInput::new(&fake_tx_hash(1), 0);
     let address = generate_address(1);

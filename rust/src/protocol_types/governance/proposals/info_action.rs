@@ -13,10 +13,10 @@ use crate::*;
     JsonSchema,
 )]
 #[wasm_bindgen]
-pub struct InfoProposal();
+pub struct InfoAction();
 
 #[wasm_bindgen]
-impl InfoProposal {
+impl InfoAction {
     pub fn new() -> Self {
         Self()
     }

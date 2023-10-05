@@ -1,6 +1,13 @@
 #![allow(dead_code)]
-use crate::crypto::{AnchorDataHash, AuxiliaryDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, ScriptDataHash, ScriptHash, VRFKeyHash};
-use crate::{to_bignum, Address, BaseAddress, Bip32PrivateKey, Credential, DataHash, Ed25519KeyHash, Ed25519Signature, NetworkInfo, PolicyID, TransactionHash, TransactionIndex, TransactionInput, TransactionOutput, Value, Vkey, AssetName};
+use crate::crypto::{
+    AnchorDataHash, AuxiliaryDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, ScriptDataHash, ScriptHash, VRFKeyHash,
+};
+use crate::{
+    to_bignum, Address, BaseAddress, Bip32PrivateKey, Credential, DataHash, Ed25519KeyHash,
+    Ed25519Signature, NetworkInfo, PolicyID, TransactionHash, TransactionIndex, TransactionInput,
+    TransactionOutput, Value, Vkey, AssetName,
+};
+use crate::address::RewardAddress;
 
 pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
     vec![
@@ -56,6 +63,13 @@ pub(crate) fn fake_base_address(x: u8) -> Address {
         &Credential::from_keyhash(&fake_key_hash(0)),
     )
     .to_address()
+}
+
+pub(crate) fn fake_reward_address(x: u8) -> RewardAddress {
+    RewardAddress::new(
+        NetworkInfo::testnet().network_id(),
+        &Credential::from_keyhash(&fake_key_hash(x)),
+    )
 }
 
 pub(crate) fn fake_tx_hash(input_hash_byte: u8) -> TransactionHash {

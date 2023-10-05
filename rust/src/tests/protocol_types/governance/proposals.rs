@@ -1,4 +1,4 @@
-use crate::fakes::{fake_key_hash, fake_script_hash};
+use crate::fakes::{fake_key_hash, fake_reward_address, fake_script_hash};
 use crate::tests::mock_objects::{
     crate_full_protocol_param_update, create_action_id, create_anchor,
 };
@@ -42,12 +42,12 @@ fn constitution_setters_getters_test() {
 }
 
 #[test]
-fn hard_fork_initiation_proposal_setters_getters_test() {
+fn hard_fork_initiation_action_setters_getters_test() {
     let protocol_version = ProtocolVersion::new(1, 2);
-    let proposal = HardForkInitiationProposal::new(&protocol_version);
+    let proposal = HardForkInitiationAction::new(&protocol_version);
     let action_id = create_action_id();
     let proposal_with_action_id =
-        HardForkInitiationProposal::new_with_action_id(&action_id, &protocol_version);
+        HardForkInitiationAction::new_with_action_id(&action_id, &protocol_version);
     assert_eq!(proposal.gov_action_id(), None);
     assert_eq!(proposal.protocol_version(), protocol_version);
     assert_eq!(proposal_with_action_id.gov_action_id(), Some(action_id));
@@ -55,7 +55,7 @@ fn hard_fork_initiation_proposal_setters_getters_test() {
 }
 
 #[test]
-fn new_committee_proposal_setters_getters_test() {
+fn new_committee_action_setters_getters_test() {
     let action_id = create_action_id();
     let committee = Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
     let members_to_remove = Credentials(
@@ -67,9 +67,9 @@ fn new_committee_proposal_setters_getters_test() {
         .collect(),
     );
 
-    let proposal = UpdateCommitteeProposal::new(&committee, &members_to_remove);
+    let proposal = UpdateCommitteeAction::new(&committee, &members_to_remove);
     let proposal_with_action_id =
-        UpdateCommitteeProposal::new_with_action_id(&action_id, &committee, &members_to_remove);
+        UpdateCommitteeAction::new_with_action_id(&action_id, &committee, &members_to_remove);
     assert_eq!(proposal.gov_action_id(), None);
     assert_eq!(proposal.committee(), committee);
     assert_eq!(proposal.members_to_remove(), members_to_remove);
@@ -82,12 +82,12 @@ fn new_committee_proposal_setters_getters_test() {
 }
 
 #[test]
-fn new_constitution_proposal_setters_getters_test() {
+fn new_constitution_action_setters_getters_test() {
     let action_id = create_action_id();
     let constitution = Constitution::new(&create_anchor());
-    let proposal = NewConstitutionProposal::new(&constitution);
+    let proposal = NewConstitutionAction::new(&constitution);
     let proposal_with_action_id =
-        NewConstitutionProposal::new_with_action_id(&action_id, &constitution);
+        NewConstitutionAction::new_with_action_id(&action_id, &constitution);
     assert_eq!(proposal.gov_action_id(), None);
     assert_eq!(proposal.constitution(), constitution);
     assert_eq!(proposal_with_action_id.gov_action_id(), Some(action_id));
@@ -95,21 +95,21 @@ fn new_constitution_proposal_setters_getters_test() {
 }
 
 #[test]
-fn no_confidence_proposal_setters_getters_test() {
+fn no_confidence_action_setters_getters_test() {
     let action_id = create_action_id();
-    let proposal = NoConfidenceProposal::new();
-    let proposal_with_action_id = NoConfidenceProposal::new_with_action_id(&action_id);
+    let proposal = NoConfidenceAction::new();
+    let proposal_with_action_id = NoConfidenceAction::new_with_action_id(&action_id);
     assert_eq!(proposal.gov_action_id(), None);
     assert_eq!(proposal_with_action_id.gov_action_id(), Some(action_id));
 }
 
 #[test]
-fn parameter_change_proposal_setters_getters_test() {
+fn parameter_change_action_setters_getters_test() {
     let protocol_params = crate_full_protocol_param_update();
     let action_id = create_action_id();
-    let proposal = ParameterChangeProposal::new(&protocol_params);
+    let proposal = ParameterChangeAction::new(&protocol_params);
     let proposal_with_action_id =
-        ParameterChangeProposal::new_with_action_id(&action_id, &protocol_params);
+        ParameterChangeAction::new_with_action_id(&action_id, &protocol_params);
     assert_eq!(proposal.gov_action_id(), None);
     assert_eq!(proposal.protocol_param_updates(), protocol_params);
     assert_eq!(proposal_with_action_id.gov_action_id(), Some(action_id));
@@ -138,34 +138,43 @@ fn treasury_withdrawals_setters_getters_test() {
 }
 
 #[test]
-fn treasury_withdrawals_proposal() {
+fn treasury_withdrawals_action() {
     let mut withdrawals = TreasuryWithdrawals::new();
     let addr = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
     let coin = Coin::from(100u32);
     withdrawals.insert(&addr, &coin);
-    let proposal = TreasuryWithdrawalsProposal::new(&withdrawals);
+    let proposal = TreasuryWithdrawalsAction::new(&withdrawals);
     assert_eq!(proposal.withdrawals(), withdrawals);
 }
 
 #[test]
 fn voting_proposals_setters_getters_test() {
     let mut proposals = VotingProposals::new();
-    let no_confidence_proposal = NoConfidenceProposal::new();
-    let parameter_change_proposal =
-        ParameterChangeProposal::new(&crate_full_protocol_param_update());
-    proposals.add(&VotingProposal::new_no_confidence_proposal(
-        &no_confidence_proposal,
-    ));
-    proposals.add(&VotingProposal::new_parameter_change_proposal(
-        &parameter_change_proposal,
-    ));
+    let no_confidence_action = NoConfidenceAction::new();
+    let parameter_change_action =
+        ParameterChangeAction::new(&crate_full_protocol_param_update());
+
+    let proposal1 = VotingProposal::new(
+        &GovernanceAction::new_no_confidence_action(&no_confidence_action),
+        &create_anchor(),
+        &fake_reward_address(1),
+        &Coin::from(100u32),
+    );
+    let proposal2 = VotingProposal::new(
+        &GovernanceAction::new_parameter_change_action(&parameter_change_action),
+        &create_anchor(),
+        &fake_reward_address(2),
+        &Coin::from(100u32),
+    );
+    proposals.add(&proposal1);
+    proposals.add(&proposal2);
     assert_eq!(proposals.len(), 2);
     assert_eq!(
         proposals.get(0),
-        VotingProposal::new_no_confidence_proposal(&no_confidence_proposal)
+        proposal1
     );
     assert_eq!(
         proposals.get(1),
-        VotingProposal::new_parameter_change_proposal(&parameter_change_proposal)
+        proposal2
     );
 }

@@ -4,7 +4,7 @@ use crate::*;
 use map_names::VotingProposalIndexNames;
 use num_traits::ToPrimitive;
 
-impl Serialize for TreasuryWithdrawalsProposal {
+impl Serialize for TreasuryWithdrawalsAction {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
@@ -20,9 +20,9 @@ impl Serialize for TreasuryWithdrawalsProposal {
     }
 }
 
-impl_deserialize_for_wrapped_tuple!(TreasuryWithdrawalsProposal);
+impl_deserialize_for_wrapped_tuple!(TreasuryWithdrawalsAction);
 
-impl DeserializeEmbeddedGroup for TreasuryWithdrawalsProposal {
+impl DeserializeEmbeddedGroup for TreasuryWithdrawalsAction {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
@@ -34,6 +34,6 @@ impl DeserializeEmbeddedGroup for TreasuryWithdrawalsProposal {
 
         let withdrawals = TreasuryWithdrawals::deserialize(raw)?;
 
-        return Ok(TreasuryWithdrawalsProposal { withdrawals });
+        return Ok(TreasuryWithdrawalsAction { withdrawals });
     }
 }
