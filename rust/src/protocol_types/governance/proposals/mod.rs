@@ -31,5 +31,8 @@ pub use info_action::*;
 mod governance_action;
 pub use governance_action::*;
 
+mod voting_proposal;
+pub use voting_proposal::*;
+
 mod voting_proposals;
 pub use voting_proposals::*;
