@@ -1,8 +1,6 @@
-use crate::fakes::{
-    fake_asset_name, fake_auxiliary_data_hash, fake_base_address, fake_key_hash, fake_policy_id,
-    fake_script_data_hash, fake_tx_hash, fake_tx_input,
-};
+use crate::fakes::{fake_asset_name, fake_auxiliary_data_hash, fake_base_address, fake_key_hash, fake_policy_id, fake_reward_address, fake_script_data_hash, fake_tx_hash, fake_tx_input};
 use crate::*;
+use crate::tests::mock_objects::create_anchor;
 
 #[test]
 fn transaction_round_trip_test() {
@@ -47,8 +45,14 @@ fn transaction_round_trip_test() {
     voting_procedures.insert(&voter, &gov_action_id, &procedure);
 
     let mut voting_proposals = VotingProposals::new();
-    let info_proposal = InfoProposal::new();
-    let proposal = VotingProposal::new_info_proposal(&info_proposal);
+    let info_action = InfoAction::new();
+    let action = GovernanceAction::new_info_action(&info_action);
+    let proposal = VotingProposal::new(
+        &action,
+        &create_anchor(),
+        &fake_reward_address(3),
+        &Coin::from(1_000_011u64),
+    );
     voting_proposals.add(&proposal);
 
     body.set_ttl(&to_bignum(1_000_003u64));
