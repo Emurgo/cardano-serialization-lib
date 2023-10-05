@@ -147,11 +147,11 @@ macro_rules! impl_deserialize_for_wrapped_tuple {
                     use crate::serialization::utils::check_len_indefinite;
                     let len = raw.array()?;
 
-                    let cert = Self::deserialize_as_embedded_group(raw, len)?;
+                    let inner_struct = Self::deserialize_as_embedded_group(raw, len)?;
 
                     check_len_indefinite(raw, len)?;
 
-                    Ok(cert)
+                    Ok(inner_struct)
                 })()
                 .map_err(|e| e.annotate(stringify!($type)))
             }
