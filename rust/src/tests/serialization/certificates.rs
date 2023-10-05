@@ -349,3 +349,21 @@ fn vote_registration_and_delegation_ser_round_trip() {
         cert_wrapped.as_vote_registration_and_delegation().unwrap()
     );
 }
+
+#[test]
+fn tx_with_drep_reg_deser_test() {
+    let cbor = "84a4008182582038e88b8b95dc13639c2c0adc6a159316bd795da6672d4025f5f2bc50f122438f010181a20058390013ca2480e9651a5c504b36eda271ec171cdd404cfe349097524a48bd8bee57ce33c7c1f711bc5801986d89dd68078f5922b83812cc86f65f011b0000000253f7736e021a00029d59048184108200581c1033bbc7db733c057fed63fa085113dfb570566eb708d548d2f7cce800f6a1008182582072fe72c3f2506a2b88cf9c6388535d98f90d481aa734e0e3553792cb9984ffcc5840509a64b3e450f8b338ba3f759e8cf91273493d425a027a7373071c166de6ab83ed3af6b98415c6372906aeaba9269ecf1c40dccbebf8050b4e9ad5e2a5346503f5f6";
+    let tx_deser = Transaction::from_hex(cbor);
+    assert!(tx_deser.is_ok());
+    let cert = tx_deser.unwrap().body().certs().unwrap().get(0);
+    assert!(cert.as_drep_registration().is_some());
+}
+
+#[test]
+fn tx_with_drep_reg_deleg_test() {
+    let cbor = "84a400818258201e3f301eee4c02377c137eff0260a33b67ea421e3524ce8818e4c5184fa440d2000181a2005839002d745f050a8f7e263f4d0749a82284ed9cc065018c1f4f6a7c1b764882293a49e3ef29a4f9c32e4c18f202f5324182db7790f48dccf7a6dd011b0000000253e3e5ad021a0002a281048183098200581c82293a49e3ef29a4f9c32e4c18f202f5324182db7790f48dccf7a6dd8200581c1033bbc7db733c057fed63fa085113dfb570566eb708d548d2f7cce8a0f5f6";
+    let tx_deser = Transaction::from_hex(cbor);
+    assert!(tx_deser.is_ok());
+    let cert = tx_deser.unwrap().body().certs().unwrap().get(0);
+    assert!(cert.as_vote_delegation().is_some());
+}

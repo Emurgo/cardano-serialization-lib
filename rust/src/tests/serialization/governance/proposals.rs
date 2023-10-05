@@ -359,3 +359,45 @@ fn voting_proposals_ser_round_trip() {
     assert_eq!(proposals, VotingProposals::from_hex(&cbor_hex).unwrap());
     assert_eq!(proposals, VotingProposals::from_json(&json).unwrap());
 }
+
+#[test]
+fn voting_proposal_round_trip_test()
+{
+    let mut withdrawals = TreasuryWithdrawals::new();
+    let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
+    let addr2 = RewardAddress::new(2, &Credential::from_keyhash(&fake_key_hash(2)));
+    withdrawals.insert(&addr1, &Coin::from(1u32));
+    withdrawals.insert(&addr2, &Coin::from(2u32));
+
+    let action1 = GovernanceAction::new_treasury_withdrawals_action(
+        &TreasuryWithdrawalsAction::new(&withdrawals),
+    );
+
+    let proposal = VotingProposal::new(
+        &action1,
+        &create_anchor(),
+        &fake_reward_address(1),
+        &Coin::from(100u32),
+    );
+
+    let cbor = proposal.to_bytes();
+    let cbor_hex = proposal.to_hex();
+    let json = proposal.to_json().unwrap();
+
+    assert_eq!(proposal, VotingProposal::from_bytes(cbor).unwrap());
+    assert_eq!(proposal, VotingProposal::from_hex(&cbor_hex).unwrap());
+    assert_eq!(proposal, VotingProposal::from_json(&json).unwrap());
+}
+
+#[test]
+fn tx_with_voting_proposal_deser_test() {
+    let cbor = "84a40081825820017b91576a79a3602a02a65b600665ab71037ad14aa162538a26e64b3f5069fc000181a2005839002d745f050a8f7e263f4d0749a82284ed9cc065018c1f4f6a7c1b764882293a49e3ef29a4f9c32e4c18f202f5324182db7790f48dccf7a6dd011b0000000253d1efbc021a0002b3b11481841a000f4240581de082293a49e3ef29a4f9c32e4c18f202f5324182db7790f48dccf7a6dd8305f68282781968747470733a2f2f73686f727475726c2e61742f6173494a365820ee90ece16c47bf812b88edb89a01539e6683d6549a80b15383a4fb218ab9412df682781968747470733a2f2f73686f727475726c2e61742f784d53313558206f890de0c6e418e6526e2b1aa821850cb87aee94a6d77dc2a2e440116abc8e09a0f5f6";
+    let tx_deser = Transaction::from_hex(cbor);
+    assert!(tx_deser.is_ok());
+
+    let proposals = tx_deser.unwrap().body().voting_proposals();
+    assert!(proposals.is_some());
+    let proposal = proposals.unwrap().get(0);
+    let expected_coin = Coin::from(1000000u32);
+    assert_eq!(proposal.deposit(), expected_coin);
+}

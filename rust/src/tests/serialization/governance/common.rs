@@ -284,3 +284,21 @@ fn voting_procedures_muiltiple_items_ser_round_trip() {
         VotingProcedures::from_json(&json).unwrap()
     );
 }
+
+#[test]
+fn tx_with_vote_deser_test() {
+    let cbor = "84a400818258204547c077e8f3a9184438e36503f78b634eb416658c336c2d017d9912a7c493c7000181a20058390013ca2480e9651a5c504b36eda271ec171cdd404cfe349097524a48bd8bee57ce33c7c1f711bc5801986d89dd68078f5922b83812cc86f65f011b0000000253d3ae64021a0002a38913a18202581c1033bbc7db733c057fed63fa085113dfb570566eb708d548d2f7cce8a1825820787142668a73c7c3ca6003571f429393f2d6dad8886bbcd0a9ba7aca07cc895e008201f6a0f5f6";
+    let tx_deser = Transaction::from_hex(cbor);
+    assert!(tx_deser.is_ok());
+    let tx = tx_deser.unwrap();
+    let procedures = tx.body().voting_procedures().unwrap();
+    assert_eq!(procedures.0.len(), 1);
+
+    let voter = procedures.get_voters().get(0).unwrap();
+    let gov_action_ids = procedures.get_governance_action_ids_by_voter(&voter);
+    assert_eq!(gov_action_ids.0.len(), 1);
+    let gov_action_id = gov_action_ids.get(0).unwrap();
+    let voting_procedure = procedures.get(&voter, &gov_action_id);
+    assert!(voting_procedure.is_some());
+}
+
