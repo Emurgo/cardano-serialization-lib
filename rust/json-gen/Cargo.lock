@@ -37,7 +37,7 @@ checksum = "a4a45a46ab1f2412e53d3a0ade76ffad2025804294569aae387231a0cd6e0899"
 
 [[package]]
 name = "cardano-serialization-lib"
-version = "12.0.0-alpha.9"
+version = "12.0.0-alpha.10"
 dependencies = [
  "bech32",
  "cbor_event",
