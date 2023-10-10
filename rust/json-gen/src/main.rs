@@ -171,7 +171,9 @@ fn main() {
     gen_json_schema!(DRep);
     gen_json_schema!(Anchor);
     gen_json_schema!(Voter);
+    gen_json_schema!(Voters);
     gen_json_schema!(GovernanceActionId);
+    gen_json_schema!(GovernanceActionIds);
     gen_json_schema!(VotingProcedure);
     gen_json_schema!(VotingProcedures);
     gen_json_schema!(CommitteeHotAuth);
