@@ -24,18 +24,25 @@ impl cbor_event::se::Serialize for DRepEnum {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(2))?;
         match &self {
             DRepEnum::KeyHash(keyhash) => {
+                serializer.write_array(cbor_event::Len::Len(2))?;
                 serializer.write_unsigned_integer(0u64)?;
                 serializer.write_bytes(keyhash.to_bytes())
             }
             DRepEnum::ScriptHash(scripthash) => {
+                serializer.write_array(cbor_event::Len::Len(2))?;
                 serializer.write_unsigned_integer(1u64)?;
                 serializer.write_bytes(scripthash.to_bytes())
             }
-            DRepEnum::AlwaysAbstain => serializer.write_unsigned_integer(2u64),
-            DRepEnum::AlwaysNoConfidence => serializer.write_unsigned_integer(3u64),
+            DRepEnum::AlwaysAbstain => {
+                serializer.write_array(cbor_event::Len::Len(1))?;
+                serializer.write_unsigned_integer(2u64)
+            }
+            DRepEnum::AlwaysNoConfidence => {
+                serializer.write_array(cbor_event::Len::Len(1))?;
+                serializer.write_unsigned_integer(3u64)
+            }
         }
     }
 }
@@ -54,9 +61,18 @@ impl Deserialize for DRepEnum {
                     .into());
                 }
             }
+
             let drep = match raw.unsigned_integer()? {
-                0 => DRepEnum::KeyHash(Ed25519KeyHash::deserialize(raw)?),
-                1 => DRepEnum::ScriptHash(ScriptHash::deserialize(raw)?),
+                0 => {
+                    let key_hash =
+                        Ed25519KeyHash::deserialize(raw).map_err(|e| e.annotate("key_hash"))?;
+                    DRepEnum::KeyHash(key_hash)
+                }
+                1 => {
+                    let script_hash =
+                        ScriptHash::deserialize(raw).map_err(|e| e.annotate("script_hash"))?;
+                    DRepEnum::ScriptHash(script_hash)
+                }
                 2 => DRepEnum::AlwaysAbstain,
                 3 => DRepEnum::AlwaysNoConfidence,
                 n => {
