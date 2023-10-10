@@ -345,6 +345,44 @@ impl TransactionBuilderConfigBuilder {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
+pub struct ChangeConfig {
+    address: Address,
+    plutus_data: Option<OutputDatum>,
+    script_ref: Option<ScriptRef>
+}
+
+#[wasm_bindgen]
+impl ChangeConfig {
+    pub fn new(address: &Address) -> Self {
+        Self {
+            address: address.clone(),
+            plutus_data: None,
+            script_ref: None
+        }
+    }
+
+    pub fn change_address(&self, address: &Address) -> Self {
+        let mut c_cfg = self.clone();
+        c_cfg.address = address.clone();
+        c_cfg
+    }
+
+    pub fn change_plutus_data(&self, plutus_data: &OutputDatum) -> Self {
+        let mut c_cfg = self.clone();
+        c_cfg.plutus_data = Some(plutus_data.clone());
+        c_cfg
+    }
+
+    pub fn change_script_ref(&self, script_ref: &ScriptRef) -> Self {
+        let mut c_cfg = self.clone();
+        c_cfg.script_ref = Some(script_ref.clone());
+        c_cfg
+    }
+}
+
+
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
 pub struct TransactionBuilder {
     config: TransactionBuilderConfig,
     inputs: TxInputsBuilder,
@@ -1707,6 +1745,56 @@ impl TransactionBuilder {
         }
     }
 
+    // This method should be used after outputs of the transaction is defined.
+    // It will attempt utxo selection initially then add change, if adding change fails
+    // then it will attempt to use up the rest of the available inputs, attempting to add change
+    // after every extra input.
+    pub fn add_inputs_from_and_change(
+        &mut self,
+        inputs: &TransactionUnspentOutputs,
+        strategy: CoinSelectionStrategyCIP2,
+        change_config: &ChangeConfig
+    ) -> Result<bool, JsError> 
+    {
+        self.add_inputs_from(inputs, strategy)?;
+        match &self.fee {
+            Some(_x) => {
+                return Err(JsError::from_str(
+                    "Cannot calculate change if fee was explicitly specified",
+                ))
+            }
+            None => {
+                let mut add_change_result = self.add_change_if_needed_with_optional_script_and_datum(&change_config.address, change_config.plutus_data.clone().map_or(None, |od| Some(od.0)), change_config.script_ref.clone());
+                match add_change_result {
+                    Ok(v) => Ok(v),
+                    Err(e) => {
+                        let mut unused_inputs = TransactionUnspentOutputs::new();
+                        for input in inputs.into_iter() {
+                            if self.inputs.inputs().0.iter().all(|used_input| input.input() != *used_input) {
+                                unused_inputs.add(input)
+                            }
+                        }
+                        unused_inputs.0.sort_by_key(|input| input.clone().output.amount.multiasset.map_or(0, |ma| ma.len()));
+                        unused_inputs.0.reverse();
+                        while unused_inputs.0.len() > 0 {
+                            let last_input = unused_inputs.0.pop();
+                            match last_input {
+                                Some(input) => {
+                                    self.add_input(&input.output().address(), &input.input(), &input.output().amount());
+                                    add_change_result = self.add_change_if_needed_with_optional_script_and_datum(&change_config.address, change_config.plutus_data.clone().map_or(None, |od| Some(od.0)), change_config.script_ref.clone());
+                                    if let Ok(value) = add_change_result {
+                                        return Ok(value)
+                                    }
+                                },
+                                None => return Err(JsError::from_str("Unable to balance tx with available inputs"))
+                            }
+                        }
+                        Err(e)
+                    }
+                }
+            }
+        }
+    }
 
     /// This method will calculate the script hash data
     /// using the plutus datums and redeemers already present in the builder
@@ -8124,5 +8212,22 @@ mod tests {
         let tx = build_res.unwrap();
         assert_eq!(tx.witness_set.plutus_scripts.unwrap().len(), 1usize);
         assert_eq!(tx.witness_set.redeemers.unwrap().len(), 2usize);
+    }
+
+    #[test]
+    fn utxo_selection_accounts_for_change_min_utxo_test() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        let hex_utxos = [
+            "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
+            "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"
+        ];
+        let output = TransactionOutput::new(&Address::from_bech32("addr_test1qppkqaf5044y2t46g2y6udz636c4uultszte5l5p0kvgl3tv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfsjre4xh").unwrap(), &Value::new(&BigNum::from_str("969750").unwrap()));
+        tx_builder.add_output(&output);
+        let mut utxos = TransactionUnspentOutputs::new();
+        for hex_utxo in hex_utxos {
+            utxos.add(&TransactionUnspentOutput::from_hex(hex_utxo).unwrap());
+        }
+        let change_config = ChangeConfig::new(&Address::from_bech32("addr_test1qqzf7fhgm0gf370ngxgpskg5c3kgp2g0u4ltxlrmsvumaztv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfs43mc83").unwrap());
+        assert!(&tx_builder.add_inputs_from_and_change(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config).is_ok());
     }
 }
