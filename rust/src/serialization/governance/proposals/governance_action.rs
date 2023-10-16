@@ -1,7 +1,7 @@
 use crate::serialization::map_names::VotingProposalIndexNames;
-use crate::serialization::utils::{check_len_indefinite, serialize_and_check_index};
+use crate::serialization::utils::check_len_indefinite;
 use crate::*;
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::FromPrimitive;
 use std::io::{Seek, SeekFrom};
 
 impl Serialize for GovernanceAction {
@@ -16,10 +16,7 @@ impl Serialize for GovernanceAction {
             GovernanceActionEnum::NoConfidenceAction(x) => x.serialize(serializer),
             GovernanceActionEnum::UpdateCommitteeAction(x) => x.serialize(serializer),
             GovernanceActionEnum::NewConstitutionAction(x) => x.serialize(serializer),
-            GovernanceActionEnum::InfoAction(_) => {
-                let index = VotingProposalIndexNames::InfoAction.to_u64();
-                serialize_and_check_index(serializer, index, "VotingProposalEnum::InfoProposal")
-            }
+            GovernanceActionEnum::InfoAction(x) => x.serialize(serializer),
         }
     }
 }
@@ -27,23 +24,6 @@ impl Serialize for GovernanceAction {
 impl Deserialize for GovernanceAction {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            if let Ok(index) = raw.unsigned_integer() {
-                let expected_index = VotingProposalIndexNames::InfoAction.to_u64().ok_or(
-                    DeserializeFailure::CustomError(
-                        "unknown index of VotingProposalEnum::InfoProposal".to_string(),
-                    ),
-                )?;
-                if index != expected_index {
-                    return Err(DeserializeFailure::FixedValueMismatch {
-                        found: Key::Uint(index),
-                        expected: Key::Uint(expected_index),
-                    }
-                    .into());
-                }
-
-                return Ok(Self(GovernanceActionEnum::InfoAction(InfoAction::new())));
-            }
-
             let len = raw.array()?;
             let ret = Self::deserialize_as_embedded_group(raw, len)?;
             check_len_indefinite(raw, len)?;
@@ -98,9 +78,9 @@ impl DeserializeEmbeddedGroup for GovernanceAction {
                     NewConstitutionAction::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            VotingProposalIndexNames::InfoAction => {
-                Ok(GovernanceActionEnum::InfoAction(InfoAction::new()))
-            }
+            VotingProposalIndexNames::InfoAction => Ok(GovernanceActionEnum::InfoAction(
+                InfoAction::deserialize_as_embedded_group(raw, len)?,
+            )),
         }?;
 
         Ok(Self(proposal_enum))

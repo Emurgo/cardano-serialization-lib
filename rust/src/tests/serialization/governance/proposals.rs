@@ -401,3 +401,19 @@ fn tx_with_voting_proposal_deser_test() {
     let expected_coin = Coin::from(1000000u32);
     assert_eq!(proposal.deposit(), expected_coin);
 }
+
+#[test]
+fn tx_with_info_proposal_deser_test() {
+    let cbor = "84a40081825820f83bdffcbc203eec54dc71208aa7974c538414898673cd7af900149e8c8e392b0001818258390030a33756d8cbf4d18ce8c9995feca1ea1fc70093943c17bd96d65fed0aed6caa1cfe93f03f6ef1d9701df8024494d0b3b8a53a1ee37c5ab21b0000000253cd778c021a0002a75114818400581de00aed6caa1cfe93f03f6ef1d9701df8024494d0b3b8a53a1ee37c5ab2810682781868747470733a2f2f73686f727475726c2e61742f7279616e582013b0234dab754774e4530a0918d8272491541a8d2f6cf8ab0a10abdaa81f2440a10081825820684cb4218cb7e943e5f728ec09ed7f9486b6c164f332312c095067e21db9592b5840a3294bdea8fd49c8e7bd965d02b37033285db1907d1fab13cce281686cae7b23ee7c8aa534f229aade6b0bacfd71a518a24aeb73d08d879aaaee14aa16abf30af5f6";
+    let tx_deser = Transaction::from_hex(cbor);
+    assert!(tx_deser.is_ok());
+
+    let proposals = tx_deser.unwrap().body().voting_proposals();
+    assert!(proposals.is_some());
+    let proposal = proposals.unwrap().get(0);
+    let expected_coin = Coin::zero();
+    assert_eq!(proposal.deposit(), expected_coin);
+
+    let info = proposal.governance_action().as_info_action();
+    assert!(info.is_some());
+}
