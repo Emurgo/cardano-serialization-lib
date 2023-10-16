@@ -1,7 +1,7 @@
 use crate::serialization::map_names::VotingProposalIndexNames;
-use crate::serialization::utils::{check_len_indefinite, serialize_and_check_index};
+use crate::serialization::utils::check_len_indefinite;
 use crate::*;
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::FromPrimitive;
 use std::io::{Seek, SeekFrom};
 
 impl Serialize for GovernanceAction {
@@ -78,11 +78,9 @@ impl DeserializeEmbeddedGroup for GovernanceAction {
                     NewConstitutionAction::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            VotingProposalIndexNames::InfoAction => {
-                Ok(GovernanceActionEnum::InfoAction(
-                    InfoAction::deserialize_as_embedded_group(raw, len)?,
-                ))
-            }
+            VotingProposalIndexNames::InfoAction => Ok(GovernanceActionEnum::InfoAction(
+                InfoAction::deserialize_as_embedded_group(raw, len)?,
+            )),
         }?;
 
         Ok(Self(proposal_enum))
