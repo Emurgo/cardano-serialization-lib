@@ -3,6 +3,7 @@ use crate::fakes::{
     fake_pool_metadata_hash, fake_script_hash, fake_vrf_key_hash,
 };
 use crate::*;
+use crate::tests::mock_objects::create_anchor;
 
 macro_rules! to_from_test {
     ($cert_type: ty, $variable_name: ident,  $variable_wrapped_name: ident) => {
@@ -34,9 +35,9 @@ macro_rules! to_from_test {
 }
 
 #[test]
-fn committee_hot_key_deregistration_key_hash_ser_round_trip() {
+fn committee_cold_resign_key_hash_ser_round_trip() {
     let cert = CommitteeColdResign::new(&Credential::from_keyhash(&fake_key_hash(1)));
-    let cert_wrapped = Certificate::new_committee_hot_key_deregistration(&cert);
+    let cert_wrapped = Certificate::new_committee_cold_resign(&cert);
     to_from_test!(CommitteeColdResign, cert, cert_wrapped);
     assert_eq!(
         cert,
@@ -45,10 +46,25 @@ fn committee_hot_key_deregistration_key_hash_ser_round_trip() {
 }
 
 #[test]
-fn committee_hot_key_deregistration_script_hash_ser_round_trip() {
+fn committee_cold_resign_with_anchor_ser_round_trip() {
+    let anchor = create_anchor();
+    let cert = CommitteeColdResign::new_with_anchor(
+        &Credential::from_keyhash(&fake_key_hash(1)),
+        &anchor,
+    );
+    let cert_wrapped = Certificate::new_committee_cold_resign(&cert);
+    to_from_test!(CommitteeColdResign, cert, cert_wrapped);
+    assert_eq!(
+        cert,
+        cert_wrapped.as_committee_hot_key_deregistration().unwrap()
+    );
+}
+
+#[test]
+fn committee_cold_resign_script_hash_ser_round_trip() {
     let cert =
         CommitteeColdResign::new(&Credential::from_scripthash(&fake_script_hash(1)));
-    let cert_wrapped = Certificate::new_committee_hot_key_deregistration(&cert);
+    let cert_wrapped = Certificate::new_committee_cold_resign(&cert);
     to_from_test!(CommitteeColdResign, cert, cert_wrapped);
     assert_eq!(
         cert,
@@ -57,12 +73,12 @@ fn committee_hot_key_deregistration_script_hash_ser_round_trip() {
 }
 
 #[test]
-fn committee_hot_key_registration_ser_round_trip() {
+fn committee_hot_auth_ser_round_trip() {
     let cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Credential::from_keyhash(&fake_key_hash(2)),
     );
-    let cert_wrapped = Certificate::new_committee_hot_key_registration(&cert);
+    let cert_wrapped = Certificate::new_committee_hot_auth(&cert);
     to_from_test!(CommitteeHotAuth, cert, cert_wrapped);
     assert_eq!(
         cert,

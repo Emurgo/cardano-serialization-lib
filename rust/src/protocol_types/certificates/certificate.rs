@@ -111,7 +111,7 @@ impl Certificate {
         ))
     }
 
-    pub fn new_committee_hot_key_registration(
+    pub fn new_committee_hot_auth(
         committee_hot_key_registration: &CommitteeHotAuth,
     ) -> Self {
         Self(CertificateEnum::CommitteeHotAuth(
@@ -119,7 +119,7 @@ impl Certificate {
         ))
     }
 
-    pub fn new_committee_hot_key_deregistration(
+    pub fn new_committee_cold_resign(
         committee_hot_key_deregistration: &CommitteeColdResign,
     ) -> Self {
         Self(CertificateEnum::CommitteeColdResign(
@@ -334,6 +334,13 @@ impl Certificate {
 
     pub fn has_required_script_witness(&self) -> bool {
         match &self.0 {
+            CertificateEnum::StakeRegistration(x) => {
+                if x.coin.is_some() {
+                    return x.has_script_credentials();
+                } else {
+                    return false;
+                }
+            }
             CertificateEnum::StakeDeregistration(x) => x.has_script_credentials(),
             CertificateEnum::StakeDelegation(x) => x.has_script_credentials(),
             CertificateEnum::VoteDelegation(x) => x.has_script_credentials(),

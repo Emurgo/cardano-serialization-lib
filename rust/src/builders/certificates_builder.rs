@@ -219,7 +219,13 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
     let mut set = RequiredSigners::new();
     match &cert_enum.0 {
         // stake key registrations do not require a witness
-        CertificateEnum::StakeRegistration(_) => {}
+        CertificateEnum::StakeRegistration(cert) => {
+            if cert.coin.is_some() {
+                if let Some(key) = cert.stake_credential().to_keyhash() {
+                    set.add(&key);
+                }
+            }
+        }
         CertificateEnum::StakeDeregistration(cert) => {
             if let Some(key) = cert.stake_credential().to_keyhash() {
                 set.add(&key);

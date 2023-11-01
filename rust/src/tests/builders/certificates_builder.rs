@@ -15,14 +15,14 @@ fn certificatess_builder_deposit_test() {
     let committee_hot_key_dereg_cert =
         CommitteeColdResign::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let committee_hot_key_dereg_cert_wrapped =
-        Certificate::new_committee_hot_key_deregistration(&committee_hot_key_dereg_cert);
+        Certificate::new_committee_cold_resign(&committee_hot_key_dereg_cert);
 
     let committee_hot_key_reg_cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&fake_key_hash(2)),
         &Credential::from_keyhash(&fake_key_hash(3)),
     );
     let committee_hot_key_reg_cert_wrapped =
-        Certificate::new_committee_hot_key_registration(&committee_hot_key_reg_cert);
+        Certificate::new_committee_hot_auth(&committee_hot_key_reg_cert);
 
     let drep_reg_cert = DrepRegistration::new(
         &Credential::from_keyhash(&fake_key_hash(4)),
@@ -189,14 +189,14 @@ fn certificatess_builder_no_deposit_test() {
     let committee_hot_key_dereg_cert =
         CommitteeColdResign::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let committee_hot_key_dereg_cert_wrapped =
-        Certificate::new_committee_hot_key_deregistration(&committee_hot_key_dereg_cert);
+        Certificate::new_committee_cold_resign(&committee_hot_key_dereg_cert);
 
     let committee_hot_key_reg_cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&fake_key_hash(2)),
         &Credential::from_keyhash(&fake_key_hash(3)),
     );
     let committee_hot_key_reg_cert_wrapped =
-        Certificate::new_committee_hot_key_registration(&committee_hot_key_reg_cert);
+        Certificate::new_committee_hot_auth(&committee_hot_key_reg_cert);
 
     let drep_dereg_cert = DrepDeregistration::new(
         &Credential::from_keyhash(&fake_key_hash(5)),
@@ -312,14 +312,11 @@ fn certificatess_builder_req_signers_test() {
     let key_hash_4 = fake_key_hash(4);
     let key_hash_5 = fake_key_hash(5);
     let key_hash_6 = fake_key_hash(6);
-    let key_hash_7 = fake_key_hash(7);
     let key_hash_8 = fake_key_hash(8);
-    let key_hash_9 = fake_key_hash(9);
     let key_hash_10 = fake_key_hash(10);
     let key_hash_11 = fake_key_hash(11);
     let key_hash_12 = fake_key_hash(12);
     let key_hash_13 = fake_key_hash(13);
-    let key_hash_14 = fake_key_hash(14);
     let key_hash_15 = fake_key_hash(15);
     let key_hash_16 = fake_key_hash(16);
     let key_hash_17 = fake_key_hash(17);
@@ -343,14 +340,14 @@ fn certificatess_builder_req_signers_test() {
     let committee_hot_key_dereg_cert =
         CommitteeColdResign::new(&Credential::from_keyhash(&key_hash_1));
     let committee_hot_key_dereg_cert_wrapped =
-        Certificate::new_committee_hot_key_deregistration(&committee_hot_key_dereg_cert);
+        Certificate::new_committee_cold_resign(&committee_hot_key_dereg_cert);
 
     let committee_hot_key_reg_cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&key_hash_2),
         &Credential::from_keyhash(&key_hash_3),
     );
     let committee_hot_key_reg_cert_wrapped =
-        Certificate::new_committee_hot_key_registration(&committee_hot_key_reg_cert);
+        Certificate::new_committee_hot_auth(&committee_hot_key_reg_cert);
 
     let drep_reg_cert = DrepRegistration::new(
         &Credential::from_keyhash(&key_hash_4),
@@ -442,7 +439,7 @@ fn certificatess_builder_req_signers_test() {
             &Credential::from_keyhash(&key_hash_24),
             &Coin::from(key_deposit_form_args),
         );
-    let stake_reg_with_coint_wrapped = Certificate::new_stake_registration(&stake_reg_with_coin_cert);
+    let stake_reg_with_coin_wrapped = Certificate::new_stake_registration(&stake_reg_with_coin_cert);
 
     let stake_reg_deleg_cert = StakeRegistrationAndDelegation::new(
         &Credential::from_keyhash(&key_hash_25),
@@ -486,7 +483,7 @@ fn certificatess_builder_req_signers_test() {
     builder.add(&stake_dereg_cert_wrapped).unwrap();
     builder.add(&stake_dereg_with_coint_wrapped).unwrap();
     builder.add(&stake_reg_cert_wrapped).unwrap();
-    builder.add(&stake_reg_with_coint_wrapped).unwrap();
+    builder.add(&stake_reg_with_coin_wrapped).unwrap();
     builder.add(&stake_reg_deleg_cert_wrapped).unwrap();
     builder.add(&stake_vote_reg_deleg_cert_wrapped).unwrap();
     builder.add(&vote_deleg_cert_wrapped).unwrap();
@@ -499,7 +496,7 @@ fn certificatess_builder_req_signers_test() {
 
     let req_signers = builder.get_required_signers();
 
-    assert_eq!(req_signers.len(), 17);
+    assert_eq!(req_signers.len(), 18);
     assert!(req_signers.contains(&key_hash_1));
     assert!(req_signers.contains(&key_hash_2));
     assert!(req_signers.contains(&key_hash_5));
@@ -513,6 +510,7 @@ fn certificatess_builder_req_signers_test() {
     assert!(req_signers.contains(&key_hash_19));
     assert!(req_signers.contains(&key_hash_21));
     assert!(req_signers.contains(&key_hash_22));
+    assert!(req_signers.contains(&key_hash_24));
     assert!(req_signers.contains(&key_hash_25));
     assert!(req_signers.contains(&key_hash_28));
     assert!(req_signers.contains(&key_hash_31));
