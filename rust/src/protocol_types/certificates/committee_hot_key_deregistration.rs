@@ -15,6 +15,7 @@ use crate::*;
 #[wasm_bindgen]
 pub struct CommitteeColdResign {
     pub(crate) committee_cold_key: Credential,
+    pub(crate) anchor: Option<Anchor>,
 }
 
 impl_to_from!(CommitteeColdResign);
@@ -25,9 +26,21 @@ impl CommitteeColdResign {
         self.committee_cold_key.clone()
     }
 
+    pub fn anchor(&self) -> Option<Anchor> {
+        self.anchor.clone()
+    }
+
     pub fn new(committee_cold_key: &Credential) -> Self {
         Self {
             committee_cold_key: committee_cold_key.clone(),
+            anchor: None,
+        }
+    }
+
+    pub fn new_with_anchor(committee_cold_key: &Credential, anchor: &Anchor) -> Self {
+        Self {
+            committee_cold_key: committee_cold_key.clone(),
+            anchor: Some(anchor.clone()),
         }
     }
 

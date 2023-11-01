@@ -111,7 +111,7 @@ impl Certificate {
         ))
     }
 
-    pub fn new_committee_hot_key_registration(
+    pub fn new_committee_hot_auth(
         committee_hot_key_registration: &CommitteeHotAuth,
     ) -> Self {
         Self(CertificateEnum::CommitteeHotAuth(
@@ -119,7 +119,7 @@ impl Certificate {
         ))
     }
 
-    pub fn new_committee_hot_key_deregistration(
+    pub fn new_committee_cold_resign(
         committee_hot_key_deregistration: &CommitteeColdResign,
     ) -> Self {
         Self(CertificateEnum::CommitteeColdResign(

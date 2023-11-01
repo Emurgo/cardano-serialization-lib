@@ -15,14 +15,14 @@ fn certificatess_builder_deposit_test() {
     let committee_hot_key_dereg_cert =
         CommitteeColdResign::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let committee_hot_key_dereg_cert_wrapped =
-        Certificate::new_committee_hot_key_deregistration(&committee_hot_key_dereg_cert);
+        Certificate::new_committee_cold_resign(&committee_hot_key_dereg_cert);
 
     let committee_hot_key_reg_cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&fake_key_hash(2)),
         &Credential::from_keyhash(&fake_key_hash(3)),
     );
     let committee_hot_key_reg_cert_wrapped =
-        Certificate::new_committee_hot_key_registration(&committee_hot_key_reg_cert);
+        Certificate::new_committee_hot_auth(&committee_hot_key_reg_cert);
 
     let drep_reg_cert = DrepRegistration::new(
         &Credential::from_keyhash(&fake_key_hash(4)),
@@ -189,14 +189,14 @@ fn certificatess_builder_no_deposit_test() {
     let committee_hot_key_dereg_cert =
         CommitteeColdResign::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let committee_hot_key_dereg_cert_wrapped =
-        Certificate::new_committee_hot_key_deregistration(&committee_hot_key_dereg_cert);
+        Certificate::new_committee_cold_resign(&committee_hot_key_dereg_cert);
 
     let committee_hot_key_reg_cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&fake_key_hash(2)),
         &Credential::from_keyhash(&fake_key_hash(3)),
     );
     let committee_hot_key_reg_cert_wrapped =
-        Certificate::new_committee_hot_key_registration(&committee_hot_key_reg_cert);
+        Certificate::new_committee_hot_auth(&committee_hot_key_reg_cert);
 
     let drep_dereg_cert = DrepDeregistration::new(
         &Credential::from_keyhash(&fake_key_hash(5)),
@@ -340,14 +340,14 @@ fn certificatess_builder_req_signers_test() {
     let committee_hot_key_dereg_cert =
         CommitteeColdResign::new(&Credential::from_keyhash(&key_hash_1));
     let committee_hot_key_dereg_cert_wrapped =
-        Certificate::new_committee_hot_key_deregistration(&committee_hot_key_dereg_cert);
+        Certificate::new_committee_cold_resign(&committee_hot_key_dereg_cert);
 
     let committee_hot_key_reg_cert = CommitteeHotAuth::new(
         &Credential::from_keyhash(&key_hash_2),
         &Credential::from_keyhash(&key_hash_3),
     );
     let committee_hot_key_reg_cert_wrapped =
-        Certificate::new_committee_hot_key_registration(&committee_hot_key_reg_cert);
+        Certificate::new_committee_hot_auth(&committee_hot_key_reg_cert);
 
     let drep_reg_cert = DrepRegistration::new(
         &Credential::from_keyhash(&key_hash_4),
