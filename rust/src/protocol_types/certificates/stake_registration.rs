@@ -43,4 +43,8 @@ impl StakeRegistration {
             coin: Some(coin.clone()),
         }
     }
+
+    pub fn has_script_credentials(&self) -> bool {
+        self.stake_credential.has_script_hash()
+    }
 }
