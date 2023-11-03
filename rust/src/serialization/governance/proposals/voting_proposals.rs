@@ -1,4 +1,5 @@
 use crate::*;
+use crate::serialization::utils::skip_set_tag_wrapperr;
 
 impl cbor_event::se::Serialize for VotingProposals {
     fn serialize<'se, W: Write>(
@@ -17,6 +18,7 @@ impl Deserialize for VotingProposals {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
+            skip_set_tag_wrapperr(raw)?;
             let len = raw.array()?;
             while match len {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,

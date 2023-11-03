@@ -1,3 +1,4 @@
+use crate::serialization::utils::skip_set_tag_wrapperr;
 use crate::*;
 
 impl Serialize for Certificates {
@@ -15,6 +16,7 @@ impl Serialize for Certificates {
 
 impl Deserialize for Certificates {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        skip_set_tag_wrapperr(raw)?;
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;

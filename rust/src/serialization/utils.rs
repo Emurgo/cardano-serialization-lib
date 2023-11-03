@@ -74,3 +74,28 @@ pub(super) fn check_len_indefinite<R: BufRead + Seek>(
     }
     Ok(())
 }
+
+pub(super) fn skip_tag_wrapper<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+    tag: u64,
+) -> Result<(), DeserializeError> {
+    if let Ok(extracted_tag) = raw.tag() {
+        if extracted_tag != tag {
+            return Err(DeserializeError::new(
+                "skip_tag_wrapper",
+                DeserializeFailure::TagMismatch {
+                    found: extracted_tag,
+                    expected: tag,
+                },
+            ));
+        }
+        return Ok(());
+    }
+    Ok(())
+}
+
+pub(super) fn skip_set_tag_wrapperr<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+) -> Result<(), DeserializeError> {
+    skip_tag_wrapper(raw, 258)
+}
