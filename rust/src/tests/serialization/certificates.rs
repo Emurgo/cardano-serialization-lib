@@ -2,8 +2,8 @@ use crate::fakes::{
     fake_anchor_data_hash, fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash,
     fake_pool_metadata_hash, fake_script_hash, fake_vrf_key_hash,
 };
-use crate::*;
 use crate::tests::mock_objects::create_anchor;
+use crate::*;
 
 macro_rules! to_from_test {
     ($cert_type: ty, $variable_name: ident,  $variable_wrapped_name: ident) => {
@@ -48,10 +48,8 @@ fn committee_cold_resign_key_hash_ser_round_trip() {
 #[test]
 fn committee_cold_resign_with_anchor_ser_round_trip() {
     let anchor = create_anchor();
-    let cert = CommitteeColdResign::new_with_anchor(
-        &Credential::from_keyhash(&fake_key_hash(1)),
-        &anchor,
-    );
+    let cert =
+        CommitteeColdResign::new_with_anchor(&Credential::from_keyhash(&fake_key_hash(1)), &anchor);
     let cert_wrapped = Certificate::new_committee_cold_resign(&cert);
     to_from_test!(CommitteeColdResign, cert, cert_wrapped);
     assert_eq!(
@@ -62,8 +60,7 @@ fn committee_cold_resign_with_anchor_ser_round_trip() {
 
 #[test]
 fn committee_cold_resign_script_hash_ser_round_trip() {
-    let cert =
-        CommitteeColdResign::new(&Credential::from_scripthash(&fake_script_hash(1)));
+    let cert = CommitteeColdResign::new(&Credential::from_scripthash(&fake_script_hash(1)));
     let cert_wrapped = Certificate::new_committee_cold_resign(&cert);
     to_from_test!(CommitteeColdResign, cert, cert_wrapped);
     assert_eq!(
@@ -382,4 +379,14 @@ fn tx_with_drep_reg_deleg_test() {
     assert!(tx_deser.is_ok());
     let cert = tx_deser.unwrap().body().certs().unwrap().get(0);
     assert!(cert.as_vote_delegation().is_some());
+}
+
+#[test]
+fn block_with_tx_with_certs_under_tag_set() {
+    let cbor = "85828a1a00093ff71a00b90a7e582030cf3798ec016ed63988b2e413fdadf4bda64e5b78587b74dec3e8807b3fd28058204e6f414dc8f402a977ef31062cae0e1251db537980f84c0e8623696975083fc15820f2768101e877acd0e08764765552a36c0f1a25e86d461c277bc19d0e476253fd825840622a847f3c0e77b608aa2aa1cff5c389348e80db4aa0d63b42d89753d5630cb0fcabbfd7293ee65a6b795c52cb4bd6b338f9d11fd007406fcbe89d06bb34f1145850d2c8f8179a8009b0979762ac10c6a514d8d0bc6b6d0d4413a0edbd5dbe888a8e72ba874d0f692ec940e58513c5b8ccb5072839ea1fa00776b4dcb493be8131b1a0b21bf5b5be5ff264e209fef448a30419016c5820388135462552cc6045399bd62876b28b768a760dd9a64adedbf7499bdb7cd1be8458202495446005fecca3a7ede95738dad5fd87393e81c815bde94a405be5779368c30218425840979096c8f12db5dc84a483626c966b64c10e16453b14f33b9648c250b096e391f6e9e6773017134a39c080d77f132950f43522015e9fa265695ee939625f89078209005901c0681c0f99e6f0d09b66b3e8e6eaed6a92649b635225f7d374a92af1a7ba2771880d14719c229892943bb85ba51699ae50bf7ae174e2e9869af7e289355aab000e741588d3b8c82efa6063c83fe326b72eb93f93bea07c5b5b9a720e9f9ecc20e47598b3ce56f370b268a2e2e075f24942e547d29182cecefdb9e7e45108e2261dd3d006ab778cba4cf0bced84f41fc61afcd79591d988eb401e2f870122ae590aec3467f464cebca50c5434d2491f631ebb3d835f43682244bcc839bd83e1c48950bcc73cfe5feaaa211d964bd9bdb4f9acd23fde11f469f6e0fb8bcc9aa4130a54ccab7381968e67ad1291bcdb8528228bbbb9fe15f72cf125b4de1cfdf3dd2b0d9189347a6964f17ce5063b75df8dd20f0fceeefb0d2f5781d34a03f14361ad4b9acb6c40c33ae366906f69dd422e5f2e00afd6bbecba078aebc53a69c567a864548da0205ed92937b4efbb12ab49273e598e3ec5f55abfcaae36c856024c6de779e8f2e28d997b94e116a7b6438cc04fb25b1dbb494b32e1eb97139e6d62e6a70fb2b480dc356225977a6b6b0a5bb9822d2dd5e0012c5de011219b8adc70af87304ab2c98c457078e0b859f50f69bd5eaaaf44e62d34776c8a6bcffd3c1bae81a40081825820b45589419cdc8218dabf8805fd09dded29c795939588fd2f1c397fcd29207307000181825839002844d663085837e4620b9114498f2a4577f2942d84573f95255cdea32134ccb579707f289dc83bc0fb386199a9cea4f1b0177d8384adbb1d1b0000000253eac253021a00029d2d04d901028182008200581c2134ccb579707f289dc83bc0fb386199a9cea4f1b0177d8384adbb1d81a100828258206f92479dc8d89cae74346be2e31997f8c04c977fabb3c806fd1740e7af20874b5840c3d442ba9e0c0915917eb64045603e6b90e0c2cf11c796b7c327f79a4c6e971149bcbbeae79339db8b557345c08de1f103e11c2032348825de9bc5e44150d1018258207be0e76fe15de98ecc3f02e95d4ec171ef884a6ca22b7623c75f66a07f16f3f458409644a34175257eec09a2b0ab52cc36b5bcfeea590d1ae7ead57604ce30be1ad79ecea7c07eadb7973c0c3fd99d63303b47f156fb767a4aa3180c4ed436233f05a080";
+    let block = Block::from_hex(cbor);
+    assert!(block.is_ok());
+
+    let certs = block.unwrap().transaction_bodies.0[0].certs().unwrap();
+    assert_eq!(certs.len(), 1);
 }
