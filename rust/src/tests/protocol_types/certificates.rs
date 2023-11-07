@@ -6,41 +6,41 @@ use crate::tests::mock_objects::{crate_full_pool_params, create_anchor};
 use crate::*;
 
 #[test]
-fn committee_hot_key_deregistration_setters_getters_test() {
+fn committee_cold_resign_setters_getters_test() {
     let cred_key_hash = Credential::from_keyhash(&fake_key_hash(1));
     let cred_script_hash = Credential::from_scripthash(&fake_script_hash(2));
-    let committee_hot_key_deregistration_1 = CommitteeColdResign::new(&cred_key_hash);
+    let committee_cold_resign_1 = CommitteeColdResign::new(&cred_key_hash);
 
-    let committee_hot_key_deregistration_2 = CommitteeColdResign::new(&cred_script_hash);
+    let committee_cold_resign_2 = CommitteeColdResign::new(&cred_script_hash);
 
     assert_eq!(
-        committee_hot_key_deregistration_1.committee_cold_key(),
+        committee_cold_resign_1.committee_cold_key(),
         cred_key_hash
     );
-    assert!(!committee_hot_key_deregistration_1.has_script_credentials());
+    assert!(!committee_cold_resign_1.has_script_credentials());
     assert_eq!(
-        committee_hot_key_deregistration_2.committee_cold_key(),
+        committee_cold_resign_2.committee_cold_key(),
         cred_script_hash
     );
-    assert!(committee_hot_key_deregistration_2.has_script_credentials());
+    assert!(committee_cold_resign_2.has_script_credentials());
 }
 
 #[test]
-fn committee_hot_key_registration_setters_getters_test() {
+fn committee_hot_auth_setters_getters_test() {
     let cold_cred_key_hash = Credential::from_keyhash(&fake_key_hash(1));
     let hot_cred_key_hash = Credential::from_keyhash(&fake_key_hash(1));
-    let committee_hot_key_registration =
+    let committee_hot_auth =
         CommitteeHotAuth::new(&cold_cred_key_hash, &hot_cred_key_hash);
 
     assert_eq!(
-        committee_hot_key_registration.committee_cold_key(),
+        committee_hot_auth.committee_cold_key(),
         cold_cred_key_hash
     );
     assert_eq!(
-        committee_hot_key_registration.committee_hot_key(),
+        committee_hot_auth.committee_hot_key(),
         hot_cred_key_hash
     );
-    assert!(!committee_hot_key_registration.has_script_credentials());
+    assert!(!committee_hot_auth.has_script_credentials());
 }
 
 #[test]
