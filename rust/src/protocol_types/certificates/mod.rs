@@ -40,11 +40,11 @@ pub use stake_vote_registration_and_delegation::*;
 mod vote_registration_and_delegation;
 pub use vote_registration_and_delegation::*;
 
-mod committee_hot_key_registration;
-pub use committee_hot_key_registration::*;
+mod committee_hot_auth;
+pub use committee_hot_auth::*;
 
-mod committee_hot_key_deregistration;
-pub use committee_hot_key_deregistration::*;
+mod committee_cold_resign;
+pub use committee_cold_resign::*;
 
 mod drep_registration;
 pub use drep_registration::*;

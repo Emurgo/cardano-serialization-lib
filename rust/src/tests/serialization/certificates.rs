@@ -41,7 +41,7 @@ fn committee_cold_resign_key_hash_ser_round_trip() {
     to_from_test!(CommitteeColdResign, cert, cert_wrapped);
     assert_eq!(
         cert,
-        cert_wrapped.as_committee_hot_key_deregistration().unwrap()
+        cert_wrapped.as_committee_cold_resign().unwrap()
     );
 }
 
@@ -54,7 +54,7 @@ fn committee_cold_resign_with_anchor_ser_round_trip() {
     to_from_test!(CommitteeColdResign, cert, cert_wrapped);
     assert_eq!(
         cert,
-        cert_wrapped.as_committee_hot_key_deregistration().unwrap()
+        cert_wrapped.as_committee_cold_resign().unwrap()
     );
 }
 
@@ -65,7 +65,7 @@ fn committee_cold_resign_script_hash_ser_round_trip() {
     to_from_test!(CommitteeColdResign, cert, cert_wrapped);
     assert_eq!(
         cert,
-        cert_wrapped.as_committee_hot_key_deregistration().unwrap()
+        cert_wrapped.as_committee_cold_resign().unwrap()
     );
 }
 
@@ -79,7 +79,7 @@ fn committee_hot_auth_ser_round_trip() {
     to_from_test!(CommitteeHotAuth, cert, cert_wrapped);
     assert_eq!(
         cert,
-        cert_wrapped.as_committee_hot_key_registration().unwrap()
+        cert_wrapped.as_committee_hot_auth().unwrap()
     );
 }
 

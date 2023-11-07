@@ -112,18 +112,18 @@ impl Certificate {
     }
 
     pub fn new_committee_hot_auth(
-        committee_hot_key_registration: &CommitteeHotAuth,
+        committee_hot_auth: &CommitteeHotAuth,
     ) -> Self {
         Self(CertificateEnum::CommitteeHotAuth(
-            committee_hot_key_registration.clone(),
+            committee_hot_auth.clone(),
         ))
     }
 
     pub fn new_committee_cold_resign(
-        committee_hot_key_deregistration: &CommitteeColdResign,
+        committee_cold_resign: &CommitteeColdResign,
     ) -> Self {
         Self(CertificateEnum::CommitteeColdResign(
-            committee_hot_key_deregistration.clone(),
+            committee_cold_resign.clone(),
         ))
     }
 
@@ -260,14 +260,14 @@ impl Certificate {
         }
     }
 
-    pub fn as_committee_hot_key_registration(&self) -> Option<CommitteeHotAuth> {
+    pub fn as_committee_hot_auth(&self) -> Option<CommitteeHotAuth> {
         match &self.0 {
             CertificateEnum::CommitteeHotAuth(x) => Some(x.clone()),
             _ => None,
         }
     }
 
-    pub fn as_committee_hot_key_deregistration(&self) -> Option<CommitteeColdResign> {
+    pub fn as_committee_cold_resign(&self) -> Option<CommitteeColdResign> {
         match &self.0 {
             CertificateEnum::CommitteeColdResign(x) => Some(x.clone()),
             _ => None,
