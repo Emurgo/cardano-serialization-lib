@@ -5764,7 +5764,7 @@ fn plutus_mint_with_script_ref_test() {
     let asset_name = AssetName::from_hex("44544e4654").unwrap();
     let mut mint_builder = MintBuilder::new();
     let plutus_script_source = PlutusScriptSource::new(&plutus_script);
-    let plutus_script_source_ref = PlutusScriptSource::new_ref_input_with_lang_ver(
+    let plutus_script_source_ref = PlutusScriptSource::new_ref_input(
         &plutus_script2.hash(),
         &tx_input_ref,
         &Language::new_plutus_v2(),
@@ -6240,12 +6240,12 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
 
     let ref_cert_script_input_3 = fake_tx_input(1);
     let ref_cert_withdrawal_input_2 = fake_tx_input(2);
-    let plutus_cert_source = PlutusScriptSource::new_ref_input_with_lang_ver(
+    let plutus_cert_source = PlutusScriptSource::new_ref_input(
         &cert_script_hash3,
         &ref_cert_script_input_3,
         &Language::new_plutus_v2(),
     );
-    let plutus_withdrawal_source = PlutusScriptSource::new_ref_input_with_lang_ver(
+    let plutus_withdrawal_source = PlutusScriptSource::new_ref_input(
         &withdraw_script_hash2,
         &ref_cert_withdrawal_input_2,
         &Language::new_plutus_v2(),

@@ -188,7 +188,7 @@ fn voting_builder_plutus_ref_witness() {
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 1);
     let vote = VotingProcedure::new(VoteKind::No);
 
-    let script_source = PlutusScriptSource::new_ref_input_with_lang_ver(
+    let script_source = PlutusScriptSource::new_ref_input(
         &script_hash,
         &ref_input,
         &Language::new_plutus_v2(),
