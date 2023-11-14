@@ -645,9 +645,9 @@ impl Deserialize for Address {
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BaseAddress {
-    network: u8,
-    payment: Credential,
-    stake: Credential,
+    pub(crate) network: u8,
+    pub(crate) payment: Credential,
+    pub(crate) stake: Credential,
 }
 
 #[wasm_bindgen]
@@ -683,8 +683,8 @@ impl BaseAddress {
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EnterpriseAddress {
-    network: u8,
-    payment: Credential,
+    pub(crate) network: u8,
+    pub(crate) payment: Credential,
 }
 
 #[wasm_bindgen]
@@ -715,8 +715,8 @@ impl EnterpriseAddress {
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct RewardAddress {
-    network: u8,
-    payment: Credential,
+    pub(crate) network: u8,
+    pub(crate) payment: Credential,
 }
 
 #[wasm_bindgen]

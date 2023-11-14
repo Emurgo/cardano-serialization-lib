@@ -1,3 +1,4 @@
+use std::string::ToString;
 use super::*;
 use crate::chain_crypto;
 use cbor_event::{self};
@@ -222,3 +223,17 @@ impl std::fmt::Display for JsError {
 
 #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
 impl std::error::Error for JsError {}
+
+pub(crate) enum BuilderError {
+    RegularInputIsScript,
+    RegularInputIsFromRewardAddress,
+}
+
+impl BuilderError {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            BuilderError::RegularInputIsScript => "You can't add a script input to this function. You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.",
+            BuilderError::RegularInputIsFromRewardAddress => "You can't use an input from reward address. To spend funds from reward address you to use withdrawal mechanism.",
+        }
+    }
+}
