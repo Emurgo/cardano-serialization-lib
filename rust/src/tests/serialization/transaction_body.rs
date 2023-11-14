@@ -32,7 +32,7 @@ fn transaction_round_trip_test() {
     let mut withdrawals = Withdrawals::new();
     withdrawals.insert(
         &RewardAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &Credential::from_keyhash(&fake_key_hash(9)),
         ),
         &Coin::from(1_000_010u64),

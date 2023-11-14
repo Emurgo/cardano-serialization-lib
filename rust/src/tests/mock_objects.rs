@@ -37,7 +37,7 @@ pub(crate) fn generate_address(index: u32) -> Address {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     );
@@ -285,7 +285,7 @@ pub(crate) fn create_change_address() -> Address {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     );

@@ -53,7 +53,7 @@ fn certificatess_builder_deposit_test() {
     );
 
     let staking_cred = Credential::from_keyhash(&fake_key_hash(10));
-    let reward_address = RewardAddress::new(NetworkInfo::testnet().network_id(), &staking_cred);
+    let reward_address = RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &staking_cred);
     let mut owners = Ed25519KeyHashes::new();
     owners.add(&fake_key_hash(11));
     owners.add(&fake_key_hash(12));
@@ -221,7 +221,7 @@ fn certificatess_builder_no_deposit_test() {
     );
 
     let staking_cred = Credential::from_keyhash(&fake_key_hash(10));
-    let reward_address = RewardAddress::new(NetworkInfo::testnet().network_id(), &staking_cred);
+    let reward_address = RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &staking_cred);
     let mut owners = Ed25519KeyHashes::new();
     owners.add(&fake_key_hash(11));
     owners.add(&fake_key_hash(12));
@@ -378,7 +378,7 @@ fn certificatess_builder_req_signers_test() {
     );
 
     let staking_cred = Credential::from_keyhash(&key_hash_10);
-    let reward_address = RewardAddress::new(NetworkInfo::testnet().network_id(), &staking_cred);
+    let reward_address = RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &staking_cred);
     let mut owners = Ed25519KeyHashes::new();
     owners.add(&key_hash_11);
     owners.add(&key_hash_12);

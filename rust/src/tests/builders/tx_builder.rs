@@ -65,7 +65,7 @@ fn build_tx_with_change() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -90,7 +90,7 @@ fn build_tx_with_change() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -136,7 +136,7 @@ fn build_tx_with_change_with_datum() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -164,7 +164,7 @@ fn build_tx_with_change_with_datum() {
     let (_, script_hash) = plutus_script_and_hash(15);
     let change_cred = Credential::from_scripthash(&script_hash);
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -217,7 +217,7 @@ fn build_tx_without_change() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -242,7 +242,7 @@ fn build_tx_without_change() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -310,7 +310,7 @@ fn build_tx_with_certs() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -370,7 +370,7 @@ fn build_tx_exact_amount() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -390,7 +390,7 @@ fn build_tx_exact_amount() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -434,7 +434,7 @@ fn build_tx_exact_change() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -454,7 +454,7 @@ fn build_tx_exact_change() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -500,7 +500,7 @@ fn build_tx_insufficient_deposit() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -527,7 +527,7 @@ fn build_tx_insufficient_deposit() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -561,7 +561,7 @@ fn build_tx_with_inputs() {
         assert_eq!(
             tx_builder
                 .fee_for_input(
-                    &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred)
+                    &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
                         .to_address(),
                     &TransactionInput::new(&genesis_id(), 0),
                     &Value::new(&to_bignum(1_000_000))
@@ -571,14 +571,14 @@ fn build_tx_with_inputs() {
             "69500"
         );
         tx_builder.add_regular_input(
-            &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+            &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&to_bignum(1_000_000)),
         );
     }
     tx_builder.add_regular_input(
         &BaseAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &spend_cred,
             &stake_cred,
         )
@@ -588,7 +588,7 @@ fn build_tx_with_inputs() {
     );
     tx_builder.add_regular_input(
         &PointerAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &spend_cred,
             &Pointer::new_pointer(&to_bignum(0), &to_bignum(0), &to_bignum(0)),
         )
@@ -597,7 +597,7 @@ fn build_tx_with_inputs() {
         &Value::new(&to_bignum(1_000_000)),
     );
     tx_builder.add_regular_input(
-        &ByronAddress::icarus_from_key(&spend, NetworkInfo::testnet().protocol_magic())
+        &ByronAddress::icarus_from_key(&spend, NetworkInfo::testnet_preprod().protocol_magic())
             .to_address(),
         &TransactionInput::new(&genesis_id(), 3),
         &Value::new(&to_bignum(1_000_000)),
@@ -653,7 +653,7 @@ fn build_tx_with_script_ref() {
 
     tx_builder.add_regular_input(
         &PointerAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &spend_cred,
             &Pointer::new_pointer(&to_bignum(0), &to_bignum(0), &to_bignum(0)),
         )
@@ -663,7 +663,7 @@ fn build_tx_with_script_ref() {
     );
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -685,7 +685,7 @@ fn build_tx_with_script_ref() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -734,7 +734,7 @@ fn serialization_tx_body_with_script_ref() {
 
     tx_builder.add_regular_input(
         &PointerAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &spend_cred,
             &Pointer::new_pointer(&to_bignum(0), &to_bignum(0), &to_bignum(0)),
         )
@@ -744,7 +744,7 @@ fn serialization_tx_body_with_script_ref() {
     );
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -766,7 +766,7 @@ fn serialization_tx_body_with_script_ref() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -815,7 +815,7 @@ fn json_serialization_tx_body_with_script_ref() {
 
     tx_builder.add_regular_input(
         &PointerAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &spend_cred,
             &Pointer::new_pointer(&to_bignum(0), &to_bignum(0), &to_bignum(0)),
         )
@@ -825,7 +825,7 @@ fn json_serialization_tx_body_with_script_ref() {
     );
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -847,7 +847,7 @@ fn json_serialization_tx_body_with_script_ref() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -893,13 +893,13 @@ fn build_tx_with_mint_all_sent() {
 
     // Input with 150 coins
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &Value::new(&to_bignum(500)),
     );
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -935,7 +935,7 @@ fn build_tx_with_mint_all_sent() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -981,13 +981,13 @@ fn build_tx_with_mint_in_change() {
 
     // Input with 600 coins
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &Value::new(&to_bignum(600)),
     );
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -1025,7 +1025,7 @@ fn build_tx_with_mint_in_change() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1090,19 +1090,19 @@ fn change_with_input_and_mint_not_enough_ada() {
 
     // Input with 600 coins
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &Value::new(&to_bignum(600)),
     );
 
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
         &TransactionInput::new(&genesis_id(), 1),
         &Value::new_with_assets(&to_bignum(1), &mass_input),
     );
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -1134,7 +1134,7 @@ fn change_with_input_and_mint_not_enough_ada() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1186,19 +1186,19 @@ fn change_with_input_and_mint_not_enough_assets() {
 
     // Input with 600 coins
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &Value::new(&to_bignum(100000)),
     );
 
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
         &TransactionInput::new(&genesis_id(), 1),
         &Value::new_with_assets(&to_bignum(1), &mass_input),
     );
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -1230,7 +1230,7 @@ fn change_with_input_and_mint_not_enough_assets() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1304,7 +1304,7 @@ fn build_tx_with_native_assets_change() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -1327,7 +1327,7 @@ fn build_tx_with_native_assets_change() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1419,7 +1419,7 @@ fn build_tx_with_native_assets_change_and_purification() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -1442,7 +1442,7 @@ fn build_tx_with_native_assets_change_and_purification() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1546,7 +1546,7 @@ fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_co
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -1569,7 +1569,7 @@ fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_co
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1627,7 +1627,7 @@ fn build_tx_leftover_assets() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -1665,7 +1665,7 @@ fn build_tx_leftover_assets() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -2555,7 +2555,7 @@ fn build_tx_pay_to_multisig() {
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -2639,13 +2639,13 @@ fn build_tx_multisig_spend_1on1_unsigned() {
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let addr_multisig = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
     .to_address();
     let addr_output = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -2731,7 +2731,7 @@ fn build_tx_multisig_1on1_signed() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -3757,7 +3757,7 @@ fn total_input_output_with_mint_and_burn() {
 
 fn create_base_address_from_script_hash(sh: &ScriptHash) -> Address {
     BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &Credential::from_scripthash(sh),
         &Credential::from_keyhash(&fake_key_hash(0)),
     )
@@ -6026,20 +6026,20 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
     let reward_cred = Credential::from_keyhash(&reward.to_raw_key().hash());
     withdrawals
         .add(
-            &RewardAddress::new(NetworkInfo::testnet().network_id(), &reward_cred),
+            &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &reward_cred),
             &Coin::from(1u32),
         )
         .unwrap();
     withdrawals
         .add_with_plutus_witness(
-            &RewardAddress::new(NetworkInfo::testnet().network_id(), &withdraw_script_cred1),
+            &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &withdraw_script_cred1),
             &Coin::from(2u32),
             &withdraw_witness1,
         )
         .unwrap();
     withdrawals
         .add_with_plutus_witness(
-            &RewardAddress::new(NetworkInfo::testnet().network_id(), &withdraw_script_cred2),
+            &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &withdraw_script_cred2),
             &Coin::from(3u32),
             &withdraw_witness2,
         )
@@ -6048,7 +6048,7 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -6056,7 +6056,7 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
     let cost_models = TxBuilderConstants::plutus_default_cost_models();
     let collateral_input = fake_tx_input(1);
     let collateral_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Credential::from_keyhash(&fake_key_hash(2)),
     )

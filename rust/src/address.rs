@@ -65,18 +65,6 @@ impl NetworkInfo {
             protocol_magic: 1,
         }
     }
-    /// !!! DEPRECATED !!!
-    /// This network does not exist anymore. Use `.testnet_preview()` or `.testnet_preprod()`
-    #[deprecated(
-        since = "11.2.0",
-        note = "Use `.testnet_preview` or `.testnet_preprod`"
-    )]
-    pub fn testnet() -> NetworkInfo {
-        NetworkInfo {
-            network_id: 0b0000,
-            protocol_magic: 1097911063,
-        }
-    }
     pub fn mainnet() -> NetworkInfo {
         NetworkInfo {
             network_id: 0b0001,
@@ -284,9 +272,6 @@ impl ByronAddress {
         match protocol_magic {
             magic if magic == NetworkInfo::mainnet().protocol_magic() => {
                 Ok(NetworkInfo::mainnet().network_id())
-            }
-            magic if magic == NetworkInfo::testnet().protocol_magic() => {
-                Ok(NetworkInfo::testnet().network_id())
             }
             magic if magic == NetworkInfo::testnet_preprod().protocol_magic() => {
                 Ok(NetworkInfo::testnet_preprod().network_id())
@@ -597,7 +582,6 @@ impl Address {
                     _ => "addr",
                 };
                 let prefix_tail = match self.network_id()? {
-                    id if id == NetworkInfo::testnet().network_id() => "_test",
                     id if id == NetworkInfo::testnet_preprod().network_id() => "_test",
                     id if id == NetworkInfo::testnet_preview().network_id() => "_test",
                     _ => "",
