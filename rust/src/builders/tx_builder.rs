@@ -230,18 +230,6 @@ impl TransactionBuilderConfigBuilder {
         cfg
     }
 
-    /// !!! DEPRECATED !!!
-    /// Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead.
-    #[deprecated(
-        since = "11.0.0",
-        note = "Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead."
-    )]
-    pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {
-        let mut cfg = self.clone();
-        cfg.data_cost = Some(DataCost::new_coins_per_word(coins_per_utxo_word));
-        cfg
-    }
-
     pub fn coins_per_utxo_byte(&self, coins_per_utxo_byte: &Coin) -> Self {
         let mut cfg = self.clone();
         cfg.data_cost = Some(DataCost::new_coins_per_byte(coins_per_utxo_byte));

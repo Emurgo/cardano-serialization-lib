@@ -2455,7 +2455,7 @@ fn tx_builder_cip2_random_improve_when_using_all_available_inputs() {
         .key_deposit(&to_bignum(0))
         .max_value_size(9999)
         .max_tx_size(9999)
-        .coins_per_utxo_word(&Coin::zero())
+        .coins_per_utxo_byte(&Coin::zero())
         .build()
         .unwrap();
     let mut tx_builder = TransactionBuilder::new(&cfg);
@@ -2494,7 +2494,7 @@ fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
         .key_deposit(&to_bignum(0))
         .max_value_size(9999)
         .max_tx_size(9999)
-        .coins_per_utxo_word(&Coin::zero())
+        .coins_per_utxo_byte(&Coin::zero())
         .build()
         .unwrap();
     let mut tx_builder = TransactionBuilder::new(&cfg);
@@ -2818,7 +2818,7 @@ fn add_change_splits_change_into_multiple_outputs_when_nfts_overflow_output_size
             .key_deposit(&to_bignum(0))
             .max_value_size(max_value_size)
             .max_tx_size(MAX_TX_SIZE)
-            .coins_per_utxo_word(&to_bignum(8))
+            .coins_per_utxo_byte(&to_bignum(1))
             .prefer_pure_change(true)
             .build()
             .unwrap(),
