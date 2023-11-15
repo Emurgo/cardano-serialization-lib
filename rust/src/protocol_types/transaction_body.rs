@@ -147,13 +147,6 @@ impl TransactionBody {
         self.mint.clone()
     }
 
-    /// This function returns the mint value of the transaction
-    /// Use `.mint()` instead.
-    #[deprecated(since = "10.0.0", note = "Weird naming. Use `.mint()`")]
-    pub fn multiassets(&self) -> Option<Mint> {
-        self.mint()
-    }
-
     pub fn set_reference_inputs(&mut self, reference_inputs: &TransactionInputs) {
         self.reference_inputs = Some(reference_inputs.clone())
     }
