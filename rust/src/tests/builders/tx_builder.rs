@@ -1355,7 +1355,7 @@ fn build_tx_with_native_assets_change() {
 
 #[test]
 fn build_tx_with_native_assets_change_and_purification() {
-    let coin_per_utxo_word = to_bignum(8);
+    let coin_per_utxo_byte = to_bignum(1);
     // Prefer pure change!
     let mut tx_builder = create_tx_builder_with_fee_and_pure_change(&create_linear_fee(0, 1));
     let spend = root_key_15()
@@ -1467,10 +1467,9 @@ fn build_tx_with_native_assets_change_and_purification() {
         to_bignum(ma_input1 + ma_input2 - ma_output1)
     );
     // The first change output that contains all the tokens contain minimum required Coin
-    let min_coin_for_dirty_change = min_ada_required(
-        &final_tx.outputs().get(1).amount(),
-        false,
-        &coin_per_utxo_word,
+    let min_coin_for_dirty_change = min_ada_for_output(
+        &final_tx.outputs().get(1),
+        &DataCost::new_coins_per_byte(&coin_per_utxo_byte),
     )
     .unwrap();
     assert_eq!(
