@@ -1840,19 +1840,19 @@ declare export class Certificate {
   ): Certificate;
 
   /**
-   * @param {CommitteeHotAuth} committee_hot_key_registration
+   * @param {CommitteeHotAuth} committee_hot_auth
    * @returns {Certificate}
    */
   static new_committee_hot_auth(
-    committee_hot_key_registration: CommitteeHotAuth
+    committee_hot_auth: CommitteeHotAuth
   ): Certificate;
 
   /**
-   * @param {CommitteeColdResign} committee_hot_key_deregistration
+   * @param {CommitteeColdResign} committee_cold_resign
    * @returns {Certificate}
    */
   static new_committee_cold_resign(
-    committee_hot_key_deregistration: CommitteeColdResign
+    committee_cold_resign: CommitteeColdResign
   ): Certificate;
 
   /**
@@ -1958,12 +1958,12 @@ declare export class Certificate {
   /**
    * @returns {CommitteeHotAuth | void}
    */
-  as_committee_hot_key_registration(): CommitteeHotAuth | void;
+  as_committee_hot_auth(): CommitteeHotAuth | void;
 
   /**
    * @returns {CommitteeColdResign | void}
    */
-  as_committee_hot_key_deregistration(): CommitteeColdResign | void;
+  as_committee_cold_resign(): CommitteeColdResign | void;
 
   /**
    * @returns {DrepDeregistration | void}
