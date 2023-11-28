@@ -59,7 +59,7 @@ pub use protocol_types::*;
 #[macro_use]
 pub mod utils;
 pub(crate) mod fakes;
-mod serialization;
+pub mod serialization;
 
 use crate::traits::NoneOrEmpty;
 use address::*;
