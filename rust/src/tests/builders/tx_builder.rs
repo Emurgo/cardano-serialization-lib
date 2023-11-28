@@ -3101,7 +3101,7 @@ fn assert_mint_asset(mint: &Mint, policy_id: &PolicyID) {
     let result_asset = mint.get(&policy_id).unwrap();
     assert_eq!(result_asset.len(), 1);
     assert_eq!(
-        result_asset.get(&create_asset_name()).unwrap(),
+        result_asset.get(0).unwrap().get(&create_asset_name()).unwrap(),
         Int::new_i32(1234)
     );
 }
