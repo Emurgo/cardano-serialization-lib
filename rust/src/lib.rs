@@ -41,37 +41,39 @@ use cbor_event::{
     se::{Serialize, Serializer},
 };
 
-pub mod address;
+mod address;
+pub use address::*;
 mod builders;
+pub use builders::*;
 pub mod chain_core;
 pub mod chain_crypto;
-pub mod crypto;
-pub mod emip3;
-pub mod error;
-pub mod fees;
+mod crypto;
+pub use crypto::*;
+mod emip3;
+pub use emip3::*;
+mod error;
+pub use error::*;
+mod fees;
+pub use fees::*;
 pub mod impl_mockchain;
 pub mod legacy_address;
 pub mod traits;
-pub use builders::*;
 mod protocol_types;
-pub mod typed_bytes;
 pub use protocol_types::*;
+pub mod typed_bytes;
 #[macro_use]
-pub mod utils;
+mod utils;
+pub use utils::*;
 pub(crate) mod fakes;
-pub mod serialization;
+mod serialization;
+pub use serialization::*;
 
 use crate::traits::NoneOrEmpty;
-use address::*;
-use crypto::*;
-use error::*;
 use schemars::JsonSchema;
-use serialization::*;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::fmt::Display;
-use utils::*;
 
 type DeltaCoin = Int;
 
