@@ -2527,6 +2527,10 @@ impl MintsAssets {
     pub fn get(&self, index: usize) -> Option<MintAssets> {
         self.0.get(index).map(|v| v.clone())
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 #[wasm_bindgen]
@@ -2611,22 +2615,7 @@ impl Mint {
         None
     }
 
-    /// !!! DEPRECATED !!!
-    /// Mint can store multiple entries for the same policy id.
-    /// Use `.get_all` instead.
-    #[deprecated(
-        since = "11.2.0",
-        note = "Mint can store multiple entries for the same policy id. Use `.get_all` instead."
-    )]
-    pub fn get(&self, key: &PolicyID) -> Option<MintAssets> {
-        self.0
-            .iter()
-            .filter(|(k, _)| k.eq(key))
-            .next()
-            .map(|(_k, v)| v.clone())
-    }
-
-    pub fn get_all(&self, key: &PolicyID) -> Option<MintsAssets> {
+    pub fn get(&self, key: &PolicyID) -> Option<MintsAssets> {
         let mints: Vec<MintAssets> = self
             .0
             .iter()
