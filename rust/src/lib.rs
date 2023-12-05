@@ -41,8 +41,6 @@ use cbor_event::{
     se::{Serialize, Serializer},
 };
 
-mod address;
-pub use address::*;
 mod builders;
 pub use builders::*;
 pub mod chain_core;
@@ -287,62 +285,6 @@ impl DataCost {
                 let bytes_in_word = to_bignum(8);
                 coins_per_word.div_floor(&bytes_in_word)
             }
-        }
-    }
-}
-
-pub type RequiredSigners = Ed25519KeyHashes;
-pub type RequiredSignersSet = BTreeSet<Ed25519KeyHash>;
-
-impl NoneOrEmpty for RequiredSigners {
-    fn is_none_or_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-impl From<&Ed25519KeyHashes> for RequiredSignersSet {
-    fn from(keys: &Ed25519KeyHashes) -> Self {
-        keys.0.iter().fold(BTreeSet::new(), |mut set, k| {
-            set.insert(k.clone());
-            set
-        })
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    JsonSchema,
-)]
-pub struct TransactionInput {
-    transaction_id: TransactionHash,
-    index: TransactionIndex,
-}
-
-impl_to_from!(TransactionInput);
-
-#[wasm_bindgen]
-impl TransactionInput {
-    pub fn transaction_id(&self) -> TransactionHash {
-        self.transaction_id.clone()
-    }
-
-    pub fn index(&self) -> TransactionIndex {
-        self.index.clone()
-    }
-
-    pub fn new(transaction_id: &TransactionHash, index: TransactionIndex) -> Self {
-        Self {
-            transaction_id: transaction_id.clone(),
-            index: index,
         }
     }
 }
@@ -952,33 +894,6 @@ impl PoolMetadata {
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
-pub struct Credentials(Vec<Credential>);
-
-impl_to_from!(Credentials);
-
-#[wasm_bindgen]
-impl Credentials {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> Credential {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &Credential) {
-        self.0.push(elem.clone());
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
 pub struct RewardAddresses(pub(crate) Vec<RewardAddress>);
 
 impl_to_from!(RewardAddresses);
@@ -1553,16 +1468,11 @@ impl NativeScript {
         }
     }
 
-    /// Returns an array of unique Ed25519KeyHashes
+    /// Returns a set of Ed25519KeyHashes
     /// contained within this script recursively on any depth level.
     /// The order of the keys in the result is not determined in any way.
-    pub fn get_required_signers(&self) -> Ed25519KeyHashes {
-        Ed25519KeyHashes(
-            RequiredSignersSet::from(self)
-                .iter()
-                .map(|k| k.clone())
-                .collect(),
-        )
+    pub fn get_required_signers(&self) -> Ed25519KeyHashesSet {
+        Ed25519KeyHashesSet::from(self)
     }
 }
 
@@ -2749,27 +2659,27 @@ impl NetworkId {
     }
 }
 
-impl From<&NativeScript> for RequiredSignersSet {
+impl From<&NativeScript> for Ed25519KeyHashesSet {
     fn from(script: &NativeScript) -> Self {
         match &script.0 {
             NativeScriptEnum::ScriptPubkey(spk) => {
-                let mut set = BTreeSet::new();
-                set.insert(spk.addr_keyhash());
+                let mut set = Ed25519KeyHashesSet::new();
+                set.add_move(spk.addr_keyhash());
                 set
             }
-            NativeScriptEnum::ScriptAll(all) => RequiredSignersSet::from(&all.native_scripts),
-            NativeScriptEnum::ScriptAny(any) => RequiredSignersSet::from(&any.native_scripts),
-            NativeScriptEnum::ScriptNOfK(ofk) => RequiredSignersSet::from(&ofk.native_scripts),
-            _ => BTreeSet::new(),
+            NativeScriptEnum::ScriptAll(all) => Ed25519KeyHashesSet::from(&all.native_scripts),
+            NativeScriptEnum::ScriptAny(any) => Ed25519KeyHashesSet::from(&any.native_scripts),
+            NativeScriptEnum::ScriptNOfK(ofk) => Ed25519KeyHashesSet::from(&ofk.native_scripts),
+            _ => Ed25519KeyHashesSet::new(),
         }
     }
 }
 
-impl From<&NativeScripts> for RequiredSignersSet {
+impl From<&NativeScripts> for Ed25519KeyHashesSet {
     fn from(scripts: &NativeScripts) -> Self {
-        scripts.0.iter().fold(BTreeSet::new(), |mut set, s| {
-            RequiredSignersSet::from(s).iter().for_each(|pk| {
-                set.insert(pk.clone());
+        scripts.0.iter().fold(Ed25519KeyHashesSet::new(), |mut set, s| {
+            Ed25519KeyHashesSet::from(s).0.iter().for_each(|pk| {
+                set.add_move(pk.clone());
             });
             set
         })

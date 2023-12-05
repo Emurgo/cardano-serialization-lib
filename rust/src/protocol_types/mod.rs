@@ -19,3 +19,14 @@ pub use transaction_body::*;
 
 mod protocol_param_update;
 pub use protocol_param_update::*;
+
+mod address;
+pub use address::*;
+mod tx_inputs;
+pub use tx_inputs::*;
+
+mod credentials;
+pub use credentials::*;
+
+mod ed25519_key_hashes;
+pub use ed25519_key_hashes::*;

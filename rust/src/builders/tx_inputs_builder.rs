@@ -65,8 +65,8 @@ impl InputsWithScriptWitness {
 
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
 #[derive(Clone, Debug)]
-pub struct RequiredWitnessSet {
-    vkeys: RequiredSignersSet,
+pub struct InputsRequiredWitness {
+    vkeys: Ed25519KeyHashesSet,
     scripts: LinkedHashMap<ScriptHash, LinkedHashMap<TransactionInput, Option<ScriptWitnessType>>>,
     bootstraps: BTreeSet<Vec<u8>>,
 }
@@ -75,7 +75,7 @@ pub struct RequiredWitnessSet {
 #[derive(Clone, Debug)]
 pub struct TxInputsBuilder {
     inputs: BTreeMap<TransactionInput, (TxBuilderInput, Option<ScriptHash>)>,
-    required_witnesses: RequiredWitnessSet,
+    required_witnesses: InputsRequiredWitness,
 }
 
 pub(crate) fn get_bootstraps(inputs: &TxInputsBuilder) -> BTreeSet<Vec<u8>> {
@@ -87,8 +87,8 @@ impl TxInputsBuilder {
     pub fn new() -> Self {
         Self {
             inputs: BTreeMap::new(),
-            required_witnesses: RequiredWitnessSet {
-                vkeys: BTreeSet::new(),
+            required_witnesses: InputsRequiredWitness {
+                vkeys: Ed25519KeyHashesSet::new(),
                 scripts: LinkedHashMap::new(),
                 bootstraps: BTreeSet::new(),
             },
@@ -113,7 +113,7 @@ impl TxInputsBuilder {
             amount: amount.clone(),
         };
         self.push_input((inp, None));
-        self.required_witnesses.vkeys.insert(hash.clone());
+        self.required_witnesses.vkeys.add_move(hash.clone());
     }
 
     #[deprecated(
@@ -466,7 +466,7 @@ impl TxInputsBuilder {
     }
 
     pub fn add_required_signer(&mut self, key: &Ed25519KeyHash) {
-        self.required_witnesses.vkeys.insert(key.clone());
+        self.required_witnesses.vkeys.add_move(key.clone());
     }
 
     pub fn add_required_signers(&mut self, keys: &RequiredSigners) {
@@ -526,7 +526,7 @@ impl TxInputsBuilder {
     }
 }
 
-impl From<&TxInputsBuilder> for RequiredSignersSet {
+impl From<&TxInputsBuilder> for Ed25519KeyHashesSet {
     fn from(inputs: &TxInputsBuilder) -> Self {
         let mut set = inputs.required_witnesses.vkeys.clone();
         inputs

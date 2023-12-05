@@ -136,7 +136,7 @@ fn new_committee_action_ser_round_trip() {
     committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
     committee.add_member(&Credential::from_scripthash(&fake_script_hash(2)), 2);
 
-    let mut members_to_remove = Credentials::new();
+    let mut members_to_remove = CredentialsSet::new();
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
     members_to_remove.add(&Credential::from_scripthash(&fake_script_hash(2)));
 
@@ -159,7 +159,7 @@ fn new_committee_action_with_action_id_ser_round_trip() {
     committee.add_member(&Credential::from_keyhash(&fake_key_hash(1)), 1);
     committee.add_member(&Credential::from_scripthash(&fake_script_hash(2)), 2);
 
-    let mut members_to_remove = Credentials::new();
+    let mut members_to_remove = CredentialsSet::new();
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
     members_to_remove.add(&Credential::from_scripthash(&fake_script_hash(2)));
 
@@ -178,7 +178,7 @@ fn new_committee_action_with_action_id_ser_round_trip() {
 #[test]
 fn new_committee_action_with_empty_ser_round_trip() {
     let committee = Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
-    let members_to_remove = Credentials::new();
+    let members_to_remove = CredentialsSet::new();
     let proposal = UpdateCommitteeAction::new(&committee, &members_to_remove);
 
     let proposal_wrapped = GovernanceAction::new_new_committee_action(&proposal);

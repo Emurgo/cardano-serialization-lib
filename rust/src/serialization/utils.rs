@@ -87,14 +87,14 @@ pub(crate) fn merge_option_plutus_list(left: Option<PlutusScripts>, right: Optio
     }
 }
 
-pub(super) fn skip_tag_wrapper<R: BufRead + Seek>(
+pub(super) fn skip_tag<R: BufRead + Seek>(
     raw: &mut Deserializer<R>,
     tag: u64,
 ) -> Result<(), DeserializeError> {
     if let Ok(extracted_tag) = raw.tag() {
         if extracted_tag != tag {
             return Err(DeserializeError::new(
-                "skip_tag_wrapper",
+                "skip_tag",
                 DeserializeFailure::TagMismatch {
                     found: extracted_tag,
                     expected: tag,
@@ -106,8 +106,8 @@ pub(super) fn skip_tag_wrapper<R: BufRead + Seek>(
     Ok(())
 }
 
-pub(super) fn skip_set_tag_wrapperr<R: BufRead + Seek>(
+pub(super) fn skip_set_tag<R: BufRead + Seek>(
     raw: &mut Deserializer<R>,
 ) -> Result<(), DeserializeError> {
-    skip_tag_wrapper(raw, 258)
+    skip_tag(raw, 258)
 }

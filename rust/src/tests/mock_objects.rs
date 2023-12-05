@@ -128,7 +128,7 @@ pub(crate) fn crate_full_pool_params() -> PoolParams {
         cost: Coin::from(44_444u32),
         margin: UnitInterval::new(&BigNum::from(44_444u32), &BigNum::from(44_444u32)),
         reward_account: RewardAddress::new(2, &Credential::from_keyhash(&fake_key_hash(3))),
-        pool_owners: Ed25519KeyHashes(vec![fake_key_hash(4), fake_key_hash(5)]),
+        pool_owners: Ed25519KeyHashesSet(vec![fake_key_hash(4), fake_key_hash(5)].into_iter().collect()),
         relays: Relays(vec![Relay::new_multi_host_name(&MultiHostName::new(
             &DNSRecordSRV::new("iohk.io".to_string()).unwrap(),
         ))]),

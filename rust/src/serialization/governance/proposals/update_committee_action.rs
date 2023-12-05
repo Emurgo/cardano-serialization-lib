@@ -15,10 +15,7 @@ impl Serialize for UpdateCommitteeAction {
         serialize_and_check_index(serializer, proposal_index, "UpdateCommitteeAction")?;
 
         self.gov_action_id.serialize_nullable(serializer)?;
-
-        let members_to_remove = Credentials(self.members_to_remove.iter().cloned().collect());
-        members_to_remove.serialize(serializer)?;
-
+        self.members_to_remove.serialize(serializer)?;
         self.committee.serialize_as_embedded_group(serializer)?;
 
         Ok(serializer)
@@ -45,14 +42,14 @@ impl DeserializeEmbeddedGroup for UpdateCommitteeAction {
             .map_err(|e| e.annotate("gov_action_id"))?;
 
         let members_to_remove =
-            Credentials::deserialize(raw).map_err(|e| e.annotate("members_to_remove"))?;
+            CredentialsSet::deserialize(raw).map_err(|e| e.annotate("members_to_remove"))?;
 
         let committee = Committee::deserialize_as_embedded_group(raw, cbor_event::Len::Len(2))
             .map_err(|e| e.annotate("committee"))?;
 
         return Ok(UpdateCommitteeAction {
             gov_action_id,
-            members_to_remove: members_to_remove.0.iter().cloned().collect(),
+            members_to_remove,
             committee,
         });
     }

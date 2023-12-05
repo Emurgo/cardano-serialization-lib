@@ -21,8 +21,8 @@ fn committee_setters_getters_test() {
     let keys = committee.members_keys();
     assert_eq!(committee.quorum_threshold(), threshold);
     assert_eq!(keys.len(), 2);
-    assert!(keys.0.iter().contains(&cred_1));
-    assert!(keys.0.iter().contains(&cred_2));
+    assert!(keys.contains(&cred_1));
+    assert!(keys.contains(&cred_2));
     assert_eq!(committee.get_member_epoch(&cred_1), Some(epoch_1));
     assert_eq!(committee.get_member_epoch(&cred_2), Some(epoch_2));
     assert_eq!(committee.get_member_epoch(&cred_3), None);
@@ -58,13 +58,12 @@ fn hard_fork_initiation_action_setters_getters_test() {
 fn new_committee_action_setters_getters_test() {
     let action_id = create_action_id();
     let committee = Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
-    let members_to_remove = Credentials(
+    let members_to_remove = CredentialsSet::from_iter(
         vec![
             Credential::from_keyhash(&fake_key_hash(1)),
             Credential::from_keyhash(&fake_key_hash(2)),
         ]
         .into_iter()
-        .collect(),
     );
 
     let proposal = UpdateCommitteeAction::new(&committee, &members_to_remove);

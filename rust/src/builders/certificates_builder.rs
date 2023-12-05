@@ -64,11 +64,11 @@ impl CertificatesBuilder {
         Ok(())
     }
 
-    pub(crate) fn get_required_signers(&self) -> RequiredSignersSet {
-        let mut set = RequiredSignersSet::new();
+    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashesSet {
+        let mut set = Ed25519KeyHashesSet::new();
         for (cert, script_wit) in &self.certs {
             let cert_req_signers = witness_keys_for_cert(&cert);
-            set.extend(cert_req_signers);
+            set.0.extend(cert_req_signers);
             if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = script_wit {
                 set.extend(script_source.required_signers());
             }

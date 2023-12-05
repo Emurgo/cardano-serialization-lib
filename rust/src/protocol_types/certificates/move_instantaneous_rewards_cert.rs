@@ -106,12 +106,11 @@ impl MIRToStakeCredentials {
         self.rewards.get(cred).map(|v| v.clone())
     }
 
-    pub fn keys(&self) -> Credentials {
-        Credentials(
+    pub fn keys(&self) -> CredentialsSet {
+        CredentialsSet::from_iter(
             self.rewards
                 .iter()
                 .map(|(k, _v)| k.clone())
-                .collect::<Vec<Credential>>(),
         )
     }
 }

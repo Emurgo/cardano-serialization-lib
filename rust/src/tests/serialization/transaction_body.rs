@@ -16,7 +16,7 @@ fn transaction_round_trip_test() {
             .unwrap();
     mint.insert(&fake_policy_id(3), &mint_asset);
 
-    let mut req_signers = RequiredSigners::new();
+    let mut req_signers = Ed25519KeyHashesSet::new();
     req_signers.add(&fake_key_hash(5));
 
     let mut collateral_inputs = TransactionInputs::new();

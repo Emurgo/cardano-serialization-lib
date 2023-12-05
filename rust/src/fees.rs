@@ -91,7 +91,6 @@ pub fn min_script_fee(tx: &Transaction, ex_unit_prices: &ExUnitPrices) -> Result
 mod tests {
     use super::*;
     use crate::TransactionOutputBuilder;
-    use address::*;
     use crypto::*;
 
     // based off tx test vectors (https://gist.github.com/KtorZ/5a2089df0915f21aca368d12545ab230)
@@ -331,7 +330,7 @@ mod tests {
 
         let mut certs = Certificates::new();
 
-        let mut pool_owners = Ed25519KeyHashes::new();
+        let mut pool_owners = Ed25519KeyHashesSet::new();
         pool_owners.add(
             &PublicKey::from_bytes(
                 &hex::decode("54d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f3")

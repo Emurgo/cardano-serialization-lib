@@ -77,12 +77,12 @@ impl WithdrawalsBuilder {
         Ok(())
     }
 
-    pub(crate) fn get_required_signers(&self) -> RequiredSignersSet {
-        let mut set = RequiredSignersSet::new();
+    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashesSet {
+        let mut set = Ed25519KeyHashesSet::new();
         for (address, (_, script_wit)) in &self.withdrawals {
             let req_signature = address.payment_cred().to_keyhash();
             if let Some(req_signature) = req_signature {
-                set.insert(req_signature);
+                set.add_move(req_signature);
             }
 
             if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = script_wit {

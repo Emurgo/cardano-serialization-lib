@@ -4632,11 +4632,11 @@ fn test_required_signers() {
     let tx1: TransactionBody = tx_builder.build().unwrap();
     assert!(tx1.required_signers.is_some());
 
-    let rs: RequiredSigners = tx1.required_signers.unwrap();
+    let rs: Ed25519KeyHashesSet = tx1.required_signers.unwrap();
     assert_eq!(rs.len(), 3);
-    assert_eq!(rs.get(0), s1);
-    assert_eq!(rs.get(1), s3);
-    assert_eq!(rs.get(2), s2);
+    assert!(rs.contains(&s1));
+    assert!(rs.contains(&s2));
+    assert!(rs.contains(&s3));
 }
 
 #[test]

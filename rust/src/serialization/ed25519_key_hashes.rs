@@ -1,7 +1,7 @@
 use crate::*;
 use crate::serialization::utils::skip_set_tag;
 
-impl cbor_event::se::Serialize for VotingProposals {
+impl cbor_event::se::Serialize for Ed25519KeyHashesSet {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
@@ -16,25 +16,25 @@ impl cbor_event::se::Serialize for VotingProposals {
     }
 }
 
-impl Deserialize for VotingProposals {
+impl Deserialize for Ed25519KeyHashesSet {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut arr = Vec::new();
+        skip_set_tag(raw)?;
+        let mut creds = Ed25519KeyHashesSet::new();
         (|| -> Result<_, DeserializeError> {
-            skip_set_tag(raw)?;
             let len = raw.array()?;
             while match len {
-                cbor_event::Len::Len(n) => arr.len() < n as usize,
+                cbor_event::Len::Len(n) => creds.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
                 if raw.cbor_type()? == CBORType::Special {
                     assert_eq!(raw.special()?, CBORSpecial::Break);
                     break;
                 }
-                arr.push(VotingProposal::deserialize(raw)?);
+                creds.add_move(Ed25519KeyHash::deserialize(raw)?);
             }
             Ok(())
         })()
-        .map_err(|e| e.annotate("VotingProposals"))?;
-        Ok(Self(arr))
+            .map_err(|e| e.annotate("RequiredSignersSet"))?;
+        Ok(creds)
     }
 }

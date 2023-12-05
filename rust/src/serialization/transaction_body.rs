@@ -306,7 +306,7 @@ impl Deserialize for TransactionBody {
                             required_signers = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    Ok(RequiredSigners::deserialize(raw)?)
+                                    Ok(Ed25519KeyHashesSet::deserialize(raw)?)
                                 })()
                                     .map_err(|e| e.annotate("required_signers"))?,
                             );

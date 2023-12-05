@@ -16,7 +16,7 @@ use crate::*;
 pub struct UpdateCommitteeAction {
     pub(crate) gov_action_id: Option<GovernanceActionId>,
     pub(crate) committee: Committee,
-    pub(crate) members_to_remove: BTreeSet<Credential>,
+    pub(crate) members_to_remove: CredentialsSet,
 }
 
 impl_to_from!(UpdateCommitteeAction);
@@ -31,29 +31,27 @@ impl UpdateCommitteeAction {
         self.committee.clone()
     }
 
-    pub fn members_to_remove(&self) -> Credentials {
-        Credentials(self.members_to_remove.iter().cloned().collect())
+    pub fn members_to_remove(&self) -> CredentialsSet {
+        self.members_to_remove.clone()
     }
 
-    pub fn new(committee: &Committee, members_to_remove: &Credentials) -> Self {
-        let members_to_remove = members_to_remove.0.iter().cloned().collect();
+    pub fn new(committee: &Committee, members_to_remove: &CredentialsSet) -> Self {
         Self {
             gov_action_id: None,
             committee: committee.clone(),
-            members_to_remove,
+            members_to_remove: members_to_remove.clone(),
         }
     }
 
     pub fn new_with_action_id(
         gov_action_id: &GovernanceActionId,
         committee: &Committee,
-        members_to_remove: &Credentials,
+        members_to_remove: &CredentialsSet,
     ) -> Self {
-        let members_to_remove = members_to_remove.0.iter().cloned().collect();
         Self {
             gov_action_id: Some(gov_action_id.clone()),
             committee: committee.clone(),
-            members_to_remove,
+            members_to_remove: members_to_remove.clone(),
         }
     }
 }

@@ -7,7 +7,7 @@ use crate::{
     Ed25519Signature, NetworkInfo, PolicyID, TransactionHash, TransactionIndex, TransactionInput,
     TransactionOutput, Value, Vkey, AssetName,
 };
-use crate::address::RewardAddress;
+use crate::RewardAddress;
 
 pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
     vec![
