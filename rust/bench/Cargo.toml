@@ -1,0 +1,16 @@
+[package]
+name = "bench"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cardano-serialization-lib = { path = ".." }
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "benches_main"
+harness = false
