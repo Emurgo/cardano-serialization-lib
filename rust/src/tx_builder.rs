@@ -734,6 +734,10 @@ impl TransactionBuilder {
         self.collateral_return = Some(collateral_return.clone());
     }
 
+    pub fn remove_collateral_return(&mut self) {
+        self.collateral_return = None;
+    }
+
     /// This function will set the collateral-return value and then auto-calculate and assign
     /// the total collateral coin value. Will raise an error in case no collateral inputs are set
     /// or in case the total collateral value will have any assets in it except coin.
@@ -772,6 +776,10 @@ impl TransactionBuilder {
 
     pub fn set_total_collateral(&mut self, total_collateral: &Coin) {
         self.total_collateral = Some(total_collateral.clone());
+    }
+
+    pub fn remove_total_collateral(&mut self) {
+        self.total_collateral = None;
     }
 
     /// This function will set the total-collateral coin and then auto-calculate and assign
@@ -997,6 +1005,10 @@ impl TransactionBuilder {
         self.ttl = Some(ttl.clone())
     }
 
+    pub fn remove_ttl(&mut self) {
+        self.ttl = None;
+    }
+
     /// !!! DEPRECATED !!!
     /// Uses outdated slot number format.
     #[deprecated(
@@ -1011,12 +1023,20 @@ impl TransactionBuilder {
         self.validity_start_interval = Some(validity_start_interval.clone())
     }
 
+    pub fn remove_validity_start_interval(&mut self) {
+        self.validity_start_interval = None;
+    }
+
     pub fn set_certs(&mut self, certs: &Certificates) {
         self.certs = Some(certs.clone());
         for cert in &certs.0 {
             self.inputs
                 .add_required_signers(&witness_keys_for_cert(cert))
         }
+    }
+
+    pub fn remove_certs(&mut self) {
+        self.certs = None;
     }
 
     pub fn set_withdrawals(&mut self, withdrawals: &Withdrawals) {
@@ -1027,6 +1047,10 @@ impl TransactionBuilder {
         }
     }
 
+    pub fn remove_withdrawals(&mut self) {
+        self.withdrawals = None;
+    }
+
     pub fn get_auxiliary_data(&self) -> Option<AuxiliaryData> {
         self.auxiliary_data.clone()
     }
@@ -1035,6 +1059,10 @@ impl TransactionBuilder {
     /// It might contain some metadata plus native or Plutus scripts
     pub fn set_auxiliary_data(&mut self, auxiliary_data: &AuxiliaryData) {
         self.auxiliary_data = Some(auxiliary_data.clone())
+    }
+
+    pub fn remove_auxiliary_data(&mut self) {
+        self.auxiliary_data = None;
     }
 
     /// Set metadata using a GeneralTransactionMetadata object
@@ -1087,6 +1115,10 @@ impl TransactionBuilder {
 
     pub fn set_mint_builder(&mut self, mint_builder: &MintBuilder) {
         self.mint = Some(mint_builder.clone());
+    }
+
+    pub fn remove_mint_builder(&mut self) {
+        self.mint = None;
     }
 
     pub fn get_mint_builder(&self) -> Option<MintBuilder> {
