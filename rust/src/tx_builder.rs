@@ -1828,6 +1828,42 @@ impl TransactionBuilder {
         }
     }
 
+    pub fn add_inputs_from_and_change_with_collateral_return(
+        &mut self,
+        inputs: &TransactionUnspentOutputs,
+        strategy: CoinSelectionStrategyCIP2,
+        change_config: &ChangeConfig,
+        collateral_percentage: u64
+    ) -> Result<bool, JsError> {
+        let mut total_collateral = Value::zero();
+        for collateral_input in self.collateral.iter() {
+            total_collateral = total_collateral.checked_add(&collateral_input.amount)?;
+        }
+        self.set_total_collateral_and_return(&total_collateral.coin(), &change_config.address)?;
+        let add_change_result = self.add_inputs_from_and_change(inputs, strategy, change_config);
+        match add_change_result {
+            Ok(_) => {
+                let fee = self.get_fee_if_set().unwrap();
+                let collateral_required = (from_bignum(&fee) * collateral_percentage) / 100;
+                let set_collateral_result = self.set_total_collateral_and_return(&to_bignum(collateral_required), &change_config.address);
+                match set_collateral_result {
+                    Ok(_) => {
+                        Ok(true)
+                    }
+                    Err(_) => {
+                        self.remove_collateral_return();
+                        self.remove_total_collateral();
+                        Ok(true)
+                    }
+                }
+            }
+            Err(e) => {
+                Err(e)
+            }
+        }?;
+        Ok(true)
+    }
+
     /// This method will calculate the script hash data
     /// using the plutus datums and redeemers already present in the builder
     /// along with the provided cost model, and will register the calculated value
