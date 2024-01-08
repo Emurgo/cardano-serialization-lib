@@ -1828,6 +1828,9 @@ impl TransactionBuilder {
         }
     }
 
+    // This method should be used after outputs of the transaction is defined.
+    // It will attempt to fill the required values using the inputs given.
+    // After which, it will attempt to set a collateral return output.
     pub fn add_inputs_from_and_change_with_collateral_return(
         &mut self,
         inputs: &TransactionUnspentOutputs,
@@ -1844,7 +1847,7 @@ impl TransactionBuilder {
         match add_change_result {
             Ok(_) => {
                 let fee = self.get_fee_if_set().unwrap();
-                let collateral_required = (from_bignum(&fee) * collateral_percentage) / 100;
+                let collateral_required = ((from_bignum(&fee) * collateral_percentage) / 100) + 1;
                 let set_collateral_result = self.set_total_collateral_and_return(&to_bignum(collateral_required), &change_config.address);
                 match set_collateral_result {
                     Ok(_) => {
