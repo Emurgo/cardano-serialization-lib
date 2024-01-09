@@ -8303,4 +8303,29 @@ mod tests {
         let build_res = tx_builder.build_tx();
         assert!(&build_res.is_ok());
     }
+
+    #[test]
+    fn utxo_selection_with_collateral_return_test() {
+        let mut tx_builder = create_reallistic_tx_builder();
+        let hex_utxos = [
+            "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
+            "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"
+        ];
+        let output = TransactionOutput::new(&Address::from_bech32("addr_test1qppkqaf5044y2t46g2y6udz636c4uultszte5l5p0kvgl3tv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfsjre4xh").unwrap(), &Value::new(&BigNum::from_str("969750").unwrap()));
+        tx_builder.add_output(&output);
+        let mut utxos = TransactionUnspentOutputs::new();
+        for hex_utxo in hex_utxos {
+            utxos.add(&TransactionUnspentOutput::from_hex(hex_utxo).unwrap());
+        }
+        let mut collateral_builder = TxInputsBuilder::new();
+        let collateral_input = TransactionUnspentOutput::from_hex(hex_utxos[1]).unwrap();
+        collateral_builder.add_input(&collateral_input.output.address, &collateral_input.input, &collateral_input.output.amount);
+        tx_builder.set_collateral(&collateral_builder);
+
+        let change_config = ChangeConfig::new(&Address::from_bech32("addr_test1qqzf7fhgm0gf370ngxgpskg5c3kgp2g0u4ltxlrmsvumaztv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfs43mc83").unwrap());
+        assert!(&tx_builder.add_inputs_from_and_change_with_collateral_return(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config, 150).is_ok());
+        let build_res = tx_builder.build_tx();
+        assert!(&build_res.is_ok());
+        assert!(&build_res.clone().unwrap().body.collateral_return().is_some());
+    }
 }
