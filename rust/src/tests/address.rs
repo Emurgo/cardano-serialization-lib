@@ -118,20 +118,6 @@ fn byron_magic_parsing() {
         addr.network_id().unwrap(),
         NetworkInfo::mainnet().network_id()
     );
-
-    // original Byron testnet address
-    let addr = ByronAddress::from_base58(
-        "2cWKMJemoBaipzQe9BArYdo2iPUfJQdZAjm4iCzDA1AfNxJSTgm9FZQTmFCYhKkeYrede",
-    )
-    .unwrap();
-    assert_eq!(
-        addr.byron_protocol_magic(),
-        NetworkInfo::testnet().protocol_magic()
-    );
-    assert_eq!(
-        addr.network_id().unwrap(),
-        NetworkInfo::testnet().network_id()
-    );
 }
 
 #[test]
@@ -153,7 +139,7 @@ fn bip32_12_base() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -179,7 +165,7 @@ fn bip32_12_enterprise() {
         .to_public();
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 =
-        EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address();
+        EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address();
     assert_eq!(
         addr_net_0.to_bech32(None).unwrap(),
         "addr_test1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspjrlsz"
@@ -204,7 +190,7 @@ fn bip32_12_pointer() {
 
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 = PointerAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3)),
     )
@@ -244,7 +230,7 @@ fn bip32_15_base() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -270,7 +256,7 @@ fn bip32_15_enterprise() {
         .to_public();
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 =
-        EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address();
+        EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address();
     assert_eq!(
         addr_net_0.to_bech32(None).unwrap(),
         "addr_test1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg57c2qv"
@@ -294,7 +280,7 @@ fn bip32_15_pointer() {
         .to_public();
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 = PointerAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3)),
     )
@@ -378,7 +364,7 @@ fn bip32_24_base() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -404,7 +390,7 @@ fn bip32_24_enterprise() {
         .to_public();
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 =
-        EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address();
+        EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address();
     assert_eq!(
         addr_net_0.to_bech32(None).unwrap(),
         "addr_test1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqtjtf68"
@@ -428,7 +414,7 @@ fn bip32_24_pointer() {
         .to_public();
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 = PointerAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3)),
     )
@@ -460,7 +446,7 @@ fn bip32_12_reward() {
         .to_public();
     let staking_cred = Credential::from_keyhash(&staking_key.to_raw_key().hash());
     let addr_net_0 =
-        RewardAddress::new(NetworkInfo::testnet().network_id(), &staking_cred).to_address();
+        RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &staking_cred).to_address();
     assert_eq!(
         addr_net_0.to_bech32(None).unwrap(),
         "stake_test1uqevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqp8n5xl"
@@ -492,7 +478,7 @@ fn bip32_24_base_multisig_hd_derivation() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -531,7 +517,7 @@ fn multisig_from_script() {
     let spend_cred = Credential::from_scripthash(&script_hash);
     let stake_cred = Credential::from_scripthash(&script_hash);
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )

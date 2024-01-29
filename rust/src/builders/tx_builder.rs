@@ -231,18 +231,6 @@ impl TransactionBuilderConfigBuilder {
         cfg
     }
 
-    /// !!! DEPRECATED !!!
-    /// Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead.
-    #[deprecated(
-        since = "11.0.0",
-        note = "Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead."
-    )]
-    pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {
-        let mut cfg = self.clone();
-        cfg.data_cost = Some(DataCost::new_coins_per_word(coins_per_utxo_word));
-        cfg
-    }
-
     pub fn coins_per_utxo_byte(&self, coins_per_utxo_byte: &Coin) -> Self {
         let mut cfg = self.clone();
         cfg.data_cost = Some(DataCost::new_coins_per_byte(coins_per_utxo_byte));
@@ -415,7 +403,7 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_input(&input.output.address, &input.input, &input.output.amount);
+                    self.add_regular_input(&input.output.address, &input.input, &input.output.amount);
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -495,7 +483,7 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_input(&input.output.address, &input.input, &input.output.amount);
+                    self.add_regular_input(&input.output.address, &input.input, &input.output.amount);
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -533,7 +521,7 @@ impl TransactionBuilder {
             // differing from CIP2, we include the needed fees in the targets instead of just output values
             let input_fee =
                 self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
-            self.add_input(&input.output.address, &input.input, &input.output.amount);
+            self.add_regular_input(&input.output.address, &input.input, &input.output.amount);
             *input_total = input_total.checked_add(&input.output.amount)?;
             *output_total = output_total.checked_add(&Value::new(&input_fee))?;
             available_indices.swap_remove(available_indices.iter().position(|j| i == j).unwrap());
@@ -651,7 +639,7 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_input(&input.output.address, &input.input, &input.output.amount);
+                    self.add_regular_input(&input.output.address, &input.input, &input.output.amount);
                     *input_total = input_total.checked_add(&input.output.amount)?;
                     *output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -764,23 +752,6 @@ impl TransactionBuilder {
         self.inputs.add_key_input(hash, input, amount);
     }
 
-    /// This method adds the input to the builder BUT leaves a missing spot for the witness native script
-    ///
-    /// After adding the input with this method, use `.add_required_native_input_scripts`
-    /// and `.add_required_plutus_input_scripts` to add the witness scripts
-    ///
-    /// Or instead use `.add_native_script_input` and `.add_plutus_script_input`
-    /// to add inputs right along with the script, instead of the script hash
-    #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
-    pub fn add_script_input(
-        &mut self,
-        hash: &ScriptHash,
-        input: &TransactionInput,
-        amount: &Value,
-    ) {
-        self.inputs.add_script_input(hash, input, amount);
-    }
-
     /// This method will add the input to the builder and also register the required native script witness
     #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
     pub fn add_native_script_input(
@@ -813,41 +784,15 @@ impl TransactionBuilder {
         self.inputs.add_bootstrap_input(hash, input, amount);
     }
 
-    /// Note that for script inputs this method will use underlying generic `.add_script_input`
-    /// which leaves a required empty spot for the script witness (or witnesses in case of Plutus).
-    /// You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.
-    #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
-    pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) {
-        self.inputs.add_input(address, input, amount);
+    /// This function is replace for previous one add_input.
+    /// The functions adds a non script input, if it is a script input it returns an error.
+    /// To add script input you need to use add_native_script_input or add_plutus_script_input.
+    /// Also we recommend to use TxInputsBuilder and .set_inputs, because all add_*_input functions might be removed from transaction builder.
+    #[deprecated(since = "12.0.0", note = "Use `.set_inputs`")]
+    pub fn add_regular_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) -> Result<(), JsError>{
+        self.inputs.add_regular_input(address, input, amount)
     }
 
-    /// Returns the number of still missing input scripts (either native or plutus)
-    /// Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
-    #[deprecated(
-        since = "10.2.0",
-        note = "Use `.count_missing_input_scripts` from `TxInputsBuilder`"
-    )]
-    pub fn count_missing_input_scripts(&self) -> usize {
-        self.inputs.count_missing_input_scripts()
-    }
-
-    /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-    /// Any scripts that don't match any of the previously added inputs will be ignored
-    /// Returns the number of remaining required missing witness scripts
-    /// Use `.count_missing_input_scripts` to find the number of still missing scripts
-    #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
-    pub fn add_required_native_input_scripts(&mut self, scripts: &NativeScripts) -> usize {
-        self.inputs.add_required_native_input_scripts(scripts)
-    }
-
-    /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-    /// Any scripts that don't match any of the previously added inputs will be ignored
-    /// Returns the number of remaining required missing witness scripts
-    /// Use `.count_missing_input_scripts` to find the number of still missing scripts
-    #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
-    pub fn add_required_plutus_input_scripts(&mut self, scripts: &PlutusWitnesses) -> usize {
-        self.inputs.add_required_plutus_input_scripts(scripts)
-    }
 
     /// Returns a copy of the current script input witness scripts in the builder
     #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
@@ -878,7 +823,7 @@ impl TransactionBuilder {
 
         let fee_before = min_fee(&self_copy)?;
 
-        self_copy.add_input(&address, &input, &amount);
+        self_copy.add_regular_input(&address, &input, &amount);
         let fee_after = min_fee(&self_copy)?;
         fee_after.checked_sub(&fee_before)
     }
@@ -2165,11 +2110,6 @@ impl TransactionBuilder {
     /// NOTE: is_valid set to true
     /// NOTE: Will fail in case there are any script inputs added with no corresponding witness
     pub fn build_tx(&self) -> Result<Transaction, JsError> {
-        if self.count_missing_input_scripts() > 0 {
-            return Err(JsError::from_str(
-                "There are some script inputs added that don't have the corresponding script provided as a witness!",
-            ));
-        }
         if self.has_plutus_inputs() {
             if self.script_data_hash.is_none() {
                 return Err(JsError::from_str(

@@ -172,21 +172,6 @@ declare export function min_ada_for_output(
 ): BigNum;
 
 /**
- * !!! DEPRECATED !!!
- * This function uses outdated set of arguments.
- * Use `min_ada_for_output` instead
- * @param {Value} assets
- * @param {boolean} has_data_hash
- * @param {BigNum} coins_per_utxo_word
- * @returns {BigNum}
- */
-declare export function min_ada_required(
-  assets: Value,
-  has_data_hash: boolean,
-  coins_per_utxo_word: BigNum
-): BigNum;
-
-/**
  * Receives a script JSON string
  * and returns a NativeScript.
  * Cardano Wallet and Node styles are supported.
@@ -265,17 +250,11 @@ declare export function decode_metadatum_to_json_str(
 /**
  */
 
-declare export var MIRPot: {|
-  +Reserves: 0, // 0
-  +Treasury: 1, // 1
-|};
-
-/**
- */
-
-declare export var MIRKind: {|
-  +ToOtherPot: 0, // 0
-  +ToStakeCredentials: 1, // 1
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
 |};
 
 /**
@@ -484,11 +463,17 @@ declare export var MetadataJsonSchema: {|
 /**
  */
 
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-  +LargestFirstMultiAsset: 2, // 2
-  +RandomImproveMultiAsset: 3, // 3
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
+|};
+
+/**
+ */
+
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
 |};
 
 /**
@@ -2949,14 +2934,6 @@ declare export class DataCost {
   free(): void;
 
   /**
-   * !!! DEPRECATED !!!
-   * Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead.
-   * @param {BigNum} coins_per_word
-   * @returns {DataCost}
-   */
-  static new_coins_per_word(coins_per_word: BigNum): DataCost;
-
-  /**
    * @param {BigNum} coins_per_byte
    * @returns {DataCost}
    */
@@ -4665,62 +4642,6 @@ declare export class InfoAction {
 }
 /**
  */
-declare export class InputWithScriptWitness {
-  free(): void;
-
-  /**
-   * @param {TransactionInput} input
-   * @param {NativeScript} witness
-   * @returns {InputWithScriptWitness}
-   */
-  static new_with_native_script_witness(
-    input: TransactionInput,
-    witness: NativeScript
-  ): InputWithScriptWitness;
-
-  /**
-   * @param {TransactionInput} input
-   * @param {PlutusWitness} witness
-   * @returns {InputWithScriptWitness}
-   */
-  static new_with_plutus_witness(
-    input: TransactionInput,
-    witness: PlutusWitness
-  ): InputWithScriptWitness;
-
-  /**
-   * @returns {TransactionInput}
-   */
-  input(): TransactionInput;
-}
-/**
- */
-declare export class InputsWithScriptWitness {
-  free(): void;
-
-  /**
-   * @returns {InputsWithScriptWitness}
-   */
-  static new(): InputsWithScriptWitness;
-
-  /**
-   * @param {InputWithScriptWitness} input
-   */
-  add(input: InputWithScriptWitness): void;
-
-  /**
-   * @param {number} index
-   * @returns {InputWithScriptWitness}
-   */
-  get(index: number): InputWithScriptWitness;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-}
-/**
- */
 declare export class Int {
   free(): void;
 
@@ -5425,19 +5346,10 @@ declare export class Mint {
   insert(key: ScriptHash, value: MintAssets): MintAssets | void;
 
   /**
-   * !!! DEPRECATED !!!
-   * Mint can store multiple entries for the same policy id.
-   * Use `.get_all` instead.
-   * @param {ScriptHash} key
-   * @returns {MintAssets | void}
-   */
-  get(key: ScriptHash): MintAssets | void;
-
-  /**
    * @param {ScriptHash} key
    * @returns {MintsAssets | void}
    */
-  get_all(key: ScriptHash): MintsAssets | void;
+  get(key: ScriptHash): MintsAssets | void;
 
   /**
    * @returns {ScriptHashes}
@@ -6142,13 +6054,6 @@ declare export class NetworkInfo {
    * @returns {NetworkInfo}
    */
   static testnet_preprod(): NetworkInfo;
-
-  /**
-   * !!! DEPRECATED !!!
-   * This network does not exist anymore. Use `.testnet_preview()` or `.testnet_preprod()`
-   * @returns {NetworkInfo}
-   */
-  static testnet(): NetworkInfo;
 
   /**
    * @returns {NetworkInfo}
@@ -6881,26 +6786,12 @@ declare export class PlutusScriptSource {
   static new(script: PlutusScript): PlutusScriptSource;
 
   /**
-   * !!! DEPRECATED !!!
-   * This constructor has missed information about plutus script language vesrion. That can affect
-   * the script data hash calculation.
-   * Use `.new_ref_input_with_lang_ver` instead
-   * @param {ScriptHash} script_hash
-   * @param {TransactionInput} input
-   * @returns {PlutusScriptSource}
-   */
-  static new_ref_input(
-    script_hash: ScriptHash,
-    input: TransactionInput
-  ): PlutusScriptSource;
-
-  /**
    * @param {ScriptHash} script_hash
    * @param {TransactionInput} input
    * @param {Language} lang_ver
    * @returns {PlutusScriptSource}
    */
-  static new_ref_input_with_lang_ver(
+  static new_ref_input(
     script_hash: ScriptHash,
     input: TransactionInput,
     lang_ver: Language
@@ -10189,13 +10080,6 @@ declare export class TransactionBody {
   mint(): Mint | void;
 
   /**
-   * This function returns the mint value of the transaction
-   * Use `.mint()` instead.
-   * @returns {Mint | void}
-   */
-  multiassets(): Mint | void;
-
-  /**
    * @param {TransactionInputs} reference_inputs
    */
   set_reference_inputs(reference_inputs: TransactionInputs): void;
@@ -10415,24 +10299,6 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
-   * This method adds the input to the builder BUT leaves a missing spot for the witness native script
-   *
-   * After adding the input with this method, use `.add_required_native_input_scripts`
-   * and `.add_required_plutus_input_scripts` to add the witness scripts
-   *
-   * Or instead use `.add_native_script_input` and `.add_plutus_script_input`
-   * to add inputs right along with the script, instead of the script hash
-   * @param {ScriptHash} hash
-   * @param {TransactionInput} input
-   * @param {Value} amount
-   */
-  add_script_input(
-    hash: ScriptHash,
-    input: TransactionInput,
-    amount: Value
-  ): void;
-
-  /**
    * This method will add the input to the builder and also register the required native script witness
    * @param {NativeScript} script
    * @param {TransactionInput} input
@@ -10468,41 +10334,19 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
-   * Note that for script inputs this method will use underlying generic `.add_script_input`
-   * which leaves a required empty spot for the script witness (or witnesses in case of Plutus).
-   * You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.
+   * This function is replace for previous one add_input.
+   * The functions adds a non script input, if it is a script input it returns an error.
+   * To add script input you need to use add_native_script_input or add_plutus_script_input.
+   * Also we recommend to use TxInputsBuilder and .set_inputs, because all add_*_input functions might be removed from transaction builder.
    * @param {Address} address
    * @param {TransactionInput} input
    * @param {Value} amount
    */
-  add_input(address: Address, input: TransactionInput, amount: Value): void;
-
-  /**
-   * Returns the number of still missing input scripts (either native or plutus)
-   * Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
-   * @returns {number}
-   */
-  count_missing_input_scripts(): number;
-
-  /**
-   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-   * Any scripts that don't match any of the previously added inputs will be ignored
-   * Returns the number of remaining required missing witness scripts
-   * Use `.count_missing_input_scripts` to find the number of still missing scripts
-   * @param {NativeScripts} scripts
-   * @returns {number}
-   */
-  add_required_native_input_scripts(scripts: NativeScripts): number;
-
-  /**
-   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-   * Any scripts that don't match any of the previously added inputs will be ignored
-   * Returns the number of remaining required missing witness scripts
-   * Use `.count_missing_input_scripts` to find the number of still missing scripts
-   * @param {PlutusWitnesses} scripts
-   * @returns {number}
-   */
-  add_required_plutus_input_scripts(scripts: PlutusWitnesses): number;
+  add_regular_input(
+    address: Address,
+    input: TransactionInput,
+    amount: Value
+  ): void;
 
   /**
    * Returns a copy of the current script input witness scripts in the builder
@@ -10956,16 +10800,6 @@ declare export class TransactionBuilderConfigBuilder {
    * @returns {TransactionBuilderConfigBuilder}
    */
   fee_algo(fee_algo: LinearFee): TransactionBuilderConfigBuilder;
-
-  /**
-   * !!! DEPRECATED !!!
-   * Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead.
-   * @param {BigNum} coins_per_utxo_word
-   * @returns {TransactionBuilderConfigBuilder}
-   */
-  coins_per_utxo_word(
-    coins_per_utxo_word: BigNum
-  ): TransactionBuilderConfigBuilder;
 
   /**
    * @param {BigNum} coins_per_utxo_byte
@@ -11456,18 +11290,6 @@ declare export class TransactionOutputAmountBuilder {
   with_coin_and_asset(
     coin: BigNum,
     multiasset: MultiAsset
-  ): TransactionOutputAmountBuilder;
-
-  /**
-   * !!! DEPRECATED !!!
-   * Since babbage era cardano nodes use coins per byte. Use '.with_asset_and_min_required_coin_by_utxo_cost' instead.
-   * @param {MultiAsset} multiasset
-   * @param {BigNum} coins_per_utxo_word
-   * @returns {TransactionOutputAmountBuilder}
-   */
-  with_asset_and_min_required_coin(
-    multiasset: MultiAsset,
-    coins_per_utxo_word: BigNum
   ): TransactionOutputAmountBuilder;
 
   /**
@@ -12017,26 +11839,6 @@ declare export class TxInputsBuilder {
   ): void;
 
   /**
-   * !!! DEPRECATED !!!
-   * This function can make a mistake in choosing right input index. Use `.add_native_script_input` or `.add_plutus_script_input` instead.
-   * This method adds the input to the builder BUT leaves a missing spot for the witness native script
-   *
-   * After adding the input with this method, use `.add_required_native_input_scripts`
-   * and `.add_required_plutus_input_scripts` to add the witness scripts
-   *
-   * Or instead use `.add_native_script_input` and `.add_plutus_script_input`
-   * to add inputs right along with the script, instead of the script hash
-   * @param {ScriptHash} hash
-   * @param {TransactionInput} input
-   * @param {Value} amount
-   */
-  add_script_input(
-    hash: ScriptHash,
-    input: TransactionInput,
-    amount: Value
-  ): void;
-
-  /**
    * This method will add the input to the builder and also register the required native script witness
    * @param {NativeScript} script
    * @param {TransactionInput} input
@@ -12072,55 +11874,16 @@ declare export class TxInputsBuilder {
   ): void;
 
   /**
-   * Note that for script inputs this method will use underlying generic `.add_script_input`
-   * which leaves a required empty spot for the script witness (or witnesses in case of Plutus).
-   * You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.
+   * Adds non script input, in case of script or reward address input it will return an error
    * @param {Address} address
    * @param {TransactionInput} input
    * @param {Value} amount
    */
-  add_input(address: Address, input: TransactionInput, amount: Value): void;
-
-  /**
-   * Returns the number of still missing input scripts (either native or plutus)
-   * Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
-   * @returns {number}
-   */
-  count_missing_input_scripts(): number;
-
-  /**
-   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-   * Any scripts that don't match any of the previously added inputs will be ignored
-   * Returns the number of remaining required missing witness scripts
-   * Use `.count_missing_input_scripts` to find the number of still missing scripts
-   * @param {NativeScripts} scripts
-   * @returns {number}
-   */
-  add_required_native_input_scripts(scripts: NativeScripts): number;
-
-  /**
-   * !!! DEPRECATED !!!
-   * This function can make a mistake in choosing right input index. Use `.add_required_script_input_witnesses` instead.
-   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-   * Any scripts that don't match any of the previously added inputs will be ignored
-   * Returns the number of remaining required missing witness scripts
-   * Use `.count_missing_input_scripts` to find the number of still missing scripts
-   * @param {PlutusWitnesses} scripts
-   * @returns {number}
-   */
-  add_required_plutus_input_scripts(scripts: PlutusWitnesses): number;
-
-  /**
-   * Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-   * Any scripts that don't match any of the previously added inputs will be ignored
-   * Returns the number of remaining required missing witness scripts
-   * Use `.count_missing_input_scripts` to find the number of still missing scripts
-   * @param {InputsWithScriptWitness} inputs_with_wit
-   * @returns {number}
-   */
-  add_required_script_input_witnesses(
-    inputs_with_wit: InputsWithScriptWitness
-  ): number;
+  add_regular_input(
+    address: Address,
+    input: TransactionInput,
+    amount: Value
+  ): void;
 
   /**
    * @returns {TransactionInputs}

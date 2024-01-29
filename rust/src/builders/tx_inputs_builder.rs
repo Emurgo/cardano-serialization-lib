@@ -8,60 +8,6 @@ pub(crate) struct TxBuilderInput {
     pub(crate) amount: Value, // we need to keep track of the amount in the inputs for input selection
 }
 
-#[wasm_bindgen]
-#[derive(Clone, Debug)]
-pub struct InputWithScriptWitness {
-    pub(crate) input: TransactionInput,
-    pub(crate) witness: ScriptWitnessType,
-}
-
-#[wasm_bindgen]
-impl InputWithScriptWitness {
-    pub fn new_with_native_script_witness(
-        input: &TransactionInput,
-        witness: &NativeScript,
-    ) -> Self {
-        Self {
-            input: input.clone(),
-            witness: ScriptWitnessType::NativeScriptWitness(NativeScriptSourceEnum::NativeScript(
-                witness.clone(),
-            )),
-        }
-    }
-
-    pub fn new_with_plutus_witness(input: &TransactionInput, witness: &PlutusWitness) -> Self {
-        Self {
-            input: input.clone(),
-            witness: ScriptWitnessType::PlutusScriptWitness(witness.clone()),
-        }
-    }
-
-    pub fn input(&self) -> TransactionInput {
-        self.input.clone()
-    }
-}
-
-#[wasm_bindgen]
-pub struct InputsWithScriptWitness(Vec<InputWithScriptWitness>);
-
-#[wasm_bindgen]
-impl InputsWithScriptWitness {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn add(&mut self, input: &InputWithScriptWitness) {
-        self.0.push(input.clone());
-    }
-
-    pub fn get(&self, index: usize) -> InputWithScriptWitness {
-        self.0[index].clone()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
 
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
 #[derive(Clone, Debug)]
@@ -116,20 +62,7 @@ impl TxInputsBuilder {
         self.required_witnesses.vkeys.add_move(hash.clone());
     }
 
-    #[deprecated(
-        since = "11.2.0",
-        note = "Use `.add_native_script_input` or `.add_plutus_script_input` instead."
-    )]
-    /// !!! DEPRECATED !!!
-    /// This function can make a mistake in choosing right input index. Use `.add_native_script_input` or `.add_plutus_script_input` instead.
-    /// This method adds the input to the builder BUT leaves a missing spot for the witness native script
-    ///
-    /// After adding the input with this method, use `.add_required_native_input_scripts`
-    /// and `.add_required_plutus_input_scripts` to add the witness scripts
-    ///
-    /// Or instead use `.add_native_script_input` and `.add_plutus_script_input`
-    /// to add inputs right along with the script, instead of the script hash
-    pub fn add_script_input(
+    fn add_script_input(
         &mut self,
         hash: &ScriptHash,
         input: &TransactionInput,
@@ -186,149 +119,50 @@ impl TxInputsBuilder {
         self.required_witnesses.bootstraps.insert(hash.to_bytes());
     }
 
-    /// Note that for script inputs this method will use underlying generic `.add_script_input`
-    /// which leaves a required empty spot for the script witness (or witnesses in case of Plutus).
-    /// You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.
-    pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) {
-        match &BaseAddress::from_address(address) {
-            Some(addr) => {
-                match &addr.payment_cred().to_keyhash() {
-                    Some(hash) => return self.add_key_input(hash, input, amount),
-                    None => (),
+    /// Adds non script input, in case of script or reward address input it will return an error
+    pub fn add_regular_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) -> Result<(), JsError>{
+        match &address.0 {
+            AddrType::Base(base_addr) => {
+                match &base_addr.payment.0 {
+                    CredType::Key(key) => {
+                        self.add_key_input(key, input, amount);
+                        Ok(())
+                    },
+                    CredType::Script(_) => {
+                        Err(JsError::from_str(BuilderError::RegularInputIsScript.as_str()))
+                    },
                 }
-                match &addr.payment_cred().to_scripthash() {
-                    Some(hash) => return self.add_script_input(hash, input, amount),
-                    None => (),
+            },
+            AddrType::Enterprise(ent_aaddr) => {
+                match &ent_aaddr.payment.0 {
+                    CredType::Key(key) => {
+                        self.add_key_input(key, input, amount);
+                        Ok(())
+                    },
+                    CredType::Script(_) => {
+                        Err(JsError::from_str(BuilderError::RegularInputIsScript.as_str()))
+                    },
                 }
-            }
-            None => (),
+            },
+            AddrType::Ptr(ptr_addr) => {
+                match &ptr_addr.payment.0 {
+                    CredType::Key(key) => {
+                        self.add_key_input(key, input, amount);
+                        Ok(())
+                    },
+                    CredType::Script(_) => {
+                        Err(JsError::from_str(BuilderError::RegularInputIsScript.as_str()))
+                    },
+                }
+            },
+            AddrType::Byron(byron_addr) => {
+                self.add_bootstrap_input(byron_addr, input, amount);
+                Ok(())
+            },
+            AddrType::Reward(_) => {
+                Err(JsError::from_str(BuilderError::RegularInputIsFromRewardAddress.as_str()))
+            },
         }
-        match &EnterpriseAddress::from_address(address) {
-            Some(addr) => {
-                match &addr.payment_cred().to_keyhash() {
-                    Some(hash) => return self.add_key_input(hash, input, amount),
-                    None => (),
-                }
-                match &addr.payment_cred().to_scripthash() {
-                    Some(hash) => return self.add_script_input(hash, input, amount),
-                    None => (),
-                }
-            }
-            None => (),
-        }
-        match &PointerAddress::from_address(address) {
-            Some(addr) => {
-                match &addr.payment_cred().to_keyhash() {
-                    Some(hash) => return self.add_key_input(hash, input, amount),
-                    None => (),
-                }
-                match &addr.payment_cred().to_scripthash() {
-                    Some(hash) => return self.add_script_input(hash, input, amount),
-                    None => (),
-                }
-            }
-            None => (),
-        }
-        match &ByronAddress::from_address(address) {
-            Some(addr) => {
-                return self.add_bootstrap_input(addr, input, amount);
-            }
-            None => (),
-        }
-    }
-
-    /// Returns the number of still missing input scripts (either native or plutus)
-    /// Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
-    pub fn count_missing_input_scripts(&self) -> usize {
-        self.required_witnesses
-            .scripts
-            .values()
-            .flat_map(|v| v.values())
-            .filter(|s| s.is_none())
-            .count()
-    }
-
-    /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-    /// Any scripts that don't match any of the previously added inputs will be ignored
-    /// Returns the number of remaining required missing witness scripts
-    /// Use `.count_missing_input_scripts` to find the number of still missing scripts
-    pub fn add_required_native_input_scripts(&mut self, scripts: &NativeScripts) -> usize {
-        scripts.0.iter().for_each(|s: &NativeScript| {
-            let hash = s.hash();
-            if let Some(script_wits) = self.required_witnesses.scripts.get_mut(&hash) {
-                let mut tx_in = None;
-                for script_wit in script_wits {
-                    if script_wit.1.is_none() {
-                        tx_in = Some(script_wit.0.clone());
-                        break;
-                    }
-                }
-
-                if let Some(tx_in) = tx_in {
-                    let witness = ScriptWitnessType::NativeScriptWitness(
-                        NativeScriptSourceEnum::NativeScript(s.clone()),
-                    );
-                    self.insert_input_with_witness(&hash, &tx_in, &witness);
-                }
-            }
-        });
-        self.count_missing_input_scripts()
-    }
-
-    #[deprecated(
-        since = "11.2.0",
-        note = "This function can make a mistake in choosing right input index. Use `.add_required_script_input_witnesses` instead."
-    )]
-    /// !!! DEPRECATED !!!
-    /// This function can make a mistake in choosing right input index. Use `.add_required_script_input_witnesses` instead.
-    /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-    /// Any scripts that don't match any of the previously added inputs will be ignored
-    /// Returns the number of remaining required missing witness scripts
-    /// Use `.count_missing_input_scripts` to find the number of still missing scripts
-    pub fn add_required_plutus_input_scripts(&mut self, scripts: &PlutusWitnesses) -> usize {
-        scripts.0.iter().for_each(|s: &PlutusWitness| {
-            let hash = s.script.script_hash();
-            if let Some(script_wits) = self.required_witnesses.scripts.get_mut(&hash) {
-                let mut tx_in = None;
-                for script_wit in script_wits {
-                    if script_wit.1.is_none() {
-                        tx_in = Some(script_wit.0.clone());
-                        break;
-                    }
-                }
-
-                if let Some(tx_in) = tx_in {
-                    let witness = ScriptWitnessType::PlutusScriptWitness(s.clone());
-                    self.insert_input_with_witness(&hash, &tx_in, &witness);
-                }
-            }
-        });
-        self.count_missing_input_scripts()
-    }
-
-    /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-    /// Any scripts that don't match any of the previously added inputs will be ignored
-    /// Returns the number of remaining required missing witness scripts
-    /// Use `.count_missing_input_scripts` to find the number of still missing scripts
-    pub fn add_required_script_input_witnesses(
-        &mut self,
-        inputs_with_wit: &InputsWithScriptWitness,
-    ) -> usize {
-        inputs_with_wit
-            .0
-            .iter()
-            .for_each(|input_with_wit: &InputWithScriptWitness| {
-                let hash = input_with_wit.witness.script_hash();
-                if let Some(script_wits) = self.required_witnesses.scripts.get_mut(&hash) {
-                    if script_wits.contains_key(&input_with_wit.input) {
-                        script_wits.insert(
-                            input_with_wit.input.clone(),
-                            Some(input_with_wit.witness.clone()),
-                        );
-                    }
-                }
-            });
-        self.count_missing_input_scripts()
     }
 
     pub fn get_ref_inputs(&self) -> TransactionInputs {

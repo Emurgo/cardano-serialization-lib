@@ -316,7 +316,7 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
     );
     let expected_redeemer =
         redeemer.clone_with_index_and_tag(&BigNum::from(1u64), &RedeemerTag::new_voting_proposal());
-    let plutus_source = PlutusScriptSource::new_ref_input_with_lang_ver(&script_hash, &ref_input, &Language::new_plutus_v2());
+    let plutus_source = PlutusScriptSource::new_ref_input(&script_hash, &ref_input, &Language::new_plutus_v2());
     let plutus_witness = PlutusWitness::new_with_ref_without_datum(
         &plutus_source,
         &redeemer,

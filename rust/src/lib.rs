@@ -260,20 +260,6 @@ pub struct DataCost(DataCostEnum);
 
 #[wasm_bindgen]
 impl DataCost {
-    /// !!! DEPRECATED !!!
-    /// Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead.
-    #[deprecated(
-        since = "11.0.0",
-        note = "Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead."
-    )]
-    pub fn new_coins_per_word(coins_per_word: &Coin) -> DataCost {
-        if coins_per_word != &BigNum::zero() {
-            DataCost(DataCostEnum::CoinsPerWord(coins_per_word.clone()))
-        } else {
-            DataCost(DataCostEnum::CoinsPerByte(BigNum::zero()))
-        }
-    }
-
     pub fn new_coins_per_byte(coins_per_byte: &Coin) -> DataCost {
         DataCost(DataCostEnum::CoinsPerByte(coins_per_byte.clone()))
     }
@@ -2453,6 +2439,10 @@ impl MintsAssets {
     pub fn get(&self, index: usize) -> Option<MintAssets> {
         self.0.get(index).map(|v| v.clone())
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 #[wasm_bindgen]
@@ -2537,22 +2527,7 @@ impl Mint {
         None
     }
 
-    /// !!! DEPRECATED !!!
-    /// Mint can store multiple entries for the same policy id.
-    /// Use `.get_all` instead.
-    #[deprecated(
-        since = "11.2.0",
-        note = "Mint can store multiple entries for the same policy id. Use `.get_all` instead."
-    )]
-    pub fn get(&self, key: &PolicyID) -> Option<MintAssets> {
-        self.0
-            .iter()
-            .filter(|(k, _)| k.eq(key))
-            .next()
-            .map(|(_k, v)| v.clone())
-    }
-
-    pub fn get_all(&self, key: &PolicyID) -> Option<MintsAssets> {
+    pub fn get(&self, key: &PolicyID) -> Option<MintsAssets> {
         let mints: Vec<MintAssets> = self
             .0
             .iter()

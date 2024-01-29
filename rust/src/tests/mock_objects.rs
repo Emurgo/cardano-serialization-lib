@@ -8,7 +8,7 @@ use crate::*;
 const MAX_VALUE_SIZE: u32 = 4000;
 const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
                                // this is what is used in mainnet
-static COINS_PER_UTXO_WORD: u64 = 34_482;
+static COINS_PER_UTXO_BYTE: u64 = 34_482 / 8;
 
 pub(crate) fn root_key() -> Bip32PrivateKey {
     // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
@@ -37,7 +37,7 @@ pub(crate) fn generate_address(index: u32) -> Address {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     );
@@ -189,7 +189,7 @@ pub(crate) fn create_tx_builder_full(
     pool_deposit: u64,
     key_deposit: u64,
     max_val_size: u32,
-    coins_per_utxo_word: u64,
+    coins_per_utxo_byte: u64,
 ) -> TransactionBuilder {
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(linear_fee)
@@ -197,7 +197,7 @@ pub(crate) fn create_tx_builder_full(
         .key_deposit(&to_bignum(key_deposit))
         .max_value_size(max_val_size)
         .max_tx_size(MAX_TX_SIZE)
-        .coins_per_utxo_word(&to_bignum(coins_per_utxo_word))
+        .coins_per_utxo_byte(&to_bignum(coins_per_utxo_byte))
         .ex_unit_prices(&ExUnitPrices::new(
             &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
             &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
@@ -209,7 +209,7 @@ pub(crate) fn create_tx_builder_full(
 
 pub(crate) fn create_tx_builder(
     linear_fee: &LinearFee,
-    coins_per_utxo_word: u64,
+    coins_per_utxo_byte: u64,
     pool_deposit: u64,
     key_deposit: u64,
 ) -> TransactionBuilder {
@@ -218,14 +218,14 @@ pub(crate) fn create_tx_builder(
         pool_deposit,
         key_deposit,
         MAX_VALUE_SIZE,
-        coins_per_utxo_word,
+        coins_per_utxo_byte,
     )
 }
 
 pub(crate) fn create_reallistic_tx_builder() -> TransactionBuilder {
     create_tx_builder(
         &create_linear_fee(44, 155381),
-        COINS_PER_UTXO_WORD,
+        COINS_PER_UTXO_BYTE,
         500000000,
         2000000,
     )
@@ -235,11 +235,11 @@ pub(crate) fn create_tx_builder_with_fee_and_val_size(
     linear_fee: &LinearFee,
     max_val_size: u32,
 ) -> TransactionBuilder {
-    create_tx_builder_full(linear_fee, 1, 1, max_val_size, 8)
+    create_tx_builder_full(linear_fee, 1, 1, max_val_size, 1)
 }
 
 pub(crate) fn create_tx_builder_with_fee(linear_fee: &LinearFee) -> TransactionBuilder {
-    create_tx_builder(linear_fee, 8, 1, 1)
+    create_tx_builder(linear_fee, 1, 1, 1)
 }
 
 pub(crate) fn create_tx_builder_with_fee_and_pure_change(
@@ -252,7 +252,7 @@ pub(crate) fn create_tx_builder_with_fee_and_pure_change(
             .key_deposit(&to_bignum(1))
             .max_value_size(MAX_VALUE_SIZE)
             .max_tx_size(MAX_TX_SIZE)
-            .coins_per_utxo_word(&to_bignum(8))
+            .coins_per_utxo_byte(&to_bignum(1))
             .prefer_pure_change(true)
             .build()
             .unwrap(),
@@ -285,7 +285,7 @@ pub(crate) fn create_change_address() -> Address {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     );
@@ -297,7 +297,7 @@ pub(crate) fn create_rich_tx_builder(with_collateral: bool) -> TransactionBuilde
     let input = TransactionInput::new(&fake_tx_hash(1), 0);
     let address = generate_address(1);
     let mut input_builder = TxInputsBuilder::new();
-    input_builder.add_input(&address, &input, &Value::new(&Coin::from(u64::MAX / 2)));
+    input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(u64::MAX / 2)));
     tx_builder.set_inputs(&input_builder);
     if with_collateral {
         tx_builder.set_collateral(&input_builder);
@@ -314,12 +314,12 @@ pub(crate) fn create_tx_builder_with_amount(
     let input = TransactionInput::new(&fake_tx_hash(1), 0);
     let address = generate_address(1);
     let mut input_builder = TxInputsBuilder::new();
-    input_builder.add_input(&address, &input, &Value::new(&Coin::from(amount)));
+    input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(amount)));
     tx_builder.set_inputs(&input_builder);
     if with_collateral {
         let col_input = TransactionInput::new(&fake_tx_hash(1), 0);
         let mut col_input_builder = TxInputsBuilder::new();
-        col_input_builder.add_input(&address, &col_input, &Value::new(&Coin::from(u64::MAX / 2)));
+        col_input_builder.add_regular_input(&address, &col_input, &Value::new(&Coin::from(u64::MAX / 2)));
         tx_builder.set_collateral(&col_input_builder);
     }
 
@@ -334,19 +334,19 @@ pub(crate) fn create_tx_builder_with_amount_and_deposit_params(
 ) -> TransactionBuilder {
     let mut tx_builder = create_tx_builder(
         &create_linear_fee(44, 155381),
-        COINS_PER_UTXO_WORD,
+        COINS_PER_UTXO_BYTE,
         pool_deposit,
         key_deposit
     );
     let input = TransactionInput::new(&fake_tx_hash(1), 0);
     let address = generate_address(1);
     let mut input_builder = TxInputsBuilder::new();
-    input_builder.add_input(&address, &input, &Value::new(&Coin::from(amount)));
+    input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(amount)));
     tx_builder.set_inputs(&input_builder);
     if with_collateral {
         let col_input = TransactionInput::new(&fake_tx_hash(1), 0);
         let mut col_input_builder = TxInputsBuilder::new();
-        col_input_builder.add_input(&address, &col_input, &Value::new(&Coin::from(u64::MAX / 2)));
+        col_input_builder.add_regular_input(&address, &col_input, &Value::new(&Coin::from(u64::MAX / 2)));
         tx_builder.set_collateral(&col_input_builder);
     }
 

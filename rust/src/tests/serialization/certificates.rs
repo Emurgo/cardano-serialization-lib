@@ -193,7 +193,7 @@ fn move_instantaneous_reward_to_stake_creds_ser_round_trip() {
 #[test]
 fn pool_registration_ser_round_trip() {
     let staking_cred = Credential::from_keyhash(&fake_key_hash(1));
-    let reward_address = RewardAddress::new(NetworkInfo::testnet().network_id(), &staking_cred);
+    let reward_address = RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &staking_cred);
     let mut owners = Ed25519KeyHashesSet::new();
     owners.add(&fake_key_hash(2));
     owners.add(&fake_key_hash(3));

@@ -31,24 +31,7 @@ impl PlutusScriptSource {
     pub fn new(script: &PlutusScript) -> Self {
         Self(PlutusScriptSourceEnum::Script(script.clone()))
     }
-
-    /// !!! DEPRECATED !!!
-    /// This constructor has missed information about plutus script language vesrion. That can affect
-    /// the script data hash calculation.
-    /// Use `.new_ref_input_with_lang_ver` instead
-    #[deprecated(
-        since = "11.3.0",
-        note = "This constructor has missed information about plutus script language vesrion. That can affect the script data hash calculation. Use `.new_ref_input_with_lang_ver` instead."
-    )]
-    pub fn new_ref_input(script_hash: &ScriptHash, input: &TransactionInput) -> Self {
-        Self(PlutusScriptSourceEnum::RefInput(
-            input.clone(),
-            script_hash.clone(),
-            None,
-        ))
-    }
-
-    pub fn new_ref_input_with_lang_ver(
+    pub fn new_ref_input(
         script_hash: &ScriptHash,
         input: &TransactionInput,
         lang_ver: &Language,

@@ -58,7 +58,7 @@ pub(crate) fn fake_script_data_hash(x: u8) -> ScriptDataHash {
 
 pub(crate) fn fake_base_address(x: u8) -> Address {
     BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &Credential::from_keyhash(&fake_key_hash(x)),
         &Credential::from_keyhash(&fake_key_hash(0)),
     )
@@ -67,7 +67,7 @@ pub(crate) fn fake_base_address(x: u8) -> Address {
 
 pub(crate) fn fake_reward_address(x: u8) -> RewardAddress {
     RewardAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &Credential::from_keyhash(&fake_key_hash(x)),
     )
 }
