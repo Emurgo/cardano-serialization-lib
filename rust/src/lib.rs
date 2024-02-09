@@ -504,7 +504,7 @@ impl Ipv6 {
     }
 }
 
-static URL_MAX_LEN: usize = 64;
+static URL_MAX_LEN: usize = 128;
 
 #[wasm_bindgen]
 #[derive(
