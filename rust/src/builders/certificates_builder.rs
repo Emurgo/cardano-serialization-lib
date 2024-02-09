@@ -151,9 +151,6 @@ impl CertificatesBuilder {
                         refund = refund.checked_add(&key_deposit)?;
                     }
                 }
-                CertificateEnum::PoolRetirement(_) => {
-                    refund = refund.checked_add(&pool_deposit)?;
-                }
                 CertificateEnum::DrepDeregistration(cert) => {
                     refund = refund.checked_add(&cert.coin)?;
                 }
@@ -261,6 +258,11 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
             }
         }
         CertificateEnum::DrepUpdate(cert) => {
+            if let CredType::Key(key_hash) = &cert.voting_credential.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::DrepRegistration(cert) => {
             if let CredType::Key(key_hash) = &cert.voting_credential.0 {
                 set.add(key_hash);
             }
