@@ -51,6 +51,7 @@ fn protocol_param_update_ser_round_trip() {
         governance_action_deposit: Some(Coin::from(26_444u32)),
         drep_deposit: Some(Coin::from(27_444u32)),
         drep_inactivity_period: Some(28_444u32),
+        ref_script_coins_per_byte: Some(Coin::from(29_444u32)),
     };
 
     let cbor = pp_update.to_bytes();
