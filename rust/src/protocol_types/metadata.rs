@@ -1,5 +1,5 @@
 use crate::*;
-use linked_hash_map::LinkedHashMap;
+use hashlink::LinkedHashMap;
 
 const MD_MAX_LEN: usize = 64;
 

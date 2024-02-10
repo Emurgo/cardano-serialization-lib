@@ -1,6 +1,6 @@
 use crate::*;
 use core::hash::Hasher;
-use linked_hash_map::LinkedHashMap;
+use hashlink::LinkedHashMap;
 use std::hash::Hash;
 
 // This library was code-generated using an experimental CDDL to rust tool:

@@ -100,8 +100,8 @@ impl VotingBuilder {
         Ok(())
     }
 
-    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashesSet {
-        let mut set = Ed25519KeyHashesSet::new();
+    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashes {
+        let mut set = Ed25519KeyHashes::new();
         for (voter, voter_votes) in &self.votes {
             let req_signature = voter.to_key_hash();
             if let Some(req_signature) = req_signature {
@@ -111,7 +111,7 @@ impl VotingBuilder {
             if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) =
                 &voter_votes.script_witness
             {
-                set.extend(script_source.required_signers());
+                set.extend_move(script_source.required_signers());
             }
         }
         set

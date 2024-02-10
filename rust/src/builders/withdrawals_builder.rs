@@ -1,5 +1,5 @@
 use crate::*;
-use linked_hash_map::LinkedHashMap;
+use hashlink::LinkedHashMap;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
@@ -77,8 +77,8 @@ impl WithdrawalsBuilder {
         Ok(())
     }
 
-    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashesSet {
-        let mut set = Ed25519KeyHashesSet::new();
+    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashes {
+        let mut set = Ed25519KeyHashes::new();
         for (address, (_, script_wit)) in &self.withdrawals {
             let req_signature = address.payment_cred().to_keyhash();
             if let Some(req_signature) = req_signature {
@@ -86,7 +86,7 @@ impl WithdrawalsBuilder {
             }
 
             if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = script_wit {
-                set.extend(script_source.required_signers());
+                set.extend_move(script_source.required_signers());
             }
         }
         set

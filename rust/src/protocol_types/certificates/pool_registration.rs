@@ -88,7 +88,7 @@ pub struct PoolParams {
     pub(crate) cost: Coin,
     pub(crate) margin: UnitInterval,
     pub(crate) reward_account: RewardAddress,
-    pub(crate) pool_owners: Ed25519KeyHashesSet,
+    pub(crate) pool_owners: Ed25519KeyHashes,
     pub(crate) relays: Relays,
     pub(crate) pool_metadata: Option<PoolMetadata>,
 }
@@ -121,7 +121,7 @@ impl PoolParams {
         self.reward_account.clone()
     }
 
-    pub fn pool_owners(&self) -> Ed25519KeyHashesSet {
+    pub fn pool_owners(&self) -> Ed25519KeyHashes {
         self.pool_owners.clone()
     }
 
@@ -140,7 +140,7 @@ impl PoolParams {
         cost: &Coin,
         margin: &UnitInterval,
         reward_account: &RewardAddress,
-        pool_owners: &Ed25519KeyHashesSet,
+        pool_owners: &Ed25519KeyHashes,
         relays: &Relays,
         pool_metadata: Option<PoolMetadata>,
     ) -> Self {

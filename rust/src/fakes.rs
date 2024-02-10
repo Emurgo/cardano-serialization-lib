@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::crypto::{
+use crate::{
     AnchorDataHash, AuxiliaryDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, ScriptDataHash, ScriptHash, VRFKeyHash,
 };
 use crate::{

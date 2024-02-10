@@ -25,8 +25,17 @@ pub use address::*;
 mod tx_inputs;
 pub use tx_inputs::*;
 
+mod credential;
+pub use credential::*;
+
 mod credentials;
 pub use credentials::*;
 
 mod ed25519_key_hashes;
 pub use ed25519_key_hashes::*;
+
+mod witnesses;
+pub use witnesses::*;
+
+mod crypto;
+pub use crypto::*;

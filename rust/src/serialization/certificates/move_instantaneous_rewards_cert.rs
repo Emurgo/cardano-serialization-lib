@@ -4,6 +4,7 @@ use crate::serialization::utils::{
 };
 use crate::*;
 use num_traits::ToPrimitive;
+use hashlink::LinkedHashMap;
 
 impl cbor_event::se::Serialize for MIRToStakeCredentials {
     fn serialize<'se, W: Write>(
@@ -22,7 +23,7 @@ impl cbor_event::se::Serialize for MIRToStakeCredentials {
 impl Deserialize for MIRToStakeCredentials {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<_, DeserializeError> {
-            let mut table = linked_hash_map::LinkedHashMap::new();
+            let mut table = LinkedHashMap::new();
             let len = raw.map()?;
             while match len {
                 cbor_event::Len::Len(n) => table.len() < n as usize,

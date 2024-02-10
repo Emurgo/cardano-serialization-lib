@@ -72,6 +72,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::fmt::Display;
+use hashlink::LinkedHashMap;
 
 type DeltaCoin = Int;
 
@@ -368,59 +369,6 @@ impl PartialEq for TransactionOutput {
             && self.amount == other.amount
             && self.plutus_data == other.plutus_data
             && self.script_ref == other.script_ref
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone,
-    Debug,
-    Hash,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    serde::Serialize,
-    serde::Deserialize,
-    JsonSchema,
-)]
-pub struct Ed25519KeyHashes(pub(crate) Vec<Ed25519KeyHash>);
-
-impl_to_from!(Ed25519KeyHashes);
-
-#[wasm_bindgen]
-impl Ed25519KeyHashes {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> Ed25519KeyHash {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &Ed25519KeyHash) {
-        self.0.push(elem.clone());
-    }
-
-    pub fn to_option(&self) -> Option<Ed25519KeyHashes> {
-        if self.len() > 0 {
-            Some(self.clone())
-        } else {
-            None
-        }
-    }
-}
-
-impl IntoIterator for Ed25519KeyHashes {
-    type Item = Ed25519KeyHash;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
     }
 }
 
@@ -905,7 +853,7 @@ impl RewardAddresses {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Withdrawals(linked_hash_map::LinkedHashMap<RewardAddress, Coin>);
+pub struct Withdrawals(LinkedHashMap<RewardAddress, Coin>);
 
 impl_to_from!(Withdrawals);
 
@@ -918,7 +866,7 @@ impl NoneOrEmpty for Withdrawals {
 #[wasm_bindgen]
 impl Withdrawals {
     pub fn new() -> Self {
-        Self(linked_hash_map::LinkedHashMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -974,81 +922,6 @@ impl JsonSchema for Withdrawals {
     }
     fn is_referenceable() -> bool {
         std::collections::BTreeMap::<RewardAddress, Coin>::is_referenceable()
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct TransactionWitnessSet {
-    vkeys: Option<Vkeywitnesses>,
-    native_scripts: Option<NativeScripts>,
-    bootstraps: Option<BootstrapWitnesses>,
-    plutus_scripts: Option<PlutusScripts>,
-    plutus_data: Option<PlutusList>,
-    redeemers: Option<Redeemers>,
-}
-
-impl_to_from!(TransactionWitnessSet);
-
-#[wasm_bindgen]
-impl TransactionWitnessSet {
-    pub fn set_vkeys(&mut self, vkeys: &Vkeywitnesses) {
-        self.vkeys = Some(vkeys.clone())
-    }
-
-    pub fn vkeys(&self) -> Option<Vkeywitnesses> {
-        self.vkeys.clone()
-    }
-
-    pub fn set_native_scripts(&mut self, native_scripts: &NativeScripts) {
-        self.native_scripts = Some(native_scripts.clone())
-    }
-
-    pub fn native_scripts(&self) -> Option<NativeScripts> {
-        self.native_scripts.clone()
-    }
-
-    pub fn set_bootstraps(&mut self, bootstraps: &BootstrapWitnesses) {
-        self.bootstraps = Some(bootstraps.clone())
-    }
-
-    pub fn bootstraps(&self) -> Option<BootstrapWitnesses> {
-        self.bootstraps.clone()
-    }
-
-    pub fn set_plutus_scripts(&mut self, plutus_scripts: &PlutusScripts) {
-        self.plutus_scripts = Some(plutus_scripts.clone())
-    }
-
-    pub fn plutus_scripts(&self) -> Option<PlutusScripts> {
-        self.plutus_scripts.clone()
-    }
-
-    pub fn set_plutus_data(&mut self, plutus_data: &PlutusList) {
-        self.plutus_data = Some(plutus_data.clone())
-    }
-
-    pub fn plutus_data(&self) -> Option<PlutusList> {
-        self.plutus_data.clone()
-    }
-
-    pub fn set_redeemers(&mut self, redeemers: &Redeemers) {
-        self.redeemers = Some(redeemers.clone())
-    }
-
-    pub fn redeemers(&self) -> Option<Redeemers> {
-        self.redeemers.clone()
-    }
-
-    pub fn new() -> Self {
-        Self {
-            vkeys: None,
-            native_scripts: None,
-            bootstraps: None,
-            plutus_scripts: None,
-            plutus_data: None,
-            redeemers: None,
-        }
     }
 }
 
@@ -1457,8 +1330,8 @@ impl NativeScript {
     /// Returns a set of Ed25519KeyHashes
     /// contained within this script recursively on any depth level.
     /// The order of the keys in the result is not determined in any way.
-    pub fn get_required_signers(&self) -> Ed25519KeyHashesSet {
-        Ed25519KeyHashesSet::from(self)
+    pub fn get_required_signers(&self) -> Ed25519KeyHashes {
+        Ed25519KeyHashes::from(self)
     }
 }
 
@@ -1591,7 +1464,7 @@ impl ScriptHashes {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ProposedProtocolParameterUpdates(
-    linked_hash_map::LinkedHashMap<GenesisHash, ProtocolParamUpdate>,
+    LinkedHashMap<GenesisHash, ProtocolParamUpdate>,
 );
 
 impl serde::Serialize for ProposedProtocolParameterUpdates {
@@ -1633,7 +1506,7 @@ impl_to_from!(ProposedProtocolParameterUpdates);
 #[wasm_bindgen]
 impl ProposedProtocolParameterUpdates {
     pub fn new() -> Self {
-        Self(linked_hash_map::LinkedHashMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -1722,41 +1595,16 @@ impl TransactionBodies {
     }
 }
 
-#[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct TransactionWitnessSets(Vec<TransactionWitnessSet>);
-
-impl_to_from!(TransactionWitnessSets);
-
-#[wasm_bindgen]
-impl TransactionWitnessSets {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> TransactionWitnessSet {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &TransactionWitnessSet) {
-        self.0.push(elem.clone());
-    }
-}
-
 pub type TransactionIndexes = Vec<TransactionIndex>;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct AuxiliaryDataSet(linked_hash_map::LinkedHashMap<TransactionIndex, AuxiliaryData>);
+pub struct AuxiliaryDataSet(LinkedHashMap<TransactionIndex, AuxiliaryData>);
 
 #[wasm_bindgen]
 impl AuxiliaryDataSet {
     pub fn new() -> Self {
-        Self(linked_hash_map::LinkedHashMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -2634,28 +2482,26 @@ impl NetworkId {
     }
 }
 
-impl From<&NativeScript> for Ed25519KeyHashesSet {
+impl From<&NativeScript> for Ed25519KeyHashes {
     fn from(script: &NativeScript) -> Self {
         match &script.0 {
             NativeScriptEnum::ScriptPubkey(spk) => {
-                let mut set = Ed25519KeyHashesSet::new();
+                let mut set = Ed25519KeyHashes::new();
                 set.add_move(spk.addr_keyhash());
                 set
             }
-            NativeScriptEnum::ScriptAll(all) => Ed25519KeyHashesSet::from(&all.native_scripts),
-            NativeScriptEnum::ScriptAny(any) => Ed25519KeyHashesSet::from(&any.native_scripts),
-            NativeScriptEnum::ScriptNOfK(ofk) => Ed25519KeyHashesSet::from(&ofk.native_scripts),
-            _ => Ed25519KeyHashesSet::new(),
+            NativeScriptEnum::ScriptAll(all) => Ed25519KeyHashes::from(&all.native_scripts),
+            NativeScriptEnum::ScriptAny(any) => Ed25519KeyHashes::from(&any.native_scripts),
+            NativeScriptEnum::ScriptNOfK(ofk) => Ed25519KeyHashes::from(&ofk.native_scripts),
+            _ => Ed25519KeyHashes::new(),
         }
     }
 }
 
-impl From<&NativeScripts> for Ed25519KeyHashesSet {
+impl From<&NativeScripts> for Ed25519KeyHashes {
     fn from(scripts: &NativeScripts) -> Self {
-        scripts.0.iter().fold(Ed25519KeyHashesSet::new(), |mut set, s| {
-            Ed25519KeyHashesSet::from(s).0.iter().for_each(|pk| {
-                set.add_move(pk.clone());
-            });
+        scripts.0.iter().fold(Ed25519KeyHashes::new(), |mut set, s| {
+            set.extend_move(Ed25519KeyHashes::from(s));
             set
         })
     }

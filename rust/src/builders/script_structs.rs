@@ -79,10 +79,10 @@ impl NativeScriptSourceEnum {
         }
     }
 
-    pub fn required_signers(&self) -> Ed25519KeyHashesSet {
+    pub fn required_signers(&self) -> Ed25519KeyHashes {
         match self {
-            NativeScriptSourceEnum::NativeScript(script) => Ed25519KeyHashesSet::from(script),
-            NativeScriptSourceEnum::RefInput(_, _, required_signers) => required_signers.into(),
+            NativeScriptSourceEnum::NativeScript(script) => Ed25519KeyHashes::from(script),
+            NativeScriptSourceEnum::RefInput(_, _, required_signers) => required_signers.clone(),
         }
     }
 }

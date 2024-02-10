@@ -94,7 +94,7 @@ impl DeserializeEmbeddedGroup for PoolParams {
             (|| -> Result<_, DeserializeError> { Ok(RewardAddress::deserialize(raw)?) })()
                 .map_err(|e| e.annotate("reward_account"))?;
         let pool_owners =
-            (|| -> Result<_, DeserializeError> { Ok(Ed25519KeyHashesSet::deserialize(raw)?) })()
+            (|| -> Result<_, DeserializeError> { Ok(Ed25519KeyHashes::deserialize(raw)?) })()
                 .map_err(|e| e.annotate("pool_owners"))?;
         let relays = (|| -> Result<_, DeserializeError> { Ok(Relays::deserialize(raw)?) })()
             .map_err(|e| e.annotate("relays"))?;

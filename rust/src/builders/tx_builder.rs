@@ -40,20 +40,20 @@ pub(crate) fn fake_raw_key_public() -> PublicKey {
 }
 
 fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
-    let mut input_hashes: Ed25519KeyHashesSet = Ed25519KeyHashesSet::from(&tx_builder.inputs);
-    input_hashes.extend(Ed25519KeyHashesSet::from(&tx_builder.collateral));
-    input_hashes.extend(tx_builder.required_signers.clone());
+    let mut input_hashes: Ed25519KeyHashes = Ed25519KeyHashes::from(&tx_builder.inputs);
+    input_hashes.extend_move(Ed25519KeyHashes::from(&tx_builder.collateral));
+    input_hashes.extend_move(tx_builder.required_signers.clone());
     if let Some(mint_builder) = &tx_builder.mint {
-        input_hashes.extend(Ed25519KeyHashesSet::from(&mint_builder.get_native_scripts()));
+        input_hashes.extend_move(Ed25519KeyHashes::from(&mint_builder.get_native_scripts()));
     }
     if let Some(withdrawals_builder) = &tx_builder.withdrawals {
-        input_hashes.extend(withdrawals_builder.get_required_signers());
+        input_hashes.extend_move(withdrawals_builder.get_required_signers());
     }
     if let Some(certs_builder) = &tx_builder.certs {
-        input_hashes.extend(certs_builder.get_required_signers());
+        input_hashes.extend_move(certs_builder.get_required_signers());
     }
     if let Some(voting_builder) = &tx_builder.voting_procedures {
-        input_hashes.extend(voting_builder.get_required_signers());
+        input_hashes.extend_move(voting_builder.get_required_signers());
     }
     input_hashes.len()
 }
@@ -315,7 +315,7 @@ pub struct TransactionBuilder {
     pub(crate) validity_start_interval: Option<SlotBigNum>,
     pub(crate) mint: Option<MintBuilder>,
     pub(crate) script_data_hash: Option<ScriptDataHash>,
-    pub(crate) required_signers: Ed25519KeyHashesSet,
+    pub(crate) required_signers: Ed25519KeyHashes,
     pub(crate) collateral_return: Option<TransactionOutput>,
     pub(crate) total_collateral: Option<Coin>,
     pub(crate) reference_inputs: HashSet<TransactionInput>,
@@ -1236,7 +1236,7 @@ impl TransactionBuilder {
             validity_start_interval: None,
             mint: None,
             script_data_hash: None,
-            required_signers: Ed25519KeyHashesSet::new(),
+            required_signers: Ed25519KeyHashes::new(),
             collateral_return: None,
             total_collateral: None,
             reference_inputs: HashSet::new(),

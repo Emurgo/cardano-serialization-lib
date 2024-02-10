@@ -19,3 +19,6 @@ mod protocol_param_update;
 mod tx_inputs;
 mod credentials;
 mod ed25519_key_hashes;
+mod witnesses;
+mod credential;
+mod crypto;

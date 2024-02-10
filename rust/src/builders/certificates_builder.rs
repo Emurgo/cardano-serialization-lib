@@ -64,13 +64,13 @@ impl CertificatesBuilder {
         Ok(())
     }
 
-    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashesSet {
-        let mut set = Ed25519KeyHashesSet::new();
+    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashes {
+        let mut set = Ed25519KeyHashes::new();
         for (cert, script_wit) in &self.certs {
             let cert_req_signers = witness_keys_for_cert(&cert);
-            set.0.extend(cert_req_signers);
+            set.extend(&cert_req_signers);
             if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = script_wit {
-                set.extend(script_source.required_signers());
+                set.extend(&script_source.required_signers());
             }
         }
         set
@@ -234,9 +234,7 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
             }
         }
         CertificateEnum::PoolRegistration(cert) => {
-            for owner in &cert.pool_params().pool_owners().0 {
-                set.add(&owner.clone());
-            }
+            set.extend(&cert.pool_params().pool_owners());
             set.add(&cert.pool_params().operator());
         }
         CertificateEnum::PoolRetirement(cert) => {
@@ -297,7 +295,6 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
                 set.add(key_hash);
             }
         }
-        CertificateEnum::DrepRegistration(_) => {}
     }
     set
 }

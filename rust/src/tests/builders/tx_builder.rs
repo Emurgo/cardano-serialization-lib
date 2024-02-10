@@ -4459,7 +4459,7 @@ fn test_required_signers() {
     let tx1: TransactionBody = tx_builder.build().unwrap();
     assert!(tx1.required_signers.is_some());
 
-    let rs: Ed25519KeyHashesSet = tx1.required_signers.unwrap();
+    let rs: Ed25519KeyHashes = tx1.required_signers.unwrap();
     assert_eq!(rs.len(), 3);
     assert!(rs.contains(&s1));
     assert!(rs.contains(&s2));
@@ -4477,7 +4477,7 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
             &Value::new(&to_bignum(10_000_000)),
         );
 
-        keys.0.iter().for_each(|k| {
+        keys.to_vec().iter().for_each(|k| {
             tx_builder.add_required_signer(k);
         });
 
@@ -4491,12 +4491,12 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
     );
 
     assert_eq!(
-        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes(vec![fake_key_hash(1)]),),
+        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes::from_vec(vec![fake_key_hash(1)]),),
         2
     );
 
     assert_eq!(
-        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes(vec![
+        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes::from_vec(vec![
             fake_key_hash(1),
             fake_key_hash(2)
         ]),),
@@ -4505,7 +4505,7 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
 
     // This case still produces only 3 fake signatures, because the same key is already used in the input address
     assert_eq!(
-        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes(vec![
+        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes::from_vec(vec![
             fake_key_hash(1),
             fake_key_hash(2),
             fake_key_hash(0)
@@ -4515,7 +4515,7 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
 
     // When a different key is used - 4 fake witnesses are produced
     assert_eq!(
-        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes(vec![
+        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes::from_vec(vec![
             fake_key_hash(1),
             fake_key_hash(2),
             fake_key_hash(3)

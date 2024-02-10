@@ -1,4 +1,4 @@
-use linked_hash_map::LinkedHashMap;
+use hashlink::LinkedHashMap;
 use crate::*;
 use crate::serialization::utils::merge_option_plutus_list;
 

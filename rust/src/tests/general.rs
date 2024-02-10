@@ -209,22 +209,22 @@ fn native_scripts_get_pubkeys() {
     let keyhash2 = keyhash(2);
     let keyhash3 = keyhash(3);
 
-    let pks1 = Ed25519KeyHashesSet::from(&pkscript(&keyhash1));
+    let pks1 = Ed25519KeyHashes::from(&pkscript(&keyhash1));
     assert_eq!(pks1.len(), 1);
     assert!(pks1.contains(&keyhash1));
 
     let pks2 =
-        Ed25519KeyHashesSet::from(&NativeScript::new_timelock_start(&TimelockStart::new(123)));
+        Ed25519KeyHashes::from(&NativeScript::new_timelock_start(&TimelockStart::new(123)));
     assert_eq!(pks2.len(), 0);
 
-    let pks3 = Ed25519KeyHashesSet::from(&NativeScript::new_script_all(&ScriptAll::new(
+    let pks3 = Ed25519KeyHashes::from(&NativeScript::new_script_all(&ScriptAll::new(
         &scripts_vec(vec![&pkscript(&keyhash1), &pkscript(&keyhash2)]),
     )));
     assert_eq!(pks3.len(), 2);
     assert!(pks3.contains(&keyhash1));
     assert!(pks3.contains(&keyhash2));
 
-    let pks4 = Ed25519KeyHashesSet::from(&NativeScript::new_script_any(&ScriptAny::new(
+    let pks4 = Ed25519KeyHashes::from(&NativeScript::new_script_any(&ScriptAny::new(
         &scripts_vec(vec![
             &NativeScript::new_script_n_of_k(&ScriptNOfK::new(
                 1,

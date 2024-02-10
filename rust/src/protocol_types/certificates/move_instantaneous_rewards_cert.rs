@@ -1,5 +1,6 @@
 use crate::*;
 use std::vec::Vec;
+use hashlink::LinkedHashMap;
 
 #[wasm_bindgen]
 #[derive(
@@ -81,7 +82,7 @@ pub enum MIRKind {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MIRToStakeCredentials {
-    pub(crate) rewards: linked_hash_map::LinkedHashMap<Credential, DeltaCoin>,
+    pub(crate) rewards: LinkedHashMap<Credential, DeltaCoin>,
 }
 
 impl_to_from!(MIRToStakeCredentials);
@@ -90,7 +91,7 @@ impl_to_from!(MIRToStakeCredentials);
 impl MIRToStakeCredentials {
     pub fn new() -> Self {
         Self {
-            rewards: linked_hash_map::LinkedHashMap::new(),
+            rewards: LinkedHashMap::new(),
         }
     }
 
@@ -106,8 +107,8 @@ impl MIRToStakeCredentials {
         self.rewards.get(cred).map(|v| v.clone())
     }
 
-    pub fn keys(&self) -> CredentialsSet {
-        CredentialsSet::from_iter(
+    pub fn keys(&self) -> Credentials {
+        Credentials::from_iter(
             self.rewards
                 .iter()
                 .map(|(k, _v)| k.clone())

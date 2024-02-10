@@ -42,7 +42,7 @@ impl DeserializeEmbeddedGroup for UpdateCommitteeAction {
             .map_err(|e| e.annotate("gov_action_id"))?;
 
         let members_to_remove =
-            CredentialsSet::deserialize(raw).map_err(|e| e.annotate("members_to_remove"))?;
+            Credentials::deserialize(raw).map_err(|e| e.annotate("members_to_remove"))?;
 
         let committee = Committee::deserialize_as_embedded_group(raw, cbor_event::Len::Len(2))
             .map_err(|e| e.annotate("committee"))?;

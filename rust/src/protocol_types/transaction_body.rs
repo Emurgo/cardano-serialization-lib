@@ -15,7 +15,7 @@ pub struct TransactionBody {
     pub(crate) mint: Option<Mint>,
     pub(crate) script_data_hash: Option<ScriptDataHash>,
     pub(crate) collateral: Option<TransactionInputs>,
-    pub(crate) required_signers: Option<Ed25519KeyHashesSet>,
+    pub(crate) required_signers: Option<Ed25519KeyHashes>,
     pub(crate) network_id: Option<NetworkId>,
     pub(crate) collateral_return: Option<TransactionOutput>,
     pub(crate) total_collateral: Option<Coin>,
@@ -171,11 +171,11 @@ impl TransactionBody {
         self.collateral.clone()
     }
 
-    pub fn set_required_signers(&mut self, required_signers: &Ed25519KeyHashesSet) {
+    pub fn set_required_signers(&mut self, required_signers: &Ed25519KeyHashes) {
         self.required_signers = Some(required_signers.clone())
     }
 
-    pub fn required_signers(&self) -> Option<Ed25519KeyHashesSet> {
+    pub fn required_signers(&self) -> Option<Ed25519KeyHashes> {
         self.required_signers.clone()
     }
 

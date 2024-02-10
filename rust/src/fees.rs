@@ -330,7 +330,7 @@ mod tests {
 
         let mut certs = Certificates::new();
 
-        let mut pool_owners = Ed25519KeyHashesSet::new();
+        let mut pool_owners = Ed25519KeyHashes::new();
         pool_owners.add(
             &PublicKey::from_bytes(
                 &hex::decode("54d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f3")

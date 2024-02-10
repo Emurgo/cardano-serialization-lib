@@ -1,6 +1,7 @@
 use crate::*;
 use std::io::{Seek, SeekFrom};
 use crate::serialization::utils::merge_option_plutus_list;
+use hashlink::LinkedHashMap;
 
 // This file was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
@@ -589,41 +590,6 @@ impl cbor_event::se::Serialize for ScriptRef {
     }
 }
 
-impl cbor_event::se::Serialize for Ed25519KeyHashes {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in &self.0 {
-            element.serialize(serializer)?;
-        }
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for Ed25519KeyHashes {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut arr = Vec::new();
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            while match len {
-                cbor_event::Len::Len(n) => arr.len() < n as usize,
-                cbor_event::Len::Indefinite => true,
-            } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
-                    break;
-                }
-                arr.push(Ed25519KeyHash::deserialize(raw)?);
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("Ed25519KeyHashes"))?;
-        Ok(Self(arr))
-    }
-}
-
 impl cbor_event::se::Serialize for Ipv4 {
     fn serialize<'se, W: Write>(
         &self,
@@ -1175,7 +1141,7 @@ impl cbor_event::se::Serialize for Withdrawals {
 
 impl Deserialize for Withdrawals {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = linked_hash_map::LinkedHashMap::new();
+        let mut table = LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len {
@@ -1199,237 +1165,6 @@ impl Deserialize for Withdrawals {
         })()
         .map_err(|e| e.annotate("Withdrawals"))?;
         Ok(Self(table))
-    }
-}
-
-impl cbor_event::se::Serialize for TransactionWitnessSet {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        let mut has_plutus_v2 = false;
-        let mut has_plutus_v3 = false;
-        let plutus_added_length = match &self.plutus_scripts {
-            Some(scripts) => {
-                has_plutus_v2 = scripts.has_version(&Language::new_plutus_v2());
-                has_plutus_v3 = scripts.has_version(&Language::new_plutus_v3());
-                1 + (has_plutus_v2 as u64) + (has_plutus_v3 as u64)
-            },
-            _ => 0,
-        };
-        serializer.write_map(cbor_event::Len::Len(
-            opt64(&self.vkeys)
-                + opt64(&self.native_scripts)
-                + opt64(&self.bootstraps)
-                + opt64(&self.plutus_data)
-                + opt64(&self.redeemers)
-                + plutus_added_length,
-        ))?;
-        if let Some(field) = &self.vkeys {
-            serializer.write_unsigned_integer(0)?;
-            field.serialize(serializer)?;
-        }
-        if let Some(field) = &self.native_scripts {
-            serializer.write_unsigned_integer(1)?;
-            field.serialize(serializer)?;
-        }
-        if let Some(field) = &self.bootstraps {
-            serializer.write_unsigned_integer(2)?;
-            field.serialize(serializer)?;
-        }
-        if let Some(plutus_scripts) = &self.plutus_scripts {
-            serializer.write_unsigned_integer(3)?;
-            plutus_scripts
-                .by_version(&Language::new_plutus_v1())
-                .serialize(serializer)?;
-            if has_plutus_v2 {
-                serializer.write_unsigned_integer(6)?;
-                plutus_scripts
-                    .by_version(&Language::new_plutus_v2())
-                    .serialize(serializer)?;
-            }
-            if has_plutus_v3 {
-                serializer.write_unsigned_integer(7)?;
-                plutus_scripts
-                    .by_version(&Language::new_plutus_v3())
-                    .serialize(serializer)?;
-            }
-        }
-        if let Some(field) = &self.plutus_data {
-            serializer.write_unsigned_integer(4)?;
-            field.serialize(serializer)?;
-        }
-        if let Some(field) = &self.redeemers {
-            serializer.write_unsigned_integer(5)?;
-            field.serialize(serializer)?;
-        }
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for TransactionWitnessSet {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.map()?;
-            let mut read_len = CBORReadLen::new(len);
-            let mut vkeys = None;
-            let mut native_scripts = None;
-            let mut bootstraps = None;
-            let mut plutus_scripts_v1 = None;
-            let mut plutus_scripts_v2 = None;
-            let mut plutus_scripts_v3 = None;
-            let mut plutus_data = None;
-            let mut redeemers = None;
-            let mut read = 0;
-            while match len {
-                cbor_event::Len::Len(n) => read < n as usize,
-                cbor_event::Len::Indefinite => true,
-            } {
-                match raw.cbor_type()? {
-                    CBORType::UnsignedInteger => match raw.unsigned_integer()? {
-                        0 => {
-                            if vkeys.is_some() {
-                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(0)).into());
-                            }
-                            vkeys = Some(
-                                (|| -> Result<_, DeserializeError> {
-                                    read_len.read_elems(1)?;
-                                    Ok(Vkeywitnesses::deserialize(raw)?)
-                                })()
-                                .map_err(|e| e.annotate("vkeys"))?,
-                            );
-                        }
-                        1 => {
-                            if native_scripts.is_some() {
-                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(1)).into());
-                            }
-                            native_scripts = Some(
-                                (|| -> Result<_, DeserializeError> {
-                                    read_len.read_elems(1)?;
-                                    Ok(NativeScripts::deserialize(raw)?)
-                                })()
-                                .map_err(|e| e.annotate("native_scripts"))?,
-                            );
-                        }
-                        2 => {
-                            if bootstraps.is_some() {
-                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(2)).into());
-                            }
-                            bootstraps = Some(
-                                (|| -> Result<_, DeserializeError> {
-                                    read_len.read_elems(1)?;
-                                    Ok(BootstrapWitnesses::deserialize(raw)?)
-                                })()
-                                .map_err(|e| e.annotate("bootstraps"))?,
-                            );
-                        }
-                        3 => {
-                            if plutus_scripts_v1.is_some() {
-                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(3)).into());
-                            }
-                            plutus_scripts_v1 = Some(
-                                (|| -> Result<_, DeserializeError> {
-                                    read_len.read_elems(1)?;
-                                    Ok(PlutusScripts::deserialize(raw)?)
-                                })()
-                                .map_err(|e| e.annotate("plutus_scripts_v1"))?,
-                            );
-                        }
-                        4 => {
-                            if plutus_data.is_some() {
-                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(4)).into());
-                            }
-                            plutus_data = Some(
-                                (|| -> Result<_, DeserializeError> {
-                                    read_len.read_elems(1)?;
-                                    Ok(PlutusList::deserialize(raw)?)
-                                })()
-                                .map_err(|e| e.annotate("plutus_data"))?,
-                            );
-                        }
-                        5 => {
-                            if redeemers.is_some() {
-                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(5)).into());
-                            }
-                            redeemers = Some(
-                                (|| -> Result<_, DeserializeError> {
-                                    read_len.read_elems(1)?;
-                                    Ok(Redeemers::deserialize(raw)?)
-                                })()
-                                .map_err(|e| e.annotate("redeemers"))?,
-                            );
-                        }
-                        6 => {
-                            if plutus_scripts_v2.is_some() {
-                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(6)).into());
-                            }
-                            plutus_scripts_v2 = Some(
-                                (|| -> Result<_, DeserializeError> {
-                                    read_len.read_elems(1)?;
-                                    Ok(PlutusScripts::deserialize(raw)?
-                                        .map_as_version(&Language::new_plutus_v2()))
-                                })()
-                                .map_err(|e| e.annotate("plutus_scripts_v2"))?,
-                            );
-                        }
-                        7 => {
-                            if plutus_scripts_v3.is_some() {
-                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(7)).into());
-                            }
-                            plutus_scripts_v3 = Some(
-                                (|| -> Result<_, DeserializeError> {
-                                    read_len.read_elems(1)?;
-                                    Ok(PlutusScripts::deserialize(raw)?
-                                        .map_as_version(&Language::new_plutus_v3()))
-                                })()
-                                    .map_err(|e| e.annotate("plutus_scripts_v3"))?,
-                            );
-                        }
-                        unknown_key => {
-                            return Err(
-                                DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()
-                            )
-                        }
-                    },
-                    CBORType::Text => match raw.text()?.as_str() {
-                        unknown_key => {
-                            return Err(DeserializeFailure::UnknownKey(Key::Str(
-                                unknown_key.to_owned(),
-                            ))
-                            .into())
-                        }
-                    },
-                    CBORType::Special => match len {
-                        cbor_event::Len::Len(_) => {
-                            return Err(DeserializeFailure::BreakInDefiniteLen.into())
-                        }
-                        cbor_event::Len::Indefinite => match raw.special()? {
-                            CBORSpecial::Break => break,
-                            _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                        },
-                    },
-                    other_type => {
-                        return Err(DeserializeFailure::UnexpectedKeyType(other_type).into())
-                    }
-                }
-                read += 1;
-            }
-            read_len.finish()?;
-            let mut plutus_scripts = None;
-            plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v1);
-            plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v2);
-            plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v3);
-
-            Ok(Self {
-                vkeys,
-                native_scripts,
-                bootstraps,
-                plutus_scripts,
-                plutus_data,
-                redeemers,
-            })
-        })()
-        .map_err(|e| e.annotate("TransactionWitnessSet"))
     }
 }
 
@@ -2127,7 +1862,7 @@ impl cbor_event::se::Serialize for ProposedProtocolParameterUpdates {
 
 impl Deserialize for ProposedProtocolParameterUpdates {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = linked_hash_map::LinkedHashMap::new();
+        let mut table = LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len {
@@ -2249,41 +1984,6 @@ impl Deserialize for TransactionBodies {
     }
 }
 
-impl cbor_event::se::Serialize for TransactionWitnessSets {
-    fn serialize<'se, W: Write>(
-        &self,
-        serializer: &'se mut Serializer<W>,
-    ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in &self.0 {
-            element.serialize(serializer)?;
-        }
-        Ok(serializer)
-    }
-}
-
-impl Deserialize for TransactionWitnessSets {
-    fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut arr = Vec::new();
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            while match len {
-                cbor_event::Len::Len(n) => arr.len() < n as usize,
-                cbor_event::Len::Indefinite => true,
-            } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
-                    break;
-                }
-                arr.push(TransactionWitnessSet::deserialize(raw)?);
-            }
-            Ok(())
-        })()
-        .map_err(|e| e.annotate("TransactionWitnessSets"))?;
-        Ok(Self(arr))
-    }
-}
-
 impl cbor_event::se::Serialize for AuxiliaryDataSet {
     fn serialize<'se, W: Write>(
         &self,
@@ -2300,7 +2000,7 @@ impl cbor_event::se::Serialize for AuxiliaryDataSet {
 
 impl Deserialize for AuxiliaryDataSet {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = linked_hash_map::LinkedHashMap::new();
+        let mut table = LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             while match len {

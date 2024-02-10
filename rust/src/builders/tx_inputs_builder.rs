@@ -1,5 +1,5 @@
 use crate::*;
-use linked_hash_map::LinkedHashMap;
+use hashlink::LinkedHashMap;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug)]
@@ -12,7 +12,7 @@ pub(crate) struct TxBuilderInput {
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
 #[derive(Clone, Debug)]
 pub struct InputsRequiredWitness {
-    vkeys: Ed25519KeyHashesSet,
+    vkeys: Ed25519KeyHashes,
     scripts: LinkedHashMap<ScriptHash, LinkedHashMap<TransactionInput, Option<ScriptWitnessType>>>,
     bootstraps: BTreeSet<Vec<u8>>,
 }
@@ -34,7 +34,7 @@ impl TxInputsBuilder {
         Self {
             inputs: BTreeMap::new(),
             required_witnesses: InputsRequiredWitness {
-                vkeys: Ed25519KeyHashesSet::new(),
+                vkeys: Ed25519KeyHashes::new(),
                 scripts: LinkedHashMap::new(),
                 bootstraps: BTreeSet::new(),
             },
@@ -304,7 +304,7 @@ impl TxInputsBuilder {
     }
 
     pub fn add_required_signers(&mut self, keys: &RequiredSigners) {
-        keys.0.iter().for_each(|k| self.add_required_signer(k));
+        self.required_witnesses.vkeys.extend(keys);
     }
 
     pub fn total_value(&self) -> Result<Value, JsError> {
@@ -360,7 +360,7 @@ impl TxInputsBuilder {
     }
 }
 
-impl From<&TxInputsBuilder> for Ed25519KeyHashesSet {
+impl From<&TxInputsBuilder> for Ed25519KeyHashes {
     fn from(inputs: &TxInputsBuilder) -> Self {
         let mut set = inputs.required_witnesses.vkeys.clone();
         inputs
@@ -370,7 +370,7 @@ impl From<&TxInputsBuilder> for Ed25519KeyHashesSet {
             .flat_map(|tx_wits| tx_wits.values())
             .for_each(|swt: &Option<ScriptWitnessType>| {
                 if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = swt {
-                    set.extend(script_source.required_signers());
+                    set.extend_move(script_source.required_signers());
                 }
             });
         set
