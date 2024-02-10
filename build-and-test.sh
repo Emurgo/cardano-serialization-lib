@@ -1,1 +1,1 @@
-. ./test.sh && npm run rust:build-nodejs
+. test.sh && npm run rust:build-nodejs
