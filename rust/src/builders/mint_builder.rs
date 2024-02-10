@@ -166,16 +166,16 @@ impl MintBuilder {
     }
 
     pub fn get_native_scripts(&self) -> NativeScripts {
-        let mut native_scripts = NativeScripts::new();
+        let mut native_scripts = Vec::new();
         for script_mint in self.mints.values() {
             match script_mint {
                 ScriptMint::Native(native_mints) => {
-                    native_scripts.add_move(native_mints.script.clone());
+                    native_scripts.push(native_mints.script.clone());
                 }
                 _ => {}
             }
         }
-        native_scripts
+        NativeScripts(native_scripts)
     }
 
     pub fn get_plutus_witnesses(&self) -> PlutusWitnesses {

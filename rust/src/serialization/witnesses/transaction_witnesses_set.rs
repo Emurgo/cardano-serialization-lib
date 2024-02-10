@@ -31,22 +31,20 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
                 + plutus_added_length,
         ))?;
         if let Some(field) = &self.vkeys {
-            if field.len() > 0 {
+            if field.0.len() > 0 {
                 serializer.write_unsigned_integer(0)?;
                 field.serialize(serializer)?;
             }
         }
         if let Some(field) = &self.native_scripts {
-            if field.len() > 0 {
+            if field.0.len() > 0 {
                 serializer.write_unsigned_integer(1)?;
                 field.serialize(serializer)?;
             }
         }
         if let Some(field) = &self.bootstraps {
-            if field.len() > 0 {
-                serializer.write_unsigned_integer(2)?;
-                field.serialize(serializer)?;
-            }
+            serializer.write_unsigned_integer(2)?;
+            field.serialize(serializer)?;
         }
         if let Some(plutus_scripts) = &self.plutus_scripts {
             if has_plutus_v1 {
@@ -69,10 +67,8 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
             }
         }
         if let Some(field) = &self.plutus_data {
-            if field.len() > 0 {
-                serializer.write_unsigned_integer(4)?;
-                field.serialize(serializer)?;
-            }
+            serializer.write_unsigned_integer(4)?;
+            field.serialize(serializer)?;
         }
         if let Some(field) = &self.redeemers {
             serializer.write_unsigned_integer(5)?;

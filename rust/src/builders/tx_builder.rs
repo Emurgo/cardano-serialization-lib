@@ -132,7 +132,7 @@ fn assert_required_mint_scripts(
     }
     let mint_scripts = maybe_mint_scripts.unwrap();
     let witness_hashes: HashSet<ScriptHash> =
-        mint_scripts.to_vec().iter().map(|script| script.hash()).collect();
+        mint_scripts.0.iter().map(|script| script.hash()).collect();
     for mint_hash in mint.keys().0.iter() {
         if !witness_hashes.contains(mint_hash) {
             return Err(JsError::from_str(&format!(
@@ -1029,7 +1029,7 @@ impl TransactionBuilder {
     pub fn set_mint(&mut self, mint: &Mint, mint_scripts: &NativeScripts) -> Result<(), JsError> {
         assert_required_mint_scripts(mint, Some(mint_scripts))?;
         let mut scripts_policies = HashMap::new();
-        for scipt in mint_scripts.to_vec() {
+        for scipt in &mint_scripts.0 {
             scripts_policies.insert(scipt.hash(), scipt.clone());
         }
 
@@ -1925,24 +1925,24 @@ impl TransactionBuilder {
     fn get_combined_native_scripts(&self) -> Option<NativeScripts> {
         let mut ns = NativeScripts::new();
         if let Some(input_scripts) = self.inputs.get_native_input_scripts() {
-            input_scripts.to_vec().iter().for_each(|s| {
+            input_scripts.0.iter().for_each(|s| {
                 ns.add(s);
             });
         }
         if let Some(input_scripts) = self.collateral.get_native_input_scripts() {
-            input_scripts.to_vec().iter().for_each(|s| {
+            input_scripts.0.iter().for_each(|s| {
                 ns.add(s);
             });
         }
         if let Some(mint_builder) = &self.mint {
-            mint_builder.get_native_scripts().to_vec().iter().for_each(|s| {
+            mint_builder.get_native_scripts().0.iter().for_each(|s| {
                 ns.add(s);
             });
         }
         if let Some(certificates_builder) = &self.certs {
             certificates_builder
                 .get_native_scripts()
-                .to_vec()
+                .0
                 .iter()
                 .for_each(|s| {
                     ns.add(s);
@@ -1951,14 +1951,14 @@ impl TransactionBuilder {
         if let Some(withdrawals_builder) = &self.withdrawals {
             withdrawals_builder
                 .get_native_scripts()
-                .to_vec()
+                .0
                 .iter()
                 .for_each(|s| {
                     ns.add(s);
                 });
         }
         if let Some(voting_builder) = &self.voting_procedures {
-            voting_builder.get_native_scripts().to_vec().iter().for_each(|s| {
+            voting_builder.get_native_scripts().0.iter().for_each(|s| {
                 ns.add(s);
             });
         }

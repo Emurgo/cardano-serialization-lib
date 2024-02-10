@@ -3172,7 +3172,7 @@ fn set_mint_asset_with_existing_mint() {
     // Only second script is present in the scripts
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .to_vec()
+        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -3231,7 +3231,7 @@ fn add_mint_asset_with_existing_mint() {
 
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .to_vec()
+        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -3402,7 +3402,7 @@ fn add_mint_asset_and_output() {
 
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .to_vec()
+        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -3471,7 +3471,7 @@ fn add_mint_asset_and_min_required_coin() {
 
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .to_vec()
+        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
