@@ -39,3 +39,9 @@ pub use witnesses::*;
 
 mod crypto;
 pub use crypto::*;
+
+mod native_script;
+pub use native_script::*;
+
+mod native_scripts;
+pub use native_scripts::*;

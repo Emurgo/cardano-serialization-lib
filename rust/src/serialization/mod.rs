@@ -22,3 +22,5 @@ mod witnesses;
 mod credential;
 mod crypto;
 mod plutus;
+mod native_script;
+mod native_scripts;
