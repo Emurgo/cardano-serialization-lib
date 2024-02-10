@@ -23,7 +23,31 @@ impl NativeScripts {
     pub fn add(&mut self, elem: &NativeScript) {
         self.0.push(elem.clone());
     }
+
+    pub(crate) fn deduplicated_view(&self) -> Vec<&NativeScript> {
+        let mut dedup = BTreeSet::new();
+        let mut scripts = Vec::new();
+        for elem in &self.0 {
+            if dedup.insert(elem) {
+                scripts.push(elem);
+            }
+        }
+        scripts
+    }
+
+    pub(crate) fn deduplicated_clone(&self) -> NativeScripts {
+        let mut dedup = BTreeSet::new();
+        let mut scripts = Vec::new();
+        for script in &self.0 {
+            if dedup.insert(script.clone()) {
+                scripts.push(script.clone());
+            }
+        }
+        NativeScripts(scripts)
+    }
 }
+
+impl_to_from!(NativeScripts);
 
 impl From<Vec<NativeScript>> for NativeScripts {
     fn from(scripts: Vec<NativeScript>) -> Self {

@@ -66,7 +66,7 @@ impl Ed25519KeyHashes {
     }
 
     pub(crate) fn extend(&mut self, other: &Ed25519KeyHashes) {
-        for keyhash in other.keyhashes.iter() {
+        for keyhash in &other.keyhashes {
             self.add(keyhash);
         }
     }

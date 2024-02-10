@@ -97,16 +97,16 @@ impl WitnessesCalculator {
 
     pub(super) fn create_mock_witnesses_set(&self) -> TransactionWitnessSet {
         let fake_key_root = fake_private_key();
-        let raw_key_public = fake_raw_key_public();
         let fake_sig = fake_raw_key_sig();
 
         // recall: this includes keys for input, certs and withdrawals
         let vkeys = match self.vkeys_count {
             0 => None,
             x => {
-                let fake_vkey_witness = Vkeywitness::new(&Vkey::new(&raw_key_public), &fake_sig);
                 let mut result = Vkeywitnesses::new();
-                for _i in 0..x {
+                for i in 0..x {
+                    let raw_key_public = fake_raw_key_public(i);
+                    let fake_vkey_witness = Vkeywitness::new(&Vkey::new(&raw_key_public), &fake_sig);
                     result.add(&fake_vkey_witness.clone());
                 }
                 Some(result)

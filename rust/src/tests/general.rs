@@ -1,4 +1,7 @@
 use crate::*;
+use crate::fakes::fake_vkey_witness;
+use crate::tests::helpers::harden;
+use crate::tests::mock_objects::{create_plutus_script, create_reallistic_tx_builder};
 
 #[test]
 fn native_script_hash() {
@@ -287,4 +290,117 @@ fn protocol_params_update_cbor_roundtrip() {
 
     assert_eq!(dencoded, orig_ppu);
     assert_eq!(dencoded.to_bytes(), orig_ppu.to_bytes());
+}
+
+#[test]
+fn witnesses_deduplication_test(){
+    let spend = tests::mock_objects::root_key_15()
+        .derive(harden(1854))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(0)
+        .derive(0)
+        .to_public();
+    let stake = tests::mock_objects::root_key_15()
+        .derive(harden(1854))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(2)
+        .derive(0)
+        .to_public();
+
+    let spending_hash = spend.to_raw_key().hash();
+
+    let mut native_scripts_1 = NativeScript::new_script_pubkey(&ScriptPubkey::new(
+        &spending_hash,
+    ));
+
+    let mut internal_scripts = NativeScripts::new();
+    internal_scripts.add(&native_scripts_1);
+    let native_scripts_2 = NativeScript::new_script_n_of_k(&ScriptNOfK::new(
+        1,
+        &internal_scripts,
+    ));
+
+
+    let native_scripts_1_1 = native_scripts_1.clone();
+
+    let mut native_scripts = NativeScripts::new();
+    native_scripts.add(&native_scripts_1);
+    native_scripts.add(&native_scripts_2);
+    native_scripts.add(&native_scripts_1_1);
+
+
+    // recall: this includes keys for input, certs and withdrawals
+    let vkey_witness_1 = fake_vkey_witness(1);
+    let vkey_witness_1_1 = fake_vkey_witness(1);
+    let vkey_witness_2 = fake_vkey_witness(2);
+
+    let mut vkey_witnesses = Vkeywitnesses::new();
+    vkey_witnesses.add(&vkey_witness_1);
+    vkey_witnesses.add(&vkey_witness_1_1);
+    vkey_witnesses.add(&vkey_witness_2);
+
+    let plutus_v1_1 = create_plutus_script(1, &Language::new_plutus_v1());
+    let plutus_v1_1_1 = create_plutus_script(1, &Language::new_plutus_v1());
+    let plutus_v1_2 = create_plutus_script(2, &Language::new_plutus_v1());
+
+    let plutus_v2_1 = create_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_v2_1_1 = create_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_v2_2 = create_plutus_script(2, &Language::new_plutus_v2());
+
+    let plutus_v3_1 = create_plutus_script(1, &Language::new_plutus_v3());
+    let plutus_v3_1_1 = create_plutus_script(1, &Language::new_plutus_v3());
+    let plutus_v3_2 = create_plutus_script(2, &Language::new_plutus_v3());
+
+    let mut plutus_scripts = PlutusScripts::new();
+    plutus_scripts.add(&plutus_v1_1);
+    plutus_scripts.add(&plutus_v1_1_1);
+    plutus_scripts.add(&plutus_v1_2);
+    plutus_scripts.add(&plutus_v2_1);
+    plutus_scripts.add(&plutus_v2_1_1);
+    plutus_scripts.add(&plutus_v2_2);
+    plutus_scripts.add(&plutus_v3_1);
+    plutus_scripts.add(&plutus_v3_1_1);
+    plutus_scripts.add(&plutus_v3_2);
+
+    let mut datums = PlutusList::new();
+
+    let datum_1 = PlutusData::new_integer(&BigInt::from(1));
+    let datum_1_1 = PlutusData::new_integer(&BigInt::from(1));
+    let datum_2 = PlutusData::new_integer(&BigInt::from(2));
+    datums.add(&datum_1);
+    datums.add(&datum_1_1);
+    datums.add(&datum_2);
+
+    let mut tx_wits_set = TransactionWitnessSet::new();
+    tx_wits_set.set_vkeys(&vkey_witnesses);
+    tx_wits_set.set_native_scripts(&native_scripts);
+    tx_wits_set.set_plutus_scripts(&plutus_scripts);
+    tx_wits_set.set_plutus_data(&datums);
+
+    let roundtrip_tx_wits_set = TransactionWitnessSet::from_bytes(tx_wits_set.to_bytes()).unwrap();
+    let roundtrip_vkeys = roundtrip_tx_wits_set.vkeys().unwrap();
+    assert_eq!(roundtrip_vkeys.len(), 2);
+    assert_eq!(roundtrip_vkeys.get(0), vkey_witness_1);
+    assert_eq!(roundtrip_vkeys.get(1), vkey_witness_2);
+
+    let roundtrip_native_scripts = roundtrip_tx_wits_set.native_scripts().unwrap();
+    assert_eq!(roundtrip_native_scripts.len(), 2);
+    assert_eq!(roundtrip_native_scripts.get(0), native_scripts_1);
+    assert_eq!(roundtrip_native_scripts.get(1), native_scripts_2);
+
+    let roundtrip_plutus_scripts = roundtrip_tx_wits_set.plutus_scripts().unwrap();
+    assert_eq!(roundtrip_plutus_scripts.len(), 6);
+    assert_eq!(roundtrip_plutus_scripts.get(0), plutus_v1_1);
+    assert_eq!(roundtrip_plutus_scripts.get(1), plutus_v1_2);
+    assert_eq!(roundtrip_plutus_scripts.get(2), plutus_v2_1);
+    assert_eq!(roundtrip_plutus_scripts.get(3), plutus_v2_2);
+    assert_eq!(roundtrip_plutus_scripts.get(4), plutus_v3_1);
+    assert_eq!(roundtrip_plutus_scripts.get(5), plutus_v3_2);
+
+    let roundtrip_plutus_data = roundtrip_tx_wits_set.plutus_data().unwrap();
+    assert_eq!(roundtrip_plutus_data.len(), 2);
+    assert_eq!(roundtrip_plutus_data.get(0), datum_1);
+    assert_eq!(roundtrip_plutus_data.get(1), datum_2);
 }

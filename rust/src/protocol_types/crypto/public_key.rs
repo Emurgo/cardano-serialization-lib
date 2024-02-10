@@ -5,7 +5,7 @@ use crate::crypto::blake2b224;
 
 /// ED25519 key used as public key
 #[wasm_bindgen]
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PublicKey(pub(crate) crate::chain_crypto::PublicKey<crate::chain_crypto::Ed25519>);
 
 impl From<crate::chain_crypto::PublicKey<crate::chain_crypto::Ed25519>> for PublicKey {

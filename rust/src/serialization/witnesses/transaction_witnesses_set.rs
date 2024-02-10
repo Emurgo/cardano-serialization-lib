@@ -31,7 +31,7 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
                 + plutus_added_length,
         ))?;
         if let Some(field) = &self.vkeys {
-            if field.0.len() > 0 {
+            if field.len() > 0 {
                 serializer.write_unsigned_integer(0)?;
                 field.serialize(serializer)?;
             }
@@ -49,21 +49,15 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
         if let Some(plutus_scripts) = &self.plutus_scripts {
             if has_plutus_v1 {
                 serializer.write_unsigned_integer(3)?;
-                plutus_scripts
-                    .by_version(&Language::new_plutus_v1())
-                    .serialize(serializer)?;
+                plutus_scripts.serialize_by_version(&Language::new_plutus_v1(), serializer)?;
             }
             if has_plutus_v2 {
                 serializer.write_unsigned_integer(6)?;
-                plutus_scripts
-                    .by_version(&Language::new_plutus_v2())
-                    .serialize(serializer)?;
+                plutus_scripts.serialize_by_version(&Language::new_plutus_v2(), serializer)?;
             }
             if has_plutus_v3 {
                 serializer.write_unsigned_integer(7)?;
-                plutus_scripts
-                    .by_version(&Language::new_plutus_v3())
-                    .serialize(serializer)?;
+                plutus_scripts.serialize_by_version(&Language::new_plutus_v3(), serializer)?;
             }
         }
         if let Some(field) = &self.plutus_data {
@@ -177,8 +171,7 @@ impl Deserialize for TransactionWitnessSet {
                             plutus_scripts_v2 = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    Ok(PlutusScripts::deserialize(raw)?
-                                        .map_as_version(&Language::new_plutus_v2()))
+                                    Ok(PlutusScripts::deserialize_with_version(raw, &Language::new_plutus_v2())?)
                                 })()
                                     .map_err(|e| e.annotate("plutus_scripts_v2"))?,
                             );
@@ -190,8 +183,7 @@ impl Deserialize for TransactionWitnessSet {
                             plutus_scripts_v3 = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    Ok(PlutusScripts::deserialize(raw)?
-                                        .map_as_version(&Language::new_plutus_v3()))
+                                    Ok(PlutusScripts::deserialize_with_version(raw, &Language::new_plutus_v3())?)
                                 })()
                                     .map_err(|e| e.annotate("plutus_scripts_v3"))?,
                             );

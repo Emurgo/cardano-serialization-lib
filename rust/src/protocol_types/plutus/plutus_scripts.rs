@@ -1,4 +1,5 @@
 use crate::*;
+use std::collections::HashSet;
 
 #[wasm_bindgen]
 #[derive(
@@ -48,11 +49,41 @@ impl PlutusScripts {
         res
     }
 
-    pub(crate) fn map_as_version(&self, language: &Language) -> PlutusScripts {
-        let mut res = PlutusScripts::new();
-        for s in &self.0 {
-            res.add(&s.clone_as_version(language));
+    pub(crate) fn view(&self, version: &Language) -> Vec<&PlutusScript> {
+        let mut res = Vec::new();
+        for script in &self.0 {
+            if !script.language_version().eq(version) {
+                continue;
+            }
+            res.push(script);
         }
         res
+    }
+
+    pub(crate) fn deduplicated_view(&self, version: Option<&Language>) -> Vec<&PlutusScript> {
+        let mut dedup = BTreeSet::new();
+        let mut res = Vec::new();
+        for script in &self.0 {
+            if let Some(version) = version {
+                if !script.language_version().eq(version) {
+                    continue;
+                }
+            }
+            if dedup.insert(script) {
+                res.push(script);
+            }
+        }
+        res
+    }
+
+    pub(crate) fn deduplicated_clone(&self) -> PlutusScripts {
+        let mut dedup = BTreeSet::new();
+        let mut scripts = Vec::new();
+        for script in &self.0 {
+            if dedup.insert(script.clone()) {
+                scripts.push(script.clone());
+            }
+        }
+        PlutusScripts(scripts)
     }
 }

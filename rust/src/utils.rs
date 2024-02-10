@@ -1236,7 +1236,7 @@ pub fn hash_script_data(
         */
         buf.push(0x80);
         if let Some(d) = &datums {
-            buf.extend(d.to_bytes());
+            buf.extend(d.to_set_bytes());
         }
         buf.push(0xA0);
     } else {
@@ -1249,7 +1249,7 @@ pub fn hash_script_data(
         */
         buf.extend(redeemers.to_bytes());
         if let Some(d) = &datums {
-            buf.extend(d.to_bytes());
+            buf.extend(d.to_set_bytes());
         }
         buf.extend(cost_models.language_views_encoding());
     }

@@ -3,7 +3,12 @@ use crate::fakes::{
     fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2,
 };
 use crate::tests::helpers::harden;
-use crate::tests::mock_objects::{byron_address, create_change_address, create_default_tx_builder, create_linear_fee, create_reallistic_tx_builder, create_rich_tx_builder, create_tx_builder_with_amount, create_tx_builder_with_fee, create_tx_builder_with_fee_and_pure_change, create_tx_builder_with_fee_and_val_size, create_tx_builder_with_key_deposit};
+use crate::tests::mock_objects::{
+    byron_address, create_change_address, create_default_tx_builder, create_linear_fee,
+    create_reallistic_tx_builder, create_rich_tx_builder, create_tx_builder_with_amount,
+    create_tx_builder_with_fee, create_tx_builder_with_fee_and_pure_change,
+    create_tx_builder_with_fee_and_val_size, create_tx_builder_with_key_deposit, root_key_15,
+};
 use crate::*;
 
 use fees::*;
@@ -13,15 +18,6 @@ const MAX_TX_SIZE: u32 = 8000;
 
 fn genesis_id() -> TransactionHash {
     TransactionHash::from([0u8; TransactionHash::BYTE_COUNT])
-}
-
-fn root_key_15() -> Bip32PrivateKey {
-    // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
-    let entropy = [
-        0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4,
-        0xd8, 0x09, 0x7c, 0x64, 0x12,
-    ];
-    Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
 }
 
 #[test]
@@ -561,8 +557,11 @@ fn build_tx_with_inputs() {
         assert_eq!(
             tx_builder
                 .fee_for_input(
-                    &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
-                        .to_address(),
+                    &EnterpriseAddress::new(
+                        NetworkInfo::testnet_preprod().network_id(),
+                        &spend_cred
+                    )
+                    .to_address(),
                     &TransactionInput::new(&genesis_id(), 0),
                     &Value::new(&to_bignum(1_000_000))
                 )
@@ -571,7 +570,8 @@ fn build_tx_with_inputs() {
             "69500"
         );
         tx_builder.add_regular_input(
-            &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
+            &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+                .to_address(),
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&to_bignum(1_000_000)),
         );
@@ -893,7 +893,8 @@ fn build_tx_with_mint_all_sent() {
 
     // Input with 150 coins
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &Value::new(&to_bignum(500)),
     );
@@ -981,7 +982,8 @@ fn build_tx_with_mint_in_change() {
 
     // Input with 600 coins
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &Value::new(&to_bignum(600)),
     );
@@ -1090,13 +1092,15 @@ fn change_with_input_and_mint_not_enough_ada() {
 
     // Input with 600 coins
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &Value::new(&to_bignum(600)),
     );
 
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 1),
         &Value::new_with_assets(&to_bignum(1), &mass_input),
     );
@@ -1186,13 +1190,15 @@ fn change_with_input_and_mint_not_enough_assets() {
 
     // Input with 600 coins
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &Value::new(&to_bignum(100000)),
     );
 
     tx_builder.add_regular_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred).to_address(),
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 1),
         &Value::new_with_assets(&to_bignum(1), &mass_input),
     );
@@ -3101,7 +3107,11 @@ fn assert_mint_asset(mint: &Mint, policy_id: &PolicyID) {
     let result_asset = mint.get(&policy_id).unwrap();
     assert_eq!(result_asset.len(), 1);
     assert_eq!(
-        result_asset.get(0).unwrap().get(&create_asset_name()).unwrap(),
+        result_asset
+            .get(0)
+            .unwrap()
+            .get(&create_asset_name())
+            .unwrap(),
         Int::new_i32(1234)
     );
 }
@@ -3781,7 +3791,10 @@ fn test_add_native_script_input() {
         &Value::new(&to_bignum(1_000_000)),
     );
 
-    assert_eq!(tx_builder.inputs.get_native_input_scripts().unwrap().len(), 2);
+    assert_eq!(
+        tx_builder.inputs.get_native_input_scripts().unwrap().len(),
+        2
+    );
 }
 
 fn unsafe_tx_len(b: &TransactionBuilder) -> usize {
@@ -3846,8 +3859,8 @@ fn test_adding_plutus_script_input() {
 fn test_adding_plutus_script_witnesses() {
     let mut tx_builder = create_reallistic_tx_builder();
     tx_builder.set_fee(&to_bignum(42));
-    let (script1, _ ) = plutus_script_and_hash(0);
-    let (script2, _ ) = plutus_script_and_hash(1);
+    let (script1, _) = plutus_script_and_hash(0);
+    let (script2, _) = plutus_script_and_hash(1);
     let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
     let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
     let redeemer1 = Redeemer::new(
@@ -3896,11 +3909,13 @@ fn test_adding_plutus_script_witnesses() {
 
 fn create_collateral() -> TxInputsBuilder {
     let mut collateral_builder = TxInputsBuilder::new();
-    collateral_builder.add_regular_input(
-        &byron_address(),
-        &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    ).unwrap();
+    collateral_builder
+        .add_regular_input(
+            &byron_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&to_bignum(1_000_000)),
+        )
+        .unwrap();
     collateral_builder
 }
 
@@ -4104,7 +4119,6 @@ fn test_native_and_plutus_scripts_together() {
         &TransactionInput::new(&genesis_id(), 3),
         &Value::new(&to_bignum(1_000_000)),
     );
-
 
     tx_builder
         .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
@@ -4491,7 +4505,9 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
     );
 
     assert_eq!(
-        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes::from_vec(vec![fake_key_hash(1)]),),
+        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes::from_vec(vec![
+            fake_key_hash(1)
+        ]),),
         2
     );
 
@@ -6031,14 +6047,20 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
         .unwrap();
     withdrawals
         .add_with_plutus_witness(
-            &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &withdraw_script_cred1),
+            &RewardAddress::new(
+                NetworkInfo::testnet_preprod().network_id(),
+                &withdraw_script_cred1,
+            ),
             &Coin::from(2u32),
             &withdraw_witness1,
         )
         .unwrap();
     withdrawals
         .add_with_plutus_witness(
-            &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &withdraw_script_cred2),
+            &RewardAddress::new(
+                NetworkInfo::testnet_preprod().network_id(),
+                &withdraw_script_cred2,
+            ),
             &Coin::from(3u32),
             &withdraw_witness2,
         )
@@ -6175,9 +6197,14 @@ fn current_treasure_value_test() {
     assert_eq!(builder.get_current_treasury_value(), None);
 
     builder.set_current_treasury_value(&treasure_value).unwrap();
-    builder.add_change_if_needed(&create_change_address()).unwrap();
+    builder
+        .add_change_if_needed(&create_change_address())
+        .unwrap();
 
-    assert_eq!(builder.get_current_treasury_value().unwrap(), treasure_value);
+    assert_eq!(
+        builder.get_current_treasury_value().unwrap(),
+        treasure_value
+    );
 
     let tx = builder.build_tx().unwrap();
     assert_eq!(tx.body().outputs().len(), 1);
@@ -6208,7 +6235,9 @@ fn donation_test() {
     assert_eq!(builder.get_donation(), None);
 
     builder.set_donation(&donation);
-    builder.add_change_if_needed(&create_change_address()).unwrap();
+    builder
+        .add_change_if_needed(&create_change_address())
+        .unwrap();
 
     assert_eq!(builder.get_donation().unwrap(), donation);
 

@@ -16,7 +16,9 @@ impl_to_from!(TransactionWitnessSet);
 #[wasm_bindgen]
 impl TransactionWitnessSet {
     pub fn set_vkeys(&mut self, vkeys: &Vkeywitnesses) {
-        self.vkeys = Some(vkeys.clone())
+        if vkeys.len() > 0 {
+            self.vkeys = Some(vkeys.clone())
+        }
     }
 
     pub fn vkeys(&self) -> Option<Vkeywitnesses> {
@@ -24,7 +26,9 @@ impl TransactionWitnessSet {
     }
 
     pub fn set_native_scripts(&mut self, native_scripts: &NativeScripts) {
-        self.native_scripts = Some(native_scripts.clone())
+        if native_scripts.len() > 0 {
+            self.native_scripts = Some(native_scripts.deduplicated_clone())
+        }
     }
 
     pub fn native_scripts(&self) -> Option<NativeScripts> {
@@ -40,7 +44,9 @@ impl TransactionWitnessSet {
     }
 
     pub fn set_plutus_scripts(&mut self, plutus_scripts: &PlutusScripts) {
-        self.plutus_scripts = Some(plutus_scripts.clone())
+        if plutus_scripts.len() > 0 {
+            self.plutus_scripts = Some(plutus_scripts.deduplicated_clone())
+        }
     }
 
     pub fn plutus_scripts(&self) -> Option<PlutusScripts> {
@@ -48,7 +54,9 @@ impl TransactionWitnessSet {
     }
 
     pub fn set_plutus_data(&mut self, plutus_data: &PlutusList) {
-        self.plutus_data = Some(plutus_data.clone())
+        if plutus_data.len() > 0 {
+            self.plutus_data = Some(plutus_data.deduplicated_clone())
+        }
     }
 
     pub fn plutus_data(&self) -> Option<PlutusList> {

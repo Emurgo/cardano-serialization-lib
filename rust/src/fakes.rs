@@ -1,7 +1,5 @@
 #![allow(dead_code)]
-use crate::{
-    AnchorDataHash, AuxiliaryDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, ScriptDataHash, ScriptHash, VRFKeyHash,
-};
+use crate::{AnchorDataHash, AuxiliaryDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, PublicKey, ScriptDataHash, ScriptHash, Vkeywitness, VRFKeyHash};
 use crate::{
     to_bignum, Address, BaseAddress, Bip32PrivateKey, Credential, DataHash, Ed25519KeyHash,
     Ed25519Signature, NetworkInfo, PolicyID, TransactionHash, TransactionIndex, TransactionInput,
@@ -109,6 +107,10 @@ pub(crate) fn fake_vkey() -> Vkey {
     )
 }
 
+pub(crate) fn fake_vkey_numbered(x: u8) -> Vkey {
+    Vkey::new(&PublicKey::from_bytes(&[x; 32]).unwrap())
+}
+
 pub(crate) fn fake_signature(x: u8) -> Ed25519Signature {
     Ed25519Signature::from_bytes([x; 64].to_vec()).unwrap()
 }
@@ -119,4 +121,8 @@ pub(crate) fn fake_policy_id(x: u8) -> PolicyID {
 
 pub(crate) fn fake_asset_name(x: u8) -> AssetName {
     AssetName([x; 32].to_vec())
+}
+
+pub(crate) fn fake_vkey_witness(x: u8) -> Vkeywitness {
+    Vkeywitness::new(&fake_vkey_numbered(x), &fake_signature(x))
 }

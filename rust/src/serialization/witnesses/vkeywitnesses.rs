@@ -12,8 +12,8 @@ impl cbor_event::se::Serialize for Vkeywitnesses {
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         //TODO: uncomment this line when we conway ero will come
         //serializer.write_tag(258)?;
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in &self.0 {
+        serializer.write_array(cbor_event::Len::Len(self.witnesses.len() as u64))?;
+        for element in &self.witnesses {
             element.serialize(serializer)?;
         }
         Ok(serializer)
@@ -22,23 +22,25 @@ impl cbor_event::se::Serialize for Vkeywitnesses {
 
 impl Deserialize for Vkeywitnesses {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut arr = Vec::new();
+        let mut wits = Vkeywitnesses::new();
+        let mut counter = 0u64;
         (|| -> Result<_, DeserializeError> {
             skip_set_tag(raw)?;
             let len = raw.array()?;
             while match len {
-                cbor_event::Len::Len(n) => arr.len() < n as usize,
+                cbor_event::Len::Len(n) => counter < n,
                 cbor_event::Len::Indefinite => true,
             } {
                 if raw.cbor_type()? == cbor_event::Type::Special {
                     assert_eq!(raw.special()?, cbor_event::Special::Break);
                     break;
                 }
-                arr.push(Vkeywitness::deserialize(raw)?);
+                wits.add_move(Vkeywitness::deserialize(raw)?);
+                counter += 1;
             }
             Ok(())
         })()
             .map_err(|e| e.annotate("Vkeywitnesses"))?;
-        Ok(Self(arr))
+        Ok(wits)
     }
 }

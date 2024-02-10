@@ -379,8 +379,7 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
     assert_eq!(total_out, Coin::from(initial_amount));
 
     let tx_witnesses = tx.witness_set();
-    let tx_script = tx_witnesses.plutus_scripts().unwrap();
-    assert_eq!(tx_script.len(), 0);
+    assert_eq!(tx_witnesses.plutus_scripts().map_or(0, |x| x.len()), 0);
 
     let tx_redeemers = tx_witnesses.redeemers().unwrap();
     assert_eq!(tx_redeemers.len(), 1);

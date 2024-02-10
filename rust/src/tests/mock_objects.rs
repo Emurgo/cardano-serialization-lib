@@ -10,6 +10,15 @@ const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our test
                                // this is what is used in mainnet
 static COINS_PER_UTXO_BYTE: u64 = 34_482 / 8;
 
+pub(crate) fn root_key_15() -> Bip32PrivateKey {
+    // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
+    let entropy = [
+        0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4,
+        0xd8, 0x09, 0x7c, 0x64, 0x12,
+    ];
+    Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
+}
+
 pub(crate) fn root_key() -> Bip32PrivateKey {
     // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
     let entropy = [

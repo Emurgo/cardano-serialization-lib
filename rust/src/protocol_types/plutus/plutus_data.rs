@@ -430,6 +430,37 @@ impl PlutusList {
         self.elems.push(elem.clone());
         self.definite_encoding = None;
     }
+
+    pub(crate) fn deduplicated_view(&self) -> Vec<&PlutusData> {
+        let mut dedup = BTreeSet::new();
+        let mut keyhashes = Vec::new();
+        for elem in &self.elems {
+            if dedup.insert(elem) {
+                keyhashes.push(elem);
+            }
+        }
+        keyhashes
+    }
+
+    pub(crate) fn to_set_bytes(&self) -> Vec<u8> {
+        let mut buf = Serializer::new_vec();
+        self.serialize_as_set(true, &mut buf).unwrap();
+        buf.finalize()
+    }
+
+    pub(crate) fn deduplicated_clone(&self) -> Self {
+        let mut dedup = BTreeSet::new();
+        let mut elems = Vec::new();
+        for elem in &self.elems {
+            if dedup.insert(elem) {
+                elems.push(elem.clone());
+            }
+        }
+        Self {
+            elems,
+            definite_encoding: self.definite_encoding,
+        }
+    }
 }
 
 impl From<Vec<PlutusData>> for PlutusList {

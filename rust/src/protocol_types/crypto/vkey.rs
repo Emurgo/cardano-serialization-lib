@@ -1,7 +1,7 @@
 use crate::*;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Ord, PartialOrd, Eq, Hash, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Vkey(pub(crate) PublicKey);
 
 impl_to_from!(Vkey);

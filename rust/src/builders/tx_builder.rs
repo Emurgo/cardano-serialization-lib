@@ -31,10 +31,15 @@ pub(crate) fn fake_raw_key_sig() -> Ed25519Signature {
     .unwrap()
 }
 
-pub(crate) fn fake_raw_key_public() -> PublicKey {
+pub(crate) fn fake_raw_key_public(x: u64) -> PublicKey {
+    let mut bytes = [0u8; 64];
+    for i in 0..8 {
+        bytes[i] = ((x >> (i * 8)) & 0xff) as u8;
+    }
     PublicKey::from_bytes(&[
         207, 118, 57, 154, 33, 13, 232, 114, 14, 159, 168, 148, 228, 94, 65, 226, 154, 181, 37,
-        227, 11, 196, 2, 128, 28, 7, 98, 80, 209, 88, 91, 205,
+        227, 11, 196, 2, 128, bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6],
+        bytes[7]
     ])
     .unwrap()
 }
@@ -66,16 +71,16 @@ pub(crate) fn fake_full_tx(
     body: TransactionBody,
 ) -> Result<Transaction, JsError> {
     let fake_key_root = fake_private_key();
-    let raw_key_public = fake_raw_key_public();
     let fake_sig = fake_raw_key_sig();
 
     // recall: this includes keys for input, certs and withdrawals
     let vkeys = match count_needed_vkeys(tx_builder) {
         0 => None,
         x => {
-            let fake_vkey_witness = Vkeywitness::new(&Vkey::new(&raw_key_public), &fake_sig);
             let mut result = Vkeywitnesses::new();
-            for _i in 0..x {
+            for i in 0..x {
+                let raw_key_public = fake_raw_key_public(i as u64);
+                let fake_vkey_witness = Vkeywitness::new(&Vkey::new(&raw_key_public), &fake_sig);
                 result.add(&fake_vkey_witness.clone());
             }
             Some(result)

@@ -240,8 +240,42 @@ impl cbor_event::se::Serialize for PlutusList {
     }
 }
 
+impl PlutusList {
+    pub(crate) fn serialize_as_set<'se, W: Write>(
+        &self,
+        need_deduplication: bool,
+        serializer: &'se mut Serializer<W>,
+    ) -> cbor_event::Result<&'se mut Serializer<W>> {
+        //TODO: uncomment this line when we conway ero will come
+        //serializer.write_tag(258)?;
+        let use_definite_encoding = match self.definite_encoding {
+            Some(definite) => definite,
+            None => self.elems.is_empty(),
+        };
+        if use_definite_encoding {
+            serializer.write_array(cbor_event::Len::Len(self.elems.len() as u64))?;
+        } else {
+            serializer.write_array(cbor_event::Len::Indefinite)?;
+        }
+        if need_deduplication {
+            for element in self.deduplicated_view() {
+                element.serialize(serializer)?;
+            }
+        } else {
+            for element in &self.elems {
+                element.serialize(serializer)?;
+            }
+        }
+        if !use_definite_encoding {
+            serializer.write_special(cbor_event::Special::Break)?;
+        }
+        Ok(serializer)
+    }
+}
+
 impl Deserialize for PlutusList {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        skip_set_tag(raw)?;
         let mut arr = Vec::new();
         let len = (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;

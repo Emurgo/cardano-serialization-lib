@@ -235,7 +235,7 @@ fn voting_builder_plutus_ref_witness() {
     let tx = tx_builder.build_tx().unwrap();
 
     let tx_witnesses = tx.witness_set();
-    assert_eq!(tx_witnesses.plutus_scripts().unwrap().len(), 0);
+    assert_eq!(tx_witnesses.plutus_scripts().map_or(0, |x| x.len()), 0);
 
     let tx_redeemers = tx_witnesses.redeemers().unwrap();
     assert_eq!(tx_redeemers.len(), 1);

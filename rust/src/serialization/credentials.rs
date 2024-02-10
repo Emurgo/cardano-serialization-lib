@@ -20,10 +20,11 @@ impl Deserialize for Credentials {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         skip_set_tag(raw)?;
         let mut creds = Credentials::new();
+        let mut counter = 0u64;
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
             while match len {
-                cbor_event::Len::Len(n) => creds.len() < n as usize,
+                cbor_event::Len::Len(n) => counter < n,
                 cbor_event::Len::Indefinite => true,
             } {
                 if raw.cbor_type()? == CBORType::Special {
@@ -31,6 +32,7 @@ impl Deserialize for Credentials {
                     break;
                 }
                 creds.add_move(Credential::deserialize(raw)?);
+                counter += 1;
             }
             Ok(())
         })()
