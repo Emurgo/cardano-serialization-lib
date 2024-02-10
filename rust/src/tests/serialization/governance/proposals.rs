@@ -282,6 +282,19 @@ fn parameter_change_action_with_action_id_ser_round_trip() {
 }
 
 #[test]
+fn parameter_change_action_with_script_hash() {
+    let parameters_update = crate_full_protocol_param_update();
+    let script_hash = ScriptHash::from(fake_script_hash(1));
+    let proposal = ParameterChangeAction::new_with_policy_hash(&parameters_update, &script_hash);
+    let proposal_wrapped = GovernanceAction::new_parameter_change_action(&proposal);
+    to_from_test!(ParameterChangeAction, proposal, proposal_wrapped);
+    assert_eq!(
+        proposal,
+        proposal_wrapped.as_parameter_change_action().unwrap()
+    );
+}
+
+#[test]
 fn treasury_withdrawals_ser_round_trip() {
     let mut withdrawals = TreasuryWithdrawals::new();
     let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
@@ -305,6 +318,29 @@ fn treasury_withdrawals_action_ser_round_trip() {
     let proposal = TreasuryWithdrawalsAction::new(&withdrawals);
 
     let proposal_wrapped = GovernanceAction::new_treasury_withdrawals_action(&proposal);
+
+    to_from_test!(TreasuryWithdrawalsAction, proposal, proposal_wrapped);
+    assert_eq!(
+        proposal,
+        proposal_wrapped.as_treasury_withdrawals_action().unwrap()
+    );
+}
+
+#[test]
+fn treasury_withdrawals_action_with_script_hash_ser_round_trip() {
+    let mut withdrawals = TreasuryWithdrawals::new();
+    let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
+    let addr2 = RewardAddress::new(2, &Credential::from_keyhash(&fake_key_hash(2)));
+    withdrawals.insert(&addr1, &Coin::from(1u32));
+    withdrawals.insert(&addr2, &Coin::from(2u32));
+
+    let script_hash = ScriptHash::from(fake_script_hash(1));
+    let proposal = TreasuryWithdrawalsAction::new_with_policy_hash(&withdrawals, &script_hash);
+
+    let proposal_wrapped = GovernanceAction::new_treasury_withdrawals_action(&proposal);
+
+    assert_eq!(proposal.policy_hash(), Some(script_hash));
+    assert_eq!(proposal.withdrawals(), withdrawals);
 
     to_from_test!(TreasuryWithdrawalsAction, proposal, proposal_wrapped);
     assert_eq!(

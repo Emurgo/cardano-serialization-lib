@@ -63,7 +63,7 @@ fn new_committee_action_setters_getters_test() {
             Credential::from_keyhash(&fake_key_hash(1)),
             Credential::from_keyhash(&fake_key_hash(2)),
         ]
-        .into_iter()
+        .into_iter(),
     );
 
     let proposal = UpdateCommitteeAction::new(&committee, &members_to_remove);
@@ -106,16 +106,17 @@ fn no_confidence_action_setters_getters_test() {
 fn parameter_change_action_setters_getters_test() {
     let protocol_params = crate_full_protocol_param_update();
     let action_id = create_action_id();
+    let policy_hash = fake_script_hash(1);
     let proposal = ParameterChangeAction::new(&protocol_params);
-    let proposal_with_action_id =
-        ParameterChangeAction::new_with_action_id(&action_id, &protocol_params);
+    let proposal_with_action_id = ParameterChangeAction::new_with_policy_hash_and_action_id(
+        &action_id,
+        &protocol_params,
+        &policy_hash,
+    );
     assert_eq!(proposal.gov_action_id(), None);
     assert_eq!(proposal.protocol_param_updates(), protocol_params);
     assert_eq!(proposal_with_action_id.gov_action_id(), Some(action_id));
-    assert_eq!(
-        proposal_with_action_id.protocol_param_updates(),
-        protocol_params
-    );
+    assert_eq!(proposal_with_action_id.policy_hash(), Some(policy_hash));
 }
 
 #[test]
@@ -150,8 +151,7 @@ fn treasury_withdrawals_action() {
 fn voting_proposals_setters_getters_test() {
     let mut proposals = VotingProposals::new();
     let no_confidence_action = NoConfidenceAction::new();
-    let parameter_change_action =
-        ParameterChangeAction::new(&crate_full_protocol_param_update());
+    let parameter_change_action = ParameterChangeAction::new(&crate_full_protocol_param_update());
 
     let proposal1 = VotingProposal::new(
         &GovernanceAction::new_no_confidence_action(&no_confidence_action),
@@ -168,12 +168,6 @@ fn voting_proposals_setters_getters_test() {
     proposals.add(&proposal1);
     proposals.add(&proposal2);
     assert_eq!(proposals.len(), 2);
-    assert_eq!(
-        proposals.get(0),
-        proposal1
-    );
-    assert_eq!(
-        proposals.get(1),
-        proposal2
-    );
+    assert_eq!(proposals.get(0), proposal1);
+    assert_eq!(proposals.get(1), proposal2);
 }

@@ -9,12 +9,13 @@ impl Serialize for TreasuryWithdrawalsAction {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(2))?;
+        serializer.write_array(cbor_event::Len::Len(3))?;
 
         let proposal_index = VotingProposalIndexNames::TreasuryWithdrawalsAction.to_u64();
         serialize_and_check_index(serializer, proposal_index, "TreasuryWithdrawalsAction")?;
 
         self.withdrawals.serialize(serializer)?;
+        self.policy_hash.serialize_nullable(serializer)?;
 
         Ok(serializer)
     }
@@ -27,13 +28,28 @@ impl DeserializeEmbeddedGroup for TreasuryWithdrawalsAction {
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
     ) -> Result<Self, DeserializeError> {
-        check_len(len, 2, "(proposal_index, withdrawals)")?;
+
+        let has_policy_hash = len == cbor_event::Len::Len(3) || len == cbor_event::Len::Indefinite;
+
+        //for sancho backwards compatibility
+        if !has_policy_hash {
+            check_len(len, 2, "(proposal_index, { reward_account => coin })")?;
+        } else {
+            check_len(len, 3, "(proposal_index, { reward_account => coin }, policy_hash / null)")?;
+        }
+
 
         let desired_index = VotingProposalIndexNames::TreasuryWithdrawalsAction.to_u64();
         deserialize_and_check_index(raw, desired_index, "proposal_index")?;
 
         let withdrawals = TreasuryWithdrawals::deserialize(raw)?;
 
-        return Ok(TreasuryWithdrawalsAction { withdrawals });
+        let policy_hash = if has_policy_hash {
+            ScriptHash::deserialize_nullable(raw)?
+        } else {
+            None
+        };
+
+        return Ok(TreasuryWithdrawalsAction { withdrawals , policy_hash});
     }
 }
