@@ -6,82 +6,6 @@
  */
 
 /**
- * @param {string} json
- * @param {$Values<
-                typeof 
-                PlutusDatumSchema>} schema
- * @returns {PlutusData}
- */
-declare export function encode_json_str_to_plutus_datum(
-  json: string,
-  schema: $Values<typeof PlutusDatumSchema>
-): PlutusData;
-
-/**
- * @param {PlutusData} datum
- * @param {$Values<
-                typeof 
-                PlutusDatumSchema>} schema
- * @returns {string}
- */
-declare export function decode_plutus_datum_to_json_str(
-  datum: PlutusData,
-  schema: $Values<typeof PlutusDatumSchema>
-): string;
-
-/**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {$Values<
-                typeof 
-                MetadataJsonSchema>} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: $Values<typeof MetadataJsonSchema>
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {$Values<
-                typeof 
-                MetadataJsonSchema>} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: $Values<typeof MetadataJsonSchema>
-): string;
-
-/**
- * @param {Address} address
- * @param {TransactionUnspentOutputs} utxos
- * @param {TransactionBuilderConfig} config
- * @returns {TransactionBatchList}
- */
-declare export function create_send_all(
-  address: Address,
-  utxos: TransactionUnspentOutputs,
-  config: TransactionBuilderConfig
-): TransactionBatchList;
-
-/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -104,33 +28,6 @@ declare export function decrypt_with_password(
   password: string,
   data: string
 ): string;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
- * @param {ExUnits} ex_units
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function calculate_ex_units_ceil_cost(
-  ex_units: ExUnits,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
-
-/**
- * @param {Transaction} tx
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function min_script_fee(
-  tx: Transaction,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
 
 /**
  * @param {TransactionHash} tx_body_hash
@@ -258,81 +155,107 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * @param {Address} address
+ * @param {TransactionUnspentOutputs} utxos
+ * @param {TransactionBuilderConfig} config
+ * @returns {TransactionBatchList}
  */
-
-declare export var VoteKind: {|
-  +No: 0, // 0
-  +Yes: 1, // 1
-  +Abstain: 2, // 2
-|};
+declare export function create_send_all(
+  address: Address,
+  utxos: TransactionUnspentOutputs,
+  config: TransactionBuilderConfig
+): TransactionBatchList;
 
 /**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
  */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
 
 /**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
  */
-
-declare export var PlutusDataKind: {|
-  +ConstrPlutusData: 0, // 0
-  +Map: 1, // 1
-  +List: 2, // 2
-  +Integer: 3, // 3
-  +Bytes: 4, // 4
-|};
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
 
 /**
+ * @param {string} json
+ * @param {$Values<
+                typeof 
+                MetadataJsonSchema>} schema
+ * @returns {TransactionMetadatum}
  */
-
-declare export var MIRKind: {|
-  +ToOtherPot: 0, // 0
-  +ToStakeCredentials: 1, // 1
-|};
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: $Values<typeof MetadataJsonSchema>
+): TransactionMetadatum;
 
 /**
- * JSON <-> PlutusData conversion schemas.
- * Follows ScriptDataJsonSchema in cardano-cli defined at:
- * https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/ScriptData.hs#L254
- *
- * All methods here have the following restrictions due to limitations on dependencies:
- * * JSON numbers above u64::MAX (positive) or below i64::MIN (negative) will throw errors
- * * Hex strings for bytes don't accept odd-length (half-byte) strings.
- *      cardano-cli seems to support these however but it seems to be different than just 0-padding
- *      on either side when tested so proceed with caution
+ * @param {TransactionMetadatum} metadatum
+ * @param {$Values<
+                typeof 
+                MetadataJsonSchema>} schema
+ * @returns {string}
  */
-
-declare export var PlutusDatumSchema: {|
-  +BasicConversions: 0, // 0
-  +DetailedSchema: 1, // 1
-|};
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: $Values<typeof MetadataJsonSchema>
+): string;
 
 /**
+ * @param {string} json
+ * @param {$Values<
+                typeof 
+                PlutusDatumSchema>} schema
+ * @returns {PlutusData}
  */
-
-declare export var LanguageKind: {|
-  +PlutusV1: 0, // 0
-  +PlutusV2: 1, // 1
-  +PlutusV3: 2, // 2
-|};
+declare export function encode_json_str_to_plutus_datum(
+  json: string,
+  schema: $Values<typeof PlutusDatumSchema>
+): PlutusData;
 
 /**
+ * @param {PlutusData} datum
+ * @param {$Values<
+                typeof 
+                PlutusDatumSchema>} schema
+ * @returns {string}
  */
+declare export function decode_plutus_datum_to_json_str(
+  datum: PlutusData,
+  schema: $Values<typeof PlutusDatumSchema>
+): string;
 
-declare export var RedeemerTagKind: {|
-  +Spend: 0, // 0
-  +Mint: 1, // 1
-  +Cert: 2, // 2
-  +Reward: 3, // 3
-  +Vote: 4, // 4
-  +VotingProposal: 5, // 5
-|};
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
+ * @param {ExUnits} ex_units
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function calculate_ex_units_ceil_cost(
+  ex_units: ExUnits,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
+
+/**
+ * @param {Transaction} tx
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function min_script_fee(
+  tx: Transaction,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
 
 /**
  * Each new language uses a different namespace for hashing its script
@@ -351,28 +274,56 @@ declare export var ScriptHashNamespace: {|
 /**
  */
 
-declare export var NetworkIdKind: {|
-  +Testnet: 0, // 0
-  +Mainnet: 1, // 1
+declare export var VoteKind: {|
+  +No: 0, // 0
+  +Yes: 1, // 1
+  +Abstain: 2, // 2
+|};
+
+/**
+ * Used to choosed the schema for a script JSON string
+ */
+
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
 |};
 
 /**
  */
 
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-  +LargestFirstMultiAsset: 2, // 2
-  +RandomImproveMultiAsset: 3, // 3
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
 |};
 
 /**
  */
 
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
+|};
+
+/**
+ */
+
+declare export var LanguageKind: {|
+  +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
+  +PlutusV3: 2, // 2
+|};
+
+/**
+ */
+
+declare export var NativeScriptKind: {|
+  +ScriptPubkey: 0, // 0
+  +ScriptAll: 1, // 1
+  +ScriptAny: 2, // 2
+  +ScriptNOfK: 3, // 3
+  +TimelockStart: 4, // 4
+  +TimelockExpiry: 5, // 5
 |};
 
 /**
@@ -387,22 +338,9 @@ declare export var RelayKind: {|
 /**
  */
 
-declare export var DRepKind: {|
-  +KeyHash: 0, // 0
-  +ScriptHash: 1, // 1
-  +AlwaysAbstain: 2, // 2
-  +AlwaysNoConfidence: 3, // 3
-|};
-
-/**
- */
-
-declare export var VoterKind: {|
-  +ConstitutionalCommitteeHotKeyHash: 0, // 0
-  +ConstitutionalCommitteeHotScriptHash: 1, // 1
-  +DRepKeyHash: 2, // 2
-  +DRepScriptHash: 3, // 3
-  +StakingPoolKeyHash: 4, // 4
+declare export var NetworkIdKind: {|
+  +Testnet: 0, // 0
+  +Mainnet: 1, // 1
 |};
 
 /**
@@ -411,23 +349,6 @@ declare export var VoterKind: {|
 declare export var CredKind: {|
   +Key: 0, // 0
   +Script: 1, // 1
-|};
-
-/**
- */
-
-declare export var CborContainerType: {|
-  +Array: 0, // 0
-  +Map: 1, // 1
-|};
-
-/**
- * Used to choosed the schema for a script JSON string
- */
-
-declare export var ScriptSchema: {|
-  +Wallet: 0, // 0
-  +Node: 1, // 1
 |};
 
 /**
@@ -456,6 +377,46 @@ declare export var CertificateKind: {|
 /**
  */
 
+declare export var DRepKind: {|
+  +KeyHash: 0, // 0
+  +ScriptHash: 1, // 1
+  +AlwaysAbstain: 2, // 2
+  +AlwaysNoConfidence: 3, // 3
+|};
+
+/**
+ */
+
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var VoterKind: {|
+  +ConstitutionalCommitteeHotKeyHash: 0, // 0
+  +ConstitutionalCommitteeHotScriptHash: 1, // 1
+  +DRepKeyHash: 2, // 2
+  +DRepScriptHash: 3, // 3
+  +StakingPoolKeyHash: 4, // 4
+|};
+
+/**
+ */
+
 declare export var GovernanceActionKind: {|
   +ParameterChangeAction: 0, // 0
   +HardForkInitiationAction: 1, // 1
@@ -467,23 +428,62 @@ declare export var GovernanceActionKind: {|
 |};
 
 /**
+ * JSON <-> PlutusData conversion schemas.
+ * Follows ScriptDataJsonSchema in cardano-cli defined at:
+ * https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/ScriptData.hs#L254
+ *
+ * All methods here have the following restrictions due to limitations on dependencies:
+ * * JSON numbers above u64::MAX (positive) or below i64::MIN (negative) will throw errors
+ * * Hex strings for bytes don't accept odd-length (half-byte) strings.
+ *      cardano-cli seems to support these however but it seems to be different than just 0-padding
+ *      on either side when tested so proceed with caution
  */
 
-declare export var MIRPot: {|
-  +Reserves: 0, // 0
-  +Treasury: 1, // 1
+declare export var PlutusDatumSchema: {|
+  +BasicConversions: 0, // 0
+  +DetailedSchema: 1, // 1
 |};
 
 /**
  */
 
-declare export var NativeScriptKind: {|
-  +ScriptPubkey: 0, // 0
-  +ScriptAll: 1, // 1
-  +ScriptAny: 2, // 2
-  +ScriptNOfK: 3, // 3
-  +TimelockStart: 4, // 4
-  +TimelockExpiry: 5, // 5
+declare export var RedeemerTagKind: {|
+  +Spend: 0, // 0
+  +Mint: 1, // 1
+  +Cert: 2, // 2
+  +Reward: 3, // 3
+  +Vote: 4, // 4
+  +VotingProposal: 5, // 5
+|};
+
+/**
+ */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
+declare export var PlutusDataKind: {|
+  +ConstrPlutusData: 0, // 0
+  +Map: 1, // 1
+  +List: 2, // 2
+  +Integer: 3, // 3
+  +Bytes: 4, // 4
 |};
 
 /**
@@ -1371,6 +1371,49 @@ declare export class Bip32PublicKey {
   free(): void;
 
   /**
+   * @param {string} hex_str
+   * @returns {Bip32PublicKey}
+   */
+  static from_hex(hex_str: string): Bip32PublicKey;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  chaincode(): Uint8Array;
+
+  /**
+   * @returns {string}
+   */
+  to_bech32(): string;
+
+  /**
+   * @param {string} bech32_str
+   * @returns {Bip32PublicKey}
+   */
+  static from_bech32(bech32_str: string): Bip32PublicKey;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  as_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {Bip32PublicKey}
+   */
+  static from_bytes(bytes: Uint8Array): Bip32PublicKey;
+
+  /**
+   * @returns {PublicKey}
+   */
+  to_raw_key(): PublicKey;
+
+  /**
    * derive this public key with the given index.
    *
    * # Errors
@@ -1398,49 +1441,6 @@ declare export class Bip32PublicKey {
    * @returns {Bip32PublicKey}
    */
   derive(index: number): Bip32PublicKey;
-
-  /**
-   * @returns {PublicKey}
-   */
-  to_raw_key(): PublicKey;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {Bip32PublicKey}
-   */
-  static from_bytes(bytes: Uint8Array): Bip32PublicKey;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  as_bytes(): Uint8Array;
-
-  /**
-   * @param {string} bech32_str
-   * @returns {Bip32PublicKey}
-   */
-  static from_bech32(bech32_str: string): Bip32PublicKey;
-
-  /**
-   * @returns {string}
-   */
-  to_bech32(): string;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  chaincode(): Uint8Array;
-
-  /**
-   * @returns {string}
-   */
-  to_hex(): string;
-
-  /**
-   * @param {string} hex_str
-   * @returns {Bip32PublicKey}
-   */
-  static from_hex(hex_str: string): Bip32PublicKey;
 }
 /**
  */
@@ -2190,9 +2190,9 @@ declare export class Committee {
   static new(quorum_threshold: UnitInterval): Committee;
 
   /**
-   * @returns {CredentialsSet}
+   * @returns {Credentials}
    */
-  members_keys(): CredentialsSet;
+  members_keys(): Credentials;
 
   /**
    * @returns {UnitInterval}
@@ -2753,81 +2753,6 @@ declare export class Credentials {
    * @param {Credential} elem
    */
   add(elem: Credential): void;
-}
-/**
- */
-declare export class CredentialsSet {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {CredentialsSet}
-   */
-  static from_bytes(bytes: Uint8Array): CredentialsSet;
-
-  /**
-   * @returns {string}
-   */
-  to_hex(): string;
-
-  /**
-   * @param {string} hex_str
-   * @returns {CredentialsSet}
-   */
-  static from_hex(hex_str: string): CredentialsSet;
-
-  /**
-   * @returns {string}
-   */
-  to_json(): string;
-
-  /**
-   * @returns {CredentialsSetJSON}
-   */
-  to_js_value(): CredentialsSetJSON;
-
-  /**
-   * @param {string} json
-   * @returns {CredentialsSet}
-   */
-  static from_json(json: string): CredentialsSet;
-
-  /**
-   * @returns {CredentialsSet}
-   */
-  static new(): CredentialsSet;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {number} index
-   * @returns {Credential | void}
-   */
-  get(index: number): Credential | void;
-
-  /**
-   * @param {Credential} elem
-   */
-  add(elem: Credential): void;
-
-  /**
-   * @param {Credential} elem
-   * @returns {boolean}
-   */
-  contains(elem: Credential): boolean;
-
-  /**
-   * @returns {Credentials}
-   */
-  to_vec(): Credentials;
 }
 /**
  */
@@ -3585,89 +3510,15 @@ declare export class Ed25519KeyHashes {
   add(elem: Ed25519KeyHash): void;
 
   /**
+   * @param {Ed25519KeyHash} elem
+   * @returns {boolean}
+   */
+  contains(elem: Ed25519KeyHash): boolean;
+
+  /**
    * @returns {Ed25519KeyHashes | void}
    */
   to_option(): Ed25519KeyHashes | void;
-}
-/**
- */
-declare export class Ed25519KeyHashesSet {
-  free(): void;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {Ed25519KeyHashesSet}
-   */
-  static from_bytes(bytes: Uint8Array): Ed25519KeyHashesSet;
-
-  /**
-   * @returns {string}
-   */
-  to_hex(): string;
-
-  /**
-   * @param {string} hex_str
-   * @returns {Ed25519KeyHashesSet}
-   */
-  static from_hex(hex_str: string): Ed25519KeyHashesSet;
-
-  /**
-   * @returns {string}
-   */
-  to_json(): string;
-
-  /**
-   * @returns {Ed25519KeyHashesSetJSON}
-   */
-  to_js_value(): Ed25519KeyHashesSetJSON;
-
-  /**
-   * @param {string} json
-   * @returns {Ed25519KeyHashesSet}
-   */
-  static from_json(json: string): Ed25519KeyHashesSet;
-
-  /**
-   * @returns {Ed25519KeyHashesSet}
-   */
-  static new(): Ed25519KeyHashesSet;
-
-  /**
-   * @param {Ed25519KeyHash} key
-   */
-  add(key: Ed25519KeyHash): void;
-
-  /**
-   * @param {Ed25519KeyHash} key
-   */
-  remove(key: Ed25519KeyHash): void;
-
-  /**
-   * @param {Ed25519KeyHash} key
-   * @returns {boolean}
-   */
-  contains(key: Ed25519KeyHash): boolean;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {number} index
-   * @returns {Ed25519KeyHash | void}
-   */
-  get(index: number): Ed25519KeyHash | void;
-
-  /**
-   * @returns {Ed25519KeyHashes}
-   */
-  to_vec(): Ed25519KeyHashes;
 }
 /**
  */
@@ -5305,9 +5156,9 @@ declare export class MIRToStakeCredentials {
   get(cred: Credential): Int | void;
 
   /**
-   * @returns {CredentialsSet}
+   * @returns {Credentials}
    */
-  keys(): CredentialsSet;
+  keys(): Credentials;
 }
 /**
  */
@@ -6100,9 +5951,9 @@ declare export class NativeScript {
    * Returns a set of Ed25519KeyHashes
    * contained within this script recursively on any depth level.
    * The order of the keys in the result is not determined in any way.
-   * @returns {Ed25519KeyHashesSet}
+   * @returns {Ed25519KeyHashes}
    */
-  get_required_signers(): Ed25519KeyHashesSet;
+  get_required_signers(): Ed25519KeyHashes;
 }
 /**
  */
@@ -6152,6 +6003,44 @@ declare export class NativeScripts {
    * @param {NativeScript} elem
    */
   add(elem: NativeScript): void;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {NativeScripts}
+   */
+  static from_bytes(bytes: Uint8Array): NativeScripts;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex_str
+   * @returns {NativeScripts}
+   */
+  static from_hex(hex_str: string): NativeScripts;
+
+  /**
+   * @returns {string}
+   */
+  to_json(): string;
+
+  /**
+   * @returns {NativeScriptsJSON}
+   */
+  to_js_value(): NativeScriptsJSON;
+
+  /**
+   * @param {string} json
+   * @returns {NativeScripts}
+   */
+  static from_json(json: string): NativeScripts;
 }
 /**
  */
@@ -6318,6 +6207,11 @@ declare export class NewConstitutionAction {
     gov_action_id: GovernanceActionId,
     constitution: Constitution
   ): NewConstitutionAction;
+
+  /**
+   * @returns {boolean}
+   */
+  has_script_hash(): boolean;
 }
 /**
  */
@@ -6597,6 +6491,11 @@ declare export class ParameterChangeAction {
   protocol_param_updates(): ProtocolParamUpdate;
 
   /**
+   * @returns {ScriptHash | void}
+   */
+  policy_hash(): ScriptHash | void;
+
+  /**
    * @param {ProtocolParamUpdate} protocol_param_updates
    * @returns {ParameterChangeAction}
    */
@@ -6612,6 +6511,28 @@ declare export class ParameterChangeAction {
   static new_with_action_id(
     gov_action_id: GovernanceActionId,
     protocol_param_updates: ProtocolParamUpdate
+  ): ParameterChangeAction;
+
+  /**
+   * @param {ProtocolParamUpdate} protocol_param_updates
+   * @param {ScriptHash} policy_hash
+   * @returns {ParameterChangeAction}
+   */
+  static new_with_policy_hash(
+    protocol_param_updates: ProtocolParamUpdate,
+    policy_hash: ScriptHash
+  ): ParameterChangeAction;
+
+  /**
+   * @param {GovernanceActionId} gov_action_id
+   * @param {ProtocolParamUpdate} protocol_param_updates
+   * @param {ScriptHash} policy_hash
+   * @returns {ParameterChangeAction}
+   */
+  static new_with_policy_hash_and_action_id(
+    gov_action_id: GovernanceActionId,
+    protocol_param_updates: ProtocolParamUpdate,
+    policy_hash: ScriptHash
   ): ParameterChangeAction;
 }
 /**
@@ -7419,9 +7340,9 @@ declare export class PoolParams {
   reward_account(): RewardAddress;
 
   /**
-   * @returns {Ed25519KeyHashesSet}
+   * @returns {Ed25519KeyHashes}
    */
-  pool_owners(): Ed25519KeyHashesSet;
+  pool_owners(): Ed25519KeyHashes;
 
   /**
    * @returns {Relays}
@@ -7440,7 +7361,7 @@ declare export class PoolParams {
    * @param {BigNum} cost
    * @param {UnitInterval} margin
    * @param {RewardAddress} reward_account
-   * @param {Ed25519KeyHashesSet} pool_owners
+   * @param {Ed25519KeyHashes} pool_owners
    * @param {Relays} relays
    * @param {PoolMetadata | void} [pool_metadata]
    * @returns {PoolParams}
@@ -7452,7 +7373,7 @@ declare export class PoolParams {
     cost: BigNum,
     margin: UnitInterval,
     reward_account: RewardAddress,
-    pool_owners: Ed25519KeyHashesSet,
+    pool_owners: Ed25519KeyHashes,
     relays: Relays,
     pool_metadata?: PoolMetadata
   ): PoolParams;
@@ -7654,19 +7575,43 @@ declare export class PrivateKey {
   free(): void;
 
   /**
-   * @returns {PublicKey}
-   */
-  to_public(): PublicKey;
-
-  /**
+   * @param {string} hex_str
    * @returns {PrivateKey}
    */
-  static generate_ed25519(): PrivateKey;
+  static from_hex(hex_str: string): PrivateKey;
 
   /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {Uint8Array} message
+   * @returns {Ed25519Signature}
+   */
+  sign(message: Uint8Array): Ed25519Signature;
+
+  /**
+   * @param {Uint8Array} bytes
    * @returns {PrivateKey}
    */
-  static generate_ed25519extended(): PrivateKey;
+  static from_normal_bytes(bytes: Uint8Array): PrivateKey;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {PrivateKey}
+   */
+  static from_extended_bytes(bytes: Uint8Array): PrivateKey;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  as_bytes(): Uint8Array;
+
+  /**
+   * @returns {string}
+   */
+  to_bech32(): string;
 
   /**
    * Get private key from its bech32 representation
@@ -7683,43 +7628,19 @@ declare export class PrivateKey {
   static from_bech32(bech32_str: string): PrivateKey;
 
   /**
-   * @returns {string}
-   */
-  to_bech32(): string;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  as_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
    * @returns {PrivateKey}
    */
-  static from_extended_bytes(bytes: Uint8Array): PrivateKey;
+  static generate_ed25519extended(): PrivateKey;
 
   /**
-   * @param {Uint8Array} bytes
    * @returns {PrivateKey}
    */
-  static from_normal_bytes(bytes: Uint8Array): PrivateKey;
+  static generate_ed25519(): PrivateKey;
 
   /**
-   * @param {Uint8Array} message
-   * @returns {Ed25519Signature}
+   * @returns {PublicKey}
    */
-  sign(message: Uint8Array): Ed25519Signature;
-
-  /**
-   * @returns {string}
-   */
-  to_hex(): string;
-
-  /**
-   * @param {string} hex_str
-   * @returns {PrivateKey}
-   */
-  static from_hex(hex_str: string): PrivateKey;
+  to_public(): PublicKey;
 }
 /**
  */
@@ -8232,31 +8153,20 @@ declare export class PublicKey {
   free(): void;
 
   /**
-   * Get public key from its bech32 representation
-   * Example:
-   * ```javascript
-   * const pkey = PublicKey.from_bech32(&#39;ed25519_pk1dgaagyh470y66p899txcl3r0jaeaxu6yd7z2dxyk55qcycdml8gszkxze2&#39;);
-   * ```
-   * @param {string} bech32_str
+   * @param {string} hex_str
    * @returns {PublicKey}
    */
-  static from_bech32(bech32_str: string): PublicKey;
+  static from_hex(hex_str: string): PublicKey;
 
   /**
    * @returns {string}
    */
-  to_bech32(): string;
+  to_hex(): string;
 
   /**
-   * @returns {Uint8Array}
+   * @returns {Ed25519KeyHash}
    */
-  as_bytes(): Uint8Array;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {PublicKey}
-   */
-  static from_bytes(bytes: Uint8Array): PublicKey;
+  hash(): Ed25519KeyHash;
 
   /**
    * @param {Uint8Array} data
@@ -8266,20 +8176,31 @@ declare export class PublicKey {
   verify(data: Uint8Array, signature: Ed25519Signature): boolean;
 
   /**
-   * @returns {Ed25519KeyHash}
+   * @param {Uint8Array} bytes
+   * @returns {PublicKey}
    */
-  hash(): Ed25519KeyHash;
+  static from_bytes(bytes: Uint8Array): PublicKey;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  as_bytes(): Uint8Array;
 
   /**
    * @returns {string}
    */
-  to_hex(): string;
+  to_bech32(): string;
 
   /**
-   * @param {string} hex_str
+   * Get public key from its bech32 representation
+   * Example:
+   * ```javascript
+   * const pkey = PublicKey.from_bech32(&#39;ed25519_pk1dgaagyh470y66p899txcl3r0jaeaxu6yd7z2dxyk55qcycdml8gszkxze2&#39;);
+   * ```
+   * @param {string} bech32_str
    * @returns {PublicKey}
    */
-  static from_hex(hex_str: string): PublicKey;
+  static from_bech32(bech32_str: string): PublicKey;
 }
 /**
  */
@@ -10313,14 +10234,14 @@ declare export class TransactionBody {
   collateral(): TransactionInputs | void;
 
   /**
-   * @param {Ed25519KeyHashesSet} required_signers
+   * @param {Ed25519KeyHashes} required_signers
    */
-  set_required_signers(required_signers: Ed25519KeyHashesSet): void;
+  set_required_signers(required_signers: Ed25519KeyHashes): void;
 
   /**
-   * @returns {Ed25519KeyHashesSet | void}
+   * @returns {Ed25519KeyHashes | void}
    */
-  required_signers(): Ed25519KeyHashesSet | void;
+  required_signers(): Ed25519KeyHashes | void;
 
   /**
    * @param {NetworkId} network_id
@@ -12003,10 +11924,25 @@ declare export class TreasuryWithdrawalsAction {
   withdrawals(): TreasuryWithdrawals;
 
   /**
+   * @returns {ScriptHash | void}
+   */
+  policy_hash(): ScriptHash | void;
+
+  /**
    * @param {TreasuryWithdrawals} withdrawals
    * @returns {TreasuryWithdrawalsAction}
    */
   static new(withdrawals: TreasuryWithdrawals): TreasuryWithdrawalsAction;
+
+  /**
+   * @param {TreasuryWithdrawals} withdrawals
+   * @param {ScriptHash} policy_hash
+   * @returns {TreasuryWithdrawalsAction}
+   */
+  static new_with_policy_hash(
+    withdrawals: TreasuryWithdrawals,
+    policy_hash: ScriptHash
+  ): TreasuryWithdrawalsAction;
 }
 /**
  */
@@ -12378,30 +12314,30 @@ declare export class UpdateCommitteeAction {
   committee(): Committee;
 
   /**
-   * @returns {CredentialsSet}
+   * @returns {Credentials}
    */
-  members_to_remove(): CredentialsSet;
+  members_to_remove(): Credentials;
 
   /**
    * @param {Committee} committee
-   * @param {CredentialsSet} members_to_remove
+   * @param {Credentials} members_to_remove
    * @returns {UpdateCommitteeAction}
    */
   static new(
     committee: Committee,
-    members_to_remove: CredentialsSet
+    members_to_remove: Credentials
   ): UpdateCommitteeAction;
 
   /**
    * @param {GovernanceActionId} gov_action_id
    * @param {Committee} committee
-   * @param {CredentialsSet} members_to_remove
+   * @param {Credentials} members_to_remove
    * @returns {UpdateCommitteeAction}
    */
   static new_with_action_id(
     gov_action_id: GovernanceActionId,
     committee: Committee,
-    members_to_remove: CredentialsSet
+    members_to_remove: Credentials
   ): UpdateCommitteeAction;
 }
 /**
@@ -13853,7 +13789,6 @@ export type CredTypeJSON =
       Script: string,
       ...
     };
-export type Ed25519KeyHashesSetJSON = string[];
 export type RelayJSON =
   | {
       SingleHostAddr: SingleHostAddrJSON,
@@ -13984,7 +13919,6 @@ export type GovernanceActionJSON =
       InfoAction: InfoActionJSON,
       ...
     };
-export type CredentialsSetJSON = CredTypeJSON[];
 /**
  * @minItems 0
  * @maxItems 0
@@ -13992,7 +13926,6 @@ export type CredentialsSetJSON = CredTypeJSON[];
 export type InfoActionJSON = [];
 export type VotingProposalsJSON = VotingProposalJSON[];
 export type TransactionBodiesJSON = TransactionBodyJSON[];
-export type BootstrapWitnessesJSON = BootstrapWitnessJSON[];
 export type RedeemerTagJSON =
   | "Spend"
   | "Mint"
@@ -14001,7 +13934,6 @@ export type RedeemerTagJSON =
   | "Vote"
   | "VotingProposal";
 export type RedeemersJSON = RedeemerJSON[];
-export type VkeywitnessesJSON = VkeywitnessJSON[];
 export type TransactionWitnessSetsJSON = TransactionWitnessSetJSON[];
 export interface BlockJSON {
   auxiliary_data_set: {
@@ -14055,7 +13987,7 @@ export interface TransactionBodyJSON {
   network_id?: NetworkIdJSON | null;
   outputs: TransactionOutputsJSON;
   reference_inputs?: TransactionInputsJSON | null;
-  required_signers?: Ed25519KeyHashesSetJSON | null;
+  required_signers?: string[] | null;
   script_data_hash?: string | null;
   total_collateral?: string | null;
   ttl?: string | null;
@@ -14088,7 +14020,7 @@ export interface PoolParamsJSON {
   operator: string;
   pledge: string;
   pool_metadata?: PoolMetadataJSON | null;
-  pool_owners: Ed25519KeyHashesSetJSON;
+  pool_owners: string[];
   relays: RelaysJSON;
   reward_account: string;
   vrf_keyhash: string;
@@ -14334,6 +14266,7 @@ export interface VotingProposalJSON {
 }
 export interface ParameterChangeActionJSON {
   gov_action_id?: GovernanceActionIdJSON | null;
+  policy_hash?: string | null;
   protocol_param_updates: ProtocolParamUpdateJSON;
 }
 export interface HardForkInitiationActionJSON {
@@ -14341,6 +14274,7 @@ export interface HardForkInitiationActionJSON {
   protocol_version: ProtocolVersionJSON;
 }
 export interface TreasuryWithdrawalsActionJSON {
+  policy_hash?: string | null;
   withdrawals: TreasuryWithdrawalsJSON;
 }
 export interface TreasuryWithdrawalsJSON {
@@ -14352,7 +14286,7 @@ export interface NoConfidenceActionJSON {
 export interface UpdateCommitteeActionJSON {
   committee: CommitteeJSON;
   gov_action_id?: GovernanceActionIdJSON | null;
-  members_to_remove: CredentialsSetJSON;
+  members_to_remove: CredTypeJSON[];
 }
 export interface CommitteeJSON {
   members: CommitteeMemberJSON[];
@@ -14371,12 +14305,12 @@ export interface ConstitutionJSON {
   script_hash?: string | null;
 }
 export interface TransactionWitnessSetJSON {
-  bootstraps?: BootstrapWitnessesJSON | null;
+  bootstraps?: BootstrapWitnessJSON[] | null;
   native_scripts?: NativeScriptsJSON | null;
   plutus_data?: PlutusListJSON | null;
   plutus_scripts?: PlutusScriptsJSON | null;
   redeemers?: RedeemersJSON | null;
-  vkeys?: VkeywitnessesJSON | null;
+  vkeys?: VkeywitnessJSON[] | null;
 }
 export interface BootstrapWitnessJSON {
   attributes: number[];
@@ -14399,6 +14333,7 @@ export interface VkeywitnessJSON {
   vkey: VkeyJSON;
 }
 export type BlockHashJSON = string;
+export type BootstrapWitnessesJSON = BootstrapWitnessJSON[];
 export type CertificateEnumJSON =
   | {
       StakeRegistration: StakeRegistrationJSON,
@@ -14590,6 +14525,7 @@ export interface TransactionUnspentOutputJSON {
 export type TransactionUnspentOutputsJSON = TransactionUnspentOutputJSON[];
 export type VRFKeyHashJSON = string;
 export type VRFVKeyJSON = string;
+export type VkeywitnessesJSON = VkeywitnessJSON[];
 export type VoterEnumJSON =
   | {
       ConstitutionalCommitteeHotKey: CredTypeJSON,
