@@ -16,8 +16,10 @@ impl VotingProposalBuilder {
     }
 
     pub fn add(&mut self, proposal: &VotingProposal) -> Result<(), JsError> {
+        if proposal.has_script_hash() {
+            return Err(JsError::from_str("Proposal has a script hash. Use add_with_plutus_witness instead."));
+        }
         self.proposals.insert(proposal.clone(), None);
-
         Ok(())
     }
 

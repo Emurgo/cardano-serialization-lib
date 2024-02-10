@@ -46,4 +46,8 @@ impl TreasuryWithdrawalsAction {
             policy_hash: Some(policy_hash.clone()),
         }
     }
+
+    pub(crate) fn has_script_hash(&self) -> bool {
+        self.policy_hash.is_some()
+    }
 }
