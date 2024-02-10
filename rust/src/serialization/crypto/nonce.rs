@@ -1,4 +1,4 @@
-use crate::chain_crypto::bech32::Bech32 as _;
+use std::convert::TryInto;
 use crate::protocol_types::{CBORSpecial, Deserialize};
 use crate::{DeserializeError, DeserializeFailure, Nonce};
 use cbor_event::de::Deserializer;

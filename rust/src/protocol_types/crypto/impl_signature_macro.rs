@@ -28,6 +28,7 @@ macro_rules! impl_signature {
             }
 
             pub fn from_hex(input: &str) -> Result<$name, JsError> {
+                use std::str::FromStr;
                 chain_crypto::Signature::from_str(input)
                     .map_err(|e| JsError::from_str(&format!("{:?}", e)))
                     .map($name)
