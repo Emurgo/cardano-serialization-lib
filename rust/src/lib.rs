@@ -1372,8 +1372,8 @@ impl Block {
 
     #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
     #[wasm_bindgen]
-    pub fn from_wrapped_bytes(data: Vec<u8>) -> Result<Self, JsError> {
-        Ok(block_from_wrapped_bytes()?)
+    pub fn from_wrapped_bytes(data: Vec<u8>) -> Result<Block, JsError> {
+        Ok(block_from_wrapped_bytes(&data)?)
     }
 
     // non-wasm exposed DeserializeError return
