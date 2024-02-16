@@ -33,7 +33,7 @@ use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 // This file was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
 
-use cbor_event::Special as CBORSpecial;
+use cbor_event::{Len, Special as CBORSpecial};
 use cbor_event::Type as CBORType;
 use cbor_event::{
     self,
@@ -1369,6 +1369,43 @@ impl Block {
             invalid_transactions: invalid_transactions,
         }
     }
+
+    #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+    #[wasm_bindgen]
+    pub fn from_wrapped_bytes(data: Vec<u8>) -> Result<Self, JsError> {
+        Ok(block_from_wrapped_bytes()?)
+    }
+
+    // non-wasm exposed DeserializeError return
+    #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+    pub fn from_wrapped_bytes(data: Vec<u8>) -> Result<Self, DeserializeError> {
+        block_from_wrapped_bytes(&data)
+    }
+}
+
+fn block_from_wrapped_bytes(bytes: &[u8]) -> Result<Block, DeserializeError> {
+    let mut raw = Deserializer::from(std::io::Cursor::new(bytes));
+    let len = raw.array()?;
+    if !matches!(len, Len::Len(2)) {
+        return Err(DeserializeError::new(
+            "from_wrapped_bytes",
+            DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
+                2,
+                len,
+                "from_wrapped_bytes",
+            )),
+        ));
+    }
+
+    raw.unsigned_integer()?;
+    let block = Block::deserialize(&mut raw)?;
+    if let Len::Indefinite = len {
+        if raw.special()? != CBORSpecial::Break {
+            return Err(DeserializeFailure::EndingBreakMissing.into());
+        }
+    }
+
+    Ok(block)
 }
 
 #[wasm_bindgen]
