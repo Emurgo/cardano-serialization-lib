@@ -68,7 +68,7 @@ impl CertificatesBuilder {
         let mut set = Ed25519KeyHashes::new();
         for (cert, script_wit) in &self.certs {
             let cert_req_signers = witness_keys_for_cert(&cert);
-            set.extend(&cert_req_signers);
+            set.extend_move(cert_req_signers);
             if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = script_wit {
                 set.extend(&script_source.required_signers());
             }

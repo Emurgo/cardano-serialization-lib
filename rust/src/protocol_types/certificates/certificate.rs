@@ -350,6 +350,7 @@ impl Certificate {
             CertificateEnum::VoteRegistrationAndDelegation(x) => x.has_script_credentials(),
             CertificateEnum::CommitteeHotAuth(x) => x.has_script_credentials(),
             CertificateEnum::CommitteeColdResign(x) => x.has_script_credentials(),
+            CertificateEnum::DrepRegistration(x) => x.has_script_credentials(),
             CertificateEnum::DrepDeregistration(x) => x.has_script_credentials(),
             CertificateEnum::DrepUpdate(x) => x.has_script_credentials(),
             _ => false,

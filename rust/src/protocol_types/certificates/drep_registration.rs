@@ -50,4 +50,8 @@ impl DrepRegistration {
             anchor: Some(anchor.clone()),
         }
     }
+
+    pub fn has_script_credentials(&self) -> bool {
+        self.voting_credential.has_script_hash()
+    }
 }
