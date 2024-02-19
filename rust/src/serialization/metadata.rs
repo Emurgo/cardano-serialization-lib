@@ -1,6 +1,6 @@
 use hashlink::LinkedHashMap;
 use crate::*;
-use crate::serialization::utils::merge_option_plutus_list;
+use crate::serialization::utils::{is_break_tag, merge_option_plutus_list};
 
 impl cbor_event::se::Serialize for MetadataMap {
     fn serialize<'se, W: Write>(
@@ -26,8 +26,7 @@ impl Deserialize for MetadataMap {
                 cbor_event::Len::Len(n) => entries.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "MetadataMap")? {
                     break;
                 }
                 let key = TransactionMetadatum::deserialize(raw)?;
@@ -69,8 +68,7 @@ impl Deserialize for MetadataList {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "MetadataList")? {
                     break;
                 }
                 arr.push(TransactionMetadatum::deserialize(raw)?);
@@ -160,8 +158,7 @@ impl Deserialize for TransactionMetadatumLabels {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "TransactionMetadatumLabels")? {
                     break;
                 }
                 arr.push(TransactionMetadatumLabel::deserialize(raw)?);
@@ -196,8 +193,7 @@ impl Deserialize for GeneralTransactionMetadata {
                 cbor_event::Len::Len(n) => table.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "GeneralTransactionMetadata")? {
                     break;
                 }
                 let key = TransactionMetadatumLabel::deserialize(raw)?;

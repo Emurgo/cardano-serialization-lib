@@ -1,5 +1,6 @@
 use crate::*;
 use std::collections::BTreeMap;
+use crate::serialization::utils::is_break_tag;
 
 impl cbor_event::se::Serialize for VotingProcedures {
     fn serialize<'se, W: Write>(
@@ -29,11 +30,8 @@ impl Deserialize for VotingProcedures {
                 cbor_event::Len::Len(n) => voter_to_vote.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    return Err(
-                        DeserializeError::from(DeserializeFailure::EndingBreakMissing)
-                            .annotate("voting_procedure map"),
-                    );
+                if is_break_tag(raw, "voting_procedure map")? {
+                    break;
                 }
 
                 let key = Voter::deserialize(raw).map_err(|e| e.annotate("voter"))?;
@@ -64,11 +62,8 @@ fn deserialize_internal_map<R: BufRead + Seek>(
             cbor_event::Len::Len(n) => gov_act_id_to_vote.len() < n as usize,
             cbor_event::Len::Indefinite => true,
         } {
-            if raw.cbor_type()? == CBORType::Special {
-                return Err(
-                    DeserializeError::from(DeserializeFailure::EndingBreakMissing)
-                        .annotate("gov_act_id_to_vote map"),
-                );
+            if is_break_tag(raw, "gov_act_id_to_vote map")? {
+                break;
             }
 
             let key = GovernanceActionId::deserialize(raw).map_err(|e| e.annotate("gov_act_id"))?;

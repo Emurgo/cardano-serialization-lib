@@ -3,6 +3,7 @@ use cbor_event::de::Deserializer;
 use cbor_event::se::Serializer;
 use crate::{DeserializeError, Vkey, Vkeys};
 use crate::protocol_types::{CBORSpecial, CBORType, Deserialize};
+use crate::serialization::utils::is_break_tag;
 
 impl cbor_event::se::Serialize for Vkeys {
     fn serialize<'se, W: Write>(
@@ -26,8 +27,7 @@ impl Deserialize for Vkeys {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "Vkeys")? {
                     break;
                 }
                 arr.push(Vkey::deserialize(raw)?);

@@ -1,7 +1,7 @@
 use crate::*;
 use std::io::SeekFrom;
 use hashlink::LinkedHashMap;
-use crate::serialization::utils::skip_set_tag;
+use crate::serialization::utils::{is_break_tag, skip_set_tag};
 
 impl cbor_event::se::Serialize for ConstrPlutusData {
     fn serialize<'se, W: Write>(
@@ -88,8 +88,7 @@ impl Deserialize for PlutusMap {
                 cbor_event::Len::Len(n) => table.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "PlutusMap")? {
                     break;
                 }
                 let key = PlutusData::deserialize(raw)?;
@@ -283,8 +282,7 @@ impl Deserialize for PlutusList {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "PlutusList")? {
                     break;
                 }
                 arr.push(PlutusData::deserialize(raw)?);

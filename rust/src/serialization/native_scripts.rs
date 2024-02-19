@@ -1,5 +1,5 @@
 use crate::*;
-use crate::serialization::utils::skip_set_tag;
+use crate::serialization::utils::{is_break_tag, skip_set_tag};
 
 impl cbor_event::se::Serialize for NativeScripts {
     fn serialize<'se, W: Write>(
@@ -48,8 +48,7 @@ impl Deserialize for NativeScripts {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "NativeScripts")? {
                     break;
                 }
                 arr.push(NativeScript::deserialize(raw)?);

@@ -1,7 +1,5 @@
 use crate::serialization::map_names::CertificateIndexNames;
-use crate::serialization::utils::{
-    check_len, deserialize_and_check_index, serialize_and_check_index,
-};
+use crate::serialization::utils::{check_len, deserialize_and_check_index, is_break_tag, serialize_and_check_index};
 use crate::*;
 use num_traits::ToPrimitive;
 
@@ -27,8 +25,7 @@ impl Deserialize for Relays {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "Relays")? {
                     break;
                 }
                 arr.push(Relay::deserialize(raw)?);

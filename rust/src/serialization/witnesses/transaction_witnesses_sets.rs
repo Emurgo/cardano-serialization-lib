@@ -3,6 +3,7 @@ use cbor_event::de::Deserializer;
 use cbor_event::se::Serializer;
 use crate::{DeserializeError, TransactionWitnessSet, TransactionWitnessSets};
 use crate::protocol_types::{CBORSpecial, CBORType, Deserialize};
+use crate::serialization::utils::is_break_tag;
 
 impl cbor_event::se::Serialize for TransactionWitnessSets {
     fn serialize<'se, W: Write>(
@@ -26,8 +27,7 @@ impl Deserialize for TransactionWitnessSets {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "TransactionWitnessSets")? {
                     break;
                 }
                 arr.push(TransactionWitnessSet::deserialize(raw)?);

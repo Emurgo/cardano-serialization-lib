@@ -75,7 +75,10 @@ pub(super) fn check_len_indefinite<R: BufRead + Seek>(
     Ok(())
 }
 
-pub(crate) fn merge_option_plutus_list(left: Option<PlutusScripts>, right: Option<PlutusScripts>) -> Option<PlutusScripts> {
+pub(crate) fn merge_option_plutus_list(
+    left: Option<PlutusScripts>,
+    right: Option<PlutusScripts>,
+) -> Option<PlutusScripts> {
     if let Some(left) = left {
         if let Some(right) = right {
             return Some(left.merge(&right));
@@ -110,4 +113,19 @@ pub(super) fn skip_set_tag<R: BufRead + Seek>(
     raw: &mut Deserializer<R>,
 ) -> Result<(), DeserializeError> {
     skip_tag(raw, 258)
+}
+
+pub(crate) fn is_break_tag<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+    location: &str,
+) -> Result<bool, DeserializeError> {
+    if raw.cbor_type()? == CBORType::Special {
+        if raw.special()? == CBORSpecial::Break {
+            return Ok(true);
+        }
+        return Err(
+            DeserializeError::from(DeserializeFailure::EndingBreakMissing).annotate(location),
+        );
+    }
+    Ok(false)
 }

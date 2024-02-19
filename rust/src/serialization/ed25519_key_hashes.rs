@@ -1,5 +1,5 @@
 use crate::*;
-use crate::serialization::utils::skip_set_tag;
+use crate::serialization::utils::{is_break_tag, skip_set_tag};
 
 impl Serialize for Ed25519KeyHashes {
     fn serialize<'se, W: Write>(
@@ -27,8 +27,7 @@ impl Deserialize for Ed25519KeyHashes {
                 cbor_event::Len::Len(n) => counter < n,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "Ed25519KeyHashes")? {
                     break;
                 }
                 creds.add_move(Ed25519KeyHash::deserialize(raw)?);

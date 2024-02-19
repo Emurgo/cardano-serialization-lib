@@ -1,4 +1,4 @@
-use crate::serialization::utils::check_len;
+use crate::serialization::utils::{check_len, is_break_tag};
 use crate::*;
 use std::collections::BTreeMap;
 
@@ -40,8 +40,7 @@ impl DeserializeEmbeddedGroup for Committee {
             cbor_event::Len::Len(n) => table.len() < n as usize,
             cbor_event::Len::Indefinite => true,
         } {
-            if raw.cbor_type()? == CBORType::Special {
-                assert_eq!(raw.special()?, CBORSpecial::Break);
+            if is_break_tag(raw, "Committee")? {
                 break;
             }
             let key = Credential::deserialize(raw)?;

@@ -1,6 +1,6 @@
 use crate::*;
 use std::io::{Seek, SeekFrom};
-use crate::serialization::utils::merge_option_plutus_list;
+use crate::serialization::utils::{is_break_tag, merge_option_plutus_list};
 use hashlink::LinkedHashMap;
 
 // This file was code-generated using an experimental CDDL to rust tool:
@@ -198,8 +198,7 @@ impl Deserialize for TransactionOutputs {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "TransactionOutputs")? {
                     break;
                 }
                 arr.push(TransactionOutput::deserialize(raw)?);
@@ -1112,8 +1111,7 @@ impl Deserialize for RewardAddresses {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "RewardAddresses")? {
                     break;
                 }
                 arr.push(RewardAddress::deserialize(raw)?);
@@ -1148,8 +1146,7 @@ impl Deserialize for Withdrawals {
                 cbor_event::Len::Len(n) => table.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "Withdrawals")? {
                     break;
                 }
                 let key = RewardAddress::deserialize(raw)?;
@@ -1247,8 +1244,7 @@ impl Deserialize for GenesisHashes {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "GenesisHashes")? {
                     break;
                 }
                 arr.push(GenesisHash::deserialize(raw)?);
@@ -1282,8 +1278,7 @@ impl Deserialize for ScriptHashes {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "ScriptHashes")? {
                     break;
                 }
                 arr.push(ScriptHash::deserialize(raw)?);
@@ -1318,8 +1313,7 @@ impl Deserialize for ProposedProtocolParameterUpdates {
                 cbor_event::Len::Len(n) => table.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "ProposedProtocolParameterUpdates")? {
                     break;
                 }
                 let key = GenesisHash::deserialize(raw)?;
@@ -1420,8 +1414,7 @@ impl Deserialize for TransactionBodies {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "TransactionBodies")? {
                     break;
                 }
                 arr.push(TransactionBody::deserialize(raw)?);
@@ -1456,8 +1449,7 @@ impl Deserialize for AuxiliaryDataSet {
                 cbor_event::Len::Len(n) => table.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "AuxiliaryDataSet")? {
                     break;
                 }
                 let key = TransactionIndex::deserialize(raw)?;
@@ -1526,8 +1518,7 @@ impl Deserialize for Block {
                         cbor_event::Len::Len(n) => arr.len() < n as usize,
                         cbor_event::Len::Indefinite => true,
                     } {
-                        if raw.cbor_type()? == CBORType::Special {
-                            assert_eq!(raw.special()?, CBORSpecial::Break);
+                        if is_break_tag(raw, "Block.invalid_transactions")? {
                             break;
                         }
                         arr.push(TransactionIndex::deserialize(raw)?);
@@ -1869,8 +1860,7 @@ impl Deserialize for AssetNames {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "AssetNames")? {
                     break;
                 }
                 arr.push(AssetName::deserialize(raw)?);
@@ -1905,8 +1895,7 @@ impl Deserialize for Assets {
                 cbor_event::Len::Len(n) => table.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "Assets")? {
                     break;
                 }
                 let key = AssetName::deserialize(raw)?;
@@ -1948,8 +1937,7 @@ impl Deserialize for MultiAsset {
                 cbor_event::Len::Len(n) => table.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "MultiAsset")? {
                     break;
                 }
                 let key = PolicyID::deserialize(raw)?;
@@ -1991,8 +1979,7 @@ impl Deserialize for MintAssets {
                 cbor_event::Len::Len(n) => table.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "MintAssets")? {
                     break;
                 }
                 let key = AssetName::deserialize(raw)?;
@@ -2034,8 +2021,7 @@ impl Deserialize for Mint {
                 cbor_event::Len::Len(n) => mints.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "Mint")? {
                     break;
                 }
                 let key = PolicyID::deserialize(raw)?;

@@ -1,5 +1,5 @@
 use crate::*;
-use crate::serialization::utils::skip_set_tag;
+use crate::serialization::utils::{is_break_tag, skip_set_tag};
 
 impl cbor_event::se::Serialize for PlutusScripts {
     fn serialize<'se, W: Write>(
@@ -59,8 +59,7 @@ impl Deserialize for PlutusScripts {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "PlutusScripts")? {
                     break;
                 }
                 arr.push(PlutusScript::deserialize(raw)?);
@@ -82,8 +81,7 @@ impl PlutusScripts {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "PlutusScripts")? {
                     break;
                 }
                 arr.push(PlutusScript::deserialize_with_version(raw, version)?);
