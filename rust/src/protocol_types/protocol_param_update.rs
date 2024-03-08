@@ -18,6 +18,7 @@ pub struct PoolVotingThresholds {
     pub(crate) committee_normal: UnitInterval,
     pub(crate) committee_no_confidence: UnitInterval,
     pub(crate) hard_fork_initiation: UnitInterval,
+    pub(crate) security_relevant_threshold: UnitInterval,
 }
 
 impl_to_from!(PoolVotingThresholds);
@@ -29,12 +30,14 @@ impl PoolVotingThresholds {
         committee_normal: &UnitInterval,
         committee_no_confidence: &UnitInterval,
         hard_fork_initiation: &UnitInterval,
+        security_relevant_threshold: &UnitInterval,
     ) -> Self {
         Self {
             motion_no_confidence: motion_no_confidence.clone(),
             committee_normal: committee_normal.clone(),
             committee_no_confidence: committee_no_confidence.clone(),
             hard_fork_initiation: hard_fork_initiation.clone(),
+            security_relevant_threshold: security_relevant_threshold.clone(),
         }
     }
 

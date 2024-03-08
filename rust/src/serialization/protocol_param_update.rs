@@ -1,16 +1,17 @@
-use crate::*;
 use crate::serialization::utils::check_len;
+use crate::*;
 
 impl Serialize for PoolVotingThresholds {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(4))?;
+        serializer.write_array(cbor_event::Len::Len(5))?;
         self.motion_no_confidence.serialize(serializer)?;
         self.committee_normal.serialize(serializer)?;
         self.committee_no_confidence.serialize(serializer)?;
-        self.hard_fork_initiation.serialize(serializer)
+        self.hard_fork_initiation.serialize(serializer)?;
+        self.security_relevant_threshold.serialize(serializer)
     }
 }
 
@@ -23,29 +24,33 @@ impl DeserializeEmbeddedGroup for PoolVotingThresholds {
     ) -> Result<Self, DeserializeError> {
         check_len(
             len,
-            4,
+            5,
             "[\
             motion_no_confidence, \
             committee_normal, \
             committee_no_confidence, \
-            hard_fork_initiation\
+            hard_fork_initiation, \
+            security_relevant_threshold\
             ]",
         )?;
 
-        let motion_no_confidence = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("motion_no_confidence"))?;
-        let committee_normal = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("committee_normal"))?;
-        let committee_no_confidence = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("committee_no_confidence"))?;
-        let hard_fork_initiation = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("hard_fork_initiation"))?;
+        let motion_no_confidence =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("motion_no_confidence"))?;
+        let committee_normal =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("committee_normal"))?;
+        let committee_no_confidence =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("committee_no_confidence"))?;
+        let hard_fork_initiation =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("hard_fork_initiation"))?;
+        let security_relevant_threshold = UnitInterval::deserialize(raw)
+            .map_err(|e| e.annotate("security_relevant_threshold"))?;
 
         return Ok(PoolVotingThresholds {
             motion_no_confidence,
             committee_normal,
             committee_no_confidence,
             hard_fork_initiation,
+            security_relevant_threshold,
         });
     }
 }
@@ -93,26 +98,26 @@ impl DeserializeEmbeddedGroup for DrepVotingThresholds {
             ]",
         )?;
 
-        let motion_no_confidence = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("motion_no_confidence"))?;
-        let committee_normal = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("committee_normal"))?;
-        let committee_no_confidence = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("committee_no_confidence"))?;
-        let update_constitution = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("update_constitution"))?;
-        let hard_fork_initiation = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("hard_fork_initiation"))?;
-        let pp_network_group = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("pp_network_group"))?;
-        let pp_economic_group = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("pp_economic_group"))?;
-        let pp_technical_group = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("pp_technical_group"))?;
-        let pp_governance_group = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("pp_governance_group"))?;
-        let treasury_withdrawal = UnitInterval::deserialize(raw)
-            .map_err(|e| e.annotate("treasury_withdrawal"))?;
+        let motion_no_confidence =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("motion_no_confidence"))?;
+        let committee_normal =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("committee_normal"))?;
+        let committee_no_confidence =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("committee_no_confidence"))?;
+        let update_constitution =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("update_constitution"))?;
+        let hard_fork_initiation =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("hard_fork_initiation"))?;
+        let pp_network_group =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("pp_network_group"))?;
+        let pp_economic_group =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("pp_economic_group"))?;
+        let pp_technical_group =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("pp_technical_group"))?;
+        let pp_governance_group =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("pp_governance_group"))?;
+        let treasury_withdrawal =
+            UnitInterval::deserialize(raw).map_err(|e| e.annotate("treasury_withdrawal"))?;
 
         return Ok(DrepVotingThresholds {
             motion_no_confidence,
@@ -419,7 +424,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Coin::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("minfee_a"))?,
+                                .map_err(|e| e.annotate("minfee_a"))?,
                             );
                         }
                         1 => {
@@ -431,7 +436,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Coin::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("minfee_b"))?,
+                                .map_err(|e| e.annotate("minfee_b"))?,
                             );
                         }
                         2 => {
@@ -443,7 +448,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(u32::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("max_block_body_size"))?,
+                                .map_err(|e| e.annotate("max_block_body_size"))?,
                             );
                         }
                         3 => {
@@ -455,7 +460,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(u32::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("max_tx_size"))?,
+                                .map_err(|e| e.annotate("max_tx_size"))?,
                             );
                         }
                         4 => {
@@ -467,7 +472,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(u32::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("max_block_header_size"))?,
+                                .map_err(|e| e.annotate("max_block_header_size"))?,
                             );
                         }
                         5 => {
@@ -479,7 +484,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Coin::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("key_deposit"))?,
+                                .map_err(|e| e.annotate("key_deposit"))?,
                             );
                         }
                         6 => {
@@ -491,7 +496,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Coin::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("pool_deposit"))?,
+                                .map_err(|e| e.annotate("pool_deposit"))?,
                             );
                         }
                         7 => {
@@ -503,7 +508,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Epoch::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("max_epoch"))?,
+                                .map_err(|e| e.annotate("max_epoch"))?,
                             );
                         }
                         8 => {
@@ -515,7 +520,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(u32::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("n_opt"))?,
+                                .map_err(|e| e.annotate("n_opt"))?,
                             );
                         }
                         9 => {
@@ -527,7 +532,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Rational::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("pool_pledge_influence"))?,
+                                .map_err(|e| e.annotate("pool_pledge_influence"))?,
                             );
                         }
                         10 => {
@@ -539,7 +544,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(UnitInterval::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("expansion_rate"))?,
+                                .map_err(|e| e.annotate("expansion_rate"))?,
                             );
                         }
                         11 => {
@@ -551,7 +556,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(UnitInterval::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("treasury_growth_rate"))?,
+                                .map_err(|e| e.annotate("treasury_growth_rate"))?,
                             );
                         }
                         12 => {
@@ -563,7 +568,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(UnitInterval::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("d"))?,
+                                .map_err(|e| e.annotate("d"))?,
                             );
                         }
                         13 => {
@@ -575,7 +580,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Nonce::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("extra_entropy"))?,
+                                .map_err(|e| e.annotate("extra_entropy"))?,
                             );
                         }
                         14 => {
@@ -587,7 +592,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(ProtocolVersion::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("protocol_version"))?,
+                                .map_err(|e| e.annotate("protocol_version"))?,
                             );
                         }
                         16 => {
@@ -599,7 +604,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Coin::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("min_pool_cost"))?,
+                                .map_err(|e| e.annotate("min_pool_cost"))?,
                             );
                         }
                         17 => {
@@ -611,7 +616,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Coin::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("ada_per_utxo_byte"))?,
+                                .map_err(|e| e.annotate("ada_per_utxo_byte"))?,
                             );
                         }
                         18 => {
@@ -623,7 +628,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Costmdls::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("cost_models"))?,
+                                .map_err(|e| e.annotate("cost_models"))?,
                             );
                         }
                         19 => {
@@ -635,7 +640,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(ExUnitPrices::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("execution_costs"))?,
+                                .map_err(|e| e.annotate("execution_costs"))?,
                             );
                         }
                         20 => {
@@ -647,7 +652,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(ExUnits::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("max_tx_ex_units"))?,
+                                .map_err(|e| e.annotate("max_tx_ex_units"))?,
                             );
                         }
                         21 => {
@@ -659,7 +664,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(ExUnits::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("max_block_ex_units"))?,
+                                .map_err(|e| e.annotate("max_block_ex_units"))?,
                             );
                         }
                         22 => {
@@ -671,7 +676,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(u32::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("max_value_size"))?,
+                                .map_err(|e| e.annotate("max_value_size"))?,
                             );
                         }
                         23 => {
@@ -683,7 +688,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(u32::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("collateral_percentage"))?,
+                                .map_err(|e| e.annotate("collateral_percentage"))?,
                             );
                         }
                         24 => {
@@ -695,7 +700,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(u32::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("max_collateral_inputs"))?,
+                                .map_err(|e| e.annotate("max_collateral_inputs"))?,
                             );
                         }
                         25 => {
@@ -707,7 +712,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(PoolVotingThresholds::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("pool_voting_thresholds"))?,
+                                .map_err(|e| e.annotate("pool_voting_thresholds"))?,
                             );
                         }
                         26 => {
@@ -719,7 +724,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(DrepVotingThresholds::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("drep_voting_thresholds"))?,
+                                .map_err(|e| e.annotate("drep_voting_thresholds"))?,
                             );
                         }
                         27 => {
@@ -731,7 +736,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(u32::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("min_committee_size"))?,
+                                .map_err(|e| e.annotate("min_committee_size"))?,
                             );
                         }
                         28 => {
@@ -743,7 +748,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Epoch::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("committee_term_limit"))?,
+                                .map_err(|e| e.annotate("committee_term_limit"))?,
                             );
                         }
                         29 => {
@@ -755,7 +760,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Epoch::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("governance_action_validity_period"))?,
+                                .map_err(|e| e.annotate("governance_action_validity_period"))?,
                             );
                         }
                         30 => {
@@ -767,7 +772,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Coin::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("governance_action_deposit"))?,
+                                .map_err(|e| e.annotate("governance_action_deposit"))?,
                             );
                         }
                         31 => {
@@ -779,7 +784,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Coin::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("drep_deposit"))?,
+                                .map_err(|e| e.annotate("drep_deposit"))?,
                             );
                         }
                         32 => {
@@ -791,7 +796,7 @@ impl Deserialize for ProtocolParamUpdate {
                                     read_len.read_elems(1)?;
                                     Ok(Epoch::deserialize(raw)?)
                                 })()
-                                    .map_err(|e| e.annotate("drep_inactivity_period"))?,
+                                .map_err(|e| e.annotate("drep_inactivity_period"))?,
                             );
                         }
                         unknown_key => {
@@ -805,7 +810,7 @@ impl Deserialize for ProtocolParamUpdate {
                             return Err(DeserializeFailure::UnknownKey(Key::Str(
                                 unknown_key.to_owned(),
                             ))
-                                .into())
+                            .into())
                         }
                     },
                     CBORType::Special => match len {
@@ -859,6 +864,6 @@ impl Deserialize for ProtocolParamUpdate {
                 drep_inactivity_period,
             })
         })()
-            .map_err(|e| e.annotate("ProtocolParamUpdate"))
+        .map_err(|e| e.annotate("ProtocolParamUpdate"))
     }
 }

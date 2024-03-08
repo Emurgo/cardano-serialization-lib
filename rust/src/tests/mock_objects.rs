@@ -111,6 +111,7 @@ pub(crate) fn create_pool_voting_thresholds() -> PoolVotingThresholds {
         &UnitInterval::new(&BigNum::from(44_403u32), &BigNum::from(44_404u32)),
         &UnitInterval::new(&BigNum::from(44_405u32), &BigNum::from(44_406u32)),
         &UnitInterval::new(&BigNum::from(44_406u32), &BigNum::from(44_407u32)),
+        &UnitInterval::new(&BigNum::from(44_408u32), &BigNum::from(44_409u32)),
     )
 }
 
