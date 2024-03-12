@@ -10,6 +10,7 @@ use cbor_event::{
 };
 
 use schemars::JsonSchema;
+use serde_json::Number;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
@@ -540,12 +541,10 @@ pub fn encode_json_value_to_plutus_datum(
 ) -> Result<PlutusData, JsError> {
     use serde_json::Value;
     fn encode_number(x: serde_json::Number) -> Result<PlutusData, JsError> {
-        if let Some(x) = x.as_u64() {
-            Ok(PlutusData::new_integer(&BigInt::from(x)))
-        } else if let Some(x) = x.as_i64() {
-            Ok(PlutusData::new_integer(&BigInt::from(x)))
+        if let Ok(big_int) = BigInt::from_str(x.as_str()) {
+            Ok(PlutusData::new_integer(&big_int))
         } else {
-            Err(JsError::from_str("floats not allowed in plutus datums"))
+            Err(JsError::from_str(&format!("Expected an integer value but got \"{}\"", x)))
         }
     }
     fn encode_string(
@@ -747,11 +746,7 @@ pub fn decode_plutus_datum_to_json_value(
         },
         PlutusDataEnum::Integer(bigint) => (
             Some("int"),
-            bigint
-                .as_int()
-                .as_ref()
-                .map(|int| if int.0 >= 0 { Value::from(int.0 as u64) } else { Value::from(int.0 as i64) })
-                .ok_or_else(|| JsError::from_str(&format!("Integer {} too big for our JSON support", bigint.to_str())))?
+            Value::Number(Number::from_string_unchecked(bigint.to_str()))
         ),
         PlutusDataEnum::Bytes(bytes) => (Some("bytes"), Value::from(match schema {
             PlutusDatumSchema::BasicConversions => {
