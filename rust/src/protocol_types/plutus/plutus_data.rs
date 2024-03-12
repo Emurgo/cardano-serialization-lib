@@ -540,7 +540,7 @@ pub fn encode_json_value_to_plutus_datum(
     schema: PlutusDatumSchema,
 ) -> Result<PlutusData, JsError> {
     use serde_json::Value;
-    fn encode_number(x: serde_json::Number) -> Result<PlutusData, JsError> {
+    fn encode_number(x: Number) -> Result<PlutusData, JsError> {
         if let Ok(big_int) = BigInt::from_str(x.as_str()) {
             Ok(PlutusData::new_integer(&big_int))
         } else {
