@@ -96,6 +96,7 @@ fn main() {
     gen_json_schema!(Assets);
     gen_json_schema!(MultiAsset);
     gen_json_schema!(MintAssets);
+    gen_json_schema!(MintsAssets);
     gen_json_schema!(Mint);
     gen_json_schema!(NetworkId);
     gen_json_schema!(NetworkIdKind);

@@ -1965,8 +1965,12 @@ impl PartialOrd for MultiAsset {
 }
 
 #[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct MintsAssets(Vec<MintAssets>);
 
+to_from_json!(MintsAssets);
+
+#[wasm_bindgen]
 impl MintsAssets {
     pub fn new() -> Self {
         Self(Vec::new())
