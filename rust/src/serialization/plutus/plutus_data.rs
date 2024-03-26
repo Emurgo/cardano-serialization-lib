@@ -84,8 +84,9 @@ impl Deserialize for PlutusMap {
         let mut table = LinkedHashMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
+            let mut total = 0;
             while match len {
-                cbor_event::Len::Len(n) => table.len() < n as usize,
+                cbor_event::Len::Len(n) => total < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
                 if is_break_tag(raw, "PlutusMap")? {
@@ -93,12 +94,8 @@ impl Deserialize for PlutusMap {
                 }
                 let key = PlutusData::deserialize(raw)?;
                 let value = PlutusData::deserialize(raw)?;
-                if table.insert(key.clone(), value).is_some() {
-                    return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from(
-                        "some complicated/unsupported type",
-                    )))
-                        .into());
-                }
+                table.insert(key.clone(), value);
+                total += 1;
             }
             Ok(())
         })()
