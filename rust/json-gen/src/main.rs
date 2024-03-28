@@ -2,11 +2,6 @@ use std::fs;
 use std::path::Path;
 
 use cardano_serialization_lib::*;
-use cardano_serialization_lib::address::*;
-use cardano_serialization_lib::crypto::*;
-use cardano_serialization_lib::metadata::*;
-use cardano_serialization_lib::plutus::*;
-use cardano_serialization_lib::utils::*;
 
 //#[macro_export]
 macro_rules! gen_json_schema {
@@ -21,7 +16,19 @@ fn main() {
     let schema_path = Path::new(&"schemas");
     if !schema_path.exists() {
         fs::create_dir(schema_path).unwrap();
+    } else {
+        let files = schema_path.read_dir().unwrap();
+        for file in files {
+            let file = file.unwrap();
+            if file.file_type().unwrap().is_file() {
+                let filename = file.file_name().into_string().unwrap();
+                if filename.ends_with(".json") {
+                    fs::remove_file(file.path()).unwrap();
+                }
+            }
+        }
     }
+
     // lib.rs
     gen_json_schema!(UnitInterval);
     gen_json_schema!(Transaction);
@@ -58,7 +65,7 @@ fn main() {
     gen_json_schema!(Relay);
     //gen_json_schema!(RelayEnum);
     gen_json_schema!(PoolMetadata);
-    gen_json_schema!(StakeCredentials);
+    gen_json_schema!(Credentials);
     gen_json_schema!(RewardAddresses);
     gen_json_schema!(Withdrawals);
     gen_json_schema!(TransactionWitnessSet);
@@ -89,6 +96,7 @@ fn main() {
     gen_json_schema!(Assets);
     gen_json_schema!(MultiAsset);
     gen_json_schema!(MintAssets);
+    gen_json_schema!(MintsAssets);
     gen_json_schema!(Mint);
     gen_json_schema!(NetworkId);
     gen_json_schema!(NetworkIdKind);
@@ -116,13 +124,14 @@ fn main() {
     gen_json_schema!(BlockHash);
     gen_json_schema!(DataHash);
     gen_json_schema!(ScriptDataHash);
+    gen_json_schema!(AnchorDataHash);
     gen_json_schema!(VRFVKey);
     gen_json_schema!(KESVKey);
     gen_json_schema!(Nonce);
     gen_json_schema!(VRFCert);
     // address.rs
-    gen_json_schema!(StakeCredential);
-    gen_json_schema!(StakeCredType);
+    gen_json_schema!(Credential);
+    gen_json_schema!(CredType);
     gen_json_schema!(Address);
     gen_json_schema!(RewardAddress);
     // plutus.rs
@@ -156,4 +165,38 @@ fn main() {
     gen_json_schema!(Value);
     gen_json_schema!(TransactionUnspentOutput);
     gen_json_schema!(TransactionUnspentOutputs);
+
+    gen_json_schema!(DRep);
+    gen_json_schema!(Anchor);
+    gen_json_schema!(Voter);
+    gen_json_schema!(Voters);
+    gen_json_schema!(GovernanceActionId);
+    gen_json_schema!(GovernanceActionIds);
+    gen_json_schema!(VotingProcedure);
+    gen_json_schema!(VotingProcedures);
+    gen_json_schema!(CommitteeHotAuth);
+    gen_json_schema!(CommitteeColdResign);
+    gen_json_schema!(DrepDeregistration);
+    gen_json_schema!(DrepRegistration);
+    gen_json_schema!(DrepUpdate);
+    gen_json_schema!(StakeAndVoteDelegation);
+    gen_json_schema!(StakeRegistrationAndDelegation);
+    gen_json_schema!(StakeVoteRegistrationAndDelegation);
+    gen_json_schema!(VoteDelegation);
+    gen_json_schema!(VoteRegistrationAndDelegation);
+
+    gen_json_schema!(VotingProposal);
+    gen_json_schema!(VotingProposals);
+    gen_json_schema!(GovernanceAction);
+    gen_json_schema!(HardForkInitiationAction);
+    gen_json_schema!(UpdateCommitteeAction);
+    gen_json_schema!(NewConstitutionAction);
+    gen_json_schema!(NoConfidenceAction);
+    gen_json_schema!(ParameterChangeAction);
+    gen_json_schema!(TreasuryWithdrawals);
+    gen_json_schema!(TreasuryWithdrawalsAction);
+    gen_json_schema!(Committee);
+    gen_json_schema!(Constitution);
+    gen_json_schema!(DrepVotingThresholds);
+    gen_json_schema!(PoolVotingThresholds);
 }

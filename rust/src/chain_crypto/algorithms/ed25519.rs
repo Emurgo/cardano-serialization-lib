@@ -10,7 +10,7 @@ use rand_os::rand_core::{CryptoRng, RngCore};
 use ed25519_bip32::XPub;
 
 /// ED25519 Signing Algorithm
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash,  Ord, PartialOrd)]
 pub struct Ed25519;
 
 #[derive(Clone)]
@@ -19,7 +19,7 @@ pub struct Priv([u8; ed25519::PRIVATE_KEY_LENGTH]);
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Pub(pub(crate) [u8; ed25519::PUBLIC_KEY_LENGTH]);
 
-#[derive(Clone)]
+#[derive(Clone, Hash)]
 pub struct Sig(pub(crate) [u8; ed25519::SIGNATURE_LENGTH]);
 
 impl Pub {

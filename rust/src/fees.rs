@@ -89,9 +89,8 @@ pub fn min_script_fee(tx: &Transaction, ex_unit_prices: &ExUnitPrices) -> Result
 
 #[cfg(test)]
 mod tests {
-    use super::output_builder::TransactionOutputBuilder;
     use super::*;
-    use address::*;
+    use crate::TransactionOutputBuilder;
     use crypto::*;
 
     // based off tx test vectors (https://gist.github.com/KtorZ/5a2089df0915f21aca368d12545ab230)
@@ -356,7 +355,7 @@ mod tests {
             &UnitInterval::new(&to_bignum(3), &to_bignum(100)), // margin
             &RewardAddress::new(
                 network,
-                &StakeCredential::from_keyhash(
+                &Credential::from_keyhash(
                     &PublicKey::from_bytes(
                         &hex::decode(
                             "54d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f3",
@@ -470,7 +469,7 @@ mod tests {
     //         to_bignum(1),
     //         to_bignum(5),
     //         &UnitInterval::new(to_bignum(1), to_bignum(10)),
-    //         &RewardAddress::new(NetworkInfo::testnet().network_id(), &alice_stake()),
+    //         &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &alice_stake()),
     //         &owners,
     //         &relays,
     //         Some(PoolMetadata::new(String::from("alice.pool"), &MetadataHash::from([0u8; MetadataHash::BYTE_COUNT])))

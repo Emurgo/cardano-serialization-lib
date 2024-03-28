@@ -53,6 +53,7 @@ where
     fn sign(key: &Self::Secret, msg: &[u8]) -> <Self::PubAlg as VerificationAlgorithm>::Signature;
 }
 
+#[derive(Hash)]
 pub struct Signature<T: ?Sized, A: VerificationAlgorithm> {
     signdata: A::Signature,
     phantom: PhantomData<T>,
