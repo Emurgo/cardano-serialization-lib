@@ -73,6 +73,70 @@ impl NetworkInfo {
     }
 }
 
+#[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+pub struct MalformedAddress(pub(crate) Vec<u8>);
+
+#[wasm_bindgen]
+impl MalformedAddress {
+    pub fn original_bytes(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+
+    pub fn to_address(&self) -> Address {
+        Address(AddrType::Malformed(self.clone()))
+    }
+
+    pub fn from_address(addr: &Address) -> Option<MalformedAddress> {
+        match &addr.0 {
+            AddrType::Malformed(malformed) => Some(malformed.clone()),
+            _ => None,
+        }
+    }
+}
+
+impl serde::Serialize for MalformedAddress {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+    {
+        let bech32 = self
+            .to_address()
+            .to_bech32(None)
+            .map_err(|e| serde::ser::Error::custom(format!("to_bech32: {:?}", e)))?;
+        serializer.serialize_str(&bech32)
+    }
+}
+
+impl<'de> serde::de::Deserialize<'de> for MalformedAddress {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::de::Deserializer<'de>,
+    {
+        let bech32 = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        match Address::from_bech32(&bech32).map(|addr| addr.0)
+        {
+            Ok(AddrType::Malformed(malformed_address)) => Ok(malformed_address),
+            _ => Err(serde::de::Error::invalid_value(
+                serde::de::Unexpected::Str(&bech32),
+                &"bech32 malformed address string",
+            )),
+        }
+    }
+}
+
+impl JsonSchema for MalformedAddress {
+    fn schema_name() -> String {
+        String::from("MalformedAddress")
+    }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        String::json_schema(gen)
+    }
+    fn is_referenceable() -> bool {
+        String::is_referenceable()
+    }
+}
+
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) enum AddrType {
     Base(BaseAddress),
@@ -80,6 +144,7 @@ pub(crate) enum AddrType {
     Enterprise(EnterpriseAddress),
     Reward(RewardAddress),
     Byron(ByronAddress),
+    Malformed(MalformedAddress),
 }
 
 #[wasm_bindgen]
@@ -237,6 +302,11 @@ impl JsonSchema for Address {
 // other CBOR types
 #[wasm_bindgen]
 impl Address {
+
+    pub fn is_malformed(&self) -> bool {
+        matches!(&self.0, AddrType::Malformed(_))
+    }
+
     pub fn to_hex(&self) -> String {
         hex::encode(self.to_bytes())
     }
@@ -282,6 +352,7 @@ impl Address {
                 buf.extend(reward.payment.to_raw_bytes());
             }
             AddrType::Byron(byron) => buf.extend(byron.to_bytes()),
+            AddrType::Malformed(malformed) => buf.extend(malformed.0.clone()),
         }
         buf
     }
@@ -321,21 +392,21 @@ impl Address {
                 };
                 x
             };
-            let addr = match (header & 0xF0) >> 4 {
+            let addr: Result<AddrType, DeserializeError>  = match (header & 0xF0) >> 4 {
                 // base
                 0b0000 | 0b0001 | 0b0010 | 0b0011 => {
                     const BASE_ADDR_SIZE: usize = 1 + HASH_LEN * 2;
                     if data.len() < BASE_ADDR_SIZE {
-                        return Err(cbor_event::Error::NotEnough(data.len(), BASE_ADDR_SIZE).into());
+                        Err(cbor_event::Error::NotEnough(data.len(), BASE_ADDR_SIZE).into())
+                    } else if data.len() > BASE_ADDR_SIZE {
+                        Err(cbor_event::Error::TrailingData.into())
+                    } else {
+                        Ok(AddrType::Base(BaseAddress::new(
+                            network,
+                            &read_addr_cred(4, 1),
+                            &read_addr_cred(5, 1 + HASH_LEN),
+                        )))
                     }
-                    if data.len() > BASE_ADDR_SIZE {
-                        return Err(cbor_event::Error::TrailingData.into());
-                    }
-                    AddrType::Base(BaseAddress::new(
-                        network,
-                        &read_addr_cred(4, 1),
-                        &read_addr_cred(5, 1 + HASH_LEN),
-                    ))
                 }
                 // pointer
                 0b0100 | 0b0101 => {
@@ -346,53 +417,55 @@ impl Address {
                         return Err(
                             cbor_event::Error::NotEnough(data.len(), PTR_ADDR_MIN_SIZE).into()
                         );
+                    } else {
+                        let mut byte_index = 1;
+                        let payment_cred = read_addr_cred(4, 1);
+                        byte_index += HASH_LEN;
+                        let (slot, slot_bytes) =
+                            variable_nat_decode(&data[byte_index..]).ok_or(DeserializeError::new(
+                                "Address.Pointer.slot",
+                                DeserializeFailure::VariableLenNatDecodeFailed,
+                            ))?;
+                        byte_index += slot_bytes;
+                        let (tx_index, tx_bytes) =
+                            variable_nat_decode(&data[byte_index..]).ok_or(DeserializeError::new(
+                                "Address.Pointer.tx_index",
+                                DeserializeFailure::VariableLenNatDecodeFailed,
+                            ))?;
+                        byte_index += tx_bytes;
+                        let (cert_index, cert_bytes) =
+                            variable_nat_decode(&data[byte_index..]).ok_or(DeserializeError::new(
+                                "Address.Pointer.cert_index",
+                                DeserializeFailure::VariableLenNatDecodeFailed,
+                            ))?;
+                        byte_index += cert_bytes;
+                        if byte_index < data.len() {
+                            return Err(cbor_event::Error::TrailingData.into());
+                        }
+                        Ok(AddrType::Ptr(PointerAddress::new(
+                            network,
+                            &payment_cred,
+                            &Pointer::new_pointer(
+                                &to_bignum(slot),
+                                &to_bignum(tx_index),
+                                &to_bignum(cert_index),
+                            ),
+                        )))
                     }
-                    let mut byte_index = 1;
-                    let payment_cred = read_addr_cred(4, 1);
-                    byte_index += HASH_LEN;
-                    let (slot, slot_bytes) =
-                        variable_nat_decode(&data[byte_index..]).ok_or(DeserializeError::new(
-                            "Address.Pointer.slot",
-                            DeserializeFailure::VariableLenNatDecodeFailed,
-                        ))?;
-                    byte_index += slot_bytes;
-                    let (tx_index, tx_bytes) =
-                        variable_nat_decode(&data[byte_index..]).ok_or(DeserializeError::new(
-                            "Address.Pointer.tx_index",
-                            DeserializeFailure::VariableLenNatDecodeFailed,
-                        ))?;
-                    byte_index += tx_bytes;
-                    let (cert_index, cert_bytes) =
-                        variable_nat_decode(&data[byte_index..]).ok_or(DeserializeError::new(
-                            "Address.Pointer.cert_index",
-                            DeserializeFailure::VariableLenNatDecodeFailed,
-                        ))?;
-                    byte_index += cert_bytes;
-                    if byte_index < data.len() {
-                        return Err(cbor_event::Error::TrailingData.into());
-                    }
-                    AddrType::Ptr(PointerAddress::new(
-                        network,
-                        &payment_cred,
-                        &Pointer::new_pointer(
-                            &to_bignum(slot),
-                            &to_bignum(tx_index),
-                            &to_bignum(cert_index),
-                        ),
-                    ))
                 }
                 // enterprise
                 0b0110 | 0b0111 => {
                     const ENTERPRISE_ADDR_SIZE: usize = 1 + HASH_LEN;
                     if data.len() < ENTERPRISE_ADDR_SIZE {
-                        return Err(
+                        Err(
                             cbor_event::Error::NotEnough(data.len(), ENTERPRISE_ADDR_SIZE).into(),
-                        );
+                        )
+                    } else {
+                        if data.len() > ENTERPRISE_ADDR_SIZE {
+                            return Err(cbor_event::Error::TrailingData.into());
+                        }
+                        Ok(AddrType::Enterprise(EnterpriseAddress::new(network, &read_addr_cred(4, 1))))
                     }
-                    if data.len() > ENTERPRISE_ADDR_SIZE {
-                        return Err(cbor_event::Error::TrailingData.into());
-                    }
-                    AddrType::Enterprise(EnterpriseAddress::new(network, &read_addr_cred(4, 1)))
                 }
                 // reward
                 0b1110 | 0b1111 => {
@@ -401,29 +474,33 @@ impl Address {
                         return Err(
                             cbor_event::Error::NotEnough(data.len(), REWARD_ADDR_SIZE).into()
                         );
+                    } else {
+                        if data.len() > REWARD_ADDR_SIZE {
+                            return Err(cbor_event::Error::TrailingData.into());
+                        }
+                        Ok(AddrType::Reward(RewardAddress::new(network, &read_addr_cred(4, 1))))
                     }
-                    if data.len() > REWARD_ADDR_SIZE {
-                        return Err(cbor_event::Error::TrailingData.into());
-                    }
-                    AddrType::Reward(RewardAddress::new(network, &read_addr_cred(4, 1)))
                 }
                 // byron
                 0b1000 => {
                     // note: 0b1000 was chosen because all existing Byron addresses actually start with 0b1000
                     // Therefore you can re-use Byron addresses as-is
                     match ByronAddress::from_bytes(data.to_vec()) {
-                        Ok(addr) => AddrType::Byron(addr),
+                        Ok(addr) => Ok(AddrType::Byron(addr)),
                         Err(e) => {
-                            return Err(cbor_event::Error::CustomError(
+                            Err(cbor_event::Error::CustomError(
                                 e.as_string().unwrap_or_default(),
                             )
                             .into())
                         }
                     }
                 }
-                _ => return Err(DeserializeFailure::BadAddressType(header).into()),
+                _ => Err(DeserializeFailure::BadAddressType(header).into()),
             };
-            Ok(Address(addr))
+            match addr {
+                Ok(addr) => Ok(Address(addr)),
+                Err(_) => Ok(Address(AddrType::Malformed(MalformedAddress(data.to_vec())))),
+            }
         })()
         .map_err(|e| e.annotate("Address"))
     }
@@ -463,6 +540,7 @@ impl Address {
             AddrType::Ptr(a) => Ok(a.network),
             AddrType::Reward(a) => Ok(a.network),
             AddrType::Byron(a) => a.network_id(),
+            AddrType::Malformed(_) => Err(JsError::from_str("Malformed address")),
         }
     }
 }

@@ -162,6 +162,9 @@ impl TxInputsBuilder {
             AddrType::Reward(_) => {
                 Err(JsError::from_str(BuilderError::RegularInputIsFromRewardAddress.as_str()))
             },
+            AddrType::Malformed(_) => {
+                Err(JsError::from_str(BuilderError::MalformedAddress.as_str()))
+            },
         }
     }
 

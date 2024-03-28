@@ -558,3 +558,10 @@ fn prepod_network_id_test() {
         .unwrap();
     assert_eq!(network_id, NetworkInfo::testnet_preprod().network_id());
 }
+
+#[test]
+fn malformed_address() {
+    let address_bech32 = "addr1q9d66zzs27kppmx8qc8h43q7m4hkxp5d39377lvxefvxd8j7eukjsdqc5c97t2zg5guqadepqqx6rc9m7wtnxy6tajjvk4a0kze4ljyuvvrpexg5up2sqxj33363v35gtew";
+    let address = Address::from_bech32(address_bech32).unwrap();
+    assert!(address.is_malformed());
+}

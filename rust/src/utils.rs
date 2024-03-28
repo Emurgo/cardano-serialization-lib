@@ -2543,7 +2543,7 @@ mod tests {
         let mut costmodels = Costmdls::new();
         costmodels.insert(&v1, &v1_cost_model);
         let hash = hash_script_data(
-            &Redeemers(vec![Redeemer::new(
+            &Redeemers::from(vec![Redeemer::new(
                 &RedeemerTag::new_spend(),
                 &BigNum::zero(),
                 &PlutusData::new_integer(&BigInt::from_str("42").unwrap()),

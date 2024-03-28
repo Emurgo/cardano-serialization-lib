@@ -227,6 +227,7 @@ impl std::error::Error for JsError {}
 pub(crate) enum BuilderError {
     RegularInputIsScript,
     RegularInputIsFromRewardAddress,
+    MalformedAddress
 }
 
 impl BuilderError {
@@ -234,6 +235,7 @@ impl BuilderError {
         match self {
             BuilderError::RegularInputIsScript => "You can't add a script input to this function. You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.",
             BuilderError::RegularInputIsFromRewardAddress => "You can't use an input from reward address. To spend funds from reward address you to use withdrawal mechanism.",
+            BuilderError::MalformedAddress => "The address is malformed."
         }
     }
 }

@@ -1,36 +1,50 @@
 use crate::*;
 
 #[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct Redeemers(pub(crate) Vec<Redeemer>);
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Redeemers {
+    pub(crate) redeemers: Vec<Redeemer>,
+    pub(crate) serialization_format: Option<CborContainerType>,
+}
 
 impl_to_from!(Redeemers);
 
 #[wasm_bindgen]
 impl Redeemers {
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self {
+            redeemers: Vec::new(),
+            serialization_format: None,
+        }
+    }
+
+    pub fn new_with_serialization_format(
+        redeemers: Vec<Redeemer>,
+        serialization_format: CborContainerType,
+    ) -> Self {
+        Self {
+            redeemers,
+            serialization_format: Some(serialization_format),
+        }
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.redeemers.len()
     }
 
     pub fn get(&self, index: usize) -> Redeemer {
-        self.0[index].clone()
+        self.redeemers[index].clone()
     }
 
     pub fn add(&mut self, elem: &Redeemer) {
-        self.0.push(elem.clone());
+        self.redeemers.push(elem.clone());
     }
 
     pub fn total_ex_units(&self) -> Result<ExUnits, JsError> {
         let mut tot_mem = BigNum::zero();
         let mut tot_steps = BigNum::zero();
-        for i in 0..self.0.len() {
-            let r: &Redeemer = &self.0[i];
+        for i in 0..self.redeemers.len() {
+            let r: &Redeemer = &self.redeemers[i];
             tot_mem = tot_mem.checked_add(&r.ex_units().mem())?;
             tot_steps = tot_steps.checked_add(&r.ex_units().steps())?;
         }
@@ -40,6 +54,43 @@ impl Redeemers {
 
 impl From<Vec<Redeemer>> for Redeemers {
     fn from(values: Vec<Redeemer>) -> Self {
-        Self(values)
+        Self {
+            redeemers: values,
+            serialization_format: None,
+        }
+    }
+}
+
+impl serde::Serialize for Redeemers {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.redeemers.serialize(serializer)
+    }
+}
+
+impl<'de> serde::de::Deserialize<'de> for Redeemers {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        let vec = <Vec<_> as serde::de::Deserialize>::deserialize(deserializer)?;
+        Ok(Self {
+            redeemers: vec,
+            serialization_format: None,
+        })
+    }
+}
+
+impl JsonSchema for Redeemers {
+    fn is_referenceable() -> bool {
+        Vec::<Redeemer>::is_referenceable()
+    }
+    fn schema_name() -> String {
+        String::from("Redeemers")
+    }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        Vec::<Redeemer>::json_schema(gen)
     }
 }

@@ -260,6 +260,9 @@ impl PlutusData {
             AddrType::Byron(_) => Err(JsError::from_str(
                 "Cannot convert Byron address to PlutusData",
             )),
+            AddrType::Malformed(_) => Err(JsError::from_str(
+                "Cannot convert Malformed address to PlutusData",
+            ))
         }?;
 
         let staking_data = match &address.0 {

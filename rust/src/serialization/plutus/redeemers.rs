@@ -6,8 +6,8 @@ impl cbor_event::se::Serialize for Redeemers {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in &self.0 {
+        serializer.write_array(Len::Len(self.redeemers.len() as u64))?;
+        for element in &self.redeemers {
             element.serialize(serializer)?;
         }
         Ok(serializer)
@@ -31,6 +31,9 @@ impl Deserialize for Redeemers {
             Ok(())
         })()
             .map_err(|e| e.annotate("Redeemers"))?;
-        Ok(Self(arr))
+        Ok(Self{
+            redeemers: arr,
+            serialization_format: None,
+        })
     }
 }

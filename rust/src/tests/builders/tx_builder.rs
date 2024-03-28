@@ -6128,7 +6128,7 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
     let mut indexes = HashMap::new();
     indexes.insert(RedeemerTag::new_cert(), HashSet::new());
     indexes.insert(RedeemerTag::new_reward(), HashSet::new());
-    for redeemer in &redeemers.0 {
+    for redeemer in &redeemers.redeemers {
         let tag_set = indexes.get_mut(&redeemer.tag()).unwrap();
         assert_ne!(tag_set.contains(&redeemer.index()), true);
         tag_set.insert(redeemer.index());

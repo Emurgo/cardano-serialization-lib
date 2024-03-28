@@ -370,7 +370,7 @@ fn test_known_plutus_data_hash() {
             ]),
         ),
     )]);
-    let redeemers = Redeemers(vec![Redeemer::new(
+    let redeemers = Redeemers::from(vec![Redeemer::new(
         &RedeemerTag::new_spend(),
         &BigNum::one(),
         &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
@@ -416,7 +416,7 @@ fn test_known_plutus_data_hash_with_no_datums() {
             .unwrap(),
     );
     let hash = hash_script_data(
-        &Redeemers(vec![Redeemer::new(
+        &Redeemers::from(vec![Redeemer::new(
             &RedeemerTag::new_spend(),
             &BigNum::zero(),
             &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
@@ -450,7 +450,7 @@ fn test_known_plutus_data_hash_2() {
             ]),
         ),
     )]);
-    let redeemers = Redeemers(vec![Redeemer::new(
+    let redeemers = Redeemers::from(vec![Redeemer::new(
         &RedeemerTag::new_spend(),
         &BigNum::one(),
         &PlutusData::new_empty_constr_plutus_data(&BigNum::one()),

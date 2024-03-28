@@ -509,7 +509,7 @@ fn test_witness_set_roundtrip() {
             &fake_vkey(),
             &fake_signature(1),
         )]));
-        ws.set_redeemers(&Redeemers(vec![Redeemer::new(
+        ws.set_redeemers(&Redeemers::from(vec![Redeemer::new(
             &RedeemerTag::new_spend(),
             &to_bignum(12),
             &PlutusData::new_integer(&BigInt::one()),

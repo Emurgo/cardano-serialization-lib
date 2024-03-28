@@ -212,7 +212,7 @@ impl MintBuilder {
         TransactionInputs(reference_inputs)
     }
 
-    pub fn get_redeeemers(&self) -> Result<Redeemers, JsError> {
+    pub fn get_redeemers(&self) -> Result<Redeemers, JsError> {
         let tag = RedeemerTag::new_mint();
         let mut redeeemers = Vec::new();
         let mut index = BigNum::zero();
@@ -229,7 +229,7 @@ impl MintBuilder {
                 }
             }
         }
-        Ok(Redeemers(redeeemers))
+        Ok(Redeemers::from(redeeemers))
     }
 
     pub fn has_plutus_scripts(&self) -> bool {
