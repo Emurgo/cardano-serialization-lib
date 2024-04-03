@@ -465,6 +465,10 @@ impl PlutusList {
             definite_encoding: self.definite_encoding,
         }
     }
+
+    pub(crate) fn extend(&mut self, other: &PlutusList) {
+        self.elems.extend(other.elems.iter().cloned());
+    }
 }
 
 impl From<Vec<PlutusData>> for PlutusList {

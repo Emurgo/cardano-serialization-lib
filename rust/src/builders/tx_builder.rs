@@ -102,7 +102,7 @@ pub(crate) fn fake_full_tx(
             Some(result)
         }
     };
-    let (plutus_scripts, plutus_data, redeemers) = {
+    let (plutus_scripts, mut plutus_data, redeemers) = {
         if let Some(s) = tx_builder.get_combined_plutus_scripts() {
             let (s, d, r) = s.collect();
             (Some(s), d, Some(r))
@@ -110,6 +110,15 @@ pub(crate) fn fake_full_tx(
             (None, None, None)
         }
     };
+
+    if let Some(extra_datums) = &tx_builder.extra_datums {
+        if let Some(d) = &mut plutus_data {
+            d.extend(extra_datums);
+        } else {
+            plutus_data = Some(extra_datums.clone());
+        }
+    }
+
     let witness_set = TransactionWitnessSet {
         vkeys,
         native_scripts: tx_builder.get_combined_native_scripts(),

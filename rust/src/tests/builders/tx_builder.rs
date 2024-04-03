@@ -1,14 +1,6 @@
-use crate::fakes::{
-    fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_policy_id,
-    fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2,
-};
+use crate::fakes::{fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2, fake_vkey_witness};
 use crate::tests::helpers::harden;
-use crate::tests::mock_objects::{
-    byron_address, create_change_address, create_default_tx_builder, create_linear_fee,
-    create_reallistic_tx_builder, create_rich_tx_builder, create_tx_builder_with_amount,
-    create_tx_builder_with_fee, create_tx_builder_with_fee_and_pure_change,
-    create_tx_builder_with_fee_and_val_size, create_tx_builder_with_key_deposit, root_key_15,
-};
+use crate::tests::mock_objects::{byron_address, create_change_address, create_default_tx_builder, create_linear_fee, create_reallistic_tx_builder, create_rich_tx_builder, create_tx_builder, create_tx_builder_with_amount, create_tx_builder_with_fee, create_tx_builder_with_fee_and_pure_change, create_tx_builder_with_fee_and_val_size, create_tx_builder_with_key_deposit, root_key_15};
 use crate::*;
 
 use fees::*;
@@ -6145,8 +6137,12 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
 
 #[test]
 pub fn test_extra_datum() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = create_tx_builder(
+        &create_linear_fee(1, 100000),
+        1,
+        1,
+        1,
+    );
 
     let datum = PlutusData::new_bytes(fake_bytes_32(1));
     tx_builder.add_extra_witness_datum(&datum);
@@ -6155,18 +6151,27 @@ pub fn test_extra_datum() {
     inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
-        &Value::new(&to_bignum(1000000u64)),
-    );
+        &Value::new(&to_bignum(100000000000000u64)),
+    ).unwrap();
 
     tx_builder.set_inputs(&inp);
     tx_builder
         .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
         .unwrap();
 
+    let change_address = create_change_address();
+
+    tx_builder.add_change_if_needed(&change_address).unwrap();
     let res = tx_builder.build_tx();
     assert!(res.is_ok());
 
     let tx = res.unwrap();
+
+    let tx_size = tx.to_bytes().len();
+    let fake_input_wit_size = fake_vkey_witness(1).to_bytes().len();
+    let real_fee = min_fee_for_size(tx_size + fake_input_wit_size, &LinearFee::new(&Coin::from(1u64), &Coin::from(100000u64))).unwrap();
+
+    assert!(real_fee.less_than(&tx.body.fee));
 
     let data_hash = hash_script_data(
         &Redeemers::new(),
