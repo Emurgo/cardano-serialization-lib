@@ -1976,8 +1976,8 @@ impl MintsAssets {
         Self(Vec::new())
     }
 
-    pub fn add(&mut self, mint_assets: MintAssets) {
-        self.0.push(mint_assets)
+    pub fn add(&mut self, mint_assets: &MintAssets) {
+        self.0.push(mint_assets.clone())
     }
 
     pub fn get(&self, index: usize) -> Option<MintAssets> {
