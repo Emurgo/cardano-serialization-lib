@@ -60,6 +60,7 @@ pub enum DeserializeFailure {
     UnexpectedKeyType(cbor_event::Type),
     VariableLenNatDecodeFailed,
     IoError(String),
+    ExpectedType(String, cbor_event::Type),
     CustomError(String),
 }
 
@@ -141,6 +142,9 @@ impl std::fmt::Display for DeserializeError {
             }
             DeserializeFailure::IoError(e) => write!(f, "IO error: {}", e),
             DeserializeFailure::CustomError(e) => write!(f, "Deserialize error: {}", e),
+            DeserializeFailure::ExpectedType(expected, found) => {
+                write!(f, "Expected type {}, found {:?}", expected, found)
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::*;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct Redeemers {
     pub(crate) redeemers: Vec<Redeemer>,
     pub(crate) serialization_format: Option<CborContainerType>,
@@ -18,7 +18,7 @@ impl Redeemers {
         }
     }
 
-    pub fn new_with_serialization_format(
+    pub(crate) fn new_with_serialization_format(
         redeemers: Vec<Redeemer>,
         serialization_format: CborContainerType,
     ) -> Self {
@@ -51,6 +51,15 @@ impl Redeemers {
         Ok(ExUnits::new(&tot_mem, &tot_steps))
     }
 }
+
+impl PartialEq<Redeemers> for Redeemers {
+    fn eq(&self, other: &Redeemers) -> bool {
+        self.redeemers == other.redeemers
+    }
+
+}
+
+impl Eq for Redeemers {}
 
 impl From<Vec<Redeemer>> for Redeemers {
     fn from(values: Vec<Redeemer>) -> Self {

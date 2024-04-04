@@ -642,3 +642,121 @@ fn oura_wrapped_block_test() {
     let block = Block::from_wrapped_bytes(bytes);
     assert!(block.is_ok());
 }
+
+#[test]
+fn redeemers_default_array_round_trip() {
+    let mut redeemers = Redeemers::from(vec![
+        Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(12),
+            &PlutusData::new_integer(&BigInt::one()),
+            &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+        ),
+        Redeemer::new(
+            &RedeemerTag::new_cert(),
+            &to_bignum(2),
+            &PlutusData::new_integer(&BigInt::from(22)),
+            &ExUnits::new(&to_bignum(23), &to_bignum(45)),
+        )
+    ]);
+
+    let bytes = redeemers.to_bytes();
+    let new_redeemers = Redeemers::from_bytes(bytes.clone()).unwrap();
+
+    assert_eq!(new_redeemers.serialization_format, Some(CborContainerType::Array));
+    assert_eq!(redeemers.serialization_format, None);
+    assert_eq!(redeemers, new_redeemers);
+    assert_eq!(bytes, new_redeemers.to_bytes())
+}
+
+#[test]
+fn redeemers_array_round_trip() {
+    let redeemers_vec = vec![
+        Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(12),
+            &PlutusData::new_integer(&BigInt::one()),
+            &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+        ),
+        Redeemer::new(
+            &RedeemerTag::new_cert(),
+            &to_bignum(2),
+            &PlutusData::new_integer(&BigInt::from(22)),
+            &ExUnits::new(&to_bignum(23), &to_bignum(45)),
+        )
+    ];
+
+    let redeemers = Redeemers::new_with_serialization_format(redeemers_vec, CborContainerType::Array);
+
+    let bytes = redeemers.to_bytes();
+    let new_redeemers = Redeemers::from_bytes(bytes.clone()).unwrap();
+
+    assert_eq!(new_redeemers.serialization_format, Some(CborContainerType::Array));
+    assert_eq!(redeemers, new_redeemers);
+    assert_eq!(bytes, new_redeemers.to_bytes())
+}
+
+#[test]
+fn redeemers_map_round_trip() {
+    let redeemers_vec = vec![
+        Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(12),
+            &PlutusData::new_integer(&BigInt::one()),
+            &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+        ),
+        Redeemer::new(
+            &RedeemerTag::new_cert(),
+            &to_bignum(2),
+            &PlutusData::new_integer(&BigInt::from(22)),
+            &ExUnits::new(&to_bignum(23), &to_bignum(45)),
+        )
+    ];
+
+    let redeemers = Redeemers::new_with_serialization_format(redeemers_vec, CborContainerType::Map);
+
+    let bytes = redeemers.to_bytes();
+    let new_redeemers = Redeemers::from_bytes(bytes.clone()).unwrap();
+
+    assert_eq!(new_redeemers.serialization_format, Some(CborContainerType::Map));
+    assert_eq!(redeemers, new_redeemers);
+    assert_eq!(bytes, new_redeemers.to_bytes())
+}
+
+#[test]
+fn redeemers_map_array_round_trip() {
+    let redeemers_vec = vec![
+        Redeemer::new(
+            &RedeemerTag::new_spend(),
+            &to_bignum(12),
+            &PlutusData::new_integer(&BigInt::one()),
+            &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+        ),
+        Redeemer::new(
+            &RedeemerTag::new_cert(),
+            &to_bignum(2),
+            &PlutusData::new_integer(&BigInt::from(22)),
+            &ExUnits::new(&to_bignum(23), &to_bignum(45)),
+        )
+    ];
+
+    let redeemers_array = Redeemers::new_with_serialization_format(redeemers_vec.clone(), CborContainerType::Array);
+    let redeemers_map = Redeemers::new_with_serialization_format(redeemers_vec, CborContainerType::Map);
+
+    let bytes_array = redeemers_array.to_bytes();
+    let new_redeemers_array = Redeemers::from_bytes(bytes_array.clone()).unwrap();
+
+    let bytes_map = redeemers_map.to_bytes();
+    let new_redeemers_map = Redeemers::from_bytes(bytes_map.clone()).unwrap();
+
+    assert_eq!(new_redeemers_array.serialization_format, Some(CborContainerType::Array));
+    assert_eq!(redeemers_array, new_redeemers_array);
+    assert_eq!(bytes_array, new_redeemers_array.to_bytes());
+
+    assert_eq!(new_redeemers_map.serialization_format, Some(CborContainerType::Map));
+    assert_eq!(redeemers_map, new_redeemers_map);
+    assert_eq!(bytes_map, new_redeemers_map.to_bytes());
+
+    assert_eq!(new_redeemers_map, new_redeemers_array);
+    assert_ne!(bytes_array, bytes_map)
+}

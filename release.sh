@@ -9,7 +9,7 @@ fi
 
 echo "Preparing ${RELEASE_TYPE} release"
 
-. build-and-test.sh \
+. ./build-and-test.sh \
 && npm run js:publish-nodejs:${RELEASE_TYPE} \
 && npm run js:publish-browser:${RELEASE_TYPE} \
 && npm run js:publish-asm:${RELEASE_TYPE} \
