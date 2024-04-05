@@ -102,6 +102,7 @@ pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
         governance_action_deposit: Some(Coin::from(44_444u32)),
         drep_deposit: Some(Coin::from(44_444u32)),
         drep_inactivity_period: Some(44_444u32),
+        ref_script_coins_per_byte: Some(Coin::from(44_444u32)),
     }
 }
 

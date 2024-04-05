@@ -236,7 +236,10 @@ impl cbor_event::se::Serialize for ProtocolParamUpdate {
             } + match &self.drep_inactivity_period {
                 Some(_) => 1,
                 None => 0,
-            },
+            } + match &self.ref_script_coins_per_byte {
+                Some(_) => 1,
+                None => 0,
+            }
         ))?;
         if let Some(field) = &self.minfee_a {
             serializer.write_unsigned_integer(0)?;
@@ -366,6 +369,10 @@ impl cbor_event::se::Serialize for ProtocolParamUpdate {
             serializer.write_unsigned_integer(32)?;
             field.serialize(serializer)?;
         }
+        if let Some(field) = &self.ref_script_coins_per_byte {
+            serializer.write_unsigned_integer(33)?;
+            field.serialize(serializer)?;
+        }
         Ok(serializer)
     }
 }
@@ -407,6 +414,7 @@ impl Deserialize for ProtocolParamUpdate {
             let mut governance_action_deposit = None;
             let mut drep_deposit = None;
             let mut drep_inactivity_period = None;
+            let mut ref_script_coins_per_byte = None;
 
             let mut read = 0;
             while match len {
@@ -799,6 +807,18 @@ impl Deserialize for ProtocolParamUpdate {
                                 .map_err(|e| e.annotate("drep_inactivity_period"))?,
                             );
                         }
+                        33 => {
+                            if ref_script_coins_per_byte.is_some() {
+                                return Err(DeserializeFailure::DuplicateKey(Key::Uint(33)).into());
+                            }
+                            ref_script_coins_per_byte = Some(
+                                (|| -> Result<_, DeserializeError> {
+                                    read_len.read_elems(1)?;
+                                    Ok(Coin::deserialize(raw)?)
+                                })()
+                                    .map_err(|e| e.annotate("ref_script_coins_per_byte"))?,
+                            );
+                        }
                         unknown_key => {
                             return Err(
                                 DeserializeFailure::UnknownKey(Key::Uint(unknown_key)).into()
@@ -862,6 +882,7 @@ impl Deserialize for ProtocolParamUpdate {
                 governance_action_deposit,
                 drep_deposit,
                 drep_inactivity_period,
+                ref_script_coins_per_byte,
             })
         })()
         .map_err(|e| e.annotate("ProtocolParamUpdate"))

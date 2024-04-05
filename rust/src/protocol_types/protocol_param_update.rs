@@ -250,6 +250,7 @@ pub struct ProtocolParamUpdate {
     pub(crate) governance_action_deposit: Option<Coin>,
     pub(crate) drep_deposit: Option<Coin>,
     pub(crate) drep_inactivity_period: Option<Epoch>,
+    pub(crate) ref_script_coins_per_byte: Option<Coin>,
 }
 
 impl_to_from!(ProtocolParamUpdate);
@@ -522,6 +523,14 @@ impl ProtocolParamUpdate {
         self.drep_inactivity_period.clone()
     }
 
+    pub fn set_ref_script_coins_per_byte(&mut self, ref_script_coins_per_byte: &Coin) {
+        self.ref_script_coins_per_byte = Some(ref_script_coins_per_byte.clone());
+    }
+
+    pub fn ref_script_coins_per_byte(&self) -> Option<Coin> {
+        self.ref_script_coins_per_byte.clone()
+    }
+
     pub fn new() -> Self {
         Self {
             minfee_a: None,
@@ -556,6 +565,7 @@ impl ProtocolParamUpdate {
             governance_action_deposit: None,
             drep_deposit: None,
             drep_inactivity_period: None,
+            ref_script_coins_per_byte: None,
         }
     }
 }
