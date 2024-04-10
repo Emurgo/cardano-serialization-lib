@@ -414,9 +414,9 @@ impl Address {
                     const PTR_ADDR_MIN_SIZE: usize = 1 + HASH_LEN + 1 + 1 + 1;
                     if data.len() < PTR_ADDR_MIN_SIZE {
                         // possibly more, but depends on how many bytes the natural numbers are for the pointer
-                        return Err(
+                        Err(
                             cbor_event::Error::NotEnough(data.len(), PTR_ADDR_MIN_SIZE).into()
-                        );
+                        )
                     } else {
                         let mut byte_index = 1;
                         let payment_cred = read_addr_cred(4, 1);
@@ -440,17 +440,18 @@ impl Address {
                             ))?;
                         byte_index += cert_bytes;
                         if byte_index < data.len() {
-                            return Err(cbor_event::Error::TrailingData.into());
+                            Err(cbor_event::Error::TrailingData.into())
+                        } else {
+                            Ok(AddrType::Ptr(PointerAddress::new(
+                                network,
+                                &payment_cred,
+                                &Pointer::new_pointer(
+                                    &to_bignum(slot),
+                                    &to_bignum(tx_index),
+                                    &to_bignum(cert_index),
+                                ),
+                            )))
                         }
-                        Ok(AddrType::Ptr(PointerAddress::new(
-                            network,
-                            &payment_cred,
-                            &Pointer::new_pointer(
-                                &to_bignum(slot),
-                                &to_bignum(tx_index),
-                                &to_bignum(cert_index),
-                            ),
-                        )))
                     }
                 }
                 // enterprise
@@ -462,23 +463,25 @@ impl Address {
                         )
                     } else {
                         if data.len() > ENTERPRISE_ADDR_SIZE {
-                            return Err(cbor_event::Error::TrailingData.into());
+                            Err(cbor_event::Error::TrailingData.into())
+                        } else {
+                            Ok(AddrType::Enterprise(EnterpriseAddress::new(network, &read_addr_cred(4, 1))))
                         }
-                        Ok(AddrType::Enterprise(EnterpriseAddress::new(network, &read_addr_cred(4, 1))))
                     }
                 }
                 // reward
                 0b1110 | 0b1111 => {
                     const REWARD_ADDR_SIZE: usize = 1 + HASH_LEN;
                     if data.len() < REWARD_ADDR_SIZE {
-                        return Err(
+                        Err(
                             cbor_event::Error::NotEnough(data.len(), REWARD_ADDR_SIZE).into()
-                        );
+                        )
                     } else {
                         if data.len() > REWARD_ADDR_SIZE {
-                            return Err(cbor_event::Error::TrailingData.into());
+                            Err(cbor_event::Error::TrailingData.into())
+                        } else {
+                            Ok(AddrType::Reward(RewardAddress::new(network, &read_addr_cred(4, 1))))
                         }
-                        Ok(AddrType::Reward(RewardAddress::new(network, &read_addr_cred(4, 1))))
                     }
                 }
                 // byron
