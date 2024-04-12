@@ -916,7 +916,9 @@ impl TransactionBuilder {
         let add_change_result = self.add_inputs_from_and_change(inputs, strategy, change_config);
         match add_change_result {
             Ok(_) => {
-                let fee = self.get_fee_if_set().unwrap();
+                let fee = self.get_fee_if_set().ok_or(
+                    JsError::from_str("Cannot calculate collateral return if fee was not set"),
+                )?;
                 let collateral_required = ((u64::from(&fee) * collateral_percentage) / 100) + 1;
                 let set_collateral_result = self.set_total_collateral_and_return(&BigNum(collateral_required), &change_config.address);
                 match set_collateral_result {
