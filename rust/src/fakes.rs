@@ -1,5 +1,11 @@
 #![allow(dead_code)]
-use crate::{to_bignum, Address, BaseAddress, Bip32PrivateKey, DataHash, Ed25519KeyHash, Ed25519Signature, NetworkInfo, StakeCredential, TransactionHash, TransactionIndex, TransactionInput, TransactionOutput, Value, Vkey, PolicyID};
+use crate::{AnchorDataHash, AuxiliaryDataHash, BigNum, GenesisDelegateHash, GenesisHash, PoolMetadataHash, PublicKey, ScriptDataHash, ScriptHash, Vkeywitness, VRFKeyHash};
+use crate::{
+    Address, BaseAddress, Bip32PrivateKey, Credential, DataHash, Ed25519KeyHash,
+    Ed25519Signature, NetworkInfo, PolicyID, TransactionHash, TransactionIndex, TransactionInput,
+    TransactionOutput, Value, Vkey, AssetName,
+};
+use crate::RewardAddress;
 
 pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
     vec![
@@ -12,17 +18,56 @@ pub(crate) fn fake_data_hash(x: u8) -> DataHash {
     DataHash::from_bytes(fake_bytes_32(x)).unwrap()
 }
 
+pub(crate) fn fake_anchor_data_hash(x: u8) -> AnchorDataHash {
+    AnchorDataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_auxiliary_data_hash(x: u8) -> AuxiliaryDataHash {
+    AuxiliaryDataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_pool_metadata_hash(x: u8) -> PoolMetadataHash {
+    PoolMetadataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_genesis_hash(x: u8) -> GenesisHash {
+    GenesisHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_genesis_delegate_hash(x: u8) -> GenesisDelegateHash {
+    GenesisDelegateHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_vrf_key_hash(x: u8) -> VRFKeyHash {
+    VRFKeyHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
 pub(crate) fn fake_key_hash(x: u8) -> Ed25519KeyHash {
     Ed25519KeyHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
 }
 
+pub(crate) fn fake_script_hash(x: u8) -> ScriptHash {
+    ScriptHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_script_data_hash(x: u8) -> ScriptDataHash {
+    ScriptDataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
 pub(crate) fn fake_base_address(x: u8) -> Address {
     BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
-        &StakeCredential::from_keyhash(&fake_key_hash(x)),
-        &StakeCredential::from_keyhash(&fake_key_hash(0)),
+        NetworkInfo::testnet_preprod().network_id(),
+        &Credential::from_keyhash(&fake_key_hash(x)),
+        &Credential::from_keyhash(&fake_key_hash(0)),
     )
     .to_address()
+}
+
+pub(crate) fn fake_reward_address(x: u8) -> RewardAddress {
+    RewardAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &Credential::from_keyhash(&fake_key_hash(x)),
+    )
 }
 
 pub(crate) fn fake_tx_hash(input_hash_byte: u8) -> TransactionHash {
@@ -42,7 +87,7 @@ pub(crate) fn fake_value() -> Value {
 }
 
 pub(crate) fn fake_value2(v: u64) -> Value {
-    Value::new(&to_bignum(v))
+    Value::new(&BigNum(v))
 }
 
 pub(crate) fn fake_tx_output(input_hash_byte: u8) -> TransactionOutput {
@@ -62,10 +107,22 @@ pub(crate) fn fake_vkey() -> Vkey {
     )
 }
 
+pub(crate) fn fake_vkey_numbered(x: u8) -> Vkey {
+    Vkey::new(&PublicKey::from_bytes(&[x; 32]).unwrap())
+}
+
 pub(crate) fn fake_signature(x: u8) -> Ed25519Signature {
     Ed25519Signature::from_bytes([x; 64].to_vec()).unwrap()
 }
 
 pub(crate) fn fake_policy_id(x: u8) -> PolicyID {
     PolicyID::from([x; 28])
+}
+
+pub(crate) fn fake_asset_name(x: u8) -> AssetName {
+    AssetName([x; 32].to_vec())
+}
+
+pub(crate) fn fake_vkey_witness(x: u8) -> Vkeywitness {
+    Vkeywitness::new(&fake_vkey_numbered(x), &fake_signature(x))
 }

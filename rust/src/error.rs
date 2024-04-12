@@ -1,3 +1,4 @@
+use std::string::ToString;
 use super::*;
 use crate::chain_crypto;
 use cbor_event::{self};
@@ -9,6 +10,7 @@ use cbor_event::{self};
 pub enum Key {
     Str(String),
     Uint(u64),
+    OptUint(Option<u64>),
 }
 
 impl std::fmt::Display for Key {
@@ -16,6 +18,8 @@ impl std::fmt::Display for Key {
         match self {
             Key::Str(x) => write!(f, "\"{}\"", x),
             Key::Uint(x) => write!(f, "{}", x),
+            Key::OptUint(Some(x)) => write!(f, "{}", x),
+            Key::OptUint(None) => write!(f, "null"),
         }
     }
 }
@@ -34,6 +38,10 @@ pub enum DeserializeFailure {
         found: Key,
         expected: Key,
     },
+    FixedValuesMismatch {
+        found: Key,
+        expected: Vec<Key>,
+    },
     MandatoryFieldMissing(Key),
     Metadata(JsError),
     NoVariantMatched,
@@ -51,6 +59,9 @@ pub enum DeserializeFailure {
     UnknownKey(Key),
     UnexpectedKeyType(cbor_event::Type),
     VariableLenNatDecodeFailed,
+    IoError(String),
+    ExpectedType(String, cbor_event::Type),
+    CustomError(String),
 }
 
 #[derive(Debug)]
@@ -104,6 +115,9 @@ impl std::fmt::Display for DeserializeError {
             DeserializeFailure::FixedValueMismatch { found, expected } => {
                 write!(f, "Expected fixed value {} found {}", expected, found)
             }
+            DeserializeFailure::FixedValuesMismatch { found, expected } => {
+                write!(f, "Expected fixed value {:?} found {}", expected, found)
+            }
             DeserializeFailure::MandatoryFieldMissing(key) => {
                 write!(f, "Mandatory field {} not found", key)
             }
@@ -125,6 +139,11 @@ impl std::fmt::Display for DeserializeError {
             }
             DeserializeFailure::VariableLenNatDecodeFailed => {
                 write!(f, "Variable length natural number decode failed")
+            }
+            DeserializeFailure::IoError(e) => write!(f, "IO error: {}", e),
+            DeserializeFailure::CustomError(e) => write!(f, "Deserialize error: {}", e),
+            DeserializeFailure::ExpectedType(expected, found) => {
+                write!(f, "Expected type {}, found {:?}", expected, found)
             }
         }
     }
@@ -208,3 +227,19 @@ impl std::fmt::Display for JsError {
 
 #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
 impl std::error::Error for JsError {}
+
+pub(crate) enum BuilderError {
+    RegularInputIsScript,
+    RegularInputIsFromRewardAddress,
+    MalformedAddress
+}
+
+impl BuilderError {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            BuilderError::RegularInputIsScript => "You can't add a script input to this function. You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.",
+            BuilderError::RegularInputIsFromRewardAddress => "You can't use an input from reward address. To spend funds from reward address you to use withdrawal mechanism.",
+            BuilderError::MalformedAddress => "The address is malformed."
+        }
+    }
+}

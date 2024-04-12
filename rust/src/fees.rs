@@ -1,5 +1,6 @@
 use super::*;
 use utils::*;
+use crate::rational::{Rational};
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -42,40 +43,12 @@ pub fn calculate_ex_units_ceil_cost(
     ex_units: &ExUnits,
     ex_unit_prices: &ExUnitPrices,
 ) -> Result<Coin, JsError> {
-    type Ratio = (BigInt, BigInt);
-    fn mult(sc: &SubCoin, x: &BigNum) -> Result<Ratio, JsError> {
-        let n: BigInt = BigInt::from_str(&sc.numerator.to_str())?;
-        let d: BigInt = BigInt::from_str(&sc.denominator.to_str())?;
-        let m: BigInt = BigInt::from_str(&x.to_str())?;
-        Ok((n.mul(&m), d))
-    }
-    fn sum(a: &Ratio, b: &Ratio) -> Ratio {
-        // Ratio Addition: a/x + b/y = ((a*y) + (b*x))/(x*y)
-        let (a_num, a_denum) = &a;
-        let (b_num, b_denum) = &b;
-        if a_num.is_zero() {
-            return b.clone();
-        }
-        if b_num.is_zero() {
-            return a.clone();
-        }
-        let a_num_fixed = &a_num.mul(b_denum);
-        let b_num_fixed = &b_num.mul(a_denum);
-        let a_b_num_sum = a_num_fixed.add(b_num_fixed);
-        let common_denum = a_denum.mul(b_denum);
-        (a_b_num_sum, common_denum)
-    }
-    let mem_ratio: Ratio = mult(&ex_unit_prices.mem_price(), &ex_units.mem())?;
-    let steps_ratio: Ratio = mult(&ex_unit_prices.step_price(), &ex_units.steps())?;
-    let (total_num, total_denum) = sum(&mem_ratio, &steps_ratio);
-    match total_num.div_ceil(&total_denum).as_u64() {
-        Some(coin) => Ok(coin),
-        _ => Err(JsError::from_str(&format!(
-            "Failed to calculate ceil from ratio {}/{}",
-            total_num.to_str(),
-            total_denum.to_str(),
-        ))),
-    }
+    let mem_price: Rational = ex_unit_prices.mem_price().into();
+    let steps_price: Rational = ex_unit_prices.step_price().into();
+    let mem_ratio = mem_price.mul_bignum(&ex_units.mem())?;
+    let steps_ratio = steps_price.mul_bignum(&ex_units.steps())?;
+    let total = mem_ratio.add(&steps_ratio);
+    total.to_bignum_ceil()
 }
 
 #[wasm_bindgen]
@@ -87,11 +60,17 @@ pub fn min_script_fee(tx: &Transaction, ex_unit_prices: &ExUnitPrices) -> Result
     Ok(Coin::zero())
 }
 
+#[wasm_bindgen]
+pub fn min_ref_script_fee(total_ref_scripts_size: usize, ref_script_coins_per_byte: &UnitInterval) -> Result<Coin, JsError> {
+    let ref_multiplier : Rational = ref_script_coins_per_byte.into();
+    let total_fee = ref_multiplier.mul_usize(total_ref_scripts_size);
+    total_fee.to_bignum_ceil()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::output_builder::TransactionOutputBuilder;
     use super::*;
-    use address::*;
+    use crate::TransactionOutputBuilder;
     use crypto::*;
 
     // based off tx test vectors (https://gist.github.com/KtorZ/5a2089df0915f21aca368d12545ab230)
@@ -125,11 +104,11 @@ mod tests {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(1))
+                .with_coin(&BigNum(1))
                 .build()
                 .unwrap(),
         );
-        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(94002), Some(10));
+        let body = TransactionBody::new(&inputs, &outputs, &BigNum(94002), Some(10));
 
         let mut w = TransactionWitnessSet::new();
         let mut vkw = Vkeywitnesses::new();
@@ -145,7 +124,7 @@ mod tests {
 
         let signed_tx = Transaction::new(&body, &w, None);
 
-        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
+        let linear_fee = LinearFee::new(&BigNum(500), &BigNum(2));
         assert_eq!(
             hex::encode(signed_tx.to_bytes()),
             "84a400818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00016f32030aa10081825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee5840fae5de40c94d759ce13bf9886262159c4f26a289fd192e165995b785259e503f6887bf39dfa23a47cf163784c6eee23f61440e749bc1df3c73975f5231aeda0ff5f6"
@@ -180,11 +159,11 @@ mod tests {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(1))
+                .with_coin(&BigNum(1))
                 .build()
                 .unwrap(),
         );
-        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(112002), Some(10));
+        let body = TransactionBody::new(&inputs, &outputs, &BigNum(112002), Some(10));
 
         let mut w = TransactionWitnessSet::new();
         let mut bootstrap_wits = BootstrapWitnesses::new();
@@ -199,7 +178,7 @@ mod tests {
 
         let signed_tx = Transaction::new(&body, &w, None);
 
-        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
+        let linear_fee = LinearFee::new(&BigNum(500), &BigNum(2));
         assert_eq!(
             hex::encode(signed_tx.to_bytes()),
             "84a400818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a0001b582030aa10281845820473811afd4d939b337c9be1a2ceeb2cb2c75108bddf224c5c21c51592a7b204a5840f0b04a852353eb23b9570df80b2aa6a61b723341ab45a2024a05b07cf58be7bdfbf722c09040db6cee61a0d236870d6ad1e1349ac999ec0db28f9471af25fb0c5820c8b95d0d35fe75a70f9f5633a3e2439b2994b9e2bc851c49e9f91d1a5dcbb1a341a0f5f6"
@@ -243,7 +222,7 @@ mod tests {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(289))
+                .with_coin(&BigNum(289))
                 .build()
                 .unwrap(),
         );
@@ -258,11 +237,11 @@ mod tests {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(874551452))
+                .with_coin(&BigNum(874551452))
                 .build()
                 .unwrap(),
         );
-        let body = TransactionBody::new(&inputs, &outputs, &to_bignum(183502), Some(999));
+        let body = TransactionBody::new(&inputs, &outputs, &BigNum(183502), Some(999));
 
         let mut w = TransactionWitnessSet::new();
         let mut vkw = Vkeywitnesses::new();
@@ -286,7 +265,7 @@ mod tests {
 
         let signed_tx = Transaction::new(&body, &w, None);
 
-        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
+        let linear_fee = LinearFee::new(&BigNum(500), &BigNum(2));
         assert_eq!(
             hex::encode(signed_tx.to_bytes()),
             "84a400828258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7182a82582082839f8200d81858248258203b40265111d8bb3c3c608d95b3a0bf83461ace3207018282581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c19012182581d61bcd18fcffa797c16c007014e2b8553b8b9b1e94c507688726243d6111a3420989c021a0002ccce031903e7a10082825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee58401ec3e56008650282ba2e1f8a20e81707810b2d0973c4d42a1b4df65b732bda81567c7824904840b2554d2f33861da5d70588a29d33b2b61042e3c3445301d8008258206872b0a874acfe1cace12b20ea348559a7ecc912f2fc7f674f43481df973d92c5840a0718fb5b37d89ddf926c08e456d3f4c7f749e91f78bb3e370751d5b632cbd20d38d385805291b1ef2541b02543728a235e01911f4b400bfb50e5fce589de907f5f6"
@@ -323,11 +302,11 @@ mod tests {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(1))
+                .with_coin(&BigNum(1))
                 .build()
                 .unwrap(),
         );
-        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(266002), Some(10));
+        let mut body = TransactionBody::new(&inputs, &outputs, &BigNum(266002), Some(10));
 
         let mut certs = Certificates::new();
 
@@ -351,12 +330,12 @@ mod tests {
                 &hex::decode("fbf6d41985670b9041c5bf362b5262cf34add5d265975de176d613ca05f37096")
                     .unwrap(),
             )), // vrf_keyhash
-            &to_bignum(1000000),                                // pledge
-            &to_bignum(1000000),                                // cost
-            &UnitInterval::new(&to_bignum(3), &to_bignum(100)), // margin
+            &BigNum(1000000),                                // pledge
+            &BigNum(1000000),                                // cost
+            &UnitInterval::new(&BigNum(3), &BigNum(100)), // margin
             &RewardAddress::new(
                 network,
-                &StakeCredential::from_keyhash(
+                &Credential::from_keyhash(
                     &PublicKey::from_bytes(
                         &hex::decode(
                             "54d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f3",
@@ -407,7 +386,7 @@ mod tests {
 
         let signed_tx = Transaction::new(&body, &w, None);
 
-        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
+        let linear_fee = LinearFee::new(&BigNum(500), &BigNum(2));
         assert_eq!(
             hex::encode(signed_tx.to_bytes()),
             "84a500818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00040f12030a04818a03581c1c13374874c68016df54b1339b6cacdd801098431e7659b24928efc15820bd0000f498ccacdc917c28274cba51c415f3f21931ff41ca8dc1197499f8e1241a000f42401a000f4240d81e82031864581de151df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af7081581c51df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af7080f6a10083825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee5840a7f305d7e46abfe0f7bea6098bdf853ab9ce8e7aa381be5a991a871852f895a718e20614e22be43494c4dc3a8c78c56cd44fd38e0e5fff3e2fbd19f70402fc02825820b24c040e65994bd5b0621a060166d32d356ef4be3cc1f848426a4cf386887089584013c372f82f1523484eab273241d66d92e1402507760e279480912aa5f0d88d656d6f25d41e65257f2f38c65ac5c918a6735297741adfc718394994f20a1cfd0082582054d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f35840d326b993dfec21b9b3e1bd2f80adadc2cd673a1d8d033618cc413b0b02bc3b7efbb23d1ff99138abd05c398ce98e7983a641b50dcf0f64ed33f26c6e636b0b0ff5f6"
@@ -423,8 +402,8 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), BigNum(10)));
+    //     let mut body = TransactionBody::new(&inputs, &outputs, BigNum(94), 10);
     //     let mut certs = Certificates::new();
     //     certs.add(&Certificate::new_stake_delegation(&StakeDelegation::new(&bob_stake(), &alice_pool())));
     //     body.set_certs(&certs);
@@ -440,8 +419,8 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), BigNum(10)));
+    //     let mut body = TransactionBody::new(&inputs, &outputs, BigNum(94), 10);
     //     let mut certs = Certificates::new();
     //     certs.add(&Certificate::new_stake_deregistration(&StakeDeregistration::new(&alice_pay())));
     //     body.set_certs(&certs);
@@ -457,8 +436,8 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), BigNum(10)));
+    //     let mut body = TransactionBody::new(&inputs, &outputs, BigNum(94), 10);
     //     let mut certs = Certificates::new();
     //     let mut owners = Ed25519KeyHashes::new();
     //     owners.add(&(alice_stake().to_keyhash().unwrap()));
@@ -467,10 +446,10 @@ mod tests {
     //     let params = PoolParams::new(
     //         &alice_pool(),
     //         &VRFKeyHash::from([0u8; VRFKeyHash::BYTE_COUNT]),
-    //         to_bignum(1),
-    //         to_bignum(5),
-    //         &UnitInterval::new(to_bignum(1), to_bignum(10)),
-    //         &RewardAddress::new(NetworkInfo::testnet().network_id(), &alice_stake()),
+    //         BigNum(1),
+    //         BigNum(5),
+    //         &UnitInterval::new(BigNum(1), BigNum(10)),
+    //         &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &alice_stake()),
     //         &owners,
     //         &relays,
     //         Some(PoolMetadata::new(String::from("alice.pool"), &MetadataHash::from([0u8; MetadataHash::BYTE_COUNT])))
@@ -499,8 +478,8 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), BigNum(10)));
+    //     let mut body = TransactionBody::new(&inputs, &outputs, BigNum(94), 10);
     //     let mut certs = Certificates::new();
     //     certs.add(&Certificate::new_pool_retirement(&PoolRetirement::new(&alice_pool(), 5)));
     //     body.set_certs(&certs);
@@ -516,13 +495,13 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
-    //     let mut body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), BigNum(10)));
+    //     let mut body = TransactionBody::new(&inputs, &outputs, BigNum(94), 10);
     //     body.set_metadata_hash(&MetadataHash::from([37; MetadataHash::BYTE_COUNT]));
     //     let w = make_mock_witnesses_vkey(&body, vec![&alice_key()]);
     //     let mut metadata = TransactionMetadata::new();
     //     let mut md_list = TransactionMetadatums::new();
-    //     md_list.add(&TransactionMetadatum::new_int(&Int::new(&to_bignum(5))));
+    //     md_list.add(&TransactionMetadatum::new_int(&Int::new(&BigNum(5))));
     //     md_list.add(&TransactionMetadatum::new_text(String::from("hello")));
     //     metadata.insert(TransactionMetadatumLabel::new(0), &TransactionMetadatum::new_arr_transaction_metadatum(&md_list));
     //     let tx = Transaction::new(&body, &w, Some(metadata));
@@ -536,8 +515,8 @@ mod tests {
     //     let mut inputs = TransactionInputs::new();
     //     inputs.add(&TransactionInput::new(&genesis_id(), 0));
     //     let mut outputs = TransactionOutputs::new();
-    //     outputs.add(&TransactionOutput::new(&alice_addr(), to_bignum(10)));
-    //     let body = TransactionBody::new(&inputs, &outputs, to_bignum(94), 10);
+    //     outputs.add(&TransactionOutput::new(&alice_addr(), BigNum(10)));
+    //     let body = TransactionBody::new(&inputs, &outputs, BigNum(94), 10);
     //     let mut w = make_mock_witnesses_vkey(&body, vec![&alice_key(), &bob_key()]);
     //     let mut script_witnesses = MultisigScripts::new();
     //     let mut inner_scripts = MultisigScripts::new();
@@ -577,11 +556,11 @@ mod tests {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(1))
+                .with_coin(&BigNum(1))
                 .build()
                 .unwrap(),
         );
-        let mut body = TransactionBody::new(&inputs, &outputs, &to_bignum(162502), Some(10));
+        let mut body = TransactionBody::new(&inputs, &outputs, &BigNum(162502), Some(10));
         let mut withdrawals = Withdrawals::new();
         withdrawals.insert(
             &RewardAddress::from_address(
@@ -592,7 +571,7 @@ mod tests {
                 .unwrap(),
             )
             .unwrap(),
-            &to_bignum(1337),
+            &BigNum(1337),
         );
         body.set_withdrawals(&withdrawals);
 
@@ -620,7 +599,7 @@ mod tests {
 
         let signed_tx = Transaction::new(&body, &w, None);
 
-        let linear_fee = LinearFee::new(&to_bignum(500), &to_bignum(2));
+        let linear_fee = LinearFee::new(&BigNum(500), &BigNum(2));
         assert_eq!(
             hex::encode(signed_tx.to_bytes()),
             "84a500818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00027ac6030a05a1581de151df9ba1b74a1c9608a487e114184556801e927d31d96425cb80af70190539a10082825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee5840fc0493f7121efe385d72830680e735ccdef99c3a31953fe877b89ad3a97fcdb871cc7f2cdd6a8104e52f6963bd9e10d814d4fabdbcdc8475bc63e872dcc94d0a82582054d1a9c5ad69586ceeb839c438400c376c0bd34825fb4c17cc2f58c54e1437f35840a051ba927582004aedab736b9f1f9330ff867c260f4751135d480074256e83cd23d2a4bb109f955c43afdcdc5d1841b28d5c1ea2148dfbb6252693590692bb00f5f6"
@@ -632,11 +611,11 @@ mod tests {
     }
 
     fn exunits(mem: u64, steps: u64) -> ExUnits {
-        ExUnits::new(&to_bignum(mem), &to_bignum(steps))
+        ExUnits::new(&BigNum(mem), &BigNum(steps))
     }
 
     fn subcoin(num: u64, denum: u64) -> SubCoin {
-        SubCoin::new(&to_bignum(num), &to_bignum(denum))
+        SubCoin::new(&BigNum(num), &BigNum(denum))
     }
 
     fn exunit_prices(mem_prices: (u64, u64), step_prices: (u64, u64)) -> ExUnitPrices {
@@ -662,22 +641,22 @@ mod tests {
         // 10 * (2/1) + 20 * (3/1) = 10 * 2 + 20 * 3 = 20 + 60
         assert_eq!(
             _calculate_ex_units_ceil_cost(10, 20, (2, 1), (3, 1)),
-            to_bignum(80),
+            BigNum(80),
         );
         // 22 * (12/6) + 33 * (33/11) = 22 * 2 + 33 * 3 = 44 + 99 = 143
         assert_eq!(
             _calculate_ex_units_ceil_cost(22, 33, (12, 6), (33, 11)),
-            to_bignum(143),
+            BigNum(143),
         );
         // 10 * (5/7) + 20 * (9/13) = 50/7 + 180/13 = 650/91 + 1260/91 = 1910/91 = ceil(20.98) = 21
         assert_eq!(
             _calculate_ex_units_ceil_cost(10, 20, (5, 7), (9, 13)),
-            to_bignum(21),
+            BigNum(21),
         );
         // 22 * (7/5) + 33 * (13/9) = 154/5 + 429/9 = 1386/45 + 2145/45 = 3531/45 = ceil(78.46) = 79
         assert_eq!(
             _calculate_ex_units_ceil_cost(22, 33, (7, 5), (13, 9)),
-            to_bignum(79),
+            BigNum(79),
         );
     }
 }

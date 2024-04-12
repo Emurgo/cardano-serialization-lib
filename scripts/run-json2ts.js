@@ -5,23 +5,92 @@ const path = require('path');
 const schemasDir = path.join('rust', 'json-gen', 'schemas');
 const schemaFiles = fs.readdirSync(schemasDir).filter(file => path.extname(file) === '.json');
 
-function replaceRef(obj) {
-  if (obj['$ref'] != null && typeof obj['$ref'] === 'string' && obj['$ref'].startsWith('#/definitions/')) {
-    obj['$ref'] = obj['$ref'].replace(/^(#\/definitions\/)/, '') + '.json';//`file:`) + '.json#';
-    console.log(`replacing: ${obj['$ref']}`);
+function renameSchema(obj, visited) {
+  if (visited != null && visited.has(obj)) {
+    return;
+  }
+  visited = visited || new Set();
+  visited.add(obj);
+  if (obj.hasOwnProperty("title")) {
+    if (!obj.title.endsWith("JSON")) {
+      obj.title = obj.title + "JSON";
+    }
+  }
+  renameDefinitions(obj, visited);
+  renameRef(obj);
+  goOverProperties(obj, visited);
+  goOverMultiType(obj, visited);
+}
+
+function renameRef(obj) {
+    if (obj.hasOwnProperty("$ref")) {
+        const ref = obj["$ref"];
+        if (!ref.endsWith("JSON")) {
+          obj["$ref"] = ref + "JSON";
+        }
+    }
+}
+
+function renameDefinitions(obj, visited) {
+  if (obj.hasOwnProperty("definitions")) {
+    for (const [key, value] of Object.entries(obj.definitions)) {
+      if (!key.endsWith("JSON") && !key.startsWith("__")) {
+        renameObjectKey(obj.definitions, key, key + "JSON");
+        renameSchema(value, visited)
+      }
+      visited.add(value);
+    }
   }
 }
 
-function replaceRefs(node) {
-  Object.entries(node).forEach(([k, v]) => {
-    if (typeof v === 'object') {
-      replaceRef(v);
-      replaceRefs(v);
-      /*if (v.additionalProperties != null) {
-        replaceRef(v.additionalProperties);
-      }*/
+function goOverProperties(obj, visited) {
+  if (obj.hasOwnProperty("properties")) {
+    for (const [key, value] of Object.entries(obj.properties)) {
+      renameSchema(value, visited);
     }
-  });
+  }
+  if (obj.hasOwnProperty("items")) {
+    if (Array.isArray(obj.items)) {
+      for (const [key, value] of Object.entries(obj.items)) {
+        renameSchema(value, visited);
+      }
+    } else if (typeof obj.items === "object") {
+      renameSchema(obj.items, visited);
+    }
+  }
+
+  if (obj.hasOwnProperty("additionalProperties")) {
+    if (Array.isArray(obj.additionalProperties)) {
+      for (const [key, value] of Object.entries(obj.additionalProperties)) {
+        renameSchema(value, visited);
+      }
+    } else if (typeof obj.additionalProperties === "object") {
+      renameSchema(obj.additionalProperties, visited);
+    }
+
+  }
+}
+
+function isMultiType(obj) {
+    return obj.hasOwnProperty("anyOf") || obj.hasOwnProperty("oneOf") || obj.hasOwnProperty("allOf");
+}
+
+function goOverMultiType(obj, visited) {
+  if (isMultiType(obj)) {
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === "anyOf" || key === "oneOf" || key === "allOf") {
+        for (const [index, type] of Object.entries(value)) {
+          renameSchema(type, visited);
+        }
+      }
+    }
+  }
+}
+
+function renameObjectKey(obj, oldKey, newKey) {
+  if (obj.hasOwnProperty(oldKey)) {
+    delete Object.assign(obj, {[newKey]: obj[oldKey]})[oldKey];
+  }
 }
 
 Promise.all(schemaFiles.map(schemaFile => {
@@ -38,31 +107,11 @@ Promise.all(schemaFiles.map(schemaFile => {
     schemaObj.additionalProperties = false;
   }
 
-  // NOTE: Due to infinite recursion in recursive types (e.g. NativeScript)
-  // possibly due to a bug in the schema->ts lib, we instead just remove the
-  // duplicates after the fact. Self-referencing is confirmed not supported,
-  // but there has been mentions in those github issues of support for other
-  // recursive types correctly.
-  //
-  // It's possibly related to directly using "Foo.json" in replaceRefs()
-  // but I was not able to get this working using the $ref external file: syntax
-  // that seemed to be valid online.
-  // We can also take advantage of the post-removal to easily remove 2 weird unused
-  // outputs that shouldn't have been generated to begin with (String and MapOf_*)
-
-  /*
-  // we need to make all references by external so we don't duplicate declarations
-  if (schemaObj.definitions != null) {
-    // eliminate in-file definitions
-    schemaObj.definitions = [];
-    // change all refs from local to external
-    replaceRefs(schemaObj);
-  }
-  */
-
-  //console.log(`NEW: ${JSON.stringify(schemaObj)}\n\n\n\n\n`);
+  renameSchema(schemaObj, null);
+  // console.log(`NEW: ${JSON.stringify(schemaObj)}\n\n\n\n\n`);
   return json2ts.compile(schemaObj, schemaFile, {
-    declareExternallyReferenced: false,
+    declareExternallyReferenced: true,
+    additionalProperties: false,
     cwd: schemasDir,//path.join(process.cwd(), schemasDir),
     bannerComment: ''
   }).catch(e => { console.error(`${schemaFile}: ${e}`); });
@@ -70,6 +119,10 @@ Promise.all(schemaFiles.map(schemaFile => {
 })).then(tsDefs => {
   fs.mkdirSync(path.join('rust', 'json-gen', 'output'), { recursive: true });
   const defs = tsDefs.join('').split(/\r?\n/);
+  //replace all auto-deduped defs with the first one
+  for(let i = 0; i < defs.length; ++i) {
+    defs[i] = defs[i].replace(/JSON\d+/, 'JSON');
+  }
   let dedupedDefs = [];
   let start = null;
   let added = new Set();
@@ -99,12 +152,6 @@ Promise.all(schemaFiles.map(schemaFile => {
     }
   }
   addDef(defs.length);
-  // prepend 'JSON' to all identifiers here so they don't conflict with main .ts types
-  for (let i = 0; i < dedupedDefs.length; ++i) {
-    for (let id of added) {
-      dedupedDefs[i] = dedupedDefs[i].replace(new RegExp(`\\b${id}\\b`), id + 'JSON');
-    }
-  }
   return fs.writeFileSync(path.join('rust', 'json-gen', 'output', 'json-types.d.ts'), dedupedDefs.join('\n'));
 });
 
