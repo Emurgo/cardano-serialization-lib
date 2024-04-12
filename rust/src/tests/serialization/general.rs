@@ -760,3 +760,10 @@ fn redeemers_map_array_round_trip() {
     assert_eq!(new_redeemers_map, new_redeemers_array);
     assert_ne!(bytes_array, bytes_map)
 }
+
+#[test]
+fn redeemers_map_deserialization() {
+    let hex = "a282000082d8799f0102030405ff821821182c82040082d8799f0102030405ff8218371842";
+    let redeemers = Redeemers::from_hex(hex);
+    assert!(redeemers.is_ok());
+}
