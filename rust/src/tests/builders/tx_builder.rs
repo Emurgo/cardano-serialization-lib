@@ -6359,10 +6359,11 @@ fn ref_script_fee_from_all_builders() {
         &PlutusWitness::new_with_ref_without_datum(&plutus_source_6, &redeemer_6)
     ).unwrap();
 
+    let input_coin = Coin::from(1000000000u64);
     tx_input_builder.add_plutus_script_input(
         &PlutusWitness::new_with_ref_without_datum(&plutus_source_8, &redeemer_8),
         &tx_in_8,
-        &Value::new(&Coin::from(1000000000u64))
+        &Value::new(&input_coin)
     );
 
     let mut tx_builder = create_reallistic_tx_builder();
@@ -6407,6 +6408,13 @@ fn ref_script_fee_from_all_builders() {
     let min_tx_fee = min_fee_for_size(tx_size, &create_linear_fee(44, 155381)).unwrap();
     let fee_leftover = total_tx_fee.checked_sub(&min_tx_fee).unwrap();
     assert_eq!(ref_script_fee, fee_leftover);
+
+    let tx_out_coin = tx.body().outputs().get(0).amount().coin();
+    let total_out = tx_out_coin
+        .checked_add(&total_tx_fee).unwrap()
+        .checked_sub(&Coin::from(2u64)).unwrap(); // withdrawals
+
+    assert_eq!(total_out, input_coin);
 
     let ref_inputs = tx.body().reference_inputs().unwrap();
     assert!(ref_inputs.contains(&tx_in_1));
