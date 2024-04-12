@@ -34,6 +34,17 @@ pub(crate) fn variable_nat_encode(mut num: u64) -> Vec<u8> {
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum AddressKind {
+    Base,
+    Pointer,
+    Enterprise,
+    Reward,
+    Byron,
+    Malformed,
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct NetworkInfo {
     network_id: u8,
     protocol_magic: u32,
@@ -302,6 +313,28 @@ impl JsonSchema for Address {
 // other CBOR types
 #[wasm_bindgen]
 impl Address {
+
+    pub fn kind(&self) -> AddressKind {
+        match &self.0 {
+            AddrType::Base(_) => AddressKind::Base,
+            AddrType::Ptr(_) => AddressKind::Pointer,
+            AddrType::Enterprise(_) => AddressKind::Enterprise,
+            AddrType::Reward(_) => AddressKind::Reward,
+            AddrType::Byron(_) => AddressKind::Byron,
+            AddrType::Malformed(_) => AddressKind::Malformed,
+        }
+    }
+
+    pub fn payment_cred(&self) -> Option<Credential> {
+        match &self.0 {
+            AddrType::Base(a) => Some(a.payment_cred()),
+            AddrType::Enterprise(a) => Some(a.payment_cred()),
+            AddrType::Reward(a) => Some(a.payment_cred()),
+            AddrType::Ptr(a) => Some(a.payment_cred()),
+            AddrType::Byron(_) => None,
+            AddrType::Malformed(_) => None,
+        }
+    }
 
     pub fn is_malformed(&self) -> bool {
         matches!(&self.0, AddrType::Malformed(_))
