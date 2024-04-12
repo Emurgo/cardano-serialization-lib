@@ -306,6 +306,44 @@ impl TransactionBuilderConfigBuilder {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
+pub struct ChangeConfig {
+    address: Address,
+    plutus_data: Option<OutputDatum>,
+    script_ref: Option<ScriptRef>
+}
+
+#[wasm_bindgen]
+impl ChangeConfig {
+    pub fn new(address: &Address) -> Self {
+        Self {
+            address: address.clone(),
+            plutus_data: None,
+            script_ref: None
+        }
+    }
+
+    pub fn change_address(&self, address: &Address) -> Self {
+        let mut c_cfg = self.clone();
+        c_cfg.address = address.clone();
+        c_cfg
+    }
+
+    pub fn change_plutus_data(&self, plutus_data: &OutputDatum) -> Self {
+        let mut c_cfg = self.clone();
+        c_cfg.plutus_data = Some(plutus_data.clone());
+        c_cfg
+    }
+
+    pub fn change_script_ref(&self, script_ref: &ScriptRef) -> Self {
+        let mut c_cfg = self.clone();
+        c_cfg.script_ref = Some(script_ref.clone());
+        c_cfg
+    }
+}
+
+
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
 pub struct TransactionBuilder {
     pub(crate) config: TransactionBuilderConfig,
     pub(crate) inputs: TxInputsBuilder,
@@ -665,6 +703,10 @@ impl TransactionBuilder {
         self.collateral_return = Some(collateral_return.clone());
     }
 
+    pub fn remove_collateral_return(&mut self) {
+        self.collateral_return = None;
+    }
+
     /// This function will set the collateral-return value and then auto-calculate and assign
     /// the total collateral coin value. Will raise an error in case no collateral inputs are set
     /// or in case the total collateral value will have any assets in it except coin.
@@ -703,6 +745,10 @@ impl TransactionBuilder {
 
     pub fn set_total_collateral(&mut self, total_collateral: &Coin) {
         self.total_collateral = Some(total_collateral.clone());
+    }
+
+    pub fn remove_total_collateral(&mut self) {
+        self.total_collateral = None;
     }
 
     /// This function will set the total-collateral coin and then auto-calculate and assign
@@ -801,6 +847,95 @@ impl TransactionBuilder {
         self.inputs.add_regular_input(address, input, amount)
     }
 
+    // This method should be used after outputs of the transaction is defined.
+    // It will attempt utxo selection initially then add change, if adding change fails
+    // then it will attempt to use up the rest of the available inputs, attempting to add change
+    // after every extra input.
+    pub fn add_inputs_from_and_change(
+        &mut self,
+        inputs: &TransactionUnspentOutputs,
+        strategy: CoinSelectionStrategyCIP2,
+        change_config: &ChangeConfig
+    ) -> Result<bool, JsError>
+    {
+        self.add_inputs_from(inputs, strategy)?;
+        match &self.fee {
+            Some(_x) => {
+                return Err(JsError::from_str(
+                    "Cannot calculate change if fee was explicitly specified",
+                ))
+            }
+            None => {
+                let mut add_change_result = self.add_change_if_needed_with_optional_script_and_datum(&change_config.address, change_config.plutus_data.clone().map_or(None, |od| Some(od.0)), change_config.script_ref.clone());
+                match add_change_result {
+                    Ok(v) => Ok(v),
+                    Err(e) => {
+                        let mut unused_inputs = TransactionUnspentOutputs::new();
+                        for input in inputs.into_iter() {
+                            if self.inputs.inputs().0.iter().all(|used_input| input.input() != *used_input) {
+                                unused_inputs.add(input)
+                            }
+                        }
+                        unused_inputs.0.sort_by_key(|input| input.clone().output.amount.multiasset.map_or(0, |ma| ma.len()));
+                        unused_inputs.0.reverse();
+                        while unused_inputs.0.len() > 0 {
+                            let last_input = unused_inputs.0.pop();
+                            match last_input {
+                                Some(input) => {
+                                    self.add_regular_input(&input.output().address(), &input.input(), &input.output().amount())?;
+                                    add_change_result = self.add_change_if_needed_with_optional_script_and_datum(&change_config.address, change_config.plutus_data.clone().map_or(None, |od| Some(od.0)), change_config.script_ref.clone());
+                                    if let Ok(value) = add_change_result {
+                                        return Ok(value)
+                                    }
+                                },
+                                None => return Err(JsError::from_str("Unable to balance tx with available inputs"))
+                            }
+                        }
+                        Err(e)
+                    }
+                }
+            }
+        }
+    }
+
+    // This method should be used after outputs of the transaction is defined.
+    // It will attempt to fill the required values using the inputs given.
+    // After which, it will attempt to set a collateral return output.
+    pub fn add_inputs_from_and_change_with_collateral_return(
+        &mut self,
+        inputs: &TransactionUnspentOutputs,
+        strategy: CoinSelectionStrategyCIP2,
+        change_config: &ChangeConfig,
+        collateral_percentage: u64
+    ) -> Result<bool, JsError> {
+        let mut total_collateral = Value::zero();
+        for collateral_input in self.collateral.iter() {
+            total_collateral = total_collateral.checked_add(&collateral_input.amount)?;
+        }
+        self.set_total_collateral_and_return(&total_collateral.coin(), &change_config.address)?;
+        let add_change_result = self.add_inputs_from_and_change(inputs, strategy, change_config);
+        match add_change_result {
+            Ok(_) => {
+                let fee = self.get_fee_if_set().unwrap();
+                let collateral_required = ((u64::from(&fee) * collateral_percentage) / 100) + 1;
+                let set_collateral_result = self.set_total_collateral_and_return(&BigNum(collateral_required), &change_config.address);
+                match set_collateral_result {
+                    Ok(_) => {
+                        Ok(true)
+                    }
+                    Err(_) => {
+                        self.remove_collateral_return();
+                        self.remove_total_collateral();
+                        Ok(true)
+                    }
+                }
+            }
+            Err(e) => {
+                Err(e)
+            }
+        }?;
+        Ok(true)
+    }
 
     /// Returns a copy of the current script input witness scripts in the builder
     #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
@@ -892,6 +1027,10 @@ impl TransactionBuilder {
         self.ttl = Some(ttl.clone())
     }
 
+    pub fn remove_ttl(&mut self) {
+        self.ttl = None;
+    }
+
     /// !!! DEPRECATED !!!
     /// Uses outdated slot number format.
     #[deprecated(
@@ -904,6 +1043,10 @@ impl TransactionBuilder {
 
     pub fn set_validity_start_interval_bignum(&mut self, validity_start_interval: SlotBigNum) {
         self.validity_start_interval = Some(validity_start_interval.clone())
+    }
+
+    pub fn remove_validity_start_interval(&mut self) {
+        self.validity_start_interval = None;
     }
 
     /// !!! DEPRECATED !!!
@@ -922,6 +1065,10 @@ impl TransactionBuilder {
         self.certs = Some(builder);
 
         Ok(())
+    }
+
+    pub fn remove_certs(&mut self) {
+        self.certs = None;
     }
 
     pub fn set_certs_builder(&mut self, certs: &CertificatesBuilder) {
@@ -958,6 +1105,10 @@ impl TransactionBuilder {
         self.voting_proposals = Some(voting_proposal_builder.clone());
     }
 
+    pub fn remove_withdrawals(&mut self) {
+        self.withdrawals = None;
+    }
+
     pub fn get_auxiliary_data(&self) -> Option<AuxiliaryData> {
         self.auxiliary_data.clone()
     }
@@ -966,6 +1117,10 @@ impl TransactionBuilder {
     /// It might contain some metadata plus native or Plutus scripts
     pub fn set_auxiliary_data(&mut self, auxiliary_data: &AuxiliaryData) {
         self.auxiliary_data = Some(auxiliary_data.clone())
+    }
+
+    pub fn remove_auxiliary_data(&mut self) {
+        self.auxiliary_data = None;
     }
 
     /// Set metadata using a GeneralTransactionMetadata object
@@ -1018,6 +1173,10 @@ impl TransactionBuilder {
 
     pub fn set_mint_builder(&mut self, mint_builder: &MintBuilder) {
         self.mint = Some(mint_builder.clone());
+    }
+
+    pub fn remove_mint_builder(&mut self) {
+        self.mint = None;
     }
 
     pub fn get_mint_builder(&self) -> Option<MintBuilder> {
