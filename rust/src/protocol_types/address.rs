@@ -265,7 +265,7 @@ impl ByronAddress {
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Address(pub(crate) AddrType);
 
-from_bytes!(Address, data, { Self::from_bytes_impl(data.as_ref()) });
+from_bytes!(Address, data, { Self::from_bytes_impl_safe(data.as_ref()) });
 
 to_from_json!(Address);
 
@@ -346,7 +346,7 @@ impl Address {
 
     pub fn from_hex(hex_str: &str) -> Result<Address, JsError> {
         match hex::decode(hex_str) {
-            Ok(data) => Ok(Self::from_bytes_impl(data.as_ref())?),
+            Ok(data) => Ok(Self::from_bytes_impl_safe(data.as_ref())?),
             Err(e) => Err(JsError::from_str(&e.to_string())),
         }
     }
@@ -390,7 +390,18 @@ impl Address {
         buf
     }
 
-    fn from_bytes_impl(data: &[u8]) -> Result<Address, DeserializeError> {
+    fn from_bytes_impl_safe(data: &[u8]) -> Result<Address, DeserializeError> {
+        Self::from_bytes_internal_impl(data)
+    }
+
+    fn from_bytes_impl_unsafe(data: &[u8]) -> Address {
+        match Self::from_bytes_internal_impl(data) {
+            Ok(addr) => addr,
+            Err(e) => Address(AddrType::Malformed(MalformedAddress(data.to_vec())))
+        }
+    }
+
+    fn from_bytes_internal_impl(data: &[u8]) -> Result<Address, DeserializeError> {
         use std::convert::TryInto;
         // header has 4 bits addr type discrim then 4 bits network discrim.
         // Copied from shelley.cddl:
@@ -515,12 +526,7 @@ impl Address {
                 }
                 _ => Err(DeserializeFailure::BadAddressType(header).into()),
             };
-            match addr {
-                Ok(addr) => Ok(Address(addr)),
-                Err(_) => Ok(Address(AddrType::Malformed(MalformedAddress(
-                    data.to_vec(),
-                )))),
-            }
+            Ok(Address(addr?))
         })()
         .map_err(|e| e.annotate("Address"))
     }
@@ -563,10 +569,14 @@ impl Address {
                     AddrType::Reward(_) => "stake",
                     _ => "addr",
                 };
-                let prefix_tail = match self.network_id()? {
-                    id if id == NetworkInfo::testnet_preprod().network_id() => "_test",
-                    id if id == NetworkInfo::testnet_preview().network_id() => "_test",
-                    _ => "",
+                let prefix_tail = if self.is_malformed() {
+                    "_malformed"
+                } else {
+                    match self.network_id()? {
+                        id if id == NetworkInfo::testnet_preprod().network_id() => "_test",
+                        id if id == NetworkInfo::testnet_preview().network_id() => "_test",
+                        _ => "",
+                    }
                 };
                 format!("{}{}", prefix_header, prefix_tail)
             }
@@ -579,7 +589,7 @@ impl Address {
         let (_hrp, u5data) =
             bech32::decode(bech_str).map_err(|e| JsError::from_str(&e.to_string()))?;
         let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data).unwrap();
-        Ok(Self::from_bytes_impl(data.as_ref())?)
+        Ok(Self::from_bytes_impl_safe(data.as_ref())?)
     }
 
     pub fn network_id(&self) -> Result<u8, JsError> {
@@ -605,7 +615,7 @@ impl cbor_event::se::Serialize for Address {
 
 impl Deserialize for Address {
     fn deserialize<R: BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Self::from_bytes_impl(raw.bytes()?.as_ref())
+        Ok(Self::from_bytes_impl_unsafe(raw.bytes()?.as_ref()))
     }
 }
 
@@ -769,7 +779,7 @@ impl Deserialize for RewardAddress {
     fn deserialize<R: BufRead>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         (|| -> Result<Self, DeserializeError> {
             let bytes = raw.bytes()?;
-            match Address::from_bytes_impl(bytes.as_ref())?.0 {
+            match Address::from_bytes_impl_safe(bytes.as_ref())?.0 {
                 AddrType::Reward(ra) => Ok(ra),
                 _other_address => Err(DeserializeFailure::BadAddressType(bytes[0]).into()),
             }

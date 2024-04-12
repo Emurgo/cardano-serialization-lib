@@ -560,8 +560,22 @@ fn prepod_network_id_test() {
 }
 
 #[test]
-fn malformed_address() {
+fn malformed_addres_deserialisation_errors() {
     let address_bech32 = "addr1q9d66zzs27kppmx8qc8h43q7m4hkxp5d39377lvxefvxd8j7eukjsdqc5c97t2zg5guqadepqqx6rc9m7wtnxy6tajjvk4a0kze4ljyuvvrpexg5up2sqxj33363v35gtew";
-    let address = Address::from_bech32(address_bech32).unwrap();
-    assert!(address.is_malformed());
+    let address = Address::from_bech32(address_bech32);
+    assert!(address.is_err());
+}
+
+#[test]
+fn malformed_addres_embedded() {
+    let address = MalformedAddress(vec![5u8; 32]);
+    let output = TransactionOutput::new(
+        &address.to_address(),
+        &Value::new(&Coin::from(100u64)),
+    );
+    let bytes = output.to_bytes();
+    let output2 = TransactionOutput::from_bytes(bytes).unwrap();
+
+    assert!(output2.address.is_malformed());
+    assert_eq!(&address.to_address(), &output2.address);
 }
