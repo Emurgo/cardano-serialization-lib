@@ -70,6 +70,42 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
+ * @param {Address} address
+ * @param {TransactionUnspentOutputs} utxos
+ * @param {TransactionBuilderConfig} config
+ * @returns {TransactionBatchList}
+ */
+declare export function create_send_all(
+  address: Address,
+  utxos: TransactionUnspentOutputs,
+  config: TransactionBuilderConfig
+): TransactionBatchList;
+
+/**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
  * @param {Transaction} tx
  * @param {LinearFee} linear_fee
  * @returns {BigNum}
@@ -94,6 +130,16 @@ declare export function calculate_ex_units_ceil_cost(
 declare export function min_script_fee(
   tx: Transaction,
   ex_unit_prices: ExUnitPrices
+): BigNum;
+
+/**
+ * @param {number} total_ref_scripts_size
+ * @param {UnitInterval} ref_script_coins_per_byte
+ * @returns {BigNum}
+ */
+declare export function min_ref_script_fee(
+  total_ref_scripts_size: number,
+  ref_script_coins_per_byte: UnitInterval
 ): BigNum;
 
 /**
@@ -222,40 +268,59 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
  */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
+
+declare export var NativeScriptKind: {|
+  +ScriptPubkey: 0, // 0
+  +ScriptAll: 1, // 1
+  +ScriptAny: 2, // 2
+  +ScriptNOfK: 3, // 3
+  +TimelockStart: 4, // 4
+  +TimelockExpiry: 5, // 5
+|};
 
 /**
- * @param {string} password
- * @param {string} data
- * @returns {string}
+ * Each new language uses a different namespace for hashing its script
+ * This is because you could have a language where the same bytes have different semantics
+ * So this avoids scripts in different languages mapping to the same hash
+ * Note that the enum value here is different than the enum value for deciding the cost model of a script
  */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
+
+declare export var ScriptHashNamespace: {|
+  +NativeScript: 0, // 0
+  +PlutusScript: 1, // 1
+  +PlutusScriptV2: 2, // 2
+  +PlutusScriptV3: 3, // 3
+|};
 
 /**
- * @param {Address} address
- * @param {TransactionUnspentOutputs} utxos
- * @param {TransactionBuilderConfig} config
- * @returns {TransactionBatchList}
  */
-declare export function create_send_all(
-  address: Address,
-  utxos: TransactionUnspentOutputs,
-  config: TransactionBuilderConfig
-): TransactionBatchList;
+
+declare export var PlutusDataKind: {|
+  +ConstrPlutusData: 0, // 0
+  +Map: 1, // 1
+  +List: 2, // 2
+  +Integer: 3, // 3
+  +Bytes: 4, // 4
+|};
+
+/**
+ */
+
+declare export var NetworkIdKind: {|
+  +Testnet: 0, // 0
+  +Mainnet: 1, // 1
+|};
+
+/**
+ */
+
+declare export var DRepKind: {|
+  +KeyHash: 0, // 0
+  +ScriptHash: 1, // 1
+  +AlwaysAbstain: 2, // 2
+  +AlwaysNoConfidence: 3, // 3
+|};
 
 /**
  */
@@ -269,19 +334,17 @@ declare export var LanguageKind: {|
 /**
  */
 
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
 |};
 
 /**
  */
 
-declare export var RelayKind: {|
-  +SingleHostAddr: 0, // 0
-  +SingleHostName: 1, // 1
-  +MultiHostName: 2, // 2
+declare export var CredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
 |};
 
 /**
@@ -300,11 +363,28 @@ declare export var GovernanceActionKind: {|
 /**
  */
 
+declare export var VoteKind: {|
+  +No: 0, // 0
+  +Yes: 1, // 1
+  +Abstain: 2, // 2
+|};
+
+/**
+ */
+
 declare export var CoinSelectionStrategyCIP2: {|
   +LargestFirst: 0, // 0
   +RandomImprove: 1, // 1
   +LargestFirstMultiAsset: 2, // 2
   +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ */
+
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
 |};
 
 /**
@@ -316,69 +396,45 @@ declare export var CborContainerType: {|
 |};
 
 /**
+ */
+
+declare export var RedeemerTagKind: {|
+  +Spend: 0, // 0
+  +Mint: 1, // 1
+  +Cert: 2, // 2
+  +Reward: 3, // 3
+  +Vote: 4, // 4
+  +VotingProposal: 5, // 5
+|};
+
+/**
+ */
+
+declare export var AddressKind: {|
+  +Base: 0, // 0
+  +Pointer: 1, // 1
+  +Enterprise: 2, // 2
+  +Reward: 3, // 3
+  +Byron: 4, // 4
+  +Malformed: 5, // 5
+|};
+
+/**
+ */
+
+declare export var RelayKind: {|
+  +SingleHostAddr: 0, // 0
+  +SingleHostName: 1, // 1
+  +MultiHostName: 2, // 2
+|};
+
+/**
  * Used to choosed the schema for a script JSON string
  */
 
 declare export var ScriptSchema: {|
   +Wallet: 0, // 0
   +Node: 1, // 1
-|};
-
-/**
- */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var PlutusDataKind: {|
-  +ConstrPlutusData: 0, // 0
-  +Map: 1, // 1
-  +List: 2, // 2
-  +Integer: 3, // 3
-  +Bytes: 4, // 4
-|};
-
-/**
- */
-
-declare export var VoteKind: {|
-  +No: 0, // 0
-  +Yes: 1, // 1
-  +Abstain: 2, // 2
-|};
-
-/**
- */
-
-declare export var DRepKind: {|
-  +KeyHash: 0, // 0
-  +ScriptHash: 1, // 1
-  +AlwaysAbstain: 2, // 2
-  +AlwaysNoConfidence: 3, // 3
-|};
-
-/**
- */
-
-declare export var MIRKind: {|
-  +ToOtherPot: 0, // 0
-  +ToStakeCredentials: 1, // 1
-|};
-
-/**
- */
-
-declare export var NetworkIdKind: {|
-  +Testnet: 0, // 0
-  +Mainnet: 1, // 1
 |};
 
 /**
@@ -399,29 +455,34 @@ declare export var PlutusDatumSchema: {|
 |};
 
 /**
- * Each new language uses a different namespace for hashing its script
- * This is because you could have a language where the same bytes have different semantics
- * So this avoids scripts in different languages mapping to the same hash
- * Note that the enum value here is different than the enum value for deciding the cost model of a script
  */
 
-declare export var ScriptHashNamespace: {|
-  +NativeScript: 0, // 0
-  +PlutusScript: 1, // 1
-  +PlutusScriptV2: 2, // 2
-  +PlutusScriptV3: 3, // 3
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
 |};
 
 /**
  */
 
-declare export var RedeemerTagKind: {|
-  +Spend: 0, // 0
-  +Mint: 1, // 1
-  +Cert: 2, // 2
-  +Reward: 3, // 3
-  +Vote: 4, // 4
-  +VotingProposal: 5, // 5
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var VoterKind: {|
+  +ConstitutionalCommitteeHotKeyHash: 0, // 0
+  +ConstitutionalCommitteeHotScriptHash: 1, // 1
+  +DRepKeyHash: 2, // 2
+  +DRepScriptHash: 3, // 3
+  +StakingPoolKeyHash: 4, // 4
 |};
 
 /**
@@ -445,45 +506,6 @@ declare export var CertificateKind: {|
   +StakeVoteRegistrationAndDelegation: 14, // 14
   +VoteDelegation: 15, // 15
   +VoteRegistrationAndDelegation: 16, // 16
-|};
-
-/**
- */
-
-declare export var MIRPot: {|
-  +Reserves: 0, // 0
-  +Treasury: 1, // 1
-|};
-
-/**
- */
-
-declare export var CredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
-declare export var NativeScriptKind: {|
-  +ScriptPubkey: 0, // 0
-  +ScriptAll: 1, // 1
-  +ScriptAny: 2, // 2
-  +ScriptNOfK: 3, // 3
-  +TimelockStart: 4, // 4
-  +TimelockExpiry: 5, // 5
-|};
-
-/**
- */
-
-declare export var VoterKind: {|
-  +ConstitutionalCommitteeHotKeyHash: 0, // 0
-  +ConstitutionalCommitteeHotScriptHash: 1, // 1
-  +DRepKeyHash: 2, // 2
-  +DRepScriptHash: 3, // 3
-  +StakingPoolKeyHash: 4, // 4
 |};
 
 /**
@@ -512,6 +534,18 @@ declare export class Address {
    * @returns {Address}
    */
   static from_json(json: string): Address;
+
+  /**
+ * @returns {$Values<
+                typeof 
+                AddressKind>}
+ */
+  kind(): $Values<typeof AddressKind>;
+
+  /**
+   * @returns {Credential | void}
+   */
+  payment_cred(): Credential | void;
 
   /**
    * @returns {boolean}
@@ -2150,6 +2184,35 @@ declare export class CertificatesBuilder {
    * @returns {Certificates}
    */
   build(): Certificates;
+}
+/**
+ */
+declare export class ChangeConfig {
+  free(): void;
+
+  /**
+   * @param {Address} address
+   * @returns {ChangeConfig}
+   */
+  static new(address: Address): ChangeConfig;
+
+  /**
+   * @param {Address} address
+   * @returns {ChangeConfig}
+   */
+  change_address(address: Address): ChangeConfig;
+
+  /**
+   * @param {OutputDatum} plutus_data
+   * @returns {ChangeConfig}
+   */
+  change_plutus_data(plutus_data: OutputDatum): ChangeConfig;
+
+  /**
+   * @param {ScriptRef} script_ref
+   * @returns {ChangeConfig}
+   */
+  change_script_ref(script_ref: ScriptRef): ChangeConfig;
 }
 /**
  */
@@ -6043,14 +6106,17 @@ declare export class NativeScriptSource {
   /**
    * @param {ScriptHash} script_hash
    * @param {TransactionInput} input
-   * @param {Ed25519KeyHashes} required_signers
    * @returns {NativeScriptSource}
    */
   static new_ref_input(
     script_hash: ScriptHash,
-    input: TransactionInput,
-    required_signers: Ed25519KeyHashes
+    input: TransactionInput
   ): NativeScriptSource;
+
+  /**
+   * @param {Ed25519KeyHashes} key_hashes
+   */
+  set_required_signers(key_hashes: Ed25519KeyHashes): void;
 }
 /**
  */
@@ -6983,13 +7049,25 @@ declare export class PlutusScriptSource {
    * @param {ScriptHash} script_hash
    * @param {TransactionInput} input
    * @param {Language} lang_ver
+   * @param {number} script_size
    * @returns {PlutusScriptSource}
    */
   static new_ref_input(
     script_hash: ScriptHash,
     input: TransactionInput,
-    lang_ver: Language
+    lang_ver: Language,
+    script_size: number
   ): PlutusScriptSource;
+
+  /**
+   * @param {Ed25519KeyHashes} key_hashes
+   */
+  set_required_signers(key_hashes: Ed25519KeyHashes): void;
+
+  /**
+   * @returns {number | void}
+   */
+  get_ref_script_size(): number | void;
 }
 /**
  */
@@ -8156,6 +8234,16 @@ declare export class ProtocolParamUpdate {
    * @returns {number | void}
    */
   drep_inactivity_period(): number | void;
+
+  /**
+   * @param {UnitInterval} ref_script_coins_per_byte
+   */
+  set_ref_script_coins_per_byte(ref_script_coins_per_byte: UnitInterval): void;
+
+  /**
+   * @returns {UnitInterval | void}
+   */
+  ref_script_coins_per_byte(): UnitInterval | void;
 
   /**
    * @returns {ProtocolParamUpdate}
@@ -10460,6 +10548,10 @@ declare export class TransactionBuilder {
   set_collateral_return(collateral_return: TransactionOutput): void;
 
   /**
+   */
+  remove_collateral_return(): void;
+
+  /**
    * This function will set the collateral-return value and then auto-calculate and assign
    * the total collateral coin value. Will raise an error in case no collateral inputs are set
    * or in case the total collateral value will have any assets in it except coin.
@@ -10471,6 +10563,10 @@ declare export class TransactionBuilder {
    * @param {BigNum} total_collateral
    */
   set_total_collateral(total_collateral: BigNum): void;
+
+  /**
+   */
+  remove_total_collateral(): void;
 
   /**
    * This function will set the total-collateral coin and then auto-calculate and assign
@@ -10488,6 +10584,15 @@ declare export class TransactionBuilder {
    * @param {TransactionInput} reference_input
    */
   add_reference_input(reference_input: TransactionInput): void;
+
+  /**
+   * @param {TransactionInput} reference_input
+   * @param {number} script_size
+   */
+  add_script_reference_input(
+    reference_input: TransactionInput,
+    script_size: number
+  ): void;
 
   /**
    * We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -10554,6 +10659,36 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
+ * @param {TransactionUnspentOutputs} inputs
+ * @param {$Values<
+                typeof 
+                CoinSelectionStrategyCIP2>} strategy
+ * @param {ChangeConfig} change_config
+ * @returns {boolean}
+ */
+  add_inputs_from_and_change(
+    inputs: TransactionUnspentOutputs,
+    strategy: $Values<typeof CoinSelectionStrategyCIP2>,
+    change_config: ChangeConfig
+  ): boolean;
+
+  /**
+ * @param {TransactionUnspentOutputs} inputs
+ * @param {$Values<
+                typeof 
+                CoinSelectionStrategyCIP2>} strategy
+ * @param {ChangeConfig} change_config
+ * @param {bigint} collateral_percentage
+ * @returns {boolean}
+ */
+  add_inputs_from_and_change_with_collateral_return(
+    inputs: TransactionUnspentOutputs,
+    strategy: $Values<typeof CoinSelectionStrategyCIP2>,
+    change_config: ChangeConfig,
+    collateral_percentage: bigint
+  ): boolean;
+
+  /**
    * Returns a copy of the current script input witness scripts in the builder
    * @returns {NativeScripts | void}
    */
@@ -10610,6 +10745,10 @@ declare export class TransactionBuilder {
   set_ttl_bignum(ttl: BigNum): void;
 
   /**
+   */
+  remove_ttl(): void;
+
+  /**
    * !!! DEPRECATED !!!
    * Uses outdated slot number format.
    * @param {number} validity_start_interval
@@ -10622,12 +10761,20 @@ declare export class TransactionBuilder {
   set_validity_start_interval_bignum(validity_start_interval: BigNum): void;
 
   /**
+   */
+  remove_validity_start_interval(): void;
+
+  /**
    * !!! DEPRECATED !!!
    * Can emit error if add a cert with script credential.
    * Use set_certs_builder instead.
    * @param {Certificates} certs
    */
   set_certs(certs: Certificates): void;
+
+  /**
+   */
+  remove_certs(): void;
 
   /**
    * @param {CertificatesBuilder} certs
@@ -10660,6 +10807,10 @@ declare export class TransactionBuilder {
   ): void;
 
   /**
+   */
+  remove_withdrawals(): void;
+
+  /**
    * @returns {AuxiliaryData | void}
    */
   get_auxiliary_data(): AuxiliaryData | void;
@@ -10670,6 +10821,10 @@ declare export class TransactionBuilder {
    * @param {AuxiliaryData} auxiliary_data
    */
   set_auxiliary_data(auxiliary_data: AuxiliaryData): void;
+
+  /**
+   */
+  remove_auxiliary_data(): void;
 
   /**
    * Set metadata using a GeneralTransactionMetadata object
@@ -10713,6 +10868,10 @@ declare export class TransactionBuilder {
    * @param {MintBuilder} mint_builder
    */
   set_mint_builder(mint_builder: MintBuilder): void;
+
+  /**
+   */
+  remove_mint_builder(): void;
 
   /**
    * @returns {MintBuilder | void}
@@ -11045,6 +11204,14 @@ declare export class TransactionBuilderConfigBuilder {
    * @returns {TransactionBuilderConfigBuilder}
    */
   max_tx_size(max_tx_size: number): TransactionBuilderConfigBuilder;
+
+  /**
+   * @param {UnitInterval} ref_script_coins_per_byte
+   * @returns {TransactionBuilderConfigBuilder}
+   */
+  ref_script_coins_per_byte(
+    ref_script_coins_per_byte: UnitInterval
+  ): TransactionBuilderConfigBuilder;
 
   /**
    * @param {boolean} prefer_pure_change
@@ -14244,6 +14411,7 @@ export interface ProtocolParamUpdateJSON {
   pool_pledge_influence?: UnitIntervalJSON | null;
   pool_voting_thresholds?: PoolVotingThresholdsJSON | null;
   protocol_version?: ProtocolVersionJSON | null;
+  ref_script_coins_per_byte?: UnitIntervalJSON | null;
   treasury_growth_rate?: UnitIntervalJSON | null;
 }
 export interface CostmdlsJSON {
