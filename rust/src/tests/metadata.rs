@@ -201,7 +201,7 @@ fn json_encoding_detailed_complex_key() {
 fn metadata_serialize() {
     let mut gmd = GeneralTransactionMetadata::new();
     let mdatum = TransactionMetadatum::new_text(String::from("string md")).unwrap();
-    gmd.insert(&to_bignum(100), &mdatum);
+    gmd.insert(&BigNum(100), &mdatum);
     let mut aux_data = AuxiliaryData::new();
     // alonzo (empty)
     let ad0_deser = AuxiliaryData::from_bytes(aux_data.to_bytes()).unwrap();
@@ -249,7 +249,7 @@ fn test_auxiliary_data_roundtrip() {
         let mut aux = AuxiliaryData::new();
         let mut metadata = GeneralTransactionMetadata::new();
         metadata.insert(
-            &to_bignum(42),
+            &BigNum(42),
             &encode_json_str_to_metadatum(
                 "{ \"test\": 148 }".to_string(),
                 MetadataJsonSchema::BasicConversions,

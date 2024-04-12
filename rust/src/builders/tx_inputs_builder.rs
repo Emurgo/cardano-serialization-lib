@@ -8,7 +8,6 @@ pub(crate) struct TxBuilderInput {
     pub(crate) amount: Value, // we need to keep track of the amount in the inputs for input selection
 }
 
-
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
 #[derive(Clone, Debug)]
 pub struct InputsRequiredWitness {
@@ -62,12 +61,7 @@ impl TxInputsBuilder {
         self.required_witnesses.vkeys.add_move(hash.clone());
     }
 
-    fn add_script_input(
-        &mut self,
-        hash: &ScriptHash,
-        input: &TransactionInput,
-        amount: &Value,
-    ) {
+    fn add_script_input(&mut self, hash: &ScriptHash, input: &TransactionInput, amount: &Value) {
         let inp = TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
@@ -87,6 +81,7 @@ impl TxInputsBuilder {
         self.add_script_input(&hash, input, amount);
         let witness = ScriptWitnessType::NativeScriptWitness(NativeScriptSourceEnum::NativeScript(
             script.clone(),
+            None,
         ));
         self.insert_input_with_witness(&hash, input, &witness);
     }
@@ -120,51 +115,50 @@ impl TxInputsBuilder {
     }
 
     /// Adds non script input, in case of script or reward address input it will return an error
-    pub fn add_regular_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) -> Result<(), JsError>{
+    pub fn add_regular_input(
+        &mut self,
+        address: &Address,
+        input: &TransactionInput,
+        amount: &Value,
+    ) -> Result<(), JsError> {
         match &address.0 {
-            AddrType::Base(base_addr) => {
-                match &base_addr.payment.0 {
-                    CredType::Key(key) => {
-                        self.add_key_input(key, input, amount);
-                        Ok(())
-                    },
-                    CredType::Script(_) => {
-                        Err(JsError::from_str(BuilderError::RegularInputIsScript.as_str()))
-                    },
+            AddrType::Base(base_addr) => match &base_addr.payment.0 {
+                CredType::Key(key) => {
+                    self.add_key_input(key, input, amount);
+                    Ok(())
                 }
+                CredType::Script(_) => Err(JsError::from_str(
+                    BuilderError::RegularInputIsScript.as_str(),
+                )),
             },
-            AddrType::Enterprise(ent_aaddr) => {
-                match &ent_aaddr.payment.0 {
-                    CredType::Key(key) => {
-                        self.add_key_input(key, input, amount);
-                        Ok(())
-                    },
-                    CredType::Script(_) => {
-                        Err(JsError::from_str(BuilderError::RegularInputIsScript.as_str()))
-                    },
+            AddrType::Enterprise(ent_aaddr) => match &ent_aaddr.payment.0 {
+                CredType::Key(key) => {
+                    self.add_key_input(key, input, amount);
+                    Ok(())
                 }
+                CredType::Script(_) => Err(JsError::from_str(
+                    BuilderError::RegularInputIsScript.as_str(),
+                )),
             },
-            AddrType::Ptr(ptr_addr) => {
-                match &ptr_addr.payment.0 {
-                    CredType::Key(key) => {
-                        self.add_key_input(key, input, amount);
-                        Ok(())
-                    },
-                    CredType::Script(_) => {
-                        Err(JsError::from_str(BuilderError::RegularInputIsScript.as_str()))
-                    },
+            AddrType::Ptr(ptr_addr) => match &ptr_addr.payment.0 {
+                CredType::Key(key) => {
+                    self.add_key_input(key, input, amount);
+                    Ok(())
                 }
+                CredType::Script(_) => Err(JsError::from_str(
+                    BuilderError::RegularInputIsScript.as_str(),
+                )),
             },
             AddrType::Byron(byron_addr) => {
                 self.add_bootstrap_input(byron_addr, input, amount);
                 Ok(())
-            },
-            AddrType::Reward(_) => {
-                Err(JsError::from_str(BuilderError::RegularInputIsFromRewardAddress.as_str()))
-            },
+            }
+            AddrType::Reward(_) => Err(JsError::from_str(
+                BuilderError::RegularInputIsFromRewardAddress.as_str(),
+            )),
             AddrType::Malformed(_) => {
                 Err(JsError::from_str(BuilderError::MalformedAddress.as_str()))
-            },
+            }
         }
     }
 
@@ -189,8 +183,9 @@ impl TxInputsBuilder {
                     if let Some(DatumSourceEnum::RefInput(input)) = &plutus_witness.datum {
                         inputs.push(input.clone());
                     }
-                    if let PlutusScriptSourceEnum::RefInput(input, _, _) = &plutus_witness.script {
-                        inputs.push(input.clone());
+                    if let PlutusScriptSourceEnum::RefInput(script_ref, _) = &plutus_witness.script
+                    {
+                        inputs.push(script_ref.input_ref.clone());
                     }
                 }
                 _ => (),
@@ -198,6 +193,7 @@ impl TxInputsBuilder {
         }
         TransactionInputs(inputs)
     }
+
 
     /// Returns a copy of the current script input witness scripts in the builder
     pub fn get_native_input_scripts(&self) -> Option<NativeScripts> {
@@ -208,7 +204,7 @@ impl TxInputsBuilder {
             .flat_map(|v| v)
             .for_each(|tx_in_with_wit| {
                 if let Some(ScriptWitnessType::NativeScriptWitness(
-                    NativeScriptSourceEnum::NativeScript(s),
+                    NativeScriptSourceEnum::NativeScript(s, _),
                 )) = tx_in_with_wit.1
                 {
                     scripts.add(&s);
@@ -223,22 +219,13 @@ impl TxInputsBuilder {
 
     pub(crate) fn get_used_plutus_lang_versions(&self) -> BTreeSet<Language> {
         let mut used_langs = BTreeSet::new();
-        self.required_witnesses
-            .scripts
-            .values()
-            .for_each(|input_with_wit| {
-                for (_, script_wit) in input_with_wit {
-                    if let Some(ScriptWitnessType::PlutusScriptWitness(PlutusWitness {
-                        script,
-                        ..
-                    })) = script_wit
-                    {
-                        if let Some(lang) = script.language() {
-                            used_langs.insert(lang);
-                        }
-                    }
+        for input_with_wit in self.required_witnesses.scripts.values() {
+            for (_, script_wit) in input_with_wit {
+                if let Some(ScriptWitnessType::PlutusScriptWitness(plutus_witness)) = script_wit {
+                    used_langs.insert(plutus_witness.script.language());
                 }
-            });
+            }
+        }
         used_langs
     }
 
@@ -264,7 +251,7 @@ impl TxInputsBuilder {
             .enumerate()
             .fold(BTreeMap::new(), |mut m, (i, (tx_in, hash_option))| {
                 if hash_option.is_some() {
-                    m.insert(&tx_in.input, to_bignum(i as u64));
+                    m.insert(&tx_in.input, (i as u64).into());
                 }
                 m
             });
@@ -335,6 +322,17 @@ impl TxInputsBuilder {
         }
     }
 
+    pub(crate) fn get_script_ref_inputs_with_size(
+        &self,
+    ) -> impl Iterator<Item = (&TransactionInput, usize)> {
+        self.required_witnesses
+            .scripts
+            .iter()
+            .flat_map(|(_, tx_wits)| tx_wits.iter())
+            .filter_map(|(_, wit)| wit.as_ref())
+            .filter_map(|wit| wit.get_script_ref_input_with_size())
+    }
+
     fn insert_input_with_witness(
         &mut self,
         script_hash: &ScriptHash,
@@ -373,7 +371,9 @@ impl From<&TxInputsBuilder> for Ed25519KeyHashes {
             .flat_map(|tx_wits| tx_wits.values())
             .for_each(|swt: &Option<ScriptWitnessType>| {
                 if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = swt {
-                    set.extend_move(script_source.required_signers());
+                    if let Some(signers) = script_source.required_signers() {
+                        set.extend_move(signers);
+                    }
                 }
             });
         set

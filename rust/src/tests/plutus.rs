@@ -4,7 +4,7 @@ use hex::*;
 #[test]
 pub fn plutus_constr_data() {
     let constr_0 = PlutusData::new_constr_plutus_data(&ConstrPlutusData::new(
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusList::new(),
     ));
     let constr_0_hash = hex::encode(hash_plutus_data(&constr_0).to_bytes());
@@ -16,7 +16,7 @@ pub fn plutus_constr_data() {
     // TODO: do we want semantic equality or bytewise equality?
     // assert_eq!(constr_0, constr_0_roundtrip);
     // let constr_1854 = PlutusData::new_constr_plutus_data(
-    //     &ConstrPlutusData::new(&to_bignum(1854), &PlutusList::new())
+    //     &ConstrPlutusData::new(&BigNum(1854), &PlutusList::new())
     // );
     // let constr_1854_roundtrip = PlutusData::from_bytes(constr_1854.to_bytes()).unwrap();
     // assert_eq!(constr_1854, constr_1854_roundtrip);
@@ -147,7 +147,7 @@ pub fn plutus_datum_from_json_detailed() {
     assert_eq!(bytes, [202, 254, 208, 13]);
     // constr data
     let constr = list.get(2).as_constr_plutus_data().unwrap();
-    assert_eq!(to_bignum(0), constr.alternative());
+    assert_eq!(BigNum(0), constr.alternative());
     let fields = constr.data();
     assert_eq!(fields.len(), 2);
     let field0 = fields.get(0).as_map().unwrap();
@@ -237,15 +237,15 @@ fn test_total_ex_units() {
     let mut r = Redeemers::new();
 
     fn assert_ex_units(eu: &ExUnits, exp_mem: u64, exp_steps: u64) {
-        assert_eq!(eu.mem, to_bignum(exp_mem));
-        assert_eq!(eu.steps, to_bignum(exp_steps));
+        assert_eq!(eu.mem, BigNum(exp_mem));
+        assert_eq!(eu.steps, BigNum(exp_steps));
     }
 
-    r.add(&redeemer_with_ex_units(&to_bignum(10), &to_bignum(100)));
+    r.add(&redeemer_with_ex_units(&BigNum(10), &BigNum(100)));
     assert_ex_units(&r.total_ex_units().unwrap(), 10, 100);
-    r.add(&redeemer_with_ex_units(&to_bignum(20), &to_bignum(200)));
+    r.add(&redeemer_with_ex_units(&BigNum(20), &BigNum(200)));
     assert_ex_units(&r.total_ex_units().unwrap(), 30, 300);
-    r.add(&redeemer_with_ex_units(&to_bignum(30), &to_bignum(300)));
+    r.add(&redeemer_with_ex_units(&BigNum(30), &BigNum(300)));
     assert_ex_units(&r.total_ex_units().unwrap(), 60, 600);
 }
 
@@ -374,7 +374,7 @@ fn test_known_plutus_data_hash() {
         &RedeemerTag::new_spend(),
         &BigNum::one(),
         &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
-        &ExUnits::new(&to_bignum(7000000), &to_bignum(3000000000)),
+        &ExUnits::new(&BigNum(7000000), &BigNum(3000000000)),
     )]);
     let lang = Language::new_plutus_v1();
     let lang_costmodel = TxBuilderConstants::plutus_vasil_cost_models()
@@ -420,7 +420,7 @@ fn test_known_plutus_data_hash_with_no_datums() {
             &RedeemerTag::new_spend(),
             &BigNum::zero(),
             &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
-            &ExUnits::new(&to_bignum(842996), &to_bignum(246100241)),
+            &ExUnits::new(&BigNum(842996), &BigNum(246100241)),
         )]),
         &costmodels,
         None,
@@ -454,7 +454,7 @@ fn test_known_plutus_data_hash_2() {
         &RedeemerTag::new_spend(),
         &BigNum::one(),
         &PlutusData::new_empty_constr_plutus_data(&BigNum::one()),
-        &ExUnits::new(&to_bignum(61300), &to_bignum(18221176)),
+        &ExUnits::new(&BigNum(61300), &BigNum(18221176)),
     )]);
     let hash = hash_script_data(
         &redeemers,

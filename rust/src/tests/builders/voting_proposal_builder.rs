@@ -1,6 +1,9 @@
-use crate::*;
 use crate::fakes::{fake_key_hash, fake_reward_address, fake_script_hash, fake_tx_hash};
-use crate::tests::mock_objects::{crate_full_protocol_param_update, create_anchor, create_change_address, create_plutus_script, create_tx_builder_with_amount_and_deposit_params};
+use crate::tests::mock_objects::{
+    crate_full_protocol_param_update, create_anchor, create_change_address, create_plutus_script,
+    create_tx_builder_with_amount_and_deposit_params,
+};
+use crate::*;
 
 fn total_tx_output_with_fee(tx: &Transaction) -> Coin {
     let mut total = Coin::zero();
@@ -34,17 +37,19 @@ fn voting_proposal_builder_one_proposal() {
     assert_eq!(inputs.len(), 0);
 
     assert_eq!(builder.has_plutus_scripts(), false);
-    assert_eq!(builder.get_total_deposit().unwrap(), proposal_deposit.clone());
+    assert_eq!(
+        builder.get_total_deposit().unwrap(),
+        proposal_deposit.clone()
+    );
 
     let initial_amount = 1000000000u64;
-    let mut tx_builder = create_tx_builder_with_amount_and_deposit_params(
-        initial_amount,
-        500,
-        500,
-        false);
+    let mut tx_builder =
+        create_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, false);
 
     tx_builder.set_voting_proposal_builder(&builder);
-    tx_builder.add_change_if_needed(&create_change_address()).unwrap();
+    tx_builder
+        .add_change_if_needed(&create_change_address())
+        .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
 
@@ -93,7 +98,8 @@ fn voting_proposal_builder_all_proposals() {
     let anchor = create_anchor();
     let constitution = Constitution::new(&anchor);
     let constitution_action = NewConstitutionAction::new(&constitution);
-    let wrapped_constitution_action = GovernanceAction::new_new_constitution_action(&constitution_action);
+    let wrapped_constitution_action =
+        GovernanceAction::new_new_constitution_action(&constitution_action);
     let constitution_proposal = VotingProposal::new(
         &wrapped_constitution_action,
         &create_anchor(),
@@ -127,7 +133,8 @@ fn voting_proposal_builder_all_proposals() {
     let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
     withdrawals.insert(&addr1, &Coin::from(1u32));
     let withdrawal_action = TreasuryWithdrawalsAction::new(&withdrawals);
-    let wrapped_withdrawal_action = GovernanceAction::new_treasury_withdrawals_action(&withdrawal_action);
+    let wrapped_withdrawal_action =
+        GovernanceAction::new_treasury_withdrawals_action(&withdrawal_action);
     let withdrawal_proposal = VotingProposal::new(
         &wrapped_withdrawal_action,
         &create_anchor(),
@@ -156,14 +163,13 @@ fn voting_proposal_builder_all_proposals() {
     assert_eq!(builder.get_total_deposit().unwrap(), total_deposit.clone());
 
     let initial_amount = 1000000000u64;
-    let mut tx_builder = create_tx_builder_with_amount_and_deposit_params(
-        initial_amount,
-        500,
-        500,
-        false);
+    let mut tx_builder =
+        create_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, false);
 
     tx_builder.set_voting_proposal_builder(&builder);
-    tx_builder.add_change_if_needed(&create_change_address()).unwrap();
+    tx_builder
+        .add_change_if_needed(&create_change_address())
+        .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
 
@@ -209,10 +215,7 @@ fn voting_proposal_builder_with_plutus_script_witness() {
     );
     let expected_redeemer =
         redeemer.clone_with_index_and_tag(&BigNum::from(1u64), &RedeemerTag::new_voting_proposal());
-    let plutus_witness = PlutusWitness::new_without_datum(
-        &script,
-        &redeemer,
-    );
+    let plutus_witness = PlutusWitness::new_without_datum(&script, &redeemer);
 
     let mut committee =
         Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
@@ -227,7 +230,9 @@ fn voting_proposal_builder_with_plutus_script_witness() {
         &fake_reward_address(2),
         &proposal_deposit,
     );
-    builder.add_with_plutus_witness(&committee_proposal, &plutus_witness).unwrap();
+    builder
+        .add_with_plutus_witness(&committee_proposal, &plutus_witness)
+        .unwrap();
 
     let witnesses = builder.get_plutus_witnesses();
     assert_eq!(witnesses.len(), 1);
@@ -244,14 +249,13 @@ fn voting_proposal_builder_with_plutus_script_witness() {
     assert_eq!(builder.get_total_deposit().unwrap(), total_deposit.clone());
 
     let initial_amount = 1000000000u64;
-    let mut tx_builder = create_tx_builder_with_amount_and_deposit_params(
-        initial_amount,
-        500,
-        500,
-        true);
+    let mut tx_builder =
+        create_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, true);
 
     tx_builder.set_voting_proposal_builder(&builder);
-    tx_builder.add_change_if_needed(&create_change_address()).unwrap();
+    tx_builder
+        .add_change_if_needed(&create_change_address())
+        .unwrap();
 
     let mut cost_models = TxBuilderConstants::plutus_default_cost_models();
     cost_models = cost_models.retain_language_versions(&Languages(vec![Language::new_plutus_v2()]));
@@ -297,7 +301,7 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
     let hf_action =
         HardForkInitiationAction::new_with_action_id(&action_id, &ProtocolVersion::new(1, 2));
     let mut builder = VotingProposalBuilder::new();
-    let wrapped_hf_action  = GovernanceAction::new_hard_fork_initiation_action(&hf_action);
+    let wrapped_hf_action = GovernanceAction::new_hard_fork_initiation_action(&hf_action);
     let hf_proposal = VotingProposal::new(
         &wrapped_hf_action,
         &create_anchor(),
@@ -316,11 +320,9 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
     );
     let expected_redeemer =
         redeemer.clone_with_index_and_tag(&BigNum::from(1u64), &RedeemerTag::new_voting_proposal());
-    let plutus_source = PlutusScriptSource::new_ref_input(&script_hash, &ref_input, &Language::new_plutus_v2());
-    let plutus_witness = PlutusWitness::new_with_ref_without_datum(
-        &plutus_source,
-        &redeemer,
-    );
+    let plutus_source =
+        PlutusScriptSource::new_ref_input(&script_hash, &ref_input, &Language::new_plutus_v2(), 0);
+    let plutus_witness = PlutusWitness::new_with_ref_without_datum(&plutus_source, &redeemer);
 
     let mut committee =
         Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
@@ -328,14 +330,16 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
     let mut members_to_remove = Credentials::new();
     members_to_remove.add(&Credential::from_keyhash(&fake_key_hash(1)));
     let committee_action = UpdateCommitteeAction::new(&committee, &members_to_remove);
-    let wrapped_committee_action= GovernanceAction::new_new_committee_action(&committee_action);
+    let wrapped_committee_action = GovernanceAction::new_new_committee_action(&committee_action);
     let committee_proposal = VotingProposal::new(
         &wrapped_committee_action,
         &create_anchor(),
         &fake_reward_address(2),
         &proposal_deposit,
     );
-    builder.add_with_plutus_witness(&committee_proposal, &plutus_witness).unwrap();
+    builder
+        .add_with_plutus_witness(&committee_proposal, &plutus_witness)
+        .unwrap();
 
     let witnesses = builder.get_plutus_witnesses();
     assert_eq!(witnesses.len(), 1);
@@ -353,14 +357,13 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
     assert_eq!(builder.get_total_deposit().unwrap(), total_deposit.clone());
 
     let initial_amount = 1000000000u64;
-    let mut tx_builder = create_tx_builder_with_amount_and_deposit_params(
-        initial_amount,
-        500,
-        500,
-        true);
+    let mut tx_builder =
+        create_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, true);
 
     tx_builder.set_voting_proposal_builder(&builder);
-    tx_builder.add_change_if_needed(&create_change_address()).unwrap();
+    tx_builder
+        .add_change_if_needed(&create_change_address())
+        .unwrap();
 
     let mut cost_models = TxBuilderConstants::plutus_default_cost_models();
     cost_models = cost_models.retain_language_versions(&Languages(vec![Language::new_plutus_v2()]));

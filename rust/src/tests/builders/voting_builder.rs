@@ -1,8 +1,6 @@
-use crate::fakes::{fake_key_hash, fake_script_hash, fake_tx_hash, fake_vkey};
+use crate::fakes::{fake_key_hash, fake_script_hash, fake_tx_hash, fake_tx_input, fake_vkey};
 use crate::fees::min_fee_for_size;
-use crate::tests::mock_objects::{
-    create_change_address, create_linear_fee, create_plutus_script, create_rich_tx_builder,
-};
+use crate::tests::mock_objects::{create_change_address, create_linear_fee, create_plutus_script, create_redeemer, create_rich_tx_builder};
 use crate::*;
 
 #[test]
@@ -192,6 +190,7 @@ fn voting_builder_plutus_ref_witness() {
         &script_hash,
         &ref_input,
         &Language::new_plutus_v2(),
+        0
     );
     let witness = PlutusWitness::new_with_ref_without_datum(&script_source, &redeemer);
     builder
@@ -335,8 +334,9 @@ fn voting_builder_native_script_ref_witness() {
     script_signers.add(&key_hash);
 
     let ref_input = TransactionInput::new(&fake_tx_hash(5), 0);
-    let script_source =
-        NativeScriptSource::new_ref_input(&script_hash, &ref_input, &script_signers);
+    let mut script_source =
+        NativeScriptSource::new_ref_input(&script_hash, &ref_input);
+    script_source.set_required_signers(&script_signers);
     builder
         .add_with_native_script(&voter, &action_id, &vote, &script_source)
         .unwrap();

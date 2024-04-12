@@ -34,7 +34,7 @@ fn ptr_serialize_consistency() {
     let ptr = PointerAddress::new(
         25,
         &Credential::from_keyhash(&Ed25519KeyHash::from([23; Ed25519KeyHash::BYTE_COUNT])),
-        &Pointer::new_pointer(&to_bignum(2354556573), &to_bignum(127), &to_bignum(0)),
+        &Pointer::new_pointer(&BigNum(2354556573), &BigNum(127), &BigNum(0)),
     );
     let addr = ptr.to_address();
     let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
@@ -192,7 +192,7 @@ fn bip32_12_pointer() {
     let addr_net_0 = PointerAddress::new(
         NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3)),
+        &Pointer::new_pointer(&BigNum(1), &BigNum(2), &BigNum(3)),
     )
     .to_address();
     assert_eq!(
@@ -202,7 +202,7 @@ fn bip32_12_pointer() {
     let addr_net_3 = PointerAddress::new(
         NetworkInfo::mainnet().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42)),
+        &Pointer::new_pointer(&BigNum(24157), &BigNum(177), &BigNum(42)),
     )
     .to_address();
     assert_eq!(
@@ -282,7 +282,7 @@ fn bip32_15_pointer() {
     let addr_net_0 = PointerAddress::new(
         NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3)),
+        &Pointer::new_pointer(&BigNum(1), &BigNum(2), &BigNum(3)),
     )
     .to_address();
     assert_eq!(
@@ -292,7 +292,7 @@ fn bip32_15_pointer() {
     let addr_net_3 = PointerAddress::new(
         NetworkInfo::mainnet().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42)),
+        &Pointer::new_pointer(&BigNum(24157), &BigNum(177), &BigNum(42)),
     )
     .to_address();
     assert_eq!(
@@ -416,7 +416,7 @@ fn bip32_24_pointer() {
     let addr_net_0 = PointerAddress::new(
         NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3)),
+        &Pointer::new_pointer(&BigNum(1), &BigNum(2), &BigNum(3)),
     )
     .to_address();
     assert_eq!(
@@ -426,7 +426,7 @@ fn bip32_24_pointer() {
     let addr_net_3 = PointerAddress::new(
         NetworkInfo::mainnet().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42)),
+        &Pointer::new_pointer(&BigNum(24157), &BigNum(177), &BigNum(42)),
     )
     .to_address();
     assert_eq!(
@@ -536,15 +536,15 @@ fn multisig_from_script() {
 fn pointer_address_big() {
     let addr = Address::from_bech32("addr_test1grqe6lg9ay8wkcu5k5e38lne63c80h3nq6xxhqfmhewf645pllllllllllll7lupllllllllllll7lupllllllllllll7lc9wayvj").unwrap();
     let ptr = PointerAddress::from_address(&addr).unwrap().stake;
-    assert_eq!(u64::MAX, from_bignum(&ptr.slot));
-    assert_eq!(u64::MAX, from_bignum(&ptr.tx_index));
-    assert_eq!(u64::MAX, from_bignum(&ptr.cert_index));
+    assert_eq!(u64::MAX, u64::from(ptr.slot));
+    assert_eq!(u64::MAX, u64::from(ptr.tx_index));
+    assert_eq!(u64::MAX, u64::from(ptr.cert_index));
 }
 
 #[test]
 fn point_address_old() {
     let p1 = Pointer::new(10, 20, 30);
-    let p2 = Pointer::new_pointer(&to_bignum(10), &to_bignum(20), &to_bignum(30));
+    let p2 = Pointer::new_pointer(&BigNum(10), &BigNum(20), &BigNum(30));
     assert_eq!(p1, p2);
 }
 

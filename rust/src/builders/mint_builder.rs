@@ -60,7 +60,12 @@ impl MintBuilder {
         }
     }
 
-    pub fn add_asset(&mut self, mint: &MintWitness, asset_name: &AssetName, amount: &Int) -> Result<(), JsError> {
+    pub fn add_asset(
+        &mut self,
+        mint: &MintWitness,
+        asset_name: &AssetName,
+        amount: &Int,
+    ) -> Result<(), JsError> {
         if amount.0 == 0 {
             return Err(JsError::from_str("Mint cannot be zero."));
         }
@@ -68,7 +73,12 @@ impl MintBuilder {
         Ok(())
     }
 
-    pub fn set_asset(&mut self, mint: &MintWitness, asset_name: &AssetName, amount: &Int) -> Result<(), JsError> {
+    pub fn set_asset(
+        &mut self,
+        mint: &MintWitness,
+        asset_name: &AssetName,
+        amount: &Int,
+    ) -> Result<(), JsError> {
         if amount.0 == 0 {
             return Err(JsError::from_str("Mint cannot be zero."));
         }
@@ -201,9 +211,8 @@ impl MintBuilder {
         for script_mint in self.mints.values() {
             match script_mint {
                 ScriptMint::Plutus(plutus_mints) => {
-                    if let PlutusScriptSourceEnum::RefInput(ref_input, _, _) = &plutus_mints.script
-                    {
-                        reference_inputs.push(ref_input.clone());
+                    if let PlutusScriptSourceEnum::RefInput(ref_script, _) = &plutus_mints.script {
+                        reference_inputs.push(ref_script.input_ref.clone());
                     }
                 }
                 _ => {}
@@ -261,13 +270,27 @@ impl MintBuilder {
         for (_, script_mint) in &self.mints {
             match script_mint {
                 ScriptMint::Plutus(plutus_mints) => {
-                    if let Some(lang) = plutus_mints.script.language() {
-                        used_langs.insert(lang);
-                    }
+                    used_langs.insert(plutus_mints.script.language());
                 }
                 _ => {}
             }
         }
         used_langs
+    }
+
+    //return only ref inputs that are script refs with added size
+    //used for calculating the fee for the transaction
+    //another ref input and also script ref input without size are filtered out
+    pub(crate) fn get_script_ref_inputs_with_size(
+        &self,
+    ) -> impl Iterator<Item = (&TransactionInput, usize)> {
+        self.mints.iter().filter_map(|(_, script_mint)| {
+            if let ScriptMint::Plutus(plutus_mints) = script_mint {
+                if let PlutusScriptSourceEnum::RefInput(script_ref, _) = &plutus_mints.script {
+                    return Some((&script_ref.input_ref, script_ref.script_size));
+                }
+            }
+            None
+        })
     }
 }

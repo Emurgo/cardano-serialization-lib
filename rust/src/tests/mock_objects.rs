@@ -64,7 +64,7 @@ pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
         pool_deposit: Some(Coin::from(44_444u32)),
         max_epoch: Some(44_444u32),
         n_opt: Some(44_444u32),
-        pool_pledge_influence: Some(Rational::new(
+        pool_pledge_influence: Some(UnitInterval::new(
             &BigNum::from(44_444u32),
             &BigNum::from(44_444u32),
         )),
@@ -86,11 +86,11 @@ pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
         ada_per_utxo_byte: Some(Coin::from(44_444u32)),
         cost_models: Some(create_cost_models()),
         execution_costs: Some(ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         )),
-        max_tx_ex_units: Some(ExUnits::new(&to_bignum(842996), &to_bignum(246100241))),
-        max_block_ex_units: Some(ExUnits::new(&to_bignum(842996), &to_bignum(246100241))),
+        max_tx_ex_units: Some(ExUnits::new(&BigNum(842996), &BigNum(246100241))),
+        max_block_ex_units: Some(ExUnits::new(&BigNum(842996), &BigNum(246100241))),
         max_value_size: Some(44_444u32),
         collateral_percentage: Some(44_444u32),
         max_collateral_inputs: Some(44_444u32),
@@ -102,7 +102,10 @@ pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
         governance_action_deposit: Some(Coin::from(44_444u32)),
         drep_deposit: Some(Coin::from(44_444u32)),
         drep_inactivity_period: Some(44_444u32),
-        ref_script_coins_per_byte: Some(Coin::from(44_444u32)),
+        ref_script_coins_per_byte: Some(UnitInterval::new(
+            &BigNum::from(44_444u32),
+            &BigNum::from(44_444u32),
+        )),
     }
 }
 
@@ -188,7 +191,7 @@ pub(crate) fn byron_address() -> Address {
 }
 
 pub(crate) fn create_linear_fee(coefficient: u64, constant: u64) -> LinearFee {
-    LinearFee::new(&to_bignum(coefficient), &to_bignum(constant))
+    LinearFee::new(&BigNum(coefficient), &BigNum(constant))
 }
 
 pub(crate) fn create_default_linear_fee() -> LinearFee {
@@ -204,15 +207,18 @@ pub(crate) fn create_tx_builder_full(
 ) -> TransactionBuilder {
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(linear_fee)
-        .pool_deposit(&to_bignum(pool_deposit))
-        .key_deposit(&to_bignum(key_deposit))
+        .pool_deposit(&BigNum(pool_deposit))
+        .key_deposit(&BigNum(key_deposit))
         .max_value_size(max_val_size)
         .max_tx_size(MAX_TX_SIZE)
-        .coins_per_utxo_byte(&to_bignum(coins_per_utxo_byte))
+        .coins_per_utxo_byte(&BigNum(coins_per_utxo_byte))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
+        .ref_script_coins_per_byte(
+            &UnitInterval::new(&BigNum(1), &BigNum(2)),
+        )
         .build()
         .unwrap();
     TransactionBuilder::new(&cfg)
@@ -259,11 +265,11 @@ pub(crate) fn create_tx_builder_with_fee_and_pure_change(
     TransactionBuilder::new(
         &TransactionBuilderConfigBuilder::new()
             .fee_algo(linear_fee)
-            .pool_deposit(&to_bignum(1))
-            .key_deposit(&to_bignum(1))
+            .pool_deposit(&BigNum(1))
+            .key_deposit(&BigNum(1))
             .max_value_size(MAX_VALUE_SIZE)
             .max_tx_size(MAX_TX_SIZE)
-            .coins_per_utxo_byte(&to_bignum(1))
+            .coins_per_utxo_byte(&BigNum(1))
             .prefer_pure_change(true)
             .build()
             .unwrap(),
@@ -369,4 +375,22 @@ pub(crate) fn create_plutus_script(x: u8, lang: &Language) -> PlutusScript {
     let pos = bytes.len() - 1;
     bytes[pos] = x;
     PlutusScript::from_bytes_with_version(bytes, lang).unwrap()
+}
+
+pub(crate) fn create_redeemer(x: u8) -> Redeemer {
+    Redeemer::new(
+        &RedeemerTag::new_cert(),
+        &BigNum::from(x as u64),
+        &PlutusData::new_empty_constr_plutus_data(&BigNum::from(x)),
+        &ExUnits::new(&BigNum::from(x), &BigNum::from(x)),
+    )
+}
+
+pub(crate) fn create_redeemer_zero_cost(x: u8) -> Redeemer {
+    Redeemer::new(
+        &RedeemerTag::new_cert(),
+        &BigNum::from(x as u64),
+        &PlutusData::new_empty_constr_plutus_data(&BigNum::from(x)),
+        &ExUnits::new(&BigNum::zero(), &BigNum::zero()),
+    )
 }

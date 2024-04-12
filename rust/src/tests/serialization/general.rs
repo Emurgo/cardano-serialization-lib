@@ -1,5 +1,5 @@
 use crate::{
-    to_bignum, Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential,
+    Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential,
     DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot,
     MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData,
     PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers,
@@ -454,12 +454,12 @@ fn test_tx_body_roundtrip() {
     let mut txb = TransactionBody::new(
         &TransactionInputs(vec![fake_tx_input(0)]),
         &TransactionOutputs(vec![fake_tx_output(1)]),
-        &to_bignum(1234567),
+        &BigNum(1234567),
         Some(12345678),
     );
 
     txb.set_collateral_return(&fake_tx_output(2));
-    txb.set_total_collateral(&to_bignum(1234));
+    txb.set_total_collateral(&BigNum(1234));
 
     let txb2 = TransactionBody::from_bytes(txb.to_bytes()).unwrap();
     assert_eq!(txb, txb2);
@@ -470,7 +470,7 @@ fn test_header_body_roundtrip() {
     fn fake_header_body(leader_cert: HeaderLeaderCertEnum) -> HeaderBody {
         HeaderBody {
             block_number: 123,
-            slot: to_bignum(123),
+            slot: BigNum(123),
             prev_hash: Some(BlockHash::from_bytes(fake_bytes_32(1)).unwrap()),
             issuer_vkey: fake_vkey(),
             vrf_vkey: VRFVKey::from_bytes(fake_bytes_32(2)).unwrap(),
@@ -511,9 +511,9 @@ fn test_witness_set_roundtrip() {
         )]));
         ws.set_redeemers(&Redeemers::from(vec![Redeemer::new(
             &RedeemerTag::new_spend(),
-            &to_bignum(12),
+            &BigNum(12),
             &PlutusData::new_integer(&BigInt::one()),
-            &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+            &ExUnits::new(&BigNum(123), &BigNum(456)),
         )]));
         ws.set_plutus_data(&PlutusList::from(vec![PlutusData::new_integer(
             &BigInt::one(),
@@ -578,7 +578,7 @@ fn legacy_output_roundtrip() {
 #[test]
 fn babbage_output_roundtrip() {
     let mut o1 = TransactionOutput::new(&fake_base_address(0), &fake_value2(234567));
-    o1.set_plutus_data(&PlutusData::new_empty_constr_plutus_data(&to_bignum(42)));
+    o1.set_plutus_data(&PlutusData::new_empty_constr_plutus_data(&BigNum(42)));
     assert_eq!(TransactionOutput::from_bytes(o1.to_bytes()).unwrap(), o1);
 
     let mut o2 = TransactionOutput::new(&fake_base_address(1), &fake_value2(234568));
@@ -601,7 +601,7 @@ fn babbage_output_roundtrip() {
     assert_eq!(TransactionOutput::from_bytes(o4.to_bytes()).unwrap(), o4);
 
     let mut o5 = TransactionOutput::new(&fake_base_address(4), &fake_value2(234571));
-    o5.set_plutus_data(&PlutusData::new_empty_constr_plutus_data(&to_bignum(43)));
+    o5.set_plutus_data(&PlutusData::new_empty_constr_plutus_data(&BigNum(43)));
     o5.set_script_ref(&ScriptRef::new_plutus_script(&script_v2));
     assert_eq!(TransactionOutput::from_bytes(o5.to_bytes()).unwrap(), o5);
 
@@ -648,15 +648,15 @@ fn redeemers_default_array_round_trip() {
     let mut redeemers = Redeemers::from(vec![
         Redeemer::new(
             &RedeemerTag::new_spend(),
-            &to_bignum(12),
+            &BigNum(12),
             &PlutusData::new_integer(&BigInt::one()),
-            &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+            &ExUnits::new(&BigNum(123), &BigNum(456)),
         ),
         Redeemer::new(
             &RedeemerTag::new_cert(),
-            &to_bignum(2),
+            &BigNum(2),
             &PlutusData::new_integer(&BigInt::from(22)),
-            &ExUnits::new(&to_bignum(23), &to_bignum(45)),
+            &ExUnits::new(&BigNum(23), &BigNum(45)),
         )
     ]);
 
@@ -674,15 +674,15 @@ fn redeemers_array_round_trip() {
     let redeemers_vec = vec![
         Redeemer::new(
             &RedeemerTag::new_spend(),
-            &to_bignum(12),
+            &BigNum(12),
             &PlutusData::new_integer(&BigInt::one()),
-            &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+            &ExUnits::new(&BigNum(123), &BigNum(456)),
         ),
         Redeemer::new(
             &RedeemerTag::new_cert(),
-            &to_bignum(2),
+            &BigNum(2),
             &PlutusData::new_integer(&BigInt::from(22)),
-            &ExUnits::new(&to_bignum(23), &to_bignum(45)),
+            &ExUnits::new(&BigNum(23), &BigNum(45)),
         )
     ];
 
@@ -701,15 +701,15 @@ fn redeemers_map_round_trip() {
     let redeemers_vec = vec![
         Redeemer::new(
             &RedeemerTag::new_spend(),
-            &to_bignum(12),
+            &BigNum(12),
             &PlutusData::new_integer(&BigInt::one()),
-            &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+            &ExUnits::new(&BigNum(123), &BigNum(456)),
         ),
         Redeemer::new(
             &RedeemerTag::new_cert(),
-            &to_bignum(2),
+            &BigNum(2),
             &PlutusData::new_integer(&BigInt::from(22)),
-            &ExUnits::new(&to_bignum(23), &to_bignum(45)),
+            &ExUnits::new(&BigNum(23), &BigNum(45)),
         )
     ];
 
@@ -728,15 +728,15 @@ fn redeemers_map_array_round_trip() {
     let redeemers_vec = vec![
         Redeemer::new(
             &RedeemerTag::new_spend(),
-            &to_bignum(12),
+            &BigNum(12),
             &PlutusData::new_integer(&BigInt::one()),
-            &ExUnits::new(&to_bignum(123), &to_bignum(456)),
+            &ExUnits::new(&BigNum(123), &BigNum(456)),
         ),
         Redeemer::new(
             &RedeemerTag::new_cert(),
-            &to_bignum(2),
+            &BigNum(2),
             &PlutusData::new_integer(&BigInt::from(22)),
-            &ExUnits::new(&to_bignum(23), &to_bignum(45)),
+            &ExUnits::new(&BigNum(23), &BigNum(45)),
         )
     ];
 

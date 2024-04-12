@@ -226,7 +226,7 @@ pub struct ProtocolParamUpdate {
     pub(crate) max_epoch: Option<Epoch>,
     // desired number of stake pools
     pub(crate) n_opt: Option<u32>,
-    pub(crate) pool_pledge_influence: Option<Rational>,
+    pub(crate) pool_pledge_influence: Option<UnitInterval>,
     pub(crate) expansion_rate: Option<UnitInterval>,
     pub(crate) treasury_growth_rate: Option<UnitInterval>,
     // decentralization constant
@@ -250,7 +250,7 @@ pub struct ProtocolParamUpdate {
     pub(crate) governance_action_deposit: Option<Coin>,
     pub(crate) drep_deposit: Option<Coin>,
     pub(crate) drep_inactivity_period: Option<Epoch>,
-    pub(crate) ref_script_coins_per_byte: Option<Coin>,
+    pub(crate) ref_script_coins_per_byte: Option<UnitInterval>,
 }
 
 impl_to_from!(ProtocolParamUpdate);
@@ -329,11 +329,11 @@ impl ProtocolParamUpdate {
         self.n_opt.clone()
     }
 
-    pub fn set_pool_pledge_influence(&mut self, pool_pledge_influence: &Rational) {
+    pub fn set_pool_pledge_influence(&mut self, pool_pledge_influence: &UnitInterval) {
         self.pool_pledge_influence = Some(pool_pledge_influence.clone())
     }
 
-    pub fn pool_pledge_influence(&self) -> Option<Rational> {
+    pub fn pool_pledge_influence(&self) -> Option<UnitInterval> {
         self.pool_pledge_influence.clone()
     }
 
@@ -523,11 +523,11 @@ impl ProtocolParamUpdate {
         self.drep_inactivity_period.clone()
     }
 
-    pub fn set_ref_script_coins_per_byte(&mut self, ref_script_coins_per_byte: &Coin) {
+    pub fn set_ref_script_coins_per_byte(&mut self, ref_script_coins_per_byte: &UnitInterval) {
         self.ref_script_coins_per_byte = Some(ref_script_coins_per_byte.clone());
     }
 
-    pub fn ref_script_coins_per_byte(&self) -> Option<Coin> {
+    pub fn ref_script_coins_per_byte(&self) -> Option<UnitInterval> {
         self.ref_script_coins_per_byte.clone()
     }
 

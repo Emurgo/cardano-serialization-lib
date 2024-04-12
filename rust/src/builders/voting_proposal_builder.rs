@@ -51,17 +51,12 @@ impl VotingProposalBuilder {
         let mut inputs = Vec::new();
         for (_, script_wit) in &self.proposals {
             match script_wit {
-                Some(ScriptWitnessType::NativeScriptWitness(script_source)) => {
-                    if let NativeScriptSourceEnum::RefInput(input, _, _) = script_source {
-                        inputs.push(input.clone());
+                Some(script_witness) => {
+                    if let Some(input) = script_witness.get_script_ref_input() {
+                        inputs.push(input);
                     }
-                }
-                Some(ScriptWitnessType::PlutusScriptWitness(plutus_witness)) => {
-                    if let Some(DatumSourceEnum::RefInput(input)) = &plutus_witness.datum {
-                        inputs.push(input.clone());
-                    }
-                    if let PlutusScriptSourceEnum::RefInput(input, _, _) = &plutus_witness.script {
-                        inputs.push(input.clone());
+                    if let Some(input) = script_witness.get_datum_ref_input() {
+                        inputs.push(input);
                     }
                 }
                 None => {}
@@ -86,12 +81,21 @@ impl VotingProposalBuilder {
         let mut used_langs = BTreeSet::new();
         for (_, script_wit) in &self.proposals {
             if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = script_wit {
-                if let Some(lang) = s.script.language() {
-                    used_langs.insert(lang.clone());
-                }
+                used_langs.insert(s.script.language());
             }
         }
         used_langs
+    }
+
+    //return only ref inputs that are script refs with added size
+    //used for calculating the fee for the transaction
+    //another ref input and also script ref input without size are filtered out
+    pub(crate) fn get_script_ref_inputs_with_size(
+        &self,
+    ) -> impl Iterator<Item = (&TransactionInput, usize)> {
+        self.proposals.iter()
+            .filter_map(|(_, script_wit)| script_wit.as_ref())
+            .filter_map(|script_wit| script_wit.get_script_ref_input_with_size())
     }
 
     pub fn has_plutus_scripts(&self) -> bool {

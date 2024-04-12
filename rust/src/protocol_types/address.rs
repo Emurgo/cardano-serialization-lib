@@ -334,9 +334,9 @@ impl Address {
                     0b0100_0000 | ((ptr.payment.kind() as u8) << 4) | (ptr.network & 0xF);
                 buf.push(header);
                 buf.extend(ptr.payment.to_raw_bytes());
-                buf.extend(variable_nat_encode(from_bignum(&ptr.stake.slot)));
-                buf.extend(variable_nat_encode(from_bignum(&ptr.stake.tx_index)));
-                buf.extend(variable_nat_encode(from_bignum(&ptr.stake.cert_index)));
+                buf.extend(variable_nat_encode(ptr.stake.slot.into()));
+                buf.extend(variable_nat_encode(ptr.stake.tx_index.into()));
+                buf.extend(variable_nat_encode(ptr.stake.cert_index.into()));
             }
             AddrType::Enterprise(enterprise) => {
                 let header: u8 = 0b0110_0000
@@ -513,9 +513,9 @@ impl Address {
         offset += cert_bytes;
         Ok((
             Pointer::new_pointer(
-                &to_bignum(slot),
-                &to_bignum(tx_index),
-                &to_bignum(cert_index),
+                &slot.into(),
+                &tx_index.into(),
+                &cert_index.into(),
             ),
             offset,
         ))

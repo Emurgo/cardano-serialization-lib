@@ -64,6 +64,8 @@ mod utils;
 pub use utils::*;
 pub(crate) mod fakes;
 mod serialization;
+mod rational;
+
 pub use serialization::*;
 
 use crate::traits::NoneOrEmpty;
@@ -116,7 +118,6 @@ impl UnitInterval {
 }
 
 type SubCoin = UnitInterval;
-type Rational = UnitInterval;
 type Epoch = u32;
 type Slot32 = u32;
 type SlotBigNum = BigNum;
@@ -206,6 +207,10 @@ impl TransactionInputs {
         self.0.push(elem.clone());
     }
 
+    pub(crate) fn contains(&self, elem: &TransactionInput) -> bool {
+        self.0.contains(elem)
+    }
+
     pub fn to_option(&self) -> Option<TransactionInputs> {
         if self.len() > 0 {
             Some(self.clone())
@@ -269,7 +274,7 @@ impl DataCost {
         match &self.0 {
             DataCostEnum::CoinsPerByte(coins_per_byte) => coins_per_byte.clone(),
             DataCostEnum::CoinsPerWord(coins_per_word) => {
-                let bytes_in_word = to_bignum(8);
+                let bytes_in_word = BigNum(8);
                 coins_per_word.div_floor(&bytes_in_word)
             }
         }
@@ -1889,7 +1894,7 @@ impl MultiAsset {
                 match lhs_ma.0.get_mut(policy) {
                     Some(assets) => match assets.0.get_mut(asset_name) {
                         Some(current) => match current.checked_sub(&amount) {
-                            Ok(new) => match new.compare(&to_bignum(0)) {
+                            Ok(new) => match new.compare(&BigNum(0)) {
                                 0 => {
                                     assets.0.remove(asset_name);
                                     match assets.0.len() {
@@ -1936,7 +1941,7 @@ impl PartialOrd for MultiAsset {
         fn amount_or_zero(ma: &MultiAsset, pid: &PolicyID, aname: &AssetName) -> Coin {
             ma.get(&pid)
                 .and_then(|assets| assets.get(aname))
-                .unwrap_or(to_bignum(0u64)) // assume 0 if asset not present
+                .unwrap_or(BigNum(0u64)) // assume 0 if asset not present
         }
 
         // idea: if (a-b) > 0 for some asset, then a > b for at least some asset
@@ -1945,7 +1950,7 @@ impl PartialOrd for MultiAsset {
                 for (aname, amount) in assets.0.iter() {
                     match amount
                         .clamped_sub(&amount_or_zero(&rhs, pid, aname))
-                        .cmp(&to_bignum(0))
+                        .cmp(&BigNum::zero())
                     {
                         std::cmp::Ordering::Equal => (),
                         _ => return false,

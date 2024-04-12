@@ -6,43 +6,8 @@ use super::*;
 use crate::fees;
 use crate::utils;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use crate::builders::fakes::{fake_private_key, fake_raw_key_public, fake_raw_key_sig};
 use crate::map_names::TxBodyNames::RequiredSigners;
-
-pub(crate) fn fake_private_key() -> Bip32PrivateKey {
-    Bip32PrivateKey::from_bytes(&[
-        0xb8, 0xf2, 0xbe, 0xce, 0x9b, 0xdf, 0xe2, 0xb0, 0x28, 0x2f, 0x5b, 0xad, 0x70, 0x55, 0x62,
-        0xac, 0x99, 0x6e, 0xfb, 0x6a, 0xf9, 0x6b, 0x64, 0x8f, 0x44, 0x45, 0xec, 0x44, 0xf4, 0x7a,
-        0xd9, 0x5c, 0x10, 0xe3, 0xd7, 0x2f, 0x26, 0xed, 0x07, 0x54, 0x22, 0xa3, 0x6e, 0xd8, 0x58,
-        0x5c, 0x74, 0x5a, 0x0e, 0x11, 0x50, 0xbc, 0xce, 0xba, 0x23, 0x57, 0xd0, 0x58, 0x63, 0x69,
-        0x91, 0xf3, 0x8a, 0x37, 0x91, 0xe2, 0x48, 0xde, 0x50, 0x9c, 0x07, 0x0d, 0x81, 0x2a, 0xb2,
-        0xfd, 0xa5, 0x78, 0x60, 0xac, 0x87, 0x6b, 0xc4, 0x89, 0x19, 0x2c, 0x1e, 0xf4, 0xce, 0x25,
-        0x3c, 0x19, 0x7e, 0xe2, 0x19, 0xa4,
-    ])
-    .unwrap()
-}
-
-pub(crate) fn fake_raw_key_sig() -> Ed25519Signature {
-    Ed25519Signature::from_bytes(vec![
-        36, 248, 153, 211, 155, 23, 253, 93, 102, 193, 146, 196, 181, 13, 52, 62, 66, 247, 35, 91,
-        48, 80, 76, 138, 231, 97, 159, 147, 200, 40, 220, 109, 206, 69, 104, 221, 105, 23, 124, 85,
-        24, 40, 73, 45, 119, 122, 103, 39, 253, 102, 194, 251, 204, 189, 168, 194, 174, 237, 146,
-        3, 44, 153, 121, 10,
-    ])
-    .unwrap()
-}
-
-pub(crate) fn fake_raw_key_public(x: u64) -> PublicKey {
-    let mut bytes = [0u8; 64];
-    for i in 0..8 {
-        bytes[i] = ((x >> (i * 8)) & 0xff) as u8;
-    }
-    PublicKey::from_bytes(&[
-        207, 118, 57, 154, 33, 13, 232, 114, 14, 159, 168, 148, 228, 94, 65, 226, 154, 181, 37,
-        227, 11, 196, 2, 128, bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6],
-        bytes[7]
-    ])
-    .unwrap()
-}
 
 fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
     let mut input_hashes: Ed25519KeyHashes = Ed25519KeyHashes::from(&tx_builder.inputs);
@@ -167,16 +132,31 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     //     assert_required_mint_scripts(mint, tx_builder.mint_scripts.as_ref())?;
     // }
     let full_tx = fake_full_tx(tx_builder, tx_builder.build()?)?;
-    let fee: Coin = fees::min_fee(&full_tx, &tx_builder.config.fee_algo)?;
+    let mut fee: Coin = fees::min_fee(&full_tx, &tx_builder.config.fee_algo)?;
+
     if let Some(ex_unit_prices) = &tx_builder.config.ex_unit_prices {
         let script_fee: Coin = fees::min_script_fee(&full_tx, &ex_unit_prices)?;
-        return fee.checked_add(&script_fee);
+        fee = fee.checked_add(&script_fee)?;
+    } else {
+        if tx_builder.has_plutus_inputs() {
+            return Err(JsError::from_str(
+                "Plutus inputs are present but ex_unit_prices are missing in the config!",
+            ));
+        }
     }
-    if tx_builder.has_plutus_inputs() {
-        return Err(JsError::from_str(
-            "Plutus inputs are present but ex unit prices are missing in the config!",
-        ));
+
+    let total_ref_script_size = tx_builder.get_total_ref_scripts_size()?;
+    if let Some(ref_script_coins_per_byte) = &tx_builder.config.ref_script_coins_per_byte {
+        let script_ref_fee = min_ref_script_fee(total_ref_script_size, ref_script_coins_per_byte)?;
+        fee = fee.checked_add(&script_ref_fee)?;
+    } else {
+        if total_ref_script_size > 0 {
+            return Err(JsError::from_str(
+                "Plutus scripts are present but ref_script_coins_per_byte are missing in the config!",
+            ));
+        }
     }
+
     Ok(fee)
 }
 
@@ -202,6 +182,7 @@ pub struct TransactionBuilderConfig {
     pub(crate) max_tx_size: u32,              // protocol parameter
     pub(crate) data_cost: DataCost,           // protocol parameter
     pub(crate) ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
+    pub(crate) ref_script_coins_per_byte: Option<UnitInterval>, // protocol parameter
     pub(crate) prefer_pure_change: bool,
 }
 
@@ -221,6 +202,7 @@ pub struct TransactionBuilderConfigBuilder {
     max_tx_size: Option<u32>,              // protocol parameter
     data_cost: Option<DataCost>,           // protocol parameter
     ex_unit_prices: Option<ExUnitPrices>,  // protocol parameter
+    ref_script_coins_per_byte: Option<UnitInterval>, // protocol parameter
     prefer_pure_change: bool,
 }
 
@@ -235,6 +217,7 @@ impl TransactionBuilderConfigBuilder {
             max_tx_size: None,
             data_cost: None,
             ex_unit_prices: None,
+            ref_script_coins_per_byte: None,
             prefer_pure_change: false,
         }
     }
@@ -281,6 +264,12 @@ impl TransactionBuilderConfigBuilder {
         cfg
     }
 
+    pub fn ref_script_coins_per_byte(&self, ref_script_coins_per_byte: &UnitInterval) -> Self {
+        let mut cfg = self.clone();
+        cfg.ref_script_coins_per_byte = Some(ref_script_coins_per_byte.clone());
+        cfg
+    }
+
     pub fn prefer_pure_change(&self, prefer_pure_change: bool) -> Self {
         let mut cfg = self.clone();
         cfg.prefer_pure_change = prefer_pure_change;
@@ -309,6 +298,7 @@ impl TransactionBuilderConfigBuilder {
                 "uninitialized field: coins_per_utxo_byte or coins_per_utxo_word",
             ))?,
             ex_unit_prices: cfg.ex_unit_prices,
+            ref_script_coins_per_byte: cfg.ref_script_coins_per_byte,
             prefer_pure_change: cfg.prefer_pure_change,
         })
     }
@@ -332,7 +322,7 @@ pub struct TransactionBuilder {
     pub(crate) required_signers: Ed25519KeyHashes,
     pub(crate) collateral_return: Option<TransactionOutput>,
     pub(crate) total_collateral: Option<Coin>,
-    pub(crate) reference_inputs: HashSet<TransactionInput>,
+    pub(crate) reference_inputs: HashMap<TransactionInput, usize>,
     pub(crate) extra_datums: Option<PlutusList>,
     pub(crate) voting_procedures: Option<VotingBuilder>,
     pub(crate) voting_proposals: Option<VotingProposalBuilder>,
@@ -626,9 +616,9 @@ impl TransactionBuilder {
                     let j: &mut usize = relevant_indices.get_mut(random_index).unwrap();
                     let input = &available_inputs[*i];
                     let new_input = &available_inputs[*j];
-                    let cur = from_bignum(&by(&input.output.amount).unwrap_or(BigNum::zero()));
-                    let new = from_bignum(&by(&new_input.output.amount).unwrap_or(BigNum::zero()));
-                    let min = from_bignum(&by(&output.amount).unwrap_or(BigNum::zero()));
+                    let cur: u64 = (&by(&input.output.amount).unwrap_or(BigNum::zero())).into();
+                    let new: u64 = (&by(&new_input.output.amount).unwrap_or(BigNum::zero())).into();
+                    let min: u64 = (&by(&output.amount).unwrap_or(BigNum::zero())).into();
                     let ideal = 2 * min;
                     let max = 3 * min;
                     let move_closer =
@@ -750,7 +740,11 @@ impl TransactionBuilder {
     }
 
     pub fn add_reference_input(&mut self, reference_input: &TransactionInput) {
-        self.reference_inputs.insert(reference_input.clone());
+        self.reference_inputs.insert(reference_input.clone(), 0);
+    }
+
+    pub fn add_script_reference_input(&mut self, reference_input: &TransactionInput, script_size: usize) {
+        self.reference_inputs.insert(reference_input.clone(), script_size);
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -833,7 +827,7 @@ impl TransactionBuilder {
         // we need some value for these for it to be a a valid transaction
         // but since we're only calculating the difference between the fee of two transactions
         // it doesn't matter what these are set as, since it cancels out
-        self_copy.set_fee(&to_bignum(0));
+        self_copy.set_fee(&BigNum::zero());
 
         let fee_before = min_fee(&self_copy)?;
 
@@ -855,8 +849,8 @@ impl TransactionBuilder {
         if output.amount().coin() < min_ada {
             Err(JsError::from_str(&format!(
                 "Value {} less than the minimum UTXO value {}",
-                from_bignum(&output.amount().coin()),
-                from_bignum(&min_ada)
+                output.amount().coin(),
+                min_ada
             )))
         } else {
             self.outputs.add(output);
@@ -871,7 +865,7 @@ impl TransactionBuilder {
         // we need some value for these for it to be a a valid transaction
         // but since we're only calculating the different between the fee of two transactions
         // it doesn't matter what these are set as, since it cancels out
-        self_copy.set_fee(&to_bignum(0));
+        self_copy.set_fee(&BigNum::zero());
 
         let fee_before = min_fee(&self_copy)?;
 
@@ -1253,7 +1247,7 @@ impl TransactionBuilder {
             required_signers: Ed25519KeyHashes::new(),
             collateral_return: None,
             total_collateral: None,
-            reference_inputs: HashSet::new(),
+            reference_inputs: HashMap::new(),
             extra_datums: None,
             voting_procedures: None,
             voting_proposals: None,
@@ -1263,7 +1257,7 @@ impl TransactionBuilder {
     }
 
     pub fn get_reference_inputs(&self) -> TransactionInputs {
-        let mut inputs = self.reference_inputs.clone();
+        let mut inputs: HashSet<TransactionInput> = self.reference_inputs.keys().cloned().collect();
         for input in self.inputs.get_ref_inputs().0 {
             inputs.insert(input);
         }
@@ -1300,6 +1294,57 @@ impl TransactionBuilder {
 
         let vec_inputs = inputs.into_iter().collect();
         TransactionInputs(vec_inputs)
+    }
+
+    fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {
+        let mut sizes_map = HashMap::new();
+        fn add_to_map<'a>(item: (&'a TransactionInput, usize), sizes_map: &mut HashMap<&'a TransactionInput, usize> ) -> Result<(), JsError>{
+            if sizes_map.entry(item.0).or_insert(item.1) != &item.1 {
+                return Err(JsError::from_str(&format!("Different script sizes for the same ref input {}", item.0)));
+            } else {
+                Ok(())
+            }
+        }
+
+        for item in self.inputs.get_script_ref_inputs_with_size() {
+            add_to_map(item, &mut sizes_map)?
+        }
+
+        for (tx_in, size) in &self.reference_inputs {
+            add_to_map((tx_in, *size), &mut sizes_map)?
+        }
+
+        if let Some(mint) = &self.mint {
+            for item in mint.get_script_ref_inputs_with_size() {
+                add_to_map(item, &mut sizes_map)?
+            }
+        }
+
+        if let Some(withdrawals) = &self.withdrawals {
+            for item in withdrawals.get_script_ref_inputs_with_size() {
+                add_to_map(item, &mut sizes_map)?
+            }
+        }
+
+        if let Some(certs) = &self.certs {
+            for item in certs.get_script_ref_inputs_with_size() {
+                add_to_map(item, &mut sizes_map)?
+            }
+        }
+
+        if let Some(voting_procedures) = &self.voting_procedures {
+            for item in voting_procedures.get_script_ref_inputs_with_size() {
+                add_to_map(item, &mut sizes_map)?
+            }
+        }
+
+        if let Some(voting_proposals) = &self.voting_proposals {
+            for item in voting_proposals.get_script_ref_inputs_with_size() {
+                add_to_map(item, &mut sizes_map)?
+            }
+        }
+
+        Ok(sizes_map.values().sum())
     }
 
     /// does not include refunds or withdrawals
@@ -1365,7 +1410,7 @@ impl TransactionBuilder {
         self.outputs
             .0
             .iter()
-            .try_fold(Value::new(&to_bignum(0)), |acc, ref output| {
+            .try_fold(Value::new(&BigNum::zero()), |acc, ref output| {
                 acc.checked_add(&output.amount())
             })
     }
@@ -2154,7 +2199,7 @@ impl TransactionBuilder {
     /// this is done to simplify the library code, but can be fixed later
     pub fn min_fee(&self) -> Result<Coin, JsError> {
         let mut self_copy = self.clone();
-        self_copy.set_fee(&to_bignum(0x1_00_00_00_00));
+        self_copy.set_fee(&(0x1_00_00_00_00u64).into());
         min_fee(&self_copy)
     }
 }

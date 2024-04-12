@@ -9,7 +9,7 @@ impl cbor_event::se::Serialize for ConstrPlutusData {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         if let Some(compact_tag) =
-            Self::alternative_to_compact_cbor_tag(from_bignum(&self.alternative))
+            Self::alternative_to_compact_cbor_tag(self.alternative.into())
         {
             // compact form
             serializer.write_tag(compact_tag as u64)?;
@@ -49,7 +49,7 @@ impl Deserialize for ConstrPlutusData {
                 // concise form
                 tag => {
                     if let Some(alternative) = Self::compact_cbor_tag_to_alternative(tag) {
-                        (to_bignum(alternative), PlutusList::deserialize(raw)?)
+                        (alternative.into(), PlutusList::deserialize(raw)?)
                     } else {
                         return Err(DeserializeFailure::TagMismatch {
                             found: tag,

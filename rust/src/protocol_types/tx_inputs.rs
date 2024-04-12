@@ -1,3 +1,4 @@
+use std::fmt::Formatter;
 use crate::*;
 
 #[wasm_bindgen]
@@ -35,5 +36,11 @@ impl TransactionInput {
             transaction_id: transaction_id.clone(),
             index: index,
         }
+    }
+}
+
+impl Display for TransactionInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}#{}", self.transaction_id, self.index)
     }
 }

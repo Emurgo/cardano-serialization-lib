@@ -69,8 +69,10 @@ impl CertificatesBuilder {
         for (cert, script_wit) in &self.certs {
             let cert_req_signers = witness_keys_for_cert(&cert);
             set.extend_move(cert_req_signers);
-            if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = script_wit {
-                set.extend(&script_source.required_signers());
+            if let Some(script_wit) = script_wit {
+                if let Some(signers) = script_wit.get_required_signers() {
+                    set.extend(&signers);
+                }
             }
         }
         set
@@ -92,17 +94,12 @@ impl CertificatesBuilder {
         let mut inputs = Vec::new();
         for (_, script_wit) in self.certs.iter() {
             match script_wit {
-                Some(ScriptWitnessType::NativeScriptWitness(script_source)) => {
-                    if let NativeScriptSourceEnum::RefInput(input, _, _) = script_source {
-                        inputs.push(input.clone());
+                Some(script_witness) => {
+                    if let Some(input) = script_witness.get_script_ref_input() {
+                        inputs.push(input);
                     }
-                }
-                Some(ScriptWitnessType::PlutusScriptWitness(plutus_witness)) => {
-                    if let Some(DatumSourceEnum::RefInput(input)) = &plutus_witness.datum {
-                        inputs.push(input.clone());
-                    }
-                    if let PlutusScriptSourceEnum::RefInput(input, _, _) = &plutus_witness.script {
-                        inputs.push(input.clone());
+                    if let Some(input) = script_witness.get_datum_ref_input() {
+                        inputs.push(input);
                     }
                 }
                 None => {}
@@ -115,7 +112,7 @@ impl CertificatesBuilder {
         let mut scripts = NativeScripts::new();
         for (_, script_wit) in self.certs.iter() {
             if let Some(ScriptWitnessType::NativeScriptWitness(
-                NativeScriptSourceEnum::NativeScript(script),
+                NativeScriptSourceEnum::NativeScript(script, _),
             )) = script_wit
             {
                 scripts.add(script);
@@ -128,9 +125,7 @@ impl CertificatesBuilder {
         let mut used_langs = BTreeSet::new();
         for (_, script_wit) in &self.certs {
             if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = script_wit {
-                if let Some(lang) = s.script.language() {
-                    used_langs.insert(lang.clone());
-                }
+                used_langs.insert(s.script.language().clone());
             }
         }
         used_langs
@@ -208,6 +203,19 @@ impl CertificatesBuilder {
     pub fn build(&self) -> Certificates {
         let certs = self.certs.iter().map(|(c, _)| c.clone()).collect();
         Certificates(certs)
+    }
+
+    //return only ref inputs that are script refs with added size
+    //used for calculating the fee for the transaction
+    //another ref input and also script ref input without size are filtered out
+    pub(crate) fn get_script_ref_inputs_with_size(
+        &self,
+    ) -> impl Iterator<Item = (&TransactionInput, usize)> {
+        self.certs.iter()
+            .filter_map(|(_, opt_wit)| opt_wit.as_ref())
+            .filter_map(|script_wit| {
+                script_wit.get_script_ref_input_with_size()
+            })
     }
 }
 

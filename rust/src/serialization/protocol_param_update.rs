@@ -538,7 +538,7 @@ impl Deserialize for ProtocolParamUpdate {
                             pool_pledge_influence = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    Ok(Rational::deserialize(raw)?)
+                                    Ok(UnitInterval::deserialize(raw)?)
                                 })()
                                 .map_err(|e| e.annotate("pool_pledge_influence"))?,
                             );
@@ -814,7 +814,7 @@ impl Deserialize for ProtocolParamUpdate {
                             ref_script_coins_per_byte = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    Ok(Coin::deserialize(raw)?)
+                                    Ok(UnitInterval::deserialize(raw)?)
                                 })()
                                     .map_err(|e| e.annotate("ref_script_coins_per_byte"))?,
                             );

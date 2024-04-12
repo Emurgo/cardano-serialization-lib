@@ -519,12 +519,10 @@ pub fn encode_json_value_to_metadatum(
     use serde_json::Value;
     fn encode_number(x: serde_json::Number) -> Result<TransactionMetadatum, JsError> {
         if let Some(x) = x.as_u64() {
-            Ok(TransactionMetadatum::new_int(&Int::new(&utils::to_bignum(
-                x,
-            ))))
+            Ok(TransactionMetadatum::new_int(&Int::new(&x.into())))
         } else if let Some(x) = x.as_i64() {
             Ok(TransactionMetadatum::new_int(&Int::new_negative(
-                &utils::to_bignum(-x as u64),
+                &(-x as u64).into(),
             )))
         } else {
             Err(JsError::from_str("floats not allowed in metadata"))

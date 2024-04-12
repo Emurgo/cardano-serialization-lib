@@ -13,7 +13,7 @@ fn protocol_param_update_ser_round_trip() {
         pool_deposit: Some(Coin::from(7_444u32)),
         max_epoch: Some(8_444u32),
         n_opt: Some(9_444u32),
-        pool_pledge_influence: Some(Rational::new(
+        pool_pledge_influence: Some(UnitInterval::new(
             &BigNum::from(10_444u32),
             &BigNum::from(11_444u32),
         )),
@@ -35,11 +35,11 @@ fn protocol_param_update_ser_round_trip() {
         ada_per_utxo_byte: Some(Coin::from(19_444u32)),
         cost_models: Some(create_cost_models()),
         execution_costs: Some(ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         )),
-        max_tx_ex_units: Some(ExUnits::new(&to_bignum(842996), &to_bignum(246100241))),
-        max_block_ex_units: Some(ExUnits::new(&to_bignum(842996), &to_bignum(246100241))),
+        max_tx_ex_units: Some(ExUnits::new(&BigNum(842996), &BigNum(246100241))),
+        max_block_ex_units: Some(ExUnits::new(&BigNum(842996), &BigNum(246100241))),
         max_value_size: Some(20_444u32),
         collateral_percentage: Some(21_444u32),
         max_collateral_inputs: Some(22_444u32),
@@ -51,7 +51,10 @@ fn protocol_param_update_ser_round_trip() {
         governance_action_deposit: Some(Coin::from(26_444u32)),
         drep_deposit: Some(Coin::from(27_444u32)),
         drep_inactivity_period: Some(28_444u32),
-        ref_script_coins_per_byte: Some(Coin::from(29_444u32)),
+        ref_script_coins_per_byte: Some(UnitInterval::new(
+            &BigNum::from(29_444u32),
+            &BigNum::from(30_444u32),
+        )),
     };
 
     let cbor = pp_update.to_bytes();

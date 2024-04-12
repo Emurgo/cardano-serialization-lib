@@ -662,7 +662,7 @@ pub fn encode_json_value_to_plutus_datum(
                     }
                     let variant: BigNum = obj
                         .get("constructor")
-                        .and_then(|v| Some(to_bignum(v.as_u64()?)))
+                        .and_then(|v| Some(v.as_u64()?.into()))
                         .ok_or_else(|| JsError::from_str("tagged constructors must contain an unsigned integer called \"constructor\""))?;
                     let fields_json =
                         obj.get("fields")
@@ -711,7 +711,7 @@ pub fn decode_plutus_datum_to_json_value(
             let mut obj = serde_json::map::Map::with_capacity(2);
             obj.insert(
                 String::from("constructor"),
-                Value::from(from_bignum(&constr.alternative))
+                Value::from(constr.alternative.0)
             );
             let mut fields = Vec::new();
             for field in constr.data.elems.iter() {

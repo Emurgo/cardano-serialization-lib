@@ -1,7 +1,7 @@
 #![allow(dead_code)]
-use crate::{AnchorDataHash, AuxiliaryDataHash, GenesisDelegateHash, GenesisHash, PoolMetadataHash, PublicKey, ScriptDataHash, ScriptHash, Vkeywitness, VRFKeyHash};
+use crate::{AnchorDataHash, AuxiliaryDataHash, BigNum, GenesisDelegateHash, GenesisHash, PoolMetadataHash, PublicKey, ScriptDataHash, ScriptHash, Vkeywitness, VRFKeyHash};
 use crate::{
-    to_bignum, Address, BaseAddress, Bip32PrivateKey, Credential, DataHash, Ed25519KeyHash,
+    Address, BaseAddress, Bip32PrivateKey, Credential, DataHash, Ed25519KeyHash,
     Ed25519Signature, NetworkInfo, PolicyID, TransactionHash, TransactionIndex, TransactionInput,
     TransactionOutput, Value, Vkey, AssetName,
 };
@@ -87,7 +87,7 @@ pub(crate) fn fake_value() -> Value {
 }
 
 pub(crate) fn fake_value2(v: u64) -> Value {
-    Value::new(&to_bignum(v))
+    Value::new(&BigNum(v))
 }
 
 pub(crate) fn fake_tx_output(input_hash_byte: u8) -> TransactionOutput {

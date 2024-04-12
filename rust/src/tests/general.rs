@@ -48,9 +48,9 @@ fn asset_name_ord() {
     assert_eq!(name3.cmp(&name33), Ordering::Equal);
 
     let mut map = Assets::new();
-    map.insert(&name2, &to_bignum(1));
-    map.insert(&name1, &to_bignum(1));
-    map.insert(&name3, &to_bignum(1));
+    map.insert(&name2, &BigNum(1));
+    map.insert(&name1, &BigNum(1));
+    map.insert(&name3, &BigNum(1));
 
     assert_eq!(map.keys(), AssetNames(vec![name3, name1, name2]));
 
@@ -265,7 +265,7 @@ fn protocol_params_update_cbor_roundtrip() {
     orig_ppu.set_pool_deposit(&Coin::from(4u32));
     orig_ppu.set_max_epoch(5);
     orig_ppu.set_n_opt(6);
-    orig_ppu.set_pool_pledge_influence(&Rational::new(&BigNum::from(7u32), &BigNum::from(77u32)));
+    orig_ppu.set_pool_pledge_influence(&UnitInterval::new(&BigNum::from(7u32), &BigNum::from(77u32)));
     orig_ppu.set_expansion_rate(&UnitInterval::new(&BigNum::from(8u32), &BigNum::from(9u32)));
     orig_ppu.set_treasury_growth_rate(&UnitInterval::new(
         &BigNum::from(10u32),
@@ -403,4 +403,20 @@ fn witnesses_deduplication_test(){
     assert_eq!(roundtrip_plutus_data.len(), 2);
     assert_eq!(roundtrip_plutus_data.get(0), datum_1);
     assert_eq!(roundtrip_plutus_data.get(1), datum_2);
+}
+
+#[test]
+fn min_ref_script_fee_test(){
+    let cost = UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32));
+    let total_size = 500;
+    let min_fee = min_ref_script_fee(total_size, &cost).unwrap();
+    assert_eq!(min_fee, BigNum(250));
+}
+
+#[test]
+fn min_ref_script_fee_test_fail(){
+    let cost = UnitInterval::new(&BigNum::from(1u32), &BigNum::from(0u32));
+    let total_size = 500;
+    let min_fee = min_ref_script_fee(total_size, &cost);
+    assert!(min_fee.is_err());
 }

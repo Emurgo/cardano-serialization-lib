@@ -250,7 +250,7 @@ impl TransactionBody {
     ) -> Self {
         let mut tx = Self::new_tx_body(inputs, outputs, fee);
         if let Some(slot32) = ttl {
-            tx.set_ttl(&to_bignum(slot32 as u64));
+            tx.set_ttl(&(slot32 as u64).into());
         }
         tx
     }
