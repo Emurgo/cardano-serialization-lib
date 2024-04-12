@@ -52,6 +52,12 @@ impl Redeemers {
     }
 }
 
+impl NoneOrEmpty for Redeemers {
+    fn is_none_or_empty(&self) -> bool {
+        self.redeemers.is_empty()
+    }
+}
+
 impl PartialEq<Redeemers> for Redeemers {
     fn eq(&self, other: &Redeemers) -> bool {
         self.redeemers == other.redeemers

@@ -51,6 +51,12 @@ impl Vkeywitnesses {
     }
 }
 
+impl NoneOrEmpty for Vkeywitnesses {
+    fn is_none_or_empty(&self) -> bool {
+        self.witnesses.is_empty()
+    }
+}
+
 impl serde::Serialize for Vkeywitnesses {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

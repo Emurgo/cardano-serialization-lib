@@ -53,6 +53,12 @@ impl BootstrapWitnesses {
     }
 }
 
+impl NoneOrEmpty for BootstrapWitnesses {
+    fn is_none_or_empty(&self) -> bool {
+        self.witnesses.is_empty()
+    }
+}
+
 impl serde::Serialize for BootstrapWitnesses {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

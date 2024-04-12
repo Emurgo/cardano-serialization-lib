@@ -394,6 +394,12 @@ pub struct PlutusList {
     pub(crate) definite_encoding: Option<bool>,
 }
 
+impl NoneOrEmpty for PlutusList {
+    fn is_none_or_empty(&self) -> bool {
+        self.elems.is_empty()
+    }
+}
+
 impl<'a> IntoIterator for &'a PlutusList {
     type Item = &'a PlutusData;
     type IntoIter = std::slice::Iter<'a, PlutusData>;

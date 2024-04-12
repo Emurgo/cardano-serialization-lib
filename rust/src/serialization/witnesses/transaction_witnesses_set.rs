@@ -4,6 +4,8 @@ use cbor_event::se::Serializer;
 use crate::{BootstrapWitnesses, CBORReadLen, DeserializeError, DeserializeFailure, Key, Language, NativeScripts, PlutusList, PlutusScripts, Redeemers, TransactionWitnessSet, Vkeywitnesses};
 use crate::protocol_types::{CBORSpecial, CBORType, Deserialize, opt64};
 use crate::serialization::utils::merge_option_plutus_list;
+use crate::traits::NoneOrEmpty;
+use crate::utils::opt64_non_empty;
 
 impl cbor_event::se::Serialize for TransactionWitnessSet {
     fn serialize<'se, W: Write>(
@@ -24,27 +26,29 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
         };
         serializer.write_map(cbor_event::Len::Len(
             opt64(&self.vkeys)
-                + opt64(&self.native_scripts)
-                + opt64(&self.bootstraps)
-                + opt64(&self.plutus_data)
-                + opt64(&self.redeemers)
+                + opt64_non_empty(&self.native_scripts)
+                + opt64_non_empty(&self.bootstraps)
+                + opt64_non_empty(&self.plutus_data)
+                + opt64_non_empty(&self.redeemers)
                 + plutus_added_length,
         ))?;
         if let Some(field) = &self.vkeys {
-            if field.len() > 0 {
+            if !field.is_none_or_empty() {
                 serializer.write_unsigned_integer(0)?;
                 field.serialize(serializer)?;
             }
         }
         if let Some(field) = &self.native_scripts {
-            if field.0.len() > 0 {
+            if !field.is_none_or_empty() {
                 serializer.write_unsigned_integer(1)?;
                 field.serialize(serializer)?;
             }
         }
         if let Some(field) = &self.bootstraps {
-            serializer.write_unsigned_integer(2)?;
-            field.serialize(serializer)?;
+            if !field.is_none_or_empty() {
+                serializer.write_unsigned_integer(2)?;
+                field.serialize(serializer)?;
+            }
         }
         if let Some(plutus_scripts) = &self.plutus_scripts {
             if has_plutus_v1 {
@@ -61,12 +65,16 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
             }
         }
         if let Some(field) = &self.plutus_data {
-            serializer.write_unsigned_integer(4)?;
-            field.serialize(serializer)?;
+            if !field.is_none_or_empty() {
+                serializer.write_unsigned_integer(4)?;
+                field.serialize(serializer)?;
+            }
         }
         if let Some(field) = &self.redeemers {
-            serializer.write_unsigned_integer(5)?;
-            field.serialize(serializer)?;
+            if !field.is_none_or_empty() {
+                serializer.write_unsigned_integer(5)?;
+                field.serialize(serializer)?;
+            }
         }
         Ok(serializer)
     }
