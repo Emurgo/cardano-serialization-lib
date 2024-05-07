@@ -58,4 +58,8 @@ impl Redeemer {
             ex_units: self.ex_units.clone(),
         }
     }
+
+    pub(crate) fn partially_eq(&self, other: &Redeemer) -> bool {
+        self.data == other.data && self.ex_units == other.ex_units
+    }
 }

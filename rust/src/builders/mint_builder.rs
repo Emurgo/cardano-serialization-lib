@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum MintWitnessEnum {
     Plutus(PlutusScriptSourceEnum, Redeemer),
-    NativeScript(NativeScript),
+    NativeScript(NativeScriptSourceEnum),
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -13,8 +13,8 @@ pub struct MintWitness(MintWitnessEnum);
 
 #[wasm_bindgen]
 impl MintWitness {
-    pub fn new_native_script(native_script: &NativeScript) -> MintWitness {
-        MintWitness(MintWitnessEnum::NativeScript(native_script.clone()))
+    pub fn new_native_script(native_script: &NativeScriptSource) -> MintWitness {
+        MintWitness(MintWitnessEnum::NativeScript(native_script.0.clone()))
     }
 
     pub fn new_plutus_script(
@@ -26,18 +26,49 @@ impl MintWitness {
             redeemer.clone(),
         ))
     }
+
+    pub(crate) fn script_hash(&self) -> ScriptHash {
+        match &self.0 {
+            MintWitnessEnum::NativeScript(native_script) => native_script.script_hash(),
+            MintWitnessEnum::Plutus(plutus_script, _) => plutus_script.script_hash(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct NativeMints {
-    script: NativeScript,
+    script: NativeScriptSourceEnum,
     mints: BTreeMap<AssetName, Int>,
+}
+
+impl NativeMints {
+    fn script_hash(&self) -> PolicyID {
+        match &self.script {
+            NativeScriptSourceEnum::NativeScript(script, _) => script.hash(),
+            NativeScriptSourceEnum::RefInput(_, script_hash, _) => script_hash.clone(),
+        }
+    }
+
+    fn ref_input(&self) -> Option<&TransactionInput> {
+        match &self.script {
+            NativeScriptSourceEnum::RefInput(input, _, _) => Some(input),
+            _ => None,
+        }
+    }
+
+    fn native_script(&self) -> Option<&NativeScript> {
+        match &self.script {
+            NativeScriptSourceEnum::NativeScript(script, _) => Some(script),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct PlutusMints {
     script: PlutusScriptSourceEnum,
-    redeemer_mints: BTreeMap<Redeemer, BTreeMap<AssetName, Int>>,
+    redeemer: Redeemer,
+    mints: BTreeMap<AssetName, Int>,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -88,7 +119,7 @@ impl MintBuilder {
 
     fn update_mint_value(
         &mut self,
-        mint: &MintWitness,
+        mint_witness: &MintWitness,
         asset_name: &AssetName,
         amount: &Int,
         overwrite: bool,
@@ -96,11 +127,14 @@ impl MintBuilder {
         if amount.0 == 0 {
             return Err(JsError::from_str("Mint cannot be zero."));
         }
-        match &mint.0 {
+        let script_mint = self.mints.get(&mint_witness.script_hash());
+        Self::validate_mint_witness(mint_witness, script_mint)?;
+
+        match &mint_witness.0 {
             MintWitnessEnum::NativeScript(native_script) => {
                 let script_mint =
                     self.mints
-                        .entry(native_script.hash())
+                        .entry(native_script.script_hash())
                         .or_insert(ScriptMint::Native(NativeMints {
                             script: native_script.clone(),
                             mints: BTreeMap::new(),
@@ -126,15 +160,13 @@ impl MintBuilder {
                         .entry(plutus_script.script_hash())
                         .or_insert(ScriptMint::Plutus(PlutusMints {
                             script: plutus_script.clone(),
-                            redeemer_mints: BTreeMap::new(),
+                            redeemer: redeemer.clone(),
+                            mints: BTreeMap::new(),
                         }));
                 match script_mint {
                     ScriptMint::Plutus(plutus_mints) => {
-                        let redeemer_mints = plutus_mints
-                            .redeemer_mints
-                            .entry(redeemer.clone())
-                            .or_insert(BTreeMap::new());
-                        let mint = redeemer_mints
+                        let mint = plutus_mints
+                            .mints
                             .entry(asset_name.clone())
                             .or_insert(Int::new(&BigNum::zero()));
                         if overwrite {
@@ -150,27 +182,118 @@ impl MintBuilder {
         Ok(())
     }
 
-    pub fn build(&self) -> Mint {
-        let mut mint = Mint::new();
-        for (_, script_mint) in self.mints.iter() {
-            match script_mint {
-                ScriptMint::Native(native_mints) => {
-                    let mut mint_asset = MintAssets::new();
-                    for (asset_name, amount) in &native_mints.mints {
-                        mint_asset.insert(asset_name, amount.clone());
+    fn validate_mint_witness(
+        mint_witness: &MintWitness,
+        current_script_mint: Option<&ScriptMint>,
+    ) -> Result<(), JsError> {
+        if let Some(current_script_mint) = current_script_mint {
+            match &mint_witness.0 {
+                MintWitnessEnum::NativeScript(native_script) => {
+                    if let ScriptMint::Native(native_mints) = current_script_mint {
+                        Self::validate_native_source_type(&native_mints.script, &native_script)?;
+                    } else {
+                        return Err(JsError::from_str(
+                            &BuilderError::MintBuilderDifferentScriptType.as_str(),
+                        ));
                     }
-                    mint.insert(&native_mints.script.hash(), &mint_asset);
                 }
-                ScriptMint::Plutus(plutus_mints) => {
-                    for (_, redeemer_mints) in &plutus_mints.redeemer_mints {
-                        let mut mint_asset = MintAssets::new();
-                        for (asset_name, amount) in redeemer_mints {
-                            mint_asset.insert(asset_name, amount.clone());
+                MintWitnessEnum::Plutus(plutus_script, redeemer) => {
+                    if let ScriptMint::Plutus(plutus_mints) = current_script_mint {
+                        Self::validate_plutus_script_source_type(
+                            &plutus_mints.script,
+                            &plutus_script,
+                        )?;
+                        if !plutus_mints.redeemer.partially_eq(redeemer) {
+                            return Err(JsError::from_str(
+                                &BuilderError::MintBuilderDifferentRedeemerDataAndExUnits(
+                                    plutus_mints.redeemer.to_json()?,
+                                    redeemer.to_json()?,
+                                )
+                                .as_str(),
+                            ));
                         }
-                        mint.insert(&plutus_mints.script.script_hash(), &mint_asset);
+                    } else {
+                        return Err(JsError::from_str(
+                            &BuilderError::MintBuilderDifferentScriptType.as_str(),
+                        ));
                     }
                 }
             }
+            Ok(())
+        } else {
+            Ok(())
+        }
+    }
+
+    fn validate_native_source_type(
+        current_script_source: &NativeScriptSourceEnum,
+        input_script_source: &NativeScriptSourceEnum,
+    ) -> Result<(), JsError> {
+        match current_script_source {
+            NativeScriptSourceEnum::NativeScript(_, _) => {
+                if let NativeScriptSourceEnum::NativeScript(_, _) = input_script_source {
+                    Ok(())
+                } else {
+                    Err(JsError::from_str(
+                        &BuilderError::MintBuilderDifferentWitnessTypeNonRef.as_str(),
+                    ))
+                }
+            }
+            NativeScriptSourceEnum::RefInput(_, _, _) => {
+                if let NativeScriptSourceEnum::RefInput(_, _, _) = input_script_source {
+                    Ok(())
+                } else {
+                    Err(JsError::from_str(
+                        &BuilderError::MintBuilderDifferentWitnessTypeRef.as_str(),
+                    ))
+                }
+            }
+        }
+    }
+
+    fn validate_plutus_script_source_type(
+        current_script_source: &PlutusScriptSourceEnum,
+        input_script_source: &PlutusScriptSourceEnum,
+    ) -> Result<(), JsError> {
+        match current_script_source {
+            PlutusScriptSourceEnum::RefInput(_, _) => {
+                if let PlutusScriptSourceEnum::RefInput(_, _) = input_script_source {
+                    Ok(())
+                } else {
+                    Err(JsError::from_str(
+                        &BuilderError::MintBuilderDifferentWitnessTypeRef.as_str(),
+                    ))
+                }
+            }
+            PlutusScriptSourceEnum::Script(_, _) => {
+                if let PlutusScriptSourceEnum::Script(_, _) = input_script_source {
+                    Ok(())
+                } else {
+                    Err(JsError::from_str(
+                        &BuilderError::MintBuilderDifferentWitnessTypeNonRef.as_str(),
+                    ))
+                }
+            }
+        }
+    }
+
+    pub fn build(&self) -> Mint {
+        let mut mint = Mint::new();
+        for (policy, script_mint) in self.mints.iter() {
+            let mut mint_asset = MintAssets::new();
+            match script_mint {
+                ScriptMint::Native(native_mints) => {
+                    for (asset_name, amount) in &native_mints.mints {
+                        mint_asset.insert(asset_name, amount.clone());
+                    }
+                }
+                ScriptMint::Plutus(plutus_mints) => {
+                    for (asset_name, amount) in &plutus_mints.mints {
+                        mint_asset.insert(asset_name, amount.clone());
+                    }
+                }
+            }
+            mint.insert(&policy, &mint_asset);
         }
         mint
     }
@@ -180,7 +303,9 @@ impl MintBuilder {
         for script_mint in self.mints.values() {
             match script_mint {
                 ScriptMint::Native(native_mints) => {
-                    native_scripts.push(native_mints.script.clone());
+                    if let Some(script) = native_mints.native_script() {
+                        native_scripts.push(script.clone());
+                    }
                 }
                 _ => {}
             }
@@ -193,12 +318,10 @@ impl MintBuilder {
         for script_mint in self.mints.values() {
             match script_mint {
                 ScriptMint::Plutus(plutus_mints) => {
-                    for (redeemer, _) in &plutus_mints.redeemer_mints {
-                        plutus_witnesses.push(PlutusWitness::new_with_ref_without_datum(
-                            &PlutusScriptSource(plutus_mints.script.clone()),
-                            redeemer,
-                        ));
-                    }
+                    plutus_witnesses.push(PlutusWitness::new_with_ref_without_datum(
+                        &PlutusScriptSource(plutus_mints.script.clone()),
+                        &plutus_mints.redeemer,
+                    ));
                 }
                 _ => {}
             }
@@ -215,7 +338,11 @@ impl MintBuilder {
                         reference_inputs.push(ref_script.input_ref.clone());
                     }
                 }
-                _ => {}
+                ScriptMint::Native(native_mints) => {
+                    if let Some(input) = native_mints.ref_input() {
+                        reference_inputs.push(input.clone());
+                    }
+                }
             }
         }
         TransactionInputs(reference_inputs)
@@ -228,10 +355,8 @@ impl MintBuilder {
         for (_, script_mint) in &self.mints {
             match script_mint {
                 ScriptMint::Plutus(plutus_mints) => {
-                    for (redeemer, _) in &plutus_mints.redeemer_mints {
-                        redeeemers.push(redeemer.clone_with_index_and_tag(&index, &tag));
-                        index = index.checked_add(&BigNum::one())?;
-                    }
+                    redeeemers.push(plutus_mints.redeemer.clone_with_index_and_tag(&index, &tag));
+                    index = index.checked_add(&BigNum::one())?;
                 }
                 _ => {
                     index = index.checked_add(&BigNum::one())?;

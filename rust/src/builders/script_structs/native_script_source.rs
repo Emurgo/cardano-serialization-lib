@@ -62,4 +62,8 @@ impl NativeScriptSource {
     pub fn set_required_signers(&mut self, key_hashes: &Ed25519KeyHashes) {
         self.0.set_required_signers(key_hashes)
     }
+
+    pub(crate) fn script_hash(&self) -> ScriptHash {
+        self.0.script_hash()
+    }
 }

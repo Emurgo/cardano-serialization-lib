@@ -1207,7 +1207,8 @@ impl TransactionBuilder {
         for (policy_id, asset_map) in &mint.0 {
             for (asset_name, amount) in &asset_map.0 {
                 if let Some(script) = scripts_policies.get(policy_id) {
-                    let mint_witness = MintWitness::new_native_script(script);
+                    let native_script_source = NativeScriptSource::new(script);
+                    let mint_witness = MintWitness::new_native_script(&native_script_source);
                     mint_builder.set_asset(&mint_witness, asset_name, amount);
                 } else {
                     return Err(JsError::from_str(
@@ -1254,7 +1255,8 @@ impl TransactionBuilder {
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any existing mint assets with the same PolicyID
     pub fn set_mint_asset(&mut self, policy_script: &NativeScript, mint_assets: &MintAssets) {
-        let mint_witness = MintWitness::new_native_script(policy_script);
+        let native_script_source = NativeScriptSource::new(policy_script);
+        let mint_witness = MintWitness::new_native_script(&native_script_source);
         if let Some(mint) = &mut self.mint {
             for (asset, amount) in mint_assets.0.iter() {
                 mint.set_asset(&mint_witness, asset, amount);
@@ -1284,7 +1286,8 @@ impl TransactionBuilder {
         asset_name: &AssetName,
         amount: &Int,
     ) {
-        let mint_witness = MintWitness::new_native_script(policy_script);
+        let native_script_source = NativeScriptSource::new(policy_script);
+        let mint_witness = MintWitness::new_native_script(&native_script_source);
         if let Some(mint) = &mut self.mint {
             mint.add_asset(&mint_witness, asset_name, &amount);
         } else {
@@ -1538,9 +1541,10 @@ impl TransactionBuilder {
         self.mint
             .as_ref()
             .map(|m| {
+                let mint = m.build();
                 (
-                    Value::new_from_assets(&m.build().as_positive_multiasset()),
-                    Value::new_from_assets(&m.build().as_negative_multiasset()),
+                    Value::new_from_assets(&mint.as_positive_multiasset()),
+                    Value::new_from_assets(&mint.as_negative_multiasset()),
                 )
             })
             .unwrap_or((Value::zero(), Value::zero()))

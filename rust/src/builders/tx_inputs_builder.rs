@@ -128,7 +128,7 @@ impl TxInputsBuilder {
                     Ok(())
                 }
                 CredType::Script(_) => Err(JsError::from_str(
-                    BuilderError::RegularInputIsScript.as_str(),
+                    &BuilderError::RegularInputIsScript.as_str(),
                 )),
             },
             AddrType::Enterprise(ent_aaddr) => match &ent_aaddr.payment.0 {
@@ -137,7 +137,7 @@ impl TxInputsBuilder {
                     Ok(())
                 }
                 CredType::Script(_) => Err(JsError::from_str(
-                    BuilderError::RegularInputIsScript.as_str(),
+                    &BuilderError::RegularInputIsScript.as_str(),
                 )),
             },
             AddrType::Ptr(ptr_addr) => match &ptr_addr.payment.0 {
@@ -146,7 +146,7 @@ impl TxInputsBuilder {
                     Ok(())
                 }
                 CredType::Script(_) => Err(JsError::from_str(
-                    BuilderError::RegularInputIsScript.as_str(),
+                    &BuilderError::RegularInputIsScript.as_str(),
                 )),
             },
             AddrType::Byron(byron_addr) => {
@@ -154,10 +154,10 @@ impl TxInputsBuilder {
                 Ok(())
             }
             AddrType::Reward(_) => Err(JsError::from_str(
-                BuilderError::RegularInputIsFromRewardAddress.as_str(),
+                &BuilderError::RegularInputIsFromRewardAddress.as_str(),
             )),
             AddrType::Malformed(_) => {
-                Err(JsError::from_str(BuilderError::MalformedAddress.as_str()))
+                Err(JsError::from_str(&BuilderError::MalformedAddress.as_str()))
             }
         }
     }
