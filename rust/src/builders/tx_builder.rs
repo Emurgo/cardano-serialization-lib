@@ -906,7 +906,7 @@ impl TransactionBuilder {
         inputs: &TransactionUnspentOutputs,
         strategy: CoinSelectionStrategyCIP2,
         change_config: &ChangeConfig,
-        collateral_percentage: u64
+        collateral_percentage: &BigNum
     ) -> Result<bool, JsError> {
         let mut total_collateral = Value::zero();
         for collateral_input in self.collateral.iter() {
@@ -919,8 +919,11 @@ impl TransactionBuilder {
                 let fee = self.get_fee_if_set().ok_or(
                     JsError::from_str("Cannot calculate collateral return if fee was not set"),
                 )?;
-                let collateral_required = ((u64::from(&fee) * collateral_percentage) / 100) + 1;
-                let set_collateral_result = self.set_total_collateral_and_return(&BigNum(collateral_required), &change_config.address);
+                let collateral_required = fee
+                    .checked_mul(&collateral_percentage)?
+                    .div_floor(&BigNum(100))
+                    .checked_add(&BigNum::one())?;
+                let set_collateral_result = self.set_total_collateral_and_return(&collateral_required, &change_config.address);
                 match set_collateral_result {
                     Ok(_) => {
                         Ok(true)

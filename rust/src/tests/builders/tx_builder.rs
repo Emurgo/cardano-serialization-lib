@@ -6086,7 +6086,7 @@ fn utxo_selection_with_collateral_return_test() {
     tx_builder.set_collateral(&collateral_builder);
 
     let change_config = ChangeConfig::new(&Address::from_bech32("addr_test1qqzf7fhgm0gf370ngxgpskg5c3kgp2g0u4ltxlrmsvumaztv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfs43mc83").unwrap());
-    assert!(&tx_builder.add_inputs_from_and_change_with_collateral_return(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config, 150).is_ok());
+    assert!(&tx_builder.add_inputs_from_and_change_with_collateral_return(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config, &BigNum(150)).is_ok());
     let build_res = tx_builder.build_tx();
     assert!(&build_res.is_ok());
     assert!(&build_res.clone().unwrap().body.collateral_return().is_some());
