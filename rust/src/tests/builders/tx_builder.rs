@@ -6074,6 +6074,8 @@ fn utxo_selection_with_collateral_return_test() {
         "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
         "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"
     ];
+
+    let collateral_percent = BigNum(150);
     let output = TransactionOutput::new(&Address::from_bech32("addr_test1qppkqaf5044y2t46g2y6udz636c4uultszte5l5p0kvgl3tv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfsjre4xh").unwrap(), &Value::new(&BigNum::from_str("969750").unwrap()));
     tx_builder.add_output(&output).unwrap();
     let mut utxos = TransactionUnspentOutputs::new();
@@ -6086,8 +6088,57 @@ fn utxo_selection_with_collateral_return_test() {
     tx_builder.set_collateral(&collateral_builder);
 
     let change_config = ChangeConfig::new(&Address::from_bech32("addr_test1qqzf7fhgm0gf370ngxgpskg5c3kgp2g0u4ltxlrmsvumaztv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfs43mc83").unwrap());
-    assert!(&tx_builder.add_inputs_from_and_change_with_collateral_return(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config, &BigNum(150)).is_ok());
+    assert!(&tx_builder.add_inputs_from_and_change_with_collateral_return(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config, &collateral_percent).is_ok());
+
     let build_res = tx_builder.build_tx();
     assert!(&build_res.is_ok());
-    assert!(&build_res.clone().unwrap().body.collateral_return().is_some());
+
+    let tx = build_res.unwrap();
+    assert!(&tx.body.collateral_return().is_some());
+
+    let mut vkey_witneses = Vkeywitnesses::new();
+    vkey_witneses.add(&fake_vkey_witness(1));
+    vkey_witneses.add(&fake_vkey_witness(2));
+    let mut wit_set = tx.witness_set();
+    wit_set.set_vkeys(&vkey_witneses);
+
+    let tx_with_vkeys = Transaction::new(&tx.body(), &wit_set, tx.auxiliary_data());
+    let tx_size = tx_with_vkeys.to_bytes().len();
+    let fee = tx.body().fee();
+    let min_fee = min_fee_for_size(tx_size, &create_linear_fee(44, 155381)).unwrap();
+    assert!(fee >= min_fee);
+
+    let collateral_amount = tx.body.total_collateral.unwrap();
+    let calculated_collateral = fee.
+        checked_mul(&collateral_percent).unwrap()
+        .div_floor(&BigNum(100))
+        .checked_add(&BigNum(1)).unwrap();
+
+    assert_eq!(collateral_amount, calculated_collateral);
+}
+
+#[test]
+fn utxo_selection_with_collateral_return_error() {
+    let mut tx_builder = create_reallistic_tx_builder();
+    let hex_utxos = [
+        "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
+        "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"
+    ];
+
+    //we use big percentage to lead not enough collaterals to cover the collateral fee
+    let collateral_percent = BigNum(15000);
+    let output = TransactionOutput::new(&Address::from_bech32("addr_test1qppkqaf5044y2t46g2y6udz636c4uultszte5l5p0kvgl3tv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfsjre4xh").unwrap(), &Value::new(&BigNum::from_str("969750").unwrap()));
+    tx_builder.add_output(&output).unwrap();
+    let mut utxos = TransactionUnspentOutputs::new();
+    for hex_utxo in hex_utxos {
+        utxos.add(&TransactionUnspentOutput::from_hex(hex_utxo).unwrap());
+    }
+    let mut collateral_builder = TxInputsBuilder::new();
+    let collateral_input = TransactionUnspentOutput::from_hex(hex_utxos[1]).unwrap();
+    collateral_builder.add_regular_input(&collateral_input.output.address, &collateral_input.input, &collateral_input.output.amount).unwrap();
+    tx_builder.set_collateral(&collateral_builder);
+
+    let change_config = ChangeConfig::new(&Address::from_bech32("addr_test1qqzf7fhgm0gf370ngxgpskg5c3kgp2g0u4ltxlrmsvumaztv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfs43mc83").unwrap());
+    let change_res = tx_builder.add_inputs_from_and_change_with_collateral_return(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config, &collateral_percent);
+    assert!(change_res.is_err());
 }

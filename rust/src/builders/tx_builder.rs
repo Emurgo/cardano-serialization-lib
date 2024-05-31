@@ -3,11 +3,10 @@
 use crate::*;
 
 use super::*;
+use crate::builders::fakes::{fake_private_key, fake_raw_key_public, fake_raw_key_sig};
 use crate::fees;
 use crate::utils;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use crate::builders::fakes::{fake_private_key, fake_raw_key_public, fake_raw_key_sig};
-use crate::map_names::TxBodyNames::RequiredSigners;
 
 fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
     let mut input_hashes: Ed25519KeyHashes = Ed25519KeyHashes::from(&tx_builder.inputs);
@@ -176,11 +175,11 @@ pub enum CoinSelectionStrategyCIP2 {
 #[derive(Clone, Debug)]
 pub struct TransactionBuilderConfig {
     pub(crate) fee_algo: fees::LinearFee,
-    pub(crate) pool_deposit: Coin,            // protocol parameter
-    pub(crate) key_deposit: Coin,             // protocol parameter
-    pub(crate) max_value_size: u32,           // protocol parameter
-    pub(crate) max_tx_size: u32,              // protocol parameter
-    pub(crate) data_cost: DataCost,           // protocol parameter
+    pub(crate) pool_deposit: Coin,  // protocol parameter
+    pub(crate) key_deposit: Coin,   // protocol parameter
+    pub(crate) max_value_size: u32, // protocol parameter
+    pub(crate) max_tx_size: u32,    // protocol parameter
+    pub(crate) data_cost: DataCost, // protocol parameter
     pub(crate) ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     pub(crate) ref_script_coins_per_byte: Option<UnitInterval>, // protocol parameter
     pub(crate) prefer_pure_change: bool,
@@ -196,12 +195,12 @@ impl TransactionBuilderConfig {
 #[derive(Clone, Debug)]
 pub struct TransactionBuilderConfigBuilder {
     fee_algo: Option<fees::LinearFee>,
-    pool_deposit: Option<Coin>,            // protocol parameter
-    key_deposit: Option<Coin>,             // protocol parameter
-    max_value_size: Option<u32>,           // protocol parameter
-    max_tx_size: Option<u32>,              // protocol parameter
-    data_cost: Option<DataCost>,           // protocol parameter
-    ex_unit_prices: Option<ExUnitPrices>,  // protocol parameter
+    pool_deposit: Option<Coin>,                      // protocol parameter
+    key_deposit: Option<Coin>,                       // protocol parameter
+    max_value_size: Option<u32>,                     // protocol parameter
+    max_tx_size: Option<u32>,                        // protocol parameter
+    data_cost: Option<DataCost>,                     // protocol parameter
+    ex_unit_prices: Option<ExUnitPrices>,            // protocol parameter
     ref_script_coins_per_byte: Option<UnitInterval>, // protocol parameter
     prefer_pure_change: bool,
 }
@@ -309,7 +308,7 @@ impl TransactionBuilderConfigBuilder {
 pub struct ChangeConfig {
     address: Address,
     plutus_data: Option<OutputDatum>,
-    script_ref: Option<ScriptRef>
+    script_ref: Option<ScriptRef>,
 }
 
 #[wasm_bindgen]
@@ -318,7 +317,7 @@ impl ChangeConfig {
         Self {
             address: address.clone(),
             plutus_data: None,
-            script_ref: None
+            script_ref: None,
         }
     }
 
@@ -340,7 +339,6 @@ impl ChangeConfig {
         c_cfg
     }
 }
-
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
@@ -445,7 +443,11 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_regular_input(&input.output.address, &input.input, &input.output.amount);
+                    self.add_regular_input(
+                        &input.output.address,
+                        &input.input,
+                        &input.output.amount,
+                    );
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -525,7 +527,11 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_regular_input(&input.output.address, &input.input, &input.output.amount);
+                    self.add_regular_input(
+                        &input.output.address,
+                        &input.input,
+                        &input.output.amount,
+                    );
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -681,7 +687,11 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_regular_input(&input.output.address, &input.input, &input.output.amount);
+                    self.add_regular_input(
+                        &input.output.address,
+                        &input.input,
+                        &input.output.amount,
+                    );
                     *input_total = input_total.checked_add(&input.output.amount)?;
                     *output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -789,8 +799,13 @@ impl TransactionBuilder {
         self.reference_inputs.insert(reference_input.clone(), 0);
     }
 
-    pub fn add_script_reference_input(&mut self, reference_input: &TransactionInput, script_size: usize) {
-        self.reference_inputs.insert(reference_input.clone(), script_size);
+    pub fn add_script_reference_input(
+        &mut self,
+        reference_input: &TransactionInput,
+        script_size: usize,
+    ) {
+        self.reference_inputs
+            .insert(reference_input.clone(), script_size);
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -843,7 +858,12 @@ impl TransactionBuilder {
     /// To add script input you need to use add_native_script_input or add_plutus_script_input.
     /// Also we recommend to use TxInputsBuilder and .set_inputs, because all add_*_input functions might be removed from transaction builder.
     #[deprecated(since = "12.0.0", note = "Use `.set_inputs`")]
-    pub fn add_regular_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) -> Result<(), JsError>{
+    pub fn add_regular_input(
+        &mut self,
+        address: &Address,
+        input: &TransactionInput,
+        amount: &Value,
+    ) -> Result<(), JsError> {
         self.inputs.add_regular_input(address, input, amount)
     }
 
@@ -855,45 +875,77 @@ impl TransactionBuilder {
         &mut self,
         inputs: &TransactionUnspentOutputs,
         strategy: CoinSelectionStrategyCIP2,
-        change_config: &ChangeConfig
-    ) -> Result<bool, JsError>
-    {
+        change_config: &ChangeConfig,
+    ) -> Result<bool, JsError> {
         self.add_inputs_from(inputs, strategy)?;
-        match &self.fee {
-            Some(_x) => {
-                return Err(JsError::from_str(
-                    "Cannot calculate change if fee was explicitly specified",
-                ))
-            }
-            None => {
-                let mut add_change_result = self.add_change_if_needed_with_optional_script_and_datum(&change_config.address, change_config.plutus_data.clone().map_or(None, |od| Some(od.0)), change_config.script_ref.clone());
-                match add_change_result {
-                    Ok(v) => Ok(v),
-                    Err(e) => {
-                        let mut unused_inputs = TransactionUnspentOutputs::new();
-                        for input in inputs.into_iter() {
-                            if self.inputs.inputs().0.iter().all(|used_input| input.input() != *used_input) {
-                                unused_inputs.add(input)
-                            }
-                        }
-                        unused_inputs.0.sort_by_key(|input| input.clone().output.amount.multiasset.map_or(0, |ma| ma.len()));
-                        unused_inputs.0.reverse();
-                        while unused_inputs.0.len() > 0 {
-                            let last_input = unused_inputs.0.pop();
-                            match last_input {
-                                Some(input) => {
-                                    self.add_regular_input(&input.output().address(), &input.input(), &input.output().amount())?;
-                                    add_change_result = self.add_change_if_needed_with_optional_script_and_datum(&change_config.address, change_config.plutus_data.clone().map_or(None, |od| Some(od.0)), change_config.script_ref.clone());
-                                    if let Ok(value) = add_change_result {
-                                        return Ok(value)
-                                    }
-                                },
-                                None => return Err(JsError::from_str("Unable to balance tx with available inputs"))
-                            }
-                        }
-                        Err(e)
+        if self.fee.is_some() {
+            return Err(JsError::from_str(
+                "Cannot calculate change if fee was explicitly specified",
+            ))
+        }
+        let mut add_change_result = self
+            .add_change_if_needed_with_optional_script_and_datum(
+                &change_config.address,
+                change_config
+                    .plutus_data
+                    .clone()
+                    .map_or(None, |od| Some(od.0)),
+                change_config.script_ref.clone(),
+            );
+        match add_change_result {
+            Ok(v) => Ok(v),
+            Err(e) => {
+                let mut unused_inputs = TransactionUnspentOutputs::new();
+                for input in inputs.into_iter() {
+                    if self
+                        .inputs
+                        .inputs()
+                        .0
+                        .iter()
+                        .all(|used_input| input.input() != *used_input)
+                    {
+                        unused_inputs.add(input)
                     }
                 }
+                unused_inputs.0.sort_by_key(|input| {
+                    input
+                        .clone()
+                        .output
+                        .amount
+                        .multiasset
+                        .map_or(0, |ma| ma.len())
+                });
+                unused_inputs.0.reverse();
+                while unused_inputs.0.len() > 0 {
+                    let last_input = unused_inputs.0.pop();
+                    match last_input {
+                        Some(input) => {
+                            self.add_regular_input(
+                                &input.output().address(),
+                                &input.input(),
+                                &input.output().amount(),
+                            )?;
+                            add_change_result = self
+                                .add_change_if_needed_with_optional_script_and_datum(
+                                    &change_config.address,
+                                    change_config
+                                        .plutus_data
+                                        .clone()
+                                        .map_or(None, |od| Some(od.0)),
+                                    change_config.script_ref.clone(),
+                                );
+                            if let Ok(value) = add_change_result {
+                                return Ok(value);
+                            }
+                        }
+                        None => {
+                            return Err(JsError::from_str(
+                                "Unable to balance tx with available inputs",
+                            ))
+                        }
+                    }
+                }
+                Err(e)
             }
         }
     }
@@ -906,40 +958,46 @@ impl TransactionBuilder {
         inputs: &TransactionUnspentOutputs,
         strategy: CoinSelectionStrategyCIP2,
         change_config: &ChangeConfig,
-        collateral_percentage: &BigNum
-    ) -> Result<bool, JsError> {
+        collateral_percentage: &BigNum,
+    ) -> Result<(), JsError> {
         let mut total_collateral = Value::zero();
         for collateral_input in self.collateral.iter() {
             total_collateral = total_collateral.checked_add(&collateral_input.amount)?;
         }
-        self.set_total_collateral_and_return(&total_collateral.coin(), &change_config.address)?;
+
+        //set fake max total collateral and return
+        self.set_total_collateral(&total_collateral.coin());
+        self.set_collateral_return(&TransactionOutput::new(
+            &change_config.address,
+            &total_collateral,
+        ));
+
         let add_change_result = self.add_inputs_from_and_change(inputs, strategy, change_config);
-        match add_change_result {
-            Ok(_) => {
-                let fee = self.get_fee_if_set().ok_or(
-                    JsError::from_str("Cannot calculate collateral return if fee was not set"),
-                )?;
-                let collateral_required = fee
-                    .checked_mul(&collateral_percentage)?
-                    .div_floor(&BigNum(100))
-                    .checked_add(&BigNum::one())?;
-                let set_collateral_result = self.set_total_collateral_and_return(&collateral_required, &change_config.address);
-                match set_collateral_result {
-                    Ok(_) => {
-                        Ok(true)
-                    }
-                    Err(_) => {
-                        self.remove_collateral_return();
-                        self.remove_total_collateral();
-                        Ok(true)
-                    }
-                }
-            }
-            Err(e) => {
-                Err(e)
-            }
-        }?;
-        Ok(true)
+
+        self.remove_collateral_return();
+        self.remove_total_collateral();
+
+        //check if adding inputs and change was successful
+        add_change_result?;
+
+        let fee = self.get_fee_if_set().ok_or(JsError::from_str(
+            "Cannot calculate collateral return if fee was not set",
+        ))?;
+
+        let collateral_required = fee
+            .checked_mul(&collateral_percentage)?
+            .div_floor(&BigNum(100))
+            .checked_add(&BigNum::one())?;
+        let set_collateral_result =
+            self.set_total_collateral_and_return(&collateral_required, &change_config.address);
+
+        if let Err(e) = set_collateral_result {
+            self.remove_collateral_return();
+            self.remove_total_collateral();
+            return Err(e);
+        }
+
+        Ok(())
     }
 
     /// Returns a copy of the current script input witness scripts in the builder
@@ -1317,11 +1375,9 @@ impl TransactionBuilder {
         }
         let policy_id: PolicyID = policy_script.hash();
         self.add_mint_asset(policy_script, asset_name, amount);
-        let multiasset = Mint::new_from_entry(
-            &policy_id,
-            &MintAssets::new_from_entry(asset_name, amount)?,
-        )
-        .as_positive_multiasset();
+        let multiasset =
+            Mint::new_from_entry(&policy_id, &MintAssets::new_from_entry(asset_name, amount)?)
+                .as_positive_multiasset();
 
         self.add_output(
             &output_builder
@@ -1347,11 +1403,9 @@ impl TransactionBuilder {
         }
         let policy_id: PolicyID = policy_script.hash();
         self.add_mint_asset(policy_script, asset_name, amount);
-        let multiasset = Mint::new_from_entry(
-            &policy_id,
-            &MintAssets::new_from_entry(asset_name, amount)?,
-        )
-        .as_positive_multiasset();
+        let multiasset =
+            Mint::new_from_entry(&policy_id, &MintAssets::new_from_entry(asset_name, amount)?)
+                .as_positive_multiasset();
 
         self.add_output(
             &output_builder
@@ -1385,7 +1439,10 @@ impl TransactionBuilder {
         self.donation.clone()
     }
 
-    pub fn set_current_treasury_value(&mut self, current_treasury_value: &Coin) -> Result<(), JsError> {
+    pub fn set_current_treasury_value(
+        &mut self,
+        current_treasury_value: &Coin,
+    ) -> Result<(), JsError> {
         if current_treasury_value == &Coin::zero() {
             return Err(JsError::from_str("Current treasury value cannot be zero!"));
         }
@@ -1465,9 +1522,15 @@ impl TransactionBuilder {
 
     fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {
         let mut sizes_map = HashMap::new();
-        fn add_to_map<'a>(item: (&'a TransactionInput, usize), sizes_map: &mut HashMap<&'a TransactionInput, usize> ) -> Result<(), JsError>{
+        fn add_to_map<'a>(
+            item: (&'a TransactionInput, usize),
+            sizes_map: &mut HashMap<&'a TransactionInput, usize>,
+        ) -> Result<(), JsError> {
             if sizes_map.entry(item.0).or_insert(item.1) != &item.1 {
-                return Err(JsError::from_str(&format!("Different script sizes for the same ref input {}", item.0)));
+                return Err(JsError::from_str(&format!(
+                    "Different script sizes for the same ref input {}",
+                    item.0
+                )));
             } else {
                 Ok(())
             }
@@ -1564,7 +1627,8 @@ impl TransactionBuilder {
     /// Return explicit output plus deposit plus burn
     pub fn get_total_output(&self) -> Result<Value, JsError> {
         let (_, burn_value) = self.get_mint_as_values();
-        let mut total = self.get_explicit_output()?
+        let mut total = self
+            .get_explicit_output()?
             .checked_add(&Value::new(&self.get_deposit()?))?
             .checked_add(&burn_value)?;
         if let Some(donation) = &self.donation {
@@ -1594,9 +1658,8 @@ impl TransactionBuilder {
         }
 
         if let Some(voting_proposal_builder) = &self.voting_proposals {
-            total_deposit = total_deposit.checked_add(
-                &voting_proposal_builder.get_total_deposit()?,
-            )?;
+            total_deposit =
+                total_deposit.checked_add(&voting_proposal_builder.get_total_deposit()?)?;
         }
 
         Ok(total_deposit)
