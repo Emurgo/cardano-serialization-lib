@@ -270,123 +270,6 @@ declare export function decode_metadatum_to_json_str(
 /**
  */
 
-declare export var VoteKind: {|
-  +No: 0, // 0
-  +Yes: 1, // 1
-  +Abstain: 2, // 2
-|};
-
-/**
- * Used to choosed the schema for a script JSON string
- */
-
-declare export var ScriptSchema: {|
-  +Wallet: 0, // 0
-  +Node: 1, // 1
-|};
-
-/**
- */
-
-declare export var CredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
-|};
-
-/**
- */
-
-declare export var MIRPot: {|
-  +Reserves: 0, // 0
-  +Treasury: 1, // 1
-|};
-
-/**
- */
-
-declare export var NetworkIdKind: {|
-  +Testnet: 0, // 0
-  +Mainnet: 1, // 1
-|};
-
-/**
- */
-
-declare export var VoterKind: {|
-  +ConstitutionalCommitteeHotKeyHash: 0, // 0
-  +ConstitutionalCommitteeHotScriptHash: 1, // 1
-  +DRepKeyHash: 2, // 2
-  +DRepScriptHash: 3, // 3
-  +StakingPoolKeyHash: 4, // 4
-|};
-
-/**
- */
-
-declare export var AddressKind: {|
-  +Base: 0, // 0
-  +Pointer: 1, // 1
-  +Enterprise: 2, // 2
-  +Reward: 3, // 3
-  +Byron: 4, // 4
-  +Malformed: 5, // 5
-|};
-
-/**
- * Each new language uses a different namespace for hashing its script
- * This is because you could have a language where the same bytes have different semantics
- * So this avoids scripts in different languages mapping to the same hash
- * Note that the enum value here is different than the enum value for deciding the cost model of a script
- */
-
-declare export var ScriptHashNamespace: {|
-  +NativeScript: 0, // 0
-  +PlutusScript: 1, // 1
-  +PlutusScriptV2: 2, // 2
-  +PlutusScriptV3: 3, // 3
-|};
-
-/**
- */
-
-declare export var NativeScriptKind: {|
-  +ScriptPubkey: 0, // 0
-  +ScriptAll: 1, // 1
-  +ScriptAny: 2, // 2
-  +ScriptNOfK: 3, // 3
-  +TimelockStart: 4, // 4
-  +TimelockExpiry: 5, // 5
-|};
-
-/**
- */
-
-declare export var LanguageKind: {|
-  +PlutusV1: 0, // 0
-  +PlutusV2: 1, // 1
-  +PlutusV3: 2, // 2
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
-declare export var MIRKind: {|
-  +ToOtherPot: 0, // 0
-  +ToStakeCredentials: 1, // 1
-|};
-
-/**
- */
-
 declare export var RedeemerTagKind: {|
   +Spend: 0, // 0
   +Mint: 1, // 1
@@ -394,16 +277,6 @@ declare export var RedeemerTagKind: {|
   +Reward: 3, // 3
   +Vote: 4, // 4
   +VotingProposal: 5, // 5
-|};
-
-/**
- */
-
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-  +LargestFirstMultiAsset: 2, // 2
-  +RandomImproveMultiAsset: 3, // 3
 |};
 
 /**
@@ -418,9 +291,13 @@ declare export var RelayKind: {|
 /**
  */
 
-declare export var CborContainerType: {|
-  +Array: 0, // 0
-  +Map: 1, // 1
+declare export var AddressKind: {|
+  +Base: 0, // 0
+  +Pointer: 1, // 1
+  +Enterprise: 2, // 2
+  +Reward: 3, // 3
+  +Byron: 4, // 4
+  +Malformed: 5, // 5
 |};
 
 /**
@@ -443,14 +320,57 @@ declare export var PlutusDatumSchema: {|
 /**
  */
 
-declare export var GovernanceActionKind: {|
-  +ParameterChangeAction: 0, // 0
-  +HardForkInitiationAction: 1, // 1
-  +TreasuryWithdrawalsAction: 2, // 2
-  +NoConfidenceAction: 3, // 3
-  +UpdateCommitteeAction: 4, // 4
-  +NewConstitutionAction: 5, // 5
-  +InfoAction: 6, // 6
+declare export var VoterKind: {|
+  +ConstitutionalCommitteeHotKeyHash: 0, // 0
+  +ConstitutionalCommitteeHotScriptHash: 1, // 1
+  +DRepKeyHash: 2, // 2
+  +DRepScriptHash: 3, // 3
+  +StakingPoolKeyHash: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
+|};
+
+/**
+ */
+
+declare export var VoteKind: {|
+  +No: 0, // 0
+  +Yes: 1, // 1
+  +Abstain: 2, // 2
+|};
+
+/**
+ */
+
+declare export var LanguageKind: {|
+  +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
+  +PlutusV3: 2, // 2
+|};
+
+/**
+ * Used to choosed the schema for a script JSON string
+ */
+
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
+|};
+
+/**
+ */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
 |};
 
 /**
@@ -461,6 +381,18 @@ declare export var DRepKind: {|
   +ScriptHash: 1, // 1
   +AlwaysAbstain: 2, // 2
   +AlwaysNoConfidence: 3, // 3
+|};
+
+/**
+ */
+
+declare export var NativeScriptKind: {|
+  +ScriptPubkey: 0, // 0
+  +ScriptAll: 1, // 1
+  +ScriptAny: 2, // 2
+  +ScriptNOfK: 3, // 3
+  +TimelockStart: 4, // 4
+  +TimelockExpiry: 5, // 5
 |};
 
 /**
@@ -489,12 +421,9 @@ declare export var CertificateKind: {|
 /**
  */
 
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
+declare export var NetworkIdKind: {|
+  +Testnet: 0, // 0
+  +Mainnet: 1, // 1
 |};
 
 /**
@@ -506,6 +435,77 @@ declare export var PlutusDataKind: {|
   +List: 2, // 2
   +Integer: 3, // 3
   +Bytes: 4, // 4
+|};
+
+/**
+ */
+
+declare export var CredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
+declare export var GovernanceActionKind: {|
+  +ParameterChangeAction: 0, // 0
+  +HardForkInitiationAction: 1, // 1
+  +TreasuryWithdrawalsAction: 2, // 2
+  +NoConfidenceAction: 3, // 3
+  +UpdateCommitteeAction: 4, // 4
+  +NewConstitutionAction: 5, // 5
+  +InfoAction: 6, // 6
+|};
+
+/**
+ */
+
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
+|};
+
+/**
+ */
+
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
+|};
+
+/**
+ * Each new language uses a different namespace for hashing its script
+ * This is because you could have a language where the same bytes have different semantics
+ * So this avoids scripts in different languages mapping to the same hash
+ * Note that the enum value here is different than the enum value for deciding the cost model of a script
+ */
+
+declare export var ScriptHashNamespace: {|
+  +NativeScript: 0, // 0
+  +PlutusScript: 1, // 1
+  +PlutusScriptV2: 2, // 2
+  +PlutusScriptV3: 3, // 3
 |};
 
 /**
@@ -7722,6 +7722,11 @@ declare export class PoolVotingThresholds {
    * @returns {UnitInterval}
    */
   hard_fork_initiation(): UnitInterval;
+
+  /**
+   * @returns {UnitInterval}
+   */
+  security_relevant_threshold(): UnitInterval;
 }
 /**
  */
@@ -10678,15 +10683,14 @@ declare export class TransactionBuilder {
                 typeof 
                 CoinSelectionStrategyCIP2>} strategy
  * @param {ChangeConfig} change_config
- * @param {bigint} collateral_percentage
- * @returns {boolean}
+ * @param {BigNum} collateral_percentage
  */
   add_inputs_from_and_change_with_collateral_return(
     inputs: TransactionUnspentOutputs,
     strategy: $Values<typeof CoinSelectionStrategyCIP2>,
     change_config: ChangeConfig,
-    collateral_percentage: bigint
-  ): boolean;
+    collateral_percentage: BigNum
+  ): void;
 
   /**
    * Returns a copy of the current script input witness scripts in the builder

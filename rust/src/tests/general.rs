@@ -254,7 +254,7 @@ fn native_scripts_get_pubkeys() {
 }
 
 #[test]
-fn protocol_params_update_cbor_roundtrip() {
+fn protocol_params_update_cbor_json_roundtrip() {
     let mut orig_ppu = ProtocolParamUpdate::new();
     orig_ppu.set_max_tx_size(1234);
     orig_ppu.set_max_block_body_size(5678);
@@ -284,12 +284,44 @@ fn protocol_params_update_cbor_roundtrip() {
     orig_ppu.set_max_value_size(24);
     orig_ppu.set_collateral_percentage(25);
     orig_ppu.set_max_collateral_inputs(25);
+    orig_ppu.set_pool_voting_thresholds(&PoolVotingThresholds::new(
+        &UnitInterval::new(&BigNum::from(26u32), &BigNum::from(27u32)),
+        &UnitInterval::new(&BigNum::from(28u32), &BigNum::from(29u32)),
+        &UnitInterval::new(&BigNum::from(30u32), &BigNum::from(31u32)),
+        &UnitInterval::new(&BigNum::from(40u32), &BigNum::from(41u32)),
+        &UnitInterval::new(&BigNum::from(50u32), &BigNum::from(51u32)),
+    ));
+    orig_ppu.set_drep_voting_thresholds(&DrepVotingThresholds::new(
+        &UnitInterval::new(&BigNum::from(26u32), &BigNum::from(27u32)),
+        &UnitInterval::new(&BigNum::from(28u32), &BigNum::from(29u32)),
+        &UnitInterval::new(&BigNum::from(30u32), &BigNum::from(31u32)),
+        &UnitInterval::new(&BigNum::from(40u32), &BigNum::from(41u32)),
+        &UnitInterval::new(&BigNum::from(50u32), &BigNum::from(51u32)),
+        &UnitInterval::new(&BigNum::from(60u32), &BigNum::from(61u32)),
+        &UnitInterval::new(&BigNum::from(66u32), &BigNum::from(65u32)),
+        &UnitInterval::new(&BigNum::from(70u32), &BigNum::from(71u32)),
+        &UnitInterval::new(&BigNum::from(77u32), &BigNum::from(75u32)),
+        &UnitInterval::new(&BigNum::from(80u32), &BigNum::from(81u32)),
+    ));
+    orig_ppu.set_min_committee_size(32);
+    orig_ppu.set_committee_term_limit(33);
+    orig_ppu.set_governance_action_validity_period(34);
+    orig_ppu.set_governance_action_deposit(&Coin::from(35u32));
+    orig_ppu.set_drep_deposit(&Coin::from(36u32));
+    orig_ppu.set_drep_inactivity_period(37);
+    orig_ppu.set_ref_script_coins_per_byte(&UnitInterval::new(&BigNum::from(38u32), &BigNum::from(39u32)));
 
-    let encoded = orig_ppu.to_bytes();
-    let dencoded = ProtocolParamUpdate::from_bytes(encoded).unwrap();
+    let encoded_cbor = orig_ppu.to_bytes();
+    let decoded_from_cbor = ProtocolParamUpdate::from_bytes(encoded_cbor).unwrap();
 
-    assert_eq!(dencoded, orig_ppu);
-    assert_eq!(dencoded.to_bytes(), orig_ppu.to_bytes());
+    assert_eq!(decoded_from_cbor, orig_ppu);
+    assert_eq!(decoded_from_cbor.to_bytes(), orig_ppu.to_bytes());
+
+    let encoded_json = orig_ppu.to_json().unwrap();
+    let decoded_from_json = ProtocolParamUpdate::from_json(&encoded_json).unwrap();
+
+    assert_eq!(decoded_from_json, orig_ppu);
+    assert_eq!(decoded_from_json.to_json().unwrap(), orig_ppu.to_json().unwrap());
 }
 
 #[test]

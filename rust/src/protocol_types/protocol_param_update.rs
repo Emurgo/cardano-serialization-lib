@@ -56,6 +56,10 @@ impl PoolVotingThresholds {
     pub fn hard_fork_initiation(&self) -> UnitInterval {
         self.hard_fork_initiation.clone()
     }
+
+    pub fn security_relevant_threshold(&self) -> UnitInterval {
+        self.security_relevant_threshold.clone()
+    }
 }
 
 #[wasm_bindgen]
@@ -245,7 +249,7 @@ pub struct ProtocolParamUpdate {
     pub(crate) pool_voting_thresholds: Option<PoolVotingThresholds>,
     pub(crate) drep_voting_thresholds: Option<DrepVotingThresholds>,
     pub(crate) min_committee_size: Option<u32>,
-    pub(crate) committee_term_limit: Option<u32>,
+    pub(crate) committee_term_limit: Option<Epoch>,
     pub(crate) governance_action_validity_period: Option<Epoch>,
     pub(crate) governance_action_deposit: Option<Coin>,
     pub(crate) drep_deposit: Option<Coin>,
@@ -483,11 +487,11 @@ impl ProtocolParamUpdate {
         self.min_committee_size.clone()
     }
 
-    pub fn set_committee_term_limit(&mut self, committee_term_limit: u32) {
+    pub fn set_committee_term_limit(&mut self, committee_term_limit: Epoch) {
         self.committee_term_limit = Some(committee_term_limit)
     }
 
-    pub fn committee_term_limit(&self) -> Option<u32> {
+    pub fn committee_term_limit(&self) -> Option<Epoch> {
         self.committee_term_limit.clone()
     }
 
