@@ -119,7 +119,7 @@ impl DrepVotingThresholds {
         }
     }
 
-    pub fn new_default() -> Self {
+    pub(crate) fn new_default() -> Self {
         Self {
             ..Default::default()
         }

@@ -829,7 +829,10 @@ impl TransactionBuilder {
         input: &TransactionInput,
         amount: &Value,
     ) {
-        self.inputs.add_native_script_input(script, input, amount);
+        self.inputs.add_native_script_input(
+            &NativeScriptSource::new(script),
+            input,
+            amount);
     }
 
     /// This method will add the input to the builder and also register the required plutus witness

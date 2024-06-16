@@ -4280,12 +4280,12 @@ fn test_regular_and_collateral_inputs_together() {
     let mut collateral_builder = TxInputsBuilder::new();
 
     input_builder.add_native_script_input(
-        &nscript1,
+        &NativeScriptSource::new(&nscript1),
         &TransactionInput::new(&genesis_id(), 0),
         &Value::new(&BigNum(1_000_000)),
     );
     collateral_builder.add_native_script_input(
-        &nscript2,
+        &NativeScriptSource::new(&nscript2),
         &TransactionInput::new(&genesis_id(), 1),
         &Value::new(&BigNum(1_000_000)),
     );

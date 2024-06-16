@@ -73,16 +73,13 @@ impl TxInputsBuilder {
     /// This method will add the input to the builder and also register the required native script witness
     pub fn add_native_script_input(
         &mut self,
-        script: &NativeScript,
+        script: &NativeScriptSource,
         input: &TransactionInput,
         amount: &Value,
     ) {
-        let hash = script.hash();
+        let hash = script.script_hash();
         self.add_script_input(&hash, input, amount);
-        let witness = ScriptWitnessType::NativeScriptWitness(NativeScriptSourceEnum::NativeScript(
-            script.clone(),
-            None,
-        ));
+        let witness = ScriptWitnessType::NativeScriptWitness(script.0.clone());
         self.insert_input_with_witness(&hash, input, &witness);
     }
 
@@ -102,7 +99,7 @@ impl TxInputsBuilder {
 
     pub fn add_bootstrap_input(
         &mut self,
-        hash: &ByronAddress,
+        address: &ByronAddress,
         input: &TransactionInput,
         amount: &Value,
     ) {
@@ -111,7 +108,7 @@ impl TxInputsBuilder {
             amount: amount.clone(),
         };
         self.push_input((inp, None));
-        self.required_witnesses.bootstraps.insert(hash.to_bytes());
+        self.required_witnesses.bootstraps.insert(address.to_bytes());
     }
 
     /// Adds non script input, in case of script or reward address input it will return an error
@@ -333,6 +330,10 @@ impl TxInputsBuilder {
             .filter_map(|wit| wit.get_script_ref_input_with_size())
     }
 
+    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashes {
+        self.into()
+    }
+
     fn insert_input_with_witness(
         &mut self,
         script_hash: &ScriptHash,
@@ -370,10 +371,18 @@ impl From<&TxInputsBuilder> for Ed25519KeyHashes {
             .values()
             .flat_map(|tx_wits| tx_wits.values())
             .for_each(|swt: &Option<ScriptWitnessType>| {
-                if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = swt {
-                    if let Some(signers) = script_source.required_signers() {
-                        set.extend_move(signers);
+                match swt {
+                    Some(ScriptWitnessType::NativeScriptWitness(script_source)) => {
+                        if let Some(signers) = script_source.required_signers() {
+                            set.extend_move(signers);
+                        }
                     }
+                    Some(ScriptWitnessType::PlutusScriptWitness(script_source)) => {
+                        if let Some(signers) = script_source.get_required_signers() {
+                            set.extend_move(signers);
+                        }
+                    }
+                    None => (),
                 }
             });
         set

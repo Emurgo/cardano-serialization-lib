@@ -1,6 +1,4 @@
-use crate::fakes::{
-    fake_anchor_data_hash, fake_key_hash, fake_pool_metadata_hash, fake_tx_hash, fake_vrf_key_hash,
-};
+use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_pool_metadata_hash, fake_script_hash, fake_tx_hash, fake_vrf_key_hash};
 use crate::fees::LinearFee;
 use crate::tests::helpers::harden;
 use crate::*;
@@ -307,6 +305,123 @@ pub(crate) fn create_change_address() -> Address {
         &stake_cred,
     );
     addr.to_address()
+}
+
+pub(crate) fn create_base_address(index: u32) -> Address {
+    let spend = root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(1)
+        .derive(index)
+        .to_public();
+    let stake = root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(2)
+        .derive(0)
+        .to_public();
+    let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+    let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
+    let addr = BaseAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &spend_cred,
+        &stake_cred,
+    );
+    addr.to_address()
+}
+
+pub(crate) fn create_base_script_address(index: u8) -> Address {
+    let stake = root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(2)
+        .derive(0)
+        .to_public();
+    let spend_cred = Credential::from_scripthash(&fake_script_hash(index));
+    let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
+    let addr = BaseAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &spend_cred,
+        &stake_cred,
+    );
+    addr.to_address()
+}
+
+pub(crate) fn create_enterprise_address(index: u32) -> Address {
+    let spend = root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(1)
+        .derive(index)
+        .to_public();
+    let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+    let addr = EnterpriseAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &spend_cred,
+    );
+    addr.to_address()
+}
+
+pub(crate) fn create_enterprise_script_address(index: u8) -> Address {
+    let spend_cred = Credential::from_scripthash(&fake_script_hash(index));
+    let addr = EnterpriseAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &spend_cred,
+    );
+    addr.to_address()
+}
+
+pub(crate) fn create_pointer_address(index: u32) -> Address {
+    let spend = root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(1)
+        .derive(index)
+        .to_public();
+    let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
+    let pointer = Pointer::new(1, 2, 3);
+    let addr = PointerAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &spend_cred,
+        &pointer
+    );
+    addr.to_address()
+}
+
+pub(crate) fn create_pointer_script_address(index: u8) -> Address {
+    let spend_cred = Credential::from_scripthash(&fake_script_hash(index));
+    let pointer = Pointer::new(1, 2, 3);
+    let addr = PointerAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &spend_cred,
+        &pointer
+    );
+    addr.to_address()
+}
+
+pub(crate) fn create_reward_address(index: u32) -> Address {
+    let stake = root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(1)
+        .derive(index)
+        .to_public();
+    let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
+    let addr = RewardAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &stake_cred,
+    );
+    addr.to_address()
+}
+
+pub(crate) fn create_malformed_address() -> Address {
+    MalformedAddress(vec![255, 255, 255, 255, 255, 255]).to_address()
 }
 
 pub(crate) fn create_rich_tx_builder(with_collateral: bool) -> TransactionBuilder {
