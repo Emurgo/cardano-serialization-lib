@@ -79,10 +79,12 @@ pub fn plutus_datum_from_json_basic() {
         .get(&PlutusData::new_integer(&BigInt::from_str("5").unwrap()))
         .unwrap();
     let utf8_bytes = "some utf8 string".as_bytes();
-    assert_eq!(map_5.as_bytes().unwrap(), utf8_bytes);
+    assert_eq!(map_5.get(0).unwrap().as_bytes().unwrap(), utf8_bytes);
     let map_deadbeef: PlutusList = map
         .get(&PlutusData::new_bytes(vec![222, 173, 190, 239]))
         .expect("DEADBEEF key not found")
+        .get(0)
+        .unwrap()
         .as_list()
         .expect("must be a map");
     assert_eq!(map_deadbeef.len(), 2);
@@ -90,6 +92,8 @@ pub fn plutus_datum_from_json_basic() {
     assert_eq!(inner_map.len(), 1);
     let reg_string = inner_map
         .get(&PlutusData::new_bytes("reg string".as_bytes().to_vec()))
+        .unwrap()
+        .get(0)
         .unwrap();
     assert_eq!(reg_string.as_map().expect("reg string: {}").len(), 0);
     assert_eq!(
@@ -102,6 +106,51 @@ pub fn plutus_datum_from_json_basic() {
         decode_plutus_datum_to_json_str(&datum, PlutusDatumSchema::BasicConversions).unwrap();
     let datum2 =
         encode_json_str_to_plutus_datum(&json2, PlutusDatumSchema::BasicConversions).unwrap();
+    assert_eq!(datum, datum2);
+}
+
+#[test]
+pub fn plutus_datum_from_json_detailed_duplicated_keys() {
+    let json = "{\"list\": [
+            {\"map\": [
+                {\"k\": {\"bytes\": \"DEADBEEF\"}, \"v\": {\"int\": 42}},
+                {\"k\": {\"bytes\": \"DEADBEEF\"}, \"v\": {\"int\": 43}},
+                {\"k\": {\"map\" : [
+                    {\"k\": {\"int\": 9}, \"v\": {\"int\": -5}}
+                ]}, \"v\": {\"list\": []}}
+            ]}
+        ]}";
+    let datum = encode_json_str_to_plutus_datum(json, PlutusDatumSchema::DetailedSchema).unwrap();
+
+    let list = datum.as_list().unwrap();
+    assert_eq!(1, list.len());
+    // map
+    let map = list.get(0).as_map().unwrap();
+    assert_eq!(map.len(), 2);
+    let map_deadbeef = map
+        .get(&PlutusData::new_bytes(vec![222, 173, 190, 239]))
+        .unwrap();
+    assert_eq!(map_deadbeef.len(), 2);
+    assert_eq!(map_deadbeef.get(0).unwrap().as_integer(), BigInt::from_str("42").ok());
+    assert_eq!(map_deadbeef.get(1).unwrap().as_integer(), BigInt::from_str("43").ok());
+    let mut long_key = PlutusMap::new();
+    long_key.add_value(
+        &PlutusData::new_integer(&BigInt::from_str("9").unwrap()),
+        &PlutusData::new_integer(&BigInt::from_str("-5").unwrap()),
+    );
+    let map_9_to_5 = map
+        .get(&PlutusData::new_map(&long_key))
+        .unwrap()
+        .get(0)
+        .unwrap()
+        .as_list()
+        .unwrap();
+    assert_eq!(map_9_to_5.len(), 0);
+
+    // test round-trip via generated JSON
+    let json2 = decode_plutus_datum_to_json_str(&datum, PlutusDatumSchema::DetailedSchema).unwrap();
+    let datum2 =
+        encode_json_str_to_plutus_datum(&json2, PlutusDatumSchema::DetailedSchema).unwrap();
     assert_eq!(datum, datum2);
 }
 
@@ -130,14 +179,16 @@ pub fn plutus_datum_from_json_detailed() {
     let map_deadbeef = map
         .get(&PlutusData::new_bytes(vec![222, 173, 190, 239]))
         .unwrap();
-    assert_eq!(map_deadbeef.as_integer(), BigInt::from_str("42").ok());
+    assert_eq!(map_deadbeef.get(0).unwrap().as_integer(), BigInt::from_str("42").ok());
     let mut long_key = PlutusMap::new();
-    long_key.insert(
+    long_key.add_value(
         &PlutusData::new_integer(&BigInt::from_str("9").unwrap()),
         &PlutusData::new_integer(&BigInt::from_str("-5").unwrap()),
     );
     let map_9_to_5 = map
         .get(&PlutusData::new_map(&long_key))
+        .unwrap()
+        .get(0)
         .unwrap()
         .as_list()
         .unwrap();

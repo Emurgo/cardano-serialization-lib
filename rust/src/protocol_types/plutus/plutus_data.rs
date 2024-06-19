@@ -72,8 +72,38 @@ impl ConstrPlutusData {
 }
 
 #[wasm_bindgen]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
+pub struct PlutusMapValues {
+    pub(crate) elems: Vec<PlutusData>,
+}
+
+#[wasm_bindgen]
+impl PlutusMapValues {
+    pub fn new() -> Self {
+        Self { elems: Vec::new() }
+    }
+
+    pub fn len(&self) -> usize {
+        self.elems.len()
+    }
+
+    pub fn get(&self, index: usize) -> Option<PlutusData> {
+        self.elems.get(index).cloned()
+    }
+
+    pub fn add(&mut self, elem: &PlutusData) {
+        self.elems.push(elem.clone());
+    }
+
+    pub(crate) fn add_move(&mut self, elem: PlutusData) {
+        self.elems.push(elem);
+    }
+}
+
+
+#[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
-pub struct PlutusMap(pub(crate) LinkedHashMap<PlutusData, PlutusData>);
+pub struct PlutusMap(pub(crate) LinkedHashMap<PlutusData, PlutusMapValues>);
 
 to_from_bytes!(PlutusMap);
 
@@ -83,15 +113,19 @@ impl PlutusMap {
         Self(LinkedHashMap::new())
     }
 
+
+    /// Return count ok different keys in the map.
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &PlutusData, value: &PlutusData) -> Option<PlutusData> {
-        self.0.insert(key.clone(), value.clone())
+    /// Returns the previous value associated with the key, if any.
+    /// Replace the values associated with the key.
+    pub fn insert(&mut self, key: &PlutusData, values: &PlutusMapValues) -> Option<PlutusMapValues> {
+        self.0.insert(key.clone(), values.clone())
     }
 
-    pub fn get(&self, key: &PlutusData) -> Option<PlutusData> {
+    pub fn get(&self, key: &PlutusData) -> Option<PlutusMapValues> {
         self.0.get(key).map(|v| v.clone())
     }
 
@@ -100,6 +134,21 @@ impl PlutusMap {
             elems: self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<_>>(),
             definite_encoding: None,
         }
+    }
+
+    /// Adds a value to the list of values associated with the key.
+    pub(crate) fn add_value(&mut self, key: &PlutusData, value: &PlutusData) {
+        let mut values = self.0
+            .entry(key.clone())
+            .or_insert_with(PlutusMapValues::new);
+        values.add(value);
+    }
+
+    pub(crate) fn add_value_move(&mut self, key: PlutusData, value: PlutusData) {
+        let mut values = self.0
+            .entry(key)
+            .or_insert_with(PlutusMapValues::new);
+        values.add_move(value);
     }
 }
 
@@ -614,7 +663,7 @@ pub fn encode_json_value_to_plutus_datum(
                 for (raw_key, raw_value) in json_obj {
                     let key = encode_string(&raw_key, schema, true)?;
                     let value = encode_json_value_to_plutus_datum(raw_value, schema)?;
-                    map.insert(&key, &value);
+                    map.add_value(&key, &value);
                 }
                 Ok(PlutusData::new_map(&map))
             }
@@ -649,7 +698,7 @@ pub fn encode_json_value_to_plutus_datum(
                                 let value = entry_obj.get("v").ok_or_else(map_entry_err)?;
                                 let key =
                                     encode_json_value_to_plutus_datum(raw_key.clone(), schema)?;
-                                map.insert(
+                                map.add_value(
                                     &key,
                                     &encode_json_value_to_plutus_datum(value.clone(), schema)?,
                                 );
@@ -730,7 +779,7 @@ pub fn decode_plutus_datum_to_json_value(
             (None, Value::from(obj))
         },
         PlutusDataEnum::Map(map) => match schema {
-            PlutusDatumSchema::BasicConversions => (None, Value::from(map.0.iter().map(|(key, value)| {
+            PlutusDatumSchema::BasicConversions => (None, Value::from(map.0.iter().map(|(key, values)| {
                 let json_key: String = match &key.datum {
                     PlutusDataEnum::ConstrPlutusData(_) => Err(JsError::from_str("plutus data constructors are not allowed as keys in this schema. Use DetailedSchema.")),
                     PlutusDataEnum::Map(_) => Err(JsError::from_str("plutus maps are not allowed as keys in this schema. Use DetailedSchema.")),
@@ -738,17 +787,29 @@ pub fn decode_plutus_datum_to_json_value(
                     PlutusDataEnum::Integer(x) => Ok(x.to_str()),
                     PlutusDataEnum::Bytes(bytes) => String::from_utf8(bytes.clone()).or_else(|_err| Ok(format!("0x{}", hex::encode(bytes))))
                 }?;
-                let json_value = decode_plutus_datum_to_json_value(value, schema)?;
-                Ok((json_key, Value::from(json_value)))
+                if values.len() > 1 {
+                    Err(JsError::from_str("plutus maps are not allowed to have more than one value per key in this schema. Use DetailedSchema."))
+                } else if let Some(value) = values.get(0) {
+                    let json_value = decode_plutus_datum_to_json_value(&value, schema)?;
+                    Ok((json_key, Value::from(json_value)))
+                } else {
+                    Err(JsError::from_str("plutus maps are not allowed to have empty values in this schema. Use DetailedSchema."))
+                }
             }).collect::<Result<serde_json::map::Map<String, Value>, JsError>>()?)),
-            PlutusDatumSchema::DetailedSchema => (Some("map"), Value::from(map.0.iter().map(|(key, value)| {
-                let k = decode_plutus_datum_to_json_value(key, schema)?;
-                let v = decode_plutus_datum_to_json_value(value, schema)?;
-                let mut kv_obj = serde_json::map::Map::with_capacity(2);
-                kv_obj.insert(String::from("k"), k);
-                kv_obj.insert(String::from("v"), v);
-                Ok(Value::from(kv_obj))
-            }).collect::<Result<Vec<_>, JsError>>()?)),
+            PlutusDatumSchema::DetailedSchema => {
+                let mut entries = Vec::new();
+                for (key, values) in map.0.iter() {
+                    for value in &values.elems {
+                        let k = decode_plutus_datum_to_json_value(key, schema)?;
+                        let v = decode_plutus_datum_to_json_value(value, schema)?;
+                        let mut kv_obj = serde_json::map::Map::with_capacity(2);
+                        kv_obj.insert(String::from("k"), k);
+                        kv_obj.insert(String::from("v"), v);
+                        entries.push(kv_obj);
+                    }
+                }
+                (Some("map"), Value::from(entries))
+            },
         },
         PlutusDataEnum::List(list) => {
             let mut elems = Vec::new();

@@ -71,9 +71,11 @@ impl cbor_event::se::Serialize for PlutusMap {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
-        for (key, value) in &self.0 {
-            key.serialize(serializer)?;
-            value.serialize(serializer)?;
+        for (key, values) in &self.0 {
+            for value in &values.elems {
+                key.serialize(serializer)?;
+                value.serialize(serializer)?;
+            }
         }
         Ok(serializer)
     }
@@ -81,7 +83,7 @@ impl cbor_event::se::Serialize for PlutusMap {
 
 impl Deserialize for PlutusMap {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        let mut table = LinkedHashMap::new();
+        let mut plutus_map = PlutusMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
             let mut total = 0;
@@ -94,13 +96,13 @@ impl Deserialize for PlutusMap {
                 }
                 let key = PlutusData::deserialize(raw)?;
                 let value = PlutusData::deserialize(raw)?;
-                table.insert(key.clone(), value);
+                plutus_map.add_value_move(key, value);
                 total += 1;
             }
             Ok(())
         })()
             .map_err(|e| e.annotate("PlutusMap"))?;
-        Ok(Self(table))
+        Ok(plutus_map)
     }
 }
 
