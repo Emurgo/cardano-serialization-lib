@@ -88,6 +88,7 @@ fn main() {
     gen_json_schema!(TransactionWitnessSets);
     gen_json_schema!(AuxiliaryDataSet);
     gen_json_schema!(Block);
+    gen_json_schema!(VersionedBlock);
     gen_json_schema!(Header);
     gen_json_schema!(OperationalCert);
     gen_json_schema!(HeaderBody);

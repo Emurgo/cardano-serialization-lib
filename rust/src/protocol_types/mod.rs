@@ -48,3 +48,6 @@ pub use native_scripts::*;
 
 mod numeric;
 pub use numeric::*;
+
+mod versioned_block;
+pub use versioned_block::*;

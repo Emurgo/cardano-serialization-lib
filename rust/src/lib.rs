@@ -1231,7 +1231,7 @@ impl ProtocolVersion {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Eq, Debug, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionBodies(pub(crate) Vec<TransactionBody>);
 
 impl_to_from!(TransactionBodies);
@@ -1326,7 +1326,7 @@ impl JsonSchema for AuxiliaryDataSet {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Eq, Debug, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Block {
     header: Header,
     transaction_bodies: TransactionBodies,
@@ -1374,47 +1374,10 @@ impl Block {
             invalid_transactions: invalid_transactions,
         }
     }
-
-    #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
-    #[wasm_bindgen]
-    pub fn from_wrapped_bytes(data: Vec<u8>) -> Result<Block, JsError> {
-        Ok(block_from_wrapped_bytes(&data)?)
-    }
-
-    // non-wasm exposed DeserializeError return
-    #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
-    pub fn from_wrapped_bytes(data: Vec<u8>) -> Result<Self, DeserializeError> {
-        block_from_wrapped_bytes(&data)
-    }
-}
-
-fn block_from_wrapped_bytes(bytes: &[u8]) -> Result<Block, DeserializeError> {
-    let mut raw = Deserializer::from(std::io::Cursor::new(bytes));
-    let len = raw.array()?;
-    if !matches!(len, Len::Len(2)) {
-        return Err(DeserializeError::new(
-            "from_wrapped_bytes",
-            DeserializeFailure::CBOR(cbor_event::Error::WrongLen(
-                2,
-                len,
-                "from_wrapped_bytes",
-            )),
-        ));
-    }
-
-    raw.unsigned_integer()?;
-    let block = Block::deserialize(&mut raw)?;
-    if let Len::Indefinite = len {
-        if raw.special()? != CBORSpecial::Break {
-            return Err(DeserializeFailure::EndingBreakMissing.into());
-        }
-    }
-
-    Ok(block)
 }
 
 #[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Eq, Debug, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct Header {
     header_body: HeaderBody,
     body_signature: KESSignature,
