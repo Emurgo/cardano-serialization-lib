@@ -207,6 +207,7 @@ impl TransactionInputs {
         self.0.push(elem.clone());
     }
 
+    #[allow(dead_code)]
     pub(crate) fn contains(&self, elem: &TransactionInput) -> bool {
         self.0.contains(elem)
     }
@@ -254,30 +255,22 @@ impl<'a> IntoIterator for &'a TransactionOutputs {
     }
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum DataCostEnum {
-    CoinsPerWord(Coin),
-    CoinsPerByte(Coin),
-}
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DataCost(DataCostEnum);
+pub struct DataCost{
+    coins_per_byte: Coin
+}
 
 #[wasm_bindgen]
 impl DataCost {
     pub fn new_coins_per_byte(coins_per_byte: &Coin) -> DataCost {
-        DataCost(DataCostEnum::CoinsPerByte(coins_per_byte.clone()))
+        DataCost {
+            coins_per_byte: coins_per_byte.clone()
+        }
     }
 
     pub fn coins_per_byte(&self) -> Coin {
-        match &self.0 {
-            DataCostEnum::CoinsPerByte(coins_per_byte) => coins_per_byte.clone(),
-            DataCostEnum::CoinsPerWord(coins_per_word) => {
-                let bytes_in_word = BigNum(8);
-                coins_per_word.div_floor(&bytes_in_word)
-            }
-        }
+        self.coins_per_byte.clone()
     }
 }
 

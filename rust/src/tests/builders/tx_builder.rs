@@ -3752,15 +3752,6 @@ fn total_input_output_with_mint_and_burn() {
     );
 }
 
-fn create_base_address_from_script_hash(sh: &ScriptHash) -> Address {
-    BaseAddress::new(
-        NetworkInfo::testnet_preprod().network_id(),
-        &Credential::from_scripthash(sh),
-        &Credential::from_keyhash(&fake_key_hash(0)),
-    )
-    .to_address()
-}
-
 #[test]
 fn test_add_native_script_input() {
     let mut tx_builder = create_reallistic_tx_builder();
