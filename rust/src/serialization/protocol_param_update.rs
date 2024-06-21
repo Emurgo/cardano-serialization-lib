@@ -526,8 +526,7 @@ impl Deserialize for ProtocolParamUpdate {
                             n_opt = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    let tmp = u64::deserialize(raw)?;
-                                    Ok(tmp as u32)
+                                    Ok(u32::deserialize(raw)?)
                                 })()
                                 .map_err(|e| e.annotate("n_opt"))?,
                             );
@@ -683,8 +682,7 @@ impl Deserialize for ProtocolParamUpdate {
                             max_value_size = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    let tmp = u64::deserialize(raw)?;
-                                    Ok(tmp as u32)
+                                    Ok(u32::deserialize(raw)?)
                                 })()
                                 .map_err(|e| e.annotate("max_value_size"))?,
                             );
@@ -696,8 +694,7 @@ impl Deserialize for ProtocolParamUpdate {
                             collateral_percentage = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    let tmp = u64::deserialize(raw)?;
-                                    Ok(tmp as u32)
+                                    Ok(u32::deserialize(raw)?)
                                 })()
                                 .map_err(|e| e.annotate("collateral_percentage"))?,
                             );
@@ -709,8 +706,7 @@ impl Deserialize for ProtocolParamUpdate {
                             max_collateral_inputs = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    let tmp = u64::deserialize(raw)?;
-                                    Ok(tmp as u32)
+                                    Ok(u32::deserialize(raw)?)
                                 })()
                                 .map_err(|e| e.annotate("max_collateral_inputs"))?,
                             );
@@ -746,8 +742,7 @@ impl Deserialize for ProtocolParamUpdate {
                             min_committee_size = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    let tmp = u64::deserialize(raw)?;
-                                    Ok(tmp as u32)
+                                    Ok(u32::deserialize(raw)?)
                                 })()
                                 .map_err(|e| e.annotate("min_committee_size"))?,
                             );
