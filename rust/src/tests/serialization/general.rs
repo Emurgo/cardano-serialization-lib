@@ -1,9 +1,10 @@
-use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra};
+use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes};
 
 use crate::fakes::{
     fake_base_address, fake_bytes_32, fake_data_hash, fake_signature, fake_tx_input,
     fake_tx_output, fake_value, fake_value2, fake_vkey,
 };
+use crate::protocol_types::ScriptRefEnum;
 
 #[test]
 fn tx_output_deser_lagacy() {
@@ -782,4 +783,18 @@ fn redeemers_map_deserialization() {
     let hex = "a282000082d8799f0102030405ff821821182c82040082d8799f0102030405ff8218371842";
     let redeemers = Redeemers::from_hex(hex);
     assert!(redeemers.is_ok());
+}
+
+#[test] fn ref_script_serialization() {
+    let plutus_script = PlutusScript::new([61u8; 29].to_vec());
+    let script_ref = ScriptRef::new_plutus_script(&plutus_script);
+    let script_enum = ScriptRefEnum::PlutusScript(plutus_script);
+    let unwrapped_bytes = to_bytes(&script_enum);
+    let wrapped_bytes = script_ref.to_bytes();
+
+    assert_eq!(unwrapped_bytes, script_ref.to_unwrapped_bytes());
+    assert_ne!(unwrapped_bytes, wrapped_bytes);
+
+    let new_script_ref = ScriptRef::from_bytes(wrapped_bytes).unwrap();
+    assert_eq!(script_ref, new_script_ref);
 }
