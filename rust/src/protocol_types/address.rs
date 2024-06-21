@@ -655,6 +655,10 @@ impl BaseAddress {
             _ => None,
         }
     }
+
+    pub fn network_id(&self) -> u8 {
+        self.network
+    }
 }
 
 #[wasm_bindgen]
@@ -687,6 +691,10 @@ impl EnterpriseAddress {
             _ => None,
         }
     }
+
+    pub fn network_id(&self) -> u8 {
+        self.network
+    }
 }
 
 #[wasm_bindgen]
@@ -718,6 +726,10 @@ impl RewardAddress {
             AddrType::Reward(reward) => Some(reward.clone()),
             _ => None,
         }
+    }
+
+    pub fn network_id(&self) -> u8 {
+        self.network
     }
 }
 
@@ -881,5 +893,9 @@ impl PointerAddress {
             AddrType::Ptr(ptr) => Some(ptr.clone()),
             _ => None,
         }
+    }
+
+    pub fn network_id(&self) -> u8 {
+        self.network
     }
 }
