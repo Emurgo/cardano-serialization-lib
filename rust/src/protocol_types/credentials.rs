@@ -34,9 +34,12 @@ impl Credentials {
         self.credentials[index].clone()
     }
 
-    pub fn add(&mut self, elem: &Credential) {
+    pub fn add(&mut self, elem: &Credential) -> Result<(), JsError> {
         if self.dedup.insert(elem.clone()) {
             self.credentials.push(elem.clone());
+            Ok(())
+        } else {
+            Err(JsError::from_str("Credentials::add: duplicated element"))
         }
     }
 
