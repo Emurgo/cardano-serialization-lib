@@ -36,9 +36,12 @@ impl Ed25519KeyHashes {
         self.keyhashes[index].clone()
     }
 
-    pub fn add(&mut self, elem: &Ed25519KeyHash) {
+    pub fn add(&mut self, elem: &Ed25519KeyHash) -> Result<(), JsError> {
         if self.dedup.insert(elem.clone()) {
             self.keyhashes.push(elem.clone());
+            Ok(())
+        } else {
+            Err(JsError::from_str("Ed25519KeyHashes::add: duplicated element"))
         }
     }
 
