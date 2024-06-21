@@ -3,7 +3,7 @@ use crate::*;
 #[derive(
     Debug, Clone, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
-pub enum ScriptRefEnum {
+pub(crate) enum ScriptRefEnum {
     NativeScript(NativeScript),
     PlutusScript(PlutusScript),
 }
