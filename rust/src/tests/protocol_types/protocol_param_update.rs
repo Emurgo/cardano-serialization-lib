@@ -183,6 +183,7 @@ fn ppu_setters_getters_test() {
     assert!(ppu.d().is_none());
 }
 
+#[test]
 fn pool_voting_thresholds_test() {
     // Creating unit intervals for testing
     let motion_no_confidence = UnitInterval::new(&BigNum::from(1u32), &BigNum::from(100u32));
@@ -208,6 +209,7 @@ fn pool_voting_thresholds_test() {
     assert_eq!(pvt.security_relevant_threshold(), security_relevant_threshold);
 }
 
+#[test]
 fn drep_voting_thresholds_test() {
     // Creating unit intervals for testing
     let motion_no_confidence = UnitInterval::new(&BigNum::from(1u32), &BigNum::from(100u32));

@@ -1,6 +1,6 @@
-use crate::fakes::{fake_key_hash, fake_script_hash, fake_tx_hash, fake_tx_input, fake_vkey};
+use crate::fakes::{fake_key_hash, fake_script_hash, fake_tx_hash, fake_vkey};
 use crate::fees::min_fee_for_size;
-use crate::tests::mock_objects::{create_change_address, create_linear_fee, create_plutus_script, create_redeemer, create_rich_tx_builder};
+use crate::tests::mock_objects::{create_change_address, create_linear_fee, create_plutus_script, create_rich_tx_builder};
 use crate::*;
 
 #[test]

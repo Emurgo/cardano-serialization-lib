@@ -1,4 +1,3 @@
-use std::convert::TryFrom;
 use crate::{BigInt, BigNum, JsError, UnitInterval};
 
 #[derive(Clone, Debug)]

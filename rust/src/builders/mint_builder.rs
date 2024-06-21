@@ -277,25 +277,46 @@ impl MintBuilder {
         }
     }
 
-    pub fn build(&self) -> Mint {
+    pub(crate) fn build_unchecked(&self) -> Mint {
         let mut mint = Mint::new();
         for (policy, script_mint) in self.mints.iter() {
             let mut mint_asset = MintAssets::new();
             match script_mint {
                 ScriptMint::Native(native_mints) => {
                     for (asset_name, amount) in &native_mints.mints {
-                        mint_asset.insert(asset_name, amount.clone());
+                        mint_asset.insert_unchecked(asset_name, amount.clone());
                     }
                 }
                 ScriptMint::Plutus(plutus_mints) => {
                     for (asset_name, amount) in &plutus_mints.mints {
-                        mint_asset.insert(asset_name, amount.clone());
+                        mint_asset.insert_unchecked(asset_name, amount.clone());
                     }
                 }
             }
             mint.insert(&policy, &mint_asset);
         }
         mint
+    }
+
+    pub fn build(&self) -> Result<Mint, JsError> {
+        let mut mint = Mint::new();
+        for (policy, script_mint) in self.mints.iter() {
+            let mut mint_asset = MintAssets::new();
+            match script_mint {
+                ScriptMint::Native(native_mints) => {
+                    for (asset_name, amount) in &native_mints.mints {
+                        mint_asset.insert(asset_name, amount.clone())?;
+                    }
+                }
+                ScriptMint::Plutus(plutus_mints) => {
+                    for (asset_name, amount) in &plutus_mints.mints {
+                        mint_asset.insert(asset_name, amount.clone())?;
+                    }
+                }
+            }
+            mint.insert(&policy, &mint_asset);
+        }
+        Ok(mint)
     }
 
     pub fn get_native_scripts(&self) -> NativeScripts {

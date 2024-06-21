@@ -429,7 +429,8 @@ pub(crate) fn create_rich_tx_builder(with_collateral: bool) -> TransactionBuilde
     let input = TransactionInput::new(&fake_tx_hash(1), 0);
     let address = generate_address(1);
     let mut input_builder = TxInputsBuilder::new();
-    input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(u64::MAX / 2)));
+    input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(u64::MAX / 2)))
+        .expect("should add input");
     tx_builder.set_inputs(&input_builder);
     if with_collateral {
         tx_builder.set_collateral(&input_builder);
@@ -446,12 +447,12 @@ pub(crate) fn create_tx_builder_with_amount(
     let input = TransactionInput::new(&fake_tx_hash(1), 0);
     let address = generate_address(1);
     let mut input_builder = TxInputsBuilder::new();
-    input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(amount)));
+    input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(amount))).expect("should add input");
     tx_builder.set_inputs(&input_builder);
     if with_collateral {
         let col_input = TransactionInput::new(&fake_tx_hash(1), 0);
         let mut col_input_builder = TxInputsBuilder::new();
-        col_input_builder.add_regular_input(&address, &col_input, &Value::new(&Coin::from(u64::MAX / 2)));
+        col_input_builder.add_regular_input(&address, &col_input, &Value::new(&Coin::from(u64::MAX / 2))).expect("should add input");
         tx_builder.set_collateral(&col_input_builder);
     }
 
@@ -473,12 +474,12 @@ pub(crate) fn create_tx_builder_with_amount_and_deposit_params(
     let input = TransactionInput::new(&fake_tx_hash(1), 0);
     let address = generate_address(1);
     let mut input_builder = TxInputsBuilder::new();
-    input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(amount)));
+    input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(amount))).expect("should add input");
     tx_builder.set_inputs(&input_builder);
     if with_collateral {
         let col_input = TransactionInput::new(&fake_tx_hash(1), 0);
         let mut col_input_builder = TxInputsBuilder::new();
-        col_input_builder.add_regular_input(&address, &col_input, &Value::new(&Coin::from(u64::MAX / 2)));
+        col_input_builder.add_regular_input(&address, &col_input, &Value::new(&Coin::from(u64::MAX / 2))).expect("should add input");
         tx_builder.set_collateral(&col_input_builder);
     }
 

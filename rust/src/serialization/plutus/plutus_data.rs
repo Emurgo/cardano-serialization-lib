@@ -1,6 +1,5 @@
 use crate::*;
 use std::io::SeekFrom;
-use hashlink::LinkedHashMap;
 use crate::serialization::utils::{is_break_tag, skip_set_tag};
 
 impl cbor_event::se::Serialize for ConstrPlutusData {

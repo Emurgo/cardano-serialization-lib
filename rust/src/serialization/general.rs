@@ -1,6 +1,6 @@
 use crate::*;
 use std::io::{Seek, SeekFrom};
-use crate::serialization::utils::{is_break_tag, merge_option_plutus_list};
+use crate::serialization::utils::is_break_tag;
 use hashlink::LinkedHashMap;
 
 // This file was code-generated using an experimental CDDL to rust tool:

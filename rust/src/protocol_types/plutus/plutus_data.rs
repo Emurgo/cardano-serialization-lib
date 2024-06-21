@@ -138,14 +138,14 @@ impl PlutusMap {
 
     /// Adds a value to the list of values associated with the key.
     pub(crate) fn add_value(&mut self, key: &PlutusData, value: &PlutusData) {
-        let mut values = self.0
+        let values = self.0
             .entry(key.clone())
             .or_insert_with(PlutusMapValues::new);
         values.add(value);
     }
 
     pub(crate) fn add_value_move(&mut self, key: PlutusData, value: PlutusData) {
-        let mut values = self.0
+        let values = self.0
             .entry(key)
             .or_insert_with(PlutusMapValues::new);
         values.add_move(value);

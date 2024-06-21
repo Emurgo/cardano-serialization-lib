@@ -131,6 +131,7 @@ impl CertificatesBuilder {
         used_langs
     }
 
+    #[allow(unused_variables)]
     pub fn get_certificates_refund(
         &self,
         pool_deposit: &BigNum,

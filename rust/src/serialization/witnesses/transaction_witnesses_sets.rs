@@ -2,7 +2,7 @@ use std::io::{BufRead, Seek, Write};
 use cbor_event::de::Deserializer;
 use cbor_event::se::Serializer;
 use crate::{DeserializeError, TransactionWitnessSet, TransactionWitnessSets};
-use crate::protocol_types::{CBORSpecial, CBORType, Deserialize};
+use crate::protocol_types::Deserialize;
 use crate::serialization::utils::is_break_tag;
 
 impl cbor_event::se::Serialize for TransactionWitnessSets {

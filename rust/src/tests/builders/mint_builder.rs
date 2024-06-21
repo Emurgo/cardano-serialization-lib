@@ -246,7 +246,7 @@ fn multiple_mints() {
     mint_builder.add_asset(&mint_witnes2, &asset_name2, &Int::new(&BigNum::from(101u64))).unwrap();
     mint_builder.add_asset(&mint_witnes2, &asset_name3, &Int::new(&BigNum::from(102u64))).unwrap();
 
-    let mint = mint_builder.build();
+    let mint = mint_builder.build().expect("Failed to build mint");
     assert_eq!(mint.len(), 2);
 
     let policy_mints_list = mint.get(&script_hash_1).unwrap();
@@ -281,7 +281,7 @@ fn native_script_mint() {
     let mint_witnes = MintWitness::new_native_script(&native_script_source);
     mint_builder.add_asset(&mint_witnes, &asset_name1, &Int::new(&BigNum::from(100u64))).unwrap();
 
-    let mint = mint_builder.build();
+    let mint = mint_builder.build().expect("Failed to build mint");
     assert_eq!(mint.len(), 1);
 
     let policy_mints_list = mint.get(&script_hash).unwrap();
@@ -396,7 +396,7 @@ fn wrong_witness_type_ref_error() {
     let res4= mint_builder.add_asset(&mint_witness_native_2, &asset_name4, &Int::new(&BigNum::from(103u64)));
     assert!(res4.is_err());
 
-    let mint = mint_builder.build();
+    let mint = mint_builder.build().expect("Failed to build mint");
     assert_eq!(mint.len(), 2);
 
     let policy_mints_list = mint.get(&script_hash_1).unwrap();
@@ -465,7 +465,7 @@ fn wrong_witness_type_no_ref_error() {
     let res4= mint_builder.add_asset(&mint_witness_native_2, &asset_name4, &Int::new(&BigNum::from(103u64)));
     assert!(res4.is_err());
 
-    let mint = mint_builder.build();
+    let mint = mint_builder.build().expect("Failed to build mint");
     assert_eq!(mint.len(), 2);
 
     let policy_mints_list = mint.get(&script_hash_1).unwrap();

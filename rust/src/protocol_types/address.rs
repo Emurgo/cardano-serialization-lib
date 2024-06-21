@@ -397,7 +397,7 @@ impl Address {
     fn from_bytes_impl_unsafe(data: &[u8]) -> Address {
         match Self::from_bytes_internal_impl(data) {
             Ok(addr) => addr,
-            Err(e) => Address(AddrType::Malformed(MalformedAddress(data.to_vec())))
+            Err(_) => Address(AddrType::Malformed(MalformedAddress(data.to_vec())))
         }
     }
 

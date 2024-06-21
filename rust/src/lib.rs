@@ -46,7 +46,7 @@ pub use builders::*;
 pub mod chain_core;
 pub mod chain_crypto;
 mod crypto;
-pub use crypto::*;
+pub(crate) use crypto::*;
 mod emip3;
 pub use emip3::*;
 mod error;
@@ -1932,6 +1932,10 @@ impl MintAssets {
             return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
         }
         Ok(self.0.insert(key.clone(), value))
+    }
+
+    pub(crate) fn insert_unchecked(&mut self, key: &AssetName, value: Int) -> Option<Int> {
+        self.0.insert(key.clone(), value)
     }
 
     pub fn get(&self, key: &AssetName) -> Option<Int> {

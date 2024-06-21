@@ -1,5 +1,4 @@
 use crate::*;
-use crypto::*;
 
 #[test]
 fn variable_nat_encoding() {

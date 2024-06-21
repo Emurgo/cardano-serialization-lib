@@ -447,7 +447,7 @@ impl TransactionBuilder {
                         &input.output.address,
                         &input.input,
                         &input.output.amount,
-                    );
+                    )?;
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -531,7 +531,7 @@ impl TransactionBuilder {
                         &input.output.address,
                         &input.input,
                         &input.output.amount,
-                    );
+                    )?;
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -569,7 +569,7 @@ impl TransactionBuilder {
             // differing from CIP2, we include the needed fees in the targets instead of just output values
             let input_fee =
                 self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
-            self.add_regular_input(&input.output.address, &input.input, &input.output.amount);
+            self.add_regular_input(&input.output.address, &input.input, &input.output.amount)?;
             *input_total = input_total.checked_add(&input.output.amount)?;
             *output_total = output_total.checked_add(&Value::new(&input_fee))?;
             available_indices.swap_remove(available_indices.iter().position(|j| i == j).unwrap());
@@ -691,7 +691,7 @@ impl TransactionBuilder {
                         &input.output.address,
                         &input.input,
                         &input.output.amount,
-                    );
+                    )?;
                     *input_total = input_total.checked_add(&input.output.amount)?;
                     *output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -1032,7 +1032,7 @@ impl TransactionBuilder {
 
         let fee_before = min_fee(&self_copy)?;
 
-        self_copy.add_regular_input(&address, &input, &amount);
+        self_copy.add_regular_input(&address, &input, &amount)?;
         let fee_after = min_fee(&self_copy)?;
         fee_after.checked_sub(&fee_before)
     }
@@ -1273,7 +1273,7 @@ impl TransactionBuilder {
                 if let Some(script) = scripts_policies.get(policy_id) {
                     let native_script_source = NativeScriptSource::new(script);
                     let mint_witness = MintWitness::new_native_script(&native_script_source);
-                    mint_builder.set_asset(&mint_witness, asset_name, amount);
+                    mint_builder.set_asset(&mint_witness, asset_name, amount)?;
                 } else {
                     return Err(JsError::from_str(
                         "Mint policy does not have a matching script",
@@ -1295,7 +1295,7 @@ impl TransactionBuilder {
     /// Returns a copy of the current mint state in the builder
     pub fn get_mint(&self) -> Option<Mint> {
         match &self.mint {
-            Some(mint) => Some(mint.build()),
+            Some(mint) => Some(mint.build().expect("MintBuilder is invalid")),
             None => None,
         }
     }
@@ -1318,20 +1318,21 @@ impl TransactionBuilder {
     /// Add a mint entry to this builder using a PolicyID and MintAssets object
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any existing mint assets with the same PolicyID
-    pub fn set_mint_asset(&mut self, policy_script: &NativeScript, mint_assets: &MintAssets) {
+    pub fn set_mint_asset(&mut self, policy_script: &NativeScript, mint_assets: &MintAssets) -> Result<(), JsError> {
         let native_script_source = NativeScriptSource::new(policy_script);
         let mint_witness = MintWitness::new_native_script(&native_script_source);
         if let Some(mint) = &mut self.mint {
             for (asset, amount) in mint_assets.0.iter() {
-                mint.set_asset(&mint_witness, asset, amount);
+                mint.set_asset(&mint_witness, asset, amount)?;
             }
         } else {
             let mut mint = MintBuilder::new();
             for (asset, amount) in mint_assets.0.iter() {
-                mint.set_asset(&mint_witness, asset, amount);
+                mint.set_asset(&mint_witness, asset, amount)?;
             }
             self.mint = Some(mint);
         }
+        Ok(())
     }
 
     /// !!! DEPRECATED !!!
@@ -1349,16 +1350,17 @@ impl TransactionBuilder {
         policy_script: &NativeScript,
         asset_name: &AssetName,
         amount: &Int,
-    ) {
+    ) -> Result<(), JsError> {
         let native_script_source = NativeScriptSource::new(policy_script);
         let mint_witness = MintWitness::new_native_script(&native_script_source);
         if let Some(mint) = &mut self.mint {
-            mint.add_asset(&mint_witness, asset_name, &amount);
+            mint.add_asset(&mint_witness, asset_name, &amount)?;
         } else {
             let mut mint = MintBuilder::new();
-            mint.add_asset(&mint_witness, asset_name, &amount);
+            mint.add_asset(&mint_witness, asset_name, &amount)?;
             self.mint = Some(mint);
         }
+        Ok(())
     }
 
     /// Add a mint entry together with an output to this builder
@@ -1377,7 +1379,7 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         let policy_id: PolicyID = policy_script.hash();
-        self.add_mint_asset(policy_script, asset_name, amount);
+        self.add_mint_asset(policy_script, asset_name, amount)?;
         let multiasset =
             Mint::new_from_entry(&policy_id, &MintAssets::new_from_entry(asset_name, amount)?)
                 .as_positive_multiasset();
@@ -1405,7 +1407,7 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         let policy_id: PolicyID = policy_script.hash();
-        self.add_mint_asset(policy_script, asset_name, amount);
+        self.add_mint_asset(policy_script, asset_name, amount)?;
         let multiasset =
             Mint::new_from_entry(&policy_id, &MintAssets::new_from_entry(asset_name, amount)?)
                 .as_positive_multiasset();
@@ -1610,7 +1612,7 @@ impl TransactionBuilder {
         self.mint
             .as_ref()
             .map(|m| {
-                let mint = m.build();
+                let mint = m.build_unchecked();
                 (
                     Value::new_from_assets(&mint.as_positive_multiasset()),
                     Value::new_from_assets(&mint.as_negative_multiasset()),
@@ -2173,7 +2175,9 @@ impl TransactionBuilder {
                 .as_ref()
                 .map(|x| utils::hash_auxiliary_data(x)),
             validity_start_interval: self.validity_start_interval,
-            mint: self.mint.as_ref().map(|x| x.build()),
+            mint: self.mint.as_ref()
+                .map(|x| x.build())
+                .transpose()?,
             script_data_hash: self.script_data_hash.clone(),
             collateral: self.collateral.inputs_option(),
             required_signers: self.required_signers.to_option(),

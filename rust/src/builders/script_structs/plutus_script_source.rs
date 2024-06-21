@@ -1,8 +1,7 @@
-use std::hash::Hash;
 use crate::*;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum PlutusScriptSourceEnum {
+pub(crate) enum PlutusScriptSourceEnum {
     Script(PlutusScript, Option<RequiredSigners>),
     RefInput(PlutusScriptRef, Option<RequiredSigners>),
 }

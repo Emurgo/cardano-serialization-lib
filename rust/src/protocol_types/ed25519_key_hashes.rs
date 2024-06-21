@@ -1,5 +1,4 @@
 pub use crate::*;
-use std::collections::HashSet;
 
 pub type RequiredSigners = Ed25519KeyHashes;
 

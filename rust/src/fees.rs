@@ -1,5 +1,4 @@
 use super::*;
-use utils::*;
 use crate::rational::{Rational};
 
 #[wasm_bindgen]
@@ -71,7 +70,6 @@ pub fn min_ref_script_fee(total_ref_scripts_size: usize, ref_script_coins_per_by
 mod tests {
     use super::*;
     use crate::TransactionOutputBuilder;
-    use crypto::*;
 
     // based off tx test vectors (https://gist.github.com/KtorZ/5a2089df0915f21aca368d12545ab230)
 

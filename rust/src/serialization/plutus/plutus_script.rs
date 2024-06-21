@@ -1,4 +1,3 @@
-use std::io::Read;
 use crate::*;
 
 impl cbor_event::se::Serialize for PlutusScript {

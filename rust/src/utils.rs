@@ -4,11 +4,8 @@ use cbor_event::{
     se::{Serialize, Serializer},
 };
 use hex::FromHex;
-use num_bigint::Sign;
 use serde_json;
-use std::convert::TryFrom;
 use std::fmt::Display;
-use std::ops::Div;
 use std::{
     collections::HashMap,
     io::{BufRead, Seek, Write},
@@ -16,7 +13,6 @@ use std::{
 
 use super::*;
 use crate::error::{DeserializeError, DeserializeFailure};
-use crate::fakes::fake_data_hash;
 use schemars::JsonSchema;
 
 pub fn to_bytes<T: cbor_event::se::Serialize>(data_item: &T) -> Vec<u8> {
@@ -1096,104 +1092,6 @@ pub(crate) fn get_input_shortage(
 mod tests {
     use super::*;
     use crate::TxBuilderConstants;
-
-    // this is what is used in mainnet
-    const COINS_PER_UTXO_WORD: u64 = 34_482;
-
-    // taken from https://github.com/input-output-hk/cardano-ledger-specs/blob/master/doc/explanations/min-utxo-alonzo.rst
-    fn one_policy_one_0_char_asset() -> Value {
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(&AssetName(vec![]), &BigNum(1));
-        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
-        Value {
-            coin: BigNum(0),
-            multiasset: Some(token_bundle),
-        }
-    }
-
-    fn one_policy_one_1_char_asset() -> Value {
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(&AssetName(vec![1]), &BigNum(1));
-        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
-        Value {
-            coin: BigNum(1407406),
-            multiasset: Some(token_bundle),
-        }
-    }
-
-    fn one_policy_three_1_char_assets() -> Value {
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(&AssetName(vec![1]), &BigNum(1));
-        asset_list.insert(&AssetName(vec![2]), &BigNum(1));
-        asset_list.insert(&AssetName(vec![3]), &BigNum(1));
-        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
-        Value {
-            coin: BigNum(1555554),
-            multiasset: Some(token_bundle),
-        }
-    }
-
-    fn two_policies_one_0_char_asset() -> Value {
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(&AssetName(vec![]), &BigNum(1));
-        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
-        token_bundle.insert(&PolicyID::from([1; ScriptHash::BYTE_COUNT]), &asset_list);
-        Value {
-            coin: BigNum(1592591),
-            multiasset: Some(token_bundle),
-        }
-    }
-
-    fn two_policies_one_1_char_asset() -> Value {
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(&AssetName(vec![1]), &BigNum(1));
-        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
-        token_bundle.insert(&PolicyID::from([1; ScriptHash::BYTE_COUNT]), &asset_list);
-        Value {
-            coin: BigNum(1592591),
-            multiasset: Some(token_bundle),
-        }
-    }
-
-    fn three_policies_96_1_char_assets() -> Value {
-        let mut token_bundle = MultiAsset::new();
-        fn add_policy(token_bundle: &mut MultiAsset, index: u8) -> () {
-            let mut asset_list = Assets::new();
-
-            for i in 0..32 {
-                asset_list.insert(&AssetName(vec![index * 32 + i]), &BigNum(1));
-            }
-            token_bundle.insert(
-                &PolicyID::from([index; ScriptHash::BYTE_COUNT]),
-                &asset_list,
-            );
-        }
-        add_policy(&mut token_bundle, 1);
-        add_policy(&mut token_bundle, 2);
-        add_policy(&mut token_bundle, 3);
-        Value {
-            coin: BigNum(7592585),
-            multiasset: Some(token_bundle),
-        }
-    }
-
-    fn one_policy_three_32_char_assets() -> Value {
-        let mut token_bundle = MultiAsset::new();
-        let mut asset_list = Assets::new();
-        asset_list.insert(&AssetName(vec![1; 32]), &BigNum(1));
-        asset_list.insert(&AssetName(vec![2; 32]), &BigNum(1));
-        asset_list.insert(&AssetName(vec![3; 32]), &BigNum(1));
-        token_bundle.insert(&PolicyID::from([0; ScriptHash::BYTE_COUNT]), &asset_list);
-        Value {
-            coin: BigNum(1555554),
-            multiasset: Some(token_bundle),
-        }
-    }
 
     #[test]
     fn subtract_values() {

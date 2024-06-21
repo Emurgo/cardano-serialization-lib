@@ -208,29 +208,9 @@ fn certificates_builder_refund_no_deposit_test() {
         &MoveInstantaneousRewardsCert::new(&mir_cert),
     );
 
-    let staking_cred = Credential::from_keyhash(&fake_key_hash(10));
-    let reward_address =
-        RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &staking_cred);
     let mut owners = Ed25519KeyHashes::new();
     owners.add(&fake_key_hash(11));
     owners.add(&fake_key_hash(12));
-    let relays = Relays::new();
-    let matadata = PoolMetadata::new(
-        &URL::new("https://iohk.io".to_string()).unwrap(),
-        &fake_pool_metadata_hash(5),
-    );
-
-    let params = PoolParams::new(
-        &fake_key_hash(13),
-        &fake_vrf_key_hash(15),
-        &Coin::from(100u64),
-        &Coin::from(200u64),
-        &UnitInterval::new(&BigNum::from(110u64), &BigNum::from(220u64)),
-        &reward_address,
-        &owners,
-        &relays,
-        Some(matadata),
-    );
 
     let pool_ret_cert = PoolRetirement::new(&fake_key_hash(16), Epoch::from(100u32));
     let pool_ret_cert_wrapped = Certificate::new_pool_retirement(&pool_ret_cert);
@@ -295,8 +275,6 @@ fn certificates_builder_refund_no_deposit_test() {
 #[test]
 fn certificates_builder_req_signers_test() {
     let mut builder = CertificatesBuilder::new();
-    let pool_deposit = 100u64;
-    let key_deposit = 200u64;
     let key_deposit_form_args = 201u64;
     let drep_reg_deposit = 400u64;
 
@@ -481,11 +459,6 @@ fn certificates_builder_req_signers_test() {
     builder.add(&stake_vote_reg_deleg_cert_wrapped).unwrap();
     builder.add(&vote_deleg_cert_wrapped).unwrap();
     builder.add(&vote_reg_deleg_cert_wrapped).unwrap();
-
-    let builder_deposit = builder
-        .get_certificates_deposit(&Coin::from(pool_deposit), &Coin::from(key_deposit))
-        .unwrap();
-
 
     let req_signers = builder.get_required_signers();
 
