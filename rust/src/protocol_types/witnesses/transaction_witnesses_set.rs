@@ -1,4 +1,5 @@
 use crate::*;
+use crate::traits::EmptyToNone;
 
 #[wasm_bindgen]
 #[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
@@ -79,6 +80,33 @@ impl TransactionWitnessSet {
             plutus_scripts: None,
             plutus_data: None,
             redeemers: None,
+        }
+    }
+
+    pub(crate) fn new_with_partial_dedup(
+        vkeys: Option<Vkeywitnesses>,
+        native_scripts: Option<NativeScripts>,
+        bootstraps: Option<BootstrapWitnesses>,
+        plutus_scripts: Option<PlutusScripts>,
+        plutus_data: Option<PlutusList>,
+        redeemers: Option<Redeemers>,
+    ) -> Self {
+        Self {
+            vkeys,
+            native_scripts: native_scripts
+                .map(|scripts| scripts.deduplicated_clone())
+                .empty_to_none()
+                .flatten(),
+            bootstraps,
+            plutus_scripts: plutus_scripts
+                .map(|scripts| scripts.deduplicated_clone())
+                .empty_to_none()
+                .flatten(),
+            plutus_data: plutus_data
+                .map(|data| data.deduplicated_clone())
+                .empty_to_none()
+                .flatten(),
+            redeemers,
         }
     }
 }

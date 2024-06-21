@@ -130,14 +130,14 @@ impl WitnessesCalculator {
             }
         };
 
-        TransactionWitnessSet {
+        TransactionWitnessSet::new_with_partial_dedup(
             vkeys,
-            native_scripts: None,
-            bootstraps: bootstrap_keys,
-            plutus_scripts: None,
-            plutus_data: None,
-            redeemers: None,
-        }
+            None,
+            bootstrap_keys,
+            None,
+            None,
+            None,
+        )
     }
 
     fn add_vkey(&mut self) {

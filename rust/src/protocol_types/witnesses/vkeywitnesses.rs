@@ -27,9 +27,12 @@ impl Vkeywitnesses {
         self.witnesses[index].clone()
     }
 
-    pub fn add(&mut self, elem: &Vkeywitness) {
+    pub fn add(&mut self, elem: &Vkeywitness) -> Result<(), JsError>{
         if self.dedup.insert(elem.clone()) {
             self.witnesses.push(elem.clone());
+            Ok(())
+        } else {
+            Err(JsError::from_str("Vkeywitnesses::add: duplicated element"))
         }
     }
 

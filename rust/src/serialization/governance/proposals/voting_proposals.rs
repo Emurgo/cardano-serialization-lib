@@ -6,10 +6,14 @@ impl cbor_event::se::Serialize for VotingProposals {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
+        if self.0.is_empty() {
+            return Ok(serializer);
+        }
         //TODO: uncomment this line when we conway ero will come
         //serializer.write_tag(258)?;
+        let ordered_dedup = self.0.iter().collect::<BTreeSet<_>>();
         serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in &self.0 {
+        for element in ordered_dedup {
             element.serialize(serializer)?;
         }
         Ok(serializer)

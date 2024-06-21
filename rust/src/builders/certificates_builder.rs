@@ -1,15 +1,16 @@
+use std::collections::BTreeMap;
 use crate::*;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct CertificatesBuilder {
-    certs: Vec<(Certificate, Option<ScriptWitnessType>)>,
+    certs: BTreeMap<Certificate, Option<ScriptWitnessType>>,
 }
 
 #[wasm_bindgen]
 impl CertificatesBuilder {
     pub fn new() -> Self {
-        Self { certs: Vec::new() }
+        Self { certs: BTreeMap::new() }
     }
 
     pub fn add(&mut self, cert: &Certificate) -> Result<(), JsError> {
@@ -20,7 +21,11 @@ impl CertificatesBuilder {
             ));
         }
 
-        self.certs.push((cert.clone(), None));
+        if self.certs.contains_key(cert) {
+            return Err(JsError::from_str("Certificate already exists"));
+        }
+
+        self.certs.insert(cert.clone(), None);
         Ok(())
     }
 
@@ -36,10 +41,14 @@ impl CertificatesBuilder {
             ));
         }
 
-        self.certs.push((
+        if self.certs.contains_key(cert) {
+            return Err(JsError::from_str("Certificate already exists"));
+        }
+
+        self.certs.insert(
             cert.clone(),
             Some(ScriptWitnessType::PlutusScriptWitness(witness.clone())),
-        ));
+        );
         Ok(())
     }
 
@@ -55,12 +64,16 @@ impl CertificatesBuilder {
             ));
         }
 
-        self.certs.push((
+        if self.certs.contains_key(cert) {
+            return Err(JsError::from_str("Certificate already exists"));
+        }
+
+        self.certs.insert(
             cert.clone(),
             Some(ScriptWitnessType::NativeScriptWitness(
                 native_script_source.0.clone(),
             )),
-        ));
+        );
         Ok(())
     }
 

@@ -8,6 +8,12 @@ pub struct PlutusScripts(pub(crate) Vec<PlutusScript>);
 
 impl_to_from!(PlutusScripts);
 
+impl NoneOrEmpty for PlutusScripts {
+    fn is_none_or_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[wasm_bindgen]
 impl PlutusScripts {
     pub fn new() -> Self {

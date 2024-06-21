@@ -83,14 +83,14 @@ pub(crate) fn fake_full_tx(
         }
     }
 
-    let witness_set = TransactionWitnessSet {
+    let witness_set = TransactionWitnessSet::new_with_partial_dedup(
         vkeys,
-        native_scripts: tx_builder.get_combined_native_scripts(),
-        bootstraps: bootstrap_keys,
+        tx_builder.get_combined_native_scripts(),
+        bootstrap_keys,
         plutus_scripts,
         plutus_data,
         redeemers,
-    };
+    );
     Ok(Transaction {
         body,
         witness_set,

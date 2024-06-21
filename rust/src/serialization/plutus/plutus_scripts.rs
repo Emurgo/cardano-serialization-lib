@@ -28,15 +28,15 @@ impl PlutusScripts {
         Ok(serializer)
     }
 
-    pub(crate) fn serialize_as_set<'se, W: Write>(
+    pub(crate) fn serialize_as_set_by_version<'se, W: Write>(
         &self,
-        need_debuplication: bool,
+        need_deduplication: bool,
         version: &Language,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         //TODO: uncomment this line when we conway ero will come
         //serializer.write_tag(258)?;
-        let view = match need_debuplication {
+        let view = match need_deduplication {
             true => self.deduplicated_view(Some(version)),
             false => self.view(version),
         };

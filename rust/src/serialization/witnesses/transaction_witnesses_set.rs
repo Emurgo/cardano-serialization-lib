@@ -50,18 +50,20 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
                 field.serialize(serializer)?;
             }
         }
+
+        //no need deduplication here because transaction witness set already has deduplicated plutus scripts
         if let Some(plutus_scripts) = &self.plutus_scripts {
             if has_plutus_v1 {
                 serializer.write_unsigned_integer(3)?;
-                plutus_scripts.serialize_by_version(&Language::new_plutus_v1(), serializer)?;
+                plutus_scripts.serialize_as_set_by_version(false, &Language::new_plutus_v1(), serializer)?;
             }
             if has_plutus_v2 {
                 serializer.write_unsigned_integer(6)?;
-                plutus_scripts.serialize_by_version(&Language::new_plutus_v2(), serializer)?;
+                plutus_scripts.serialize_as_set_by_version(false, &Language::new_plutus_v2(), serializer)?;
             }
             if has_plutus_v3 {
                 serializer.write_unsigned_integer(7)?;
-                plutus_scripts.serialize_by_version(&Language::new_plutus_v3(), serializer)?;
+                plutus_scripts.serialize_as_set_by_version(false, &Language::new_plutus_v3(), serializer)?;
             }
         }
         if let Some(field) = &self.plutus_data {

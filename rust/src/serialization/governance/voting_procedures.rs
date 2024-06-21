@@ -7,9 +7,16 @@ impl cbor_event::se::Serialize for VotingProcedures {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
+        if self.is_none_or_empty() {
+            return Ok(serializer)
+        }
+
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
 
         for (voter, votes) in &self.0 {
+            if votes.is_empty() {
+                continue;
+            }
             voter.serialize(serializer)?;
             serializer.write_map(cbor_event::Len::Len(votes.len() as u64))?;
             for (governance_action_id, voting_procedure) in votes {
