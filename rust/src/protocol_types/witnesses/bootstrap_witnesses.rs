@@ -27,12 +27,14 @@ impl BootstrapWitnesses {
         self.witnesses[index].clone()
     }
 
-    pub fn add(&mut self, elem: &BootstrapWitness) -> Result<(), JsError> {
+    /// Add a new `BootstrapWitness` to the set.
+    /// Returns `true` if the element was not already present in the set.
+    pub fn add(&mut self, elem: &BootstrapWitness) -> bool {
         if self.dedup.insert(elem.clone()) {
             self.witnesses.push(elem.clone());
-            Ok(())
+            true
         } else {
-            Err(JsError::from_str("BootstrapWitnesses::add: duplicated element"))
+            false
         }
     }
 

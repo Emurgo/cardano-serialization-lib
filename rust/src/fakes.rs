@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::{AnchorDataHash, AuxiliaryDataHash, BigNum, GenesisDelegateHash, GenesisHash, PlutusScript, PoolMetadataHash, PublicKey, ScriptDataHash, ScriptHash, Vkeywitness, VRFKeyHash};
+use crate::{AnchorDataHash, AuxiliaryDataHash, BigNum, BootstrapWitness, GenesisDelegateHash, GenesisHash, PlutusScript, PoolMetadataHash, PublicKey, ScriptDataHash, ScriptHash, Vkeywitness, VRFKeyHash};
 use crate::{
     Address, BaseAddress, Bip32PrivateKey, Credential, DataHash, Ed25519KeyHash,
     Ed25519Signature, NetworkInfo, PolicyID, TransactionHash, TransactionIndex, TransactionInput,
@@ -125,6 +125,15 @@ pub(crate) fn fake_asset_name(x: u8) -> AssetName {
 
 pub(crate) fn fake_vkey_witness(x: u8) -> Vkeywitness {
     Vkeywitness::new(&fake_vkey_numbered(x), &fake_signature(x))
+}
+
+pub(crate) fn fake_boostrap_witness(x: u8) -> BootstrapWitness {
+    BootstrapWitness::new(
+        &fake_vkey_numbered(x),
+        &fake_signature(x),
+        vec![x; 32],
+        vec![x; 32],
+    )
 }
 
 pub(crate) fn fake_plutus_script_and_hash(x: u8) -> (PlutusScript, ScriptHash) {

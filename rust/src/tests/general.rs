@@ -1,5 +1,5 @@
 use crate::*;
-use crate::fakes::fake_vkey_witness;
+use crate::fakes::{fake_boostrap_witness, fake_vkey_witness};
 use crate::tests::helpers::harden;
 use crate::tests::mock_objects::create_plutus_script;
 
@@ -444,4 +444,60 @@ fn min_ref_script_fee_test_fail(){
     let total_size = 500;
     let min_fee = min_ref_script_fee(total_size, &cost);
     assert!(min_fee.is_err());
+}
+
+#[test]
+fn ed25519_key_hashes_dedup() {
+    let mut key_hashes = Ed25519KeyHashes::new();
+    let key_hash1 = keyhash(1);
+    let key_hash2 = keyhash(2);
+
+    assert!(key_hashes.add(&key_hash1));
+    assert!(key_hashes.add(&key_hash2));
+    assert_eq!(key_hashes.len(), 2);
+
+    assert!(!key_hashes.add(&key_hash1));
+    assert_eq!(key_hashes.len(), 2);
+}
+
+#[test]
+fn bootstrap_witnesses_dedup() {
+    let mut bootstrap_witnesses = BootstrapWitnesses::new();
+    let bootstrap_witness1 = fake_boostrap_witness(1);
+    let bootstrap_witness2 = fake_boostrap_witness(2);
+
+    assert!(bootstrap_witnesses.add(&bootstrap_witness1));
+    assert!(bootstrap_witnesses.add(&bootstrap_witness2));
+    assert_eq!(bootstrap_witnesses.len(), 2);
+
+    assert!(!bootstrap_witnesses.add(&bootstrap_witness1));
+    assert_eq!(bootstrap_witnesses.len(), 2);
+}
+
+#[test]
+fn credential_dedup() {
+    let mut credentials = Credentials::new();
+    let credential1 = Credential::from_keyhash(&keyhash(1));
+    let credential2 = Credential::from_keyhash(&keyhash(2));
+
+    assert!(credentials.add(&credential1));
+    assert!(credentials.add(&credential2));
+    assert_eq!(credentials.len(), 2);
+
+    assert!(!credentials.add(&credential1));
+    assert_eq!(credentials.len(), 2);
+}
+
+#[test]
+fn vkeywitneses_dedup() {
+    let mut vkeywitnesses = Vkeywitnesses::new();
+    let vkeywitness1 = fake_vkey_witness(1);
+    let vkeywitness2 = fake_vkey_witness(2);
+
+    assert!(vkeywitnesses.add(&vkeywitness1));
+    assert!(vkeywitnesses.add(&vkeywitness2));
+    assert_eq!(vkeywitnesses.len(), 2);
+
+    assert!(!vkeywitnesses.add(&vkeywitness1));
+    assert_eq!(vkeywitnesses.len(), 2);
 }

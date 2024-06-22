@@ -34,12 +34,14 @@ impl Credentials {
         self.credentials[index].clone()
     }
 
-    pub fn add(&mut self, elem: &Credential) -> Result<(), JsError> {
+    /// Add a new `Credential` to the set.
+    /// Returns `true` if the element was not already present in the set.
+    pub fn add(&mut self, elem: &Credential) -> bool {
         if self.dedup.insert(elem.clone()) {
             self.credentials.push(elem.clone());
-            Ok(())
+            true
         } else {
-            Err(JsError::from_str("Credentials::add: duplicated element"))
+            false
         }
     }
 
