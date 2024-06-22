@@ -2,7 +2,7 @@ use crate::*;
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Eq, Ord, PartialEq, PartialOrd,
 )]
 pub struct Certificates {
     pub(crate) certs: Vec<Certificate>,
@@ -58,5 +58,38 @@ impl Certificates {
             certs.add_move(cert);
         }
         certs
+    }
+}
+
+impl serde::Serialize for Certificates {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+    {
+        self.certs.serialize(serializer)
+    }
+}
+
+impl<'de> serde::de::Deserialize<'de> for Certificates {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::de::Deserializer<'de>,
+    {
+        let vec = <Vec<_> as serde::de::Deserialize>::deserialize(
+            deserializer,
+        )?;
+        Ok(Self::from_vec(vec))
+    }
+}
+
+impl JsonSchema for Certificates {
+    fn schema_name() -> String {
+        String::from("Certificates")
+    }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        Vec::<Certificate>::json_schema(gen)
+    }
+    fn is_referenceable() -> bool {
+        Vec::<Certificate>::is_referenceable()
     }
 }

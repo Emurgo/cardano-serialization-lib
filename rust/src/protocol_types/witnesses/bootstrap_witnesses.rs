@@ -10,6 +10,8 @@ pub struct BootstrapWitnesses {
     dedup: HashSet<BootstrapWitness>,
 }
 
+impl_to_from!(BootstrapWitnesses);
+
 #[wasm_bindgen]
 impl BootstrapWitnesses {
     pub fn new() -> Self {

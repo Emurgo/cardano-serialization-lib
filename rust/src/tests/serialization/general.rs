@@ -1,9 +1,6 @@
-use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes};
+use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes};
 
-use crate::fakes::{
-    fake_base_address, fake_bytes_32, fake_data_hash, fake_signature, fake_tx_input,
-    fake_tx_output, fake_value, fake_value2, fake_vkey,
-};
+use crate::fakes::{fake_base_address, fake_boostrap_witness, fake_bytes_32, fake_data_hash, fake_key_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey, fake_vkey_witness};
 use crate::protocol_types::ScriptRefEnum;
 
 #[test]
@@ -783,7 +780,8 @@ fn redeemers_map_deserialization() {
     assert!(redeemers.is_ok());
 }
 
-#[test] fn ref_script_serialization() {
+#[test]
+fn ref_script_serialization() {
     let plutus_script = PlutusScript::new([61u8; 29].to_vec());
     let script_ref = ScriptRef::new_plutus_script(&plutus_script);
     let script_enum = ScriptRefEnum::PlutusScript(plutus_script);
@@ -795,4 +793,119 @@ fn redeemers_map_deserialization() {
 
     let new_script_ref = ScriptRef::from_bytes(wrapped_bytes).unwrap();
     assert_eq!(script_ref, new_script_ref);
+}
+
+#[test]
+fn boostrap_witnesses_round_trip() {
+    let mut witnesses = BootstrapWitnesses::new();
+    let bootstrap_witness_1 = fake_boostrap_witness(1);
+    let bootstrap_witness_2 = fake_boostrap_witness(2);
+    let bootstrap_witness_3 = fake_boostrap_witness(3);
+
+    witnesses.add(&bootstrap_witness_1);
+    witnesses.add(&bootstrap_witness_2);
+    witnesses.add(&bootstrap_witness_3);
+
+    let bytes = witnesses.to_bytes();
+    let new_witnesses = BootstrapWitnesses::from_bytes(bytes.clone()).unwrap();
+
+    let json = witnesses.to_json().unwrap();
+    let new_witnesses_json = BootstrapWitnesses::from_json(&json).unwrap();
+
+    assert_eq!(witnesses, new_witnesses);
+    assert_eq!(witnesses, new_witnesses_json);
+    assert_eq!(bytes, new_witnesses.to_bytes());
+    assert_eq!(json, new_witnesses_json.to_json().unwrap());
+}
+
+#[test]
+fn credential_round_trip() {
+    let mut credentials = Credentials::new();
+    let credential_1 = Credential::from_keyhash(&fake_key_hash(1));
+    let credential_2 = Credential::from_keyhash(&fake_key_hash(2));
+    let credential_3 = Credential::from_keyhash(&fake_key_hash(3));
+
+    credentials.add(&credential_1);
+    credentials.add(&credential_2);
+    credentials.add(&credential_3);
+
+    let bytes = credentials.to_bytes();
+    let new_credentials = Credentials::from_bytes(bytes.clone()).unwrap();
+
+    let json = credentials.to_json().unwrap();
+    let new_credentials_json = Credentials::from_json(&json).unwrap();
+
+    assert_eq!(credentials, new_credentials);
+    assert_eq!(credentials, new_credentials_json);
+    assert_eq!(bytes, new_credentials.to_bytes());
+    assert_eq!(json, new_credentials_json.to_json().unwrap());
+}
+
+#[test]
+fn ed25519_key_hashes_round_trip() {
+    let mut keyhashes = Ed25519KeyHashes::new();
+    let keyhash_1 = fake_key_hash(1);
+    let keyhash_2 = fake_key_hash(2);
+    let keyhash_3 = fake_key_hash(3);
+
+    keyhashes.add(&keyhash_1);
+    keyhashes.add(&keyhash_2);
+    keyhashes.add(&keyhash_3);
+
+    let bytes = keyhashes.to_bytes();
+    let new_keyhashes = Ed25519KeyHashes::from_bytes(bytes.clone()).unwrap();
+
+    let json = keyhashes.to_json().unwrap();
+    let new_keyhashes_json = Ed25519KeyHashes::from_json(&json).unwrap();
+
+    assert_eq!(keyhashes, new_keyhashes);
+    assert_eq!(keyhashes, new_keyhashes_json);
+    assert_eq!(bytes, new_keyhashes.to_bytes());
+    assert_eq!(json, new_keyhashes_json.to_json().unwrap());
+}
+
+#[test]
+fn vkey_witnesses_round_trip() {
+    let mut witnesses = Vkeywitnesses::new();
+    let vkey_witness_1 = fake_vkey_witness(1);
+    let vkey_witness_2 = fake_vkey_witness(2);
+    let vkey_witness_3 = fake_vkey_witness(3);
+
+    witnesses.add(&vkey_witness_1);
+    witnesses.add(&vkey_witness_2);
+    witnesses.add(&vkey_witness_3);
+
+    let bytes = witnesses.to_bytes();
+    let new_witnesses = Vkeywitnesses::from_bytes(bytes.clone()).unwrap();
+
+    let json = witnesses.to_json().unwrap();
+    let new_witnesses_json = Vkeywitnesses::from_json(&json).unwrap();
+
+    assert_eq!(witnesses, new_witnesses);
+    assert_eq!(witnesses, new_witnesses_json);
+    assert_eq!(bytes, new_witnesses.to_bytes());
+    assert_eq!(json, new_witnesses_json.to_json().unwrap());
+}
+
+#[test]
+fn tx_inputs_round_trip() {
+    let mut inputs = TransactionInputs::new();
+    let input_1 = fake_tx_input(1);
+    let input_2 = fake_tx_input(2);
+    let input_3 = fake_tx_input(3);
+
+    inputs.add(&input_1);
+    inputs.add(&input_2);
+    inputs.add(&input_3);
+
+    let bytes = inputs.to_bytes();
+    let new_inputs = TransactionInputs::from_bytes(bytes.clone()).unwrap();
+
+    let json = inputs.to_json().unwrap();
+    let new_inputs_json = TransactionInputs::from_json(&json).unwrap();
+
+    assert_eq!(inputs, new_inputs);
+    assert_eq!(inputs, new_inputs_json);
+    assert_eq!(bytes, new_inputs.to_bytes());
+    assert_eq!(json, new_inputs_json.to_json().unwrap());
 }

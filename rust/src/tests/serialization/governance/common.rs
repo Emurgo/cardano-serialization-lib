@@ -302,3 +302,41 @@ fn tx_with_vote_deser_test() {
     assert!(voting_procedure.is_some());
 }
 
+#[test]
+fn voting_proposals_round_trip() {
+    let mut voting_proposals = VotingProposals::new();
+
+    let info_action = InfoAction::new();
+    let action = GovernanceAction::new_info_action(&info_action);
+    let proposal = VotingProposal::new(
+        &action,
+        &Anchor::new(
+            &URL::new("https://iohk.io".to_string()).unwrap(),
+            &fake_anchor_data_hash(1),
+        ),
+        &RewardAddress::new(
+            NetworkInfo::testnet_preprod().network_id(),
+            &Credential::from_keyhash(&fake_key_hash(1)),
+        ),
+        &Coin::from(1_000_011u64),
+    );
+
+    voting_proposals.add(&proposal);
+
+    let cbor = voting_proposals.to_bytes();
+    let cbor_hex = voting_proposals.to_hex();
+    let json = voting_proposals.to_json().unwrap();
+
+    assert_eq!(
+        voting_proposals,
+        VotingProposals::from_bytes(cbor).unwrap()
+    );
+    assert_eq!(
+        voting_proposals,
+        VotingProposals::from_hex(&cbor_hex).unwrap()
+    );
+    assert_eq!(
+        voting_proposals,
+        VotingProposals::from_json(&json).unwrap()
+    );
+}

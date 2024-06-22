@@ -8,9 +8,6 @@ use crate::*;
     Ord,
     PartialEq,
     PartialOrd,
-    serde::Serialize,
-    serde::Deserialize,
-    JsonSchema,
 )]
 #[wasm_bindgen]
 pub struct VotingProposals {
@@ -72,3 +69,37 @@ impl VotingProposals {
         self.dedup.contains(proposal)
     }
 }
+
+impl serde::Serialize for VotingProposals {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+    {
+        self.proposals.serialize(serializer)
+    }
+}
+
+impl<'de> serde::de::Deserialize<'de> for VotingProposals {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::de::Deserializer<'de>,
+    {
+        let vec = <Vec<_> as serde::de::Deserialize>::deserialize(
+            deserializer,
+        )?;
+        Ok(Self::from_vec(vec))
+    }
+}
+
+impl JsonSchema for VotingProposals {
+    fn schema_name() -> String {
+        String::from("VotingProposals")
+    }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        Vec::<VotingProposal>::json_schema(gen)
+    }
+    fn is_referenceable() -> bool {
+        Vec::<VotingProposal>::is_referenceable()
+    }
+}
+

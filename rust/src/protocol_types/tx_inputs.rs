@@ -4,7 +4,7 @@ use std::vec::IntoIter;
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Eq, Ord, PartialEq, PartialOrd,
 )]
 pub struct TransactionInputs {
     pub(crate) inputs: Vec<TransactionInput>,
@@ -91,5 +91,38 @@ impl IntoIterator for TransactionInputs {
 
     fn into_iter(self) -> Self::IntoIter {
         self.inputs.into_iter()
+    }
+}
+
+impl serde::Serialize for TransactionInputs {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+    {
+        self.inputs.serialize(serializer)
+    }
+}
+
+impl<'de> serde::de::Deserialize<'de> for TransactionInputs {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::de::Deserializer<'de>,
+    {
+        let vec = <Vec<_> as serde::de::Deserialize>::deserialize(
+            deserializer,
+        )?;
+        Ok(Self::from_vec(vec))
+    }
+}
+
+impl JsonSchema for TransactionInputs {
+    fn schema_name() -> String {
+        String::from("TransactionInputs")
+    }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        Vec::<TransactionInput>::json_schema(gen)
+    }
+    fn is_referenceable() -> bool {
+        Vec::<TransactionInput>::is_referenceable()
     }
 }

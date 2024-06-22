@@ -366,7 +366,7 @@ impl MintBuilder {
                 }
             }
         }
-        TransactionInputs(reference_inputs)
+        TransactionInputs::from_vec(reference_inputs)
     }
 
     pub fn get_redeemers(&self) -> Result<Redeemers, JsError> {

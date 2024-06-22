@@ -390,3 +390,27 @@ fn block_with_tx_with_certs_under_tag_set() {
     let certs = block.unwrap().transaction_bodies.0[0].certs().unwrap();
     assert_eq!(certs.len(), 1);
 }
+
+#[test]
+fn certificates_collection_ser_round_trip() {
+    let mut certs = Certificates::new();
+    let cert_1 = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
+    certs.add(&Certificate::new_stake_registration(&cert_1));
+    let cert_2 = StakeDeregistration::new(&Credential::from_keyhash(&fake_key_hash(2)));
+    certs.add(&Certificate::new_stake_deregistration(&cert_2));
+    let cert_3 = StakeDelegation::new(
+        &Credential::from_keyhash(&fake_key_hash(3)),
+        &fake_key_hash(4),
+    );
+    certs.add(&Certificate::new_stake_delegation(&cert_3));
+
+    assert_eq!(certs.len(), 3);
+
+    let json = certs.to_json().unwrap();
+    let cbor = certs.to_bytes();
+    let hex_cbor = certs.to_hex();
+
+    assert_eq!(certs, Certificates::from_json(&json).unwrap());
+    assert_eq!(certs, Certificates::from_bytes(cbor).unwrap());
+    assert_eq!(certs, Certificates::from_hex(&hex_cbor).unwrap());
+}
