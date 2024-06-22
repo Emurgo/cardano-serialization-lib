@@ -22,6 +22,10 @@ pub use protocol_param_update::*;
 
 mod address;
 pub use address::*;
+
+mod tx_input;
+pub use tx_input::*;
+
 mod tx_inputs;
 pub use tx_inputs::*;
 

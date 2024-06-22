@@ -188,7 +188,7 @@ impl TxInputsBuilder {
                 _ => (),
             }
         }
-        TransactionInputs(inputs)
+        TransactionInputs::from_vec(inputs)
     }
 
 
@@ -303,7 +303,7 @@ impl TxInputsBuilder {
     }
 
     pub fn inputs(&self) -> TransactionInputs {
-        TransactionInputs(
+        TransactionInputs::from_vec(
             self.inputs
                 .values()
                 .map(|(ref tx_builder_input, _)| tx_builder_input.input.clone())

@@ -176,52 +176,6 @@ type CertificateIndex = u32;
 type GovernanceActionIndex = u32;
 
 #[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct TransactionInputs(pub(crate) Vec<TransactionInput>);
-
-impl_to_from!(TransactionInputs);
-
-impl NoneOrEmpty for TransactionInputs {
-    fn is_none_or_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-#[wasm_bindgen]
-impl TransactionInputs {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> TransactionInput {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &TransactionInput) {
-        self.0.push(elem.clone());
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn contains(&self, elem: &TransactionInput) -> bool {
-        self.0.contains(elem)
-    }
-
-    pub fn to_option(&self) -> Option<TransactionInputs> {
-        if self.len() > 0 {
-            Some(self.clone())
-        } else {
-            None
-        }
-    }
-}
-
-#[wasm_bindgen]
 #[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionOutputs(Vec<TransactionOutput>);
 

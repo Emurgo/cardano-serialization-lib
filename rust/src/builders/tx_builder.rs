@@ -903,7 +903,7 @@ impl TransactionBuilder {
                     if self
                         .inputs
                         .inputs()
-                        .0
+                        .inputs
                         .iter()
                         .all(|used_input| input.input() != *used_input)
                     {
@@ -1487,42 +1487,42 @@ impl TransactionBuilder {
 
     pub fn get_reference_inputs(&self) -> TransactionInputs {
         let mut inputs: HashSet<TransactionInput> = self.reference_inputs.keys().cloned().collect();
-        for input in self.inputs.get_ref_inputs().0 {
+        for input in self.inputs.get_ref_inputs() {
             inputs.insert(input);
         }
 
         if let Some(mint) = &self.mint {
-            for input in mint.get_ref_inputs().0 {
+            for input in mint.get_ref_inputs() {
                 inputs.insert(input);
             }
         }
 
         if let Some(withdrawals) = &self.withdrawals {
-            for input in withdrawals.get_ref_inputs().0 {
+            for input in withdrawals.get_ref_inputs() {
                 inputs.insert(input);
             }
         }
 
         if let Some(certs) = &self.certs {
-            for input in certs.get_ref_inputs().0 {
+            for input in certs.get_ref_inputs() {
                 inputs.insert(input);
             }
         }
 
         if let Some(voting_procedures) = &self.voting_procedures {
-            for input in voting_procedures.get_ref_inputs().0 {
+            for input in voting_procedures.get_ref_inputs() {
                 inputs.insert(input);
             }
         }
 
         if let Some(voting_proposals) = &self.voting_proposals {
-            for input in voting_proposals.get_ref_inputs().0 {
+            for input in voting_proposals.get_ref_inputs() {
                 inputs.insert(input);
             }
         }
 
         let vec_inputs = inputs.into_iter().collect();
-        TransactionInputs(vec_inputs)
+        TransactionInputs::from_vec(vec_inputs)
     }
 
     fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {

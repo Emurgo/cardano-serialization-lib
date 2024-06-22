@@ -446,7 +446,7 @@ fn alonzo_block() {
 #[test]
 fn test_tx_body_roundtrip() {
     let mut txb = TransactionBody::new(
-        &TransactionInputs(vec![fake_tx_input(0)]),
+        &TransactionInputs::from_vec(vec![fake_tx_input(0)]),
         &TransactionOutputs(vec![fake_tx_output(1)]),
         &BigNum(1234567),
         Some(12345678),

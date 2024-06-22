@@ -27,3 +27,4 @@ mod native_scripts;
 mod numeric;
 mod versioned_block;
 mod script_ref;
+mod tx_input;

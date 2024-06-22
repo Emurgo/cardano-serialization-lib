@@ -2423,7 +2423,7 @@ fn tx_builder_cip2_random_improve() {
     }
     let mut encountered = std::collections::HashSet::new();
     let mut input_total = Value::new(&Coin::zero());
-    for input in tx.inputs.0.iter() {
+    for input in &tx.inputs {
         let txid = input.transaction_id();
         if !encountered.insert(txid.clone()) {
             panic!("Input {:?} duplicated", txid);

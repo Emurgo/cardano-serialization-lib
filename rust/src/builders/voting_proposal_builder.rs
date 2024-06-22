@@ -62,7 +62,7 @@ impl VotingProposalBuilder {
                 None => {}
             }
         }
-        TransactionInputs(inputs)
+        TransactionInputs::from_vec(inputs)
     }
 
     pub(crate) fn get_total_deposit(&self) -> Result<Coin, JsError> {

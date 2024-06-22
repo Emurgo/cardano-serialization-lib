@@ -6,7 +6,7 @@ use crate::tests::mock_objects::create_anchor;
 fn transaction_round_trip_test() {
     let input = fake_tx_input(1);
     let output = TransactionOutput::new(&fake_base_address(2), &Value::new(&BigNum(1_000_001)));
-    let inputs = TransactionInputs(vec![input]);
+    let inputs = TransactionInputs::from_vec(vec![input]);
     let outputs = TransactionOutputs(vec![output]);
     let fee = Coin::from(1_000_002u64);
     let mut body = TransactionBody::new_tx_body(&inputs, &outputs, &fee);

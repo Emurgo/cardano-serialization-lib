@@ -1,46 +1,95 @@
-use std::fmt::Formatter;
 use crate::*;
+use std::slice::Iter;
+use std::vec::IntoIter;
 
 #[wasm_bindgen]
 #[derive(
-    Clone,
-    Debug,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    JsonSchema,
+    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
-pub struct TransactionInput {
-    pub(crate) transaction_id: TransactionHash,
-    pub(crate) index: TransactionIndex,
+pub struct TransactionInputs {
+    pub(crate) inputs: Vec<TransactionInput>,
+    pub(crate) dedup: BTreeSet<TransactionInput>,
 }
 
-impl_to_from!(TransactionInput);
+impl_to_from!(TransactionInputs);
+
+impl NoneOrEmpty for TransactionInputs {
+    fn is_none_or_empty(&self) -> bool {
+        self.inputs.is_empty()
+    }
+}
 
 #[wasm_bindgen]
-impl TransactionInput {
-    pub fn transaction_id(&self) -> TransactionHash {
-        self.transaction_id.clone()
-    }
-
-    pub fn index(&self) -> TransactionIndex {
-        self.index.clone()
-    }
-
-    pub fn new(transaction_id: &TransactionHash, index: TransactionIndex) -> Self {
+impl TransactionInputs {
+    pub fn new() -> Self {
         Self {
-            transaction_id: transaction_id.clone(),
-            index: index,
+            inputs: Vec::new(),
+            dedup: BTreeSet::new(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.inputs.len()
+    }
+
+    pub fn get(&self, index: usize) -> TransactionInput {
+        self.inputs[index].clone()
+    }
+
+    /// Add a new `TransactionInput` to the set.
+    /// Returns `true` if the element was not already present in the set.
+    /// Note that the `TransactionInput` is added to the set only if it is not already present.
+    pub fn add(&mut self, elem: &TransactionInput) -> bool {
+        if self.dedup.insert(elem.clone()) {
+            self.inputs.push(elem.clone());
+            true
+        } else {
+            false
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn contains(&self, elem: &TransactionInput) -> bool {
+        self.dedup.contains(elem)
+    }
+
+    pub(crate) fn add_move(&mut self, elem: TransactionInput) {
+        if self.dedup.insert(elem.clone()) {
+            self.inputs.push(elem);
+        }
+    }
+
+    pub(crate) fn from_vec(inputs_vec: Vec<TransactionInput>) -> Self {
+        let mut inputs = Self::new();
+        for input in inputs_vec {
+            inputs.add_move(input);
+        }
+        inputs
+    }
+
+    pub fn to_option(&self) -> Option<TransactionInputs> {
+        if self.len() > 0 {
+            Some(self.clone())
+        } else {
+            None
         }
     }
 }
 
-impl Display for TransactionInput {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}#{}", self.transaction_id, self.index)
+impl<'a> IntoIterator for &'a TransactionInputs {
+    type Item = &'a TransactionInput;
+    type IntoIter = Iter<'a, TransactionInput>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inputs.iter()
+    }
+}
+
+impl IntoIterator for TransactionInputs {
+    type Item = TransactionInput;
+    type IntoIter = IntoIter<TransactionInput>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inputs.into_iter()
     }
 }

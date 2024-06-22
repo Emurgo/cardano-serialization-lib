@@ -118,7 +118,7 @@ impl CertificatesBuilder {
                 None => {}
             }
         }
-        TransactionInputs(inputs)
+        TransactionInputs::from_vec(inputs)
     }
 
     pub fn get_native_scripts(&self) -> NativeScripts {

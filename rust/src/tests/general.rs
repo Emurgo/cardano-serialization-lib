@@ -1,5 +1,5 @@
 use crate::*;
-use crate::fakes::{fake_boostrap_witness, fake_vkey_witness};
+use crate::fakes::{fake_boostrap_witness, fake_tx_input, fake_vkey_witness};
 use crate::tests::helpers::harden;
 use crate::tests::mock_objects::create_plutus_script;
 
@@ -717,4 +717,26 @@ fn plutus_data_no_dedup_serialization() {
     assert_eq!(datum_from_bytes.len(), 3);
     assert!(datum_from_bytes.contains(&datum_1));
     assert!(datum_from_bytes.contains(&datum_2));
+}
+
+#[test]
+fn tx_inputs_deduplication() {
+    let tx_in1 = fake_tx_input(1);
+    let tx_in2 = fake_tx_input(2);
+    let tx_in3 = fake_tx_input(3);
+
+    let mut txins = TransactionInputs::new();
+    assert!(txins.add(&tx_in1));
+    assert!(txins.add(&tx_in2));
+    assert!(txins.add(&tx_in3));
+    assert!(!txins.add(&tx_in1));
+
+    assert_eq!(txins.len(), 3);
+
+    let txins_bytes = txins.to_bytes();
+    let txins_from_bytes = TransactionInputs::from_bytes(txins_bytes).unwrap();
+    assert_eq!(txins_from_bytes.len(), 3);
+    assert!(txins_from_bytes.contains(&tx_in1));
+    assert!(txins_from_bytes.contains(&tx_in2));
+    assert!(txins_from_bytes.contains(&tx_in3));
 }
