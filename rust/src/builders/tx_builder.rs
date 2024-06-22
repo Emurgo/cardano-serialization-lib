@@ -1124,7 +1124,7 @@ impl TransactionBuilder {
     )]
     pub fn set_certs(&mut self, certs: &Certificates) -> Result<(), JsError> {
         let mut builder = CertificatesBuilder::new();
-        for cert in &certs.0 {
+        for cert in &certs.certs {
             builder.add(cert)?;
         }
 

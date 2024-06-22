@@ -7,12 +7,7 @@ impl cbor_event::se::Serialize for VotingProcedures {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        if self.is_none_or_empty() {
-            return Ok(serializer)
-        }
-
         serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
-
         for (voter, votes) in &self.0 {
             if votes.is_empty() {
                 continue;
@@ -33,8 +28,9 @@ impl Deserialize for VotingProcedures {
         let mut voter_to_vote = BTreeMap::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.map()?;
+            let mut total = 0;
             while match len {
-                cbor_event::Len::Len(n) => voter_to_vote.len() < n as usize,
+                cbor_event::Len::Len(n) => total < n,
                 cbor_event::Len::Indefinite => true,
             } {
                 if is_break_tag(raw, "voting_procedure map")? {
@@ -52,6 +48,7 @@ impl Deserialize for VotingProcedures {
                     )))
                     .into());
                 }
+                total += 1;
             }
             Ok(Self(voter_to_vote))
         })()
@@ -65,8 +62,9 @@ fn deserialize_internal_map<R: BufRead + Seek>(
     let mut gov_act_id_to_vote = BTreeMap::new();
     (|| -> Result<_, DeserializeError> {
         let len = raw.map()?;
+        let mut total = 0;
         while match len {
-            cbor_event::Len::Len(n) => gov_act_id_to_vote.len() < n as usize,
+            cbor_event::Len::Len(n) => total < n,
             cbor_event::Len::Indefinite => true,
         } {
             if is_break_tag(raw, "gov_act_id_to_vote map")? {
@@ -84,6 +82,7 @@ fn deserialize_internal_map<R: BufRead + Seek>(
                 )))
                 .into());
             }
+            total += 1;
         }
         Ok(gov_act_id_to_vote)
     })()

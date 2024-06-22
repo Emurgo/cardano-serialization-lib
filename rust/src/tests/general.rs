@@ -601,7 +601,7 @@ fn plutus_scripts_no_dedup_on_auxdata() {
 }
 
 #[test]
-pub fn native_scripts_dedup_on_tx_witnesses_set() {
+fn native_scripts_dedup_on_tx_witnesses_set() {
     let keyhash1 = keyhash(1);
 
     let native_scripts_1 = NativeScript::new_script_pubkey(&ScriptPubkey::new(
@@ -638,7 +638,7 @@ pub fn native_scripts_dedup_on_tx_witnesses_set() {
 }
 
 #[test]
-pub fn native_scripts_no_dedup_on_auxdata() {
+fn native_scripts_no_dedup_on_auxdata() {
     let keyhash1 = keyhash(1);
 
     let native_scripts_1 = NativeScript::new_script_pubkey(&ScriptPubkey::new(
@@ -674,7 +674,8 @@ pub fn native_scripts_no_dedup_on_auxdata() {
     assert!(native_scripts_from_bytes.contains(&native_scripts_2));
 }
 
-#[test] fn plutus_data_dedup_on_tx_witnesses_set() {
+#[test]
+fn plutus_data_dedup_on_tx_witnesses_set() {
     let datum_1 = PlutusData::new_integer(&BigInt::from(1));
     let datum_2 = PlutusData::new_integer(&BigInt::from(2));
 
@@ -700,7 +701,8 @@ pub fn native_scripts_no_dedup_on_auxdata() {
     assert!(datums_from_bytes.contains(&datum_2));
 }
 
-#[test] fn plutus_data_no_dedup_serialization() {
+#[test]
+fn plutus_data_no_dedup_serialization() {
     let datum_1 = PlutusData::new_integer(&BigInt::from(1));
     let datum_2 = PlutusData::new_integer(&BigInt::from(2));
 

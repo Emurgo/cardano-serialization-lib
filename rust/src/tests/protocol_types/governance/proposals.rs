@@ -171,3 +171,33 @@ fn voting_proposals_setters_getters_test() {
     assert_eq!(proposals.get(0), proposal1);
     assert_eq!(proposals.get(1), proposal2);
 }
+
+#[test]
+fn voting_proposals_deduplication_test() {
+    let mut proposals = VotingProposals::new();
+    let no_confidence_action = NoConfidenceAction::new();
+    let parameter_change_action = ParameterChangeAction::new(&crate_full_protocol_param_update());
+
+    let proposal1 = VotingProposal::new(
+        &GovernanceAction::new_no_confidence_action(&no_confidence_action),
+        &create_anchor(),
+        &fake_reward_address(1),
+        &Coin::from(100u32),
+    );
+    let proposal2 = VotingProposal::new(
+        &GovernanceAction::new_parameter_change_action(&parameter_change_action),
+        &create_anchor(),
+        &fake_reward_address(2),
+        &Coin::from(100u32),
+    );
+    proposals.add(&proposal1);
+    proposals.add(&proposal2);
+    proposals.add(&proposal1);
+    assert_eq!(proposals.len(), 2);
+    assert_eq!(proposals.get(0), proposal1);
+    assert_eq!(proposals.get(1), proposal2);
+
+    let bytes = proposals.to_bytes();
+    let proposals_decoded = VotingProposals::from_bytes(bytes).unwrap();
+    assert_eq!(proposals, proposals_decoded);
+}

@@ -644,7 +644,7 @@ pub fn internal_get_implicit_input(
     let certificate_refund = match &certs {
         None => BigNum::zero(),
         Some(certs) => certs
-            .0
+            .certs
             .iter()
             .try_fold(BigNum::zero(), |acc, ref cert| match &cert.0 {
                 CertificateEnum::StakeDeregistration(cert) => {
@@ -673,7 +673,7 @@ pub fn internal_get_deposit(
     let certificate_deposit = match &certs {
         None => BigNum::zero(),
         Some(certs) => certs
-            .0
+            .certs
             .iter()
             .try_fold(BigNum::zero(), |acc, ref cert| match &cert.0 {
                 CertificateEnum::PoolRegistration(_) => acc.checked_add(&pool_deposit),

@@ -175,13 +175,13 @@ fn voting_proposal_builder_all_proposals() {
 
     let voting_proposals = tx.body().voting_proposals().unwrap();
     assert_eq!(voting_proposals.len(), 7);
-    assert!(voting_proposals.0.contains(&hf_proposal));
-    assert!(voting_proposals.0.contains(&committee_proposal));
-    assert!(voting_proposals.0.contains(&constitution_proposal));
-    assert!(voting_proposals.0.contains(&no_conf_proposal));
-    assert!(voting_proposals.0.contains(&pp_update_proposal));
-    assert!(voting_proposals.0.contains(&withdrawal_proposal));
-    assert!(voting_proposals.0.contains(&info_proposal));
+    assert!(voting_proposals.contains(&hf_proposal));
+    assert!(voting_proposals.contains(&committee_proposal));
+    assert!(voting_proposals.contains(&constitution_proposal));
+    assert!(voting_proposals.contains(&no_conf_proposal));
+    assert!(voting_proposals.contains(&pp_update_proposal));
+    assert!(voting_proposals.contains(&withdrawal_proposal));
+    assert!(voting_proposals.contains(&info_proposal));
 
     let mut total_out = total_tx_output_with_fee(&tx);
     total_out = total_out.checked_add(&total_deposit).unwrap();
@@ -266,8 +266,8 @@ fn voting_proposal_builder_with_plutus_script_witness() {
 
     let voting_proposals = tx.body().voting_proposals().unwrap();
     assert_eq!(voting_proposals.len(), 2);
-    assert!(voting_proposals.0.contains(&hf_proposal));
-    assert!(voting_proposals.0.contains(&committee_proposal));
+    assert!(voting_proposals.contains(&hf_proposal));
+    assert!(voting_proposals.contains(&committee_proposal));
 
     let mut total_out = total_tx_output_with_fee(&tx);
     total_out = total_out.checked_add(&total_deposit).unwrap();
@@ -374,8 +374,8 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
 
     let voting_proposals = tx.body().voting_proposals().unwrap();
     assert_eq!(voting_proposals.len(), 2);
-    assert!(voting_proposals.0.contains(&hf_proposal));
-    assert!(voting_proposals.0.contains(&committee_proposal));
+    assert!(voting_proposals.contains(&hf_proposal));
+    assert!(voting_proposals.contains(&committee_proposal));
 
     let mut total_out = total_tx_output_with_fee(&tx);
     total_out = total_out.checked_add(&total_deposit).unwrap();

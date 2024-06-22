@@ -20,18 +20,18 @@ impl Deserialize for Ed25519KeyHashes {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
         skip_set_tag(raw)?;
         let mut creds = Ed25519KeyHashes::new();
-        let mut counter = 0u64;
+        let mut total = 0u64;
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
             while match len {
-                cbor_event::Len::Len(n) => counter < n,
+                cbor_event::Len::Len(n) => total < n,
                 cbor_event::Len::Indefinite => true,
             } {
                 if is_break_tag(raw, "Ed25519KeyHashes")? {
                     break;
                 }
                 creds.add_move(Ed25519KeyHash::deserialize(raw)?);
-                counter += 1;
+                total += 1;
             }
             Ok(())
         })()

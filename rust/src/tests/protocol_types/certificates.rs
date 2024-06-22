@@ -282,3 +282,31 @@ fn vote_registration_and_delegation_setters_getters_test() {
         false
     );
 }
+
+#[test]
+fn certificates_deduplication_test() {
+    let mut certs = Certificates::new();
+    let cert1 = Certificate::new_stake_registration(&StakeRegistration::new(
+        &Credential::from_keyhash(&fake_key_hash(1)),
+    ));
+    let cert2 = Certificate::new_stake_registration(&StakeRegistration::new(
+        &Credential::from_keyhash(&fake_key_hash(2)),
+    ));
+    let cert3 = Certificate::new_stake_registration(&StakeRegistration::new(
+        &Credential::from_keyhash(&fake_key_hash(1)),
+    ));
+
+    assert_eq!(certs.len(), 0);
+    assert!(certs.add(&cert1));
+    assert_eq!(certs.len(), 1);
+    assert!(certs.add(&cert2));
+    assert_eq!(certs.len(), 2);
+    assert!(!certs.add(&cert3));
+    assert_eq!(certs.len(), 2);
+    assert_eq!(certs.get(0), cert1);
+    assert_eq!(certs.get(1), cert2);
+
+    let bytes = certs.to_bytes();
+    let certs2 = Certificates::from_bytes(bytes).unwrap();
+    assert_eq!(certs, certs2);
+}

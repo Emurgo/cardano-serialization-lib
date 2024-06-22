@@ -216,7 +216,7 @@ impl CertificatesBuilder {
 
     pub fn build(&self) -> Certificates {
         let certs = self.certs.iter().map(|(c, _)| c.clone()).collect();
-        Certificates(certs)
+        Certificates::from_vec(certs)
     }
 
     //return only ref inputs that are script refs with added size

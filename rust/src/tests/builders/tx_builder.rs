@@ -5727,7 +5727,7 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
     assert_eq!(final_tx_wits.plutus_scripts().unwrap().len(), 3);
     assert_eq!(final_tx_wits.redeemers().unwrap().len(), 5);
 
-    let certs = final_tx_body.certs().unwrap().0;
+    let certs = final_tx_body.certs().unwrap().certs;
     let withdraws = final_tx_body
         .withdrawals()
         .unwrap()

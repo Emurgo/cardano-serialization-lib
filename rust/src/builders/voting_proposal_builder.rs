@@ -112,6 +112,6 @@ impl VotingProposalBuilder {
         for (voter, _) in &self.proposals {
             proposals.push(voter.clone());
         }
-        VotingProposals(proposals)
+        VotingProposals::from_vec(proposals)
     }
 }

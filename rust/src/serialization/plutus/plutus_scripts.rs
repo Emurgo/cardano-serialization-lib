@@ -51,6 +51,7 @@ impl PlutusScripts {
 
 impl Deserialize for PlutusScripts {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        skip_set_tag(raw)?;
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
             skip_set_tag(raw)?;

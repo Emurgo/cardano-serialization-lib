@@ -6,14 +6,10 @@ impl Serialize for Certificates {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        if self.0.is_empty() {
-            return Ok(serializer);
-        }
         //TODO: uncomment this line when we conway ero will come
         //serializer.write_tag(258)?;
-        let ordered_dedup = self.0.iter().collect::<BTreeSet<_>>();
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in ordered_dedup {
+        serializer.write_array(Len::Len(self.len() as u64))?;
+        for element in &self.certs {
             element.serialize(serializer)?;
         }
         Ok(serializer)
@@ -38,6 +34,6 @@ impl Deserialize for Certificates {
             Ok(())
         })()
         .map_err(|e| e.annotate("Certificates"))?;
-        Ok(Self(arr))
+        Ok(Self::from_vec(arr))
     }
 }

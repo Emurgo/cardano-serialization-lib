@@ -22,13 +22,14 @@ impl cbor_event::se::Serialize for Vkeywitnesses {
 
 impl Deserialize for Vkeywitnesses {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
+        skip_set_tag(raw)?;
         let mut wits = Vkeywitnesses::new();
-        let mut counter = 0u64;
+        let mut total = 0u64;
         (|| -> Result<_, DeserializeError> {
             skip_set_tag(raw)?;
             let len = raw.array()?;
             while match len {
-                cbor_event::Len::Len(n) => counter < n,
+                cbor_event::Len::Len(n) => total < n,
                 cbor_event::Len::Indefinite => true,
             } {
                 if raw.cbor_type()? == cbor_event::Type::Special {
@@ -36,7 +37,7 @@ impl Deserialize for Vkeywitnesses {
                     break;
                 }
                 wits.add_move(Vkeywitness::deserialize(raw)?);
-                counter += 1;
+                total += 1;
             }
             Ok(())
         })()
