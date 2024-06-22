@@ -46,6 +46,7 @@ impl NativeScripts {
         NativeScripts(scripts)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn contains(&self, script: &NativeScript) -> bool {
         self.0.contains(script)
     }

@@ -79,6 +79,7 @@ impl Rational {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn to_bignum_floor(&self) -> Result<BigNum, JsError> {
         let num = self.numerator();
         let denum = self.denominator();

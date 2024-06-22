@@ -330,6 +330,7 @@ impl TxInputsBuilder {
             .filter_map(|wit| wit.get_script_ref_input_with_size())
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashes {
         self.into()
     }

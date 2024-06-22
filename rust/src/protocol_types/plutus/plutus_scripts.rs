@@ -32,6 +32,7 @@ impl PlutusScripts {
         self.0.push(elem.clone());
     }
 
+    #[allow(dead_code)]
     pub(crate) fn by_version(&self, language: &Language) -> PlutusScripts {
         PlutusScripts(
             self.0
@@ -92,6 +93,7 @@ impl PlutusScripts {
         PlutusScripts(scripts)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn contains(&self, script: &PlutusScript) -> bool {
         self.0.contains(&script)
     }

@@ -18,6 +18,7 @@ impl Redeemers {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn new_with_serialization_format(
         redeemers: Vec<Redeemer>,
         serialization_format: CborContainerType,

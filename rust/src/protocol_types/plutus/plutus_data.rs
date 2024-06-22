@@ -490,6 +490,7 @@ impl PlutusList {
         self.definite_encoding = None;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn contains(&self, elem: &PlutusData) -> bool {
         self.elems.contains(elem)
     }

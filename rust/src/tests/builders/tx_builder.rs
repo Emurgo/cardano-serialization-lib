@@ -3776,10 +3776,6 @@ fn test_add_native_script_input() {
     );
 }
 
-fn unsafe_tx_len(b: &TransactionBuilder) -> usize {
-    b.build_tx_unsafe().unwrap().to_bytes().len()
-}
-
 #[test]
 fn test_native_input_scripts_are_added_to_the_witnesses() {
     let mut tx_builder = create_reallistic_tx_builder();

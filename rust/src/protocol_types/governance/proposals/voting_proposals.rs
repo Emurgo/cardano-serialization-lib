@@ -65,6 +65,7 @@ impl VotingProposals {
         voting_proposals
     }
 
+    #[allow(dead_code)]
     pub(crate) fn contains(&self, proposal: &VotingProposal) -> bool {
         self.dedup.contains(proposal)
     }

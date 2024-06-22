@@ -51,6 +51,7 @@ impl Credentials {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn contains(&self, elem: &Credential) -> bool {
         self.dedup.contains(elem)
     }

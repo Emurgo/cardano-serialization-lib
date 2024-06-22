@@ -42,6 +42,8 @@ struct NativeMints {
 }
 
 impl NativeMints {
+
+    #[allow(dead_code)]
     fn script_hash(&self) -> PolicyID {
         match &self.script {
             NativeScriptSourceEnum::NativeScript(script, _) => script.hash(),

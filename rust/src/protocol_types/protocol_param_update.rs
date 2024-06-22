@@ -119,12 +119,6 @@ impl DrepVotingThresholds {
         }
     }
 
-    pub(crate) fn new_default() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
-
     pub fn set_motion_no_confidence(&mut self, motion_no_confidence: &UnitInterval) {
         self.motion_no_confidence = motion_no_confidence.clone()
     }

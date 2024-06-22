@@ -7,6 +7,7 @@ pub(crate) enum ScriptWitnessType {
 }
 
 impl ScriptWitnessType {
+    #[allow(dead_code)]
     pub(crate) fn script_hash(&self) -> ScriptHash {
         match self {
             ScriptWitnessType::NativeScriptWitness(script) => script.script_hash(),
