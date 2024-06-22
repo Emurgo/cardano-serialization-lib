@@ -45,6 +45,10 @@ impl NativeScripts {
         }
         NativeScripts(scripts)
     }
+
+    pub(crate) fn contains(&self, script: &NativeScript) -> bool {
+        self.0.contains(script)
+    }
 }
 
 impl_to_from!(NativeScripts);

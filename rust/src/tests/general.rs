@@ -501,3 +501,218 @@ fn vkeywitneses_dedup() {
     assert!(!vkeywitnesses.add(&vkeywitness1));
     assert_eq!(vkeywitnesses.len(), 2);
 }
+
+#[test]
+fn plutus_scripts_dedup_on_tx_witnesses_set() {
+    let plutus_script_v1_1 = create_plutus_script(1, &Language::new_plutus_v1());
+    let plutus_script_v1_2 = create_plutus_script(2, &Language::new_plutus_v1());
+
+    let plutus_script_v2_1 = create_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_script_v2_2 = create_plutus_script(2, &Language::new_plutus_v2());
+
+    let plutus_script_v3_1 = create_plutus_script(1, &Language::new_plutus_v3());
+    let plutus_script_v3_2 = create_plutus_script(2, &Language::new_plutus_v3());
+
+    let mut plutus_scrips = PlutusScripts::new();
+    plutus_scrips.add(&plutus_script_v1_1);
+    plutus_scrips.add(&plutus_script_v1_2);
+    plutus_scrips.add(&plutus_script_v1_1);
+
+    plutus_scrips.add(&plutus_script_v2_1);
+    plutus_scrips.add(&plutus_script_v2_2);
+    plutus_scrips.add(&plutus_script_v2_1);
+
+    plutus_scrips.add(&plutus_script_v3_1);
+    plutus_scrips.add(&plutus_script_v3_2);
+    plutus_scrips.add(&plutus_script_v3_1);
+    assert_eq!(plutus_scrips.len(), 9);
+
+    let mut  tx_wit_set = TransactionWitnessSet::new();
+    tx_wit_set.set_plutus_scripts(&plutus_scrips);
+
+    let plutus_scripts_from = tx_wit_set.plutus_scripts().unwrap();
+    assert_eq!(plutus_scripts_from.len(), 6);
+    assert!(plutus_scripts_from.contains(&plutus_script_v1_1));
+    assert!(plutus_scripts_from.contains(&plutus_script_v1_2));
+    assert!(plutus_scripts_from.contains(&plutus_script_v2_1));
+    assert!(plutus_scripts_from.contains(&plutus_script_v2_2));
+    assert!(plutus_scripts_from.contains(&plutus_script_v3_1));
+    assert!(plutus_scripts_from.contains(&plutus_script_v3_2));
+
+    let tx_wit_set_bytes = tx_wit_set.to_bytes();
+    let tx_wit_set_from_bytes = TransactionWitnessSet::from_bytes(tx_wit_set_bytes).unwrap();
+    let plutus_scripts_from_bytes = tx_wit_set_from_bytes.plutus_scripts().unwrap();
+    assert_eq!(plutus_scripts_from_bytes.len(), 6);
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v1_1));
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v1_2));
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v2_1));
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v2_2));
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v3_1));
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v3_2));
+}
+
+#[test]
+fn plutus_scripts_no_dedup_on_auxdata() {
+    let plutus_script_v1_1 = create_plutus_script(1, &Language::new_plutus_v1());
+    let plutus_script_v1_2 = create_plutus_script(2, &Language::new_plutus_v1());
+
+    let plutus_script_v2_1 = create_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_script_v2_2 = create_plutus_script(2, &Language::new_plutus_v2());
+
+    let plutus_script_v3_1 = create_plutus_script(1, &Language::new_plutus_v3());
+    let plutus_script_v3_2 = create_plutus_script(2, &Language::new_plutus_v3());
+
+    let mut plutus_scrips = PlutusScripts::new();
+    plutus_scrips.add(&plutus_script_v1_1);
+    plutus_scrips.add(&plutus_script_v1_2);
+    plutus_scrips.add(&plutus_script_v1_1);
+
+    plutus_scrips.add(&plutus_script_v2_1);
+    plutus_scrips.add(&plutus_script_v2_2);
+    plutus_scrips.add(&plutus_script_v2_1);
+
+    plutus_scrips.add(&plutus_script_v3_1);
+    plutus_scrips.add(&plutus_script_v3_2);
+    plutus_scrips.add(&plutus_script_v3_1);
+    assert_eq!(plutus_scrips.len(), 9);
+
+    let mut  aux_data = AuxiliaryData::new();
+    aux_data.set_plutus_scripts(&plutus_scrips);
+
+    let plutus_scripts_from = aux_data.plutus_scripts().unwrap();
+    assert_eq!(plutus_scripts_from.len(), 9);
+    assert!(plutus_scripts_from.contains(&plutus_script_v1_1));
+    assert!(plutus_scripts_from.contains(&plutus_script_v1_2));
+    assert!(plutus_scripts_from.contains(&plutus_script_v2_1));
+    assert!(plutus_scripts_from.contains(&plutus_script_v2_2));
+    assert!(plutus_scripts_from.contains(&plutus_script_v3_1));
+    assert!(plutus_scripts_from.contains(&plutus_script_v3_2));
+
+    let aux_data_bytes = aux_data.to_bytes();
+    let aux_data_from_bytes = AuxiliaryData::from_bytes(aux_data_bytes).unwrap();
+    let plutus_scripts_from_bytes = aux_data_from_bytes.plutus_scripts().unwrap();
+    assert_eq!(plutus_scripts_from_bytes.len(), 9);
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v1_1));
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v1_2));
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v2_1));
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v2_2));
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v3_1));
+    assert!(plutus_scripts_from_bytes.contains(&plutus_script_v3_2));
+}
+
+#[test]
+pub fn native_scripts_dedup_on_tx_witnesses_set() {
+    let keyhash1 = keyhash(1);
+
+    let native_scripts_1 = NativeScript::new_script_pubkey(&ScriptPubkey::new(
+        &keyhash1,
+    ));
+
+    let mut internal_scripts = NativeScripts::new();
+    internal_scripts.add(&native_scripts_1);
+    let native_scripts_2 = NativeScript::new_script_n_of_k(&ScriptNOfK::new(
+        1,
+        &internal_scripts,
+    ));
+
+    let mut native_scripts = NativeScripts::new();
+    native_scripts.add(&native_scripts_1);
+    native_scripts.add(&native_scripts_2);
+    native_scripts.add(&native_scripts_1);
+    assert_eq!(native_scripts.len(), 3);
+
+    let mut  tx_wit_set = TransactionWitnessSet::new();
+    tx_wit_set.set_native_scripts(&native_scripts);
+
+    let native_scripts_from = tx_wit_set.native_scripts().unwrap();
+    assert_eq!(native_scripts_from.len(), 2);
+    assert!(native_scripts_from.contains(&native_scripts_1));
+    assert!(native_scripts_from.contains(&native_scripts_2));
+
+    let tx_wit_set_bytes = tx_wit_set.to_bytes();
+    let tx_wit_set_from_bytes = TransactionWitnessSet::from_bytes(tx_wit_set_bytes).unwrap();
+    let native_scripts_from_bytes = tx_wit_set_from_bytes.native_scripts().unwrap();
+    assert_eq!(native_scripts_from_bytes.len(), 2);
+    assert!(native_scripts_from_bytes.contains(&native_scripts_1));
+    assert!(native_scripts_from_bytes.contains(&native_scripts_2));
+}
+
+#[test]
+pub fn native_scripts_no_dedup_on_auxdata() {
+    let keyhash1 = keyhash(1);
+
+    let native_scripts_1 = NativeScript::new_script_pubkey(&ScriptPubkey::new(
+        &keyhash1,
+    ));
+
+    let mut internal_scripts = NativeScripts::new();
+    internal_scripts.add(&native_scripts_1);
+    let native_scripts_2 = NativeScript::new_script_n_of_k(&ScriptNOfK::new(
+        1,
+        &internal_scripts,
+    ));
+
+    let mut native_scripts = NativeScripts::new();
+    native_scripts.add(&native_scripts_1);
+    native_scripts.add(&native_scripts_2);
+    native_scripts.add(&native_scripts_1);
+    assert_eq!(native_scripts.len(), 3);
+
+    let mut  aux_data = AuxiliaryData::new();
+    aux_data.set_native_scripts(&native_scripts);
+
+    let native_scripts_from = aux_data.native_scripts().unwrap();
+    assert_eq!(native_scripts_from.len(), 3);
+    assert!(native_scripts_from.contains(&native_scripts_1));
+    assert!(native_scripts_from.contains(&native_scripts_2));
+
+    let aux_data_bytes = aux_data.to_bytes();
+    let aux_data_from_bytes = AuxiliaryData::from_bytes(aux_data_bytes).unwrap();
+    let native_scripts_from_bytes = aux_data_from_bytes.native_scripts().unwrap();
+    assert_eq!(native_scripts_from_bytes.len(), 3);
+    assert!(native_scripts_from_bytes.contains(&native_scripts_1));
+    assert!(native_scripts_from_bytes.contains(&native_scripts_2));
+}
+
+#[test] fn plutus_data_dedup_on_tx_witnesses_set() {
+    let datum_1 = PlutusData::new_integer(&BigInt::from(1));
+    let datum_2 = PlutusData::new_integer(&BigInt::from(2));
+
+    let mut datum = PlutusList::new();
+    datum.add(&datum_1);
+    datum.add(&datum_2);
+    datum.add(&datum_1);
+    assert_eq!(datum.len(), 3);
+
+    let mut  tx_wit_set = TransactionWitnessSet::new();
+    tx_wit_set.set_plutus_data(&datum);
+
+    let datums_from = tx_wit_set.plutus_data().unwrap();
+    assert_eq!(datums_from.len(), 2);
+    assert!(datums_from.contains(&datum_1));
+    assert!(datums_from.contains(&datum_2));
+
+    let tx_wit_set_bytes = tx_wit_set.to_bytes();
+    let tx_wit_set_from_bytes = TransactionWitnessSet::from_bytes(tx_wit_set_bytes).unwrap();
+    let datums_from_bytes = tx_wit_set_from_bytes.plutus_data().unwrap();
+    assert_eq!(datums_from_bytes.len(), 2);
+    assert!(datums_from_bytes.contains(&datum_1));
+    assert!(datums_from_bytes.contains(&datum_2));
+}
+
+#[test] fn plutus_data_no_dedup_serialization() {
+    let datum_1 = PlutusData::new_integer(&BigInt::from(1));
+    let datum_2 = PlutusData::new_integer(&BigInt::from(2));
+
+    let mut datum = PlutusList::new();
+    datum.add(&datum_1);
+    datum.add(&datum_2);
+    datum.add(&datum_1);
+    assert_eq!(datum.len(), 3);
+
+    let datum_bytes = datum.to_bytes();
+    let datum_from_bytes = PlutusList::from_bytes(datum_bytes).unwrap();
+    assert_eq!(datum_from_bytes.len(), 3);
+    assert!(datum_from_bytes.contains(&datum_1));
+    assert!(datum_from_bytes.contains(&datum_2));
+}

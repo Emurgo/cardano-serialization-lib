@@ -15,7 +15,7 @@ impl cbor_event::se::Serialize for NativeScripts {
 }
 
 impl NativeScripts {
-    fn serialize_as_set<'se, W: Write>(
+    pub(crate) fn serialize_as_set<'se, W: Write>(
         &self,
         need_deduplication: bool,
         serializer: &'se mut Serializer<W>,

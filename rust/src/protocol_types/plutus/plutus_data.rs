@@ -490,6 +490,10 @@ impl PlutusList {
         self.definite_encoding = None;
     }
 
+    pub(crate) fn contains(&self, elem: &PlutusData) -> bool {
+        self.elems.contains(elem)
+    }
+
     pub(crate) fn deduplicated_view(&self) -> Vec<&PlutusData> {
         let mut dedup = BTreeSet::new();
         let mut keyhashes = Vec::new();

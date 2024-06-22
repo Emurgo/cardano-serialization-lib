@@ -41,7 +41,8 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
         if let Some(field) = &self.native_scripts {
             if !field.is_none_or_empty() {
                 serializer.write_unsigned_integer(1)?;
-                field.serialize(serializer)?;
+                //transaction witness set already has deduplicated native scripts
+                field.serialize_as_set(false, serializer)?;
             }
         }
         if let Some(field) = &self.bootstraps {
@@ -69,7 +70,8 @@ impl cbor_event::se::Serialize for TransactionWitnessSet {
         if let Some(field) = &self.plutus_data {
             if !field.is_none_or_empty() {
                 serializer.write_unsigned_integer(4)?;
-                field.serialize(serializer)?;
+                //transaction witness set already has deduplicated plutus data
+                field.serialize_as_set(false, serializer)?;
             }
         }
         if let Some(field) = &self.redeemers {

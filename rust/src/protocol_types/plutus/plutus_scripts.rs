@@ -91,4 +91,8 @@ impl PlutusScripts {
         }
         PlutusScripts(scripts)
     }
+
+    pub(crate) fn contains(&self, script: &PlutusScript) -> bool {
+        self.0.contains(&script)
+    }
 }
