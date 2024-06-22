@@ -8,3 +8,4 @@ mod serialization;
 mod plutus;
 mod metadata;
 mod crypto;
+mod utils;
