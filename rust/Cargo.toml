@@ -1,6 +1,6 @@
 [package]
 name = "cardano-serialization-lib"
-version = "12.0.0-alpha.31"
+version = "12.0.0-alpha.32"
 edition = "2018"
 authors = ["EMURGO"]
 license = "MIT"
@@ -24,7 +24,7 @@ digest = "^0.9"
 bech32 = "0.7.2"
 hex = "0.4.0"
 cfg-if = "1"
-hashlink = "0.9.0"
+hashlink = "0.9.1"
 serde_json = { version = "1.0.114", features = ["arbitrary_precision"] }
 num-bigint = "0.4.0"
 num-integer = "0.1.45"
