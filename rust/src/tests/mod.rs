@@ -9,3 +9,4 @@ mod plutus;
 mod metadata;
 mod crypto;
 mod utils;
+mod fees;
