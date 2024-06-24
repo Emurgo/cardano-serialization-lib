@@ -1,6 +1,5 @@
 use crate::*;
-use crate::fakes::{fake_plutus_script_and_hash, fake_script_hash, fake_tx_input};
-use crate::tests::mock_objects::{create_reallistic_tx_builder, create_redeemer};
+use crate::tests::mock_objects::{create_reallistic_tx_builder, create_redeemer, fake_plutus_script_and_hash, fake_script_hash, fake_tx_input};
 
 #[test]
 fn plutus_mint_with_script_ref_test() {

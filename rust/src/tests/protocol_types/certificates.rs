@@ -1,8 +1,4 @@
-use crate::fakes::{
-    fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash, fake_script_hash,
-    fake_vrf_key_hash,
-};
-use crate::tests::mock_objects::{crate_full_pool_params, create_anchor};
+use crate::tests::mock_objects::{crate_full_pool_params, create_anchor, fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash, fake_script_hash, fake_vrf_key_hash};
 use crate::*;
 
 #[test]

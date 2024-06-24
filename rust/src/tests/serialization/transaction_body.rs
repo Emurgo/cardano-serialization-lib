@@ -1,6 +1,5 @@
-use crate::fakes::{fake_asset_name, fake_auxiliary_data_hash, fake_base_address, fake_key_hash, fake_policy_id, fake_reward_address, fake_script_data_hash, fake_tx_hash, fake_tx_input};
 use crate::*;
-use crate::tests::mock_objects::create_anchor;
+use crate::tests::mock_objects::{create_anchor, fake_asset_name, fake_auxiliary_data_hash, fake_base_address, fake_key_hash, fake_policy_id, fake_reward_address, fake_script_data_hash, fake_tx_hash, fake_tx_input};
 
 #[test]
 fn transaction_round_trip_test() {

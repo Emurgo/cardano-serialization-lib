@@ -1,7 +1,6 @@
 use crate::*;
-use crate::fakes::{fake_boostrap_witness, fake_tx_input, fake_vkey_witness};
 use crate::tests::helpers::harden;
-use crate::tests::mock_objects::create_plutus_script;
+use crate::tests::mock_objects::{create_plutus_script, fake_boostrap_witness, fake_tx_input, fake_vkey_witness};
 
 #[test]
 fn native_script_hash() {

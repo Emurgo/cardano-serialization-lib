@@ -1,7 +1,4 @@
-use crate::fakes::{
-    fake_anchor_data_hash, fake_key_hash, fake_reward_address, fake_script_hash, fake_tx_hash,
-};
-use crate::tests::mock_objects::{crate_full_protocol_param_update, create_anchor};
+use crate::tests::mock_objects::{crate_full_protocol_param_update, create_anchor, fake_anchor_data_hash, fake_key_hash, fake_reward_address, fake_script_hash, fake_tx_hash};
 use crate::*;
 
 macro_rules! to_from_test {

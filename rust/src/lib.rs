@@ -62,7 +62,6 @@ pub mod typed_bytes;
 #[macro_use]
 mod utils;
 pub use utils::*;
-pub(crate) mod fakes;
 mod serialization;
 mod rational;
 

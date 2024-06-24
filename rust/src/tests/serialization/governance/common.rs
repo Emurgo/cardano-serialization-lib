@@ -1,5 +1,5 @@
-use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
 use crate::*;
+use crate::tests::mock_objects::{fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
 
 #[test]
 fn anchor_ser_round_trip() {

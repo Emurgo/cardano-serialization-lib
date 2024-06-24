@@ -1,5 +1,4 @@
-use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
-use crate::tests::mock_objects::create_anchor;
+use crate::tests::mock_objects::{create_anchor, fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
 use crate::*;
 
 #[test]

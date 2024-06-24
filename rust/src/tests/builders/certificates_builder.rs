@@ -1,8 +1,5 @@
-use crate::fakes::{
-    fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash, fake_pool_metadata_hash,
-    fake_vrf_key_hash,
-};
 use crate::*;
+use crate::tests::mock_objects::{fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash, fake_pool_metadata_hash, fake_vrf_key_hash};
 
 #[test]
 fn certificates_builder_deposit_no_refund_test() {

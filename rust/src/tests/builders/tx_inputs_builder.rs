@@ -1,9 +1,4 @@
-use crate::fakes::{fake_key_hash, fake_script_hash, fake_tx_input};
-use crate::tests::mock_objects::{
-    create_base_address, create_base_script_address, create_enterprise_address,
-    create_enterprise_script_address, create_plutus_script, create_pointer_address,
-    create_pointer_script_address, create_redeemer, create_reward_address,
-};
+use crate::tests::mock_objects::{create_base_address, create_base_script_address, create_enterprise_address, create_enterprise_script_address, create_plutus_script, create_pointer_address, create_pointer_script_address, create_redeemer, create_reward_address, fake_key_hash, fake_script_hash, fake_tx_input};
 use crate::*;
 
 #[test]

@@ -1,7 +1,7 @@
-use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_pool_metadata_hash, fake_script_hash, fake_tx_hash, fake_vrf_key_hash};
-use crate::fees::LinearFee;
-use crate::tests::helpers::harden;
+#![allow(dead_code)]
+
 use crate::*;
+use crate::tests::helpers::harden;
 
 const MAX_VALUE_SIZE: u32 = 4000;
 const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
@@ -509,4 +509,139 @@ pub(crate) fn create_redeemer_zero_cost(x: u8) -> Redeemer {
         &PlutusData::new_empty_constr_plutus_data(&BigNum::from(x)),
         &ExUnits::new(&BigNum::zero(), &BigNum::zero()),
     )
+}
+
+
+pub(crate) fn fake_bytes_32(x: u8) -> Vec<u8> {
+    vec![
+        x, 239, 181, 120, 142, 135, 19, 200, 68, 223, 211, 43, 46, 145, 222, 30, 48, 159, 239, 255,
+        213, 85, 248, 39, 204, 158, 225, 100, 1, 2, 3, 4,
+    ]
+}
+
+pub(crate) fn fake_data_hash(x: u8) -> DataHash {
+    DataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_anchor_data_hash(x: u8) -> AnchorDataHash {
+    AnchorDataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_auxiliary_data_hash(x: u8) -> AuxiliaryDataHash {
+    AuxiliaryDataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_pool_metadata_hash(x: u8) -> PoolMetadataHash {
+    PoolMetadataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_genesis_hash(x: u8) -> GenesisHash {
+    GenesisHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_genesis_delegate_hash(x: u8) -> GenesisDelegateHash {
+    GenesisDelegateHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_vrf_key_hash(x: u8) -> VRFKeyHash {
+    VRFKeyHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_key_hash(x: u8) -> Ed25519KeyHash {
+    Ed25519KeyHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_script_hash(x: u8) -> ScriptHash {
+    ScriptHash::from_bytes((&fake_bytes_32(x)[0..28]).to_vec()).unwrap()
+}
+
+pub(crate) fn fake_script_data_hash(x: u8) -> ScriptDataHash {
+    ScriptDataHash::from_bytes(fake_bytes_32(x)).unwrap()
+}
+
+pub(crate) fn fake_base_address(x: u8) -> Address {
+    BaseAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &Credential::from_keyhash(&fake_key_hash(x)),
+        &Credential::from_keyhash(&fake_key_hash(0)),
+    )
+        .to_address()
+}
+
+pub(crate) fn fake_reward_address(x: u8) -> RewardAddress {
+    RewardAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &Credential::from_keyhash(&fake_key_hash(x)),
+    )
+}
+
+pub(crate) fn fake_tx_hash(input_hash_byte: u8) -> TransactionHash {
+    TransactionHash::from([input_hash_byte; 32])
+}
+
+pub(crate) fn fake_tx_input(input_hash_byte: u8) -> TransactionInput {
+    fake_tx_input2(input_hash_byte, 0)
+}
+
+pub(crate) fn fake_tx_input2(input_hash_byte: u8, idx: TransactionIndex) -> TransactionInput {
+    TransactionInput::new(&fake_tx_hash(input_hash_byte), idx)
+}
+
+pub(crate) fn fake_value() -> Value {
+    fake_value2(1_000_000)
+}
+
+pub(crate) fn fake_value2(v: u64) -> Value {
+    Value::new(&BigNum(v))
+}
+
+pub(crate) fn fake_tx_output(input_hash_byte: u8) -> TransactionOutput {
+    TransactionOutput::new(&fake_base_address(input_hash_byte), &fake_value())
+}
+
+pub(crate) fn fake_tx_output2(input_hash_byte: u8, val: u64) -> TransactionOutput {
+    TransactionOutput::new(&fake_base_address(input_hash_byte), &fake_value2(val))
+}
+
+pub(crate) fn fake_vkey() -> Vkey {
+    Vkey::new(
+        &Bip32PrivateKey::generate_ed25519_bip32()
+            .unwrap()
+            .to_public()
+            .to_raw_key(),
+    )
+}
+
+pub(crate) fn fake_vkey_numbered(x: u8) -> Vkey {
+    Vkey::new(&PublicKey::from_bytes(&[x; 32]).unwrap())
+}
+
+pub(crate) fn fake_signature(x: u8) -> Ed25519Signature {
+    Ed25519Signature::from_bytes([x; 64].to_vec()).unwrap()
+}
+
+pub(crate) fn fake_policy_id(x: u8) -> PolicyID {
+    PolicyID::from([x; 28])
+}
+
+pub(crate) fn fake_asset_name(x: u8) -> AssetName {
+    AssetName([x; 32].to_vec())
+}
+
+pub(crate) fn fake_vkey_witness(x: u8) -> Vkeywitness {
+    Vkeywitness::new(&fake_vkey_numbered(x), &fake_signature(x))
+}
+
+pub(crate) fn fake_boostrap_witness(x: u8) -> BootstrapWitness {
+    BootstrapWitness::new(
+        &fake_vkey_numbered(x),
+        &fake_signature(x),
+        vec![x; 32],
+        vec![x; 32],
+    )
+}
+
+pub(crate) fn fake_plutus_script_and_hash(x: u8) -> (PlutusScript, ScriptHash) {
+    let s = PlutusScript::new(fake_bytes_32(x));
+    (s.clone(), s.hash())
 }

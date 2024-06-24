@@ -1,9 +1,5 @@
-use crate::tests::mock_objects::{
-    create_base_address, create_enterprise_address, create_malformed_address,
-    create_pointer_address, create_reward_address,
-};
+use crate::tests::mock_objects::{create_base_address, create_enterprise_address, create_malformed_address, create_pointer_address, create_reward_address, fake_key_hash};
 use crate::*;
-use crate::fakes::fake_key_hash;
 
 #[test]
 fn variable_nat_encoding() {
