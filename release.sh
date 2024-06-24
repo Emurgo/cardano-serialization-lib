@@ -9,8 +9,11 @@ fi
 
 echo "Preparing ${RELEASE_TYPE} release"
 
-. build-and-test.sh \
-&& npm run js:publish-nodejs:${RELEASE_TYPE} \
-&& npm run js:publish-browser:${RELEASE_TYPE} \
-&& npm run js:publish-asm:${RELEASE_TYPE} \
+. ./build-and-test.sh \
+&& npm run js:publish-nodejs:${RELEASE_TYPE}:no-gc \
+&& npm run js:publish-browser:${RELEASE_TYPE}:no-gc \
+&& npm run js:publish-asm:${RELEASE_TYPE}:no-gc \
+&& npm run js:publish-nodejs:${RELEASE_TYPE}:gc \
+&& npm run js:publish-browser:${RELEASE_TYPE}:gc \
+&& npm run js:publish-asm:${RELEASE_TYPE}:gc \
 && (cd rust; cargo publish --allow-dirty)
