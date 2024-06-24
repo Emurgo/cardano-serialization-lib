@@ -1,5 +1,5 @@
 use crate::fees::{min_fee, LinearFee};
-use crate::tests::mock_objects::{fake_policy_id, generate_address};
+use crate::tests::fakes::{fake_policy_id, fake_base_address};
 use crate::*;
 
 fn generate_assets(
@@ -63,8 +63,8 @@ fn generate_utxo(
 
 fn generate_big_ada_utoxs_bacth() -> TransactionUnspentOutputs {
     let mut utxos = Vec::new();
-    let address = generate_address(1);
-    let address_2 = generate_address(2);
+    let address = fake_base_address(1);
+    let address_2 = fake_base_address(2);
     for i in 0..10 {
         let utxo = generate_utxo(
             &address,
@@ -99,8 +99,8 @@ fn generate_big_ada_utoxs_bacth() -> TransactionUnspentOutputs {
 
 fn generate_big_utoxs_bacth() -> TransactionUnspentOutputs {
     let mut utxos = Vec::new();
-    let address = generate_address(1);
-    let address_2 = generate_address(2);
+    let address = fake_base_address(1);
+    let address_2 = fake_base_address(2);
     for i in 0..200 {
         let utxo = generate_utxo(
             &address,
@@ -229,7 +229,7 @@ pub fn test_big_utoxs_batch() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -258,7 +258,7 @@ pub fn test_big_utoxs_ada_batch() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -271,7 +271,7 @@ pub fn test_big_utoxs_ada_batch() {
 
 #[test]
 pub fn test_one_utxo() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo = generate_utxo(
         &address,
         1,
@@ -301,7 +301,7 @@ pub fn test_one_utxo() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -314,7 +314,7 @@ pub fn test_one_utxo() {
 
 #[test]
 pub fn test_one_utxo_one_asset_per_output() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo_1 = generate_utxo(
         &address,
         1,
@@ -368,7 +368,7 @@ pub fn test_one_utxo_one_asset_per_output() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -393,7 +393,7 @@ pub fn test_one_utxo_one_asset_per_output() {
 
 #[test]
 pub fn test_one_utxo_one_asset_per_tx() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo_1 = generate_utxo(
         &address,
         1,
@@ -447,7 +447,7 @@ pub fn test_one_utxo_one_asset_per_tx() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -473,7 +473,7 @@ pub fn test_one_utxo_one_asset_per_tx() {
 
 #[test]
 pub fn test_only_ada_utxo() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo = generate_utxo(
         &address,
         1,
@@ -503,7 +503,7 @@ pub fn test_only_ada_utxo() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -516,7 +516,7 @@ pub fn test_only_ada_utxo() {
 
 #[test]
 pub fn test_not_enough_ada() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo = generate_utxo(&address, 1, 0, 0, 0, 0, 20, Coin::zero(), Coin::from(1u64));
 
     let utxos = TransactionUnspentOutputs(vec![utxo]);
@@ -536,13 +536,13 @@ pub fn test_not_enough_ada() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_err());
 }
 
 #[test]
 pub fn test_value_limit_error() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo = generate_utxo(
         &address,
         1,
@@ -572,13 +572,13 @@ pub fn test_value_limit_error() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_err());
 }
 
 #[test]
 pub fn test_tx_limit_error() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo = generate_utxo(
         &address,
         1,
@@ -608,7 +608,7 @@ pub fn test_tx_limit_error() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_err());
 }
 
@@ -631,7 +631,7 @@ pub fn test_no_utxos() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -660,13 +660,13 @@ pub fn test_script_input_error() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_err());
 }
 
 #[test]
 pub fn test_two_asset_utxo_one_ada_utxo() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let asset_utxo_1 = generate_utxo(
         &address,
         1,
@@ -720,7 +720,7 @@ pub fn test_two_asset_utxo_one_ada_utxo() {
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();

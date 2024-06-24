@@ -1,24 +1,24 @@
-use crate::tests::mock_objects::{create_base_address, create_base_script_address, create_enterprise_address, create_enterprise_script_address, create_plutus_script, create_pointer_address, create_pointer_script_address, create_redeemer, create_reward_address, fake_key_hash, fake_script_hash, fake_tx_input};
+use crate::tests::fakes::{fake_base_address, fake_base_script_address, fake_enterprise_address, fake_enterprise_script_address, fake_plutus_script, fake_pointer_address, fake_pointer_script_address, fake_redeemer, fake_reward_address, fake_key_hash, fake_script_hash, fake_tx_input};
 use crate::*;
 
 #[test]
 fn regular_inputs() {
     let mut tx_inputs_builder = TxInputsBuilder::new();
-    let base_address_1 = create_base_address(1);
+    let base_address_1 = fake_base_address(1);
     let tx_input_1 = fake_tx_input(1);
     let input_value_1 = Value::new(&BigNum(100));
     tx_inputs_builder
         .add_regular_input(&base_address_1, &tx_input_1, &input_value_1)
         .unwrap();
 
-    let enterprise_address_2 = create_enterprise_address(2);
+    let enterprise_address_2 = fake_enterprise_address(2);
     let tx_input_2 = fake_tx_input(2);
     let input_value_2 = Value::new(&BigNum(200));
     tx_inputs_builder
         .add_regular_input(&enterprise_address_2, &tx_input_2, &input_value_2)
         .unwrap();
 
-    let pointer_address_3 = create_pointer_address(3);
+    let pointer_address_3 = fake_pointer_address(3);
     let tx_input_3 = fake_tx_input(3);
     let input_value_3 = Value::new(&BigNum(300));
     tx_inputs_builder
@@ -108,16 +108,16 @@ fn script_input_as_regular_input_error() {
     let plutus_script = fake_tx_input(1);
     let input_value = Value::new(&BigNum(100));
 
-    let base_address_1 = create_base_script_address(1);
+    let base_address_1 = fake_base_script_address(1);
     let res_1 = tx_inputs_builder.add_regular_input(&base_address_1, &plutus_script, &input_value);
     assert!(res_1.is_err());
 
-    let enterprise_address_2 = create_enterprise_script_address(2);
+    let enterprise_address_2 = fake_enterprise_script_address(2);
     let res_2 =
         tx_inputs_builder.add_regular_input(&enterprise_address_2, &plutus_script, &input_value);
     assert!(res_2.is_err());
 
-    let pointer_address_3 = create_pointer_script_address(3);
+    let pointer_address_3 = fake_pointer_script_address(3);
     let res_3 =
         tx_inputs_builder.add_regular_input(&pointer_address_3, &plutus_script, &input_value);
     assert!(res_3.is_err());
@@ -126,7 +126,7 @@ fn script_input_as_regular_input_error() {
 #[test]
 fn rewards_address_input_as_regular_input_error() {
     let mut tx_inputs_builder = TxInputsBuilder::new();
-    let rewards_address = create_reward_address(1);
+    let rewards_address = fake_reward_address(1).to_address();
     let tx_input = fake_tx_input(1);
     let input_value = Value::new(&BigNum(100));
     let res = tx_inputs_builder.add_regular_input(&rewards_address, &tx_input, &input_value);
@@ -139,9 +139,9 @@ fn plutus_script_input() {
     let tx_input_1 = fake_tx_input(1);
     let input_value_1 = Value::new(&BigNum(100));
 
-    let plutus_script = create_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_script = fake_plutus_script(1, &Language::new_plutus_v2());
     let plutus_script_source = PlutusScriptSource::new(&plutus_script);
-    let redeemer = create_redeemer(1)
+    let redeemer = fake_redeemer(1)
         .clone_with_index_and_tag(&BigNum(0), &RedeemerTag::new_spend());
 
     let datum = PlutusData::new_empty_constr_plutus_data(&BigNum::zero());
@@ -180,11 +180,11 @@ fn plutus_script_input_with_required_signers() {
     let key_hash = fake_key_hash(1);
     let key_hashes = Ed25519KeyHashes::from_vec(vec![key_hash]);
 
-    let plutus_script = create_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_script = fake_plutus_script(1, &Language::new_plutus_v2());
     let mut plutus_script_source = PlutusScriptSource::new(&plutus_script);
     plutus_script_source.set_required_signers(&key_hashes);
 
-    let redeemer = create_redeemer(1)
+    let redeemer = fake_redeemer(1)
         .clone_with_index_and_tag(&BigNum(0), &RedeemerTag::new_spend());
 
     let datum = PlutusData::new_empty_constr_plutus_data(&BigNum::zero());
@@ -231,7 +231,7 @@ fn plutus_script_input_with_ref() {
     let plutus_script_source =
         PlutusScriptSource::new_ref_input(&script_hash, &ref_input_1, &lang_ver, script_size);
 
-    let redeemer = create_redeemer(1)
+    let redeemer = fake_redeemer(1)
         .clone_with_index_and_tag(&BigNum(0), &RedeemerTag::new_spend());
 
     let plutus_witness = PlutusWitness::new_with_ref(

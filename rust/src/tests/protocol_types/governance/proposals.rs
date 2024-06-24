@@ -1,4 +1,4 @@
-use crate::tests::mock_objects::{crate_full_protocol_param_update, create_action_id, create_anchor, fake_key_hash, fake_reward_address, fake_script_hash};
+use crate::tests::fakes::{fake_full_protocol_param_update, fake_action_id, fake_anchor, fake_key_hash, fake_reward_address, fake_script_hash};
 use crate::*;
 use itertools::Itertools;
 
@@ -27,7 +27,7 @@ fn committee_setters_getters_test() {
 
 #[test]
 fn constitution_setters_getters_test() {
-    let anchor = create_anchor();
+    let anchor = fake_anchor();
     let constitution = Constitution::new(&anchor);
     assert_eq!(constitution.anchor(), anchor);
     assert_eq!(constitution.script_hash(), None);
@@ -42,7 +42,7 @@ fn constitution_setters_getters_test() {
 fn hard_fork_initiation_action_setters_getters_test() {
     let protocol_version = ProtocolVersion::new(1, 2);
     let proposal = HardForkInitiationAction::new(&protocol_version);
-    let action_id = create_action_id();
+    let action_id = fake_action_id();
     let proposal_with_action_id =
         HardForkInitiationAction::new_with_action_id(&action_id, &protocol_version);
     assert_eq!(proposal.gov_action_id(), None);
@@ -53,7 +53,7 @@ fn hard_fork_initiation_action_setters_getters_test() {
 
 #[test]
 fn new_committee_action_setters_getters_test() {
-    let action_id = create_action_id();
+    let action_id = fake_action_id();
     let committee = Committee::new(&UnitInterval::new(&BigNum::from(1u32), &BigNum::from(2u32)));
     let members_to_remove = Credentials::from_iter(
         vec![
@@ -79,8 +79,8 @@ fn new_committee_action_setters_getters_test() {
 
 #[test]
 fn new_constitution_action_setters_getters_test() {
-    let action_id = create_action_id();
-    let constitution = Constitution::new(&create_anchor());
+    let action_id = fake_action_id();
+    let constitution = Constitution::new(&fake_anchor());
     let proposal = NewConstitutionAction::new(&constitution);
     let proposal_with_action_id =
         NewConstitutionAction::new_with_action_id(&action_id, &constitution);
@@ -92,7 +92,7 @@ fn new_constitution_action_setters_getters_test() {
 
 #[test]
 fn no_confidence_action_setters_getters_test() {
-    let action_id = create_action_id();
+    let action_id = fake_action_id();
     let proposal = NoConfidenceAction::new();
     let proposal_with_action_id = NoConfidenceAction::new_with_action_id(&action_id);
     assert_eq!(proposal.gov_action_id(), None);
@@ -101,8 +101,8 @@ fn no_confidence_action_setters_getters_test() {
 
 #[test]
 fn parameter_change_action_setters_getters_test() {
-    let protocol_params = crate_full_protocol_param_update();
-    let action_id = create_action_id();
+    let protocol_params = fake_full_protocol_param_update();
+    let action_id = fake_action_id();
     let policy_hash = fake_script_hash(1);
     let proposal = ParameterChangeAction::new(&protocol_params);
     let proposal_with_action_id = ParameterChangeAction::new_with_policy_hash_and_action_id(
@@ -148,17 +148,17 @@ fn treasury_withdrawals_action() {
 fn voting_proposals_setters_getters_test() {
     let mut proposals = VotingProposals::new();
     let no_confidence_action = NoConfidenceAction::new();
-    let parameter_change_action = ParameterChangeAction::new(&crate_full_protocol_param_update());
+    let parameter_change_action = ParameterChangeAction::new(&fake_full_protocol_param_update());
 
     let proposal1 = VotingProposal::new(
         &GovernanceAction::new_no_confidence_action(&no_confidence_action),
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(1),
         &Coin::from(100u32),
     );
     let proposal2 = VotingProposal::new(
         &GovernanceAction::new_parameter_change_action(&parameter_change_action),
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(2),
         &Coin::from(100u32),
     );
@@ -173,17 +173,17 @@ fn voting_proposals_setters_getters_test() {
 fn voting_proposals_deduplication_test() {
     let mut proposals = VotingProposals::new();
     let no_confidence_action = NoConfidenceAction::new();
-    let parameter_change_action = ParameterChangeAction::new(&crate_full_protocol_param_update());
+    let parameter_change_action = ParameterChangeAction::new(&fake_full_protocol_param_update());
 
     let proposal1 = VotingProposal::new(
         &GovernanceAction::new_no_confidence_action(&no_confidence_action),
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(1),
         &Coin::from(100u32),
     );
     let proposal2 = VotingProposal::new(
         &GovernanceAction::new_parameter_change_action(&parameter_change_action),
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(2),
         &Coin::from(100u32),
     );

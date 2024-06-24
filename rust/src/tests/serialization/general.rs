@@ -1,7 +1,7 @@
 use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes};
 
 use crate::protocol_types::ScriptRefEnum;
-use crate::tests::mock_objects::{fake_base_address, fake_boostrap_witness, fake_bytes_32, fake_data_hash, fake_key_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey, fake_vkey_witness};
+use crate::tests::fakes::{fake_base_address, fake_boostrap_witness, fake_bytes_32, fake_data_hash, fake_key_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey, fake_vkey_witness};
 
 #[test]
 fn tx_output_deser_lagacy() {

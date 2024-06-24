@@ -33,4 +33,4 @@ pub use tx_builder::*;
 mod tx_builder_constants;
 pub use tx_builder_constants::*;
 
-pub(crate) mod fakes;
+pub mod fakes;

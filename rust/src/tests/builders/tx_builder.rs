@@ -1,5 +1,5 @@
 use crate::tests::helpers::harden;
-use crate::tests::mock_objects::{byron_address, create_anchor, create_change_address, create_default_tx_builder, create_linear_fee, create_reallistic_tx_builder, create_redeemer, create_redeemer_zero_cost, create_rich_tx_builder, create_tx_builder, create_tx_builder_with_amount, create_tx_builder_with_fee, create_tx_builder_with_fee_and_pure_change, create_tx_builder_with_fee_and_val_size, create_tx_builder_with_key_deposit, fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_plutus_script_and_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2, fake_vkey_witness, root_key_15};
+use crate::tests::fakes::{fake_byron_address, fake_anchor, fake_change_address, fake_default_tx_builder, fake_linear_fee, fake_reallistic_tx_builder, fake_redeemer, fake_redeemer_zero_cost, fake_rich_tx_builder, fake_tx_builder, fake_tx_builder_with_amount, fake_tx_builder_with_fee, fake_tx_builder_with_fee_and_pure_change, fake_tx_builder_with_fee_and_val_size, fake_tx_builder_with_key_deposit, fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_plutus_script_and_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2, fake_vkey_witness, fake_root_key_15, fake_base_address_with_payment_cred};
 use crate::*;
 
 use crate::builders::fakes::fake_private_key;
@@ -27,22 +27,22 @@ fn check_fake_private_key() {
 
 #[test]
 fn build_tx_with_change() {
-    let mut tx_builder = create_default_tx_builder();
-    let spend = root_key_15()
+    let mut tx_builder = fake_default_tx_builder();
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -105,15 +105,15 @@ fn build_tx_with_change() {
 
 #[test]
 fn build_tx_with_change_with_datum() {
-    let mut tx_builder = create_default_tx_builder();
-    let spend = root_key_15()
+    let mut tx_builder = fake_default_tx_builder();
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -179,22 +179,22 @@ fn build_tx_with_change_with_datum() {
 
 #[test]
 fn build_tx_without_change() {
-    let mut tx_builder = create_default_tx_builder();
-    let spend = root_key_15()
+    let mut tx_builder = fake_default_tx_builder();
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -255,22 +255,22 @@ fn build_tx_without_change() {
 
 #[test]
 fn build_tx_with_certs() {
-    let mut tx_builder = create_tx_builder_with_key_deposit(1_000_000);
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_key_deposit(1_000_000);
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -328,22 +328,22 @@ fn build_tx_with_certs() {
 #[test]
 fn build_tx_exact_amount() {
     // transactions where sum(input) == sum(output) exact should pass
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 0));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -392,22 +392,22 @@ fn build_tx_exact_amount() {
 #[test]
 fn build_tx_exact_change() {
     // transactions where we have exactly enough ADA to add change should pass
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 0));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -458,22 +458,22 @@ fn build_tx_exact_change() {
 #[should_panic]
 fn build_tx_insufficient_deposit() {
     // transactions should fail with insufficient fees if a deposit is required
-    let mut tx_builder = create_tx_builder_with_key_deposit(5);
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_key_deposit(5);
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -526,15 +526,15 @@ fn build_tx_insufficient_deposit() {
 
 #[test]
 fn build_tx_with_inputs() {
-    let mut tx_builder = create_default_tx_builder();
-    let spend = root_key_15()
+    let mut tx_builder = fake_default_tx_builder();
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -600,7 +600,7 @@ fn build_tx_with_inputs() {
 
 #[test]
 fn add_ref_inputs_to_builder() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 1));
     tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 2));
@@ -612,22 +612,22 @@ fn add_ref_inputs_to_builder() {
 
 #[test]
 fn build_tx_with_script_ref() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -693,22 +693,22 @@ fn build_tx_with_script_ref() {
 
 #[test]
 fn serialization_tx_body_with_script_ref() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -774,22 +774,22 @@ fn serialization_tx_body_with_script_ref() {
 
 #[test]
 fn json_serialization_tx_body_with_script_ref() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -857,22 +857,22 @@ fn json_serialization_tx_body_with_script_ref() {
 
 #[test]
 fn build_tx_with_mint_all_sent() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -946,22 +946,22 @@ fn build_tx_with_mint_all_sent() {
 
 #[test]
 fn build_tx_with_mint_in_change() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1044,22 +1044,22 @@ fn build_tx_with_mint_in_change() {
 
 #[test]
 fn change_with_input_and_mint_not_enough_ada() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1142,22 +1142,22 @@ fn change_with_input_and_mint_not_enough_ada() {
 
 #[test]
 fn change_with_input_and_mint_not_enough_assets() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1240,22 +1240,22 @@ fn change_with_input_and_mint_not_enough_assets() {
 
 #[test]
 fn build_tx_with_native_assets_change() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1355,22 +1355,22 @@ fn build_tx_with_native_assets_change() {
 fn build_tx_with_native_assets_change_and_purification() {
     let coin_per_utxo_byte = BigNum(1);
     // Prefer pure change!
-    let mut tx_builder = create_tx_builder_with_fee_and_pure_change(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee_and_pure_change(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1481,22 +1481,22 @@ fn build_tx_with_native_assets_change_and_purification() {
 #[test]
 fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
     // Prefer pure change!
-    let mut tx_builder = create_tx_builder_with_fee_and_pure_change(&create_linear_fee(1, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee_and_pure_change(&fake_linear_fee(1, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1598,22 +1598,22 @@ fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_co
 #[test]
 #[should_panic]
 fn build_tx_leftover_assets() {
-    let mut tx_builder = create_default_tx_builder();
-    let spend = root_key_15()
+    let mut tx_builder = fake_default_tx_builder();
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1688,7 +1688,7 @@ fn build_tx_leftover_assets() {
 #[test]
 fn build_tx_burn_less_than_min_ada() {
     // with this mainnet value we should end up with a final min_ada_required of just under 1_000_000
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let output_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
@@ -1738,7 +1738,7 @@ fn build_tx_burn_less_than_min_ada() {
 
 #[test]
 fn build_tx_burn_empty_assets() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let output_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
@@ -1792,7 +1792,7 @@ fn build_tx_burn_empty_assets() {
 
 #[test]
 fn build_tx_no_useless_multiasset() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let policy_id = &PolicyID::from([0u8; 28]);
     let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
@@ -1882,7 +1882,7 @@ fn create_multiasset() -> (MultiAsset, [ScriptHash; 3], [AssetName; 3]) {
 fn build_tx_add_change_split_nfts() {
     let max_value_size = 100; // super low max output size to test with fewer assets
     let mut tx_builder =
-        create_tx_builder_with_fee_and_val_size(&create_linear_fee(0, 1), max_value_size);
+        fake_tx_builder_with_fee_and_val_size(&fake_linear_fee(0, 1), max_value_size);
 
     let (multiasset, policy_ids, names) = create_multiasset();
 
@@ -1947,7 +1947,7 @@ fn build_tx_add_change_split_nfts() {
 
 #[test]
 fn build_tx_too_big_output() {
-    let mut tx_builder = create_tx_builder_with_fee_and_val_size(&create_linear_fee(0, 1), 10);
+    let mut tx_builder = fake_tx_builder_with_fee_and_val_size(&fake_linear_fee(0, 1), 10);
 
     tx_builder.add_regular_input(
         &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
@@ -1979,8 +1979,8 @@ fn build_tx_too_big_output() {
 
 #[test]
 fn build_tx_add_change_nfts_not_enough_ada() {
-    let mut tx_builder = create_tx_builder_with_fee_and_val_size(
-        &create_linear_fee(0, 1),
+    let mut tx_builder = fake_tx_builder_with_fee_and_val_size(
+        &fake_linear_fee(0, 1),
         150, // super low max output size to test with fewer assets
     );
 
@@ -2063,7 +2063,7 @@ fn make_input(input_hash_byte: u8, value: Value) -> TransactionUnspentOutput {
 #[test]
 fn tx_builder_cip2_largest_first_increasing_fees() {
     // we have a = 1 to test increasing fees when more inputs are added
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 0));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 0));
     tx_builder
         .add_output(
             &TransactionOutputBuilder::new()
@@ -2108,7 +2108,7 @@ fn tx_builder_cip2_largest_first_increasing_fees() {
 #[test]
 fn tx_builder_cip2_largest_first_static_fees() {
     // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 0));
     tx_builder
         .add_output(
             &TransactionOutputBuilder::new()
@@ -2152,7 +2152,7 @@ fn tx_builder_cip2_largest_first_static_fees() {
 #[test]
 fn tx_builder_cip2_largest_first_multiasset() {
     // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 0));
     let pid1 = PolicyID::from([1u8; 28]);
     let pid2 = PolicyID::from([2u8; 28]);
     let asset_name1 = AssetName::new(vec![1u8; 8]).unwrap();
@@ -2269,7 +2269,7 @@ fn tx_builder_cip2_largest_first_multiasset() {
 
 #[test]
 fn tx_builder_cip2_random_improve_multiasset() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 0));
     let pid1 = PolicyID::from([1u8; 28]);
     let pid2 = PolicyID::from([2u8; 28]);
     let asset_name1 = AssetName::new(vec![1u8; 8]).unwrap();
@@ -2377,7 +2377,7 @@ fn tx_builder_cip2_random_improve_multiasset() {
 #[test]
 fn tx_builder_cip2_random_improve() {
     // we have a = 1 to test increasing fees when more inputs are added
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 0));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 0));
     const COST: u64 = 10000;
     tx_builder
         .add_output(
@@ -2531,8 +2531,8 @@ fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
 
 #[test]
 fn build_tx_pay_to_multisig() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(10, 2));
+    let spend = fake_root_key_15()
         .derive(harden(1854))
         .derive(harden(1815))
         .derive(harden(0))
@@ -2540,7 +2540,7 @@ fn build_tx_pay_to_multisig() {
         .derive(0)
         .to_public();
 
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -2607,16 +2607,16 @@ fn build_full_tx(
 
 #[test]
 fn build_tx_multisig_spend_1on1_unsigned() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(10, 2));
 
-    let spend = root_key_15() //multisig
+    let spend = fake_root_key_15() //multisig
         .derive(harden(1854))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let stake = root_key_15() //multisig
+    let stake = fake_root_key_15() //multisig
         .derive(harden(1854))
         .derive(harden(1815))
         .derive(harden(0))
@@ -2624,7 +2624,7 @@ fn build_tx_multisig_spend_1on1_unsigned() {
         .derive(0)
         .to_public();
 
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -2709,15 +2709,15 @@ fn build_tx_multisig_spend_1on1_unsigned() {
 
 #[test]
 fn build_tx_multisig_1on1_signed() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(10, 2));
+    let spend = fake_root_key_15()
         .derive(harden(1854)) //multisig
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1854)) //multisig
         .derive(harden(1815))
         .derive(harden(0))
@@ -2945,7 +2945,7 @@ fn assert_json_metadatum(dat: &TransactionMetadatum) {
 
 #[test]
 fn set_metadata_with_empty_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let num = BigNum(42);
     tx_builder.set_metadata(&create_aux_with_metadata(&num).metadata().unwrap());
@@ -2965,7 +2965,7 @@ fn set_metadata_with_empty_auxiliary() {
 
 #[test]
 fn set_metadata_with_existing_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let num1 = BigNum(42);
     tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
@@ -2986,7 +2986,7 @@ fn set_metadata_with_existing_auxiliary() {
 
 #[test]
 fn add_metadatum_with_empty_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let num = BigNum(42);
     tx_builder.add_metadatum(&num, &create_json_metadatum());
@@ -3006,7 +3006,7 @@ fn add_metadatum_with_empty_auxiliary() {
 
 #[test]
 fn add_metadatum_with_existing_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let num1 = BigNum(42);
     tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
@@ -3027,7 +3027,7 @@ fn add_metadatum_with_existing_auxiliary() {
 
 #[test]
 fn add_json_metadatum_with_empty_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let num = BigNum(42);
     tx_builder
@@ -3049,7 +3049,7 @@ fn add_json_metadatum_with_empty_auxiliary() {
 
 #[test]
 fn add_json_metadatum_with_existing_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let num1 = BigNum(42);
     tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
@@ -3122,7 +3122,7 @@ fn mint_script_and_policy(x: u8) -> (NativeScript, ScriptHash) {
 
 #[test]
 fn set_mint_asset_with_empty_mint() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let (mint_script, policy_id) = mint_script_and_policy(0);
     tx_builder.set_mint_asset(&mint_script, &create_mint_asset()).expect("Failed to set mint asset");
@@ -3142,7 +3142,7 @@ fn set_mint_asset_with_empty_mint() {
 
 #[test]
 fn set_mint_asset_with_existing_mint() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let (mint_script1, policy_id1) = mint_script_and_policy(0);
     let (mint_script2, policy_id2) = mint_script_and_policy(1);
@@ -3182,7 +3182,7 @@ fn set_mint_asset_with_existing_mint() {
 
 #[test]
 fn add_mint_asset_with_empty_mint() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let (mint_script, policy_id) = mint_script_and_policy(0);
 
@@ -3203,7 +3203,7 @@ fn add_mint_asset_with_empty_mint() {
 
 #[test]
 fn add_mint_asset_with_existing_mint() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let (mint_script1, policy_id1) = mint_script_and_policy(0);
     let (mint_script2, policy_id2) = mint_script_and_policy(1);
@@ -3241,14 +3241,14 @@ fn add_mint_asset_with_existing_mint() {
 
 #[test]
 fn add_output_amount() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let policy_id1 = PolicyID::from([0u8; 28]);
     let multiasset = create_multiasset_one_asset(&policy_id1);
     let mut value = Value::new(&BigNum(249));
     value.set_multiasset(&multiasset);
 
-    let address = byron_address();
+    let address = fake_byron_address();
     tx_builder
         .add_output(
             &TransactionOutputBuilder::new()
@@ -3270,9 +3270,9 @@ fn add_output_amount() {
 
 #[test]
 fn add_output_coin() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
-    let address = byron_address();
+    let address = fake_byron_address();
     let coin = BigNum(208);
     tx_builder
         .add_output(
@@ -3296,12 +3296,12 @@ fn add_output_coin() {
 
 #[test]
 fn add_output_coin_and_multiasset() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let policy_id1 = PolicyID::from([0u8; 28]);
     let multiasset = create_multiasset_one_asset(&policy_id1);
 
-    let address = byron_address();
+    let address = fake_byron_address();
     let coin = BigNum(249);
 
     tx_builder
@@ -3326,12 +3326,12 @@ fn add_output_coin_and_multiasset() {
 
 #[test]
 fn add_output_asset_and_min_required_coin() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let policy_id1 = PolicyID::from([0u8; 28]);
     let multiasset = create_multiasset_one_asset(&policy_id1);
 
-    let address = byron_address();
+    let address = fake_byron_address();
 
     tx_builder
         .add_output(
@@ -3359,7 +3359,7 @@ fn add_output_asset_and_min_required_coin() {
 
 #[test]
 fn add_mint_asset_and_output() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let (mint_script0, policy_id0) = mint_script_and_policy(0);
     let (mint_script1, policy_id1) = mint_script_and_policy(1);
@@ -3367,7 +3367,7 @@ fn add_mint_asset_and_output() {
     let name = create_asset_name();
     let amount = Int::new_i32(1234);
 
-    let address = byron_address();
+    let address = fake_byron_address();
     let coin = BigNum(249);
 
     // Add unrelated mint first to check it is NOT added to output later
@@ -3430,7 +3430,7 @@ fn add_mint_asset_and_output() {
 
 #[test]
 fn add_mint_asset_and_min_required_coin() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let (mint_script0, policy_id0) = mint_script_and_policy(0);
     let (mint_script1, policy_id1) = mint_script_and_policy(1);
@@ -3438,7 +3438,7 @@ fn add_mint_asset_and_min_required_coin() {
     let name = create_asset_name();
     let amount = Int::new_i32(1234);
 
-    let address = byron_address();
+    let address = fake_byron_address();
 
     // Add unrelated mint first to check it is NOT added to output later
     tx_builder.add_mint_asset(&mint_script0, &name, &amount).expect("Failed to add mint asset");
@@ -3499,7 +3499,7 @@ fn add_mint_asset_and_min_required_coin() {
 
 #[test]
 fn add_mint_includes_witnesses_into_fee_estimation() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let hash0 = fake_key_hash(0);
 
@@ -3583,7 +3583,7 @@ fn add_mint_includes_witnesses_into_fee_estimation() {
 
 #[test]
 fn fee_estimation_fails_on_missing_mint_scripts() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     // No error estimating fee without mint
     assert!(tx_builder.min_fee().is_ok());
@@ -3644,8 +3644,8 @@ fn fee_estimation_fails_on_missing_mint_scripts() {
 
 #[test]
 fn total_input_output_with_mint_and_burn() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -3698,7 +3698,7 @@ fn total_input_output_with_mint_and_burn() {
     tx_builder
         .add_output(
             &TransactionOutputBuilder::new()
-                .with_address(&byron_address())
+                .with_address(&fake_byron_address())
                 .next()
                 .unwrap()
                 .with_coin(&BigNum(208))
@@ -3753,7 +3753,7 @@ fn total_input_output_with_mint_and_burn() {
 
 #[test]
 fn test_add_native_script_input() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let (script1, _) = mint_script_and_policy(0);
     let (script2, _) = mint_script_and_policy(1);
 
@@ -3777,7 +3777,7 @@ fn test_add_native_script_input() {
 
 #[test]
 fn test_native_input_scripts_are_added_to_the_witnesses() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let (script1, _) = mint_script_and_policy(0);
     let (script2, _) = mint_script_and_policy(1);
     tx_builder.set_fee(&BigNum(42));
@@ -3803,7 +3803,7 @@ fn test_native_input_scripts_are_added_to_the_witnesses() {
 
 #[test]
 fn test_adding_plutus_script_input() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let (script1, _) = fake_plutus_script_and_hash(0);
     let datum = PlutusData::new_bytes(fake_bytes_32(1));
     let redeemer_datum = PlutusData::new_bytes(fake_bytes_32(2));
@@ -3831,7 +3831,7 @@ fn test_adding_plutus_script_input() {
 
 #[test]
 fn test_adding_plutus_script_witnesses() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     let (script1, _) = fake_plutus_script_and_hash(0);
     let (script2, _) = fake_plutus_script_and_hash(1);
@@ -3885,7 +3885,7 @@ fn create_collateral() -> TxInputsBuilder {
     let mut collateral_builder = TxInputsBuilder::new();
     collateral_builder
         .add_regular_input(
-            &byron_address(),
+            &fake_byron_address(),
             &TransactionInput::new(&genesis_id(), 0),
             &Value::new(&BigNum(1_000_000)),
         )
@@ -3895,7 +3895,7 @@ fn create_collateral() -> TxInputsBuilder {
 
 #[test]
 fn test_existing_plutus_scripts_require_data_hash() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
     let (script1, _) = fake_plutus_script_and_hash(0);
@@ -3935,7 +3935,7 @@ fn test_existing_plutus_scripts_require_data_hash() {
 
 #[test]
 fn test_calc_script_hash_data() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
 
@@ -3976,7 +3976,7 @@ fn test_calc_script_hash_data() {
 
 #[test]
 fn test_plutus_witness_redeemer_index_auto_changing() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
     let (script1, _) = fake_plutus_script_and_hash(0);
@@ -4000,7 +4000,7 @@ fn test_plutus_witness_redeemer_index_auto_changing() {
 
     // Add a regular NON-script input first
     tx_builder.add_regular_input(
-        &byron_address(),
+        &fake_byron_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &Value::new(&BigNum(1_000_000)),
     ).expect("Failed to add input");
@@ -4046,7 +4046,7 @@ fn test_plutus_witness_redeemer_index_auto_changing() {
 
 #[test]
 fn test_native_and_plutus_scripts_together() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
     let (pscript1, _) = fake_plutus_script_and_hash(0);
@@ -4132,7 +4132,7 @@ fn test_native_and_plutus_scripts_together() {
 
 #[test]
 fn test_json_serialization_native_and_plutus_scripts_together() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
     let (pscript1, _) = fake_plutus_script_and_hash(0);
@@ -4209,7 +4209,7 @@ fn test_regular_and_collateral_inputs_same_keyhash() {
     ).expect("Failed to add input");
 
     fn get_fake_vkeys_count(i: &TxInputsBuilder, c: &TxInputsBuilder) -> usize {
-        let mut tx_builder = create_reallistic_tx_builder();
+        let mut tx_builder = fake_reallistic_tx_builder();
         tx_builder.set_fee(&BigNum(42));
         tx_builder.set_inputs(i);
         tx_builder.set_collateral(c);
@@ -4240,7 +4240,7 @@ fn test_regular_and_collateral_inputs_same_keyhash() {
 
 #[test]
 fn test_regular_and_collateral_inputs_together() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     let (pscript1, _) = fake_plutus_script_and_hash(0);
     let (pscript2, _) = fake_plutus_script_and_hash(1);
@@ -4353,7 +4353,7 @@ fn test_ex_unit_costs_are_added_to_the_fees() {
             &Value::new(&BigNum(1_000_000)),
         );
 
-        let mut tx_builder = create_reallistic_tx_builder();
+        let mut tx_builder = fake_reallistic_tx_builder();
         tx_builder.set_inputs(&input_builder);
         tx_builder.set_collateral(&collateral_builder);
 
@@ -4372,7 +4372,7 @@ fn test_ex_unit_costs_are_added_to_the_fees() {
 
 #[test]
 fn test_script_inputs_ordering() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     let (nscript1, _) = mint_script_and_policy(0);
     let (pscript1, _) = fake_plutus_script_and_hash(0);
@@ -4431,7 +4431,7 @@ fn test_script_inputs_ordering() {
 
 #[test]
 fn test_required_signers() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     let tx1: TransactionBody = tx_builder.build().unwrap();
     assert!(tx1.required_signers.is_none());
@@ -4457,10 +4457,10 @@ fn test_required_signers() {
 #[test]
 fn test_required_signers_are_added_to_the_witness_estimate() {
     fn count_fake_witnesses_with_required_signers(keys: &Ed25519KeyHashes) -> usize {
-        let mut tx_builder = create_reallistic_tx_builder();
+        let mut tx_builder = fake_reallistic_tx_builder();
         tx_builder.set_fee(&BigNum(42));
         tx_builder.add_regular_input(
-            &fake_base_address(0),
+            &fake_base_address_with_payment_cred(Credential::from_keyhash(&fake_key_hash(0))),
             &TransactionInput::new(&fake_tx_hash(0), 0),
             &Value::new(&BigNum(10_000_000)),
         ).expect("Failed to add input");
@@ -4516,7 +4516,7 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
 
 #[test]
 fn collateral_return_and_total_collateral_setters() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let mut inp = TxInputsBuilder::new();
@@ -4586,7 +4586,7 @@ fn inputs_builder_total_value() {
 
 #[test]
 fn test_auto_calc_total_collateral() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let mut inp = TxInputsBuilder::new();
@@ -4621,7 +4621,7 @@ fn test_auto_calc_total_collateral() {
 
 #[test]
 fn test_auto_calc_total_collateral_with_assets() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let masset = fake_multiasset(123);
@@ -4658,7 +4658,7 @@ fn test_auto_calc_total_collateral_with_assets() {
 
 #[test]
 fn test_auto_calc_total_collateral_fails_with_assets() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let masset = fake_multiasset(123);
@@ -4692,7 +4692,7 @@ fn test_auto_calc_total_collateral_fails_with_assets() {
 
 #[test]
 fn test_auto_calc_total_collateral_fails_on_no_collateral() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let res = tx_builder.set_collateral_return_and_total(&TransactionOutput::new(
@@ -4710,7 +4710,7 @@ fn test_auto_calc_total_collateral_fails_on_no_collateral() {
 
 #[test]
 fn test_auto_calc_total_collateral_fails_on_no_ada() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let mut inp = TxInputsBuilder::new();
@@ -4738,7 +4738,7 @@ fn test_auto_calc_total_collateral_fails_on_no_ada() {
 
 #[test]
 fn test_auto_calc_collateral_return() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let mut inp = TxInputsBuilder::new();
@@ -4778,7 +4778,7 @@ fn test_auto_calc_collateral_return() {
 
 #[test]
 fn test_auto_calc_collateral_return_with_assets() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let masset = fake_multiasset(123);
@@ -4823,7 +4823,7 @@ fn test_auto_calc_collateral_return_with_assets() {
 
 #[test]
 fn test_add_collateral_return_succeed_with_border_amount() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let masset = fake_multiasset(123);
@@ -4864,7 +4864,7 @@ fn test_add_collateral_return_succeed_with_border_amount() {
 
 #[test]
 fn test_add_zero_collateral_return() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let mut inp = TxInputsBuilder::new();
@@ -4892,7 +4892,7 @@ fn test_add_zero_collateral_return() {
 
 #[test]
 fn test_add_collateral_return_fails_no_enough_ada() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let masset = fake_multiasset(123);
@@ -4928,7 +4928,7 @@ fn test_add_collateral_return_fails_no_enough_ada() {
 
 #[test]
 fn test_auto_calc_collateral_return_fails_on_no_collateral() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));
 
     let res =
@@ -4941,7 +4941,7 @@ fn test_auto_calc_collateral_return_fails_on_no_collateral() {
 
 #[test]
 fn test_costmodel_retaining_for_v1() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
 
@@ -4985,7 +4985,7 @@ fn test_costmodel_retaining_for_v1() {
 
 #[test]
 fn test_costmodel_retaining_fails_on_missing_costmodel() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
 
@@ -5445,7 +5445,7 @@ fn coin_selection_random_improve_multi_asset() {
 }",
     )
     .unwrap();
-    let mut builder = create_reallistic_tx_builder();
+    let mut builder = fake_reallistic_tx_builder();
     builder.add_output(&output).unwrap();
     let res = builder.add_inputs_from(&utoxs, CoinSelectionStrategyCIP2::RandomImproveMultiAsset);
     assert!(res.is_ok());
@@ -5453,10 +5453,10 @@ fn coin_selection_random_improve_multi_asset() {
 
 #[test]
 fn multiple_plutus_inputs_test() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let (plutus_script, _) = fake_plutus_script_and_hash(1);
-    let redeemer1 = create_redeemer(1);
-    let redeemer2 = create_redeemer(2);
+    let redeemer1 = fake_redeemer(1);
+    let redeemer2 = fake_redeemer(2);
 
     let mut in_builder = TxInputsBuilder::new();
     let input_1 = TransactionInput::new(
@@ -5521,29 +5521,29 @@ fn multiple_plutus_inputs_test() {
 
 #[test]
 fn build_tx_with_certs_withdrawals_plutus_script_address() {
-    let mut tx_builder = create_tx_builder_with_key_deposit(1_000_000);
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_key_deposit(1_000_000);
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(2)
         .derive(0)
         .to_public();
-    let reward = root_key_15()
+    let reward = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -5551,11 +5551,11 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
         .derive(1)
         .to_public();
 
-    let redeemer_cert1 = create_redeemer(1);
-    let redeemer_cert2 = create_redeemer(2);
-    let redeemer_cert3 = create_redeemer(3);
-    let redeemer_withdraw1 = create_redeemer(4);
-    let redeemer_withdraw2 = create_redeemer(5);
+    let redeemer_cert1 = fake_redeemer(1);
+    let redeemer_cert2 = fake_redeemer(2);
+    let redeemer_cert3 = fake_redeemer(3);
+    let redeemer_withdraw1 = fake_redeemer(4);
+    let redeemer_withdraw2 = fake_redeemer(5);
 
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     tx_builder.add_key_input(
@@ -5751,7 +5751,7 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
 
 #[test]
 pub fn test_extra_datum() {
-    let mut tx_builder = create_tx_builder(&create_linear_fee(1, 100000), 1, 1, 1);
+    let mut tx_builder = fake_tx_builder(&fake_linear_fee(1, 100000), 1, 1, 1);
 
     let datum = PlutusData::new_bytes(fake_bytes_32(1));
     tx_builder.add_extra_witness_datum(&datum);
@@ -5769,7 +5769,7 @@ pub fn test_extra_datum() {
         .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
         .unwrap();
 
-    let change_address = create_change_address();
+    let change_address = fake_change_address();
 
     tx_builder.add_change_if_needed(&change_address).unwrap();
     let res = tx_builder.build_tx();
@@ -5810,14 +5810,14 @@ pub fn test_extra_datum() {
 #[test]
 fn current_treasure_value_test() {
     let input_amount = 10000000000;
-    let mut builder = create_tx_builder_with_amount(input_amount, false);
+    let mut builder = fake_tx_builder_with_amount(input_amount, false);
     let treasure_value = Coin::from(1000000000u64);
 
     assert_eq!(builder.get_current_treasury_value(), None);
 
     builder.set_current_treasury_value(&treasure_value).unwrap();
     builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     assert_eq!(
@@ -5836,7 +5836,7 @@ fn current_treasure_value_test() {
 
 #[test]
 fn current_treasure_value_zero_error_test() {
-    let mut builder = create_rich_tx_builder(false);
+    let mut builder = fake_rich_tx_builder(false);
     let treasure_value = Coin::from(0u64);
 
     assert_eq!(builder.get_current_treasury_value(), None);
@@ -5848,14 +5848,14 @@ fn current_treasure_value_zero_error_test() {
 #[test]
 fn donation_test() {
     let input_amount = 10000000000;
-    let mut builder = create_tx_builder_with_amount(input_amount, false);
+    let mut builder = fake_tx_builder_with_amount(input_amount, false);
     let donation = Coin::from(1000u64);
 
     assert_eq!(builder.get_donation(), None);
 
     builder.set_donation(&donation);
     builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     assert_eq!(builder.get_donation().unwrap(), donation);
@@ -5898,13 +5898,13 @@ fn ref_script_fee_from_all_builders() {
     let script_hash_7 = fake_script_hash(7);
     let script_hash_8 = fake_script_hash(8);
 
-    let redeemer_1 = create_redeemer_zero_cost(1);
-    let redeemer_2 = create_redeemer_zero_cost(2);
-    let redeemer_3 = create_redeemer_zero_cost(3);
-    let redeemer_4 = create_redeemer_zero_cost(4);
-    let redeemer_5 = create_redeemer_zero_cost(5);
-    let redeemer_6 = create_redeemer_zero_cost(6);
-    let redeemer_8 = create_redeemer_zero_cost(8);
+    let redeemer_1 = fake_redeemer_zero_cost(1);
+    let redeemer_2 = fake_redeemer_zero_cost(2);
+    let redeemer_3 = fake_redeemer_zero_cost(3);
+    let redeemer_4 = fake_redeemer_zero_cost(4);
+    let redeemer_5 = fake_redeemer_zero_cost(5);
+    let redeemer_6 = fake_redeemer_zero_cost(6);
+    let redeemer_8 = fake_redeemer_zero_cost(8);
 
     let plutus_source_1 = PlutusScriptSource::new_ref_input(&script_hash_1, &tx_in_1, &Language::new_plutus_v2(), 10);
     let plutus_source_2 = PlutusScriptSource::new_ref_input(&script_hash_2, &tx_in_2, &Language::new_plutus_v2(), 100);
@@ -5955,10 +5955,10 @@ fn ref_script_fee_from_all_builders() {
         &VotingProposal::new(
             &GovernanceAction::new_new_constitution_action(
                 &NewConstitutionAction::new(
-                    &Constitution::new_with_script_hash(&create_anchor(), &script_hash_6)
+                    &Constitution::new_with_script_hash(&fake_anchor(), &script_hash_6)
                 )
             ),
-            &create_anchor(),
+            &fake_anchor(),
             &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &Credential::from_keyhash(&fake_key_hash(1))),
             &Coin::from(0u64),
         ),
@@ -5972,7 +5972,7 @@ fn ref_script_fee_from_all_builders() {
         &Value::new(&input_coin)
     );
 
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let change_address = fake_base_address(1);
 
     tx_builder.set_mint_builder(&mint_builder);
@@ -6011,7 +6011,7 @@ fn ref_script_fee_from_all_builders() {
     //TODO: check change calculation for pessimistic size estimation.
     let tx_size = tx.to_bytes().len() + 4;
 
-    let min_tx_fee = min_fee_for_size(tx_size, &create_linear_fee(44, 155381)).unwrap();
+    let min_tx_fee = min_fee_for_size(tx_size, &fake_linear_fee(44, 155381)).unwrap();
     let fee_leftover = total_tx_fee.checked_sub(&min_tx_fee).unwrap();
     assert_eq!(ref_script_fee, fee_leftover);
 
@@ -6038,7 +6038,7 @@ fn ref_script_fee_from_all_builders() {
 
 #[test]
 fn utxo_selection_accounts_for_change_min_utxo_test() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let hex_utxos = [
         "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
         "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"
@@ -6057,7 +6057,7 @@ fn utxo_selection_accounts_for_change_min_utxo_test() {
 
 #[test]
 fn utxo_selection_with_collateral_return_test() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let hex_utxos = [
         "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
         "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"
@@ -6093,7 +6093,7 @@ fn utxo_selection_with_collateral_return_test() {
     let tx_with_vkeys = Transaction::new(&tx.body(), &wit_set, tx.auxiliary_data());
     let tx_size = tx_with_vkeys.to_bytes().len();
     let fee = tx.body().fee();
-    let min_fee = min_fee_for_size(tx_size, &create_linear_fee(44, 155381)).unwrap();
+    let min_fee = min_fee_for_size(tx_size, &fake_linear_fee(44, 155381)).unwrap();
     assert!(fee >= min_fee);
 
     let collateral_amount = tx.body.total_collateral.unwrap();
@@ -6107,7 +6107,7 @@ fn utxo_selection_with_collateral_return_test() {
 
 #[test]
 fn utxo_selection_with_collateral_return_error() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let hex_utxos = [
         "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
         "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"

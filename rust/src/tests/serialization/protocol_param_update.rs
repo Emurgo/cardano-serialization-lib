@@ -1,5 +1,5 @@
 use crate::*;
-use crate::tests::mock_objects::{create_cost_models, create_drep_voting_thresholds, create_pool_voting_thresholds};
+use crate::tests::fakes::{fake_cost_models, fake_drep_voting_thresholds, fake_pool_voting_thresholds};
 
 #[test]
 fn protocol_param_update_ser_round_trip() {
@@ -33,7 +33,7 @@ fn protocol_param_update_ser_round_trip() {
         protocol_version: Some(ProtocolVersion::new(1, 2)),
         min_pool_cost: Some(Coin::from(18_444u32)),
         ada_per_utxo_byte: Some(Coin::from(19_444u32)),
-        cost_models: Some(create_cost_models()),
+        cost_models: Some(fake_cost_models()),
         execution_costs: Some(ExUnitPrices::new(
             &SubCoin::new(&BigNum(577), &BigNum(10000)),
             &SubCoin::new(&BigNum(721), &BigNum(10000000)),
@@ -43,8 +43,8 @@ fn protocol_param_update_ser_round_trip() {
         max_value_size: Some(20_444u32),
         collateral_percentage: Some(21_444u32),
         max_collateral_inputs: Some(22_444u32),
-        pool_voting_thresholds: Some(create_pool_voting_thresholds()),
-        drep_voting_thresholds: Some(create_drep_voting_thresholds()),
+        pool_voting_thresholds: Some(fake_pool_voting_thresholds()),
+        drep_voting_thresholds: Some(fake_drep_voting_thresholds()),
         min_committee_size: Some(23_444u32),
         committee_term_limit: Some(24_444u32),
         governance_action_validity_period: Some(25_444u32),

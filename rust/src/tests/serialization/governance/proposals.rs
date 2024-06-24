@@ -1,4 +1,4 @@
-use crate::tests::mock_objects::{crate_full_protocol_param_update, create_anchor, fake_anchor_data_hash, fake_key_hash, fake_reward_address, fake_script_hash, fake_tx_hash};
+use crate::tests::fakes::{fake_full_protocol_param_update, fake_anchor, fake_anchor_data_hash, fake_key_hash, fake_reward_address, fake_script_hash, fake_tx_hash};
 use crate::*;
 
 macro_rules! to_from_test {
@@ -255,7 +255,7 @@ fn no_confidence_action_with_action_id_ser_round_trip() {
 
 #[test]
 fn parameter_change_action_ser_round_trip() {
-    let parameters_update = crate_full_protocol_param_update();
+    let parameters_update = fake_full_protocol_param_update();
     let proposal = ParameterChangeAction::new(&parameters_update);
     let proposal_wrapped = GovernanceAction::new_parameter_change_action(&proposal);
     to_from_test!(ParameterChangeAction, proposal, proposal_wrapped);
@@ -268,7 +268,7 @@ fn parameter_change_action_ser_round_trip() {
 #[test]
 fn parameter_change_action_with_action_id_ser_round_trip() {
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
-    let parameters_update = crate_full_protocol_param_update();
+    let parameters_update = fake_full_protocol_param_update();
     let proposal = ParameterChangeAction::new_with_action_id(&action_id, &parameters_update);
     let proposal_wrapped = GovernanceAction::new_parameter_change_action(&proposal);
     to_from_test!(ParameterChangeAction, proposal, proposal_wrapped);
@@ -280,7 +280,7 @@ fn parameter_change_action_with_action_id_ser_round_trip() {
 
 #[test]
 fn parameter_change_action_with_script_hash() {
-    let parameters_update = crate_full_protocol_param_update();
+    let parameters_update = fake_full_protocol_param_update();
     let script_hash = ScriptHash::from(fake_script_hash(1));
     let proposal = ParameterChangeAction::new_with_policy_hash(&parameters_update, &script_hash);
     let proposal_wrapped = GovernanceAction::new_parameter_change_action(&proposal);
@@ -363,19 +363,19 @@ fn voting_proposals_ser_round_trip() {
 
     let proposal1 = VotingProposal::new(
         &action1,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(1),
         &Coin::from(100u32),
     );
     let proposal2 = VotingProposal::new(
         &action2,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(2),
         &Coin::from(200u32),
     );
     let proposal3 = VotingProposal::new(
         &action3,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(3),
         &Coin::from(300u32),
     );
@@ -408,7 +408,7 @@ fn voting_proposal_round_trip_test()
 
     let proposal = VotingProposal::new(
         &action1,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(1),
         &Coin::from(100u32),
     );

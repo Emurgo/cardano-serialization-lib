@@ -8,7 +8,7 @@ const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our test
                                // this is what is used in mainnet
 static COINS_PER_UTXO_BYTE: u64 = 34_482 / 8;
 
-pub(crate) fn root_key_15() -> Bip32PrivateKey {
+pub(crate) fn fake_root_key_15() -> Bip32PrivateKey {
     // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
     let entropy = [
         0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4,
@@ -17,7 +17,7 @@ pub(crate) fn root_key_15() -> Bip32PrivateKey {
     Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
 }
 
-pub(crate) fn root_key() -> Bip32PrivateKey {
+pub(crate) fn fake_root_key() -> Bip32PrivateKey {
     // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
     let entropy = [
         0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4,
@@ -26,15 +26,32 @@ pub(crate) fn root_key() -> Bip32PrivateKey {
     Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
 }
 
-pub(crate) fn generate_address(index: u32) -> Address {
-    let spend = root_key()
+pub(crate) fn fake_base_address_with_payment_cred(payment_cred: Credential) -> Address {
+    let stake = fake_root_key()
+        .derive(harden(1852))
+        .derive(harden(1815))
+        .derive(harden(0))
+        .derive(2)
+        .derive(0)
+        .to_public();
+    let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
+    let addr = BaseAddress::new(
+        NetworkInfo::testnet_preprod().network_id(),
+        &payment_cred,
+        &stake_cred,
+    );
+    addr.to_address()
+}
+
+pub(crate) fn fake_base_address(index: u32) -> Address {
+    let spend = fake_root_key()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(index)
         .to_public();
-    let stake = root_key()
+    let stake = fake_root_key()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -51,7 +68,7 @@ pub(crate) fn generate_address(index: u32) -> Address {
     addr.to_address()
 }
 
-pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
+pub(crate) fn fake_full_protocol_param_update() -> ProtocolParamUpdate {
     ProtocolParamUpdate {
         minfee_a: Some(Coin::from(44_444u32)),
         minfee_b: Some(Coin::from(44_444u32)),
@@ -82,7 +99,7 @@ pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
         protocol_version: Some(ProtocolVersion::new(1, 2)),
         min_pool_cost: Some(Coin::from(44_444u32)),
         ada_per_utxo_byte: Some(Coin::from(44_444u32)),
-        cost_models: Some(create_cost_models()),
+        cost_models: Some(fake_cost_models()),
         execution_costs: Some(ExUnitPrices::new(
             &SubCoin::new(&BigNum(577), &BigNum(10000)),
             &SubCoin::new(&BigNum(721), &BigNum(10000000)),
@@ -92,8 +109,8 @@ pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
         max_value_size: Some(44_444u32),
         collateral_percentage: Some(44_444u32),
         max_collateral_inputs: Some(44_444u32),
-        pool_voting_thresholds: Some(create_pool_voting_thresholds()),
-        drep_voting_thresholds: Some(create_drep_voting_thresholds()),
+        pool_voting_thresholds: Some(fake_pool_voting_thresholds()),
+        drep_voting_thresholds: Some(fake_drep_voting_thresholds()),
         min_committee_size: Some(44_444u32),
         committee_term_limit: Some(44_444u32),
         governance_action_validity_period: Some(44_444u32),
@@ -107,7 +124,7 @@ pub(crate) fn crate_full_protocol_param_update() -> ProtocolParamUpdate {
     }
 }
 
-pub(crate) fn create_pool_voting_thresholds() -> PoolVotingThresholds {
+pub(crate) fn fake_pool_voting_thresholds() -> PoolVotingThresholds {
     PoolVotingThresholds::new(
         &UnitInterval::new(&BigNum::from(44_401u32), &BigNum::from(44_402u32)),
         &UnitInterval::new(&BigNum::from(44_403u32), &BigNum::from(44_404u32)),
@@ -117,7 +134,7 @@ pub(crate) fn create_pool_voting_thresholds() -> PoolVotingThresholds {
     )
 }
 
-pub(crate) fn create_drep_voting_thresholds() -> DrepVotingThresholds {
+pub(crate) fn fake_drep_voting_thresholds() -> DrepVotingThresholds {
     DrepVotingThresholds::new(
         &UnitInterval::new(&BigNum::from(44_401u32), &BigNum::from(44_402u32)),
         &UnitInterval::new(&BigNum::from(44_403u32), &BigNum::from(44_404u32)),
@@ -132,7 +149,7 @@ pub(crate) fn create_drep_voting_thresholds() -> DrepVotingThresholds {
     )
 }
 
-pub(crate) fn crate_full_pool_params() -> PoolParams {
+pub(crate) fn fake_full_pool_params() -> PoolParams {
     PoolParams {
         operator: fake_key_hash(1),
         vrf_keyhash: fake_vrf_key_hash(2),
@@ -151,7 +168,7 @@ pub(crate) fn crate_full_pool_params() -> PoolParams {
     }
 }
 
-pub(crate) fn create_cost_models() -> Costmdls {
+pub(crate) fn fake_cost_models() -> Costmdls {
     let mut res = Costmdls::new();
     res.insert(
         &Language::new_plutus_v1(),
@@ -172,31 +189,31 @@ pub(crate) fn create_cost_models() -> Costmdls {
     res
 }
 
-pub(crate) fn create_anchor() -> Anchor {
+pub(crate) fn fake_anchor() -> Anchor {
     Anchor::new(
         &URL::new("https://iohk.io".to_string()).unwrap(),
         &fake_anchor_data_hash(1),
     )
 }
 
-pub(crate) fn create_action_id() -> GovernanceActionId {
+pub(crate) fn fake_action_id() -> GovernanceActionId {
     GovernanceActionId::new(&fake_tx_hash(1), 1)
 }
-pub(crate) fn byron_address() -> Address {
+pub(crate) fn fake_byron_address() -> Address {
     ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
         .unwrap()
         .to_address()
 }
 
-pub(crate) fn create_linear_fee(coefficient: u64, constant: u64) -> LinearFee {
+pub(crate) fn fake_linear_fee(coefficient: u64, constant: u64) -> LinearFee {
     LinearFee::new(&BigNum(coefficient), &BigNum(constant))
 }
 
-pub(crate) fn create_default_linear_fee() -> LinearFee {
-    create_linear_fee(500, 2)
+pub(crate) fn fake_default_linear_fee() -> LinearFee {
+    fake_linear_fee(500, 2)
 }
 
-pub(crate) fn create_tx_builder_full(
+pub(crate) fn fake_tx_builder_full(
     linear_fee: &LinearFee,
     pool_deposit: u64,
     key_deposit: u64,
@@ -222,13 +239,13 @@ pub(crate) fn create_tx_builder_full(
     TransactionBuilder::new(&cfg)
 }
 
-pub(crate) fn create_tx_builder(
+pub(crate) fn fake_tx_builder(
     linear_fee: &LinearFee,
     coins_per_utxo_byte: u64,
     pool_deposit: u64,
     key_deposit: u64,
 ) -> TransactionBuilder {
-    create_tx_builder_full(
+    fake_tx_builder_full(
         linear_fee,
         pool_deposit,
         key_deposit,
@@ -237,27 +254,27 @@ pub(crate) fn create_tx_builder(
     )
 }
 
-pub(crate) fn create_reallistic_tx_builder() -> TransactionBuilder {
-    create_tx_builder(
-        &create_linear_fee(44, 155381),
+pub(crate) fn fake_reallistic_tx_builder() -> TransactionBuilder {
+    fake_tx_builder(
+        &fake_linear_fee(44, 155381),
         COINS_PER_UTXO_BYTE,
         500000000,
         2000000,
     )
 }
 
-pub(crate) fn create_tx_builder_with_fee_and_val_size(
+pub(crate) fn fake_tx_builder_with_fee_and_val_size(
     linear_fee: &LinearFee,
     max_val_size: u32,
 ) -> TransactionBuilder {
-    create_tx_builder_full(linear_fee, 1, 1, max_val_size, 1)
+    fake_tx_builder_full(linear_fee, 1, 1, max_val_size, 1)
 }
 
-pub(crate) fn create_tx_builder_with_fee(linear_fee: &LinearFee) -> TransactionBuilder {
-    create_tx_builder(linear_fee, 1, 1, 1)
+pub(crate) fn fake_tx_builder_with_fee(linear_fee: &LinearFee) -> TransactionBuilder {
+    fake_tx_builder(linear_fee, 1, 1, 1)
 }
 
-pub(crate) fn create_tx_builder_with_fee_and_pure_change(
+pub(crate) fn fake_tx_builder_with_fee_and_pure_change(
     linear_fee: &LinearFee,
 ) -> TransactionBuilder {
     TransactionBuilder::new(
@@ -274,23 +291,23 @@ pub(crate) fn create_tx_builder_with_fee_and_pure_change(
     )
 }
 
-pub(crate) fn create_tx_builder_with_key_deposit(deposit: u64) -> TransactionBuilder {
-    create_tx_builder(&create_default_linear_fee(), 8, 1, deposit)
+pub(crate) fn fake_tx_builder_with_key_deposit(deposit: u64) -> TransactionBuilder {
+    fake_tx_builder(&fake_default_linear_fee(), 8, 1, deposit)
 }
 
-pub(crate) fn create_default_tx_builder() -> TransactionBuilder {
-    create_tx_builder_with_fee(&create_default_linear_fee())
+pub(crate) fn fake_default_tx_builder() -> TransactionBuilder {
+    fake_tx_builder_with_fee(&fake_default_linear_fee())
 }
 
-pub(crate) fn create_change_address() -> Address {
-    let spend = root_key()
+pub(crate) fn fake_change_address() -> Address {
+    let spend = fake_root_key()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key()
+    let stake = fake_root_key()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -307,33 +324,8 @@ pub(crate) fn create_change_address() -> Address {
     addr.to_address()
 }
 
-pub(crate) fn create_base_address(index: u32) -> Address {
-    let spend = root_key()
-        .derive(harden(1852))
-        .derive(harden(1815))
-        .derive(harden(0))
-        .derive(1)
-        .derive(index)
-        .to_public();
-    let stake = root_key()
-        .derive(harden(1852))
-        .derive(harden(1815))
-        .derive(harden(0))
-        .derive(2)
-        .derive(0)
-        .to_public();
-    let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
-    let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
-    let addr = BaseAddress::new(
-        NetworkInfo::testnet_preprod().network_id(),
-        &spend_cred,
-        &stake_cred,
-    );
-    addr.to_address()
-}
-
-pub(crate) fn create_base_script_address(index: u8) -> Address {
-    let stake = root_key()
+pub(crate) fn fake_base_script_address(index: u8) -> Address {
+    let stake = fake_root_key()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -350,8 +342,8 @@ pub(crate) fn create_base_script_address(index: u8) -> Address {
     addr.to_address()
 }
 
-pub(crate) fn create_enterprise_address(index: u32) -> Address {
-    let spend = root_key()
+pub(crate) fn fake_enterprise_address(index: u32) -> Address {
+    let spend = fake_root_key()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -366,7 +358,7 @@ pub(crate) fn create_enterprise_address(index: u32) -> Address {
     addr.to_address()
 }
 
-pub(crate) fn create_enterprise_script_address(index: u8) -> Address {
+pub(crate) fn fake_enterprise_script_address(index: u8) -> Address {
     let spend_cred = Credential::from_scripthash(&fake_script_hash(index));
     let addr = EnterpriseAddress::new(
         NetworkInfo::testnet_preprod().network_id(),
@@ -375,8 +367,8 @@ pub(crate) fn create_enterprise_script_address(index: u8) -> Address {
     addr.to_address()
 }
 
-pub(crate) fn create_pointer_address(index: u32) -> Address {
-    let spend = root_key()
+pub(crate) fn fake_pointer_address(index: u32) -> Address {
+    let spend = fake_root_key()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -393,7 +385,7 @@ pub(crate) fn create_pointer_address(index: u32) -> Address {
     addr.to_address()
 }
 
-pub(crate) fn create_pointer_script_address(index: u8) -> Address {
+pub(crate) fn fake_pointer_script_address(index: u8) -> Address {
     let spend_cred = Credential::from_scripthash(&fake_script_hash(index));
     let pointer = Pointer::new(1, 2, 3);
     let addr = PointerAddress::new(
@@ -404,8 +396,8 @@ pub(crate) fn create_pointer_script_address(index: u8) -> Address {
     addr.to_address()
 }
 
-pub(crate) fn create_reward_address(index: u32) -> Address {
-    let stake = root_key()
+pub(crate) fn fake_reward_address(index: u32) -> RewardAddress {
+    let stake = fake_root_key()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -413,21 +405,20 @@ pub(crate) fn create_reward_address(index: u32) -> Address {
         .derive(index)
         .to_public();
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
-    let addr = RewardAddress::new(
+    RewardAddress::new(
         NetworkInfo::testnet_preprod().network_id(),
         &stake_cred,
-    );
-    addr.to_address()
+    )
 }
 
-pub(crate) fn create_malformed_address() -> Address {
+pub(crate) fn fake_malformed_address() -> Address {
     MalformedAddress(vec![255, 255, 255, 255, 255, 255]).to_address()
 }
 
-pub(crate) fn create_rich_tx_builder(with_collateral: bool) -> TransactionBuilder {
-    let mut tx_builder = create_reallistic_tx_builder();
+pub(crate) fn fake_rich_tx_builder(with_collateral: bool) -> TransactionBuilder {
+    let mut tx_builder = fake_reallistic_tx_builder();
     let input = TransactionInput::new(&fake_tx_hash(1), 0);
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let mut input_builder = TxInputsBuilder::new();
     input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(u64::MAX / 2)))
         .expect("should add input");
@@ -439,13 +430,13 @@ pub(crate) fn create_rich_tx_builder(with_collateral: bool) -> TransactionBuilde
     tx_builder
 }
 
-pub(crate) fn create_tx_builder_with_amount(
+pub(crate) fn fake_tx_builder_with_amount(
     amount: u64,
     with_collateral: bool,
 ) -> TransactionBuilder {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let input = TransactionInput::new(&fake_tx_hash(1), 0);
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let mut input_builder = TxInputsBuilder::new();
     input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(amount))).expect("should add input");
     tx_builder.set_inputs(&input_builder);
@@ -459,20 +450,20 @@ pub(crate) fn create_tx_builder_with_amount(
     tx_builder
 }
 
-pub(crate) fn create_tx_builder_with_amount_and_deposit_params(
+pub(crate) fn fake_tx_builder_with_amount_and_deposit_params(
     amount: u64,
     pool_deposit: u64,
     key_deposit: u64,
     with_collateral: bool,
 ) -> TransactionBuilder {
-    let mut tx_builder = create_tx_builder(
-        &create_linear_fee(44, 155381),
+    let mut tx_builder = fake_tx_builder(
+        &fake_linear_fee(44, 155381),
         COINS_PER_UTXO_BYTE,
         pool_deposit,
         key_deposit
     );
     let input = TransactionInput::new(&fake_tx_hash(1), 0);
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let mut input_builder = TxInputsBuilder::new();
     input_builder.add_regular_input(&address, &input, &Value::new(&Coin::from(amount))).expect("should add input");
     tx_builder.set_inputs(&input_builder);
@@ -486,14 +477,14 @@ pub(crate) fn create_tx_builder_with_amount_and_deposit_params(
     tx_builder
 }
 
-pub(crate) fn create_plutus_script(x: u8, lang: &Language) -> PlutusScript {
+pub(crate) fn fake_plutus_script(x: u8, lang: &Language) -> PlutusScript {
     let mut bytes = hex::decode("4e4d01000033222220051200120011").unwrap();
     let pos = bytes.len() - 1;
     bytes[pos] = x;
     PlutusScript::from_bytes_with_version(bytes, lang).unwrap()
 }
 
-pub(crate) fn create_redeemer(x: u8) -> Redeemer {
+pub(crate) fn fake_redeemer(x: u8) -> Redeemer {
     Redeemer::new(
         &RedeemerTag::new_cert(),
         &BigNum::from(x as u64),
@@ -502,7 +493,7 @@ pub(crate) fn create_redeemer(x: u8) -> Redeemer {
     )
 }
 
-pub(crate) fn create_redeemer_zero_cost(x: u8) -> Redeemer {
+pub(crate) fn fake_redeemer_zero_cost(x: u8) -> Redeemer {
     Redeemer::new(
         &RedeemerTag::new_cert(),
         &BigNum::from(x as u64),
@@ -559,22 +550,6 @@ pub(crate) fn fake_script_data_hash(x: u8) -> ScriptDataHash {
     ScriptDataHash::from_bytes(fake_bytes_32(x)).unwrap()
 }
 
-pub(crate) fn fake_base_address(x: u8) -> Address {
-    BaseAddress::new(
-        NetworkInfo::testnet_preprod().network_id(),
-        &Credential::from_keyhash(&fake_key_hash(x)),
-        &Credential::from_keyhash(&fake_key_hash(0)),
-    )
-        .to_address()
-}
-
-pub(crate) fn fake_reward_address(x: u8) -> RewardAddress {
-    RewardAddress::new(
-        NetworkInfo::testnet_preprod().network_id(),
-        &Credential::from_keyhash(&fake_key_hash(x)),
-    )
-}
-
 pub(crate) fn fake_tx_hash(input_hash_byte: u8) -> TransactionHash {
     TransactionHash::from([input_hash_byte; 32])
 }
@@ -596,11 +571,11 @@ pub(crate) fn fake_value2(v: u64) -> Value {
 }
 
 pub(crate) fn fake_tx_output(input_hash_byte: u8) -> TransactionOutput {
-    TransactionOutput::new(&fake_base_address(input_hash_byte), &fake_value())
+    TransactionOutput::new(&fake_base_address(input_hash_byte as u32), &fake_value())
 }
 
 pub(crate) fn fake_tx_output2(input_hash_byte: u8, val: u64) -> TransactionOutput {
-    TransactionOutput::new(&fake_base_address(input_hash_byte), &fake_value2(val))
+    TransactionOutput::new(&fake_base_address(input_hash_byte as u32), &fake_value2(val))
 }
 
 pub(crate) fn fake_vkey() -> Vkey {

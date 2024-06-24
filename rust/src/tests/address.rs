@@ -1,4 +1,4 @@
-use crate::tests::mock_objects::{create_base_address, create_enterprise_address, create_malformed_address, create_pointer_address, create_reward_address, fake_key_hash};
+use crate::tests::fakes::{fake_base_address, fake_enterprise_address, fake_malformed_address, fake_pointer_address, fake_reward_address, fake_key_hash};
 use crate::*;
 
 #[test]
@@ -582,16 +582,16 @@ fn malformed_addres_embedded() {
 
 #[test]
 fn address_kind() {
-    let base_address = create_base_address(1);
+    let base_address = fake_base_address(1);
     assert_eq!(base_address.kind(), AddressKind::Base);
 
-    let pointer_address = create_pointer_address(2);
+    let pointer_address = fake_pointer_address(2);
     assert_eq!(pointer_address.kind(), AddressKind::Pointer);
 
-    let enterprise_address = create_enterprise_address(3);
+    let enterprise_address = fake_enterprise_address(3);
     assert_eq!(enterprise_address.kind(), AddressKind::Enterprise);
 
-    let reward_address = create_reward_address(4);
+    let reward_address = fake_reward_address(4).to_address();
     assert_eq!(reward_address.kind(), AddressKind::Reward);
 
     let byron_address =
@@ -600,7 +600,7 @@ fn address_kind() {
             .to_address();
     assert_eq!(byron_address.kind(), AddressKind::Byron);
 
-    let malformed_address = create_malformed_address();
+    let malformed_address = fake_malformed_address();
     assert_eq!(malformed_address.kind(), AddressKind::Malformed);
 }
 
@@ -650,7 +650,7 @@ fn address_payment_cred() {
             .to_address();
     assert_eq!(byron_address.payment_cred(), None);
 
-    let malformed_address = create_malformed_address();
+    let malformed_address = fake_malformed_address();
     assert_eq!(malformed_address.payment_cred(), None);
 }
 
@@ -693,6 +693,6 @@ fn addresses_network_id() {
     assert_eq!(byron_address.network_id().unwrap(), 1);
     assert_eq!(byron_address.to_address().network_id().unwrap(), 1);
 
-    let malformed_address = create_malformed_address();
+    let malformed_address = fake_malformed_address();
     assert!(malformed_address.network_id().is_err());
 }

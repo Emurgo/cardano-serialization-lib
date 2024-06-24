@@ -1,5 +1,5 @@
 use crate::fees::min_fee_for_size;
-use crate::tests::mock_objects::{create_change_address, create_linear_fee, create_plutus_script, create_rich_tx_builder, fake_key_hash, fake_script_hash, fake_tx_hash, fake_vkey};
+use crate::tests::fakes::{fake_change_address, fake_linear_fee, fake_plutus_script, fake_rich_tx_builder, fake_key_hash, fake_script_hash, fake_tx_hash, fake_vkey};
 use crate::*;
 
 #[test]
@@ -28,10 +28,10 @@ fn voting_builder_key_signers_test() {
     assert!(req_signers.contains(&key_hash_3));
     assert_eq!(builder.has_plutus_scripts(), false);
 
-    let mut tx_builder = create_rich_tx_builder(false);
+    let mut tx_builder = fake_rich_tx_builder(false);
     tx_builder.set_voting_builder(&builder);
     tx_builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
@@ -39,7 +39,7 @@ fn voting_builder_key_signers_test() {
     let vkey_size = fake_vkey().to_bytes().len();
     let rough_tx_size = tx_len + (vkey_size * 3);
 
-    let fee_algo = create_linear_fee(44, 155381);
+    let fee_algo = fake_linear_fee(44, 155381);
     let approx_fee_with_wit = min_fee_for_size(rough_tx_size, &fee_algo).unwrap();
     assert!(approx_fee_with_wit.less_than(&tx.body().fee()));
 
@@ -82,7 +82,7 @@ fn voting_builder_key_signers_test() {
 #[test]
 fn voting_builder_plutus_witness() {
     let mut builder = VotingBuilder::new();
-    let script = create_plutus_script(1, &Language::new_plutus_v2());
+    let script = fake_plutus_script(1, &Language::new_plutus_v2());
     let script_hash = script.hash();
     let redeemer = Redeemer::new(
         &RedeemerTag::new_cert(),
@@ -123,10 +123,10 @@ fn voting_builder_plutus_witness() {
     assert_eq!(langs.len(), 1);
     assert!(langs.contains(&Language::new_plutus_v2()));
 
-    let mut tx_builder = create_rich_tx_builder(true);
+    let mut tx_builder = fake_rich_tx_builder(true);
     tx_builder.set_voting_builder(&builder);
     tx_builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     let mut cost_models = TxBuilderConstants::plutus_default_cost_models();
@@ -219,10 +219,10 @@ fn voting_builder_plutus_ref_witness() {
     assert_eq!(langs.len(), 1);
     assert!(langs.contains(&Language::new_plutus_v2()));
 
-    let mut tx_builder = create_rich_tx_builder(true);
+    let mut tx_builder = fake_rich_tx_builder(true);
     tx_builder.set_voting_builder(&builder);
     tx_builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     let mut cost_models = TxBuilderConstants::plutus_default_cost_models();
@@ -285,10 +285,10 @@ fn voting_builder_native_script_witness() {
     let langs = builder.get_used_plutus_lang_versions();
     assert_eq!(langs.len(), 0);
 
-    let mut tx_builder = create_rich_tx_builder(false);
+    let mut tx_builder = fake_rich_tx_builder(false);
     tx_builder.set_voting_builder(&builder);
     tx_builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
@@ -359,10 +359,10 @@ fn voting_builder_native_script_ref_witness() {
     let langs = builder.get_used_plutus_lang_versions();
     assert_eq!(langs.len(), 0);
 
-    let mut tx_builder = create_rich_tx_builder(false);
+    let mut tx_builder = fake_rich_tx_builder(false);
     tx_builder.set_voting_builder(&builder);
     tx_builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
@@ -410,7 +410,7 @@ fn voting_builder_non_script_voter_error() {
     assert!(result_native.is_err());
 
     let plutus_witness = PlutusWitness::new_without_datum(
-        &create_plutus_script(1, &Language::new_plutus_v2()),
+        &fake_plutus_script(1, &Language::new_plutus_v2()),
         &Redeemer::new(
             &RedeemerTag::new_cert(),
             &BigNum::zero(),

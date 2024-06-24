@@ -2,7 +2,7 @@ mod address;
 mod builders;
 mod general;
 mod helpers;
-mod mock_objects;
+mod fakes;
 mod protocol_types;
 mod serialization;
 mod plutus;

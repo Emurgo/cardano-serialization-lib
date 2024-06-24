@@ -1,6 +1,6 @@
 use crate::*;
 use crate::tests::helpers::harden;
-use crate::tests::mock_objects::{create_plutus_script, fake_boostrap_witness, fake_tx_input, fake_vkey_witness};
+use crate::tests::fakes::{fake_plutus_script, fake_boostrap_witness, fake_tx_input, fake_vkey_witness};
 
 #[test]
 fn native_script_hash() {
@@ -325,7 +325,7 @@ fn protocol_params_update_cbor_json_roundtrip() {
 
 #[test]
 fn witnesses_deduplication_test(){
-    let spend = tests::mock_objects::root_key_15()
+    let spend = tests::fakes::fake_root_key_15()
         .derive(harden(1854))
         .derive(harden(1815))
         .derive(harden(0))
@@ -365,17 +365,17 @@ fn witnesses_deduplication_test(){
     vkey_witnesses.add(&vkey_witness_1_1);
     vkey_witnesses.add(&vkey_witness_2);
 
-    let plutus_v1_1 = create_plutus_script(1, &Language::new_plutus_v1());
-    let plutus_v1_1_1 = create_plutus_script(1, &Language::new_plutus_v1());
-    let plutus_v1_2 = create_plutus_script(2, &Language::new_plutus_v1());
+    let plutus_v1_1 = fake_plutus_script(1, &Language::new_plutus_v1());
+    let plutus_v1_1_1 = fake_plutus_script(1, &Language::new_plutus_v1());
+    let plutus_v1_2 = fake_plutus_script(2, &Language::new_plutus_v1());
 
-    let plutus_v2_1 = create_plutus_script(1, &Language::new_plutus_v2());
-    let plutus_v2_1_1 = create_plutus_script(1, &Language::new_plutus_v2());
-    let plutus_v2_2 = create_plutus_script(2, &Language::new_plutus_v2());
+    let plutus_v2_1 = fake_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_v2_1_1 = fake_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_v2_2 = fake_plutus_script(2, &Language::new_plutus_v2());
 
-    let plutus_v3_1 = create_plutus_script(1, &Language::new_plutus_v3());
-    let plutus_v3_1_1 = create_plutus_script(1, &Language::new_plutus_v3());
-    let plutus_v3_2 = create_plutus_script(2, &Language::new_plutus_v3());
+    let plutus_v3_1 = fake_plutus_script(1, &Language::new_plutus_v3());
+    let plutus_v3_1_1 = fake_plutus_script(1, &Language::new_plutus_v3());
+    let plutus_v3_2 = fake_plutus_script(2, &Language::new_plutus_v3());
 
     let mut plutus_scripts = PlutusScripts::new();
     plutus_scripts.add(&plutus_v1_1);
@@ -503,14 +503,14 @@ fn vkeywitneses_dedup() {
 
 #[test]
 fn plutus_scripts_dedup_on_tx_witnesses_set() {
-    let plutus_script_v1_1 = create_plutus_script(1, &Language::new_plutus_v1());
-    let plutus_script_v1_2 = create_plutus_script(2, &Language::new_plutus_v1());
+    let plutus_script_v1_1 = fake_plutus_script(1, &Language::new_plutus_v1());
+    let plutus_script_v1_2 = fake_plutus_script(2, &Language::new_plutus_v1());
 
-    let plutus_script_v2_1 = create_plutus_script(1, &Language::new_plutus_v2());
-    let plutus_script_v2_2 = create_plutus_script(2, &Language::new_plutus_v2());
+    let plutus_script_v2_1 = fake_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_script_v2_2 = fake_plutus_script(2, &Language::new_plutus_v2());
 
-    let plutus_script_v3_1 = create_plutus_script(1, &Language::new_plutus_v3());
-    let plutus_script_v3_2 = create_plutus_script(2, &Language::new_plutus_v3());
+    let plutus_script_v3_1 = fake_plutus_script(1, &Language::new_plutus_v3());
+    let plutus_script_v3_2 = fake_plutus_script(2, &Language::new_plutus_v3());
 
     let mut plutus_scrips = PlutusScripts::new();
     plutus_scrips.add(&plutus_script_v1_1);
@@ -552,14 +552,14 @@ fn plutus_scripts_dedup_on_tx_witnesses_set() {
 
 #[test]
 fn plutus_scripts_no_dedup_on_auxdata() {
-    let plutus_script_v1_1 = create_plutus_script(1, &Language::new_plutus_v1());
-    let plutus_script_v1_2 = create_plutus_script(2, &Language::new_plutus_v1());
+    let plutus_script_v1_1 = fake_plutus_script(1, &Language::new_plutus_v1());
+    let plutus_script_v1_2 = fake_plutus_script(2, &Language::new_plutus_v1());
 
-    let plutus_script_v2_1 = create_plutus_script(1, &Language::new_plutus_v2());
-    let plutus_script_v2_2 = create_plutus_script(2, &Language::new_plutus_v2());
+    let plutus_script_v2_1 = fake_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_script_v2_2 = fake_plutus_script(2, &Language::new_plutus_v2());
 
-    let plutus_script_v3_1 = create_plutus_script(1, &Language::new_plutus_v3());
-    let plutus_script_v3_2 = create_plutus_script(2, &Language::new_plutus_v3());
+    let plutus_script_v3_1 = fake_plutus_script(1, &Language::new_plutus_v3());
+    let plutus_script_v3_2 = fake_plutus_script(2, &Language::new_plutus_v3());
 
     let mut plutus_scrips = PlutusScripts::new();
     plutus_scrips.add(&plutus_script_v1_1);

@@ -1,4 +1,4 @@
-use crate::tests::mock_objects::{create_anchor, fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
+use crate::tests::fakes::{fake_anchor, fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
 use crate::*;
 
 #[test]
@@ -178,7 +178,7 @@ fn voting_procedure_setters_getters_test() {
 
 #[test]
 fn voting_procedure_with_anchor_setters_getters_test() {
-    let anchor = create_anchor();
+    let anchor = fake_anchor();
     let yes_procedure = VotingProcedure::new_with_anchor(VoteKind::Yes, &anchor);
     assert_eq!(yes_procedure.vote_kind(), VoteKind::Yes);
     assert_eq!(yes_procedure.anchor(), Some(anchor.clone()));

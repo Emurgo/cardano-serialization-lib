@@ -1,4 +1,4 @@
-use crate::tests::mock_objects::{crate_full_protocol_param_update, create_anchor, create_change_address, create_plutus_script, create_tx_builder_with_amount_and_deposit_params, fake_key_hash, fake_reward_address, fake_script_hash, fake_tx_hash};
+use crate::tests::fakes::{fake_full_protocol_param_update, fake_anchor, fake_change_address, fake_plutus_script, fake_tx_builder_with_amount_and_deposit_params, fake_key_hash, fake_reward_address, fake_script_hash, fake_tx_hash};
 use crate::*;
 
 fn total_tx_output_with_fee(tx: &Transaction) -> Coin {
@@ -20,7 +20,7 @@ fn voting_proposal_builder_one_proposal() {
     let wrapped_action = GovernanceAction::new_hard_fork_initiation_action(&action);
     let proposal = VotingProposal::new(
         &wrapped_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(1),
         &proposal_deposit,
     );
@@ -40,11 +40,11 @@ fn voting_proposal_builder_one_proposal() {
 
     let initial_amount = 1000000000u64;
     let mut tx_builder =
-        create_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, false);
+        fake_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, false);
 
     tx_builder.set_voting_proposal_builder(&builder);
     tx_builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
@@ -70,7 +70,7 @@ fn voting_proposal_builder_all_proposals() {
     let wrapped_hf_action = GovernanceAction::new_hard_fork_initiation_action(&hf_action);
     let hf_proposal = VotingProposal::new(
         &wrapped_hf_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(1),
         &proposal_deposit,
     );
@@ -85,20 +85,20 @@ fn voting_proposal_builder_all_proposals() {
     let wrapped_committee_action = GovernanceAction::new_new_committee_action(&committee_action);
     let committee_proposal = VotingProposal::new(
         &wrapped_committee_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(2),
         &proposal_deposit,
     );
     builder.add(&committee_proposal).unwrap();
 
-    let anchor = create_anchor();
+    let anchor = fake_anchor();
     let constitution = Constitution::new(&anchor);
     let constitution_action = NewConstitutionAction::new(&constitution);
     let wrapped_constitution_action =
         GovernanceAction::new_new_constitution_action(&constitution_action);
     let constitution_proposal = VotingProposal::new(
         &wrapped_constitution_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(3),
         &proposal_deposit,
     );
@@ -108,18 +108,18 @@ fn voting_proposal_builder_all_proposals() {
     let wrapped_no_conf_action = GovernanceAction::new_no_confidence_action(&no_conf_action);
     let no_conf_proposal = VotingProposal::new(
         &wrapped_no_conf_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(4),
         &proposal_deposit,
     );
     builder.add(&no_conf_proposal).unwrap();
 
-    let parameters_update = crate_full_protocol_param_update();
+    let parameters_update = fake_full_protocol_param_update();
     let pp_update_action = ParameterChangeAction::new(&parameters_update);
     let wrapped_pp_update_action = GovernanceAction::new_parameter_change_action(&pp_update_action);
     let pp_update_proposal = VotingProposal::new(
         &wrapped_pp_update_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(4),
         &proposal_deposit,
     );
@@ -133,7 +133,7 @@ fn voting_proposal_builder_all_proposals() {
         GovernanceAction::new_treasury_withdrawals_action(&withdrawal_action);
     let withdrawal_proposal = VotingProposal::new(
         &wrapped_withdrawal_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(5),
         &proposal_deposit,
     );
@@ -143,7 +143,7 @@ fn voting_proposal_builder_all_proposals() {
     let wrapped_info_action = GovernanceAction::new_info_action(&info_action);
     let info_proposal = VotingProposal::new(
         &wrapped_info_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(5),
         &proposal_deposit,
     );
@@ -160,11 +160,11 @@ fn voting_proposal_builder_all_proposals() {
 
     let initial_amount = 1000000000u64;
     let mut tx_builder =
-        create_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, false);
+        fake_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, false);
 
     tx_builder.set_voting_proposal_builder(&builder);
     tx_builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
@@ -196,13 +196,13 @@ fn voting_proposal_builder_with_plutus_script_witness() {
     let wrapped_hf_action = GovernanceAction::new_hard_fork_initiation_action(&hf_action);
     let hf_proposal = VotingProposal::new(
         &wrapped_hf_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(1),
         &proposal_deposit,
     );
     builder.add(&hf_proposal).unwrap();
 
-    let script = create_plutus_script(1, &Language::new_plutus_v2());
+    let script = fake_plutus_script(1, &Language::new_plutus_v2());
     let redeemer = Redeemer::new(
         &RedeemerTag::new_cert(),
         &BigNum::from(100u32),
@@ -222,7 +222,7 @@ fn voting_proposal_builder_with_plutus_script_witness() {
     let wrapped_committee_action = GovernanceAction::new_new_committee_action(&committee_action);
     let committee_proposal = VotingProposal::new(
         &wrapped_committee_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(2),
         &proposal_deposit,
     );
@@ -246,11 +246,11 @@ fn voting_proposal_builder_with_plutus_script_witness() {
 
     let initial_amount = 1000000000u64;
     let mut tx_builder =
-        create_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, true);
+        fake_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, true);
 
     tx_builder.set_voting_proposal_builder(&builder);
     tx_builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     let mut cost_models = TxBuilderConstants::plutus_default_cost_models();
@@ -300,7 +300,7 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
     let wrapped_hf_action = GovernanceAction::new_hard_fork_initiation_action(&hf_action);
     let hf_proposal = VotingProposal::new(
         &wrapped_hf_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(1),
         &proposal_deposit,
     );
@@ -329,7 +329,7 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
     let wrapped_committee_action = GovernanceAction::new_new_committee_action(&committee_action);
     let committee_proposal = VotingProposal::new(
         &wrapped_committee_action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(2),
         &proposal_deposit,
     );
@@ -354,11 +354,11 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
 
     let initial_amount = 1000000000u64;
     let mut tx_builder =
-        create_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, true);
+        fake_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, true);
 
     tx_builder.set_voting_proposal_builder(&builder);
     tx_builder
-        .add_change_if_needed(&create_change_address())
+        .add_change_if_needed(&fake_change_address())
         .unwrap();
 
     let mut cost_models = TxBuilderConstants::plutus_default_cost_models();

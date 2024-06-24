@@ -1,4 +1,4 @@
-use crate::tests::mock_objects::{crate_full_pool_params, create_anchor, fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash, fake_script_hash, fake_vrf_key_hash};
+use crate::tests::fakes::{fake_full_pool_params, fake_anchor, fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash, fake_script_hash, fake_vrf_key_hash};
 use crate::*;
 
 #[test]
@@ -63,7 +63,7 @@ fn drep_registration_setters_getters_test() {
     let coin = Coin::from(100u32);
     let drep_registration_1 = DrepRegistration::new(&cred_key_hash, &coin);
 
-    let anchor = create_anchor();
+    let anchor = fake_anchor();
     let drep_registration_2 = DrepRegistration::new_with_anchor(&cred_script_hash, &coin, &anchor);
 
     assert_eq!(drep_registration_1.voting_credential(), cred_key_hash);
@@ -78,7 +78,7 @@ fn drep_update_setters_getters_test() {
     let cred_script_hash = Credential::from_scripthash(&fake_script_hash(2));
     let drep_update_1 = DrepUpdate::new(&cred_key_hash);
 
-    let anchor = create_anchor();
+    let anchor = fake_anchor();
     let drep_update_2 = DrepUpdate::new_with_anchor(&cred_script_hash, &anchor);
 
     assert_eq!(drep_update_1.voting_credential(), cred_key_hash);
@@ -135,7 +135,7 @@ fn move_instantaneous_rewards_setters_getters_test() {
 
 #[test]
 fn pool_registration_setters_getters_test() {
-    let pool_params = crate_full_pool_params();
+    let pool_params = fake_full_pool_params();
     let pool_registration = PoolRegistration::new(&pool_params);
 
     assert_eq!(pool_registration.pool_params(), pool_params);

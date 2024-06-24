@@ -1,9 +1,9 @@
 use crate::*;
-use crate::tests::mock_objects::{create_reallistic_tx_builder, create_redeemer, fake_plutus_script_and_hash, fake_script_hash, fake_tx_input};
+use crate::tests::fakes::{fake_reallistic_tx_builder, fake_redeemer, fake_plutus_script_and_hash, fake_script_hash, fake_tx_input};
 
 #[test]
 fn plutus_mint_with_script_ref_test() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let colateral_adress = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w").unwrap();
     let colateral_input = fake_tx_input(0);
     let tx_input = fake_tx_input(1);
@@ -13,9 +13,9 @@ fn plutus_mint_with_script_ref_test() {
 
     let (plutus_script2, _) = fake_plutus_script_and_hash(2);
 
-    let redeemer = create_redeemer(1);
+    let redeemer = fake_redeemer(1);
 
-    let redeemer2 = create_redeemer(2);
+    let redeemer2 = fake_redeemer(2);
 
     let asset_name = AssetName::from_hex("44544e4654").unwrap();
     let mut mint_builder = MintBuilder::new();
@@ -80,8 +80,8 @@ fn plutus_mint_with_script_ref_test() {
 #[test]
 fn different_redeemers_error() {
     let (plutus_script, _) = fake_plutus_script_and_hash(1);
-    let redeemer = create_redeemer(1);
-    let redeemer2 = create_redeemer(2);
+    let redeemer = fake_redeemer(1);
+    let redeemer2 = fake_redeemer(2);
 
     let asset_name = AssetName::from_hex("44544e4654").unwrap();
     let mut mint_builder = MintBuilder::new();
@@ -99,7 +99,7 @@ fn different_redeemers_error() {
 #[test]
 fn same_redeemers() {
     let (plutus_script, _) = fake_plutus_script_and_hash(1);
-    let redeemer = create_redeemer(1);
+    let redeemer = fake_redeemer(1);
     let mut redeemer2 = redeemer.clone();
     redeemer2.index = BigNum::from(77u64);
     redeemer2.tag = RedeemerTag::new_voting_proposal();
@@ -120,14 +120,14 @@ fn same_redeemers() {
 
 #[test]
 fn plutus_mint_test() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
     let colateral_adress = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w").unwrap();
     let colateral_input = fake_tx_input(0);
 
     let tx_input = fake_tx_input(1);
     let (plutus_script, _) = fake_plutus_script_and_hash(1);
 
-    let redeemer = create_redeemer(1);
+    let redeemer = fake_redeemer(1);
     let asset_name = AssetName::from_hex("44544e4654").unwrap();
     let mut mint_builder = MintBuilder::new();
     let plutus_script_source = PlutusScriptSource::new(&plutus_script);
@@ -183,7 +183,7 @@ fn ref_inputs() {
     let script_hash_2 = fake_script_hash(2);
     let tx_input_ref1 = fake_tx_input(2);
     let tx_input_ref2 = fake_tx_input(3);
-    let redeemer = create_redeemer(1);
+    let redeemer = fake_redeemer(1);
 
     let asset_name1 = AssetName::from_hex("44544e4654").unwrap();
     let asset_name2 = AssetName::from_hex("44544e4655").unwrap();
@@ -219,7 +219,7 @@ fn multiple_mints() {
     let script_hash_2 = fake_script_hash(2);
     let tx_input_ref1 = fake_tx_input(2);
     let tx_input_ref2 = fake_tx_input(3);
-    let redeemer = create_redeemer(1);
+    let redeemer = fake_redeemer(1);
 
     let asset_name1 = AssetName::from_hex("44544e4654").unwrap();
     let asset_name2 = AssetName::from_hex("44544e4655").unwrap();
@@ -302,7 +302,7 @@ fn different_script_type_error() {
     let script_hash_2 = fake_script_hash(2);
     let tx_input_ref1 = fake_tx_input(2);
     let tx_input_ref2 = fake_tx_input(3);
-    let redeemer = create_redeemer(1);
+    let redeemer = fake_redeemer(1);
 
     let asset_name1 = AssetName::from_hex("44544e4654").unwrap();
     let asset_name2 = AssetName::from_hex("44544e4655").unwrap();
@@ -354,7 +354,7 @@ fn wrong_witness_type_ref_error() {
     let script_hash_2 = native_script.hash();
     let tx_input_ref1 = fake_tx_input(2);
     let tx_input_ref2 = fake_tx_input(3);
-    let redeemer = create_redeemer(1);
+    let redeemer = fake_redeemer(1);
 
     let asset_name1 = AssetName::from_hex("44544e4654").unwrap();
     let asset_name2 = AssetName::from_hex("44544e4655").unwrap();
@@ -423,7 +423,7 @@ fn wrong_witness_type_no_ref_error() {
     let script_hash_2 = native_script.hash();
     let tx_input_ref1 = fake_tx_input(2);
     let tx_input_ref2 = fake_tx_input(3);
-    let redeemer = create_redeemer(1);
+    let redeemer = fake_redeemer(1);
 
     let asset_name1 = AssetName::from_hex("44544e4654").unwrap();
     let asset_name2 = AssetName::from_hex("44544e4655").unwrap();

@@ -1,4 +1,4 @@
-use crate::tests::mock_objects::{create_anchor, fake_anchor_data_hash, fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash, fake_pool_metadata_hash, fake_script_hash, fake_vrf_key_hash};
+use crate::tests::fakes::{fake_anchor, fake_anchor_data_hash, fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash, fake_pool_metadata_hash, fake_script_hash, fake_vrf_key_hash};
 use crate::*;
 
 macro_rules! to_from_test {
@@ -43,7 +43,7 @@ fn committee_cold_resign_key_hash_ser_round_trip() {
 
 #[test]
 fn committee_cold_resign_with_anchor_ser_round_trip() {
-    let anchor = create_anchor();
+    let anchor = fake_anchor();
     let cert =
         CommitteeColdResign::new_with_anchor(&Credential::from_keyhash(&fake_key_hash(1)), &anchor);
     let cert_wrapped = Certificate::new_committee_cold_resign(&cert);
