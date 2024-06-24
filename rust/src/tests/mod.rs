@@ -10,3 +10,4 @@ mod metadata;
 mod crypto;
 mod utils;
 mod fees;
+mod emip3;
