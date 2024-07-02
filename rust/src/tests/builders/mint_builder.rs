@@ -1,5 +1,5 @@
 use crate::*;
-use crate::tests::fakes::{fake_reallistic_tx_builder, fake_redeemer, fake_plutus_script_and_hash, fake_script_hash, fake_tx_input};
+use crate::tests::fakes::{fake_reallistic_tx_builder, fake_redeemer, fake_plutus_script_and_hash, fake_script_hash, fake_tx_input, fake_redeemer_with_tag};
 
 #[test]
 fn plutus_mint_with_script_ref_test() {
@@ -498,4 +498,82 @@ fn zero_mint_error() {
 
     let res= mint_builder.add_asset(&mint_witness_native, &asset_name1, &Int::new(&BigNum::from(0u64)));
     assert!(res.is_err());
+}
+
+#[test]
+fn redeemer_tag_index_test() {
+    let bytes1 = vec![3u8; 28];
+    let bytes2 = vec![1u8; 28];
+    let bytes3 = vec![2u8; 28];
+    let script_hash_1 = ScriptHash::from_bytes(bytes1).expect("Failed to create script hash");
+    let script_hash_2 = ScriptHash::from_bytes(bytes2).expect("Failed to create script hash");
+    let script_hash_3 = ScriptHash::from_bytes(bytes3).expect("Failed to create script hash");
+    let tx_input_ref1 = fake_tx_input(2);
+    let tx_input_ref2 = fake_tx_input(3);
+    let tx_input_ref3 = fake_tx_input(4);
+    let data_1 = PlutusData::new_empty_constr_plutus_data(&BigNum::from(1u64));
+    let data_2 = PlutusData::new_empty_constr_plutus_data(&BigNum::from(2u64));
+    let data_3 = PlutusData::new_empty_constr_plutus_data(&BigNum::from(3u64));
+    let redeemer1 = fake_redeemer_with_tag(99, &RedeemerTag::new_vote(), &data_1);
+    let redeemer2 = fake_redeemer_with_tag(98, &RedeemerTag::new_cert(), &data_2);
+    let redeemer3 = fake_redeemer_with_tag(97, &RedeemerTag::new_spend(), &data_3);
+
+    let asset_name1 = AssetName::from_hex("44544e4654").unwrap();
+    let asset_name2 = AssetName::from_hex("44544e4655").unwrap();
+    let asset_name3 = AssetName::from_hex("44544e4656").unwrap();
+
+    let mut mint_builder = MintBuilder::new();
+
+    let plutus_script_source1 = PlutusScriptSource::new_ref_input(
+        &script_hash_1,
+        &tx_input_ref1,
+        &Language::new_plutus_v2(),
+        0
+    );
+    let plutus_script_source2 = PlutusScriptSource::new_ref_input(
+        &script_hash_2,
+        &tx_input_ref2,
+        &Language::new_plutus_v2(),
+        0
+    );
+
+    let plutus_script_source3 = PlutusScriptSource::new_ref_input(
+        &script_hash_3,
+        &tx_input_ref3,
+        &Language::new_plutus_v2(),
+        0
+    );
+
+    let mint_witnes1 = MintWitness::new_plutus_script(&plutus_script_source1, &redeemer1);
+    let mint_witnes2 = MintWitness::new_plutus_script(&plutus_script_source2, &redeemer2);
+    let mint_witnes3 = MintWitness::new_plutus_script(&plutus_script_source3, &redeemer3);
+
+    mint_builder.add_asset(&mint_witnes1, &asset_name1, &Int::new(&BigNum::from(100u64))).unwrap();
+    mint_builder.add_asset(&mint_witnes2, &asset_name2, &Int::new(&BigNum::from(101u64))).unwrap();
+    mint_builder.add_asset(&mint_witnes3, &asset_name3, &Int::new(&BigNum::from(102u64))).unwrap();
+
+    let mint = mint_builder.build().expect("Failed to build mint");
+    assert_eq!(mint.len(), 3);
+
+    let policy_ids = mint.keys();
+
+    let first_index = policy_ids.0.iter().position(|x| *x == script_hash_1).unwrap();
+    let second_index = policy_ids.0.iter().position(|x| *x == script_hash_2).unwrap();
+    let third_index = policy_ids.0.iter().position(|x| *x == script_hash_3).unwrap();
+
+    let plutus_witnesses = mint_builder.get_plutus_witnesses();
+    let redeemers = mint_builder.get_redeemers().expect("Failed to get redeemers");
+    assert_eq!(plutus_witnesses.len(), 3);
+
+    let first_redeemer = redeemers.redeemers.iter().find(|x| x.data == data_1).unwrap();
+    let second_redeemer = redeemers.redeemers.iter().find(|x| x.data == data_2).unwrap();
+    let third_redeemer = redeemers.redeemers.iter().find(|x| x.data == data_3).unwrap();
+
+    assert_eq!(first_redeemer.tag(), RedeemerTag::new_mint());
+    assert_eq!(second_redeemer.tag(), RedeemerTag::new_mint());
+    assert_eq!(third_redeemer.tag(), RedeemerTag::new_mint());
+
+    assert_eq!(first_redeemer.index(), BigNum::from(first_index as u64));
+    assert_eq!(second_redeemer.index(), BigNum::from(second_index as u64));
+    assert_eq!(third_redeemer.index(), BigNum::from(third_index as u64));
 }

@@ -302,7 +302,7 @@ impl MintBuilder {
 
     pub fn build(&self) -> Result<Mint, JsError> {
         let mut mint = Mint::new();
-        for (policy, script_mint) in self.mints.iter() {
+        for (policy, script_mint) in &self.mints {
             let mut mint_asset = MintAssets::new();
             match script_mint {
                 ScriptMint::Native(native_mints) => {
@@ -338,12 +338,16 @@ impl MintBuilder {
 
     pub fn get_plutus_witnesses(&self) -> PlutusWitnesses {
         let mut plutus_witnesses = Vec::new();
-        for script_mint in self.mints.values() {
+        let tag = RedeemerTag::new_mint();
+        for (index, (_, script_mint)) in self.mints.iter().enumerate() {
             match script_mint {
                 ScriptMint::Plutus(plutus_mints) => {
                     plutus_witnesses.push(PlutusWitness::new_with_ref_without_datum(
                         &PlutusScriptSource(plutus_mints.script.clone()),
-                        &plutus_mints.redeemer,
+                        &plutus_mints.redeemer.clone_with_index_and_tag(
+                            &BigNum::from(index),
+                            &tag,
+                        ),
                     ));
                 }
                 _ => {}

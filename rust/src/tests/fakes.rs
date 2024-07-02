@@ -493,6 +493,15 @@ pub(crate) fn fake_redeemer(x: u8) -> Redeemer {
     )
 }
 
+pub(crate) fn fake_redeemer_with_tag(index: u64, tag: &RedeemerTag, data: &PlutusData) -> Redeemer {
+    Redeemer::new(
+        tag,
+        &BigNum::from(index),
+        data,
+        &ExUnits::new(&BigNum::from(index), &BigNum::from(index)),
+    )
+}
+
 pub(crate) fn fake_redeemer_zero_cost(x: u8) -> Redeemer {
     Redeemer::new(
         &RedeemerTag::new_cert(),
