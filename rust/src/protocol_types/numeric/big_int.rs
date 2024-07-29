@@ -1,4 +1,6 @@
 use num_bigint::Sign;
+use num_integer::Integer;
+use num_traits::Signed;
 use crate::*;
 
 #[wasm_bindgen]
@@ -89,13 +91,28 @@ impl BigInt {
         Self(&self.0 + &other.0)
     }
 
+    pub fn sub(&self, other: &BigInt) -> BigInt {
+        Self(&self.0 - &other.0)
+    }
+
     pub fn mul(&self, other: &BigInt) -> BigInt {
         Self(&self.0 * &other.0)
     }
 
+    pub fn pow(&self, exp: u32) -> BigInt {
+        Self(self.0.pow(exp))
+    }
+
     pub fn one() -> BigInt {
-        use std::str::FromStr;
-        Self(num_bigint::BigInt::from_str("1").unwrap())
+        Self(num_bigint::BigInt::from(1))
+    }
+
+    pub fn zero() -> BigInt {
+        Self(num_bigint::BigInt::from(0))
+    }
+
+    pub fn abs(&self) -> BigInt {
+        Self(self.0.abs())
     }
 
     pub fn increment(&self) -> BigInt {
@@ -103,14 +120,15 @@ impl BigInt {
     }
 
     pub fn div_ceil(&self, other: &BigInt) -> BigInt {
-        use num_integer::Integer;
-        let (res, rem) = self.0.div_rem(&other.0);
-        let result = Self(res);
-        if Self(rem).is_zero() {
-            result
-        } else {
-            result.increment()
-        }
+        Self(self.0.div_ceil(&other.0))
+    }
+
+    pub fn div_floor(&self, other: &BigInt) -> BigInt {
+        Self(self.0.div_floor(&other.0))
+    }
+
+    pub(crate) fn is_negative(&self) -> bool {
+        self.0.is_negative()
     }
 }
 

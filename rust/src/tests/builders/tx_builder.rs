@@ -5907,13 +5907,13 @@ fn ref_script_fee_from_all_builders() {
     let redeemer_8 = fake_redeemer_zero_cost(8);
 
     let plutus_source_1 = PlutusScriptSource::new_ref_input(&script_hash_1, &tx_in_1, &Language::new_plutus_v2(), 10);
-    let plutus_source_2 = PlutusScriptSource::new_ref_input(&script_hash_2, &tx_in_2, &Language::new_plutus_v2(), 100);
-    let plutus_source_3 = PlutusScriptSource::new_ref_input(&script_hash_3, &tx_in_3, &Language::new_plutus_v2(), 1000);
-    let plutus_source_4 = PlutusScriptSource::new_ref_input(&script_hash_4, &tx_in_4, &Language::new_plutus_v2(), 10000);
-    let plutus_source_5 = PlutusScriptSource::new_ref_input(&script_hash_5, &tx_in_5, &Language::new_plutus_v2(), 100000);
-    let plutus_source_6 = PlutusScriptSource::new_ref_input(&script_hash_6, &tx_in_6, &Language::new_plutus_v2(), 1000000);
+    let plutus_source_2 = PlutusScriptSource::new_ref_input(&script_hash_2, &tx_in_2, &Language::new_plutus_v2(), 11);
+    let plutus_source_3 = PlutusScriptSource::new_ref_input(&script_hash_3, &tx_in_3, &Language::new_plutus_v2(), 111);
+    let plutus_source_4 = PlutusScriptSource::new_ref_input(&script_hash_4, &tx_in_4, &Language::new_plutus_v2(), 200);
+    let plutus_source_5 = PlutusScriptSource::new_ref_input(&script_hash_5, &tx_in_5, &Language::new_plutus_v2(), 3000);
+    let plutus_source_6 = PlutusScriptSource::new_ref_input(&script_hash_6, &tx_in_6, &Language::new_plutus_v2(), 5000);
     let native_script_source = NativeScriptSource::new_ref_input(&script_hash_7, &tx_in_7);
-    let plutus_source_8 = PlutusScriptSource::new_ref_input(&script_hash_8, &tx_in_8, &Language::new_plutus_v2(), 10000000);
+    let plutus_source_8 = PlutusScriptSource::new_ref_input(&script_hash_8, &tx_in_8, &Language::new_plutus_v2(), 50000);
 
     mint_builder.add_asset(
         &MintWitness::new_plutus_script(&plutus_source_1, &redeemer_1),
@@ -5981,7 +5981,7 @@ fn ref_script_fee_from_all_builders() {
     tx_builder.set_voting_builder(&voting_builder);
     tx_builder.set_voting_proposal_builder(&voting_proposal_builder);
     tx_builder.set_inputs(&tx_input_builder);
-    tx_builder.add_script_reference_input(&tx_in_9, 100000000);
+    tx_builder.add_script_reference_input(&tx_in_9, 16000);
 
     let fake_collateral = fake_tx_input(99);
     let mut collateral_builder = TxInputsBuilder::new();
@@ -6005,7 +6005,7 @@ fn ref_script_fee_from_all_builders() {
     wit_set.set_vkeys(&vkey_witneses);
     tx = Transaction::new(&tx.body(), &wit_set, tx.auxiliary_data());
 
-    let ref_script_fee = BigNum::from(111111110u64 / 2);
+    let ref_script_fee = BigNum::from(44815u64);
     let total_tx_fee = tx.body().fee();
 
     //TODO: check change calculation for pessimistic size estimation.

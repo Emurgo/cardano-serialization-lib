@@ -739,3 +739,87 @@ fn tx_inputs_deduplication() {
     assert!(txins_from_bytes.contains(&tx_in2));
     assert!(txins_from_bytes.contains(&tx_in3));
 }
+
+// Helper function to create a UnitInterval from a fraction
+fn new_uinternal(numerator: u64, denominator: u64) -> UnitInterval {
+    UnitInterval::new(&BigNum::from(numerator), &BigNum::from(denominator))
+}
+
+#[test]
+fn min_ref_script_fee_zero_size_test() {
+    let result = min_ref_script_fee(0, &new_uinternal(1, 1000)).unwrap();
+    assert_eq!(result.to_str(), "0");
+}
+
+#[test]
+fn min_ref_script_fee_small_size_test() {
+    let result = min_ref_script_fee(1000, &new_uinternal(1, 1000)).unwrap();
+    assert_eq!(result.to_str(), "1");
+}
+
+#[test]
+fn min_ref_script_fee_exactly_one_tier_test() {
+    let result = min_ref_script_fee(25600, &new_uinternal(1, 1000)).unwrap();
+    assert_eq!(result.to_str(), "25");
+}
+
+#[test]
+fn min_ref_script_fee_multiple_full_tiers_test() {
+    let result = min_ref_script_fee(25600 * 2, &new_uinternal(1, 1000)).unwrap();
+    // You may need to adjust this expected value based on your exact implementation
+    let expected = ((25600f64 / 1000f64) + (25600f64 * 0.0012f64)) as u64; ;
+    assert_eq!(result, BigNum(expected));
+}
+
+#[test]
+fn min_ref_script_fee_partial_tier_test() {
+    let result = min_ref_script_fee(30000, &new_uinternal(1, 1000)).unwrap();
+    // You may need to adjust this expected value based on your exact implementation
+    assert_eq!(result.to_str(), "30");
+}
+
+#[test]
+fn min_ref_script_fee_large_size_test() {
+    let result = min_ref_script_fee(1000000, &new_uinternal(1, 1000)).unwrap();
+    // You may need to adjust this expected value based on your exact implementation
+    assert_eq!(result.to_str(), "158607");
+}
+
+#[test]
+fn min_ref_script_fee_different_cost_per_byte_test() {
+    let result = min_ref_script_fee(50000, &new_uinternal(5, 1000)).unwrap();
+    // You may need to adjust this expected value based on your exact implementation
+    assert_eq!(result.to_str(), "274");
+}
+
+#[test]
+fn min_ref_script_fee_one_cost_per_byte_test() {
+    let result = min_ref_script_fee(10000, &new_uinternal(1, 1)).unwrap();
+    assert_eq!(result.to_str(), "10000");
+}
+
+#[test]
+fn min_ref_script_fee_zero_cost_per_byte_test() {
+    let fee = min_ref_script_fee(10000, &new_uinternal(0, 1)).unwrap();
+    assert_eq!(fee.to_str(), "0");
+}
+
+#[test]
+fn test_multiple_tiers() {
+    // Test cases with different numbers of tiers
+    let test_cases = [
+        (25600, "25"),   // Exactly 1 tier
+        (25601, "25"),   // 1 full tier + 1 byte (at 1.2x price)
+        (51200, "56"),   // Exactly 2 tiers
+        (76800, "93"),   // Exactly 3 tiers
+        (80000, "98"),   // 3 full tiers + partial tier
+        (100000, "133"), // 3 full tiers + larger partial tier
+        (128000, "190"), // Exactly 5 tiers
+        (179200, "330"), // 7 full tiers
+    ];
+
+    for (size, expected) in test_cases.iter() {
+        let result = min_ref_script_fee(*size, &new_uinternal(1, 1000)).unwrap();
+        assert_eq!(result.to_str(), *expected, "Failed for size {}", size);
+    }
+}
