@@ -36,6 +36,23 @@ fn drep_script_hash_setters_getters_test() {
 }
 
 #[test]
+fn drep_from_cred_test() {
+    let key_hash = fake_key_hash(1);
+    let cred = Credential::from_keyhash(&key_hash);
+    let drep = DRep::new_from_credential(&cred);
+    assert_eq!(drep.kind(), DRepKind::KeyHash);
+    assert_eq!(drep.to_key_hash(), Some(key_hash));
+    assert_eq!(drep.to_script_hash(), None);
+
+    let script_hash = fake_script_hash(1);
+    let cred = Credential::from_scripthash(&script_hash);
+    let drep = DRep::new_from_credential(&cred);
+    assert_eq!(drep.kind(), DRepKind::ScriptHash);
+    assert_eq!(drep.to_key_hash(), None);
+    assert_eq!(drep.to_script_hash(), Some(script_hash));
+}
+
+#[test]
 fn anchor_setters_getters_test() {
     let data_hash = fake_anchor_data_hash(1);
     let url = URL::new("https://example.com".to_string()).unwrap();

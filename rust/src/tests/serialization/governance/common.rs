@@ -74,6 +74,36 @@ fn drep_always_no_confidence_ser_round_trip() {
 }
 
 #[test]
+fn drep_to_from_bech32_keshhash() {
+    let drep = DRep::new_key_hash(&fake_key_hash(1));
+    let bech32 = drep.to_bech32().unwrap();
+    let drep_deser = DRep::from_bech32(&bech32).unwrap();
+    assert_eq!(drep, drep_deser);
+}
+
+#[test]
+fn drep_to_from_bech32_script_hash() {
+    let drep = DRep::new_script_hash(&fake_script_hash(1));
+    let bech32 = drep.to_bech32().unwrap();
+    let drep_deser = DRep::from_bech32(&bech32).unwrap();
+    assert_eq!(drep, drep_deser);
+}
+
+#[test]
+fn drep_to_from_bech32_always_abstain() {
+    let drep = DRep::new_always_abstain();
+    let bech32 = drep.to_bech32();
+    assert!(bech32.is_err());
+}
+
+#[test]
+fn drep_to_from_bech32_always_no_confidence() {
+    let drep = DRep::new_always_no_confidence();
+    let bech32 = drep.to_bech32();
+    assert!(bech32.is_err());
+}
+
+#[test]
 fn governance_action_id_ser_round_trip() {
     let gov_action_id =
         GovernanceActionId::new(&fake_tx_hash(1), GovernanceActionIndex::from(42u32));
