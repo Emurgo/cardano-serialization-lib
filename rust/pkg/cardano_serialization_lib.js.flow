@@ -43,30 +43,6 @@ declare export function min_ref_script_fee(
 ): BigNum;
 
 /**
- * @param {string} json
- * @param {$Values<
-                typeof 
-                PlutusDatumSchema>} schema
- * @returns {PlutusData}
- */
-declare export function encode_json_str_to_plutus_datum(
-  json: string,
-  schema: $Values<typeof PlutusDatumSchema>
-): PlutusData;
-
-/**
- * @param {PlutusData} datum
- * @param {$Values<
-                typeof 
-                PlutusDatumSchema>} schema
- * @returns {string}
- */
-declare export function decode_plutus_datum_to_json_str(
-  datum: PlutusData,
-  schema: $Values<typeof PlutusDatumSchema>
-): string;
-
-/**
  * @param {string} password
  * @param {string} salt
  * @param {string} nonce
@@ -89,18 +65,6 @@ declare export function decrypt_with_password(
   password: string,
   data: string
 ): string;
-
-/**
- * @param {Address} address
- * @param {TransactionUnspentOutputs} utxos
- * @param {TransactionBuilderConfig} config
- * @returns {TransactionBatchList}
- */
-declare export function create_send_all(
-  address: Address,
-  utxos: TransactionUnspentOutputs,
-  config: TransactionBuilderConfig
-): TransactionBatchList;
 
 /**
  * @param {Uint8Array} bytes
@@ -268,11 +232,107 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * @param {string} json
+ * @param {$Values<
+                typeof 
+                PlutusDatumSchema>} schema
+ * @returns {PlutusData}
+ */
+declare export function encode_json_str_to_plutus_datum(
+  json: string,
+  schema: $Values<typeof PlutusDatumSchema>
+): PlutusData;
+
+/**
+ * @param {PlutusData} datum
+ * @param {$Values<
+                typeof 
+                PlutusDatumSchema>} schema
+ * @returns {string}
+ */
+declare export function decode_plutus_datum_to_json_str(
+  datum: PlutusData,
+  schema: $Values<typeof PlutusDatumSchema>
+): string;
+
+/**
+ * @param {Address} address
+ * @param {TransactionUnspentOutputs} utxos
+ * @param {TransactionBuilderConfig} config
+ * @returns {TransactionBatchList}
+ */
+declare export function create_send_all(
+  address: Address,
+  utxos: TransactionUnspentOutputs,
+  config: TransactionBuilderConfig
+): TransactionBatchList;
+
+/**
+ * JSON <-> PlutusData conversion schemas.
+ * Follows ScriptDataJsonSchema in cardano-cli defined at:
+ * https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/ScriptData.hs#L254
+ *
+ * All methods here have the following restrictions due to limitations on dependencies:
+ * * JSON numbers above u64::MAX (positive) or below i64::MIN (negative) will throw errors
+ * * Hex strings for bytes don't accept odd-length (half-byte) strings.
+ *      cardano-cli seems to support these however but it seems to be different than just 0-padding
+ *      on either side when tested so proceed with caution
  */
 
-declare export var CredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
+declare export var PlutusDatumSchema: {|
+  +BasicConversions: 0, // 0
+  +DetailedSchema: 1, // 1
+|};
+
+/**
+ */
+
+declare export var GovernanceActionKind: {|
+  +ParameterChangeAction: 0, // 0
+  +HardForkInitiationAction: 1, // 1
+  +TreasuryWithdrawalsAction: 2, // 2
+  +NoConfidenceAction: 3, // 3
+  +UpdateCommitteeAction: 4, // 4
+  +NewConstitutionAction: 5, // 5
+  +InfoAction: 6, // 6
+|};
+
+/**
+ */
+
+declare export var AddressKind: {|
+  +Base: 0, // 0
+  +Pointer: 1, // 1
+  +Enterprise: 2, // 2
+  +Reward: 3, // 3
+  +Byron: 4, // 4
+  +Malformed: 5, // 5
+|};
+
+/**
+ */
+
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
+|};
+
+/**
+ */
+
+declare export var VoteKind: {|
+  +No: 0, // 0
+  +Yes: 1, // 1
+  +Abstain: 2, // 2
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
 |};
 
 /**
@@ -284,6 +344,20 @@ declare export var TransactionMetadatumKind: {|
   +Int: 2, // 2
   +Bytes: 3, // 3
   +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var BlockEra: {|
+  +Byron: 0, // 0
+  +Shelley: 1, // 1
+  +Allegra: 2, // 2
+  +Mary: 3, // 3
+  +Alonzo: 4, // 4
+  +Babbage: 5, // 5
+  +Conway: 6, // 6
+  +Unknown: 7, // 7
 |};
 
 /**
@@ -321,20 +395,11 @@ declare export var CertificateKind: {|
 |};
 
 /**
- * JSON <-> PlutusData conversion schemas.
- * Follows ScriptDataJsonSchema in cardano-cli defined at:
- * https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/ScriptData.hs#L254
- *
- * All methods here have the following restrictions due to limitations on dependencies:
- * * JSON numbers above u64::MAX (positive) or below i64::MIN (negative) will throw errors
- * * Hex strings for bytes don't accept odd-length (half-byte) strings.
- *      cardano-cli seems to support these however but it seems to be different than just 0-padding
- *      on either side when tested so proceed with caution
  */
 
-declare export var PlutusDatumSchema: {|
-  +BasicConversions: 0, // 0
-  +DetailedSchema: 1, // 1
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
 |};
 
 /**
@@ -344,51 +409,6 @@ declare export var LanguageKind: {|
   +PlutusV1: 0, // 0
   +PlutusV2: 1, // 1
   +PlutusV3: 2, // 2
-|};
-
-/**
- */
-
-declare export var DRepKind: {|
-  +KeyHash: 0, // 0
-  +ScriptHash: 1, // 1
-  +AlwaysAbstain: 2, // 2
-  +AlwaysNoConfidence: 3, // 3
-|};
-
-/**
- */
-
-declare export var NativeScriptKind: {|
-  +ScriptPubkey: 0, // 0
-  +ScriptAll: 1, // 1
-  +ScriptAny: 2, // 2
-  +ScriptNOfK: 3, // 3
-  +TimelockStart: 4, // 4
-  +TimelockExpiry: 5, // 5
-|};
-
-/**
- * Each new language uses a different namespace for hashing its script
- * This is because you could have a language where the same bytes have different semantics
- * So this avoids scripts in different languages mapping to the same hash
- * Note that the enum value here is different than the enum value for deciding the cost model of a script
- */
-
-declare export var ScriptHashNamespace: {|
-  +NativeScript: 0, // 0
-  +PlutusScript: 1, // 1
-  +PlutusScriptV2: 2, // 2
-  +PlutusScriptV3: 3, // 3
-|};
-
-/**
- */
-
-declare export var VoteKind: {|
-  +No: 0, // 0
-  +Yes: 1, // 1
-  +Abstain: 2, // 2
 |};
 
 /**
@@ -404,9 +424,10 @@ declare export var CoinSelectionStrategyCIP2: {|
 /**
  */
 
-declare export var NetworkIdKind: {|
-  +Testnet: 0, // 0
-  +Mainnet: 1, // 1
+declare export var RelayKind: {|
+  +SingleHostAddr: 0, // 0
+  +SingleHostName: 1, // 1
+  +MultiHostName: 2, // 2
 |};
 
 /**
@@ -415,29 +436,6 @@ declare export var NetworkIdKind: {|
 declare export var MIRPot: {|
   +Reserves: 0, // 0
   +Treasury: 1, // 1
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
-declare export var BlockEra: {|
-  +Byron: 0, // 0
-  +Shelley: 1, // 1
-  +Allegra: 2, // 2
-  +Mary: 3, // 3
-  +Alonzo: 4, // 4
-  +Babbage: 5, // 5
-  +Conway: 6, // 6
-  +Unknown: 7, // 7
 |};
 
 /**
@@ -462,40 +460,17 @@ declare export var ScriptSchema: {|
 |};
 
 /**
+ * Each new language uses a different namespace for hashing its script
+ * This is because you could have a language where the same bytes have different semantics
+ * So this avoids scripts in different languages mapping to the same hash
+ * Note that the enum value here is different than the enum value for deciding the cost model of a script
  */
 
-declare export var AddressKind: {|
-  +Base: 0, // 0
-  +Pointer: 1, // 1
-  +Enterprise: 2, // 2
-  +Reward: 3, // 3
-  +Byron: 4, // 4
-  +Malformed: 5, // 5
-|};
-
-/**
- */
-
-declare export var MIRKind: {|
-  +ToOtherPot: 0, // 0
-  +ToStakeCredentials: 1, // 1
-|};
-
-/**
- */
-
-declare export var CborContainerType: {|
-  +Array: 0, // 0
-  +Map: 1, // 1
-|};
-
-/**
- */
-
-declare export var RelayKind: {|
-  +SingleHostAddr: 0, // 0
-  +SingleHostName: 1, // 1
-  +MultiHostName: 2, // 2
+declare export var ScriptHashNamespace: {|
+  +NativeScript: 0, // 0
+  +PlutusScript: 1, // 1
+  +PlutusScriptV2: 2, // 2
+  +PlutusScriptV3: 3, // 3
 |};
 
 /**
@@ -512,14 +487,39 @@ declare export var VoterKind: {|
 /**
  */
 
-declare export var GovernanceActionKind: {|
-  +ParameterChangeAction: 0, // 0
-  +HardForkInitiationAction: 1, // 1
-  +TreasuryWithdrawalsAction: 2, // 2
-  +NoConfidenceAction: 3, // 3
-  +UpdateCommitteeAction: 4, // 4
-  +NewConstitutionAction: 5, // 5
-  +InfoAction: 6, // 6
+declare export var CredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ */
+
+declare export var NativeScriptKind: {|
+  +ScriptPubkey: 0, // 0
+  +ScriptAll: 1, // 1
+  +ScriptAny: 2, // 2
+  +ScriptNOfK: 3, // 3
+  +TimelockStart: 4, // 4
+  +TimelockExpiry: 5, // 5
+|};
+
+/**
+ */
+
+declare export var DRepKind: {|
+  +KeyHash: 0, // 0
+  +ScriptHash: 1, // 1
+  +AlwaysAbstain: 2, // 2
+  +AlwaysNoConfidence: 3, // 3
+|};
+
+/**
+ */
+
+declare export var NetworkIdKind: {|
+  +Testnet: 0, // 0
+  +Mainnet: 1, // 1
 |};
 
 /**
@@ -1169,12 +1169,34 @@ declare export class BigInt {
    * @param {BigInt} other
    * @returns {BigInt}
    */
+  sub(other: BigInt): BigInt;
+
+  /**
+   * @param {BigInt} other
+   * @returns {BigInt}
+   */
   mul(other: BigInt): BigInt;
+
+  /**
+   * @param {number} exp
+   * @returns {BigInt}
+   */
+  pow(exp: number): BigInt;
 
   /**
    * @returns {BigInt}
    */
   static one(): BigInt;
+
+  /**
+   * @returns {BigInt}
+   */
+  static zero(): BigInt;
+
+  /**
+   * @returns {BigInt}
+   */
+  abs(): BigInt;
 
   /**
    * @returns {BigInt}
@@ -1186,6 +1208,12 @@ declare export class BigInt {
    * @returns {BigInt}
    */
   div_ceil(other: BigInt): BigInt;
+
+  /**
+   * @param {BigInt} other
+   * @returns {BigInt}
+   */
+  div_floor(other: BigInt): BigInt;
 }
 /**
  */
@@ -3062,6 +3090,12 @@ declare export class DRep {
   static new_always_no_confidence(): DRep;
 
   /**
+   * @param {Credential} cred
+   * @returns {DRep}
+   */
+  static new_from_credential(cred: Credential): DRep;
+
+  /**
  * @returns {$Values<
                 typeof 
                 DRepKind>}
@@ -3077,6 +3111,17 @@ declare export class DRep {
    * @returns {ScriptHash | void}
    */
   to_script_hash(): ScriptHash | void;
+
+  /**
+   * @returns {string}
+   */
+  to_bech32(): string;
+
+  /**
+   * @param {string} bech32_str
+   * @returns {DRep}
+   */
+  static from_bech32(bech32_str: string): DRep;
 }
 /**
  */
@@ -13436,7 +13481,7 @@ declare export class Voter {
   /**
    * @returns {Credential | void}
    */
-  to_constitutional_committee_hot_cred(): Credential | void;
+  to_constitutional_committee_hot_key(): Credential | void;
 
   /**
    * @returns {Credential | void}
