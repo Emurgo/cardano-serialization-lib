@@ -73,7 +73,7 @@ impl Voter {
         }
     }
 
-    pub fn to_constitutional_committee_hot_cred(&self) -> Option<Credential> {
+    pub fn to_constitutional_committee_hot_key(&self) -> Option<Credential> {
         match &self.0 {
             VoterEnum::ConstitutionalCommitteeHotKey(cred) => Some(cred.clone()),
             _ => None,

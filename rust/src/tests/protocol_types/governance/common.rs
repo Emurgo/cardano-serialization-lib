@@ -80,7 +80,7 @@ fn voter_drep_key_hash_setters_getters_test() {
         Some(Credential::from_keyhash(&key_hash))
     );
     assert_eq!(voter.to_staking_pool_key_hash(), None);
-    assert_eq!(voter.to_constitutional_committee_hot_cred(), None);
+    assert_eq!(voter.to_constitutional_committee_hot_key(), None);
     assert_eq!(voter.has_script_credentials(), false);
     assert_eq!(voter.to_key_hash(), Some(key_hash));
 }
@@ -95,7 +95,7 @@ fn voter_drep_script_hash_setters_getters_test() {
         Some(Credential::from_scripthash(&script_hash))
     );
     assert_eq!(voter.to_staking_pool_key_hash(), None);
-    assert_eq!(voter.to_constitutional_committee_hot_cred(), None);
+    assert_eq!(voter.to_constitutional_committee_hot_key(), None);
     assert_eq!(voter.has_script_credentials(), true);
     assert_eq!(voter.to_key_hash(), None);
 }
@@ -106,7 +106,7 @@ fn voter_constitutional_committee_hot_key_hash_setters_getters_test() {
     let voter = Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&key_hash));
     assert_eq!(voter.kind(), VoterKind::ConstitutionalCommitteeHotKeyHash);
     assert_eq!(
-        voter.to_constitutional_committee_hot_cred(),
+        voter.to_constitutional_committee_hot_key(),
         Some(Credential::from_keyhash(&key_hash))
     );
     assert_eq!(voter.to_staking_pool_key_hash(), None);
@@ -125,7 +125,7 @@ fn voter_constitutional_committee_hot_script_hash_setters_getters_test() {
         VoterKind::ConstitutionalCommitteeHotScriptHash
     );
     assert_eq!(
-        voter.to_constitutional_committee_hot_cred(),
+        voter.to_constitutional_committee_hot_key(),
         Some(Credential::from_scripthash(&script_hash))
     );
     assert_eq!(voter.to_staking_pool_key_hash(), None);
@@ -140,7 +140,7 @@ fn voter_staking_pool_key_hash_setters_getters_test() {
     let voter = Voter::new_staking_pool(&key_hash);
     assert_eq!(voter.kind(), VoterKind::StakingPoolKeyHash);
     assert_eq!(voter.to_staking_pool_key_hash(), Some(key_hash.clone()));
-    assert_eq!(voter.to_constitutional_committee_hot_cred(), None);
+    assert_eq!(voter.to_constitutional_committee_hot_key(), None);
     assert_eq!(voter.to_drep_cred(), None);
     assert_eq!(voter.has_script_credentials(), false);
     assert_eq!(voter.to_key_hash(), Some(key_hash));
