@@ -1,16 +1,16 @@
-use std::collections::BTreeMap;
+use hashlink::LinkedHashMap;
 use crate::*;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct CertificatesBuilder {
-    certs: BTreeMap<Certificate, Option<ScriptWitnessType>>,
+    certs: LinkedHashMap<Certificate, Option<ScriptWitnessType>>,
 }
 
 #[wasm_bindgen]
 impl CertificatesBuilder {
     pub fn new() -> Self {
-        Self { certs: BTreeMap::new() }
+        Self { certs: LinkedHashMap::new() }
     }
 
     pub fn add(&mut self, cert: &Certificate) -> Result<(), JsError> {
