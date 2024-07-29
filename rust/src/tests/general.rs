@@ -767,7 +767,7 @@ fn min_ref_script_fee_exactly_one_tier_test() {
 fn min_ref_script_fee_multiple_full_tiers_test() {
     let result = min_ref_script_fee(25600 * 2, &new_uinternal(1, 1000)).unwrap();
     // You may need to adjust this expected value based on your exact implementation
-    let expected = ((25600f64 / 1000f64) + (25600f64 * 0.0012f64)) as u64; ;
+    let expected = ((25600f64 / 1000f64) + (25600f64 * 0.0012f64)) as u64;
     assert_eq!(result, BigNum(expected));
 }
 
