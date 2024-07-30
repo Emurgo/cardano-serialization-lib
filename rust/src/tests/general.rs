@@ -766,7 +766,6 @@ fn min_ref_script_fee_exactly_one_tier_test() {
 #[test]
 fn min_ref_script_fee_multiple_full_tiers_test() {
     let result = min_ref_script_fee(25600 * 2, &new_uinternal(1, 1000)).unwrap();
-    // You may need to adjust this expected value based on your exact implementation
     let expected = ((25600f64 / 1000f64) + (25600f64 * 0.0012f64)) as u64;
     assert_eq!(result, BigNum(expected));
 }
@@ -774,21 +773,18 @@ fn min_ref_script_fee_multiple_full_tiers_test() {
 #[test]
 fn min_ref_script_fee_partial_tier_test() {
     let result = min_ref_script_fee(30000, &new_uinternal(1, 1000)).unwrap();
-    // You may need to adjust this expected value based on your exact implementation
     assert_eq!(result.to_str(), "30");
 }
 
 #[test]
 fn min_ref_script_fee_large_size_test() {
     let result = min_ref_script_fee(1000000, &new_uinternal(1, 1000)).unwrap();
-    // You may need to adjust this expected value based on your exact implementation
     assert_eq!(result.to_str(), "158607");
 }
 
 #[test]
 fn min_ref_script_fee_different_cost_per_byte_test() {
     let result = min_ref_script_fee(50000, &new_uinternal(5, 1000)).unwrap();
-    // You may need to adjust this expected value based on your exact implementation
     assert_eq!(result.to_str(), "274");
 }
 
