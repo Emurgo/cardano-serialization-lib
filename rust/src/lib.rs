@@ -448,7 +448,7 @@ impl URL {
     }
 }
 
-static DNS_NAME_MAX_LEN: usize = 64;
+static DNS_NAME_MAX_LEN: usize = 128;
 
 #[wasm_bindgen]
 #[derive(
