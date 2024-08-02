@@ -286,7 +286,7 @@ fn stake_deregistration_getter_test() {
     let cert = StakeDeregistration::new(
         &Credential::from_keyhash(&fake_key_hash(1))
     );
-    let cert_wrapped = Certificate::new_unreg_cert(&cert).unwrap();
+    let cert_wrapped = Certificate::new_stake_deregistration(&cert);
     to_from_test!(StakeDeregistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_stake_deregistration().unwrap());
     assert_eq!(None, cert_wrapped.as_unreg_cert());
