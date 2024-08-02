@@ -282,11 +282,44 @@ fn stake_deregistration_with_coin_ser_round_trip() {
 }
 
 #[test]
+fn stake_deregistration_getter_test() {
+    let cert = StakeDeregistration::new(
+        &Credential::from_keyhash(&fake_key_hash(1))
+    );
+    let cert_wrapped = Certificate::new_unreg_cert(&cert).unwrap();
+    to_from_test!(StakeDeregistration, cert, cert_wrapped);
+    assert_eq!(cert, cert_wrapped.as_stake_deregistration().unwrap());
+    assert_eq!(None, cert_wrapped.as_unreg_cert());
+}
+
+#[test]
+fn unreg_cert_getter_test() {
+    let cert = StakeDeregistration::new_with_explicit_refund(
+        &Credential::from_keyhash(&fake_key_hash(1)),
+        &Coin::from(100u64),
+    );
+    let cert_wrapped = Certificate::new_unreg_cert(&cert).unwrap();
+    to_from_test!(StakeDeregistration, cert, cert_wrapped);
+    assert_eq!(cert, cert_wrapped.as_stake_deregistration().unwrap());
+    assert_eq!(cert, cert_wrapped.as_unreg_cert().unwrap());
+}
+
+#[test]
+fn unreg_cert_error_test() {
+    let cert = StakeDeregistration::new(
+        &Credential::from_keyhash(&fake_key_hash(1))
+    );
+    let res = Certificate::new_unreg_cert(&cert);
+    assert!(res.is_err());
+}
+
+#[test]
 fn stake_registration_ser_round_trip() {
     let cert = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let cert_wrapped = Certificate::new_stake_registration(&cert);
     to_from_test!(StakeRegistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_stake_registration().unwrap());
+    assert_eq!(None, cert_wrapped.as_reg_cert())
 }
 
 #[test]
@@ -298,6 +331,25 @@ fn stake_registration_with_coin_ser_round_trip() {
     let cert_wrapped = Certificate::new_stake_registration(&cert);
     to_from_test!(StakeRegistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_stake_registration().unwrap());
+}
+
+#[test]
+fn reg_cert_getter_test() {
+    let cert = StakeRegistration::new_with_explicit_deposit(
+        &Credential::from_keyhash(&fake_key_hash(1)),
+        &Coin::from(100u64),
+    );
+    let cert_wrapped = Certificate::new_reg_cert(&cert).unwrap();
+    to_from_test!(StakeRegistration, cert, cert_wrapped);
+    assert_eq!(cert, cert_wrapped.as_stake_registration().unwrap());
+    assert_eq!(cert, cert_wrapped.as_reg_cert().unwrap());
+}
+
+#[test]
+fn reg_cert_error_test() {
+    let cert = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
+    let res = Certificate::new_reg_cert(&cert);
+    assert!(res.is_err());
 }
 
 #[test]

@@ -73,16 +73,43 @@ impl_to_from!(Certificate);
 
 #[wasm_bindgen]
 impl Certificate {
+
     pub fn new_stake_registration(stake_registration: &StakeRegistration) -> Self {
         Self(CertificateEnum::StakeRegistration(
             stake_registration.clone(),
         ))
     }
 
+    /// Since StakeRegistration can represent stake_registration certificate or reg_cert certificate, because both certificates have the same semantics.
+    /// And in some cases you want to create a reg_cert, this function is used to create a reg_cert.
+    /// The function will return an error if StakeRegistration represents a stake_registration certificate.
+    pub fn new_reg_cert(stake_registration: &StakeRegistration) -> Result<Self, JsError> {
+        if stake_registration.coin.is_none() {
+            return Err(JsError::from_str("coin is required"));
+        } else {
+            Ok(Self(CertificateEnum::StakeRegistration(
+                stake_registration.clone(),
+            )))
+        }
+    }
+
     pub fn new_stake_deregistration(stake_deregistration: &StakeDeregistration) -> Self {
         Self(CertificateEnum::StakeDeregistration(
             stake_deregistration.clone(),
         ))
+    }
+
+    /// Since StakeDeregistration can represent stake_deregistration certificate or unreg_cert certificate, because both certificates have the same semantics.
+    /// And in some cases you want to create an unreg_cert, this function is used to create an unreg_cert.
+    /// The function will return an error if StakeDeregistration represents a stake_deregistration certificate.
+    pub fn new_unreg_cert(stake_deregistration: &StakeDeregistration) -> Result<Self, JsError> {
+        if stake_deregistration.coin.is_none() {
+            return Err(JsError::from_str("coin is required"));
+        } else {
+            Ok(Self(CertificateEnum::StakeDeregistration(
+                stake_deregistration.clone(),
+            )))
+        }
     }
 
     pub fn new_stake_delegation(stake_delegation: &StakeDelegation) -> Self {
@@ -218,9 +245,41 @@ impl Certificate {
         }
     }
 
+    /// Since StakeRegistration can represent stake_registration certificate or reg_cert certificate, because both certificates have the same semantics.
+    /// And in some cases you want to get a reg_cert, this function is used to get a reg_cert.
+    /// The function will return None if StakeRegistration represents a stake_registration certificate or Certificate is not a StakeRegistration.
+    pub fn as_reg_cert(&self) -> Option<StakeRegistration> {
+        match &self.0 {
+            CertificateEnum::StakeRegistration(x) => {
+                return if x.coin.is_some() {
+                    Some(x.clone())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
     pub fn as_stake_deregistration(&self) -> Option<StakeDeregistration> {
         match &self.0 {
             CertificateEnum::StakeDeregistration(x) => Some(x.clone()),
+            _ => None,
+        }
+    }
+
+    /// Since StakeDeregistration can represent stake_deregistration certificate or unreg_cert certificate, because both certificates have the same semantics.
+    /// And in some cases you want to get an unreg_cert, this function is used to get an unreg_cert.
+    /// The function will return None if StakeDeregistration represents a stake_deregistration certificate or Certificate is not a StakeDeregistration.
+    pub fn as_unreg_cert(&self) -> Option<StakeDeregistration> {
+        match &self.0 {
+            CertificateEnum::StakeDeregistration(x) => {
+                return if x.coin.is_some() {
+                    Some(x.clone())
+                } else {
+                    None
+                }
+            }
             _ => None,
         }
     }
