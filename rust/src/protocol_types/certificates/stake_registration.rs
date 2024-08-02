@@ -37,7 +37,7 @@ impl StakeRegistration {
         }
     }
 
-    pub fn new_with_coin(stake_credential: &Credential, coin: &Coin) -> Self {
+    pub fn new_with_explicit_deposit(stake_credential: &Credential, coin: &Coin) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
             coin: Some(coin.clone()),

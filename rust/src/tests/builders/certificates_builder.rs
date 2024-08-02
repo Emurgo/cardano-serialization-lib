@@ -91,7 +91,7 @@ fn certificates_builder_deposit_no_refund_test() {
     let stake_reg_cert = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(23)));
     let stake_reg_cert_wrapped = Certificate::new_stake_registration(&stake_reg_cert);
 
-    let stake_reg_with_coin_cert = StakeRegistration::new_with_coin(
+    let stake_reg_with_coin_cert = StakeRegistration::new_with_explicit_deposit(
         &Credential::from_keyhash(&fake_key_hash(23)),
         &Coin::from(key_deposit_form_args),
     );
@@ -230,7 +230,7 @@ fn certificates_builder_refund_no_deposit_test() {
     let stake_dereg_cert = StakeDeregistration::new(&Credential::from_keyhash(&fake_key_hash(22)));
     let stake_dereg_cert_wrapped = Certificate::new_stake_deregistration(&stake_dereg_cert);
 
-    let stake_dereg_with_coin_cert = StakeDeregistration::new_with_coin(
+    let stake_dereg_with_coin_cert = StakeDeregistration::new_with_explicit_refund(
         &Credential::from_keyhash(&fake_key_hash(22)),
         &Coin::from(key_deposit_form_args),
     );
@@ -389,7 +389,7 @@ fn certificates_builder_req_signers_test() {
     let stake_dereg_cert = StakeDeregistration::new(&Credential::from_keyhash(&key_hash_21));
     let stake_dereg_cert_wrapped = Certificate::new_stake_deregistration(&stake_dereg_cert);
 
-    let stake_dereg_with_coin_cert = StakeDeregistration::new_with_coin(
+    let stake_dereg_with_coin_cert = StakeDeregistration::new_with_explicit_refund(
         &Credential::from_keyhash(&key_hash_22),
         &Coin::from(key_deposit_form_args),
     );
@@ -399,7 +399,7 @@ fn certificates_builder_req_signers_test() {
     let stake_reg_cert = StakeRegistration::new(&Credential::from_keyhash(&key_hash_23));
     let stake_reg_cert_wrapped = Certificate::new_stake_registration(&stake_reg_cert);
 
-    let stake_reg_with_coin_cert = StakeRegistration::new_with_coin(
+    let stake_reg_with_coin_cert = StakeRegistration::new_with_explicit_deposit(
         &Credential::from_keyhash(&key_hash_24),
         &Coin::from(key_deposit_form_args),
     );

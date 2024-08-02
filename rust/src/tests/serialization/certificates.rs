@@ -272,7 +272,7 @@ fn stake_deregistration_ser_round_trip() {
 
 #[test]
 fn stake_deregistration_with_coin_ser_round_trip() {
-    let cert = StakeDeregistration::new_with_coin(
+    let cert = StakeDeregistration::new_with_explicit_refund(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
@@ -291,7 +291,7 @@ fn stake_registration_ser_round_trip() {
 
 #[test]
 fn stake_registration_with_coin_ser_round_trip() {
-    let cert = StakeRegistration::new_with_coin(
+    let cert = StakeRegistration::new_with_explicit_deposit(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );

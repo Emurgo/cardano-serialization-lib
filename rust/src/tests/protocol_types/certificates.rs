@@ -181,7 +181,7 @@ fn stake_deregisration_setters_getters_test() {
     let stake_deregistration_1 = StakeDeregistration::new(&cred_key_hash);
 
     let coin = Coin::from(100u32);
-    let stake_deregistration_2 = StakeDeregistration::new_with_coin(&cred_key_hash, &coin);
+    let stake_deregistration_2 = StakeDeregistration::new_with_explicit_refund(&cred_key_hash, &coin);
 
     assert_eq!(stake_deregistration_1.stake_credential(), cred_key_hash);
     assert_eq!(stake_deregistration_1.coin(), None);
@@ -196,7 +196,7 @@ fn stake_regisration_setters_getters_test() {
     let cred_key_hash = Credential::from_keyhash(&fake_key_hash(1));
     let coin = Coin::from(100u32);
     let stake_registration_1 = StakeRegistration::new(&cred_key_hash);
-    let stake_registration_2 = StakeRegistration::new_with_coin(&cred_key_hash, &coin);
+    let stake_registration_2 = StakeRegistration::new_with_explicit_deposit(&cred_key_hash, &coin);
 
     assert_eq!(stake_registration_1.stake_credential(), cred_key_hash);
     assert_eq!(stake_registration_1.coin(), None);
