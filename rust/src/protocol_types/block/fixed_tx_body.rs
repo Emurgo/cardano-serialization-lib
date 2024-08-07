@@ -11,6 +11,7 @@ pub struct FixedTransactionBody {
 }
 
 from_bytes!(FixedTransactionBody);
+from_hex!(FixedTransactionBody);
 
 #[wasm_bindgen]
 impl FixedTransactionBody {

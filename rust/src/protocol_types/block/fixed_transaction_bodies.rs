@@ -6,6 +6,7 @@ use crate::*;
 pub struct FixedTransactionBodies(pub(crate) Vec<FixedTransactionBody>);
 
 from_bytes!(FixedTransactionBodies);
+from_hex!(FixedTransactionBodies);
 
 #[wasm_bindgen]
 impl FixedTransactionBodies {

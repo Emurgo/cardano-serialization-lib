@@ -9,6 +9,7 @@ pub struct FixedVersionedBlock {
 }
 
 from_bytes!(FixedVersionedBlock);
+from_hex!(FixedVersionedBlock);
 
 #[wasm_bindgen]
 impl FixedVersionedBlock {

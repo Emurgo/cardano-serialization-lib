@@ -14,6 +14,7 @@ pub struct FixedBlock {
 }
 
 from_bytes!(FixedBlock);
+from_hex!(FixedBlock);
 
 #[wasm_bindgen]
 impl FixedBlock {
