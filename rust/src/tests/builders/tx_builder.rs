@@ -2161,10 +2161,10 @@ fn tx_builder_cip2_largest_first_multiasset() {
 
     let mut output_value = Value::new(&BigNum(415));
     let mut output_ma = MultiAsset::new();
-    output_ma.set_asset(&pid1, &asset_name1, BigNum(5));
-    output_ma.set_asset(&pid1, &asset_name2, BigNum(1));
-    output_ma.set_asset(&pid2, &asset_name2, BigNum(2));
-    output_ma.set_asset(&pid2, &asset_name3, BigNum(4));
+    output_ma.set_asset(&pid1, &asset_name1, &BigNum(5));
+    output_ma.set_asset(&pid1, &asset_name2, &BigNum(1));
+    output_ma.set_asset(&pid2, &asset_name2, &BigNum(2));
+    output_ma.set_asset(&pid2, &asset_name3, &BigNum(4));
     output_value.set_multiasset(&output_ma);
     tx_builder
         .add_output(&TransactionOutput::new(
@@ -2181,41 +2181,41 @@ fn tx_builder_cip2_largest_first_multiasset() {
     // should not be taken
     let mut input1 = make_input(1u8, Value::new(&BigNum(200)));
     let mut ma1 = MultiAsset::new();
-    ma1.set_asset(&pid1, &asset_name1, BigNum(10));
-    ma1.set_asset(&pid1, &asset_name2, BigNum(1));
-    ma1.set_asset(&pid2, &asset_name2, BigNum(2));
+    ma1.set_asset(&pid1, &asset_name1, &BigNum(10));
+    ma1.set_asset(&pid1, &asset_name2, &BigNum(1));
+    ma1.set_asset(&pid2, &asset_name2, &BigNum(2));
     input1.output.amount.set_multiasset(&ma1);
     available_inputs.add(&input1);
 
     // taken first to satisfy pid1:asset_name1 (but also satisfies pid2:asset_name3)
     let mut input2 = make_input(2u8, Value::new(&BigNum(10)));
     let mut ma2 = MultiAsset::new();
-    ma2.set_asset(&pid1, &asset_name1, BigNum(20));
-    ma2.set_asset(&pid2, &asset_name3, BigNum(4));
+    ma2.set_asset(&pid1, &asset_name1, &BigNum(20));
+    ma2.set_asset(&pid2, &asset_name3, &BigNum(4));
     input2.output.amount.set_multiasset(&ma2);
     available_inputs.add(&input2);
 
     // taken second to satisfy pid1:asset_name2 (but also satisfies pid2:asset_name1)
     let mut input3 = make_input(3u8, Value::new(&BigNum(50)));
     let mut ma3 = MultiAsset::new();
-    ma3.set_asset(&pid2, &asset_name1, BigNum(5));
-    ma3.set_asset(&pid1, &asset_name2, BigNum(15));
+    ma3.set_asset(&pid2, &asset_name1, &BigNum(5));
+    ma3.set_asset(&pid1, &asset_name2, &BigNum(15));
     input3.output.amount.multiasset = Some(ma3);
     available_inputs.add(&input3);
 
     // should not be taken either
     let mut input4 = make_input(4u8, Value::new(&BigNum(10)));
     let mut ma4 = MultiAsset::new();
-    ma4.set_asset(&pid1, &asset_name1, BigNum(10));
-    ma4.set_asset(&pid1, &asset_name2, BigNum(10));
+    ma4.set_asset(&pid1, &asset_name1, &BigNum(10));
+    ma4.set_asset(&pid1, &asset_name2, &BigNum(10));
     input4.output.amount.multiasset = Some(ma4);
     available_inputs.add(&input4);
 
     // taken third to satisfy pid2:asset_name_2
     let mut input5 = make_input(5u8, Value::new(&BigNum(10)));
     let mut ma5 = MultiAsset::new();
-    ma5.set_asset(&pid1, &asset_name2, BigNum(10));
-    ma5.set_asset(&pid2, &asset_name2, BigNum(3));
+    ma5.set_asset(&pid1, &asset_name2, &BigNum(10));
+    ma5.set_asset(&pid2, &asset_name2, &BigNum(3));
     input5.output.amount.multiasset = Some(ma5);
     available_inputs.add(&input5);
 
@@ -2278,10 +2278,10 @@ fn tx_builder_cip2_random_improve_multiasset() {
 
     let mut output_value = Value::new(&BigNum(415));
     let mut output_ma = MultiAsset::new();
-    output_ma.set_asset(&pid1, &asset_name1, BigNum(5));
-    output_ma.set_asset(&pid1, &asset_name2, BigNum(1));
-    output_ma.set_asset(&pid2, &asset_name2, BigNum(2));
-    output_ma.set_asset(&pid2, &asset_name3, BigNum(4));
+    output_ma.set_asset(&pid1, &asset_name1, &BigNum(5));
+    output_ma.set_asset(&pid1, &asset_name2, &BigNum(1));
+    output_ma.set_asset(&pid2, &asset_name2, &BigNum(2));
+    output_ma.set_asset(&pid2, &asset_name3, &BigNum(4));
     output_value.set_multiasset(&output_ma);
     tx_builder
         .add_output(&TransactionOutput::new(
@@ -2296,37 +2296,37 @@ fn tx_builder_cip2_random_improve_multiasset() {
 
     let mut input1 = make_input(1u8, Value::new(&BigNum(200)));
     let mut ma1 = MultiAsset::new();
-    ma1.set_asset(&pid1, &asset_name1, BigNum(10));
-    ma1.set_asset(&pid1, &asset_name2, BigNum(1));
-    ma1.set_asset(&pid2, &asset_name2, BigNum(2));
+    ma1.set_asset(&pid1, &asset_name1, &BigNum(10));
+    ma1.set_asset(&pid1, &asset_name2, &BigNum(1));
+    ma1.set_asset(&pid2, &asset_name2, &BigNum(2));
     input1.output.amount.set_multiasset(&ma1);
     available_inputs.add(&input1);
 
     let mut input2 = make_input(2u8, Value::new(&BigNum(10)));
     let mut ma2 = MultiAsset::new();
-    ma2.set_asset(&pid1, &asset_name1, BigNum(20));
-    ma2.set_asset(&pid2, &asset_name3, BigNum(4));
+    ma2.set_asset(&pid1, &asset_name1, &BigNum(20));
+    ma2.set_asset(&pid2, &asset_name3, &BigNum(4));
     input2.output.amount.set_multiasset(&ma2);
     available_inputs.add(&input2);
 
     let mut input3 = make_input(3u8, Value::new(&BigNum(50)));
     let mut ma3 = MultiAsset::new();
-    ma3.set_asset(&pid2, &asset_name1, BigNum(5));
-    ma3.set_asset(&pid1, &asset_name2, BigNum(15));
+    ma3.set_asset(&pid2, &asset_name1, &BigNum(5));
+    ma3.set_asset(&pid1, &asset_name2, &BigNum(15));
     input3.output.amount.multiasset = Some(ma3);
     available_inputs.add(&input3);
 
     let mut input4 = make_input(4u8, Value::new(&BigNum(10)));
     let mut ma4 = MultiAsset::new();
-    ma4.set_asset(&pid1, &asset_name1, BigNum(10));
-    ma4.set_asset(&pid1, &asset_name2, BigNum(10));
+    ma4.set_asset(&pid1, &asset_name1, &BigNum(10));
+    ma4.set_asset(&pid1, &asset_name2, &BigNum(10));
     input4.output.amount.multiasset = Some(ma4);
     available_inputs.add(&input4);
 
     let mut input5 = make_input(5u8, Value::new(&BigNum(10)));
     let mut ma5 = MultiAsset::new();
-    ma5.set_asset(&pid1, &asset_name2, BigNum(10));
-    ma5.set_asset(&pid2, &asset_name2, BigNum(3));
+    ma5.set_asset(&pid1, &asset_name2, &BigNum(10));
+    ma5.set_asset(&pid2, &asset_name2, &BigNum(3));
     input5.output.amount.multiasset = Some(ma5);
     available_inputs.add(&input5);
 
@@ -2336,13 +2336,13 @@ fn tx_builder_cip2_random_improve_multiasset() {
 
     let mut input8 = make_input(8u8, Value::new(&BigNum(10)));
     let mut ma8 = MultiAsset::new();
-    ma8.set_asset(&pid2, &asset_name2, BigNum(10));
+    ma8.set_asset(&pid2, &asset_name2, &BigNum(10));
     input8.output.amount.multiasset = Some(ma8);
     available_inputs.add(&input8);
 
     let mut input9 = make_input(9u8, Value::new(&BigNum(10)));
     let mut ma9 = MultiAsset::new();
-    ma9.set_asset(&pid2, &asset_name3, BigNum(10));
+    ma9.set_asset(&pid2, &asset_name3, &BigNum(10));
     input9.output.amount.multiasset = Some(ma9);
     available_inputs.add(&input9);
 

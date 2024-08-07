@@ -1715,12 +1715,12 @@ impl MultiAsset {
         &mut self,
         policy_id: &PolicyID,
         asset_name: &AssetName,
-        value: BigNum,
+        value: &BigNum,
     ) -> Option<BigNum> {
         self.0
             .entry(policy_id.clone())
             .or_default()
-            .insert(asset_name, &value)
+            .insert(asset_name, value)
     }
 
     /// returns the amount of asset {asset_name} under policy {policy_id}
