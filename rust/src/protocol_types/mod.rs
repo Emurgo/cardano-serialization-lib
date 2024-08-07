@@ -53,8 +53,8 @@ pub use native_scripts::*;
 mod numeric;
 pub use numeric::*;
 
-mod versioned_block;
-pub use versioned_block::*;
-
 mod script_ref;
 pub use script_ref::*;
+
+mod block;
+pub use block::*;

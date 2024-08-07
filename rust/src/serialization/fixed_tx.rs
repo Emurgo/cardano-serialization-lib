@@ -1,5 +1,5 @@
 use crate::*;
-use std::io::SeekFrom;
+use crate::serialization::utils::deserilized_with_orig_bytes;
 
 impl cbor_event::se::Serialize for FixedTransaction {
     fn serialize<'se, W: Write>(
@@ -116,18 +116,4 @@ impl DeserializeEmbeddedGroup for FixedTransaction {
             auxiliary_bytes,
         })
     }
-}
-
-fn deserilized_with_orig_bytes<R: BufRead + Seek, T>(
-    raw: &mut Deserializer<R>,
-    deserilizator: fn(&mut Deserializer<R>) -> Result<T, DeserializeError>,
-) -> Result<(T, Vec<u8>), DeserializeError> {
-    let before = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-    let value = deserilizator(raw)?;
-    let after = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-    let bytes_read = (after - before) as usize;
-    raw.as_mut_ref().seek(SeekFrom::Start(before)).unwrap();
-    let original_bytes = raw.as_mut_ref().fill_buf().unwrap()[..bytes_read].to_vec();
-    raw.as_mut_ref().seek(SeekFrom::Start(after)).unwrap();
-    Ok((value, original_bytes))
 }

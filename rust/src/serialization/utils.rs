@@ -1,3 +1,4 @@
+use std::io::SeekFrom;
 use crate::*;
 
 /// TODO: this function can be removed in case `cbor_event` library ever gets a fix on their side
@@ -148,4 +149,18 @@ pub(crate) fn is_break_tag<R: BufRead + Seek>(
         );
     }
     Ok(false)
+}
+
+pub(crate) fn deserilized_with_orig_bytes<R: BufRead + Seek, T>(
+    raw: &mut Deserializer<R>,
+    deserializer: fn(&mut Deserializer<R>) -> Result<T, DeserializeError>,
+) -> Result<(T, Vec<u8>), DeserializeError> {
+    let before = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
+    let value = deserializer(raw)?;
+    let after = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
+    let bytes_read = (after - before) as usize;
+    raw.as_mut_ref().seek(SeekFrom::Start(before)).unwrap();
+    let original_bytes = raw.as_mut_ref().fill_buf().unwrap()[..bytes_read].to_vec();
+    raw.as_mut_ref().seek(SeekFrom::Start(after)).unwrap();
+    Ok((value, original_bytes))
 }
