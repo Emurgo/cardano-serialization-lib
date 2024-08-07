@@ -83,7 +83,7 @@ impl Certificate {
     /// Since StakeRegistration can represent stake_registration certificate or reg_cert certificate, because both certificates have the same semantics.
     /// And in some cases you want to create a reg_cert, this function is used to create a reg_cert.
     /// The function will return an error if StakeRegistration represents a stake_registration certificate.
-    pub fn new_reg_cert(stake_registration: &StakeRegistration) -> Result<Self, JsError> {
+    pub fn new_reg_cert(stake_registration: &StakeRegistration) -> Result<Certificate, JsError> {
         if stake_registration.coin.is_none() {
             return Err(JsError::from_str("coin is required"));
         } else {
@@ -102,7 +102,7 @@ impl Certificate {
     /// Since StakeDeregistration can represent stake_deregistration certificate or unreg_cert certificate, because both certificates have the same semantics.
     /// And in some cases you want to create an unreg_cert, this function is used to create an unreg_cert.
     /// The function will return an error if StakeDeregistration represents a stake_deregistration certificate.
-    pub fn new_unreg_cert(stake_deregistration: &StakeDeregistration) -> Result<Self, JsError> {
+    pub fn new_unreg_cert(stake_deregistration: &StakeDeregistration) -> Result<Certificate, JsError> {
         if stake_deregistration.coin.is_none() {
             return Err(JsError::from_str("coin is required"));
         } else {
