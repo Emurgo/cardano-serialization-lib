@@ -15,7 +15,7 @@ fn generate_assets(
         let policy_id = fake_policy_id(i as u8);
         for j in from_asset..(assets_count + from_asset) {
             let asset_name = AssetName::new(vec![j as u8; asset_name_size]).unwrap();
-            assets.set_asset(&policy_id, &asset_name, amount_per_asset);
+            assets.set_asset(&policy_id, &asset_name, &amount_per_asset);
         }
     }
 

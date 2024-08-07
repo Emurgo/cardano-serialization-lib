@@ -218,7 +218,7 @@ impl AssetCategorizer {
                 multiasset.set_asset(
                     &self.policies[policy_index.0],
                     &self.assets[asset_index.0].1,
-                    asset_coins,
+                    &asset_coins,
                 );
             }
         }
