@@ -21,13 +21,13 @@ fn certificates_builder_deposit_no_refund_test() {
     let committee_hot_key_reg_cert_wrapped =
         Certificate::new_committee_hot_auth(&committee_hot_key_reg_cert);
 
-    let drep_reg_cert = DrepRegistration::new(
+    let drep_reg_cert = DRepRegistration::new(
         &Credential::from_keyhash(&fake_key_hash(4)),
         &Coin::from(drep_reg_deposit),
     );
     let drep_reg_cert_wrapped = Certificate::new_drep_registration(&drep_reg_cert);
 
-    let drep_update_cert = DrepUpdate::new(&Credential::from_keyhash(&fake_key_hash(6)));
+    let drep_update_cert = DRepUpdate::new(&Credential::from_keyhash(&fake_key_hash(6)));
     let cdrep_update_cert_wrapped = Certificate::new_drep_update(&drep_update_cert);
 
     let genesis_key_deleg_cert = GenesisKeyDelegation::new(
@@ -183,13 +183,13 @@ fn certificates_builder_refund_no_deposit_test() {
     let committee_hot_key_reg_cert_wrapped =
         Certificate::new_committee_hot_auth(&committee_hot_key_reg_cert);
 
-    let drep_dereg_cert = DrepDeregistration::new(
+    let drep_dereg_cert = DRepDeregistration::new(
         &Credential::from_keyhash(&fake_key_hash(5)),
         &Coin::from(drep_reg_deposit),
     );
     let drep_dereg_cert_wrapped = Certificate::new_drep_deregistration(&drep_dereg_cert);
 
-    let drep_update_cert = DrepUpdate::new(&Credential::from_keyhash(&fake_key_hash(6)));
+    let drep_update_cert = DRepUpdate::new(&Credential::from_keyhash(&fake_key_hash(6)));
     let cdrep_update_cert_wrapped = Certificate::new_drep_update(&drep_update_cert);
 
     let genesis_key_deleg_cert = GenesisKeyDelegation::new(
@@ -318,19 +318,19 @@ fn certificates_builder_req_signers_test() {
     let committee_hot_key_reg_cert_wrapped =
         Certificate::new_committee_hot_auth(&committee_hot_key_reg_cert);
 
-    let drep_reg_cert = DrepRegistration::new(
+    let drep_reg_cert = DRepRegistration::new(
         &Credential::from_keyhash(&key_hash_4),
         &Coin::from(drep_reg_deposit),
     );
     let drep_reg_cert_wrapped = Certificate::new_drep_registration(&drep_reg_cert);
 
-    let drep_dereg_cert = DrepDeregistration::new(
+    let drep_dereg_cert = DRepDeregistration::new(
         &Credential::from_keyhash(&key_hash_5),
         &Coin::from(drep_reg_deposit),
     );
     let drep_dereg_cert_wrapped = Certificate::new_drep_deregistration(&drep_dereg_cert);
 
-    let drep_update_cert = DrepUpdate::new(&Credential::from_keyhash(&key_hash_6));
+    let drep_update_cert = DRepUpdate::new(&Credential::from_keyhash(&key_hash_6));
     let cdrep_update_cert_wrapped = Certificate::new_drep_update(&drep_update_cert);
 
     let genesis_key_deleg_cert = GenesisKeyDelegation::new(

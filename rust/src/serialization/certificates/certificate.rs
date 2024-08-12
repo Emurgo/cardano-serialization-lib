@@ -18,9 +18,9 @@ impl cbor_event::se::Serialize for CertificateEnum {
             CertificateEnum::MoveInstantaneousRewardsCert(x) => x.serialize(serializer),
             CertificateEnum::CommitteeHotAuth(x) => x.serialize(serializer),
             CertificateEnum::CommitteeColdResign(x) => x.serialize(serializer),
-            CertificateEnum::DrepRegistration(x) => x.serialize(serializer),
-            CertificateEnum::DrepDeregistration(x) => x.serialize(serializer),
-            CertificateEnum::DrepUpdate(x) => x.serialize(serializer),
+            CertificateEnum::DRepRegistration(x) => x.serialize(serializer),
+            CertificateEnum::DRepDeregistration(x) => x.serialize(serializer),
+            CertificateEnum::DRepUpdate(x) => x.serialize(serializer),
             CertificateEnum::StakeAndVoteDelegation(x) => x.serialize(serializer),
             CertificateEnum::StakeRegistrationAndDelegation(x) => x.serialize(serializer),
             CertificateEnum::StakeVoteRegistrationAndDelegation(x) => x.serialize(serializer),
@@ -119,14 +119,14 @@ impl DeserializeEmbeddedGroup for CertificateEnum {
                     CommitteeColdResign::deserialize_as_embedded_group(raw, len)?,
                 ))
             }
-            CertificateIndexNames::DrepRegistration => Ok(CertificateEnum::DrepRegistration(
-                DrepRegistration::deserialize_as_embedded_group(raw, len)?,
+            CertificateIndexNames::DRepRegistration => Ok(CertificateEnum::DRepRegistration(
+                DRepRegistration::deserialize_as_embedded_group(raw, len)?,
             )),
-            CertificateIndexNames::DrepDeregistration => Ok(CertificateEnum::DrepDeregistration(
-                DrepDeregistration::deserialize_as_embedded_group(raw, len)?,
+            CertificateIndexNames::DRepDeregistration => Ok(CertificateEnum::DRepDeregistration(
+                DRepDeregistration::deserialize_as_embedded_group(raw, len)?,
             )),
-            CertificateIndexNames::DrepUpdate => Ok(CertificateEnum::DrepUpdate(
-                DrepUpdate::deserialize_as_embedded_group(raw, len)?,
+            CertificateIndexNames::DRepUpdate => Ok(CertificateEnum::DRepUpdate(
+                DRepUpdate::deserialize_as_embedded_group(raw, len)?,
             )),
             CertificateIndexNames::StakeAndVoteDelegation => {
                 Ok(CertificateEnum::StakeAndVoteDelegation(

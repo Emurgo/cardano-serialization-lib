@@ -134,8 +134,8 @@ pub(crate) fn fake_pool_voting_thresholds() -> PoolVotingThresholds {
     )
 }
 
-pub(crate) fn fake_drep_voting_thresholds() -> DrepVotingThresholds {
-    DrepVotingThresholds::new(
+pub(crate) fn fake_drep_voting_thresholds() -> DRepVotingThresholds {
+    DRepVotingThresholds::new(
         &UnitInterval::new(&BigNum::from(44_401u32), &BigNum::from(44_402u32)),
         &UnitInterval::new(&BigNum::from(44_403u32), &BigNum::from(44_404u32)),
         &UnitInterval::new(&BigNum::from(44_405u32), &BigNum::from(44_406u32)),

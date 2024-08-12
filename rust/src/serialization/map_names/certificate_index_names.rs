@@ -16,7 +16,7 @@ pub(crate) enum CertificateIndexNames {
     StakeVoteRegistrationAndDelegation = 13,
     CommitteeHotAuth = 14,
     CommitteeColdResign = 15,
-    DrepRegistration = 16,
-    DrepDeregistration = 17,
-    DrepUpdate = 18,
+    DRepRegistration = 16,
+    DRepDeregistration = 17,
+    DRepUpdate = 18,
 }

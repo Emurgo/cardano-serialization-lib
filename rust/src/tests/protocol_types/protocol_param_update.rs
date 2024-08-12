@@ -129,7 +129,7 @@ fn ppu_setters_getters_test() {
     assert_eq!(ppu.pool_voting_thresholds().unwrap(), pool_voting_thresholds);
 
     assert!(ppu.drep_voting_thresholds().is_none());
-    let drep_voting_thresholds = DrepVotingThresholds::new(
+    let drep_voting_thresholds = DRepVotingThresholds::new(
         &UnitInterval::new(&BigNum::from(26u32), &BigNum::from(27u32)),
         &UnitInterval::new(&BigNum::from(28u32), &BigNum::from(29u32)),
         &UnitInterval::new(&BigNum::from(30u32), &BigNum::from(31u32)),
@@ -223,8 +223,8 @@ fn drep_voting_thresholds_test() {
     let pp_governance_group = UnitInterval::new(&BigNum::from(9u32), &BigNum::from(100u32));
     let treasury_withdrawal = UnitInterval::new(&BigNum::from(10u32), &BigNum::from(100u32));
 
-    // Creating a new DrepVotingThresholds instance
-    let dvt = DrepVotingThresholds::new(
+    // Creating a new DRepVotingThresholds instance
+    let dvt = DRepVotingThresholds::new(
         &motion_no_confidence,
         &committee_normal,
         &committee_no_confidence,

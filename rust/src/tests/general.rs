@@ -290,7 +290,7 @@ fn protocol_params_update_cbor_json_roundtrip() {
         &UnitInterval::new(&BigNum::from(40u32), &BigNum::from(41u32)),
         &UnitInterval::new(&BigNum::from(50u32), &BigNum::from(51u32)),
     ));
-    orig_ppu.set_drep_voting_thresholds(&DrepVotingThresholds::new(
+    orig_ppu.set_drep_voting_thresholds(&DRepVotingThresholds::new(
         &UnitInterval::new(&BigNum::from(26u32), &BigNum::from(27u32)),
         &UnitInterval::new(&BigNum::from(28u32), &BigNum::from(29u32)),
         &UnitInterval::new(&BigNum::from(30u32), &BigNum::from(31u32)),

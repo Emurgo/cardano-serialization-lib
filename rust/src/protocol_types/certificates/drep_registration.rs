@@ -13,16 +13,16 @@ use crate::*;
     JsonSchema,
 )]
 #[wasm_bindgen]
-pub struct DrepRegistration {
+pub struct DRepRegistration {
     pub(crate) voting_credential: Credential,
     pub(crate) coin: Coin,
     pub(crate) anchor: Option<Anchor>,
 }
 
-impl_to_from!(DrepRegistration);
+impl_to_from!(DRepRegistration);
 
 #[wasm_bindgen]
-impl DrepRegistration {
+impl DRepRegistration {
     pub fn voting_credential(&self) -> Credential {
         self.voting_credential.clone()
     }

@@ -81,12 +81,12 @@ fn committee_hot_auth_ser_round_trip() {
 
 #[test]
 fn drep_registration_ser_round_trip() {
-    let cert = DrepRegistration::new(
+    let cert = DRepRegistration::new(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
     let cert_wrapped = Certificate::new_drep_registration(&cert);
-    to_from_test!(DrepRegistration, cert, cert_wrapped);
+    to_from_test!(DRepRegistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_registration().unwrap());
 }
 
@@ -95,32 +95,32 @@ fn drep_registration_with_anchor_ser_round_trip() {
     let url = URL::new("https://iohk.io".to_string()).unwrap();
     let anchor = Anchor::new(&url, &fake_anchor_data_hash(255));
 
-    let cert = DrepRegistration::new_with_anchor(
+    let cert = DRepRegistration::new_with_anchor(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
         &anchor,
     );
     let cert_wrapped = Certificate::new_drep_registration(&cert);
-    to_from_test!(DrepRegistration, cert, cert_wrapped);
+    to_from_test!(DRepRegistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_registration().unwrap());
 }
 
 #[test]
 fn drep_deregistration_ser_round_trip() {
-    let cert = DrepDeregistration::new(
+    let cert = DRepDeregistration::new(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
     let cert_wrapped = Certificate::new_drep_deregistration(&cert);
-    to_from_test!(DrepDeregistration, cert, cert_wrapped);
+    to_from_test!(DRepDeregistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_deregistration().unwrap());
 }
 
 #[test]
 fn drep_update_ser_round_trip() {
-    let cert = DrepUpdate::new(&Credential::from_keyhash(&fake_key_hash(1)));
+    let cert = DRepUpdate::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let cert_wrapped = Certificate::new_drep_update(&cert);
-    to_from_test!(DrepUpdate, cert, cert_wrapped);
+    to_from_test!(DRepUpdate, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_update().unwrap());
 }
 
@@ -128,9 +128,9 @@ fn drep_update_ser_round_trip() {
 fn drep_update_with_anchor_ser_round_trip() {
     let url = URL::new("https://iohk.io".to_string()).unwrap();
     let anchor = Anchor::new(&url, &fake_anchor_data_hash(255));
-    let cert = DrepUpdate::new_with_anchor(&Credential::from_keyhash(&fake_key_hash(1)), &anchor);
+    let cert = DRepUpdate::new_with_anchor(&Credential::from_keyhash(&fake_key_hash(1)), &anchor);
     let cert_wrapped = Certificate::new_drep_update(&cert);
-    to_from_test!(DrepUpdate, cert, cert_wrapped);
+    to_from_test!(DRepUpdate, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_update().unwrap());
 }
 

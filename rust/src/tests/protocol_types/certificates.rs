@@ -44,9 +44,9 @@ fn drep_deregistration_setters_getters_test() {
     let cred_key_hash = Credential::from_keyhash(&fake_key_hash(1));
     let cred_script_hash = Credential::from_scripthash(&fake_script_hash(2));
     let coin = Coin::from(100u32);
-    let drep_deregistration_1 = DrepDeregistration::new(&cred_key_hash, &coin);
+    let drep_deregistration_1 = DRepDeregistration::new(&cred_key_hash, &coin);
 
-    let drep_deregistration_2 = DrepDeregistration::new(&cred_script_hash, &coin);
+    let drep_deregistration_2 = DRepDeregistration::new(&cred_script_hash, &coin);
 
     assert_eq!(drep_deregistration_1.voting_credential(), cred_key_hash);
     assert_eq!(drep_deregistration_1.coin(), coin);
@@ -61,10 +61,10 @@ fn drep_registration_setters_getters_test() {
     let cred_key_hash = Credential::from_keyhash(&fake_key_hash(1));
     let cred_script_hash = Credential::from_scripthash(&fake_script_hash(2));
     let coin = Coin::from(100u32);
-    let drep_registration_1 = DrepRegistration::new(&cred_key_hash, &coin);
+    let drep_registration_1 = DRepRegistration::new(&cred_key_hash, &coin);
 
     let anchor = fake_anchor();
-    let drep_registration_2 = DrepRegistration::new_with_anchor(&cred_script_hash, &coin, &anchor);
+    let drep_registration_2 = DRepRegistration::new_with_anchor(&cred_script_hash, &coin, &anchor);
 
     assert_eq!(drep_registration_1.voting_credential(), cred_key_hash);
     assert_eq!(drep_registration_1.coin(), coin);
@@ -76,10 +76,10 @@ fn drep_registration_setters_getters_test() {
 fn drep_update_setters_getters_test() {
     let cred_key_hash = Credential::from_keyhash(&fake_key_hash(1));
     let cred_script_hash = Credential::from_scripthash(&fake_script_hash(2));
-    let drep_update_1 = DrepUpdate::new(&cred_key_hash);
+    let drep_update_1 = DRepUpdate::new(&cred_key_hash);
 
     let anchor = fake_anchor();
-    let drep_update_2 = DrepUpdate::new_with_anchor(&cred_script_hash, &anchor);
+    let drep_update_2 = DRepUpdate::new_with_anchor(&cred_script_hash, &anchor);
 
     assert_eq!(drep_update_1.voting_credential(), cred_key_hash);
     assert_eq!(drep_update_1.anchor(), None);

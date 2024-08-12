@@ -76,7 +76,7 @@ impl PoolVotingThresholds {
     serde::Deserialize,
     JsonSchema,
 )]
-pub struct DrepVotingThresholds {
+pub struct DRepVotingThresholds {
     pub(crate) motion_no_confidence: UnitInterval,
     pub(crate) committee_normal: UnitInterval,
     pub(crate) committee_no_confidence: UnitInterval,
@@ -89,10 +89,10 @@ pub struct DrepVotingThresholds {
     pub(crate) treasury_withdrawal: UnitInterval,
 }
 
-impl_to_from!(DrepVotingThresholds);
+impl_to_from!(DRepVotingThresholds);
 
 #[wasm_bindgen]
-impl DrepVotingThresholds {
+impl DRepVotingThresholds {
     pub fn new(
         motion_no_confidence: &UnitInterval,
         committee_normal: &UnitInterval,
@@ -241,7 +241,7 @@ pub struct ProtocolParamUpdate {
     pub(crate) collateral_percentage: Option<u32>,
     pub(crate) max_collateral_inputs: Option<u32>,
     pub(crate) pool_voting_thresholds: Option<PoolVotingThresholds>,
-    pub(crate) drep_voting_thresholds: Option<DrepVotingThresholds>,
+    pub(crate) drep_voting_thresholds: Option<DRepVotingThresholds>,
     pub(crate) min_committee_size: Option<u32>,
     pub(crate) committee_term_limit: Option<Epoch>,
     pub(crate) governance_action_validity_period: Option<Epoch>,
@@ -465,11 +465,11 @@ impl ProtocolParamUpdate {
         self.pool_voting_thresholds.clone()
     }
 
-    pub fn set_drep_voting_thresholds(&mut self, drep_voting_thresholds: &DrepVotingThresholds) {
+    pub fn set_drep_voting_thresholds(&mut self, drep_voting_thresholds: &DRepVotingThresholds) {
         self.drep_voting_thresholds = Some(drep_voting_thresholds.clone())
     }
 
-    pub fn drep_voting_thresholds(&self) -> Option<DrepVotingThresholds> {
+    pub fn drep_voting_thresholds(&self) -> Option<DRepVotingThresholds> {
         self.drep_voting_thresholds.clone()
     }
 

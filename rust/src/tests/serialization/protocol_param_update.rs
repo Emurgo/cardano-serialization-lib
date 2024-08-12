@@ -95,7 +95,7 @@ fn pool_voting_thresholds_ser_round_trip() {
 
 #[test]
 fn drep_voting_thresholds_ser_round_trip() {
-    let thresholds = DrepVotingThresholds::new(
+    let thresholds = DRepVotingThresholds::new(
         &UnitInterval::new(&BigNum::from(44_401u32), &BigNum::from(44_402u32)),
         &UnitInterval::new(&BigNum::from(44_403u32), &BigNum::from(44_404u32)),
         &UnitInterval::new(&BigNum::from(44_405u32), &BigNum::from(44_406u32)),
@@ -112,9 +112,9 @@ fn drep_voting_thresholds_ser_round_trip() {
     let hex = thresholds.to_hex();
     let json = thresholds.to_json().unwrap();
 
-    let thresholds_from_cbor = DrepVotingThresholds::from_bytes(cbor).unwrap();
-    let thresholds_from_hex = DrepVotingThresholds::from_hex(&hex).unwrap();
-    let thresholds_from_json = DrepVotingThresholds::from_json(&json).unwrap();
+    let thresholds_from_cbor = DRepVotingThresholds::from_bytes(cbor).unwrap();
+    let thresholds_from_hex = DRepVotingThresholds::from_hex(&hex).unwrap();
+    let thresholds_from_json = DRepVotingThresholds::from_json(&json).unwrap();
 
     assert_eq!(thresholds, thresholds_from_cbor);
     assert_eq!(thresholds, thresholds_from_hex);

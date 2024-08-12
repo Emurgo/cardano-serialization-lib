@@ -177,9 +177,9 @@ fn main() {
     gen_json_schema!(VotingProcedures);
     gen_json_schema!(CommitteeHotAuth);
     gen_json_schema!(CommitteeColdResign);
-    gen_json_schema!(DrepDeregistration);
-    gen_json_schema!(DrepRegistration);
-    gen_json_schema!(DrepUpdate);
+    gen_json_schema!(DRepDeregistration);
+    gen_json_schema!(DRepRegistration);
+    gen_json_schema!(DRepUpdate);
     gen_json_schema!(StakeAndVoteDelegation);
     gen_json_schema!(StakeRegistrationAndDelegation);
     gen_json_schema!(StakeVoteRegistrationAndDelegation);
@@ -198,6 +198,6 @@ fn main() {
     gen_json_schema!(TreasuryWithdrawalsAction);
     gen_json_schema!(Committee);
     gen_json_schema!(Constitution);
-    gen_json_schema!(DrepVotingThresholds);
+    gen_json_schema!(DRepVotingThresholds);
     gen_json_schema!(PoolVotingThresholds);
 }

@@ -655,7 +655,7 @@ pub fn internal_get_implicit_input(
                     }
                 }
                 CertificateEnum::PoolRetirement(_) => acc.checked_add(&pool_deposit),
-                CertificateEnum::DrepDeregistration(cert) => acc.checked_add(&cert.coin),
+                CertificateEnum::DRepDeregistration(cert) => acc.checked_add(&cert.coin),
                 _ => Ok(acc),
             })?,
     };
@@ -684,7 +684,7 @@ pub fn internal_get_deposit(
                         acc.checked_add(&key_deposit)
                     }
                 }
-                CertificateEnum::DrepRegistration(cert) => acc.checked_add(&cert.coin),
+                CertificateEnum::DRepRegistration(cert) => acc.checked_add(&cert.coin),
                 CertificateEnum::StakeRegistrationAndDelegation(cert) => {
                     acc.checked_add(&cert.coin)
                 }

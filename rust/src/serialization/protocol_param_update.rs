@@ -55,7 +55,7 @@ impl DeserializeEmbeddedGroup for PoolVotingThresholds {
     }
 }
 
-impl Serialize for DrepVotingThresholds {
+impl Serialize for DRepVotingThresholds {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
@@ -74,9 +74,9 @@ impl Serialize for DrepVotingThresholds {
     }
 }
 
-impl_deserialize_for_wrapped_tuple!(DrepVotingThresholds);
+impl_deserialize_for_wrapped_tuple!(DRepVotingThresholds);
 
-impl DeserializeEmbeddedGroup for DrepVotingThresholds {
+impl DeserializeEmbeddedGroup for DRepVotingThresholds {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
@@ -119,7 +119,7 @@ impl DeserializeEmbeddedGroup for DrepVotingThresholds {
         let treasury_withdrawal =
             UnitInterval::deserialize(raw).map_err(|e| e.annotate("treasury_withdrawal"))?;
 
-        return Ok(DrepVotingThresholds {
+        return Ok(DRepVotingThresholds {
             motion_no_confidence,
             committee_normal,
             committee_no_confidence,
@@ -730,7 +730,7 @@ impl Deserialize for ProtocolParamUpdate {
                             drep_voting_thresholds = Some(
                                 (|| -> Result<_, DeserializeError> {
                                     read_len.read_elems(1)?;
-                                    Ok(DrepVotingThresholds::deserialize(raw)?)
+                                    Ok(DRepVotingThresholds::deserialize(raw)?)
                                 })()
                                 .map_err(|e| e.annotate("drep_voting_thresholds"))?,
                             );

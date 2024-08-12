@@ -160,7 +160,7 @@ impl CertificatesBuilder {
                         refund = refund.checked_add(&key_deposit)?;
                     }
                 }
-                CertificateEnum::DrepDeregistration(cert) => {
+                CertificateEnum::DRepDeregistration(cert) => {
                     refund = refund.checked_add(&cert.coin)?;
                 }
                 _ => {}
@@ -187,7 +187,7 @@ impl CertificatesBuilder {
                         deposit = deposit.checked_add(&key_deposit)?;
                     }
                 }
-                CertificateEnum::DrepRegistration(cert) => {
+                CertificateEnum::DRepRegistration(cert) => {
                     deposit = deposit.checked_add(&cert.coin)?;
                 }
                 CertificateEnum::StakeRegistrationAndDelegation(cert) => {
@@ -277,17 +277,17 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
                 set.add(key_hash);
             }
         }
-        CertificateEnum::DrepUpdate(cert) => {
+        CertificateEnum::DRepUpdate(cert) => {
             if let CredType::Key(key_hash) = &cert.voting_credential.0 {
                 set.add(key_hash);
             }
         }
-        CertificateEnum::DrepRegistration(cert) => {
+        CertificateEnum::DRepRegistration(cert) => {
             if let CredType::Key(key_hash) = &cert.voting_credential.0 {
                 set.add(key_hash);
             }
         }
-        CertificateEnum::DrepDeregistration(cert) => {
+        CertificateEnum::DRepDeregistration(cert) => {
             if let CredType::Key(key_hash) = &cert.voting_credential.0 {
                 set.add(key_hash);
             }
