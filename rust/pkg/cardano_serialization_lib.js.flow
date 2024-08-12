@@ -6,6 +6,30 @@
  */
 
 /**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
  * @param {Transaction} tx
  * @param {LinearFee} linear_fee
  * @returns {BigNum}
@@ -43,27 +67,27 @@ declare export function min_ref_script_fee(
 ): BigNum;
 
 /**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
+ * @param {string} json
+ * @param {$Values<
+                typeof 
+                PlutusDatumSchema>} schema
+ * @returns {PlutusData}
  */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
+declare export function encode_json_str_to_plutus_datum(
+  json: string,
+  schema: $Values<typeof PlutusDatumSchema>
+): PlutusData;
 
 /**
- * @param {string} password
- * @param {string} data
+ * @param {PlutusData} datum
+ * @param {$Values<
+                typeof 
+                PlutusDatumSchema>} schema
  * @returns {string}
  */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
+declare export function decode_plutus_datum_to_json_str(
+  datum: PlutusData,
+  schema: $Values<typeof PlutusDatumSchema>
 ): string;
 
 /**
@@ -232,30 +256,6 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
- * @param {string} json
- * @param {$Values<
-                typeof 
-                PlutusDatumSchema>} schema
- * @returns {PlutusData}
- */
-declare export function encode_json_str_to_plutus_datum(
-  json: string,
-  schema: $Values<typeof PlutusDatumSchema>
-): PlutusData;
-
-/**
- * @param {PlutusData} datum
- * @param {$Values<
-                typeof 
-                PlutusDatumSchema>} schema
- * @returns {string}
- */
-declare export function decode_plutus_datum_to_json_str(
-  datum: PlutusData,
-  schema: $Values<typeof PlutusDatumSchema>
-): string;
-
-/**
  * @param {Address} address
  * @param {TransactionUnspentOutputs} utxos
  * @param {TransactionBuilderConfig} config
@@ -266,189 +266,6 @@ declare export function create_send_all(
   utxos: TransactionUnspentOutputs,
   config: TransactionBuilderConfig
 ): TransactionBatchList;
-
-/**
- * JSON <-> PlutusData conversion schemas.
- * Follows ScriptDataJsonSchema in cardano-cli defined at:
- * https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/ScriptData.hs#L254
- *
- * All methods here have the following restrictions due to limitations on dependencies:
- * * JSON numbers above u64::MAX (positive) or below i64::MIN (negative) will throw errors
- * * Hex strings for bytes don't accept odd-length (half-byte) strings.
- *      cardano-cli seems to support these however but it seems to be different than just 0-padding
- *      on either side when tested so proceed with caution
- */
-
-declare export var PlutusDatumSchema: {|
-  +BasicConversions: 0, // 0
-  +DetailedSchema: 1, // 1
-|};
-
-/**
- */
-
-declare export var GovernanceActionKind: {|
-  +ParameterChangeAction: 0, // 0
-  +HardForkInitiationAction: 1, // 1
-  +TreasuryWithdrawalsAction: 2, // 2
-  +NoConfidenceAction: 3, // 3
-  +UpdateCommitteeAction: 4, // 4
-  +NewConstitutionAction: 5, // 5
-  +InfoAction: 6, // 6
-|};
-
-/**
- */
-
-declare export var AddressKind: {|
-  +Base: 0, // 0
-  +Pointer: 1, // 1
-  +Enterprise: 2, // 2
-  +Reward: 3, // 3
-  +Byron: 4, // 4
-  +Malformed: 5, // 5
-|};
-
-/**
- */
-
-declare export var MIRKind: {|
-  +ToOtherPot: 0, // 0
-  +ToStakeCredentials: 1, // 1
-|};
-
-/**
- */
-
-declare export var VoteKind: {|
-  +No: 0, // 0
-  +Yes: 1, // 1
-  +Abstain: 2, // 2
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var BlockEra: {|
-  +Byron: 0, // 0
-  +Shelley: 1, // 1
-  +Allegra: 2, // 2
-  +Mary: 3, // 3
-  +Alonzo: 4, // 4
-  +Babbage: 5, // 5
-  +Conway: 6, // 6
-  +Unknown: 7, // 7
-|};
-
-/**
- */
-
-declare export var PlutusDataKind: {|
-  +ConstrPlutusData: 0, // 0
-  +Map: 1, // 1
-  +List: 2, // 2
-  +Integer: 3, // 3
-  +Bytes: 4, // 4
-|};
-
-/**
- */
-
-declare export var CertificateKind: {|
-  +StakeRegistration: 0, // 0
-  +StakeDeregistration: 1, // 1
-  +StakeDelegation: 2, // 2
-  +PoolRegistration: 3, // 3
-  +PoolRetirement: 4, // 4
-  +GenesisKeyDelegation: 5, // 5
-  +MoveInstantaneousRewardsCert: 6, // 6
-  +CommitteeHotAuth: 7, // 7
-  +CommitteeColdResign: 8, // 8
-  +DrepDeregistration: 9, // 9
-  +DrepRegistration: 10, // 10
-  +DrepUpdate: 11, // 11
-  +StakeAndVoteDelegation: 12, // 12
-  +StakeRegistrationAndDelegation: 13, // 13
-  +StakeVoteRegistrationAndDelegation: 14, // 14
-  +VoteDelegation: 15, // 15
-  +VoteRegistrationAndDelegation: 16, // 16
-|};
-
-/**
- */
-
-declare export var CborContainerType: {|
-  +Array: 0, // 0
-  +Map: 1, // 1
-|};
-
-/**
- */
-
-declare export var LanguageKind: {|
-  +PlutusV1: 0, // 0
-  +PlutusV2: 1, // 1
-  +PlutusV3: 2, // 2
-|};
-
-/**
- */
-
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-  +LargestFirstMultiAsset: 2, // 2
-  +RandomImproveMultiAsset: 3, // 3
-|};
-
-/**
- */
-
-declare export var RelayKind: {|
-  +SingleHostAddr: 0, // 0
-  +SingleHostName: 1, // 1
-  +MultiHostName: 2, // 2
-|};
-
-/**
- */
-
-declare export var MIRPot: {|
-  +Reserves: 0, // 0
-  +Treasury: 1, // 1
-|};
-
-/**
- */
-
-declare export var RedeemerTagKind: {|
-  +Spend: 0, // 0
-  +Mint: 1, // 1
-  +Cert: 2, // 2
-  +Reward: 3, // 3
-  +Vote: 4, // 4
-  +VotingProposal: 5, // 5
-|};
 
 /**
  * Used to choosed the schema for a script JSON string
@@ -476,20 +293,49 @@ declare export var ScriptHashNamespace: {|
 /**
  */
 
-declare export var VoterKind: {|
-  +ConstitutionalCommitteeHotKeyHash: 0, // 0
-  +ConstitutionalCommitteeHotScriptHash: 1, // 1
-  +DRepKeyHash: 2, // 2
-  +DRepScriptHash: 3, // 3
-  +StakingPoolKeyHash: 4, // 4
+declare export var RedeemerTagKind: {|
+  +Spend: 0, // 0
+  +Mint: 1, // 1
+  +Cert: 2, // 2
+  +Reward: 3, // 3
+  +Vote: 4, // 4
+  +VotingProposal: 5, // 5
 |};
 
 /**
  */
 
-declare export var CredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ * JSON <-> PlutusData conversion schemas.
+ * Follows ScriptDataJsonSchema in cardano-cli defined at:
+ * https://github.com/input-output-hk/cardano-node/blob/master/cardano-api/src/Cardano/Api/ScriptData.hs#L254
+ *
+ * All methods here have the following restrictions due to limitations on dependencies:
+ * * JSON numbers above u64::MAX (positive) or below i64::MIN (negative) will throw errors
+ * * Hex strings for bytes don't accept odd-length (half-byte) strings.
+ *      cardano-cli seems to support these however but it seems to be different than just 0-padding
+ *      on either side when tested so proceed with caution
+ */
+
+declare export var PlutusDatumSchema: {|
+  +BasicConversions: 0, // 0
+  +DetailedSchema: 1, // 1
+|};
+
+/**
+ */
+
+declare export var NetworkIdKind: {|
+  +Testnet: 0, // 0
+  +Mainnet: 1, // 1
 |};
 
 /**
@@ -507,6 +353,81 @@ declare export var NativeScriptKind: {|
 /**
  */
 
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
+|};
+
+/**
+ */
+
+declare export var CertificateKind: {|
+  +StakeRegistration: 0, // 0
+  +StakeDeregistration: 1, // 1
+  +StakeDelegation: 2, // 2
+  +PoolRegistration: 3, // 3
+  +PoolRetirement: 4, // 4
+  +GenesisKeyDelegation: 5, // 5
+  +MoveInstantaneousRewardsCert: 6, // 6
+  +CommitteeHotAuth: 7, // 7
+  +CommitteeColdResign: 8, // 8
+  +DRepDeregistration: 9, // 9
+  +DRepRegistration: 10, // 10
+  +DRepUpdate: 11, // 11
+  +StakeAndVoteDelegation: 12, // 12
+  +StakeRegistrationAndDelegation: 13, // 13
+  +StakeVoteRegistrationAndDelegation: 14, // 14
+  +VoteDelegation: 15, // 15
+  +VoteRegistrationAndDelegation: 16, // 16
+|};
+
+/**
+ */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ */
+
+declare export var VoteKind: {|
+  +No: 0, // 0
+  +Yes: 1, // 1
+  +Abstain: 2, // 2
+|};
+
+/**
+ */
+
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
+|};
+
+/**
+ */
+
+declare export var CredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
 declare export var DRepKind: {|
   +KeyHash: 0, // 0
   +ScriptHash: 1, // 1
@@ -517,9 +438,88 @@ declare export var DRepKind: {|
 /**
  */
 
-declare export var NetworkIdKind: {|
-  +Testnet: 0, // 0
-  +Mainnet: 1, // 1
+declare export var RelayKind: {|
+  +SingleHostAddr: 0, // 0
+  +SingleHostName: 1, // 1
+  +MultiHostName: 2, // 2
+|};
+
+/**
+ */
+
+declare export var BlockEra: {|
+  +Byron: 0, // 0
+  +Shelley: 1, // 1
+  +Allegra: 2, // 2
+  +Mary: 3, // 3
+  +Alonzo: 4, // 4
+  +Babbage: 5, // 5
+  +Conway: 6, // 6
+  +Unknown: 7, // 7
+|};
+
+/**
+ */
+
+declare export var GovernanceActionKind: {|
+  +ParameterChangeAction: 0, // 0
+  +HardForkInitiationAction: 1, // 1
+  +TreasuryWithdrawalsAction: 2, // 2
+  +NoConfidenceAction: 3, // 3
+  +UpdateCommitteeAction: 4, // 4
+  +NewConstitutionAction: 5, // 5
+  +InfoAction: 6, // 6
+|};
+
+/**
+ */
+
+declare export var LanguageKind: {|
+  +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
+  +PlutusV3: 2, // 2
+|};
+
+/**
+ */
+
+declare export var AddressKind: {|
+  +Base: 0, // 0
+  +Pointer: 1, // 1
+  +Enterprise: 2, // 2
+  +Reward: 3, // 3
+  +Byron: 4, // 4
+  +Malformed: 5, // 5
+|};
+
+/**
+ */
+
+declare export var PlutusDataKind: {|
+  +ConstrPlutusData: 0, // 0
+  +Map: 1, // 1
+  +List: 2, // 2
+  +Integer: 3, // 3
+  +Bytes: 4, // 4
+|};
+
+/**
+ */
+
+declare export var VoterKind: {|
+  +ConstitutionalCommitteeHotKeyHash: 0, // 0
+  +ConstitutionalCommitteeHotScriptHash: 1, // 1
+  +DRepKeyHash: 2, // 2
+  +DRepScriptHash: 3, // 3
+  +StakingPoolKeyHash: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
 |};
 
 /**
@@ -1918,12 +1918,30 @@ declare export class Certificate {
   ): Certificate;
 
   /**
+   * Since StakeRegistration can represent stake_registration certificate or reg_cert certificate, because both certificates have the same semantics.
+   * And in some cases you want to create a reg_cert, this function is used to create a reg_cert.
+   * The function will return an error if StakeRegistration represents a stake_registration certificate.
+   * @param {StakeRegistration} stake_registration
+   * @returns {Certificate}
+   */
+  static new_reg_cert(stake_registration: StakeRegistration): Certificate;
+
+  /**
    * @param {StakeDeregistration} stake_deregistration
    * @returns {Certificate}
    */
   static new_stake_deregistration(
     stake_deregistration: StakeDeregistration
   ): Certificate;
+
+  /**
+   * Since StakeDeregistration can represent stake_deregistration certificate or unreg_cert certificate, because both certificates have the same semantics.
+   * And in some cases you want to create an unreg_cert, this function is used to create an unreg_cert.
+   * The function will return an error if StakeDeregistration represents a stake_deregistration certificate.
+   * @param {StakeDeregistration} stake_deregistration
+   * @returns {Certificate}
+   */
+  static new_unreg_cert(stake_deregistration: StakeDeregistration): Certificate;
 
   /**
    * @param {StakeDelegation} stake_delegation
@@ -1978,26 +1996,26 @@ declare export class Certificate {
   ): Certificate;
 
   /**
-   * @param {DrepDeregistration} drep_deregistration
+   * @param {DRepDeregistration} drep_deregistration
    * @returns {Certificate}
    */
   static new_drep_deregistration(
-    drep_deregistration: DrepDeregistration
+    drep_deregistration: DRepDeregistration
   ): Certificate;
 
   /**
-   * @param {DrepRegistration} drep_registration
+   * @param {DRepRegistration} drep_registration
    * @returns {Certificate}
    */
   static new_drep_registration(
-    drep_registration: DrepRegistration
+    drep_registration: DRepRegistration
   ): Certificate;
 
   /**
-   * @param {DrepUpdate} drep_update
+   * @param {DRepUpdate} drep_update
    * @returns {Certificate}
    */
-  static new_drep_update(drep_update: DrepUpdate): Certificate;
+  static new_drep_update(drep_update: DRepUpdate): Certificate;
 
   /**
    * @param {StakeAndVoteDelegation} stake_and_vote_delegation
@@ -2050,9 +2068,25 @@ declare export class Certificate {
   as_stake_registration(): StakeRegistration | void;
 
   /**
+   * Since StakeRegistration can represent stake_registration certificate or reg_cert certificate, because both certificates have the same semantics.
+   * And in some cases you want to get a reg_cert, this function is used to get a reg_cert.
+   * The function will return None if StakeRegistration represents a stake_registration certificate or Certificate is not a StakeRegistration.
+   * @returns {StakeRegistration | void}
+   */
+  as_reg_cert(): StakeRegistration | void;
+
+  /**
    * @returns {StakeDeregistration | void}
    */
   as_stake_deregistration(): StakeDeregistration | void;
+
+  /**
+   * Since StakeDeregistration can represent stake_deregistration certificate or unreg_cert certificate, because both certificates have the same semantics.
+   * And in some cases you want to get an unreg_cert, this function is used to get an unreg_cert.
+   * The function will return None if StakeDeregistration represents a stake_deregistration certificate or Certificate is not a StakeDeregistration.
+   * @returns {StakeDeregistration | void}
+   */
+  as_unreg_cert(): StakeDeregistration | void;
 
   /**
    * @returns {StakeDelegation | void}
@@ -2090,19 +2124,19 @@ declare export class Certificate {
   as_committee_cold_resign(): CommitteeColdResign | void;
 
   /**
-   * @returns {DrepDeregistration | void}
+   * @returns {DRepDeregistration | void}
    */
-  as_drep_deregistration(): DrepDeregistration | void;
+  as_drep_deregistration(): DRepDeregistration | void;
 
   /**
-   * @returns {DrepRegistration | void}
+   * @returns {DRepRegistration | void}
    */
-  as_drep_registration(): DrepRegistration | void;
+  as_drep_registration(): DRepRegistration | void;
 
   /**
-   * @returns {DrepUpdate | void}
+   * @returns {DRepUpdate | void}
    */
-  as_drep_update(): DrepUpdate | void;
+  as_drep_update(): DRepUpdate | void;
 
   /**
    * @returns {StakeAndVoteDelegation | void}
@@ -3125,79 +3159,7 @@ declare export class DRep {
 }
 /**
  */
-declare export class DataCost {
-  free(): void;
-
-  /**
-   * @param {BigNum} coins_per_byte
-   * @returns {DataCost}
-   */
-  static new_coins_per_byte(coins_per_byte: BigNum): DataCost;
-
-  /**
-   * @returns {BigNum}
-   */
-  coins_per_byte(): BigNum;
-}
-/**
- */
-declare export class DataHash {
-  free(): void;
-
-  /**
-   * @param {Uint8Array} bytes
-   * @returns {DataHash}
-   */
-  static from_bytes(bytes: Uint8Array): DataHash;
-
-  /**
-   * @returns {Uint8Array}
-   */
-  to_bytes(): Uint8Array;
-
-  /**
-   * @param {string} prefix
-   * @returns {string}
-   */
-  to_bech32(prefix: string): string;
-
-  /**
-   * @param {string} bech_str
-   * @returns {DataHash}
-   */
-  static from_bech32(bech_str: string): DataHash;
-
-  /**
-   * @returns {string}
-   */
-  to_hex(): string;
-
-  /**
-   * @param {string} hex
-   * @returns {DataHash}
-   */
-  static from_hex(hex: string): DataHash;
-}
-/**
- */
-declare export class DatumSource {
-  free(): void;
-
-  /**
-   * @param {PlutusData} datum
-   * @returns {DatumSource}
-   */
-  static new(datum: PlutusData): DatumSource;
-
-  /**
-   * @param {TransactionInput} input
-   * @returns {DatumSource}
-   */
-  static new_ref_input(input: TransactionInput): DatumSource;
-}
-/**
- */
-declare export class DrepDeregistration {
+declare export class DRepDeregistration {
   free(): void;
 
   /**
@@ -3207,9 +3169,9 @@ declare export class DrepDeregistration {
 
   /**
    * @param {Uint8Array} bytes
-   * @returns {DrepDeregistration}
+   * @returns {DRepDeregistration}
    */
-  static from_bytes(bytes: Uint8Array): DrepDeregistration;
+  static from_bytes(bytes: Uint8Array): DRepDeregistration;
 
   /**
    * @returns {string}
@@ -3218,9 +3180,9 @@ declare export class DrepDeregistration {
 
   /**
    * @param {string} hex_str
-   * @returns {DrepDeregistration}
+   * @returns {DRepDeregistration}
    */
-  static from_hex(hex_str: string): DrepDeregistration;
+  static from_hex(hex_str: string): DRepDeregistration;
 
   /**
    * @returns {string}
@@ -3228,15 +3190,15 @@ declare export class DrepDeregistration {
   to_json(): string;
 
   /**
-   * @returns {DrepDeregistrationJSON}
+   * @returns {DRepDeregistrationJSON}
    */
-  to_js_value(): DrepDeregistrationJSON;
+  to_js_value(): DRepDeregistrationJSON;
 
   /**
    * @param {string} json
-   * @returns {DrepDeregistration}
+   * @returns {DRepDeregistration}
    */
-  static from_json(json: string): DrepDeregistration;
+  static from_json(json: string): DRepDeregistration;
 
   /**
    * @returns {Credential}
@@ -3251,9 +3213,9 @@ declare export class DrepDeregistration {
   /**
    * @param {Credential} voting_credential
    * @param {BigNum} coin
-   * @returns {DrepDeregistration}
+   * @returns {DRepDeregistration}
    */
-  static new(voting_credential: Credential, coin: BigNum): DrepDeregistration;
+  static new(voting_credential: Credential, coin: BigNum): DRepDeregistration;
 
   /**
    * @returns {boolean}
@@ -3262,7 +3224,7 @@ declare export class DrepDeregistration {
 }
 /**
  */
-declare export class DrepRegistration {
+declare export class DRepRegistration {
   free(): void;
 
   /**
@@ -3272,9 +3234,9 @@ declare export class DrepRegistration {
 
   /**
    * @param {Uint8Array} bytes
-   * @returns {DrepRegistration}
+   * @returns {DRepRegistration}
    */
-  static from_bytes(bytes: Uint8Array): DrepRegistration;
+  static from_bytes(bytes: Uint8Array): DRepRegistration;
 
   /**
    * @returns {string}
@@ -3283,9 +3245,9 @@ declare export class DrepRegistration {
 
   /**
    * @param {string} hex_str
-   * @returns {DrepRegistration}
+   * @returns {DRepRegistration}
    */
-  static from_hex(hex_str: string): DrepRegistration;
+  static from_hex(hex_str: string): DRepRegistration;
 
   /**
    * @returns {string}
@@ -3293,15 +3255,15 @@ declare export class DrepRegistration {
   to_json(): string;
 
   /**
-   * @returns {DrepRegistrationJSON}
+   * @returns {DRepRegistrationJSON}
    */
-  to_js_value(): DrepRegistrationJSON;
+  to_js_value(): DRepRegistrationJSON;
 
   /**
    * @param {string} json
-   * @returns {DrepRegistration}
+   * @returns {DRepRegistration}
    */
-  static from_json(json: string): DrepRegistration;
+  static from_json(json: string): DRepRegistration;
 
   /**
    * @returns {Credential}
@@ -3321,21 +3283,21 @@ declare export class DrepRegistration {
   /**
    * @param {Credential} voting_credential
    * @param {BigNum} coin
-   * @returns {DrepRegistration}
+   * @returns {DRepRegistration}
    */
-  static new(voting_credential: Credential, coin: BigNum): DrepRegistration;
+  static new(voting_credential: Credential, coin: BigNum): DRepRegistration;
 
   /**
    * @param {Credential} voting_credential
    * @param {BigNum} coin
    * @param {Anchor} anchor
-   * @returns {DrepRegistration}
+   * @returns {DRepRegistration}
    */
   static new_with_anchor(
     voting_credential: Credential,
     coin: BigNum,
     anchor: Anchor
-  ): DrepRegistration;
+  ): DRepRegistration;
 
   /**
    * @returns {boolean}
@@ -3344,7 +3306,7 @@ declare export class DrepRegistration {
 }
 /**
  */
-declare export class DrepUpdate {
+declare export class DRepUpdate {
   free(): void;
 
   /**
@@ -3354,9 +3316,9 @@ declare export class DrepUpdate {
 
   /**
    * @param {Uint8Array} bytes
-   * @returns {DrepUpdate}
+   * @returns {DRepUpdate}
    */
-  static from_bytes(bytes: Uint8Array): DrepUpdate;
+  static from_bytes(bytes: Uint8Array): DRepUpdate;
 
   /**
    * @returns {string}
@@ -3365,9 +3327,9 @@ declare export class DrepUpdate {
 
   /**
    * @param {string} hex_str
-   * @returns {DrepUpdate}
+   * @returns {DRepUpdate}
    */
-  static from_hex(hex_str: string): DrepUpdate;
+  static from_hex(hex_str: string): DRepUpdate;
 
   /**
    * @returns {string}
@@ -3375,15 +3337,15 @@ declare export class DrepUpdate {
   to_json(): string;
 
   /**
-   * @returns {DrepUpdateJSON}
+   * @returns {DRepUpdateJSON}
    */
-  to_js_value(): DrepUpdateJSON;
+  to_js_value(): DRepUpdateJSON;
 
   /**
    * @param {string} json
-   * @returns {DrepUpdate}
+   * @returns {DRepUpdate}
    */
-  static from_json(json: string): DrepUpdate;
+  static from_json(json: string): DRepUpdate;
 
   /**
    * @returns {Credential}
@@ -3397,19 +3359,19 @@ declare export class DrepUpdate {
 
   /**
    * @param {Credential} voting_credential
-   * @returns {DrepUpdate}
+   * @returns {DRepUpdate}
    */
-  static new(voting_credential: Credential): DrepUpdate;
+  static new(voting_credential: Credential): DRepUpdate;
 
   /**
    * @param {Credential} voting_credential
    * @param {Anchor} anchor
-   * @returns {DrepUpdate}
+   * @returns {DRepUpdate}
    */
   static new_with_anchor(
     voting_credential: Credential,
     anchor: Anchor
-  ): DrepUpdate;
+  ): DRepUpdate;
 
   /**
    * @returns {boolean}
@@ -3418,7 +3380,7 @@ declare export class DrepUpdate {
 }
 /**
  */
-declare export class DrepVotingThresholds {
+declare export class DRepVotingThresholds {
   free(): void;
 
   /**
@@ -3428,9 +3390,9 @@ declare export class DrepVotingThresholds {
 
   /**
    * @param {Uint8Array} bytes
-   * @returns {DrepVotingThresholds}
+   * @returns {DRepVotingThresholds}
    */
-  static from_bytes(bytes: Uint8Array): DrepVotingThresholds;
+  static from_bytes(bytes: Uint8Array): DRepVotingThresholds;
 
   /**
    * @returns {string}
@@ -3439,9 +3401,9 @@ declare export class DrepVotingThresholds {
 
   /**
    * @param {string} hex_str
-   * @returns {DrepVotingThresholds}
+   * @returns {DRepVotingThresholds}
    */
-  static from_hex(hex_str: string): DrepVotingThresholds;
+  static from_hex(hex_str: string): DRepVotingThresholds;
 
   /**
    * @returns {string}
@@ -3449,15 +3411,15 @@ declare export class DrepVotingThresholds {
   to_json(): string;
 
   /**
-   * @returns {DrepVotingThresholdsJSON}
+   * @returns {DRepVotingThresholdsJSON}
    */
-  to_js_value(): DrepVotingThresholdsJSON;
+  to_js_value(): DRepVotingThresholdsJSON;
 
   /**
    * @param {string} json
-   * @returns {DrepVotingThresholds}
+   * @returns {DRepVotingThresholds}
    */
-  static from_json(json: string): DrepVotingThresholds;
+  static from_json(json: string): DRepVotingThresholds;
 
   /**
    * @param {UnitInterval} motion_no_confidence
@@ -3470,7 +3432,7 @@ declare export class DrepVotingThresholds {
    * @param {UnitInterval} pp_technical_group
    * @param {UnitInterval} pp_governance_group
    * @param {UnitInterval} treasury_withdrawal
-   * @returns {DrepVotingThresholds}
+   * @returns {DRepVotingThresholds}
    */
   static new(
     motion_no_confidence: UnitInterval,
@@ -3483,7 +3445,7 @@ declare export class DrepVotingThresholds {
     pp_technical_group: UnitInterval,
     pp_governance_group: UnitInterval,
     treasury_withdrawal: UnitInterval
-  ): DrepVotingThresholds;
+  ): DRepVotingThresholds;
 
   /**
    * @param {UnitInterval} motion_no_confidence
@@ -3584,6 +3546,78 @@ declare export class DrepVotingThresholds {
    * @returns {UnitInterval}
    */
   treasury_withdrawal(): UnitInterval;
+}
+/**
+ */
+declare export class DataCost {
+  free(): void;
+
+  /**
+   * @param {BigNum} coins_per_byte
+   * @returns {DataCost}
+   */
+  static new_coins_per_byte(coins_per_byte: BigNum): DataCost;
+
+  /**
+   * @returns {BigNum}
+   */
+  coins_per_byte(): BigNum;
+}
+/**
+ */
+declare export class DataHash {
+  free(): void;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {DataHash}
+   */
+  static from_bytes(bytes: Uint8Array): DataHash;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  to_bytes(): Uint8Array;
+
+  /**
+   * @param {string} prefix
+   * @returns {string}
+   */
+  to_bech32(prefix: string): string;
+
+  /**
+   * @param {string} bech_str
+   * @returns {DataHash}
+   */
+  static from_bech32(bech_str: string): DataHash;
+
+  /**
+   * @returns {string}
+   */
+  to_hex(): string;
+
+  /**
+   * @param {string} hex
+   * @returns {DataHash}
+   */
+  static from_hex(hex: string): DataHash;
+}
+/**
+ */
+declare export class DatumSource {
+  free(): void;
+
+  /**
+   * @param {PlutusData} datum
+   * @returns {DatumSource}
+   */
+  static new(datum: PlutusData): DatumSource;
+
+  /**
+   * @param {TransactionInput} input
+   * @returns {DatumSource}
+   */
+  static new_ref_input(input: TransactionInput): DatumSource;
 }
 /**
  */
@@ -3894,6 +3928,55 @@ declare export class ExUnits {
   static new(mem: BigNum, steps: BigNum): ExUnits;
 }
 /**
+ * Read only view of a block with more strict structs for hash sensitive structs.
+ * Warning: This is experimental and may be removed or changed in the future.
+ */
+declare export class FixedBlock {
+  free(): void;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {FixedBlock}
+   */
+  static from_bytes(bytes: Uint8Array): FixedBlock;
+
+  /**
+   * @param {string} hex_str
+   * @returns {FixedBlock}
+   */
+  static from_hex(hex_str: string): FixedBlock;
+
+  /**
+   * @returns {Header}
+   */
+  header(): Header;
+
+  /**
+   * @returns {FixedTransactionBodies}
+   */
+  transaction_bodies(): FixedTransactionBodies;
+
+  /**
+   * @returns {TransactionWitnessSets}
+   */
+  transaction_witness_sets(): TransactionWitnessSets;
+
+  /**
+   * @returns {AuxiliaryDataSet}
+   */
+  auxiliary_data_set(): AuxiliaryDataSet;
+
+  /**
+   * @returns {Uint32Array}
+   */
+  invalid_transactions(): Uint32Array;
+
+  /**
+   * @returns {BlockHash}
+   */
+  block_hash(): BlockHash;
+}
+/**
  */
 declare export class FixedTransaction {
   free(): void;
@@ -4000,6 +4083,109 @@ declare export class FixedTransaction {
    * @returns {Uint8Array | void}
    */
   raw_auxiliary_data(): Uint8Array | void;
+}
+/**
+ * Warning: This is experimental and may be removed or changed in the future.
+ */
+declare export class FixedTransactionBodies {
+  free(): void;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {FixedTransactionBodies}
+   */
+  static from_bytes(bytes: Uint8Array): FixedTransactionBodies;
+
+  /**
+   * @param {string} hex_str
+   * @returns {FixedTransactionBodies}
+   */
+  static from_hex(hex_str: string): FixedTransactionBodies;
+
+  /**
+   * @returns {FixedTransactionBodies}
+   */
+  static new(): FixedTransactionBodies;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {FixedTransactionBody}
+   */
+  get(index: number): FixedTransactionBody;
+
+  /**
+   * @param {FixedTransactionBody} elem
+   */
+  add(elem: FixedTransactionBody): void;
+}
+/**
+ * Read-only view of a transaction body. With correct hash and original bytes.
+ * Warning: This is experimental and may be removed in the future.
+ */
+declare export class FixedTransactionBody {
+  free(): void;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {FixedTransactionBody}
+   */
+  static from_bytes(bytes: Uint8Array): FixedTransactionBody;
+
+  /**
+   * @param {string} hex_str
+   * @returns {FixedTransactionBody}
+   */
+  static from_hex(hex_str: string): FixedTransactionBody;
+
+  /**
+   * @returns {TransactionBody}
+   */
+  transaction_body(): TransactionBody;
+
+  /**
+   * @returns {TransactionHash}
+   */
+  tx_hash(): TransactionHash;
+
+  /**
+   * @returns {Uint8Array}
+   */
+  original_bytes(): Uint8Array;
+}
+/**
+ * Warning: This is experimental and may be removed in the future.
+ */
+declare export class FixedVersionedBlock {
+  free(): void;
+
+  /**
+   * @param {Uint8Array} bytes
+   * @returns {FixedVersionedBlock}
+   */
+  static from_bytes(bytes: Uint8Array): FixedVersionedBlock;
+
+  /**
+   * @param {string} hex_str
+   * @returns {FixedVersionedBlock}
+   */
+  static from_hex(hex_str: string): FixedVersionedBlock;
+
+  /**
+   * @returns {FixedBlock}
+   */
+  block(): FixedBlock;
+
+  /**
+ * @returns {$Values<
+                typeof 
+                BlockEra>}
+ */
+  era(): $Values<typeof BlockEra>;
 }
 /**
  */
@@ -8309,16 +8495,16 @@ declare export class ProtocolParamUpdate {
   pool_voting_thresholds(): PoolVotingThresholds | void;
 
   /**
-   * @param {DrepVotingThresholds} drep_voting_thresholds
+   * @param {DRepVotingThresholds} drep_voting_thresholds
    */
   set_drep_voting_thresholds(
-    drep_voting_thresholds: DrepVotingThresholds
+    drep_voting_thresholds: DRepVotingThresholds
   ): void;
 
   /**
-   * @returns {DrepVotingThresholds | void}
+   * @returns {DRepVotingThresholds | void}
    */
-  drep_voting_thresholds(): DrepVotingThresholds | void;
+  drep_voting_thresholds(): DRepVotingThresholds | void;
 
   /**
    * @param {number} min_committee_size
@@ -9788,7 +9974,7 @@ declare export class StakeDeregistration {
    * @param {BigNum} coin
    * @returns {StakeDeregistration}
    */
-  static new_with_coin(
+  static new_with_explicit_refund(
     stake_credential: Credential,
     coin: BigNum
   ): StakeDeregistration;
@@ -9862,7 +10048,7 @@ declare export class StakeRegistration {
    * @param {BigNum} coin
    * @returns {StakeRegistration}
    */
-  static new_with_coin(
+  static new_with_explicit_deposit(
     stake_credential: Credential,
     coin: BigNum
   ): StakeRegistration;
@@ -12369,6 +12555,11 @@ declare export class TxBuilderConstants {
    * @returns {Costmdls}
    */
   static plutus_vasil_cost_models(): Costmdls;
+
+  /**
+   * @returns {Costmdls}
+   */
+  static plutus_conway_cost_models(): Costmdls;
 }
 /**
  */
@@ -14223,15 +14414,15 @@ export type CertificateJSON =
       ...
     }
   | {
-      DrepDeregistration: DrepDeregistrationJSON,
+      DRepDeregistration: DRepDeregistrationJSON,
       ...
     }
   | {
-      DrepRegistration: DrepRegistrationJSON,
+      DRepRegistration: DRepRegistrationJSON,
       ...
     }
   | {
-      DrepUpdate: DrepUpdateJSON,
+      DRepUpdate: DRepUpdateJSON,
       ...
     }
   | {
@@ -14543,16 +14734,16 @@ export interface CommitteeColdResignJSON {
   anchor?: AnchorJSON | null;
   committee_cold_key: CredTypeJSON;
 }
-export interface DrepDeregistrationJSON {
+export interface DRepDeregistrationJSON {
   coin: string;
   voting_credential: CredTypeJSON;
 }
-export interface DrepRegistrationJSON {
+export interface DRepRegistrationJSON {
   anchor?: AnchorJSON | null;
   coin: string;
   voting_credential: CredTypeJSON;
 }
-export interface DrepUpdateJSON {
+export interface DRepUpdateJSON {
   anchor?: AnchorJSON | null;
   voting_credential: CredTypeJSON;
 }
@@ -14615,7 +14806,7 @@ export interface ProtocolParamUpdateJSON {
   d?: UnitIntervalJSON | null;
   drep_deposit?: string | null;
   drep_inactivity_period?: number | null;
-  drep_voting_thresholds?: DrepVotingThresholdsJSON | null;
+  drep_voting_thresholds?: DRepVotingThresholdsJSON | null;
   execution_costs?: ExUnitPricesJSON | null;
   expansion_rate?: UnitIntervalJSON | null;
   extra_entropy?: NonceJSON | null;
@@ -14645,7 +14836,7 @@ export interface ProtocolParamUpdateJSON {
 export interface CostmdlsJSON {
   [k: string]: CostModelJSON;
 }
-export interface DrepVotingThresholdsJSON {
+export interface DRepVotingThresholdsJSON {
   committee_no_confidence: UnitIntervalJSON;
   committee_normal: UnitIntervalJSON;
   hard_fork_initiation: UnitIntervalJSON;
@@ -14844,15 +15035,15 @@ export type CertificateEnumJSON =
       ...
     }
   | {
-      DrepDeregistration: DrepDeregistrationJSON,
+      DRepDeregistration: DRepDeregistrationJSON,
       ...
     }
   | {
-      DrepRegistration: DrepRegistrationJSON,
+      DRepRegistration: DRepRegistrationJSON,
       ...
     }
   | {
-      DrepUpdate: DrepUpdateJSON,
+      DRepUpdate: DRepUpdateJSON,
       ...
     }
   | {
