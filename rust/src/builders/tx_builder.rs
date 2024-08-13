@@ -380,11 +380,28 @@ impl TransactionBuilder {
         inputs: &TransactionUnspentOutputs,
         strategy: CoinSelectionStrategyCIP2,
     ) -> Result<(), JsError> {
-        let available_inputs = &inputs.0.clone();
+        let mut available_inputs: Vec<&TransactionUnspentOutput> = inputs.0.iter().collect();
+        let have_no_inputs_in_tx = !self.inputs.has_inputs();
         let mut input_total = self.get_total_input()?;
         let mut output_total = self
             .get_total_output()?
             .checked_add(&Value::new(&self.min_fee()?))?;
+
+        if (input_total.coin >= output_total.coin) && have_no_inputs_in_tx {
+            if available_inputs.is_empty() {
+                return Err(JsError::from_str("No inputs to add. Transaction should have at least one input"));
+            }
+
+            //just add first input, to cover needs of one input
+            let input = available_inputs.pop().unwrap();
+            self.add_regular_input(
+                &input.output.address,
+                &input.input,
+                &input.output.amount,
+            )?;
+            input_total = input_total.checked_add(&input.output.amount)?;
+        }
+
         match strategy {
             CoinSelectionStrategyCIP2::LargestFirst => {
                 if self
@@ -396,7 +413,7 @@ impl TransactionBuilder {
                     return Err(JsError::from_str("Multiasset values not supported by LargestFirst. Please use LargestFirstMultiAsset"));
                 }
                 self.cip2_largest_first_by(
-                    available_inputs,
+                    &available_inputs,
                     &mut (0..available_inputs.len()).collect(),
                     &mut input_total,
                     &mut output_total,
@@ -417,7 +434,7 @@ impl TransactionBuilder {
                 let mut available_indices =
                     (0..available_inputs.len()).collect::<BTreeSet<usize>>();
                 self.cip2_random_improve_by(
-                    available_inputs,
+                    &available_inputs,
                     &mut available_indices,
                     &mut input_total,
                     &mut output_total,
@@ -460,7 +477,7 @@ impl TransactionBuilder {
                     for (policy_id, assets) in ma.0.iter() {
                         for (asset_name, _) in assets.0.iter() {
                             self.cip2_largest_first_by(
-                                available_inputs,
+                                &available_inputs,
                                 &mut available_indices,
                                 &mut input_total,
                                 &mut output_total,
@@ -471,7 +488,7 @@ impl TransactionBuilder {
                 }
                 // add in remaining ADA
                 self.cip2_largest_first_by(
-                    available_inputs,
+                    &available_inputs,
                     &mut available_indices,
                     &mut input_total,
                     &mut output_total,
@@ -488,7 +505,7 @@ impl TransactionBuilder {
                     for (policy_id, assets) in ma.0.iter() {
                         for (asset_name, _) in assets.0.iter() {
                             self.cip2_random_improve_by(
-                                available_inputs,
+                                &available_inputs,
                                 &mut available_indices,
                                 &mut input_total,
                                 &mut output_total,
@@ -501,7 +518,7 @@ impl TransactionBuilder {
                 }
                 // add in remaining ADA
                 self.cip2_random_improve_by(
-                    available_inputs,
+                    &available_inputs,
                     &mut available_indices,
                     &mut input_total,
                     &mut output_total,
@@ -543,7 +560,7 @@ impl TransactionBuilder {
 
     fn cip2_largest_first_by<F>(
         &mut self,
-        available_inputs: &Vec<TransactionUnspentOutput>,
+        available_inputs: &Vec<&TransactionUnspentOutput>,
         available_indices: &mut Vec<usize>,
         input_total: &mut Value,
         output_total: &mut Value,
@@ -586,7 +603,7 @@ impl TransactionBuilder {
 
     fn cip2_random_improve_by<F>(
         &mut self,
-        available_inputs: &Vec<TransactionUnspentOutput>,
+        available_inputs: &Vec<&TransactionUnspentOutput>,
         available_indices: &mut BTreeSet<usize>,
         input_total: &mut Value,
         output_total: &mut Value,
@@ -654,24 +671,26 @@ impl TransactionBuilder {
         if !relevant_indices.is_empty() && pure_ada {
             // Phase 2: Improvement
             for output in outputs.iter_mut() {
-                let associated = associated_indices.get_mut(output).unwrap();
-                for i in associated.iter_mut() {
-                    let random_index = rng.gen_range(0..relevant_indices.len());
-                    let j: &mut usize = relevant_indices.get_mut(random_index).unwrap();
-                    let input = &available_inputs[*i];
-                    let new_input = &available_inputs[*j];
-                    let cur: u64 = (&by(&input.output.amount).unwrap_or(BigNum::zero())).into();
-                    let new: u64 = (&by(&new_input.output.amount).unwrap_or(BigNum::zero())).into();
-                    let min: u64 = (&by(&output.amount).unwrap_or(BigNum::zero())).into();
-                    let ideal = 2 * min;
-                    let max = 3 * min;
-                    let move_closer =
-                        (ideal as i128 - new as i128).abs() < (ideal as i128 - cur as i128).abs();
-                    let not_exceed_max = new < max;
-                    if move_closer && not_exceed_max {
-                        std::mem::swap(i, j);
-                        available_indices.insert(*i);
-                        available_indices.remove(j);
+                let associated = associated_indices.get_mut(output);
+                if let Some(associated) = associated {
+                    for i in associated.iter_mut() {
+                        let random_index = rng.gen_range(0..relevant_indices.len());
+                        let j: &mut usize = relevant_indices.get_mut(random_index).unwrap();
+                        let input = &available_inputs[*i];
+                        let new_input = &available_inputs[*j];
+                        let cur: u64 = (&by(&input.output.amount).unwrap_or(BigNum::zero())).into();
+                        let new: u64 = (&by(&new_input.output.amount).unwrap_or(BigNum::zero())).into();
+                        let min: u64 = (&by(&output.amount).unwrap_or(BigNum::zero())).into();
+                        let ideal = 2 * min;
+                        let max = 3 * min;
+                        let move_closer =
+                            (ideal as i128 - new as i128).abs() < (ideal as i128 - cur as i128).abs();
+                        let not_exceed_max = new < max;
+                        if move_closer && not_exceed_max {
+                            std::mem::swap(i, j);
+                            available_indices.insert(*i);
+                            available_indices.remove(j);
+                        }
                     }
                 }
             }

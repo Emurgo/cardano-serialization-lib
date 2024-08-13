@@ -6130,3 +6130,92 @@ fn utxo_selection_with_collateral_return_error() {
     let change_res = tx_builder.add_inputs_from_and_change_with_collateral_return(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config, &collateral_percent);
     assert!(change_res.is_err());
 }
+
+
+#[test]
+fn tx_builder_huge_implicit_input_coin_selection() {
+    // we have a = 1 to test increasing fees when more inputs are added
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 0));
+    tx_builder
+        .add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(
+                    &Address::from_bech32(
+                        "addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z",
+                    )
+                        .unwrap(),
+                )
+                .next()
+                .unwrap()
+                .with_coin(&BigNum(10000))
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
+    let mut cert_builder = CertificatesBuilder::new();
+    cert_builder
+        .add(
+            &Certificate::new_stake_deregistration(&StakeDeregistration::new_with_explicit_refund(
+                &Credential::from_keyhash(&fake_key_hash(1)),
+                &BigNum(9999999999),
+            )),
+        )
+        .unwrap();
+
+    tx_builder.set_certs_builder(&cert_builder);
+    let mut available_inputs = TransactionUnspentOutputs::new();
+    available_inputs.add(&make_input(0u8, Value::new(&BigNum(1500))));
+    available_inputs.add(&make_input(1u8, Value::new(&BigNum(2000))));
+
+    let add_inputs_res =
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
+    assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
+    assert_eq!(tx_builder.inputs.len(), 1);
+
+    let change_addr =
+        ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho")
+            .unwrap()
+            .to_address();
+    let add_change_res = tx_builder.add_change_if_needed(&change_addr);
+    assert!(add_change_res.is_ok(), "{:?}", add_change_res.err());
+    let tx_build_res = tx_builder.build();
+    assert!(tx_build_res.is_ok(), "{:?}", tx_build_res.err());
+}
+
+#[test]
+fn tx_builder_no_any_input_coin_selection() {
+    // we have a = 1 to test increasing fees when more inputs are added
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 0));
+    tx_builder
+        .add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(
+                    &Address::from_bech32(
+                        "addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z",
+                    )
+                        .unwrap(),
+                )
+                .next()
+                .unwrap()
+                .with_coin(&BigNum(10000))
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
+    let mut cert_builder = CertificatesBuilder::new();
+    cert_builder
+        .add(
+            &Certificate::new_stake_deregistration(&StakeDeregistration::new_with_explicit_refund(
+                &Credential::from_keyhash(&fake_key_hash(1)),
+                &BigNum(9999999999),
+            )),
+        )
+        .unwrap();
+
+    tx_builder.set_certs_builder(&cert_builder);
+    let available_inputs = TransactionUnspentOutputs::new();
+
+    let add_inputs_res =
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
+    assert!(add_inputs_res.is_err());
+}

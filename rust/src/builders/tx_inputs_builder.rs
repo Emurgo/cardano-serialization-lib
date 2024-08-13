@@ -335,6 +335,10 @@ impl TxInputsBuilder {
         self.into()
     }
 
+    pub(crate) fn has_inputs(&self) -> bool {
+        !self.inputs.is_empty()
+    }
+
     fn insert_input_with_witness(
         &mut self,
         script_hash: &ScriptHash,
