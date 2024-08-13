@@ -12,6 +12,13 @@ exclude = [
     "pkg/*",
 ]
 
+[features]
+default = []
+#TODO: need to review the features and delete legacy ones. List is defined to avoid warnings.
+property-test-api = []
+generic-serialization = []
+with-bench = []
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
