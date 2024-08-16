@@ -5888,6 +5888,7 @@ fn ref_script_fee_from_all_builders() {
     let tx_in_7 = fake_tx_input(7);
     let tx_in_8 = fake_tx_input(8);
     let tx_in_9 = fake_tx_input(9);
+    let tx_in_10 = fake_tx_input(10);
 
     let script_hash_1 = fake_script_hash(1);
     let script_hash_2 = fake_script_hash(2);
@@ -5968,7 +5969,7 @@ fn ref_script_fee_from_all_builders() {
     let input_coin = Coin::from(1000000000u64);
     tx_input_builder.add_plutus_script_input(
         &PlutusWitness::new_with_ref_without_datum(&plutus_source_8, &redeemer_8),
-        &tx_in_8,
+        &tx_in_10,
         &Value::new(&input_coin)
     );
 
@@ -6218,4 +6219,220 @@ fn tx_builder_no_any_input_coin_selection() {
     let add_inputs_res =
         tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
     assert!(add_inputs_res.is_err());
+}
+
+
+#[test]
+fn ref_inputs_debuplication_test() {
+    let mut mint_builder = MintBuilder::new();
+    let mut cert_builder = CertificatesBuilder::new();
+    let mut withdrawal_builder = WithdrawalsBuilder::new();
+    let mut voting_builder = VotingBuilder::new();
+    let mut voting_proposal_builder = VotingProposalBuilder::new();
+    let mut tx_input_builder = TxInputsBuilder::new();
+
+    let tx_in_1 = fake_tx_input(1);
+    let tx_in_2 = fake_tx_input(2);
+    let tx_in_3 = fake_tx_input(3);
+    let tx_in_4 = fake_tx_input(4);
+    let tx_in_5 = fake_tx_input(5);
+    let tx_in_6 = fake_tx_input(6);
+    let tx_in_7 = fake_tx_input(7);
+    let tx_in_8 = fake_tx_input(8);
+    let tx_in_9 = fake_tx_input(9);
+    let tx_in_10 = fake_tx_input(10);
+
+    let script_hash_1 = fake_script_hash(1);
+    let script_hash_2 = fake_script_hash(2);
+    let script_hash_3 = fake_script_hash(3);
+    let script_hash_4 = fake_script_hash(4);
+    let script_hash_5 = fake_script_hash(5);
+    let script_hash_6 = fake_script_hash(6);
+    let script_hash_7 = fake_script_hash(7);
+    let script_hash_8 = fake_script_hash(8);
+
+    let redeemer_1 = fake_redeemer_zero_cost(1);
+    let redeemer_2 = fake_redeemer_zero_cost(2);
+    let redeemer_3 = fake_redeemer_zero_cost(3);
+    let redeemer_4 = fake_redeemer_zero_cost(4);
+    let redeemer_5 = fake_redeemer_zero_cost(5);
+    let redeemer_6 = fake_redeemer_zero_cost(6);
+    let redeemer_8 = fake_redeemer_zero_cost(8);
+
+    let plutus_source_1 = PlutusScriptSource::new_ref_input(&script_hash_1, &tx_in_1, &Language::new_plutus_v2(), 10);
+    let plutus_source_2 = PlutusScriptSource::new_ref_input(&script_hash_2, &tx_in_2, &Language::new_plutus_v2(), 11);
+    let plutus_source_3 = PlutusScriptSource::new_ref_input(&script_hash_3, &tx_in_3, &Language::new_plutus_v2(), 111);
+    let plutus_source_4 = PlutusScriptSource::new_ref_input(&script_hash_4, &tx_in_4, &Language::new_plutus_v2(), 200);
+    let plutus_source_5 = PlutusScriptSource::new_ref_input(&script_hash_5, &tx_in_5, &Language::new_plutus_v2(), 3000);
+    let plutus_source_6 = PlutusScriptSource::new_ref_input(&script_hash_6, &tx_in_6, &Language::new_plutus_v2(), 5000);
+    let native_script_source = NativeScriptSource::new_ref_input(&script_hash_7, &tx_in_7);
+    let plutus_source_8 = PlutusScriptSource::new_ref_input(&script_hash_8, &tx_in_8, &Language::new_plutus_v2(), 50000);
+
+    mint_builder.add_asset(
+        &MintWitness::new_plutus_script(&plutus_source_1, &redeemer_1),
+        &AssetName::from_hex("44544e4654").unwrap(),
+        &Int::new(&BigNum::from(100u64))
+    ).unwrap();
+
+    mint_builder.add_asset(
+        &MintWitness::new_plutus_script(&plutus_source_2, &redeemer_2),
+        &AssetName::from_hex("44544e4654").unwrap(),
+        &Int::new(&BigNum::from(100u64))
+    ).unwrap();
+
+    withdrawal_builder.add_with_plutus_witness(
+        &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &Credential::from_scripthash(&script_hash_3)),
+        &Coin::from(1u64),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_3, &redeemer_3)
+    ).unwrap();
+
+    withdrawal_builder.add_with_native_script(
+        &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &Credential::from_scripthash(&script_hash_7)),
+        &Coin::from(1u64),
+        &native_script_source
+    ).unwrap();
+
+    cert_builder.add_with_plutus_witness(
+        &Certificate::new_stake_delegation(&StakeDelegation::new(&Credential::from_scripthash(&script_hash_4), &fake_key_hash(1))),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_4, &redeemer_4)
+    ).unwrap();
+
+    voting_builder.add_with_plutus_witness(
+        &Voter::new_drep(&Credential::from_scripthash(&script_hash_5)),
+        &GovernanceActionId::new(&fake_tx_hash(1), 1),
+        &VotingProcedure::new(VoteKind::Abstain),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_5, &redeemer_5)
+    ).unwrap();
+
+    voting_proposal_builder.add_with_plutus_witness(
+        &VotingProposal::new(
+            &GovernanceAction::new_new_constitution_action(
+                &NewConstitutionAction::new(
+                    &Constitution::new_with_script_hash(&fake_anchor(), &script_hash_6)
+                )
+            ),
+            &fake_anchor(),
+            &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &Credential::from_keyhash(&fake_key_hash(1))),
+            &Coin::from(0u64),
+        ),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_6, &redeemer_6)
+    ).unwrap();
+
+    let input_coin = Coin::from(1000000000u64);
+    tx_input_builder.add_plutus_script_input(
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_8, &redeemer_8),
+        &tx_in_10,
+        &Value::new(&input_coin)
+    );
+
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    tx_builder.set_mint_builder(&mint_builder);
+    tx_builder.set_certs_builder(&cert_builder);
+    tx_builder.set_withdrawals_builder(&withdrawal_builder);
+    tx_builder.set_voting_builder(&voting_builder);
+    tx_builder.set_voting_proposal_builder(&voting_proposal_builder);
+    tx_builder.set_inputs(&tx_input_builder);
+    tx_builder.add_script_reference_input(&tx_in_9, 16000);
+
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_1, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_2, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_3, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_4, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_5, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_6, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_7, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_8, &Value::new(&Coin::from(1000000000u64))).unwrap();
+
+
+    let fake_collateral = fake_tx_input(99);
+    let mut collateral_builder = TxInputsBuilder::new();
+    collateral_builder.add_regular_input(
+        &fake_base_address(99),
+        &fake_collateral,
+        &Value::new(&Coin::from(1000000000u64))
+    ).unwrap();
+
+    tx_builder.set_collateral(&collateral_builder);
+    tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models()).unwrap();
+    tx_builder.add_change_if_needed(&change_address).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_ok());
+
+    let mut tx = res.unwrap();
+    let mut vkey_witneses = Vkeywitnesses::new();
+    vkey_witneses.add(&fake_vkey_witness(1));
+    let mut wit_set = tx.witness_set();
+    wit_set.set_vkeys(&vkey_witneses);
+    tx = Transaction::new(&tx.body(), &wit_set, tx.auxiliary_data());
+
+    let total_tx_fee = tx.body().fee();
+
+    let tx_out_coin = tx.body().outputs().get(0).amount().coin();
+    let total_out = tx_out_coin
+        .checked_add(&total_tx_fee).unwrap()
+        .checked_sub(&Coin::from(2u64)).unwrap(); // withdrawals
+
+    assert_eq!(total_out, input_coin.checked_mul(&BigNum(9)).unwrap());
+
+    let ref_inputs = tx.body().reference_inputs().unwrap();
+    assert!(ref_inputs.contains(&tx_in_9));
+    assert_eq!(ref_inputs.len(), 1);
+}
+
+#[test]
+fn ref_inputs_and_reg_inputs_intersection_error() {
+    let tx_in_1 = fake_tx_input(1);
+    let tx_in_2 = fake_tx_input(2);
+
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_1, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_2, &Value::new(&Coin::from(1000000000u64))).unwrap();
+
+    tx_builder.add_reference_input(&tx_in_1);
+    tx_builder.add_change_if_needed(&change_address).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_err());
+}
+
+#[test]
+fn ref_inputs_and_reg_inputs_no_intersection_error() {
+    let tx_in_1 = fake_tx_input(1);
+    let tx_in_2 = fake_tx_input(2);
+    let tx_in_3 = fake_tx_input(3);
+
+    let linear_fee = LinearFee::new(&BigNum(1), &BigNum(0));
+    let cfg = TransactionBuilderConfigBuilder::new()
+        .fee_algo(&linear_fee)
+        .pool_deposit(&BigNum(0))
+        .key_deposit(&BigNum(0))
+        .max_value_size(9999)
+        .max_tx_size(9999)
+        .coins_per_utxo_byte(&Coin::zero())
+        .deduplicate_explicit_ref_inputs_with_regular_inputs(true)
+        .build()
+        .unwrap();
+    let mut tx_builder = TransactionBuilder::new(&cfg);
+    let change_address = fake_base_address(1);
+
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_1, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_2, &Value::new(&Coin::from(1000000000u64))).unwrap();
+
+    tx_builder.add_reference_input(&tx_in_1);
+    tx_builder.add_reference_input(&tx_in_3);
+    tx_builder.add_change_if_needed(&change_address).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_ok());
+
+    let tx = res.unwrap();
+
+    let ref_inputs = tx.body().reference_inputs().unwrap();
+    assert!(ref_inputs.contains(&tx_in_3));
+    assert_eq!(ref_inputs.len(), 1);
 }

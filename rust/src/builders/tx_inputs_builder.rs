@@ -339,6 +339,10 @@ impl TxInputsBuilder {
         !self.inputs.is_empty()
     }
 
+    pub(crate) fn has_input(&self, input: &TransactionInput) -> bool {
+        self.inputs.contains_key(input)
+    }
+
     fn insert_input_with_witness(
         &mut self,
         script_hash: &ScriptHash,

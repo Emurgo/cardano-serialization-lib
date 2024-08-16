@@ -183,6 +183,7 @@ pub struct TransactionBuilderConfig {
     pub(crate) ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
     pub(crate) ref_script_coins_per_byte: Option<UnitInterval>, // protocol parameter
     pub(crate) prefer_pure_change: bool,
+    pub(crate) deduplicate_explicit_ref_inputs_with_regular_inputs: bool,
 }
 
 impl TransactionBuilderConfig {
@@ -203,6 +204,7 @@ pub struct TransactionBuilderConfigBuilder {
     ex_unit_prices: Option<ExUnitPrices>,            // protocol parameter
     ref_script_coins_per_byte: Option<UnitInterval>, // protocol parameter
     prefer_pure_change: bool,
+    deduplicate_explicit_ref_inputs_with_regular_inputs: bool,
 }
 
 #[wasm_bindgen]
@@ -218,6 +220,7 @@ impl TransactionBuilderConfigBuilder {
             ex_unit_prices: None,
             ref_script_coins_per_byte: None,
             prefer_pure_change: false,
+            deduplicate_explicit_ref_inputs_with_regular_inputs: false,
         }
     }
 
@@ -275,6 +278,13 @@ impl TransactionBuilderConfigBuilder {
         cfg
     }
 
+    ///Removes a ref input (that was set via set_reference_inputs) if the ref inputs was presented in regular tx inputs
+    pub fn deduplicate_explicit_ref_inputs_with_regular_inputs(&self, deduplicate_explicit_ref_inputs_with_regular_inputs: bool) -> Self {
+        let mut cfg = self.clone();
+        cfg.deduplicate_explicit_ref_inputs_with_regular_inputs = deduplicate_explicit_ref_inputs_with_regular_inputs;
+        cfg
+    }
+
     pub fn build(&self) -> Result<TransactionBuilderConfig, JsError> {
         let cfg: Self = self.clone();
         Ok(TransactionBuilderConfig {
@@ -299,6 +309,7 @@ impl TransactionBuilderConfigBuilder {
             ex_unit_prices: cfg.ex_unit_prices,
             ref_script_coins_per_byte: cfg.ref_script_coins_per_byte,
             prefer_pure_change: cfg.prefer_pure_change,
+            deduplicate_explicit_ref_inputs_with_regular_inputs: cfg.deduplicate_explicit_ref_inputs_with_regular_inputs,
         })
     }
 }
@@ -1505,43 +1516,65 @@ impl TransactionBuilder {
     }
 
     pub fn get_reference_inputs(&self) -> TransactionInputs {
-        let mut inputs: HashSet<TransactionInput> = self.reference_inputs.keys().cloned().collect();
-        for input in self.inputs.get_ref_inputs() {
-            inputs.insert(input);
-        }
+        let mut inputs: HashSet<TransactionInput> = HashSet::new();
+
+        let mut add_ref_inputs_set = |ref_inputs: TransactionInputs| {
+            for input in ref_inputs {
+                if !self.inputs.has_input(&input) {
+                    inputs.insert(input);
+                }
+            }
+        };
+
+        add_ref_inputs_set(self.inputs.get_ref_inputs());
 
         if let Some(mint) = &self.mint {
-            for input in mint.get_ref_inputs() {
-                inputs.insert(input);
-            }
+            add_ref_inputs_set(mint.get_ref_inputs());
         }
 
         if let Some(withdrawals) = &self.withdrawals {
-            for input in withdrawals.get_ref_inputs() {
-                inputs.insert(input);
-            }
+            add_ref_inputs_set(withdrawals.get_ref_inputs());
         }
 
         if let Some(certs) = &self.certs {
-            for input in certs.get_ref_inputs() {
-                inputs.insert(input);
-            }
+            add_ref_inputs_set(certs.get_ref_inputs());
         }
 
         if let Some(voting_procedures) = &self.voting_procedures {
-            for input in voting_procedures.get_ref_inputs() {
-                inputs.insert(input);
-            }
+            add_ref_inputs_set(voting_procedures.get_ref_inputs());
         }
 
         if let Some(voting_proposals) = &self.voting_proposals {
-            for input in voting_proposals.get_ref_inputs() {
+            add_ref_inputs_set(voting_proposals.get_ref_inputs());
+        }
+
+        if self.config.deduplicate_explicit_ref_inputs_with_regular_inputs {
+            add_ref_inputs_set(TransactionInputs::from_vec(
+                self.reference_inputs.keys().cloned().collect())
+            )
+        } else {
+            for input in self.reference_inputs.keys().cloned() {
                 inputs.insert(input);
             }
         }
 
         let vec_inputs = inputs.into_iter().collect();
         TransactionInputs::from_vec(vec_inputs)
+    }
+
+    fn validate_inputs_intersection(&self) -> Result<(), JsError> {
+        let ref_inputs = self.get_reference_inputs();
+        for input in &ref_inputs {
+            if self.inputs.has_input(input) {
+                return Err(JsError::from_str(&format!(
+                    "The reference input {:?} is also present in the regular transaction inputs set. \
+    It's not allowed to have the same inputs in both the transaction's inputs set and the reference inputs set. \
+    You can use the `deduplicate_explicit_ref_inputs_with_regular_inputs` parameter in the `TransactionConfigBuilder` \
+    to enforce the removal of duplicate reference inputs."
+                    , input)));
+            }
+        }
+        Ok(())
     }
 
     fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {
@@ -1551,10 +1584,10 @@ impl TransactionBuilder {
             sizes_map: &mut HashMap<&'a TransactionInput, usize>,
         ) -> Result<(), JsError> {
             if sizes_map.entry(item.0).or_insert(item.1) != &item.1 {
-                return Err(JsError::from_str(&format!(
+                Err(JsError::from_str(&format!(
                     "Different script sizes for the same ref input {}",
                     item.0
-                )));
+                )))
             } else {
                 Ok(())
             }
@@ -2438,6 +2471,7 @@ impl TransactionBuilder {
                 ));
             }
         }
+        self.validate_inputs_intersection()?;
         self.build_tx_unsafe()
     }
 
