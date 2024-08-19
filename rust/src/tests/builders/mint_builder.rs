@@ -198,6 +198,7 @@ fn ref_inputs() {
     let native_script_source = NativeScriptSource::new_ref_input(
         &script_hash_2,
         &tx_input_ref2,
+        0,
     );
 
     let mint_witnes = MintWitness::new_plutus_script(&plutus_script_source, &redeemer);
@@ -236,6 +237,7 @@ fn multiple_mints() {
     let native_script_source = NativeScriptSource::new_ref_input(
         &script_hash_2,
         &tx_input_ref2,
+        0,
     );
 
     let mint_witnes = MintWitness::new_plutus_script(&plutus_script_source, &redeemer);
@@ -324,10 +326,12 @@ fn different_script_type_error() {
     let native_script_source1 = NativeScriptSource::new_ref_input(
         &script_hash_2,
         &tx_input_ref2,
+        0,
     );
     let native_script_source2 = NativeScriptSource::new_ref_input(
         &script_hash_1,
         &tx_input_ref1,
+        0,
     );
 
     let mint_witnes_plutus_1 = MintWitness::new_plutus_script(&plutus_script_source1, &redeemer);
@@ -374,6 +378,7 @@ fn wrong_witness_type_ref_error() {
     let native_script_source_1 = NativeScriptSource::new_ref_input(
         &script_hash_2,
         &tx_input_ref2,
+        0,
     );
     let native_script_source_2 = NativeScriptSource::new(&native_script);
 
@@ -443,6 +448,7 @@ fn wrong_witness_type_no_ref_error() {
     let native_script_source_1 = NativeScriptSource::new_ref_input(
         &script_hash_2,
         &tx_input_ref2,
+        0,
     );
     let native_script_source_2 = NativeScriptSource::new(&native_script);
 

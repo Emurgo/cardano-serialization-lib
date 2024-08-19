@@ -49,9 +49,7 @@ impl ScriptWitnessType {
         }
     }
 
-    pub(crate) fn get_script_ref_input_with_size(
-        &self,
-    ) -> Option<(&TransactionInput, usize)> {
+    pub(crate) fn get_script_ref_input_with_size(&self) -> Option<(&TransactionInput, usize)> {
         match self {
             ScriptWitnessType::PlutusScriptWitness(plutus_witness) => {
                 match &plutus_witness.script {
@@ -61,6 +59,12 @@ impl ScriptWitnessType {
                     _ => None,
                 }
             }
+            ScriptWitnessType::NativeScriptWitness(NativeScriptSourceEnum::RefInput(
+                input,
+                _,
+                _,
+                size,
+            )) => Some((input, *size)),
             _ => None,
         }
     }

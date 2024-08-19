@@ -3,14 +3,14 @@ use crate::*;
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) enum NativeScriptSourceEnum {
     NativeScript(NativeScript, Option<RequiredSigners>),
-    RefInput(TransactionInput, ScriptHash, Option<RequiredSigners>),
+    RefInput(TransactionInput, ScriptHash, Option<RequiredSigners>, usize),
 }
 
 impl NativeScriptSourceEnum {
     pub fn script_hash(&self) -> ScriptHash {
         match self {
             NativeScriptSourceEnum::NativeScript(script, _) => script.hash(),
-            NativeScriptSourceEnum::RefInput(_, script_hash, _) => script_hash.clone(),
+            NativeScriptSourceEnum::RefInput(_, script_hash, _, _) => script_hash.clone(),
         }
     }
 
@@ -22,7 +22,7 @@ impl NativeScriptSourceEnum {
                     None => Some(script.into())
                 }
             }
-            NativeScriptSourceEnum::RefInput(_, _, required_signers) => required_signers.clone(),
+            NativeScriptSourceEnum::RefInput(_, _, required_signers, _) => required_signers.clone(),
         }
     }
 
@@ -31,7 +31,7 @@ impl NativeScriptSourceEnum {
             NativeScriptSourceEnum::NativeScript(_, required_signers) => {
                 *required_signers = Some(key_hashes.clone());
             }
-            NativeScriptSourceEnum::RefInput(_, _, required_signers) => {
+            NativeScriptSourceEnum::RefInput(_, _, required_signers, _) => {
                 *required_signers = Some(key_hashes.clone());
             }
         }
@@ -51,11 +51,13 @@ impl NativeScriptSource {
     pub fn new_ref_input(
         script_hash: &ScriptHash,
         input: &TransactionInput,
+        script_size: usize,
     ) -> Self {
         Self(NativeScriptSourceEnum::RefInput(
             input.clone(),
             script_hash.clone(),
             None,
+            script_size
         ))
     }
 
@@ -65,5 +67,12 @@ impl NativeScriptSource {
 
     pub(crate) fn script_hash(&self) -> ScriptHash {
         self.0.script_hash()
+    }
+
+    pub fn get_ref_script_size(&self) -> Option<usize> {
+        match &self.0 {
+            NativeScriptSourceEnum::NativeScript(..) => None,
+            NativeScriptSourceEnum::RefInput(.., size) => Some(*size)
+        }
     }
 }

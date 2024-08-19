@@ -47,13 +47,13 @@ impl NativeMints {
     fn script_hash(&self) -> PolicyID {
         match &self.script {
             NativeScriptSourceEnum::NativeScript(script, _) => script.hash(),
-            NativeScriptSourceEnum::RefInput(_, script_hash, _) => script_hash.clone(),
+            NativeScriptSourceEnum::RefInput(_, script_hash, _, _) => script_hash.clone(),
         }
     }
 
     fn ref_input(&self) -> Option<&TransactionInput> {
         match &self.script {
-            NativeScriptSourceEnum::RefInput(input, _, _) => Some(input),
+            NativeScriptSourceEnum::RefInput(input, _, _, _) => Some(input),
             _ => None,
         }
     }
@@ -241,8 +241,8 @@ impl MintBuilder {
                     ))
                 }
             }
-            NativeScriptSourceEnum::RefInput(_, _, _) => {
-                if let NativeScriptSourceEnum::RefInput(_, _, _) = input_script_source {
+            NativeScriptSourceEnum::RefInput(_, _, _, _) => {
+                if let NativeScriptSourceEnum::RefInput(_, _, _, _) = input_script_source {
                     Ok(())
                 } else {
                     Err(JsError::from_str(

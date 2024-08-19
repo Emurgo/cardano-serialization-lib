@@ -362,7 +362,7 @@ fn native_script_input_ref_script() {
     let ref_input = fake_tx_input(2);
     let script_hash = fake_script_hash(1);
 
-    let mut native_script_source = NativeScriptSource::new_ref_input(&script_hash, &ref_input);
+    let mut native_script_source = NativeScriptSource::new_ref_input(&script_hash, &ref_input, 0);
     let mut key_hashes = Ed25519KeyHashes::new();
     key_hashes.add(&key_hash_1);
     native_script_source.set_required_signers(&key_hashes);

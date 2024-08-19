@@ -5913,7 +5913,7 @@ fn ref_script_fee_from_all_builders() {
     let plutus_source_4 = PlutusScriptSource::new_ref_input(&script_hash_4, &tx_in_4, &Language::new_plutus_v2(), 200);
     let plutus_source_5 = PlutusScriptSource::new_ref_input(&script_hash_5, &tx_in_5, &Language::new_plutus_v2(), 3000);
     let plutus_source_6 = PlutusScriptSource::new_ref_input(&script_hash_6, &tx_in_6, &Language::new_plutus_v2(), 5000);
-    let native_script_source = NativeScriptSource::new_ref_input(&script_hash_7, &tx_in_7);
+    let native_script_source = NativeScriptSource::new_ref_input(&script_hash_7, &tx_in_7, 10000);
     let plutus_source_8 = PlutusScriptSource::new_ref_input(&script_hash_8, &tx_in_8, &Language::new_plutus_v2(), 50000);
 
     mint_builder.add_asset(
@@ -6006,7 +6006,7 @@ fn ref_script_fee_from_all_builders() {
     wit_set.set_vkeys(&vkey_witneses);
     tx = Transaction::new(&tx.body(), &wit_set, tx.auxiliary_data());
 
-    let ref_script_fee = BigNum::from(44815u64);
+    let ref_script_fee = BigNum::from(53099u64);
     let total_tx_fee = tx.body().fee();
 
     //TODO: check change calculation for pessimistic size estimation.
@@ -6265,7 +6265,7 @@ fn ref_inputs_debuplication_test() {
     let plutus_source_4 = PlutusScriptSource::new_ref_input(&script_hash_4, &tx_in_4, &Language::new_plutus_v2(), 200);
     let plutus_source_5 = PlutusScriptSource::new_ref_input(&script_hash_5, &tx_in_5, &Language::new_plutus_v2(), 3000);
     let plutus_source_6 = PlutusScriptSource::new_ref_input(&script_hash_6, &tx_in_6, &Language::new_plutus_v2(), 5000);
-    let native_script_source = NativeScriptSource::new_ref_input(&script_hash_7, &tx_in_7);
+    let native_script_source = NativeScriptSource::new_ref_input(&script_hash_7, &tx_in_7, 10000);
     let plutus_source_8 = PlutusScriptSource::new_ref_input(&script_hash_8, &tx_in_8, &Language::new_plutus_v2(), 50000);
 
     mint_builder.add_asset(

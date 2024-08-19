@@ -334,7 +334,7 @@ fn voting_builder_native_script_ref_witness() {
 
     let ref_input = TransactionInput::new(&fake_tx_hash(5), 0);
     let mut script_source =
-        NativeScriptSource::new_ref_input(&script_hash, &ref_input);
+        NativeScriptSource::new_ref_input(&script_hash, &ref_input, 0);
     script_source.set_required_signers(&script_signers);
     builder
         .add_with_native_script(&voter, &action_id, &vote, &script_source)

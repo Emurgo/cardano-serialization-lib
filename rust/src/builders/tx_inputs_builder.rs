@@ -170,9 +170,7 @@ impl TxInputsBuilder {
         {
             match wintess {
                 ScriptWitnessType::NativeScriptWitness(NativeScriptSourceEnum::RefInput(
-                    input,
-                    _,
-                    _,
+                    input, _, _, _,
                 )) => {
                     inputs.push(input.clone());
                 }
