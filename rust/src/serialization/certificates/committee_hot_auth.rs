@@ -15,8 +15,8 @@ impl cbor_event::se::Serialize for CommitteeHotAuth {
         let proposal_index = CertificateIndexNames::CommitteeHotAuth.to_u64();
         serialize_and_check_index(serializer, proposal_index, "CommitteeHotAuth")?;
 
-        self.committee_cold_key.serialize(serializer)?;
-        self.committee_hot_key.serialize(serializer)?;
+        self.committee_cold_credential.serialize(serializer)?;
+        self.committee_hot_credential.serialize(serializer)?;
         Ok(serializer)
     }
 }
@@ -43,9 +43,9 @@ impl DeserializeEmbeddedGroup for CommitteeHotAuth {
         let committee_hot_key =
             Credential::deserialize(raw).map_err(|e| e.annotate("committee_hot_key"))?;
 
-        return Ok(CommitteeHotAuth {
-            committee_cold_key,
-            committee_hot_key,
-        });
+        Ok(CommitteeHotAuth {
+            committee_cold_credential: committee_cold_key,
+            committee_hot_credential: committee_hot_key,
+        })
     }
 }

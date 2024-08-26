@@ -13,7 +13,7 @@ use crate::*;
     JsonSchema,
 )]
 pub(crate) enum VoterEnum {
-    ConstitutionalCommitteeHotKey(Credential),
+    ConstitutionalCommitteeHotCred(Credential),
     DRep(Credential),
     StakingPool(Ed25519KeyHash),
 }
@@ -47,21 +47,21 @@ impl_to_from!(Voter);
 
 #[wasm_bindgen]
 impl Voter {
-    pub fn new_constitutional_committee_hot_key(cred: &Credential) -> Self {
-        Self(VoterEnum::ConstitutionalCommitteeHotKey(cred.clone()))
+    pub fn new_constitutional_committee_hot_credential(cred: &Credential) -> Self {
+        Self(VoterEnum::ConstitutionalCommitteeHotCred(cred.clone()))
     }
 
-    pub fn new_drep(cred: &Credential) -> Self {
+    pub fn new_drep_credential(cred: &Credential) -> Self {
         Self(VoterEnum::DRep(cred.clone()))
     }
 
-    pub fn new_staking_pool(key_hash: &Ed25519KeyHash) -> Self {
+    pub fn new_stake_pool_key_hash(key_hash: &Ed25519KeyHash) -> Self {
         Self(VoterEnum::StakingPool(key_hash.clone()))
     }
 
     pub fn kind(&self) -> VoterKind {
         match &self.0 {
-            VoterEnum::ConstitutionalCommitteeHotKey(cred) => match cred.kind() {
+            VoterEnum::ConstitutionalCommitteeHotCred(cred) => match cred.kind() {
                 CredKind::Key => VoterKind::ConstitutionalCommitteeHotKeyHash,
                 CredKind::Script => VoterKind::ConstitutionalCommitteeHotScriptHash,
             },
@@ -73,21 +73,21 @@ impl Voter {
         }
     }
 
-    pub fn to_constitutional_committee_hot_key(&self) -> Option<Credential> {
+    pub fn to_constitutional_committee_hot_credential(&self) -> Option<Credential> {
         match &self.0 {
-            VoterEnum::ConstitutionalCommitteeHotKey(cred) => Some(cred.clone()),
+            VoterEnum::ConstitutionalCommitteeHotCred(cred) => Some(cred.clone()),
             _ => None,
         }
     }
 
-    pub fn to_drep_cred(&self) -> Option<Credential> {
+    pub fn to_drep_credential(&self) -> Option<Credential> {
         match &self.0 {
             VoterEnum::DRep(cred) => Some(cred.clone()),
             _ => None,
         }
     }
 
-    pub fn to_staking_pool_key_hash(&self) -> Option<Ed25519KeyHash> {
+    pub fn to_stake_pool_key_hash(&self) -> Option<Ed25519KeyHash> {
         match &self.0 {
             VoterEnum::StakingPool(key_hash) => Some(key_hash.clone()),
             _ => None,
@@ -96,7 +96,7 @@ impl Voter {
 
     pub fn has_script_credentials(&self) -> bool {
         match &self.0 {
-            VoterEnum::ConstitutionalCommitteeHotKey(cred) => cred.has_script_hash(),
+            VoterEnum::ConstitutionalCommitteeHotCred(cred) => cred.has_script_hash(),
             VoterEnum::DRep(cred) => cred.has_script_hash(),
             VoterEnum::StakingPool(_) => false,
         }
@@ -104,7 +104,7 @@ impl Voter {
 
     pub fn to_key_hash(&self) -> Option<Ed25519KeyHash> {
         match &self.0 {
-            VoterEnum::ConstitutionalCommitteeHotKey(cred) => cred.to_keyhash(),
+            VoterEnum::ConstitutionalCommitteeHotCred(cred) => cred.to_keyhash(),
             VoterEnum::DRep(cred) => cred.to_keyhash(),
             VoterEnum::StakingPool(key_hash) => Some(key_hash.clone()),
         }

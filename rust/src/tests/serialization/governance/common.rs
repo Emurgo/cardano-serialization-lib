@@ -123,7 +123,7 @@ fn governance_action_id_ser_round_trip() {
 #[test]
 fn voter_constitutional_committee_hot_key_hash_ser_round_trip() {
     let voter =
-        Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&fake_key_hash(1)));
+        Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&fake_key_hash(1)));
 
     let cbor = voter.to_bytes();
     let cbor_hex = voter.to_hex();
@@ -137,7 +137,7 @@ fn voter_constitutional_committee_hot_key_hash_ser_round_trip() {
 
 #[test]
 fn voter_constitutional_committee_hot_script_hash_ser_round_trip() {
-    let voter = Voter::new_constitutional_committee_hot_key(&Credential::from_scripthash(
+    let voter = Voter::new_constitutional_committee_hot_credential(&Credential::from_scripthash(
         &fake_script_hash(1),
     ));
 
@@ -156,7 +156,7 @@ fn voter_constitutional_committee_hot_script_hash_ser_round_trip() {
 
 #[test]
 fn voter_drep_key_hash_ser_round_trip() {
-    let voter = Voter::new_drep(&Credential::from_keyhash(&fake_key_hash(1)));
+    let voter = Voter::new_drep_credential(&Credential::from_keyhash(&fake_key_hash(1)));
 
     let cbor = voter.to_bytes();
     let cbor_hex = voter.to_hex();
@@ -170,7 +170,7 @@ fn voter_drep_key_hash_ser_round_trip() {
 
 #[test]
 fn voter_drep_script_hash_ser_round_trip() {
-    let voter = Voter::new_drep(&Credential::from_scripthash(&fake_script_hash(1)));
+    let voter = Voter::new_drep_credential(&Credential::from_scripthash(&fake_script_hash(1)));
 
     let cbor = voter.to_bytes();
     let cbor_hex = voter.to_hex();
@@ -184,7 +184,7 @@ fn voter_drep_script_hash_ser_round_trip() {
 
 #[test]
 fn voter_staking_pool_ser_round_trip() {
-    let voter = Voter::new_staking_pool(&fake_key_hash(1));
+    let voter = Voter::new_stake_pool_key_hash(&fake_key_hash(1));
 
     let cbor = voter.to_bytes();
     let cbor_hex = voter.to_hex();
@@ -252,7 +252,7 @@ fn voting_procedures_single_item_ser_round_trip() {
     let mut voting_procedures = VotingProcedures::new();
 
     voting_procedures.insert(
-        &Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&fake_key_hash(1))),
+        &Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&fake_key_hash(1))),
         &GovernanceActionId::new(&fake_tx_hash(1), GovernanceActionIndex::from(42u32)),
         &VotingProcedure::new(VoteKind::Yes),
     );
@@ -280,19 +280,19 @@ fn voting_procedures_muiltiple_items_ser_round_trip() {
     let mut voting_procedures = VotingProcedures::new();
 
     voting_procedures.insert(
-        &Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&fake_key_hash(1))),
+        &Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&fake_key_hash(1))),
         &GovernanceActionId::new(&fake_tx_hash(1), GovernanceActionIndex::from(42u32)),
         &VotingProcedure::new(VoteKind::Yes),
     );
 
     voting_procedures.insert(
-        &Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&fake_key_hash(2))),
+        &Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&fake_key_hash(2))),
         &GovernanceActionId::new(&fake_tx_hash(2), GovernanceActionIndex::from(43u32)),
         &VotingProcedure::new(VoteKind::No),
     );
 
     voting_procedures.insert(
-        &Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&fake_key_hash(3))),
+        &Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&fake_key_hash(3))),
         &GovernanceActionId::new(&fake_tx_hash(3), GovernanceActionIndex::from(44u32)),
         &VotingProcedure::new(VoteKind::Abstain),
     );

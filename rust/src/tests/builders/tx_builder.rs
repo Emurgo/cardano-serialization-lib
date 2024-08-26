@@ -5946,7 +5946,7 @@ fn ref_script_fee_from_all_builders() {
     ).unwrap();
 
     voting_builder.add_with_plutus_witness(
-        &Voter::new_drep(&Credential::from_scripthash(&script_hash_5)),
+        &Voter::new_drep_credential(&Credential::from_scripthash(&script_hash_5)),
         &GovernanceActionId::new(&fake_tx_hash(1), 1),
         &VotingProcedure::new(VoteKind::Abstain),
         &PlutusWitness::new_with_ref_without_datum(&plutus_source_5, &redeemer_5)
@@ -6298,7 +6298,7 @@ fn ref_inputs_debuplication_test() {
     ).unwrap();
 
     voting_builder.add_with_plutus_witness(
-        &Voter::new_drep(&Credential::from_scripthash(&script_hash_5)),
+        &Voter::new_drep_credential(&Credential::from_scripthash(&script_hash_5)),
         &GovernanceActionId::new(&fake_tx_hash(1), 1),
         &VotingProcedure::new(VoteKind::Abstain),
         &PlutusWitness::new_with_ref_without_datum(&plutus_source_5, &redeemer_5)

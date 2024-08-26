@@ -10,12 +10,12 @@ fn committee_cold_resign_setters_getters_test() {
     let committee_cold_resign_2 = CommitteeColdResign::new(&cred_script_hash);
 
     assert_eq!(
-        committee_cold_resign_1.committee_cold_key(),
+        committee_cold_resign_1.committee_cold_credential(),
         cred_key_hash
     );
     assert!(!committee_cold_resign_1.has_script_credentials());
     assert_eq!(
-        committee_cold_resign_2.committee_cold_key(),
+        committee_cold_resign_2.committee_cold_credential(),
         cred_script_hash
     );
     assert!(committee_cold_resign_2.has_script_credentials());
@@ -29,11 +29,11 @@ fn committee_hot_auth_setters_getters_test() {
         CommitteeHotAuth::new(&cold_cred_key_hash, &hot_cred_key_hash);
 
     assert_eq!(
-        committee_hot_auth.committee_cold_key(),
+        committee_hot_auth.committee_cold_credential(),
         cold_cred_key_hash
     );
     assert_eq!(
-        committee_hot_auth.committee_hot_key(),
+        committee_hot_auth.committee_hot_credential(),
         hot_cred_key_hash
     );
     assert!(!committee_hot_auth.has_script_credentials());

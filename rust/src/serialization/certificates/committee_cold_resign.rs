@@ -14,7 +14,7 @@ impl cbor_event::se::Serialize for CommitteeColdResign {
         let proposal_index = CertificateIndexNames::CommitteeColdResign.to_u64();
         serialize_and_check_index(serializer, proposal_index, "CommitteeColdResign")?;
 
-        self.committee_cold_key.serialize(serializer)?;
+        self.committee_cold_credential.serialize(serializer)?;
         self.anchor.serialize_nullable(serializer)?;
         Ok(serializer)
     }
@@ -36,6 +36,6 @@ impl DeserializeEmbeddedGroup for CommitteeColdResign {
             Credential::deserialize(raw).map_err(|e| e.annotate("committee_cold_key"))?;
         let anchor = Anchor::deserialize_nullable(raw).map_err(|e| e.annotate("anchor"))?;
 
-        Ok(CommitteeColdResign { committee_cold_key, anchor })
+        Ok(CommitteeColdResign { committee_cold_credential: committee_cold_key, anchor })
     }
 }

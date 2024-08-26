@@ -13,9 +13,9 @@ fn voting_builder_key_signers_test() {
     let action_id_3 = GovernanceActionId::new(&fake_tx_hash(3), 3);
     let vote = VotingProcedure::new(VoteKind::No);
     let voter_1 =
-        Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&key_hash_1));
-    let voter_2 = Voter::new_drep(&Credential::from_keyhash(&key_hash_2));
-    let voter_3 = Voter::new_staking_pool(&key_hash_3);
+        Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&key_hash_1));
+    let voter_2 = Voter::new_drep_credential(&Credential::from_keyhash(&key_hash_2));
+    let voter_3 = Voter::new_stake_pool_key_hash(&key_hash_3);
     builder.add(&voter_1, &action_id_1, &vote).unwrap();
     builder.add(&voter_1, &action_id_2, &vote).unwrap();
     builder.add(&voter_2, &action_id_2, &vote).unwrap();
@@ -92,7 +92,7 @@ fn voting_builder_plutus_witness() {
     );
     let expected_redeemer =
         redeemer.clone_with_index_and_tag(&BigNum::zero(), &RedeemerTag::new_vote());
-    let voter = Voter::new_drep(&Credential::from_scripthash(&script_hash));
+    let voter = Voter::new_drep_credential(&Credential::from_scripthash(&script_hash));
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 1);
     let vote = VotingProcedure::new(VoteKind::No);
 
@@ -181,7 +181,7 @@ fn voting_builder_plutus_ref_witness() {
     let ref_input = TransactionInput::new(&fake_tx_hash(5), 0);
     let expected_redeemer =
         redeemer.clone_with_index_and_tag(&BigNum::zero(), &RedeemerTag::new_vote());
-    let voter = Voter::new_drep(&Credential::from_scripthash(&script_hash));
+    let voter = Voter::new_drep_credential(&Credential::from_scripthash(&script_hash));
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 1);
     let vote = VotingProcedure::new(VoteKind::No);
 
@@ -257,7 +257,7 @@ fn voting_builder_native_script_witness() {
     let native_script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&key_hash));
     let script_hash = native_script.hash();
 
-    let voter = Voter::new_drep(&Credential::from_scripthash(&script_hash));
+    let voter = Voter::new_drep_credential(&Credential::from_scripthash(&script_hash));
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 1);
     let vote = VotingProcedure::new(VoteKind::No);
 
@@ -325,7 +325,7 @@ fn voting_builder_native_script_ref_witness() {
     let key_hash = fake_key_hash(10);
     let script_hash = fake_script_hash(1);
 
-    let voter = Voter::new_drep(&Credential::from_scripthash(&script_hash));
+    let voter = Voter::new_drep_credential(&Credential::from_scripthash(&script_hash));
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 1);
     let vote = VotingProcedure::new(VoteKind::No);
 
@@ -399,7 +399,7 @@ fn voting_builder_native_script_ref_witness() {
 fn voting_builder_non_script_voter_error() {
     let mut builder = VotingBuilder::new();
     let key_hash = fake_key_hash(10);
-    let voter = Voter::new_drep(&Credential::from_keyhash(&key_hash));
+    let voter = Voter::new_drep_credential(&Credential::from_keyhash(&key_hash));
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 1);
     let vote = VotingProcedure::new(VoteKind::No);
 
@@ -425,7 +425,7 @@ fn voting_builder_non_script_voter_error() {
 #[test]
 fn voting_builder_key_hash_error() {
     let mut builder = VotingBuilder::new();
-    let voter = Voter::new_drep(&Credential::from_scripthash(&fake_script_hash(1)));
+    let voter = Voter::new_drep_credential(&Credential::from_scripthash(&fake_script_hash(1)));
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 1);
     let vote = VotingProcedure::new(VoteKind::No);
 
