@@ -69,7 +69,7 @@ impl cbor_event::se::Serialize for PlutusMap {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_map(cbor_event::Len::Len(self.0.len() as u64))?;
+        serializer.write_map(cbor_event::Len::Len(self.total_len() as u64))?;
         for (key, values) in &self.0 {
             for value in &values.elems {
                 key.serialize(serializer)?;

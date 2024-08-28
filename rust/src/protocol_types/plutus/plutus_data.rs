@@ -150,6 +150,10 @@ impl PlutusMap {
             .or_insert_with(PlutusMapValues::new);
         values.add_move(value);
     }
+
+    pub(crate) fn total_len(&self) -> usize {
+        self.0.iter().map(|(_k, v)| v.len()).sum()
+    }
 }
 
 #[wasm_bindgen]

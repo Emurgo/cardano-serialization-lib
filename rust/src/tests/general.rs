@@ -819,3 +819,36 @@ fn test_multiple_tiers() {
         assert_eq!(result.to_str(), *expected, "Failed for size {}", size);
     }
 }
+
+#[test]
+fn plutus_map_keys_duplication_test() {
+    let mut map = PlutusMap::new();
+    let key1 = PlutusData::new_integer(&BigInt::from(1));
+    let key2 = PlutusData::new_integer(&BigInt::from(2));
+    let value1 = PlutusData::new_integer(&BigInt::from(3));
+    let value2 = PlutusData::new_integer(&BigInt::from(4));
+    let value3 = PlutusData::new_integer(&BigInt::from(5));
+
+    assert_eq!(map.len(), 0);
+    assert_eq!(map.total_len(), 0);
+
+    let mut plutus_map_value1 = PlutusMapValues::new();
+    plutus_map_value1.add(&value1);
+    plutus_map_value1.add(&value2);
+
+    let mut plutus_map_value2 = PlutusMapValues::new();
+    plutus_map_value2.add(&value3);
+
+    map.insert(&key1, &plutus_map_value1);
+    map.insert(&key2, &plutus_map_value2);
+
+    assert_eq!(map.len(), 2);
+    assert_eq!(map.total_len(), 3);
+
+    let map_bytes = map.to_bytes();
+    let map_from_bytes = PlutusMap::from_bytes(map_bytes).unwrap();
+    assert_eq!(map_from_bytes.len(), 2);
+    assert_eq!(map_from_bytes.total_len(), 3);
+
+    assert_eq!(map, map_from_bytes)
+}
