@@ -1,24 +1,34 @@
 {
   "name": "cardano-serialization-lib",
-  "version": "11.5.0",
+  "version": "12.0.0",
   "description": "(De)serialization functions for the Cardano blockchain along with related utility functions",
   "scripts": {
     "rust:build-nodejs": "(rimraf ./rust/pkg && cd rust; wasm-pack build --target=nodejs; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run js:flowgen",
     "rust:build-browser": "(rimraf ./rust/pkg && cd rust; wasm-pack build --target=browser; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run js:flowgen",
     "rust:build-web": "(rimraf ./rust/pkg && cd rust; wasm-pack build --target=web; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run js:flowgen",
     "rust:build-asm": "(rimraf ./rust/pkg && cd rust; wasm-pack build --target=browser; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run asm:build && npm run js:flowgen",
+    "rust:build-nodejs:gc": "(rimraf ./rust/pkg && cd rust; WASM_BINDGEN_WEAKREF=1 wasm-pack build --target=nodejs; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run js:flowgen",
+    "rust:build-browser:gc": "(rimraf ./rust/pkg && cd rust; WASM_BINDGEN_WEAKREF=1 wasm-pack build --target=browser; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run js:flowgen",
+    "rust:build-web:gc": "(rimraf ./rust/pkg && cd rust; WASM_BINDGEN_WEAKREF=1 wasm-pack build --target=web; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run js:flowgen",
+    "rust:build-asm:gc": "(rimraf ./rust/pkg && cd rust; WASM_BINDGEN_WEAKREF=1 wasm-pack build --target=browser; cd ..; npm run js:ts-json-gen; cd rust; wasm-pack pack) && npm run asm:build && npm run js:flowgen",
     "rust:publish": "cd rust && cargo publish && cd ../",
     "asm:build": "./binaryen/bin/wasm2js ./rust/pkg/cardano_serialization_lib_bg.wasm --output ./rust/pkg/cardano_serialization_lib.asm.js && node ./scripts/wasm-to-asm && node ./scripts/fix-buffer-ref.js",
     "rust:check-warnings": "(cd rust; RUSTFLAGS=\"-D warnings\" cargo +stable build)",
     "rust:test": "(cd rust; cargo test)",
     "js:flowgen": "flowgen ./rust/pkg/cardano_serialization_lib.d.ts -o ./rust/pkg/cardano_serialization_lib.js.flow --add-flow-header",
     "js:prepublish": "npm run rust:test && rimraf ./publish && cp -r ./rust/pkg ./publish && cp README.md publish/ && cp LICENSE publish/",
-    "js:publish-nodejs:prod": "npm run rust:build-nodejs && npm run js:prepublish && node ./scripts/publish-helper -nodejs && cd publish && npm publish --access public",
-    "js:publish-nodejs:beta": "npm run rust:build-nodejs && npm run js:prepublish && node ./scripts/publish-helper -nodejs && cd publish && npm publish --tag beta --access public",
-    "js:publish-browser:prod": "npm run rust:build-browser && npm run js:prepublish && node ./scripts/publish-helper -browser && cd publish && npm publish --access public",
-    "js:publish-browser:beta": "npm run rust:build-browser && npm run js:prepublish && node ./scripts/publish-helper -browser && cd publish && npm publish --tag beta --access public",
-    "js:publish-asm:prod": "npm run rust:build-asm && npm run js:prepublish && node ./scripts/publish-helper -asmjs && cd publish && npm publish --access public",
-    "js:publish-asm:beta": "npm run rust:build-asm && npm run js:prepublish && node ./scripts/publish-helper -asmjs && cd publish && npm publish --tag beta --access public",
+    "js:publish-nodejs:prod:no-gc": "npm run rust:build-nodejs && npm run js:prepublish && node ./scripts/publish-helper -nodejs && cd publish && npm publish --access public",
+    "js:publish-nodejs:beta:no-gc": "npm run rust:build-nodejs && npm run js:prepublish && node ./scripts/publish-helper -nodejs && cd publish && npm publish --tag beta --access public",
+    "js:publish-browser:prod:no-gc": "npm run rust:build-browser && npm run js:prepublish && node ./scripts/publish-helper -browser && cd publish && npm publish --access public",
+    "js:publish-browser:beta:no-gc": "npm run rust:build-browser && npm run js:prepublish && node ./scripts/publish-helper -browser && cd publish && npm publish --tag beta --access public",
+    "js:publish-asm:prod:no-gc": "npm run rust:build-asm && npm run js:prepublish && node ./scripts/publish-helper -asmjs && cd publish && npm publish --access public",
+    "js:publish-asm:beta:no-gc": "npm run rust:build-asm && npm run js:prepublish && node ./scripts/publish-helper -asmjs && cd publish && npm publish --tag beta --access public",
+    "js:publish-nodejs:prod:gc": "npm run rust:build-nodejs:gc && npm run js:prepublish && node ./scripts/publish-helper -nodejs -gc && cd publish && npm publish --access public",
+    "js:publish-nodejs:beta:gc": "npm run rust:build-nodejs:gc && npm run js:prepublish && node ./scripts/publish-helper -nodejs -gc && cd publish && npm publish --tag beta --access public",
+    "js:publish-browser:prod:gc": "npm run rust:build-browser:gc && npm run js:prepublish && node ./scripts/publish-helper -browser -gc && cd publish && npm publish --access public",
+    "js:publish-browser:beta:gc": "npm run rust:build-browser:gc && npm run js:prepublish && node ./scripts/publish-helper -browser -gc && cd publish && npm publish --tag beta --access public",
+    "js:publish-asm:prod:gc": "npm run rust:build-asm:gc && npm run js:prepublish && node ./scripts/publish-helper -asmjs -gc && cd publish && npm publish --access public",
+    "js:publish-asm:beta:gc": "npm run rust:build-asm:gc && npm run js:prepublish && node ./scripts/publish-helper -asmjs -gc && cd publish && npm publish --tag beta --access public",
     "js:ts-json-gen": "cd rust/json-gen && cargo +stable run && cd ../.. && node ./scripts/run-json2ts.js && node ./scripts/json-ts-types.js",
     "postinstall": "git submodule update --init --recursive && cd binaryen; cmake . && make"
   },
@@ -35,8 +45,8 @@
   },
   "devDependencies": {
     "flowgen": "1.21.0",
-    "husky": "4.2.5",
-    "json-schema-to-typescript": "^10.1.5",
-    "rimraf": "3.0.2"
+    "husky": "^9.0.11",
+    "json-schema-to-typescript": "^14.0.5",
+    "rimraf": "^5.0.7"
   }
 }
