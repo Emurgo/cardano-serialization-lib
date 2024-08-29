@@ -1541,7 +1541,7 @@ impl MintAssets {
             return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
         }
         let mut ma = MintAssets::new();
-        ma.insert(key, value.clone())?;
+        ma.insert(key, value)?;
         Ok(ma)
     }
 
@@ -1549,11 +1549,11 @@ impl MintAssets {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &AssetName, value: Int) -> Result<Option<Int>, JsError> {
+    pub fn insert(&mut self, key: &AssetName, value: &Int) -> Result<Option<Int>, JsError> {
         if value.0 == 0 {
             return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
         }
-        Ok(self.0.insert(key.clone(), value))
+        Ok(self.0.insert(key.clone(), value.clone()))
     }
 
     pub(crate) fn insert_unchecked(&mut self, key: &AssetName, value: Int) -> Option<Int> {

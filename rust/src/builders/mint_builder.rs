@@ -307,12 +307,12 @@ impl MintBuilder {
             match script_mint {
                 ScriptMint::Native(native_mints) => {
                     for (asset_name, amount) in &native_mints.mints {
-                        mint_asset.insert(asset_name, amount.clone())?;
+                        mint_asset.insert(asset_name, amount)?;
                     }
                 }
                 ScriptMint::Plutus(plutus_mints) => {
                     for (asset_name, amount) in &plutus_mints.mints {
-                        mint_asset.insert(asset_name, amount.clone())?;
+                        mint_asset.insert(asset_name, amount)?;
                     }
                 }
             }
