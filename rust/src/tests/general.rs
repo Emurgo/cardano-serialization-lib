@@ -54,9 +54,9 @@ fn asset_name_ord() {
     assert_eq!(map.keys(), AssetNames(vec![name3, name1, name2]));
 
     let mut map2 = MintAssets::new();
-    map2.insert(&name11, Int::new_i32(1)).expect("insert failed");
-    map2.insert(&name33, Int::new_i32(1)).expect("insert failed");
-    map2.insert(&name22, Int::new_i32(1)).expect("insert failed");
+    map2.insert(&name11, &Int::new_i32(1)).expect("insert failed");
+    map2.insert(&name33, &Int::new_i32(1)).expect("insert failed");
+    map2.insert(&name22, &Int::new_i32(1)).expect("insert failed");
 
     assert_eq!(map2.keys(), AssetNames(vec![name33, name11, name22]));
 }
@@ -71,12 +71,12 @@ fn mint_to_multiasset() {
     let amount2 = BigNum::from_str("5678").unwrap();
 
     let mut mass1 = MintAssets::new();
-    mass1.insert(&name1, Int::new(&amount1)).expect("insert failed");
-    mass1.insert(&name2, Int::new(&amount2)).expect("insert failed");
+    mass1.insert(&name1, &Int::new(&amount1)).expect("insert failed");
+    mass1.insert(&name2, &Int::new(&amount2)).expect("insert failed");
 
     let mut mass2 = MintAssets::new();
-    mass2.insert(&name1, Int::new(&amount2)).expect("insert failed");
-    mass2.insert(&name2, Int::new(&amount1)).expect("insert failed");
+    mass2.insert(&name1, &Int::new(&amount2)).expect("insert failed");
+    mass2.insert(&name2, &Int::new(&amount1)).expect("insert failed");
 
     let mut mint = Mint::new();
     mint.insert(&policy_id1, &mass1);
@@ -108,12 +108,12 @@ fn mint_to_negative_multiasset() {
     let amount2 = BigNum::from_str("5678").unwrap();
 
     let mut mass1 = MintAssets::new();
-    mass1.insert(&name1, Int::new(&amount1)).expect("insert failed");
-    mass1.insert(&name2, Int::new_negative(&amount2)).expect("insert failed");
+    mass1.insert(&name1, &Int::new(&amount1)).expect("insert failed");
+    mass1.insert(&name2, &Int::new_negative(&amount2)).expect("insert failed");
 
     let mut mass2 = MintAssets::new();
-    mass2.insert(&name1, Int::new_negative(&amount1)).expect("insert failed");
-    mass2.insert(&name2, Int::new(&amount2)).expect("insert failed");
+    mass2.insert(&name1, &Int::new_negative(&amount1)).expect("insert failed");
+    mass2.insert(&name2, &Int::new(&amount2)).expect("insert failed");
 
     let mut mint = Mint::new();
     mint.insert(&policy_id1, &mass1);
@@ -156,10 +156,10 @@ fn mint_to_negative_multiasset_empty() {
     let amount1 = BigNum::from_str("1234").unwrap();
 
     let mut mass1 = MintAssets::new();
-    mass1.insert(&name1, Int::new(&amount1)).expect("insert failed");
+    mass1.insert(&name1, &Int::new(&amount1)).expect("insert failed");
 
     let mut mass2 = MintAssets::new();
-    mass2.insert(&name1, Int::new_negative(&amount1)).expect("insert failed");
+    mass2.insert(&name1, &Int::new_negative(&amount1)).expect("insert failed");
 
     let mut mint1 = Mint::new();
     mint1.insert(&policy_id1, &mass1);
