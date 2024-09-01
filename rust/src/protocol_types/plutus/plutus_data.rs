@@ -501,13 +501,13 @@ impl PlutusList {
 
     pub(crate) fn deduplicated_view(&self) -> Vec<&PlutusData> {
         let mut dedup = BTreeSet::new();
-        let mut keyhashes = Vec::new();
+        let mut datas = Vec::new();
         for elem in &self.elems {
             if dedup.insert(elem) {
-                keyhashes.push(elem);
+                datas.push(elem);
             }
         }
-        keyhashes
+        datas
     }
 
     pub(crate) fn to_set_bytes(&self) -> Vec<u8> {
