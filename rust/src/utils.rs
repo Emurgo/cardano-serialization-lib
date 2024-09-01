@@ -600,10 +600,11 @@ pub fn hash_script_data(
         /*
         ; Finally, note that in the case that a transaction includes datums but does not
         ; include any redeemers, the script data format becomes (in hex):
-        ; [ 80 | datums | A0 ]
-        ; corresponding to a CBOR empty list and an empty map (our apologies).
+        ; [ A0 | datums | A0 ]
+        ; corresponding to a CBOR empty map and an empty map (our apologies).
+        ; Before Conway first structure was an empty list, but it was changed to empty map since Conway.
         */
-        buf.push(0x80);
+        buf.push(0xA0);
         if let Some(d) = &datums {
             buf.extend(d.to_set_bytes());
         }
