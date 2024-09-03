@@ -20,7 +20,8 @@ impl NativeScripts {
         need_deduplication: bool,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_tag(258)?;
+        //TODO: uncomment this line when we conway ero will come
+        //serializer.write_tag(258)?;
         if need_deduplication {
             let view = self.deduplicated_view();
             serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;

@@ -26,17 +26,6 @@ impl CborCalculator {
         }
     }
 
-    pub(super) fn get_wrapped_struct_size(items_count: u64) -> usize {
-        //wrapped struct is a struct of 2 elements, tag and value
-        let tag_size = CborCalculator::get_tag_size(258);
-        let value_size = CborCalculator::get_struct_size(items_count);
-        tag_size + value_size
-    }
-
-    pub(super) fn get_tag_size(tag: u64) -> usize {
-        Self::get_struct_size(tag)
-    }
-
     pub(super) fn get_coin_size(coin: &Coin) -> usize {
         Self::get_struct_size(coin.clone().into())
     }
@@ -82,35 +71,12 @@ impl CborCalculator {
     pub(super) fn get_bare_tx_body_size(body_fields: &HashSet<TxBodyNames>) -> usize {
         let mut size = CborCalculator::get_struct_size(body_fields.len() as u64);
         for field in body_fields {
-            let wrapped = match field {
-                TxBodyNames::Inputs => true,
-                TxBodyNames::Outputs => false,
-                TxBodyNames::Fee => false,
-                TxBodyNames::Ttl => false,
-                TxBodyNames::Certs => true,
-                TxBodyNames::Withdrawals => false,
-                TxBodyNames::Update => false,
-                TxBodyNames::AuxiliaryDataHash => false,
-                TxBodyNames::ValidityStartInterval => false,
-                TxBodyNames::Mint => false,
-                TxBodyNames::ScriptDataHash => false,
-                TxBodyNames::Collateral => true,
-                TxBodyNames::RequiredSigners => true,
-                TxBodyNames::NetworkId => false,
-                TxBodyNames::CollateralReturn => false,
-                TxBodyNames::TotalCollateral => false,
-                TxBodyNames::ReferenceInputs => true,
-            };
-            if wrapped {
-                size += CborCalculator::get_wrapped_struct_size(field.to_u64().unwrap());
-            } else {
-                size += CborCalculator::get_struct_size(field.to_u64().unwrap());
-            }
+            size += CborCalculator::get_struct_size(field.to_u64().unwrap());
         }
         size
     }
 
-    pub(super) fn get_witnesses_set_struct_size(
+    pub(super) fn get_wintnesses_set_struct_size(
         witnesses_fields: &HashSet<WitnessSetNames>,
     ) -> usize {
         let mut size = CborCalculator::get_struct_size(witnesses_fields.len() as u64);

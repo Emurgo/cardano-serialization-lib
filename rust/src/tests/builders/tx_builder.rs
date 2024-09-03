@@ -98,7 +98,7 @@ fn build_tx_with_change() {
             .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
             .unwrap()
     );
-    assert_eq!(tx_builder.full_size().unwrap(), 291);
+    assert_eq!(tx_builder.full_size().unwrap(), 285);
     assert_eq!(tx_builder.output_sizes(), vec![62, 65]);
     let _final_tx = tx_builder.build(); // just test that it doesn't throw
 }
@@ -172,7 +172,7 @@ fn build_tx_with_change_with_datum() {
             .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
             .unwrap()
     );
-    assert_eq!(tx_builder.full_size().unwrap(), 325);
+    assert_eq!(tx_builder.full_size().unwrap(), 319);
     assert_eq!(tx_builder.output_sizes(), vec![62, 99]);
     let _final_tx = tx_builder.build(); // just test that it doesn't throw
 }
@@ -304,8 +304,8 @@ fn build_tx_with_certs() {
     )
     .to_address();
     tx_builder.add_change_if_needed(&change_addr).unwrap();
-    assert_eq!(tx_builder.min_fee().unwrap().to_str(), "218502");
-    assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "218502");
+    assert_eq!(tx_builder.min_fee().unwrap().to_str(), "214002");
+    assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "214002");
     assert_eq!(tx_builder.get_deposit().unwrap().to_str(), "1000000");
     assert_eq!(tx_builder.outputs.len(), 1);
     assert_eq!(
@@ -559,7 +559,7 @@ fn build_tx_with_inputs() {
                 )
                 .unwrap()
                 .to_str(),
-            "71000"
+            "69500"
         );
         tx_builder.add_regular_input(
             &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
@@ -1592,7 +1592,7 @@ fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_co
     );
     // The single change output contains more Coin then minimal utxo value
     // But not enough to cover the additional fee for a separate output
-    assert_eq!(final_tx.outputs().get(1).amount().coin(), BigNum(493));
+    assert_eq!(final_tx.outputs().get(1).amount().coin(), BigNum(499));
 }
 
 #[test]
@@ -2512,7 +2512,7 @@ fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
                 .unwrap(),
         )
         .unwrap();
-    assert_eq!(tx_builder.min_fee().unwrap(), BigNum(56));
+    assert_eq!(tx_builder.min_fee().unwrap(), BigNum(53));
     let mut available_inputs = TransactionUnspentOutputs::new();
     available_inputs.add(&make_input(1u8, Value::new(&BigNum(150))));
     available_inputs.add(&make_input(2u8, Value::new(&BigNum(150))));
@@ -2520,7 +2520,7 @@ fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
     let add_inputs_res =
         tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
     assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
-    assert_eq!(tx_builder.min_fee().unwrap(), BigNum(270));
+    assert_eq!(tx_builder.min_fee().unwrap(), BigNum(264));
     let change_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho")
             .unwrap()
@@ -3529,7 +3529,7 @@ fn add_mint_includes_witnesses_into_fee_estimation() {
 
     // Original tx fee now assumes two VKey signatures for two inputs
     let original_tx_fee = tx_builder.min_fee().unwrap();
-    assert_eq!(original_tx_fee, BigNum(168625));
+    assert_eq!(original_tx_fee, BigNum(168361));
 
     // Add minting four assets from three different policies
     tx_builder.add_mint_asset(&mint_script1, &name1, &amount).expect("Failed to add mint asset");
@@ -3555,7 +3555,7 @@ fn add_mint_includes_witnesses_into_fee_estimation() {
         .unwrap();
 
     assert_eq!(raw_mint_fee, BigNum(5544));
-    assert_eq!(raw_mint_script_fee, BigNum(4444));
+    assert_eq!(raw_mint_script_fee, BigNum(4312));
 
     let new_tx_fee = tx_builder.min_fee().unwrap();
 
@@ -4364,10 +4364,10 @@ fn test_ex_unit_costs_are_added_to_the_fees() {
         tx_builder.get_fee_if_set().unwrap()
     }
 
-    assert_eq!(calc_fee_with_ex_units(0, 0), BigNum(174169));
-    assert_eq!(calc_fee_with_ex_units(10000, 0), BigNum(174834));
-    assert_eq!(calc_fee_with_ex_units(0, 10000000), BigNum(175066));
-    assert_eq!(calc_fee_with_ex_units(10000, 10000000), BigNum(175731));
+    assert_eq!(calc_fee_with_ex_units(0, 0), BigNum(173509));
+    assert_eq!(calc_fee_with_ex_units(10000, 0), BigNum(174174));
+    assert_eq!(calc_fee_with_ex_units(0, 10000000), BigNum(174406));
+    assert_eq!(calc_fee_with_ex_units(10000, 10000000), BigNum(175071));
 }
 
 #[test]
