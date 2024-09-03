@@ -34,8 +34,7 @@ impl PlutusScripts {
         version: &Language,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        //TODO: uncomment this line when we conway ero will come
-        //serializer.write_tag(258)?;
+        serializer.write_tag(258)?;
         let view = match need_deduplication {
             true => self.deduplicated_view(Some(version)),
             false => self.view(version),

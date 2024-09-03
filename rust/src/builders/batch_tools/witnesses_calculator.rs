@@ -144,18 +144,18 @@ impl WitnessesCalculator {
         if self.vkeys_count == 0 {
             if self.used_fields.len() > 0 {
                 self.total_size -=
-                    CborCalculator::get_wintnesses_set_struct_size(&self.used_fields);
+                    CborCalculator::get_witnesses_set_struct_size(&self.used_fields);
             }
 
             self.used_fields.insert(WitnessSetNames::Vkeys);
-            self.total_size += CborCalculator::get_wintnesses_set_struct_size(&self.used_fields);
+            self.total_size += CborCalculator::get_witnesses_set_struct_size(&self.used_fields);
         }
 
         if self.vkeys_count != 0 {
-            self.total_size -= CborCalculator::get_struct_size(self.vkeys_count);
+            self.total_size -= CborCalculator::get_wrapped_struct_size(self.vkeys_count);
         }
         self.vkeys_count += 1;
-        self.total_size += CborCalculator::get_struct_size(self.vkeys_count);
+        self.total_size += CborCalculator::get_wrapped_struct_size(self.vkeys_count);
         self.total_size += CborCalculator::get_fake_vkey_size();
     }
 
@@ -164,18 +164,18 @@ impl WitnessesCalculator {
         if self.boostrap_count == 0 {
             if self.used_fields.len() > 0 {
                 self.total_size -=
-                    CborCalculator::get_wintnesses_set_struct_size(&self.used_fields);
+                    CborCalculator::get_witnesses_set_struct_size(&self.used_fields);
             }
 
             self.used_fields.insert(WitnessSetNames::Bootstraps);
-            self.total_size += CborCalculator::get_wintnesses_set_struct_size(&self.used_fields);
+            self.total_size += CborCalculator::get_witnesses_set_struct_size(&self.used_fields);
         }
 
         if self.boostrap_count != 0 {
-            self.total_size -= CborCalculator::get_struct_size(self.boostrap_count);
+            self.total_size -= CborCalculator::get_wrapped_struct_size(self.boostrap_count);
         }
         self.boostrap_count += 1;
-        self.total_size += CborCalculator::get_struct_size(self.boostrap_count);
+        self.total_size += CborCalculator::get_wrapped_struct_size(self.boostrap_count);
         self.total_size += CborCalculator::get_boostrap_witness_size(address);
     }
 }

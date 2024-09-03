@@ -6,8 +6,7 @@ impl cbor_event::se::Serialize for VotingProposals {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        //TODO: uncomment this line when we conway ero will come
-        //serializer.write_tag(258)?;
+        serializer.write_tag(258)?;
         serializer.write_array(cbor_event::Len::Len(self.len() as u64))?;
         for element in &self.proposals {
             element.serialize(serializer)?;
