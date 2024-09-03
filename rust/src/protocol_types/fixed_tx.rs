@@ -5,9 +5,9 @@ use crate::*;
 pub struct FixedTransaction {
     pub(crate) body: TransactionBody,
     pub(crate) body_bytes: Vec<u8>,
+    pub(crate) tx_hash: TransactionHash,
 
-    pub(crate) witness_set: TransactionWitnessSet,
-    pub(crate) witness_bytes: Vec<u8>,
+    pub(crate) witness_set: FixedTxWitnessesSet,
 
     pub(crate) is_valid: bool,
 
@@ -25,13 +25,14 @@ impl FixedTransaction {
         is_valid: bool,
     ) -> Result<FixedTransaction, JsError> {
         let body = TransactionBody::from_bytes(raw_body.to_vec())?;
-        let witness_set = TransactionWitnessSet::from_bytes(raw_witness_set.to_vec())?;
+        let witness_set = FixedTxWitnessesSet::from_bytes(raw_witness_set.to_vec())?;
+        let tx_hash = TransactionHash::from(blake2b256(raw_body));
 
         Ok(FixedTransaction {
             body,
             body_bytes: raw_body.to_vec(),
+            tx_hash,
             witness_set,
-            witness_bytes: raw_witness_set.to_vec(),
             is_valid,
             auxiliary_data: None,
             auxiliary_bytes: None,
@@ -45,18 +46,40 @@ impl FixedTransaction {
         is_valid: bool,
     ) -> Result<FixedTransaction, JsError> {
         let body = TransactionBody::from_bytes(raw_body.to_vec())?;
-        let witness_set = TransactionWitnessSet::from_bytes(raw_witness_set.to_vec())?;
+        let witness_set = FixedTxWitnessesSet::from_bytes(raw_witness_set.to_vec())?;
+        let tx_hash = TransactionHash::from(blake2b256(raw_body));
         let auxiliary_data = Some(AuxiliaryData::from_bytes(raw_auxiliary_data.to_vec())?);
 
         Ok(FixedTransaction {
             body,
             body_bytes: raw_body.to_vec(),
+            tx_hash,
             witness_set,
-            witness_bytes: raw_witness_set.to_vec(),
             is_valid,
             auxiliary_data,
             auxiliary_bytes: Some(raw_auxiliary_data.to_vec()),
         })
+    }
+
+    pub(crate) fn new_with_original_bytes(
+        tx_body: TransactionBody,
+        raw_body: Vec<u8>,
+        tx_witnesses_set: FixedTxWitnessesSet,
+        is_valid: bool,
+        auxiliary_data: Option<AuxiliaryData>,
+        raw_auxiliary_data: Option<Vec<u8>>,
+    ) -> FixedTransaction {
+        let tx_hash = TransactionHash::from(blake2b256(&raw_body));
+
+        FixedTransaction {
+            body: tx_body,
+            body_bytes: raw_body,
+            tx_hash,
+            witness_set: tx_witnesses_set,
+            is_valid,
+            auxiliary_data,
+            auxiliary_bytes: raw_auxiliary_data,
+        }
     }
 
     pub fn body(&self) -> TransactionBody {
@@ -74,19 +97,22 @@ impl FixedTransaction {
         Ok(())
     }
 
+    /// We do not recommend using this function, since it might lead to script integrity hash.
+    /// The only purpose of this struct is to sign the transaction from third-party sources.
+    /// Use `.sign_and_add_vkey_signature` or `.sign_and_add_icarus_bootstrap_signature` or `.sign_and_add_daedalus_bootstrap_signature` instead.
+    #[deprecated(since = "12.1.0", note = "Use `.sign_and_add_vkey_signature` or `.sign_and_add_icarus_bootstrap_signature` or `.sign_and_add_daedalus_bootstrap_signature` instead.")]
     pub fn set_witness_set(&mut self, raw_witness_set: &[u8]) -> Result<(), JsError> {
-        let witness_set = TransactionWitnessSet::from_bytes(raw_witness_set.to_vec())?;
+        let witness_set = FixedTxWitnessesSet::from_bytes(raw_witness_set.to_vec())?;
         self.witness_set = witness_set;
-        self.witness_bytes = raw_witness_set.to_vec();
         Ok(())
     }
 
     pub fn witness_set(&self) -> TransactionWitnessSet {
-        self.witness_set.clone()
+        self.witness_set.tx_witnesses_set()
     }
 
     pub fn raw_witness_set(&self) -> Vec<u8> {
-        self.witness_bytes.clone()
+        self.witness_set.to_bytes()
     }
 
     pub fn set_is_valid(&mut self, valid: bool) {
@@ -110,5 +136,23 @@ impl FixedTransaction {
 
     pub fn raw_auxiliary_data(&self) -> Option<Vec<u8>> {
         self.auxiliary_bytes.clone()
+    }
+
+    pub fn sign_and_add_vkey_signature(&mut self, private_key: &PrivateKey) -> Result<(), JsError> {
+        let vkey_witness = make_vkey_witness(&self.tx_hash, private_key);
+        self.witness_set.add_vkey_witness(vkey_witness);
+        Ok(())
+    }
+
+    pub fn sign_and_add_icarus_bootstrap_signature(&mut self, addr: &ByronAddress, private_key: &Bip32PrivateKey) -> Result<(), JsError> {
+        let bootstrap_witness = make_icarus_bootstrap_witness(&self.tx_hash, addr, private_key);
+        self.witness_set.add_bootstrap_witness(bootstrap_witness);
+        Ok(())
+    }
+
+    pub fn sign_and_add_daedalus_bootstrap_signature(&mut self, addr: &ByronAddress, private_key: &LegacyDaedalusPrivateKey) -> Result<(), JsError> {
+        let bootstrap_witness = make_daedalus_bootstrap_witness(&self.tx_hash, addr, private_key);
+        self.witness_set.add_bootstrap_witness(bootstrap_witness);
+        Ok(())
     }
 }

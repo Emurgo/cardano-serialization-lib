@@ -9,8 +9,11 @@ fn simple_round_trip() {
     let tx = FixedTransaction::new(&body, &wit_set, true).unwrap();
     let tx2 = FixedTransaction::from_bytes(tx.to_bytes()).unwrap();
 
+    let wit_set_decoded = TransactionWitnessSet::from_bytes(wit_set).unwrap();
+    let wit_set_decoded_2 = TransactionWitnessSet::from_bytes(tx2.raw_witness_set()).unwrap();
+
     assert_eq!(body, tx2.raw_body());
-    assert_eq!(wit_set, tx2.raw_witness_set());
+    assert_eq!(wit_set_decoded, wit_set_decoded_2);
     assert_eq!(tx.raw_body(), tx2.raw_body());
     assert_eq!(tx.raw_witness_set(), tx2.raw_witness_set());
     assert_eq!(tx.is_valid(), tx2.is_valid());
@@ -45,12 +48,15 @@ fn round_trip_nonstandart_body() {
     let tx2 = Transaction::from_bytes(tx.to_bytes()).unwrap();
     let tx3 = FixedTransaction::from_bytes(tx.to_bytes()).unwrap();
 
+    let wit_set_decoded = TransactionWitnessSet::from_bytes(wit_set).unwrap();
+    let wit_set_decoded_2 = TransactionWitnessSet::from_bytes(tx3.raw_witness_set()).unwrap();
+
     assert_eq!(casual_tx.body(), tx.body());
     assert_eq!(casual_tx.witness_set(), tx.witness_set());
     assert_eq!(casual_tx.is_valid(), tx.is_valid());
 
     assert_eq!(body, tx3.raw_body());
-    assert_eq!(wit_set, tx3.raw_witness_set());
+    assert_eq!(wit_set_decoded, wit_set_decoded_2);
     assert_eq!(tx.raw_body(), tx3.raw_body());
     assert_eq!(tx.raw_witness_set(), tx3.raw_witness_set());
     assert_eq!(tx.is_valid(), tx3.is_valid());

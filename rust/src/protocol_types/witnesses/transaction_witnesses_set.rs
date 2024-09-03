@@ -1,6 +1,32 @@
 use crate::*;
 use crate::traits::EmptyToNone;
 
+pub(crate) struct TransactionWitnessSetRaw {
+    pub(crate) vkeys: Option<Vec<u8>>,
+    pub(crate) native_scripts: Option<Vec<u8>>,
+    pub(crate) bootstraps: Option<Vec<u8>>,
+    pub(crate) plutus_scripts_v1: Option<Vec<u8>>,
+    pub(crate) plutus_scripts_v2: Option<Vec<u8>>,
+    pub(crate) plutus_scripts_v3: Option<Vec<u8>>,
+    pub(crate) plutus_data: Option<Vec<u8>>,
+    pub(crate) redeemers: Option<Vec<u8>>,
+}
+
+impl TransactionWitnessSetRaw {
+    pub(crate) fn new() -> Self {
+        Self {
+            vkeys: None,
+            native_scripts: None,
+            bootstraps: None,
+            plutus_scripts_v1: None,
+            plutus_scripts_v2: None,
+            plutus_scripts_v3: None,
+            plutus_data: None,
+            redeemers: None,
+        }
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionWitnessSet {
