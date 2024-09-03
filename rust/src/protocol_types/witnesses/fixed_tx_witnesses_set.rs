@@ -6,8 +6,6 @@ pub(crate) struct FixedTxWitnessesSet {
     pub(crate) tx_witnesses_set: TransactionWitnessSet,
 }
 
-to_from_bytes!(FixedTxWitnessesSet);
-
 impl FixedTxWitnessesSet {
     pub(crate) fn tx_witnesses_set(&self) -> TransactionWitnessSet {
         self.tx_witnesses_set.clone()
@@ -31,5 +29,23 @@ impl FixedTxWitnessesSet {
             bootstraps.add(&bootstrap_witness);
         }
         self.raw_parts.bootstraps = None;
+    }
+
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+        let mut buf = Serializer::new_vec();
+        self.serialize(&mut buf).unwrap();
+        buf.finalize()
+    }
+
+    #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+    pub(crate) fn from_bytes(data: Vec<u8>) -> Result<FixedTxWitnessesSet, DeserializeError> {
+        let mut raw = Deserializer::from(std::io::Cursor::new(data));
+        Self::deserialize(&mut raw)
+    }
+
+    #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+    pub(crate) fn from_bytes(data: Vec<u8>) -> Result<FixedTxWitnessesSet, JsError> {
+        let mut raw = Deserializer::from(std::io::Cursor::new(data));
+        Ok(Self::deserialize(&mut raw)?)
     }
 }
