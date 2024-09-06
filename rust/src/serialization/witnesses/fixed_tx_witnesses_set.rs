@@ -15,7 +15,7 @@ impl Deserialize for FixedTxWitnessesSet {
     where
         Self: Sized
     {
-        let (witness_set, raw_parts) = super::transaction_witnesses_set::deserialize(raw, false)?;
+        let (witness_set, raw_parts) = super::transaction_witnesses_set::deserialize(raw, true)?;
         Ok(Self {
             tx_witnesses_set: witness_set,
             raw_parts

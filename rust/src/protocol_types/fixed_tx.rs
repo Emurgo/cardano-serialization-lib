@@ -2,6 +2,7 @@ use crate::error::JsError;
 use crate::*;
 
 #[wasm_bindgen]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FixedTransaction {
     pub(crate) body: TransactionBody,
     pub(crate) body_bytes: Vec<u8>,
@@ -136,6 +137,18 @@ impl FixedTransaction {
 
     pub fn raw_auxiliary_data(&self) -> Option<Vec<u8>> {
         self.auxiliary_bytes.clone()
+    }
+
+    pub fn transaction_hash(&self) -> TransactionHash {
+        self.tx_hash.clone()
+    }
+
+    pub fn add_vkey_witness(&mut self, vkey_witness: &Vkeywitness) {
+        self.witness_set.add_vkey_witness(vkey_witness.clone());
+    }
+
+    pub fn add_bootstrap_witness(&mut self, bootstrap_witness: &BootstrapWitness) {
+        self.witness_set.add_bootstrap_witness(bootstrap_witness.clone());
     }
 
     pub fn sign_and_add_vkey_signature(&mut self, private_key: &PrivateKey) -> Result<(), JsError> {

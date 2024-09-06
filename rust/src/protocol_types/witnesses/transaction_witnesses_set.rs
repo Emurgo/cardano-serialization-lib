@@ -1,6 +1,7 @@
 use crate::*;
 use crate::traits::EmptyToNone;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct TransactionWitnessSetRaw {
     pub(crate) vkeys: Option<Vec<u8>>,
     pub(crate) native_scripts: Option<Vec<u8>>,

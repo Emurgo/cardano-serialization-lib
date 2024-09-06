@@ -58,6 +58,11 @@ impl BootstrapWitnesses {
             dedup,
         }
     }
+
+    #[allow(dead_code)]
+    pub (crate) fn contains(&self, elem: &BootstrapWitness) -> bool {
+        self.dedup.contains(elem)
+    }
 }
 
 impl NoneOrEmpty for BootstrapWitnesses {

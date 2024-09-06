@@ -225,7 +225,7 @@ pub(super) fn serialize<'se, W: Write>(
     if let Some(field) = &wit_set.vkeys {
         if let Some(raw_vkeys) = raw_parts.map(|x| x.vkeys.as_ref()).flatten() {
             serializer.write_unsigned_integer(0)?;
-            serializer.write_bytes(raw_vkeys)?;
+            serializer.write_raw_bytes(raw_vkeys)?;
         } else if !field.is_none_or_empty() {
             serializer.write_unsigned_integer(0)?;
             field.serialize(serializer)?;
@@ -234,7 +234,7 @@ pub(super) fn serialize<'se, W: Write>(
     if let Some(field) = &wit_set.native_scripts {
         if let Some(raw) = raw_parts.as_ref().map(|x| x.native_scripts.as_ref()).flatten() {
             serializer.write_unsigned_integer(1)?;
-            serializer.write_bytes(raw)?;
+            serializer.write_raw_bytes(raw)?;
         } else if !field.is_none_or_empty() {
             serializer.write_unsigned_integer(1)?;
             //transaction witness set already has deduplicated native scripts
@@ -244,7 +244,7 @@ pub(super) fn serialize<'se, W: Write>(
     if let Some(field) = &wit_set.bootstraps {
         if let Some(raw) = raw_parts.as_ref().map(|x| x.bootstraps.as_ref()).flatten() {
             serializer.write_unsigned_integer(2)?;
-            serializer.write_bytes(raw)?;
+            serializer.write_raw_bytes(raw)?;
         } else if !field.is_none_or_empty() {
             serializer.write_unsigned_integer(2)?;
             field.serialize(serializer)?;
@@ -256,7 +256,7 @@ pub(super) fn serialize<'se, W: Write>(
         if has_plutus_v1 {
             if let Some(raw) = raw_parts.as_ref().map(|x| x.plutus_scripts_v1.as_ref()).flatten() {
                 serializer.write_unsigned_integer(3)?;
-                serializer.write_bytes(raw)?;
+                serializer.write_raw_bytes(raw)?;
             } else {
                 serializer.write_unsigned_integer(3)?;
                 plutus_scripts.serialize_as_set_by_version(false, &Language::new_plutus_v1(), serializer)?;
@@ -265,7 +265,7 @@ pub(super) fn serialize<'se, W: Write>(
         if has_plutus_v2 {
             if let Some(raw) = raw_parts.as_ref().map(|x| x.plutus_scripts_v2.as_ref()).flatten() {
                 serializer.write_unsigned_integer(6)?;
-                serializer.write_bytes(raw)?;
+                serializer.write_raw_bytes(raw)?;
             } else {
                 serializer.write_unsigned_integer(6)?;
                 plutus_scripts.serialize_as_set_by_version(false, &Language::new_plutus_v2(), serializer)?;
@@ -274,7 +274,7 @@ pub(super) fn serialize<'se, W: Write>(
         if has_plutus_v3 {
             if let Some(raw) = raw_parts.as_ref().map(|x| x.plutus_scripts_v3.as_ref()).flatten() {
                 serializer.write_unsigned_integer(7)?;
-                serializer.write_bytes(raw)?;
+                serializer.write_raw_bytes(raw)?;
             } else {
                 serializer.write_unsigned_integer(7)?;
                 plutus_scripts.serialize_as_set_by_version(false, &Language::new_plutus_v3(), serializer)?;
@@ -284,7 +284,7 @@ pub(super) fn serialize<'se, W: Write>(
     if let Some(field) = &wit_set.plutus_data {
         if let Some(raw) = raw_parts.as_ref().map(|x| x.plutus_data.as_ref()).flatten() {
             serializer.write_unsigned_integer(4)?;
-            serializer.write_bytes(&raw)?;
+            serializer.write_raw_bytes(&raw)?;
         } else if !field.is_none_or_empty() {
             serializer.write_unsigned_integer(4)?;
             //transaction witness set already has deduplicated plutus data
@@ -294,7 +294,7 @@ pub(super) fn serialize<'se, W: Write>(
     if let Some(field) = &wit_set.redeemers {
         if let Some(raw) = raw_parts.as_ref().map(|x| x.redeemers.as_ref()).flatten() {
             serializer.write_unsigned_integer(5)?;
-            serializer.write_bytes(raw)?;
+            serializer.write_raw_bytes(raw)?;
         } else if !field.is_none_or_empty() {
             serializer.write_unsigned_integer(5)?;
             field.serialize(serializer)?;

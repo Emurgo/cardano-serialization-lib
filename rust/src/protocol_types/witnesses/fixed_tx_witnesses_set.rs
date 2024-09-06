@@ -1,6 +1,7 @@
 use crate::*;
 #[allow(dead_code)]
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct FixedTxWitnessesSet {
     pub(crate) raw_parts: TransactionWitnessSetRaw,
     pub(crate) tx_witnesses_set: TransactionWitnessSet,
