@@ -144,28 +144,28 @@ impl FixedTransaction {
     }
 
     pub fn add_vkey_witness(&mut self, vkey_witness: &Vkeywitness) {
-        self.witness_set.add_vkey_witness(vkey_witness.clone());
+        self.witness_set.add_vkey_witness(vkey_witness);
     }
 
     pub fn add_bootstrap_witness(&mut self, bootstrap_witness: &BootstrapWitness) {
-        self.witness_set.add_bootstrap_witness(bootstrap_witness.clone());
+        self.witness_set.add_bootstrap_witness(bootstrap_witness);
     }
 
     pub fn sign_and_add_vkey_signature(&mut self, private_key: &PrivateKey) -> Result<(), JsError> {
         let vkey_witness = make_vkey_witness(&self.tx_hash, private_key);
-        self.witness_set.add_vkey_witness(vkey_witness);
+        self.witness_set.add_vkey_witness(&vkey_witness);
         Ok(())
     }
 
     pub fn sign_and_add_icarus_bootstrap_signature(&mut self, addr: &ByronAddress, private_key: &Bip32PrivateKey) -> Result<(), JsError> {
         let bootstrap_witness = make_icarus_bootstrap_witness(&self.tx_hash, addr, private_key);
-        self.witness_set.add_bootstrap_witness(bootstrap_witness);
+        self.witness_set.add_bootstrap_witness(&bootstrap_witness);
         Ok(())
     }
 
     pub fn sign_and_add_daedalus_bootstrap_signature(&mut self, addr: &ByronAddress, private_key: &LegacyDaedalusPrivateKey) -> Result<(), JsError> {
         let bootstrap_witness = make_daedalus_bootstrap_witness(&self.tx_hash, addr, private_key);
-        self.witness_set.add_bootstrap_witness(bootstrap_witness);
+        self.witness_set.add_bootstrap_witness(&bootstrap_witness);
         Ok(())
     }
 }

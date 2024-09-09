@@ -9,7 +9,7 @@ use crate::*;
 /// Or get TransactionWitnessSet to read fields.
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct FixedTxWitnessesSet {
+pub struct FixedTxWitnessesSet {
     pub(crate) raw_parts: TransactionWitnessSetRaw,
     pub(crate) tx_witnesses_set: TransactionWitnessSet,
 }
@@ -20,22 +20,22 @@ impl FixedTxWitnessesSet {
         self.tx_witnesses_set.clone()
     }
 
-    pub fn add_vkey_witness(&mut self, vkey_witness: Vkeywitness) {
+    pub fn add_vkey_witness(&mut self, vkey_witness: &Vkeywitness) {
         if self.tx_witnesses_set.vkeys.is_none() {
             self.tx_witnesses_set.vkeys = Some(Vkeywitnesses::new());
         }
         if let Some(vkeys) = &mut self.tx_witnesses_set.vkeys {
-            vkeys.add(&vkey_witness);
+            vkeys.add(vkey_witness);
         }
         self.raw_parts.vkeys = None;
     }
 
-    pub fn add_bootstrap_witness(&mut self, bootstrap_witness: BootstrapWitness) {
+    pub fn add_bootstrap_witness(&mut self, bootstrap_witness: &BootstrapWitness) {
         if self.tx_witnesses_set.bootstraps.is_none() {
             self.tx_witnesses_set.bootstraps = Some(BootstrapWitnesses::new());
         }
         if let Some(bootstraps) = &mut self.tx_witnesses_set.bootstraps {
-            bootstraps.add(&bootstrap_witness);
+            bootstraps.add(bootstrap_witness);
         }
         self.raw_parts.bootstraps = None;
     }
