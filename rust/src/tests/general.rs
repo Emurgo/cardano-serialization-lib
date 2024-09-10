@@ -852,3 +852,18 @@ fn plutus_map_keys_duplication_test() {
 
     assert_eq!(map, map_from_bytes)
 }
+
+#[test]
+fn too_big_plutus_int_to_json() {
+    let too_big_int = BigInt::from_str("999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999").unwrap();
+    let plutus_data = PlutusData::new_integer(&too_big_int);
+    let json = plutus_data.to_json(PlutusDatumSchema::DetailedSchema);
+    #[cfg(feature = "arbitrary-precision-json")]
+    {
+        assert!(json.is_ok());
+    }
+    #[cfg(not(feature = "arbitrary-precision-json"))]
+    {
+        assert!(json.is_err());
+    }
+}

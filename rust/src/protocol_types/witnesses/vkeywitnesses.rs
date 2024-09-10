@@ -54,6 +54,11 @@ impl Vkeywitnesses {
         }
         Self { witnesses, dedup }
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn contains(&self, elem: &Vkeywitness) -> bool {
+        self.dedup.contains(elem)
+    }
 }
 
 impl NoneOrEmpty for Vkeywitnesses {

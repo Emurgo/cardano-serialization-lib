@@ -10,7 +10,6 @@ use cbor_event::{
 };
 
 use schemars::JsonSchema;
-use serde_json::Number;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
@@ -501,13 +500,13 @@ impl PlutusList {
 
     pub(crate) fn deduplicated_view(&self) -> Vec<&PlutusData> {
         let mut dedup = BTreeSet::new();
-        let mut keyhashes = Vec::new();
+        let mut datas = Vec::new();
         for elem in &self.elems {
             if dedup.insert(elem) {
-                keyhashes.push(elem);
+                datas.push(elem);
             }
         }
-        keyhashes
+        datas
     }
 
     pub(crate) fn to_set_bytes(&self) -> Vec<u8> {
@@ -611,13 +610,27 @@ pub fn encode_json_value_to_plutus_datum(
     schema: PlutusDatumSchema,
 ) -> Result<PlutusData, JsError> {
     use serde_json::Value;
-    fn encode_number(x: Number) -> Result<PlutusData, JsError> {
+
+    #[cfg(feature = "arbitrary-precision-json")]
+    fn encode_number(x: serde_json::Number) -> Result<PlutusData, JsError> {
         if let Ok(big_int) = BigInt::from_str(x.as_str()) {
             Ok(PlutusData::new_integer(&big_int))
         } else {
             Err(JsError::from_str(&format!("Expected an integer value but got \"{}\"", x)))
         }
     }
+
+    #[cfg(not(feature = "arbitrary-precision-json"))]
+    fn encode_number(x: serde_json::Number) -> Result<PlutusData, JsError> {
+        if let Some(x) = x.as_u64() {
+            Ok(PlutusData::new_integer(&BigInt::from(x)))
+        } else if let Some(x) = x.as_i64() {
+            Ok(PlutusData::new_integer(&BigInt::from(x)))
+        } else {
+            Err(JsError::from_str("floats not allowed in plutus datums"))
+        }
+    }
+
     fn encode_string(
         s: &str,
         schema: PlutusDatumSchema,
@@ -829,7 +842,7 @@ pub fn decode_plutus_datum_to_json_value(
         },
         PlutusDataEnum::Integer(bigint) => (
             Some("int"),
-            Value::Number(Number::from_string_unchecked(bigint.to_str()))
+            bigint_to_serde_value(bigint)?
         ),
         PlutusDataEnum::Bytes(bytes) => (Some("bytes"), Value::from(match schema {
             PlutusDatumSchema::BasicConversions => {
@@ -851,3 +864,19 @@ pub fn decode_plutus_datum_to_json_value(
         Ok(Value::from(wrapper))
     }
 }
+
+#[cfg(not(feature = "arbitrary-precision-json"))]
+fn bigint_to_serde_value(bigint: &BigInt) -> Result<serde_json::Value, JsError> {
+    bigint
+        .as_int()
+        .as_ref()
+        .map(|int| if int.0 >= 0 { serde_json::Value::from(int.0 as u64) } else {serde_json:: Value::from(int.0 as i64) })
+        .ok_or_else(|| JsError::from_str(&format!("Integer {} too big for our JSON support", bigint.to_str())))
+}
+
+#[cfg(feature = "arbitrary-precision-json")]
+fn bigint_to_serde_value(bigint: &BigInt) -> Result<serde_json::Value, JsError> {
+    use serde_json::Number;
+    Ok(serde_json::Value::Number(Number::from_string_unchecked(bigint.to_str())))
+}
+

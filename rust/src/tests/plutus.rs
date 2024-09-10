@@ -574,3 +574,21 @@ fn datum_from_base_key_script_address() {
                                                PlutusDatumSchema::DetailedSchema).unwrap();
     assert_eq!(datum, orig_datum);
 }
+
+#[test]
+fn script_data_hash_no_redeemers() {
+    let datum = PlutusData::from_hex("d8799fd8799fd8799f581c7fbb4763847b9ec49a132d5359bd86aaecde9275a03aef294ffb79d0ffd8799fd8799fd8799f581cfa34f3b651ecb6a75834c80dc1fd162feb1d1b4cdcef0d065a5785aaffffffffd8799fd8799f581c7fbb4763847b9ec49a132d5359bd86aaecde9275a03aef294ffb79d0ffd8799fd8799fd8799f581cfa34f3b651ecb6a75834c80dc1fd162feb1d1b4cdcef0d065a5785aaffffffffd87a80d8799fd8799f4040ff1a059eb214ff1a001e84801a001e8480ff")
+        .unwrap();
+    let mut list = PlutusList::from(vec![datum]);
+    list.definite_encoding = Some(false);
+
+    let hash = hash_script_data(
+        &Redeemers::new(),
+        &Costmdls::new(),
+        Some(list),
+    );
+    assert_eq!(
+        hex::encode(hash.to_bytes()),
+        "5f4e4b313590ed119c077f2ef78ff294118e7955c63982e304a791831238baf4"
+    );
+}
