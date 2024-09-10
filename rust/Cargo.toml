@@ -13,7 +13,8 @@ exclude = [
 ]
 
 [features]
-default = []
+default = ["arbitrary-precision-json"]
+arbitrary-precision-json = ["serde_json/arbitrary_precision"]
 #TODO: need to review the features and delete legacy ones. List is defined to avoid warnings.
 property-test-api = []
 generic-serialization = []
@@ -32,7 +33,7 @@ bech32 = "0.7.2"
 hex = "0.4.0"
 cfg-if = "1"
 hashlink = "0.9.1"
-serde_json = { version = "1.0.114", features = ["arbitrary_precision"] }
+serde_json = { version = "1.0.114"}
 num-bigint = "0.4.0"
 num-integer = "0.1.45"
 # The default can't be compiled to wasm, so it's necessary to use either the 'nightly'
