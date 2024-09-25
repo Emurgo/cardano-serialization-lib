@@ -243,8 +243,7 @@ impl PlutusList {
         need_deduplication: bool,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        //TODO: uncomment this line when we conway ero will come
-        //serializer.write_tag(258)?;
+        serializer.write_tag(258)?;
         let use_definite_encoding = match self.definite_encoding {
             Some(definite) => definite,
             None => self.elems.is_empty(),

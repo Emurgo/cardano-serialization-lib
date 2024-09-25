@@ -459,7 +459,7 @@ fn correct_script_data_hash() {
 
     assert_eq!(
         hex::encode(script_data_hash.to_bytes()),
-        "4415e6667e6d6bbd992af5092d48e3c2ba9825200d0234d2470068f7f0f178b3"
+        "1701ce6560526f52bbaa96e49b6f07f3646f3ac2d901b5a38be9a5ee946f7f8a"
     );
 }
 
@@ -733,7 +733,7 @@ fn test_vasil_v1_costmodel_hashing() {
     );
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "887e1b6416d750d871c0f5b7136b54f7b8e8b0e293379d090f38f8f821d08a29"
+        "c682f77e8adcb58d6db4cd50e342aa452e70c650f67ef35debb1f46327521555"
     );
 }
 
