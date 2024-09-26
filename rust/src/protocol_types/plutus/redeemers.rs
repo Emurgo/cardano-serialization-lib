@@ -41,6 +41,14 @@ impl Redeemers {
         self.redeemers.push(elem.clone());
     }
 
+    /// WARNING: This function will be removed in after next hard fork
+    pub fn get_container_type(&self) -> CborContainerType {
+        match &self.serialization_format {
+            Some(format) => format.clone(),
+            None => CborContainerType::Map,
+        }
+    }
+
     pub fn total_ex_units(&self) -> Result<ExUnits, JsError> {
         let mut tot_mem = BigNum::zero();
         let mut tot_steps = BigNum::zero();
