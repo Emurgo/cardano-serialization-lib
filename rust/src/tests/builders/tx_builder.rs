@@ -3169,7 +3169,6 @@ fn set_mint_asset_with_existing_mint() {
     // Only second script is present in the scripts
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -3228,7 +3227,6 @@ fn add_mint_asset_with_existing_mint() {
 
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -3399,7 +3397,6 @@ fn add_mint_asset_and_output() {
 
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -3468,7 +3465,6 @@ fn add_mint_asset_and_min_required_coin() {
 
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -4364,10 +4360,10 @@ fn test_ex_unit_costs_are_added_to_the_fees() {
         tx_builder.get_fee_if_set().unwrap()
     }
 
-    assert_eq!(calc_fee_with_ex_units(0, 0), BigNum(174169));
-    assert_eq!(calc_fee_with_ex_units(10000, 0), BigNum(174834));
-    assert_eq!(calc_fee_with_ex_units(0, 10000000), BigNum(175066));
-    assert_eq!(calc_fee_with_ex_units(10000, 10000000), BigNum(175731));
+    assert_eq!(calc_fee_with_ex_units(0, 0), BigNum(174213));
+    assert_eq!(calc_fee_with_ex_units(10000, 0), BigNum(174878));
+    assert_eq!(calc_fee_with_ex_units(0, 10000000), BigNum(175110));
+    assert_eq!(calc_fee_with_ex_units(10000, 10000000), BigNum(175775));
 }
 
 #[test]

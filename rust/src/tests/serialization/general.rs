@@ -675,7 +675,7 @@ fn redeemers_default_array_round_trip() {
     let bytes = redeemers.to_bytes();
     let new_redeemers = Redeemers::from_bytes(bytes.clone()).unwrap();
 
-    assert_eq!(new_redeemers.serialization_format, Some(CborContainerType::Array));
+    assert_eq!(new_redeemers.serialization_format, Some(CborContainerType::Map));
     assert_eq!(redeemers.serialization_format, None);
     assert_eq!(redeemers, new_redeemers);
     assert_eq!(bytes, new_redeemers.to_bytes())

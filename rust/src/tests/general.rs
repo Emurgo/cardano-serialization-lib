@@ -201,10 +201,6 @@ fn pkscript(pk: &Ed25519KeyHash) -> NativeScript {
     NativeScript::new_script_pubkey(&ScriptPubkey::new(pk))
 }
 
-fn scripts_vec(scripts: Vec<&NativeScript>) -> NativeScripts {
-    NativeScripts(scripts.iter().map(|s| (*s).clone()).collect())
-}
-
 #[test]
 fn native_scripts_get_pubkeys() {
     let keyhash1 = keyhash(1);
@@ -220,26 +216,26 @@ fn native_scripts_get_pubkeys() {
     assert_eq!(pks2.len(), 0);
 
     let pks3 = Ed25519KeyHashes::from(&NativeScript::new_script_all(&ScriptAll::new(
-        &scripts_vec(vec![&pkscript(&keyhash1), &pkscript(&keyhash2)]),
+        &NativeScripts::from(vec![&pkscript(&keyhash1), &pkscript(&keyhash2)]),
     )));
     assert_eq!(pks3.len(), 2);
     assert!(pks3.contains(&keyhash1));
     assert!(pks3.contains(&keyhash2));
 
     let pks4 = Ed25519KeyHashes::from(&NativeScript::new_script_any(&ScriptAny::new(
-        &scripts_vec(vec![
+        &NativeScripts::from(vec![
             &NativeScript::new_script_n_of_k(&ScriptNOfK::new(
                 1,
-                &scripts_vec(vec![
+                &NativeScripts::from(vec![
                     &NativeScript::new_timelock_start(&TimelockStart::new(132)),
                     &pkscript(&keyhash3),
                 ]),
             )),
-            &NativeScript::new_script_all(&ScriptAll::new(&scripts_vec(vec![
+            &NativeScript::new_script_all(&ScriptAll::new(&NativeScripts::from(vec![
                 &NativeScript::new_timelock_expiry(&TimelockExpiry::new(132)),
                 &pkscript(&keyhash1),
             ]))),
-            &NativeScript::new_script_any(&ScriptAny::new(&scripts_vec(vec![
+            &NativeScript::new_script_any(&ScriptAny::new(&NativeScripts::from(vec![
                 &pkscript(&keyhash1),
                 &pkscript(&keyhash2),
                 &pkscript(&keyhash3),

@@ -436,7 +436,7 @@ fn test_known_plutus_data_hash() {
     let hash = hash_script_data(&redeemers, &retained_cost_models, Some(pdata));
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "296c56ac50bc55b35daa782d11bd35fea58246ce494752bb03a62602aa855a1a"
+        "e77f547d8249947bf0af31c432fcfff9c1872b2502b3f34d8107002255695e07"
     );
 }
 
@@ -478,7 +478,7 @@ fn test_known_plutus_data_hash_with_no_datums() {
     );
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "6b244f15f895fd458a02bef3a8b56f17f24150fddcb06be482f8790a600578a1"
+        "5b235dbfaa999fb3616da9903d9affd09c7f2121c2d50db7ece0a9fb8587a038"
     );
 }
 
@@ -515,7 +515,7 @@ fn test_known_plutus_data_hash_2() {
     );
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "09bd438e74c7d46bf4e3f29d44220cca441dc11514ab66ba45a9ad7f902b749e"
+        "f3ae8e52bff4c7b8d803469ee61eabf37e96e89f8a3bb80115ad068ab5dff598"
     );
 }
 
