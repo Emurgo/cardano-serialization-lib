@@ -4,7 +4,7 @@ use std::slice::{Iter, IterMut};
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd,
+    Clone, Debug
 )]
 pub struct NativeScripts {
     pub(crate) scripts: Vec<NativeScript>,
@@ -75,6 +75,26 @@ impl NativeScripts {
 }
 
 impl_to_from!(NativeScripts);
+
+impl PartialEq for NativeScripts {
+    fn eq(&self, other: &Self) -> bool {
+        self.scripts == other.scripts
+    }
+}
+
+impl Eq for NativeScripts {}
+
+impl PartialOrd for NativeScripts {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.scripts.partial_cmp(&other.scripts)
+    }
+}
+
+impl Ord for NativeScripts {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.scripts.cmp(&other.scripts)
+    }
+}
 
 impl From<Vec<NativeScript>> for NativeScripts {
     fn from(scripts: Vec<NativeScript>) -> Self {
