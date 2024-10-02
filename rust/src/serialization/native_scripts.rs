@@ -20,12 +20,7 @@ impl NativeScripts {
         need_deduplication: bool,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self.get_set_type() {
-            CborSetType::Tagged =>  {
-                serializer.write_tag(258)?;
-            },
-            CborSetType::Untagged => {},
-        };
+        serializer.write_tag(258)?;
         if need_deduplication {
             let view = self.deduplicated_view();
             serializer.write_array(cbor_event::Len::Len(self.scripts.len() as u64))?;

@@ -863,3 +863,16 @@ fn too_big_plutus_int_to_json() {
         assert!(json.is_err());
     }
 }
+
+#[test]
+fn native_scripts_set_always_should_be_with_tag() {
+    let native_script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&keyhash(1)));
+    let native_scripts = NativeScripts::from(vec![&native_script]);
+    let mut witnesses_set = TransactionWitnessSet::new();
+    witnesses_set.set_native_scripts(&native_scripts);
+    let wit_set_bytes = witnesses_set.to_bytes();
+    let wit_set_from_bytes = TransactionWitnessSet::from_bytes(wit_set_bytes).unwrap();
+    let native_scripts_from_bytes = wit_set_from_bytes.native_scripts().unwrap();
+    assert_eq!(native_scripts, native_scripts_from_bytes);
+    assert_eq!(native_scripts_from_bytes.get_set_type(), CborSetType::Tagged);
+}

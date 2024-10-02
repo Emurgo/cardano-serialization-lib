@@ -462,3 +462,28 @@ fn certificates_collection_ser_round_trip() {
     assert_eq!(certs, Certificates::from_bytes(cbor).unwrap());
     assert_eq!(certs, Certificates::from_hex(&hex_cbor).unwrap());
 }
+
+#[test]
+fn certificates_cert_always_should_be_with_tag() {
+    let mut certs = Certificates::new();
+    let cert_1 = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
+    certs.add(&Certificate::new_stake_registration(&cert_1));
+    let cert_2 = StakeDeregistration::new(&Credential::from_keyhash(&fake_key_hash(2)));
+    certs.add(&Certificate::new_stake_deregistration(&cert_2));
+
+    let cbor = certs.to_bytes();
+    let certs_decoded = Certificates::from_bytes(cbor).unwrap();
+
+    assert_eq!(certs, certs_decoded);
+    assert_eq!(certs_decoded.get_set_type(), CborSetType::Tagged);
+
+    let untagget_cbor_hex = "8282008200581c01efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee16482018200581c02efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee164";
+    let certs_decoded_untagged = Certificates::from_hex(untagget_cbor_hex).unwrap();
+    assert_eq!(certs, certs_decoded_untagged);
+    assert_eq!(certs_decoded_untagged.get_set_type(), CborSetType::Untagged);
+
+    let cbor_2 = certs_decoded_untagged.to_bytes();
+    let certs_decoded_2 = Certificates::from_bytes(cbor_2).unwrap();
+    assert_eq!(certs, certs_decoded_2);
+    assert_eq!(certs_decoded_2.get_set_type(), CborSetType::Tagged);
+}

@@ -17,7 +17,7 @@ impl Serialize for Certificates {
 
 impl Deserialize for Certificates {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        skip_set_tag(raw)?;
+        let has_set_tag= skip_set_tag(raw)?;
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
@@ -33,6 +33,8 @@ impl Deserialize for Certificates {
             Ok(())
         })()
         .map_err(|e| e.annotate("Certificates"))?;
-        Ok(Self::from_vec(arr))
+        let mut certs = Self::from_vec(arr);
+        certs.cbor_set_type = if has_set_tag { CborSetType::Tagged } else { CborSetType::Untagged };
+        Ok(certs)
     }
 }
