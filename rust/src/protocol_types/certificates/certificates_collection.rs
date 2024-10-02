@@ -1,5 +1,6 @@
 use crate::*;
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use itertools::Itertools;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -87,6 +88,12 @@ impl PartialOrd for Certificates {
 impl Ord for Certificates {
     fn cmp(&self, other: &Self) -> Ordering {
         self.certs.cmp(&other.certs)
+    }
+}
+
+impl Hash for Certificates {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.certs.hash(state);
     }
 }
 

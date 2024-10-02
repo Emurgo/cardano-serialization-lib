@@ -1,4 +1,4 @@
-use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes};
+use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes, CborSetType};
 
 use crate::protocol_types::ScriptRefEnum;
 use crate::tests::fakes::{fake_base_address, fake_boostrap_witness, fake_bytes_32, fake_data_hash, fake_key_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey, fake_vkey_witness};
@@ -908,4 +908,23 @@ fn tx_inputs_round_trip() {
     assert_eq!(inputs, new_inputs_json);
     assert_eq!(bytes, new_inputs.to_bytes());
     assert_eq!(json, new_inputs_json.to_json().unwrap());
+}
+
+
+#[test]
+fn credential_set_always_should_be_with_tag() {
+    let mut credentials = Credentials::new();
+    let credential_1 = Credential::from_keyhash(&fake_key_hash(1));
+    let credential_2 = Credential::from_keyhash(&fake_key_hash(2));
+    let credential_3 = Credential::from_keyhash(&fake_key_hash(3));
+
+    credentials.add(&credential_1);
+    credentials.add(&credential_2);
+    credentials.add(&credential_3);
+
+    let bytes = credentials.to_bytes();
+    let new_credentials = Credentials::from_bytes(bytes.clone()).unwrap();
+
+    assert_eq!(new_credentials.cbor_set_type, CborSetType::Tagged);
+    assert_eq!(bytes, new_credentials.to_bytes());
 }

@@ -464,7 +464,7 @@ fn certificates_collection_ser_round_trip() {
 }
 
 #[test]
-fn certificates_cert_always_should_be_with_tag() {
+fn certificates_set_always_should_be_with_tag() {
     let mut certs = Certificates::new();
     let cert_1 = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
     certs.add(&Certificate::new_stake_registration(&cert_1));
