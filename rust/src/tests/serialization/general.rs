@@ -932,7 +932,7 @@ fn credential_set_always_should_be_with_tag() {
 }
 
 #[test]
-fn dd25519leyhashes_set_always_should_be_with_tag() {
+fn ed25519keyhashes_set_always_should_be_with_tag() {
     let mut credentials = Ed25519KeyHashes::new();
     let keyhash_1 = fake_key_hash(1);
     let keyhash_2 = fake_key_hash(2);
