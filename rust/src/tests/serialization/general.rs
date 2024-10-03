@@ -923,8 +923,30 @@ fn credential_set_always_should_be_with_tag() {
     credentials.add(&credential_3);
 
     let bytes = credentials.to_bytes();
-    let new_credentials = Credentials::from_bytes(bytes.clone()).unwrap();
+    let mut new_credentials = Credentials::from_bytes(bytes.clone()).unwrap();
 
-    assert_eq!(new_credentials.cbor_set_type, CborSetType::Tagged);
+    assert_eq!(new_credentials.get_set_type(), CborSetType::Tagged);
+
+    new_credentials.set_set_type(CborSetType::Untagged);
+    assert_eq!(bytes, new_credentials.to_bytes());
+}
+
+#[test]
+fn dd25519leyhashes_set_always_should_be_with_tag() {
+    let mut credentials = Ed25519KeyHashes::new();
+    let keyhash_1 = fake_key_hash(1);
+    let keyhash_2 = fake_key_hash(2);
+    let keyhash_3 = fake_key_hash(3);
+
+    credentials.add(&keyhash_1);
+    credentials.add(&keyhash_2);
+    credentials.add(&keyhash_3);
+
+    let bytes = credentials.to_bytes();
+    let mut new_credentials = Ed25519KeyHashes::from_bytes(bytes.clone()).unwrap();
+
+    assert_eq!(new_credentials.get_set_type(), CborSetType::Tagged);
+
+    new_credentials.set_set_type(CborSetType::Untagged);
     assert_eq!(bytes, new_credentials.to_bytes());
 }

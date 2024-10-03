@@ -4461,9 +4461,9 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
             &Value::new(&BigNum(10_000_000)),
         ).expect("Failed to add input");
 
-        keys.to_vec().iter().for_each(|k| {
+        for k in keys {
             tx_builder.add_required_signer(k);
-        });
+        }
 
         let tx: Transaction = fake_full_tx(&tx_builder, tx_builder.build().unwrap()).unwrap();
         tx.witness_set.vkeys.unwrap().len()

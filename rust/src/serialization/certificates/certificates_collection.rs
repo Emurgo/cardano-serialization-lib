@@ -34,7 +34,11 @@ impl Deserialize for Certificates {
         })()
         .map_err(|e| e.annotate("Certificates"))?;
         let mut certs = Self::from_vec(arr);
-        certs.cbor_set_type = if has_set_tag { CborSetType::Tagged } else { CborSetType::Untagged };
+        if has_set_tag {
+            certs.set_set_type(CborSetType::Tagged);
+        } else {
+            certs.set_set_type(CborSetType::Untagged);
+        }
         Ok(certs)
     }
 }

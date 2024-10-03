@@ -98,6 +98,10 @@ impl Credentials {
         self.cbor_set_type.clone()
     }
 
+    pub(crate) fn set_set_type(&mut self, cbor_set_type: CborSetType) {
+        self.cbor_set_type = cbor_set_type;
+    }
+
 }
 
 impl PartialEq for Credentials {

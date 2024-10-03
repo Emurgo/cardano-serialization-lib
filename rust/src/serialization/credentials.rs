@@ -36,9 +36,9 @@ impl Deserialize for Credentials {
         })()
             .map_err(|e| e.annotate("CredentialsSet"))?;
         if has_set_tag {
-            creds.cbor_set_type = CborSetType::Tagged;
+            creds.set_set_type(CborSetType::Tagged);
         } else {
-            creds.cbor_set_type = CborSetType::Untagged;
+            creds.set_set_type(CborSetType::Untagged);
         }
         Ok(creds)
     }
