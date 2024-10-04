@@ -970,3 +970,23 @@ fn transaction_inputs_set_always_should_be_with_tag() {
     new_inputs.set_set_type(CborSetType::Untagged);
     assert_eq!(bytes, new_inputs.to_bytes());
 }
+
+#[test]
+fn vkeywitnesses_set_always_should_be_with_tag() {
+    let mut witnesses = Vkeywitnesses::new();
+    let vkey_witness_1 = fake_vkey_witness(1);
+    let vkey_witness_2 = fake_vkey_witness(2);
+    let vkey_witness_3 = fake_vkey_witness(3);
+
+    witnesses.add(&vkey_witness_1);
+    witnesses.add(&vkey_witness_2);
+    witnesses.add(&vkey_witness_3);
+
+    let bytes = witnesses.to_bytes();
+    let mut new_witnesses = Vkeywitnesses::from_bytes(bytes.clone()).unwrap();
+
+    assert_eq!(new_witnesses.get_set_type(), CborSetType::Tagged);
+
+    new_witnesses.set_set_type(CborSetType::Untagged);
+    assert_eq!(bytes, new_witnesses.to_bytes());
+}
