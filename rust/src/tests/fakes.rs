@@ -616,12 +616,21 @@ pub(crate) fn fake_vkey_witness(x: u8) -> Vkeywitness {
     Vkeywitness::new(&fake_vkey_numbered(x), &fake_signature(x))
 }
 
-pub(crate) fn fake_boostrap_witness(x: u8) -> BootstrapWitness {
+pub(crate) fn fake_bootsrap_witness(x: u8) -> BootstrapWitness {
     BootstrapWitness::new(
         &fake_vkey_numbered(x),
         &fake_signature(x),
         vec![x; 32],
         vec![x; 32],
+    )
+}
+
+pub(crate) fn fake_bootsrap_witness_with_attrs(x: u8, attributes: Vec<u8>) -> BootstrapWitness {
+    BootstrapWitness::new(
+        &fake_vkey_numbered(x),
+        &fake_signature(x),
+        vec![x; 32],
+        attributes,
     )
 }
 
