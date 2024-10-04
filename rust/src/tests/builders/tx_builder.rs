@@ -1,5 +1,5 @@
 use crate::tests::helpers::harden;
-use crate::tests::fakes::{fake_byron_address, fake_anchor, fake_change_address, fake_default_tx_builder, fake_linear_fee, fake_reallistic_tx_builder, fake_redeemer, fake_redeemer_zero_cost, fake_rich_tx_builder, fake_tx_builder, fake_tx_builder_with_amount, fake_tx_builder_with_fee, fake_tx_builder_with_fee_and_pure_change, fake_tx_builder_with_fee_and_val_size, fake_tx_builder_with_key_deposit, fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_plutus_script_and_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2, fake_vkey_witness, fake_root_key_15, fake_base_address_with_payment_cred};
+use crate::tests::fakes::{fake_byron_address, fake_anchor, fake_change_address, fake_default_tx_builder, fake_linear_fee, fake_reallistic_tx_builder, fake_redeemer, fake_redeemer_zero_cost, fake_rich_tx_builder, fake_tx_builder, fake_tx_builder_with_amount, fake_tx_builder_with_fee, fake_tx_builder_with_fee_and_pure_change, fake_tx_builder_with_fee_and_val_size, fake_tx_builder_with_key_deposit, fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_plutus_script_and_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2, fake_vkey_witness, fake_root_key_15, fake_base_address_with_payment_cred, fake_bootsrap_witness, fake_bootsrap_witness_with_attrs};
 use crate::*;
 
 use crate::builders::fakes::fake_private_key;
@@ -6435,4 +6435,57 @@ fn ref_inputs_and_reg_inputs_no_intersection_error() {
     let ref_inputs = tx.body().reference_inputs().unwrap();
     assert!(ref_inputs.contains(&tx_in_3));
     assert_eq!(ref_inputs.len(), 1);
+}
+
+#[test]
+fn multiple_boostrap_witnesses() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+    let input_1 = fake_tx_input(1);
+    let input_2 = fake_tx_input(2);
+    let input_3 = fake_tx_input(3);
+    let input_4 = fake_tx_input(4);
+    let input_5 = fake_tx_input(5);
+
+    let addr_1 = ByronAddress::from_base58("Ae2tdPwUPEZBF8HDUYPkACXQrnZtmbKrdJfpBdx3NwcVs6TkvHsgTCi8DKJ").unwrap().to_address();
+    let addr_2 = ByronAddress::from_base58("Ae2tdPwUPEZAmhukfkcunjRRHJyuYEgM8YiKxMxUtaGvmEEy3fpcCdf8urC").unwrap().to_address();
+    let addr_3 = ByronAddress::from_base58("Ae2tdPwUPEZ2rukBdtHHiNpdXJ2BU6PbQUFZP6FsJ4ZdbRDCwdKpCEYPGWS").unwrap().to_address();
+    let addr_4 = ByronAddress::from_base58("Ae2tdPwUPEZ6EbrKDUyyv3tNr7tyC3SFumXvuLEZc8UUz9m65Sx8BFnkAm5").unwrap().to_address();
+    let addr_5 = ByronAddress::from_base58("Ae2tdPwUPEZ5N7ubvrUXM4YJPLsyeuc6A3bN2kAuFTEK9iYiumrn7REkb9V").unwrap().to_address();
+
+    let value_1 = Value::new(&Coin::from(4000000u64));
+    let value_2 = Value::new(&Coin::from(5000000u64));
+    let value_3 = Value::new(&Coin::from(2000000u64));
+    let value_4 = Value::new(&Coin::from(1000000u64));
+    let value_5 = Value::new(&Coin::from(3000000u64));
+
+    tx_builder.add_regular_input(&addr_1, &input_1, &value_1).unwrap();
+    tx_builder.add_regular_input(&addr_2, &input_2, &value_2).unwrap();
+    tx_builder.add_regular_input(&addr_3, &input_3, &value_3).unwrap();
+    tx_builder.add_regular_input(&addr_4, &input_4, &value_4).unwrap();
+    tx_builder.add_regular_input(&addr_5, &input_5, &value_5).unwrap();
+
+    tx_builder.add_change_if_needed(&change_address).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_ok());
+
+    let attributes = vec![127u8];
+    let mut bootstrap_witnesses = BootstrapWitnesses::new();
+    bootstrap_witnesses.add(&fake_bootsrap_witness_with_attrs(1, attributes.clone()));
+    bootstrap_witnesses.add(&fake_bootsrap_witness_with_attrs(2, attributes.clone()));
+    bootstrap_witnesses.add(&fake_bootsrap_witness_with_attrs(3, attributes.clone()));
+    bootstrap_witnesses.add(&fake_bootsrap_witness_with_attrs(4, attributes.clone()));
+    bootstrap_witnesses.add(&fake_bootsrap_witness_with_attrs(5, attributes.clone()));
+
+    let mut tx = res.unwrap();
+    let mut wit_set = tx.witness_set();
+    wit_set.set_bootstraps(&bootstrap_witnesses);
+    tx = Transaction::new(&tx.body(), &wit_set, tx.auxiliary_data());
+    let tx_len = tx.to_bytes().len();
+
+    let total_tx_fee = tx.body().fee();
+    let min_fee = min_fee_for_size(tx_len, &fake_linear_fee(44, 155381)).unwrap();
+
+    assert!(total_tx_fee >= min_fee);
 }
