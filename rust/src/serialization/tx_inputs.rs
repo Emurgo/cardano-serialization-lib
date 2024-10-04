@@ -17,7 +17,7 @@ impl cbor_event::se::Serialize for TransactionInputs {
 
 impl Deserialize for TransactionInputs {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        skip_set_tag(raw)?;
+        let has_set_tag = skip_set_tag(raw)?;
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
@@ -33,6 +33,12 @@ impl Deserialize for TransactionInputs {
             Ok(())
         })()
             .map_err(|e| e.annotate("TransactionInputs"))?;
-        Ok(Self::from_vec(arr))
+        let mut inputs = TransactionInputs::from_vec(arr);
+        if has_set_tag {
+            inputs.set_set_type(CborSetType::Tagged);
+        } else {
+            inputs.set_set_type(CborSetType::Untagged);
+        }
+        Ok(inputs)
     }
 }

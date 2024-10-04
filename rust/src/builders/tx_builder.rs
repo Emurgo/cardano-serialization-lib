@@ -933,8 +933,7 @@ impl TransactionBuilder {
                     if self
                         .inputs
                         .inputs()
-                        .inputs
-                        .iter()
+                        .into_iter()
                         .all(|used_input| input.input() != *used_input)
                     {
                         unused_inputs.add(input)
@@ -1519,9 +1518,9 @@ impl TransactionBuilder {
         let mut inputs: HashSet<TransactionInput> = HashSet::new();
 
         let mut add_ref_inputs_set = |ref_inputs: TransactionInputs| {
-            for input in ref_inputs {
+            for input in &ref_inputs {
                 if !self.inputs.has_input(&input) {
-                    inputs.insert(input);
+                    inputs.insert(input.clone());
                 }
             }
         };

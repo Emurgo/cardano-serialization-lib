@@ -950,3 +950,23 @@ fn ed25519keyhashes_set_always_should_be_with_tag() {
     new_credentials.set_set_type(CborSetType::Untagged);
     assert_eq!(bytes, new_credentials.to_bytes());
 }
+
+#[test]
+fn transaction_inputs_set_always_should_be_with_tag() {
+    let mut inputs = TransactionInputs::new();
+    let input_1 = fake_tx_input(1);
+    let input_2 = fake_tx_input(2);
+    let input_3 = fake_tx_input(3);
+
+    inputs.add(&input_1);
+    inputs.add(&input_2);
+    inputs.add(&input_3);
+
+    let bytes = inputs.to_bytes();
+    let mut new_inputs = TransactionInputs::from_bytes(bytes.clone()).unwrap();
+
+    assert_eq!(new_inputs.get_set_type(), CborSetType::Tagged);
+
+    new_inputs.set_set_type(CborSetType::Untagged);
+    assert_eq!(bytes, new_inputs.to_bytes());
+}
