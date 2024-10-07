@@ -65,27 +65,6 @@ impl BootstrapWitnesses {
         }
     }
 
-    pub(crate) fn add_move(&mut self, witness: BootstrapWitness) {
-        let witness_rc = Rc::new(witness);
-        if self.dedup.insert(witness_rc.clone()) {
-            self.witnesses.push(witness_rc);
-        }
-    }
-
-    pub(crate) fn extend(&mut self, other: &BootstrapWitnesses) {
-        for witness in &other.witnesses {
-            self.add(witness.deref());
-        }
-    }
-
-    pub(crate) fn extend_move(&mut self, other: BootstrapWitnesses) {
-        for witness_rc in other.witnesses {
-            if self.dedup.insert(witness_rc.clone()) {
-                self.witnesses.push(witness_rc);
-            }
-        }
-    }
-
     pub(crate) fn from_vec(witnesses_vec: Vec<BootstrapWitness>) -> Self {
         let mut dedup = HashSet::new();
         let mut witnesses = Vec::new();

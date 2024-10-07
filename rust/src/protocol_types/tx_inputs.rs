@@ -76,27 +76,6 @@ impl TransactionInputs {
         }
     }
 
-    pub(crate) fn add_move(&mut self, input: TransactionInput) {
-        let input_rc = Rc::new(input);
-        if self.dedup.insert(input_rc.clone()) {
-            self.inputs.push(input_rc);
-        }
-    }
-
-    pub(crate) fn extend(&mut self, other: &TransactionInputs) {
-        for input in &other.inputs {
-            self.add(input);
-        }
-    }
-
-    pub(crate) fn extend_move(&mut self, other: TransactionInputs) {
-        for input in other.inputs {
-            if self.dedup.insert(input.clone()) {
-                self.inputs.push(input);
-            }
-        }
-    }
-
     pub(crate) fn from_vec(inputs_vec: Vec<TransactionInput>) -> Self {
         let mut dedup = BTreeSet::new();
         let mut inputs = Vec::new();

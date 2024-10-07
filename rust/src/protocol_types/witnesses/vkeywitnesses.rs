@@ -75,20 +75,6 @@ impl Vkeywitnesses {
         }
     }
 
-    pub(crate) fn extend(&mut self, other: &Vkeywitnesses) {
-        for witness in &other.witnesses {
-            self.add(witness);
-        }
-    }
-
-    pub(crate) fn extend_move(&mut self, other: Vkeywitnesses) {
-        for witness in other.witnesses {
-            if self.dedup.insert(witness.clone()) {
-                self.witnesses.push(witness);
-            }
-        }
-    }
-
     pub(crate) fn from_vec(vec: Vec<Vkeywitness>) -> Self {
         let mut dedup = HashSet::new();
         let mut witnesses = Vec::new();

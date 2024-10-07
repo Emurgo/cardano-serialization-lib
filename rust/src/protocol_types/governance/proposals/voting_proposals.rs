@@ -81,27 +81,6 @@ impl VotingProposals {
         }
     }
 
-    pub(crate) fn add_move(&mut self, proposal: VotingProposal) {
-        let proposal_rc = Rc::new(proposal);
-        if self.dedup.insert(proposal_rc.clone()) {
-            self.proposals.push(proposal_rc);
-        }
-    }
-
-    pub(crate) fn extend(&mut self, other: &VotingProposals) {
-        for proposal in &other.proposals {
-            self.add(proposal);
-        }
-    }
-
-    pub(crate) fn extend_move(&mut self, other: VotingProposals) {
-        for proposal in other.proposals {
-            if self.dedup.insert(proposal.clone()) {
-                self.proposals.push(proposal);
-            }
-        }
-    }
-
     pub(crate) fn from_vec(proposal_vec: Vec<VotingProposal>) -> Self {
         let mut dedup = HashSet::new();
         let mut proposals = Vec::new();
