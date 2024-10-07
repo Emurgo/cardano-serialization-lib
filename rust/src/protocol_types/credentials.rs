@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -11,7 +12,7 @@ use crate::*;
 )]
 pub struct Credentials {
     pub(crate) credentials: Vec<Rc<Credential>>,
-    pub(crate) dedup: BTreeSet<Rc<Credential>>,
+    pub(crate) dedup: HashSet<Rc<Credential>>,
     pub(crate) cbor_set_type: CborSetType,
 }
 
@@ -22,14 +23,14 @@ impl Credentials {
     pub fn new() -> Self {
         Self {
             credentials: Vec::new(),
-            dedup: BTreeSet::new(),
+            dedup: HashSet::new(),
             cbor_set_type: CborSetType::Tagged,
         }
     }
 
     pub(crate) fn new_from_prepared_fields(
         credentials: Vec<Rc<Credential>>,
-        dedup: BTreeSet<Rc<Credential>>,
+        dedup: HashSet<Rc<Credential>>,
     ) -> Self {
         Self {
             credentials,
@@ -71,7 +72,7 @@ impl Credentials {
     }
 
     pub(crate) fn from_vec(vec: Vec<Credential>) -> Self {
-        let mut dedup = BTreeSet::new();
+        let mut dedup = HashSet::new();
         let mut credentials = Vec::new();
         for elem in vec {
             let elem_rc = Rc::new(elem);
@@ -83,7 +84,7 @@ impl Credentials {
     }
 
     pub(crate) fn from_iter(iter: impl IntoIterator<Item = Credential>) -> Self {
-        let mut dedup = BTreeSet::new();
+        let mut dedup = HashSet::new();
         let mut credentials = Vec::new();
         for elem in iter {
             let elem_rc = Rc::new(elem);

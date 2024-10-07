@@ -3,6 +3,7 @@ use crate::serialization::map_names::WitnessSetNames;
 use crate::*;
 use std::collections::HashSet;
 use crate::builders::fakes::{fake_private_key, fake_raw_key_public, fake_raw_key_sig};
+use crate::fakes::fake_bootstrap_witness;
 
 #[derive(Clone)]
 pub(super) struct WitnessesCalculator {
@@ -97,7 +98,6 @@ impl WitnessesCalculator {
     }
 
     pub(super) fn create_mock_witnesses_set(&self) -> TransactionWitnessSet {
-        let fake_key_root = fake_private_key();
         let fake_sig = fake_raw_key_sig();
 
         // recall: this includes keys for input, certs and withdrawals
@@ -118,13 +118,11 @@ impl WitnessesCalculator {
             0 => None,
             _x => {
                 let mut result = BootstrapWitnesses::new();
+                let mut number = 0;
                 for boostrap_address in &self.bootsraps {
+                    number += 1;
                     // picking icarus over daedalus for fake witness generation shouldn't matter
-                    result.add(&make_icarus_bootstrap_witness(
-                        &TransactionHash::from([0u8; TransactionHash::BYTE_COUNT]),
-                        boostrap_address,
-                        &fake_key_root,
-                    ));
+                    result.add(&fake_bootstrap_witness(number, boostrap_address));
                 }
                 Some(result)
             }

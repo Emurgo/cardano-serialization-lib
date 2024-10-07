@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -15,7 +16,7 @@ pub type RequiredSigners = Ed25519KeyHashes;
 )]
 pub struct Ed25519KeyHashes {
     keyhashes: Vec<Rc<Ed25519KeyHash>>,
-    dedup: BTreeSet<Rc<Ed25519KeyHash>>,
+    dedup: HashSet<Rc<Ed25519KeyHash>>,
     cbor_set_type: CborSetType,
 }
 
@@ -26,14 +27,14 @@ impl Ed25519KeyHashes {
     pub fn new() -> Self {
         Self {
             keyhashes: Vec::new(),
-            dedup: BTreeSet::new(),
+            dedup: HashSet::new(),
             cbor_set_type: CborSetType::Tagged,
         }
     }
 
     pub(crate) fn new_from_prepared_fields(
         keyhashes: Vec<Rc<Ed25519KeyHash>>,
-        dedup: BTreeSet<Rc<Ed25519KeyHash>>,
+        dedup: HashSet<Rc<Ed25519KeyHash>>,
     ) -> Self {
         Self {
             keyhashes,
@@ -96,7 +97,7 @@ impl Ed25519KeyHashes {
     }
 
     pub(crate) fn from_vec(keyhash_vec: Vec<Ed25519KeyHash>) -> Self {
-        let mut dedup = BTreeSet::new();
+        let mut dedup = HashSet::new();
         let mut keyhashes = Vec::new();
         for keyhash in keyhash_vec {
             let keyhash_rc = Rc::new(keyhash.clone());

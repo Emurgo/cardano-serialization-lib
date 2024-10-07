@@ -1,55 +1,74 @@
+use itertools::Itertools;
+use std::slice;
 use crate::*;
 
 #[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct PlutusScripts(pub(crate) Vec<PlutusScript>);
+#[derive(Clone, Debug)]
+pub struct PlutusScripts {
+    scripts: Vec<PlutusScript>,
+    cbor_set_type: Option<CborSetType>,
+}
 
 impl_to_from!(PlutusScripts);
 
 impl NoneOrEmpty for PlutusScripts {
     fn is_none_or_empty(&self) -> bool {
-        self.0.is_empty()
+        self.scripts.is_empty()
     }
 }
 
 #[wasm_bindgen]
 impl PlutusScripts {
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self {
+            scripts: Vec::new(),
+            cbor_set_type: None,
+        }
+    }
+
+    pub(crate) fn from_vec(
+        scripts: Vec<PlutusScript>,
+        cbor_set_type: Option<CborSetType>,
+    ) -> Self {
+        Self {
+            scripts,
+            cbor_set_type,
+        }
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.scripts.len()
     }
 
     pub fn get(&self, index: usize) -> PlutusScript {
-        self.0[index].clone()
+        self.scripts[index].clone()
     }
 
     pub fn add(&mut self, elem: &PlutusScript) {
-        self.0.push(elem.clone());
+        self.scripts.push(elem.clone());
     }
 
     #[allow(dead_code)]
     pub(crate) fn by_version(&self, language: &Language) -> PlutusScripts {
-        PlutusScripts(
-            self.0
+        Self::from_vec(
+            self.scripts
                 .iter()
                 .filter(|s| s.language_version().eq(language))
                 .map(|s| s.clone())
                 .collect(),
+            self.cbor_set_type.clone(),
         )
     }
 
     pub(crate) fn has_version(&self, language: &Language) -> bool {
-        self.0.iter().any(|s| s.language_version().eq(language))
+        self.scripts
+            .iter()
+            .any(|s| s.language_version().eq(language))
     }
 
     pub(crate) fn merge(&self, other: &PlutusScripts) -> PlutusScripts {
         let mut res = self.clone();
-        for s in &other.0 {
+        for s in &other.scripts {
             res.add(s);
         }
         res
@@ -57,7 +76,7 @@ impl PlutusScripts {
 
     pub(crate) fn view(&self, version: &Language) -> Vec<&PlutusScript> {
         let mut res = Vec::new();
-        for script in &self.0 {
+        for script in &self.scripts {
             if !script.language_version().eq(version) {
                 continue;
             }
@@ -69,7 +88,7 @@ impl PlutusScripts {
     pub(crate) fn deduplicated_view(&self, version: Option<&Language>) -> Vec<&PlutusScript> {
         let mut dedup = BTreeSet::new();
         let mut res = Vec::new();
-        for script in &self.0 {
+        for script in &self.scripts {
             if let Some(version) = version {
                 if !script.language_version().eq(version) {
                     continue;
@@ -85,16 +104,87 @@ impl PlutusScripts {
     pub(crate) fn deduplicated_clone(&self) -> PlutusScripts {
         let mut dedup = BTreeSet::new();
         let mut scripts = Vec::new();
-        for script in &self.0 {
+        for script in &self.scripts {
             if dedup.insert(script.clone()) {
                 scripts.push(script.clone());
             }
         }
-        PlutusScripts(scripts)
+        Self::from_vec(scripts, self.cbor_set_type.clone())
     }
 
     #[allow(dead_code)]
     pub(crate) fn contains(&self, script: &PlutusScript) -> bool {
-        self.0.contains(&script)
+        self.scripts.contains(&script)
+    }
+
+    pub(crate) fn get_set_type(&self) -> Option<CborSetType> {
+        self.cbor_set_type.clone()
+    }
+
+    pub(crate) fn set_set_type(&mut self, cbor_set_type: CborSetType) {
+        self.cbor_set_type = Some(cbor_set_type);
+    }
+}
+
+impl<'a> IntoIterator for &'a PlutusScripts {
+    type Item = &'a PlutusScript;
+    type IntoIter = slice::Iter<'a, PlutusScript>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.scripts.iter()
+    }
+}
+
+impl PartialEq for PlutusScripts {
+    fn eq(&self, other: &Self) -> bool {
+        self.scripts == other.scripts
+    }
+}
+
+impl Eq for PlutusScripts {}
+
+impl PartialOrd for PlutusScripts {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.scripts.partial_cmp(&other.scripts)
+    }
+}
+
+impl Ord for PlutusScripts {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.scripts.cmp(&other.scripts)
+    }
+}
+
+impl serde::Serialize for PlutusScripts {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.scripts
+            .iter()
+            .collect_vec()
+            .serialize(serializer)
+    }
+}
+
+impl<'de> serde::de::Deserialize<'de> for PlutusScripts {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let scripts_vec = <Vec<PlutusScript> as serde::de::Deserialize>::deserialize(deserializer)?;
+        Ok(Self::from_vec(scripts_vec, None))
+    }
+}
+
+impl JsonSchema for PlutusScripts {
+    fn schema_name() -> String {
+        String::from("PlutusScripts")
+    }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        Vec::<PlutusScript>::json_schema(gen)
+    }
+    fn is_referenceable() -> bool {
+        Vec::<PlutusScript>::is_referenceable()
     }
 }

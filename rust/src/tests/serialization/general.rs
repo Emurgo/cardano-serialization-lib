@@ -1,4 +1,4 @@
-use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes, CborSetType};
+use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes, CborSetType, ScriptPubkey, NativeScripts};
 
 use crate::protocol_types::ScriptRefEnum;
 use crate::tests::fakes::{fake_base_address, fake_bootsrap_witness, fake_bytes_32, fake_data_hash, fake_key_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey, fake_vkey_witness};
@@ -522,16 +522,16 @@ fn test_witness_set_roundtrip() {
     let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
     let script_v3 = PlutusScript::from_bytes_v3(bytes.clone()).unwrap();
 
-    witness_set_roundtrip(&PlutusScripts(vec![]));
-    witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone()]));
-    witness_set_roundtrip(&PlutusScripts(vec![script_v2.clone()]));
-    witness_set_roundtrip(&PlutusScripts(vec![script_v3.clone()]));
-    witness_set_roundtrip(&PlutusScripts(vec![script_v1.clone(), script_v2.clone()]));
-    witness_set_roundtrip(&PlutusScripts(vec![
+    witness_set_roundtrip(&PlutusScripts::from_vec(vec![], None));
+    witness_set_roundtrip(&PlutusScripts::from_vec(vec![script_v1.clone()], None));
+    witness_set_roundtrip(&PlutusScripts::from_vec(vec![script_v2.clone()], None));
+    witness_set_roundtrip(&PlutusScripts::from_vec(vec![script_v3.clone()], None));
+    witness_set_roundtrip(&PlutusScripts::from_vec(vec![script_v1.clone(), script_v2.clone()], None));
+    witness_set_roundtrip(&PlutusScripts::from_vec(vec![
         script_v1.clone(),
         script_v2.clone(),
         script_v3.clone(),
-    ]));
+    ], None));
 }
 
 #[test]
@@ -989,4 +989,50 @@ fn vkeywitnesses_set_always_should_be_with_tag() {
 
     new_witnesses.set_set_type(CborSetType::Untagged);
     assert_eq!(bytes, new_witnesses.to_bytes());
+}
+
+#[test]
+fn bootstrap_witnesses_set_always_should_be_with_tag() {
+    let mut witnesses = BootstrapWitnesses::new();
+    let bootstrap_witness_1 = fake_bootsrap_witness(1);
+    let bootstrap_witness_2 = fake_bootsrap_witness(2);
+    let bootstrap_witness_3 = fake_bootsrap_witness(3);
+
+    witnesses.add(&bootstrap_witness_1);
+    witnesses.add(&bootstrap_witness_2);
+    witnesses.add(&bootstrap_witness_3);
+
+    let bytes = witnesses.to_bytes();
+    let mut new_witnesses = BootstrapWitnesses::from_bytes(bytes.clone()).unwrap();
+
+    assert_eq!(new_witnesses.get_set_type(), CborSetType::Tagged);
+
+    new_witnesses.set_set_type(CborSetType::Untagged);
+    assert_eq!(bytes, new_witnesses.to_bytes());
+}
+
+#[test]
+fn native_scripts_set_always_should_be_with_tag() {
+    let native_script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&fake_key_hash(1)));
+    let native_scripts = NativeScripts::from(vec![&native_script]);
+    let mut witnesses_set = TransactionWitnessSet::new();
+    witnesses_set.set_native_scripts(&native_scripts);
+    let wit_set_bytes = witnesses_set.to_bytes();
+    let wit_set_from_bytes = TransactionWitnessSet::from_bytes(wit_set_bytes).unwrap();
+    let native_scripts_from_bytes = wit_set_from_bytes.native_scripts().unwrap();
+    assert_eq!(native_scripts, native_scripts_from_bytes);
+    assert_eq!(native_scripts_from_bytes.get_set_type(), Some(CborSetType::Tagged));
+}
+
+#[test]
+fn plutus_scripts_set_always_should_be_with_tag() {
+    let plutus_script = PlutusScript::new([61u8; 29].to_vec());
+    let plutus_scripts = PlutusScripts::from_vec(vec![plutus_script], None);
+    let mut witnesses_set = TransactionWitnessSet::new();
+    witnesses_set.set_plutus_scripts(&plutus_scripts);
+    let wit_set_bytes = witnesses_set.to_bytes();
+    let wit_set_from_bytes = TransactionWitnessSet::from_bytes(wit_set_bytes).unwrap();
+    let plutus_scripts_from_bytes = wit_set_from_bytes.plutus_scripts().unwrap();
+    assert_eq!(plutus_scripts, plutus_scripts_from_bytes);
+    assert_eq!(plutus_scripts_from_bytes.get_set_type(), Some(CborSetType::Tagged));
 }

@@ -3,7 +3,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::slice;
 use std::iter::Map;
-use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::cmp::Ordering;
 use itertools::Itertools;
 use schemars::JsonSchema;
@@ -16,7 +16,7 @@ use crate::*;
 )]
 pub struct VotingProposals {
     proposals: Vec<Rc<VotingProposal>>,
-    dedup: BTreeSet<Rc<VotingProposal>>,
+    dedup: HashSet<Rc<VotingProposal>>,
     cbor_set_type: CborSetType,
 }
 
@@ -33,14 +33,14 @@ impl VotingProposals {
     pub fn new() -> Self {
         Self {
             proposals: Vec::new(),
-            dedup: BTreeSet::new(),
+            dedup: HashSet::new(),
             cbor_set_type: CborSetType::Tagged,
         }
     }
 
     pub(crate) fn new_from_prepared_fields(
         proposals: Vec<Rc<VotingProposal>>,
-        dedup: BTreeSet<Rc<VotingProposal>>,
+        dedup: HashSet<Rc<VotingProposal>>,
     ) -> Self {
         Self {
             proposals,
@@ -103,7 +103,7 @@ impl VotingProposals {
     }
 
     pub(crate) fn from_vec(proposal_vec: Vec<VotingProposal>) -> Self {
-        let mut dedup = BTreeSet::new();
+        let mut dedup = HashSet::new();
         let mut proposals = Vec::new();
         for proposal in proposal_vec {
             let proposal_rc = Rc::new(proposal.clone());

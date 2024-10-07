@@ -62,11 +62,8 @@ impl NativeScripts {
         self.scripts.contains(script)
     }
 
-    pub(crate) fn get_set_type(&self) -> CborSetType {
-        match &self.cbor_tag_type {
-            Some(set_type) => set_type.clone(),
-            None => CborSetType::Tagged,
-        }
+    pub(crate) fn get_set_type(&self) -> Option<CborSetType> {
+        self.cbor_tag_type.clone()
     }
 
     pub(crate) fn iter(&self) -> Iter<'_, NativeScript> {

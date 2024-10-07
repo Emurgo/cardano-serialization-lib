@@ -6,8 +6,8 @@ impl cbor_event::se::Serialize for PlutusScripts {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in &self.0 {
+        serializer.write_array(cbor_event::Len::Len(self.len() as u64))?;
+        for element in self {
             element.serialize(serializer)?;
         }
         Ok(serializer)
@@ -50,10 +50,9 @@ impl PlutusScripts {
 
 impl Deserialize for PlutusScripts {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        skip_set_tag(raw)?;
+        let has_set_tag = skip_set_tag(raw)?;
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
-            skip_set_tag(raw)?;
             let len = raw.array()?;
             while match len {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
@@ -67,15 +66,22 @@ impl Deserialize for PlutusScripts {
             Ok(())
         })()
             .map_err(|e| e.annotate("PlutusScripts"))?;
-        Ok(Self(arr))
+
+        let set_tag = if has_set_tag {
+            Some(CborSetType::Tagged)
+        } else {
+            Some(CborSetType::Untagged)
+        };
+
+        Ok(Self::from_vec(arr, set_tag))
     }
 }
 
 impl PlutusScripts {
     pub(crate) fn deserialize_with_version<R: BufRead + Seek>(raw: &mut Deserializer<R>, version: &Language) -> Result<Self, DeserializeError> {
         let mut arr = Vec::new();
+        let has_set_tag = skip_set_tag(raw)?;
         (|| -> Result<_, DeserializeError> {
-            skip_set_tag(raw)?;
             let len = raw.array()?;
             while match len {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
@@ -89,6 +95,13 @@ impl PlutusScripts {
             Ok(())
         })()
             .map_err(|e| e.annotate("PlutusScripts"))?;
-        Ok(Self(arr))
+
+        let set_tag = if has_set_tag {
+            Some(CborSetType::Tagged)
+        } else {
+            Some(CborSetType::Untagged)
+        };
+
+        Ok(Self::from_vec(arr, set_tag))
     }
 }

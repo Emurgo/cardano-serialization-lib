@@ -1,6 +1,6 @@
 use crate::*;
 use crate::tests::helpers::harden;
-use crate::tests::fakes::{fake_plutus_script, fake_bootsrap_witness, fake_tx_input, fake_vkey_witness};
+use crate::tests::fakes::{fake_plutus_script, fake_bootsrap_witness, fake_tx_input, fake_vkey_witness, fake_key_hash};
 
 #[test]
 fn native_script_hash() {
@@ -189,23 +189,15 @@ fn mint_to_negative_multiasset_empty() {
     assert_eq!(n_ass.get(&name1).unwrap(), amount1);
 }
 
-fn keyhash(x: u8) -> Ed25519KeyHash {
-    Ed25519KeyHash::from_bytes(vec![
-        x, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244, 98, 246,
-        13, 33, 212, 128, 168, 136, 40,
-    ])
-    .unwrap()
-}
-
 fn pkscript(pk: &Ed25519KeyHash) -> NativeScript {
     NativeScript::new_script_pubkey(&ScriptPubkey::new(pk))
 }
 
 #[test]
 fn native_scripts_get_pubkeys() {
-    let keyhash1 = keyhash(1);
-    let keyhash2 = keyhash(2);
-    let keyhash3 = keyhash(3);
+    let keyhash1 = fake_key_hash(1);
+    let keyhash2 = fake_key_hash(2);
+    let keyhash3 = fake_key_hash(3);
 
     let pks1 = Ed25519KeyHashes::from(&pkscript(&keyhash1));
     assert_eq!(pks1.len(), 1);
@@ -444,8 +436,8 @@ fn min_ref_script_fee_test_fail(){
 #[test]
 fn ed25519_key_hashes_dedup() {
     let mut key_hashes = Ed25519KeyHashes::new();
-    let key_hash1 = keyhash(1);
-    let key_hash2 = keyhash(2);
+    let key_hash1 = fake_key_hash(1);
+    let key_hash2 = fake_key_hash(2);
 
     assert!(key_hashes.add(&key_hash1));
     assert!(key_hashes.add(&key_hash2));
@@ -472,8 +464,8 @@ fn bootstrap_witnesses_dedup() {
 #[test]
 fn credential_dedup() {
     let mut credentials = Credentials::new();
-    let credential1 = Credential::from_keyhash(&keyhash(1));
-    let credential2 = Credential::from_keyhash(&keyhash(2));
+    let credential1 = Credential::from_keyhash(&fake_key_hash(1));
+    let credential2 = Credential::from_keyhash(&fake_key_hash(2));
 
     assert!(credentials.add(&credential1));
     assert!(credentials.add(&credential2));
@@ -597,7 +589,7 @@ fn plutus_scripts_no_dedup_on_auxdata() {
 
 #[test]
 fn native_scripts_dedup_on_tx_witnesses_set() {
-    let keyhash1 = keyhash(1);
+    let keyhash1 = fake_key_hash(1);
 
     let native_scripts_1 = NativeScript::new_script_pubkey(&ScriptPubkey::new(
         &keyhash1,
@@ -634,7 +626,7 @@ fn native_scripts_dedup_on_tx_witnesses_set() {
 
 #[test]
 fn native_scripts_no_dedup_on_auxdata() {
-    let keyhash1 = keyhash(1);
+    let keyhash1 = fake_key_hash(1);
 
     let native_scripts_1 = NativeScript::new_script_pubkey(&ScriptPubkey::new(
         &keyhash1,
@@ -862,17 +854,4 @@ fn too_big_plutus_int_to_json() {
     {
         assert!(json.is_err());
     }
-}
-
-#[test]
-fn native_scripts_set_always_should_be_with_tag() {
-    let native_script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&keyhash(1)));
-    let native_scripts = NativeScripts::from(vec![&native_script]);
-    let mut witnesses_set = TransactionWitnessSet::new();
-    witnesses_set.set_native_scripts(&native_scripts);
-    let wit_set_bytes = witnesses_set.to_bytes();
-    let wit_set_from_bytes = TransactionWitnessSet::from_bytes(wit_set_bytes).unwrap();
-    let native_scripts_from_bytes = wit_set_from_bytes.native_scripts().unwrap();
-    assert_eq!(native_scripts, native_scripts_from_bytes);
-    assert_eq!(native_scripts_from_bytes.get_set_type(), CborSetType::Tagged);
 }
