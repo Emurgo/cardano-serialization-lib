@@ -271,7 +271,7 @@ impl PlutusList {
 
 impl Deserialize for PlutusList {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        skip_set_tag(raw)?;
+        let has_set_tag = skip_set_tag(raw)?;
         let mut arr = Vec::new();
         let len = (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
@@ -287,9 +287,17 @@ impl Deserialize for PlutusList {
             Ok(len)
         })()
             .map_err(|e| e.annotate("PlutusList"))?;
+
+        let set_tag = if has_set_tag {
+            Some(CborSetType::Tagged)
+        } else {
+            Some(CborSetType::Untagged)
+        };
+
         Ok(Self {
             elems: arr,
             definite_encoding: Some(len != cbor_event::Len::Indefinite),
+            cbor_set_type: set_tag
         })
     }
 }

@@ -2,7 +2,7 @@ use crate::builders::batch_tools::cbor_calculator::CborCalculator;
 use crate::serialization::map_names::WitnessSetNames;
 use crate::*;
 use std::collections::HashSet;
-use crate::builders::fakes::{fake_private_key, fake_raw_key_public, fake_raw_key_sig};
+use crate::builders::fakes::{fake_raw_key_public, fake_raw_key_sig};
 use crate::fakes::fake_bootstrap_witness;
 
 #[derive(Clone)]

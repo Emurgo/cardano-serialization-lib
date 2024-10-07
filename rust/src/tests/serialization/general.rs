@@ -1036,3 +1036,47 @@ fn plutus_scripts_set_always_should_be_with_tag() {
     assert_eq!(plutus_scripts, plutus_scripts_from_bytes);
     assert_eq!(plutus_scripts_from_bytes.get_set_type(), Some(CborSetType::Tagged));
 }
+
+#[test]
+fn plutus_list_set_always_should_be_with_tag() {
+    let plutus_data = PlutusData::new_integer(&BigInt::one());
+    let plutus_data_list = PlutusList::from(vec![plutus_data]);
+    let mut witnesses_set = TransactionWitnessSet::new();
+    witnesses_set.set_plutus_data(&plutus_data_list);
+    let wit_set_bytes = witnesses_set.to_bytes();
+    let wit_set_from_bytes = TransactionWitnessSet::from_bytes(wit_set_bytes).unwrap();
+    let plutus_data_list_from_bytes = wit_set_from_bytes.plutus_data().unwrap();
+    assert_eq!(plutus_data_list, plutus_data_list_from_bytes);
+    assert_eq!(plutus_data_list_from_bytes.get_set_type(), Some(CborSetType::Tagged));
+}
+
+
+#[test]
+fn pure_native_scripts_always_should_be_without_tag() {
+    let native_script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&fake_key_hash(1)));
+    let native_scripts = NativeScripts::from(vec![&native_script]);
+    let native_scripts_bytes = native_scripts.to_bytes();
+    let native_scripts_from_bytes = NativeScripts::from_bytes(native_scripts_bytes).unwrap();
+    assert_eq!(native_scripts, native_scripts_from_bytes);
+    assert_eq!(native_scripts_from_bytes.get_set_type(), Some(CborSetType::Untagged));
+}
+
+#[test]
+fn pure_plutus_scripts_always_should_be_without_tag() {
+    let plutus_script = PlutusScript::new([61u8; 29].to_vec());
+    let plutus_scripts = PlutusScripts::from_vec(vec![plutus_script], None);
+    let plutus_scripts_bytes = plutus_scripts.to_bytes();
+    let plutus_scripts_from_bytes = PlutusScripts::from_bytes(plutus_scripts_bytes).unwrap();
+    assert_eq!(plutus_scripts, plutus_scripts_from_bytes);
+    assert_eq!(plutus_scripts_from_bytes.get_set_type(), Some(CborSetType::Untagged));
+}
+
+#[test]
+fn pure_plutus_list_always_should_be_without_tag() {
+    let plutus_data = PlutusData::new_integer(&BigInt::one());
+    let plutus_data_list = PlutusList::from(vec![plutus_data]);
+    let plutus_data_list_bytes = plutus_data_list.to_bytes();
+    let plutus_data_list_from_bytes = PlutusList::from_bytes(plutus_data_list_bytes).unwrap();
+    assert_eq!(plutus_data_list, plutus_data_list_from_bytes);
+    assert_eq!(plutus_data_list_from_bytes.get_set_type(), Some(CborSetType::Untagged));
+}
