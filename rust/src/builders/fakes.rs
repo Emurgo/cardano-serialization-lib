@@ -1,4 +1,4 @@
-use crate::{Bip32PrivateKey, Ed25519Signature, PublicKey};
+use crate::{Bip32PrivateKey, BootstrapWitness, ByronAddress, Ed25519Signature, PublicKey, Vkey};
 
 pub(crate) fn fake_private_key() -> Bip32PrivateKey {
     Bip32PrivateKey::from_bytes(&[
@@ -10,7 +10,7 @@ pub(crate) fn fake_private_key() -> Bip32PrivateKey {
         0xfd, 0xa5, 0x78, 0x60, 0xac, 0x87, 0x6b, 0xc4, 0x89, 0x19, 0x2c, 0x1e, 0xf4, 0xce, 0x25,
         0x3c, 0x19, 0x7e, 0xe2, 0x19, 0xa4,
     ])
-        .unwrap()
+    .unwrap()
 }
 
 pub(crate) fn fake_raw_key_sig() -> Ed25519Signature {
@@ -20,18 +20,65 @@ pub(crate) fn fake_raw_key_sig() -> Ed25519Signature {
         24, 40, 73, 45, 119, 122, 103, 39, 253, 102, 194, 251, 204, 189, 168, 194, 174, 237, 146,
         3, 44, 153, 121, 10,
     ])
-        .unwrap()
+    .unwrap()
 }
 
 pub(crate) fn fake_raw_key_public(x: u64) -> PublicKey {
-    let mut bytes = [0u8; 64];
+    let mut x_bytes = [0u8; 8];
     for i in 0..8 {
-        bytes[i] = ((x >> (i * 8)) & 0xff) as u8;
+        x_bytes[i] = ((x >> (i * 8)) & 0xff) as u8;
     }
     PublicKey::from_bytes(&[
         207, 118, 57, 154, 33, 13, 232, 114, 14, 159, 168, 148, 228, 94, 65, 226, 154, 181, 37,
-        227, 11, 196, 2, 128, bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6],
-        bytes[7]
+        227, 11, 196, 2, 128, x_bytes[0], x_bytes[1], x_bytes[2], x_bytes[3], x_bytes[4],
+        x_bytes[5], x_bytes[6], x_bytes[7],
     ])
-        .unwrap()
+    .unwrap()
+}
+
+pub(crate) fn fake_bootstrap_witness(index: u64, addr: &ByronAddress) -> BootstrapWitness {
+    let mut bytes = [0u8; 32];
+    for i in 0..32 {
+        bytes[i] = i as u8;
+    }
+    let vkey = fake_vkey_numbered(index);
+    let signature = fake_signature(index);
+    let chain_code = fake_chain_code();
+    BootstrapWitness::new(&vkey, &signature, chain_code, addr.attributes())
+}
+
+fn fake_vkey_numbered(x: u64) -> Vkey {
+    let mut bytes = [0u8; 8];
+    for i in 0..8 {
+        bytes[i] = ((x >> (i * 8)) & 0xff) as u8;
+    }
+    let bytes = [
+        0x82, 0x2c, 0x1e, 0xf4, 0xce, 0x25, 0x3c, 0x19, 0x7e, 0xe2, 0x19, 0xa4, 0x36, 0xf8, 0x99,
+        0xd3, 0x9b, 0x17, 0xfd, 0x5d, 0x66, 0xc1, 0x92, 0xc4, bytes[0], bytes[1], bytes[2],
+        bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+    ];
+    Vkey::new(&PublicKey::from_bytes(&bytes).unwrap())
+}
+
+fn fake_signature(x: u64) -> Ed25519Signature {
+    let mut x_bytes = [0u8; 8];
+    for i in 0..8 {
+        x_bytes[i] = ((x >> (i * 8)) & 0xff) as u8;
+    }
+    let bytes = [
+        0x24, 0xf8, 0x99, 0xd3, 0x9b, 0x17, 0xfd, 0x5d, 0x66, 0xc1, 0x92, 0xc4, 0xb5, 0x0d, 0x34,
+        0x3e, 0x42, 0xf7, 0x23, 0x5b, 0x30, 0x4c, 0x8a, 0xe7, 0x61, 0x9f, 0x93, 0xc8, 0x28, 0xdc,
+        0x6d, 0xce, 0x45, 0x68, 0xdd, 0x69, 0x17, 0x7c, 0x55, 0x18, 0x28, 0x49, 0x2d, 0x77, 0x7a,
+        0xc2, 0xfb, 0xcc, 0xbd, 0xa8, 0xc2, 0xae, 0xed, 0x92, 0x03, 0x2c, x_bytes[0], x_bytes[1],
+        x_bytes[2], x_bytes[3], x_bytes[4], x_bytes[5], x_bytes[6], x_bytes[7],
+    ];
+    Ed25519Signature::from_bytes(bytes.to_vec()).unwrap()
+}
+
+fn fake_chain_code() -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(32);
+    for i in 0..32 {
+        bytes.push(i as u8);
+    }
+    bytes
 }

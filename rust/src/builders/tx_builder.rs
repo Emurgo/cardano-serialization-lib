@@ -3,7 +3,7 @@
 use crate::*;
 
 use super::*;
-use crate::builders::fakes::{fake_private_key, fake_raw_key_public, fake_raw_key_sig};
+use crate::builders::fakes::{fake_bootstrap_witness, fake_raw_key_public, fake_raw_key_sig};
 use crate::fees;
 use crate::utils;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -34,7 +34,6 @@ pub(crate) fn fake_full_tx(
     tx_builder: &TransactionBuilder,
     body: TransactionBody,
 ) -> Result<Transaction, JsError> {
-    let fake_key_root = fake_private_key();
     let fake_sig = fake_raw_key_sig();
 
     // recall: this includes keys for input, certs and withdrawals
@@ -55,13 +54,11 @@ pub(crate) fn fake_full_tx(
         0 => None,
         _x => {
             let mut result = BootstrapWitnesses::new();
+            let mut number = 1;
             for addr in bootstraps {
+                number += 1;
                 // picking icarus over daedalus for fake witness generation shouldn't matter
-                result.add(&make_icarus_bootstrap_witness(
-                    &TransactionHash::from([0u8; TransactionHash::BYTE_COUNT]),
-                    &ByronAddress::from_bytes(addr.clone()).unwrap(),
-                    &fake_key_root,
-                ));
+                result.add(&fake_bootstrap_witness(number, &ByronAddress::from_bytes(addr)?));
             }
             Some(result)
         }

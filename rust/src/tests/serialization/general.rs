@@ -1,7 +1,7 @@
 use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes, CborSetType};
 
 use crate::protocol_types::ScriptRefEnum;
-use crate::tests::fakes::{fake_base_address, fake_boostrap_witness, fake_bytes_32, fake_data_hash, fake_key_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey, fake_vkey_witness};
+use crate::tests::fakes::{fake_base_address, fake_bootsrap_witness, fake_bytes_32, fake_data_hash, fake_key_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey, fake_vkey_witness};
 
 #[test]
 fn tx_output_deser_lagacy() {
@@ -798,9 +798,9 @@ fn ref_script_serialization() {
 #[test]
 fn boostrap_witnesses_round_trip() {
     let mut witnesses = BootstrapWitnesses::new();
-    let bootstrap_witness_1 = fake_boostrap_witness(1);
-    let bootstrap_witness_2 = fake_boostrap_witness(2);
-    let bootstrap_witness_3 = fake_boostrap_witness(3);
+    let bootstrap_witness_1 = fake_bootsrap_witness(1);
+    let bootstrap_witness_2 = fake_bootsrap_witness(2);
+    let bootstrap_witness_3 = fake_bootsrap_witness(3);
 
     witnesses.add(&bootstrap_witness_1);
     witnesses.add(&bootstrap_witness_2);

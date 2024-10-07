@@ -1,6 +1,6 @@
 use crate::*;
 use crate::tests::helpers::harden;
-use crate::tests::fakes::{fake_plutus_script, fake_boostrap_witness, fake_tx_input, fake_vkey_witness};
+use crate::tests::fakes::{fake_plutus_script, fake_bootsrap_witness, fake_tx_input, fake_vkey_witness};
 
 #[test]
 fn native_script_hash() {
@@ -458,8 +458,8 @@ fn ed25519_key_hashes_dedup() {
 #[test]
 fn bootstrap_witnesses_dedup() {
     let mut bootstrap_witnesses = BootstrapWitnesses::new();
-    let bootstrap_witness1 = fake_boostrap_witness(1);
-    let bootstrap_witness2 = fake_boostrap_witness(2);
+    let bootstrap_witness1 = fake_bootsrap_witness(1);
+    let bootstrap_witness2 = fake_bootsrap_witness(2);
 
     assert!(bootstrap_witnesses.add(&bootstrap_witness1));
     assert!(bootstrap_witnesses.add(&bootstrap_witness2));
