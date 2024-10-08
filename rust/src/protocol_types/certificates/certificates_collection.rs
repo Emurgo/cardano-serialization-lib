@@ -1,9 +1,11 @@
 use crate::*;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
+use std::iter::Map;
 use itertools::Itertools;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::slice;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
@@ -98,6 +100,18 @@ impl Ord for Certificates {
 impl Hash for Certificates {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.certs.hash(state);
+    }
+}
+
+impl<'a> IntoIterator for &'a Certificates {
+    type Item = &'a Certificate;
+    type IntoIter = Map<
+        slice::Iter<'a, Rc<Certificate>>,
+        fn(&'a Rc<Certificate>) -> &'a Certificate,
+    >;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.certs.iter().map(|rc| rc.as_ref())
     }
 }
 

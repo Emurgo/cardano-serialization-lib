@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use itertools::Itertools;
 use std::slice;
 use crate::*;
@@ -6,7 +7,7 @@ use crate::*;
 #[derive(Clone, Debug)]
 pub struct PlutusScripts {
     scripts: Vec<PlutusScript>,
-    cbor_set_type: Option<CborSetType>,
+    cbor_set_type: Option<HashMap<Language, CborSetType>>,
 }
 
 impl_to_from!(PlutusScripts);
@@ -32,7 +33,13 @@ impl PlutusScripts {
     ) -> Self {
         Self {
             scripts,
-            cbor_set_type,
+            cbor_set_type: cbor_set_type.map(|t| {
+                let mut m = HashMap::new();
+                m.insert(Language::new_plutus_v1(), t.clone());
+                m.insert(Language::new_plutus_v2(), t.clone());
+                m.insert(Language::new_plutus_v3(), t.clone());
+                m
+            }),
         }
     }
 
@@ -56,7 +63,7 @@ impl PlutusScripts {
                 .filter(|s| s.language_version().eq(language))
                 .map(|s| s.clone())
                 .collect(),
-            self.cbor_set_type.clone(),
+            self.cbor_set_type.as_ref().map(|x| x.get(language).cloned()).flatten(),
         )
     }
 
@@ -66,11 +73,15 @@ impl PlutusScripts {
             .any(|s| s.language_version().eq(language))
     }
 
-    pub(crate) fn merge(&self, other: &PlutusScripts) -> PlutusScripts {
+    pub(crate) fn merge(&self, other: &PlutusScripts, version: &Language) -> PlutusScripts {
         let mut res = self.clone();
         for s in &other.scripts {
             res.add(s);
         }
+        res.set_set_type(
+            other.get_set_type(version).unwrap_or(CborSetType::Tagged),
+            version,
+        );
         res
     }
 
@@ -109,7 +120,10 @@ impl PlutusScripts {
                 scripts.push(script.clone());
             }
         }
-        Self::from_vec(scripts, self.cbor_set_type.clone())
+        Self {
+            scripts,
+            cbor_set_type: self.cbor_set_type.clone(),
+        }
     }
 
     #[allow(dead_code)]
@@ -117,12 +131,17 @@ impl PlutusScripts {
         self.scripts.contains(&script)
     }
 
-    pub(crate) fn get_set_type(&self) -> Option<CborSetType> {
-        self.cbor_set_type.clone()
+    pub(crate) fn get_set_type(&self, language: &Language) -> Option<CborSetType> {
+        self.cbor_set_type.as_ref().map(|m| m.get(language).cloned()).flatten()
     }
 
-    pub(crate) fn set_set_type(&mut self, cbor_set_type: CborSetType) {
-        self.cbor_set_type = Some(cbor_set_type);
+    pub(crate) fn set_set_type(&mut self, cbor_set_type: CborSetType, language: &Language) {
+        if self.cbor_set_type.is_none() {
+            self.cbor_set_type = Some(HashMap::new());
+        }
+        if let Some(m) = &mut self.cbor_set_type {
+            m.insert(language.clone(), cbor_set_type);
+        }
     }
 }
 

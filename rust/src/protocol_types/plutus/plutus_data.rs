@@ -513,6 +513,7 @@ impl PlutusList {
         self.elems.extend(other.elems.iter().cloned());
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set_set_type(&mut self, set_type: CborSetType) {
         self.cbor_set_type = Some(set_type);
     }

@@ -99,10 +99,11 @@ pub(super) fn check_len_indefinite<R: BufRead + Seek>(
 pub(crate) fn merge_option_plutus_list(
     left: Option<PlutusScripts>,
     right: Option<PlutusScripts>,
+    right_version: &Language,
 ) -> Option<PlutusScripts> {
     if let Some(left) = left {
         if let Some(right) = right {
-            return Some(left.merge(&right));
+            return Some(left.merge(&right, right_version));
         } else {
             return Some(left);
         }
