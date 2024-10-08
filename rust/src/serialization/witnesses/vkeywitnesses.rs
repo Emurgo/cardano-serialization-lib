@@ -10,7 +10,13 @@ impl cbor_event::se::Serialize for Vkeywitnesses {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_tag(258)?;
+        if self.force_original_cbor_set_type() {
+            if self.get_set_type() == CborSetType::Tagged {
+                serializer.write_tag(258)?;
+            }
+        } else {
+            serializer.write_tag(258)?;
+        }
         serializer.write_array(cbor_event::Len::Len(self.len() as u64))?;
         for element in self {
             element.serialize(serializer)?;

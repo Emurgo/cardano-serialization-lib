@@ -14,6 +14,7 @@ pub struct BootstrapWitnesses {
     witnesses: Vec<Rc<BootstrapWitness>>,
     dedup: HashSet<Rc<BootstrapWitness>>,
     cbor_set_type: CborSetType,
+    force_original_cbor_set_type: bool,
 }
 
 impl_to_from!(BootstrapWitnesses);
@@ -31,6 +32,7 @@ impl BootstrapWitnesses {
             witnesses: Vec::new(),
             dedup: HashSet::new(),
             cbor_set_type: CborSetType::Tagged,
+            force_original_cbor_set_type: false,
         }
     }
 
@@ -42,6 +44,7 @@ impl BootstrapWitnesses {
             witnesses,
             dedup,
             cbor_set_type: CborSetType::Tagged,
+            force_original_cbor_set_type: false,
         }
     }
 
@@ -93,6 +96,14 @@ impl BootstrapWitnesses {
     #[allow(dead_code)]
     pub (crate) fn contains(&self, elem: &BootstrapWitness) -> bool {
         self.dedup.contains(elem)
+    }
+
+    pub(crate) fn set_force_original_cbor_set_type(&mut self, force_original_cbor_set_type: bool) {
+        self.force_original_cbor_set_type = force_original_cbor_set_type;
+    }
+
+    pub(crate) fn force_original_cbor_set_type(&self) -> bool {
+        self.force_original_cbor_set_type
     }
 }
 

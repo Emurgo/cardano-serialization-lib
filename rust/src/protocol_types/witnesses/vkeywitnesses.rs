@@ -17,6 +17,7 @@ pub struct Vkeywitnesses {
     witnesses: Vec<Rc<Vkeywitness>>,
     dedup: HashSet<Rc<Vkeywitness>>,
     cbor_set_type: CborSetType,
+    force_original_cbor_set_type: bool,
 }
 
 impl_to_from!(Vkeywitnesses);
@@ -34,6 +35,7 @@ impl Vkeywitnesses {
             witnesses: Vec::new(),
             dedup: HashSet::new(),
             cbor_set_type: CborSetType::Tagged,
+            force_original_cbor_set_type: false,
         }
     }
 
@@ -45,6 +47,7 @@ impl Vkeywitnesses {
             witnesses,
             dedup,
             cbor_set_type: CborSetType::Tagged,
+            force_original_cbor_set_type: false,
         }
     }
 
@@ -98,6 +101,14 @@ impl Vkeywitnesses {
     #[allow(dead_code)]
     pub(crate) fn contains(&self, witness: &Vkeywitness) -> bool {
         self.dedup.contains(witness)
+    }
+
+    pub(crate) fn set_force_original_cbor_set_type(&mut self, force_original_cbor_set_type: bool) {
+        self.force_original_cbor_set_type = force_original_cbor_set_type;
+    }
+
+    pub(crate) fn force_original_cbor_set_type(&self) -> bool {
+        self.force_original_cbor_set_type
     }
 }
 
