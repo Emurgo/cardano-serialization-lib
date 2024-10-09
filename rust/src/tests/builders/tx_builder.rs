@@ -2785,8 +2785,9 @@ fn build_tx_multisig_1on1_signed() {
 
     let mut witness_set = TransactionWitnessSet::new();
     let mut vkw = Vkeywitnesses::new();
+    let fixed_tx = FixedTransaction::new_from_body_bytes(&body.to_bytes()).unwrap();
     vkw.add(&make_vkey_witness(
-        &hash_transaction(&body),
+        &fixed_tx.transaction_hash(),
         &PrivateKey::from_normal_bytes(
             &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a")
                 .unwrap(),

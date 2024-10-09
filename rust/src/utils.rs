@@ -580,11 +580,6 @@ pub fn hash_auxiliary_data(auxiliary_data: &AuxiliaryData) -> AuxiliaryDataHash 
 }
 
 #[wasm_bindgen]
-pub fn hash_transaction(tx_body: &TransactionBody) -> TransactionHash {
-    TransactionHash::from(crypto::blake2b256(tx_body.to_bytes().as_ref()))
-}
-
-#[wasm_bindgen]
 pub fn hash_plutus_data(plutus_data: &PlutusData) -> DataHash {
     DataHash::from(blake2b256(&plutus_data.to_bytes()))
 }

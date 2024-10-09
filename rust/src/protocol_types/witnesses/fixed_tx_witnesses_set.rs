@@ -30,6 +30,13 @@ impl FixedTxWitnessesSet {
         }
     }
 
+    pub(crate) fn new_empty() -> Self {
+        Self {
+            tx_witnesses_set: TransactionWitnessSet::new(),
+            raw_parts: TransactionWitnessSetRaw::new(),
+        }
+    }
+
     pub fn tx_witnesses_set(&self) -> TransactionWitnessSet {
         self.tx_witnesses_set.clone()
     }

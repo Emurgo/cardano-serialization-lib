@@ -40,8 +40,9 @@ fn tx_simple_utxo() {
 
     let mut w = TransactionWitnessSet::new();
     let mut vkw = Vkeywitnesses::new();
+    let fixed_tx = FixedTransaction::new_from_body_bytes(&body.to_bytes()).unwrap();
     vkw.add(&make_vkey_witness(
-        &hash_transaction(&body),
+        &fixed_tx.transaction_hash(),
         &PrivateKey::from_normal_bytes(
             &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a")
                 .unwrap(),
@@ -95,8 +96,9 @@ fn tx_simple_byron_utxo() {
 
     let mut w = TransactionWitnessSet::new();
     let mut bootstrap_wits = BootstrapWitnesses::new();
+    let fixed_tx = FixedTransaction::new_from_body_bytes(&body.to_bytes()).unwrap();
     bootstrap_wits.add(&make_icarus_bootstrap_witness(
-            &hash_transaction(&body),
+            &fixed_tx.transaction_hash(),
             &ByronAddress::from_base58("Ae2tdPwUPEZ6r6zbg4ibhFrNnyKHg7SYuPSfDpjKxgvwFX9LquRep7gj7FQ").unwrap(),
             &Bip32PrivateKey::from_bytes(
                 &hex::decode("d84c65426109a36edda5375ea67f1b738e1dacf8629f2bb5a2b0b20f3cd5075873bf5cdfa7e533482677219ac7d639e30a38e2e645ea9140855f44ff09e60c52c8b95d0d35fe75a70f9f5633a3e2439b2994b9e2bc851c49e9f91d1a5dcbb1a3").unwrap()
@@ -173,8 +175,9 @@ fn tx_multi_utxo() {
 
     let mut w = TransactionWitnessSet::new();
     let mut vkw = Vkeywitnesses::new();
+    let fixed_tx = FixedTransaction::new_from_body_bytes(&body.to_bytes()).unwrap();
     vkw.add(&make_vkey_witness(
-        &hash_transaction(&body),
+        &fixed_tx.transaction_hash(),
         &PrivateKey::from_normal_bytes(
             &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a")
                 .unwrap(),
@@ -182,7 +185,7 @@ fn tx_multi_utxo() {
         .unwrap(),
     ));
     vkw.add(&make_vkey_witness(
-        &hash_transaction(&body),
+        &fixed_tx.transaction_hash(),
         &PrivateKey::from_normal_bytes(
             &hex::decode("13fe79205e16c09536acb6f0524d04069f380329d13949698c5f22c65c989eb4")
                 .unwrap(),
@@ -283,9 +286,10 @@ fn tx_register_stake() {
 
     let mut w = TransactionWitnessSet::new();
     let mut vkw = Vkeywitnesses::new();
+    let fixed_tx = FixedTransaction::new_from_body_bytes(&body.to_bytes()).unwrap();
     // input key witness
     vkw.add(&make_vkey_witness(
-        &hash_transaction(&body),
+        &fixed_tx.transaction_hash(),
         &PrivateKey::from_normal_bytes(
             &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a")
                 .unwrap(),
@@ -294,7 +298,7 @@ fn tx_register_stake() {
     ));
     // operator key witness
     vkw.add(&make_vkey_witness(
-        &hash_transaction(&body),
+        &fixed_tx.transaction_hash(),
         &PrivateKey::from_normal_bytes(
             &hex::decode("2363f3660b9f3b41685665bf10632272e2d03c258e8a5323436f0f3406293505")
                 .unwrap(),
@@ -303,7 +307,7 @@ fn tx_register_stake() {
     ));
     // owner key witness
     vkw.add(&make_vkey_witness(
-        &hash_transaction(&body),
+        &fixed_tx.transaction_hash(),
         &PrivateKey::from_normal_bytes(
             &hex::decode("5ada7f4d92bce1ee1707c0a0e211eb7941287356e6ed0e76843806e307b07c8d")
                 .unwrap(),
@@ -504,9 +508,10 @@ fn tx_withdrawal() {
 
     let mut w = TransactionWitnessSet::new();
     let mut vkw = Vkeywitnesses::new();
+    let fixed_tx = FixedTransaction::new_from_body_bytes(&body.to_bytes()).unwrap();
     // input key witness
     vkw.add(&make_vkey_witness(
-        &hash_transaction(&body),
+        &fixed_tx.transaction_hash(),
         &PrivateKey::from_normal_bytes(
             &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a")
                 .unwrap(),
@@ -515,7 +520,7 @@ fn tx_withdrawal() {
     ));
     // withdrawal key witness
     vkw.add(&make_vkey_witness(
-        &hash_transaction(&body),
+        &fixed_tx.transaction_hash(),
         &PrivateKey::from_normal_bytes(
             &hex::decode("5ada7f4d92bce1ee1707c0a0e211eb7941287356e6ed0e76843806e307b07c8d")
                 .unwrap(),

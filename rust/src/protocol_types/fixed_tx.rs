@@ -62,6 +62,21 @@ impl FixedTransaction {
         })
     }
 
+    pub fn new_from_body_bytes(raw_body: &[u8]) -> Result<FixedTransaction, JsError> {
+        let body = TransactionBody::from_bytes(raw_body.to_vec())?;
+        let tx_hash = TransactionHash::from(blake2b256(raw_body));
+
+        Ok(FixedTransaction {
+            body,
+            body_bytes: raw_body.to_vec(),
+            tx_hash,
+            witness_set: FixedTxWitnessesSet::new_empty(),
+            is_valid: true,
+            auxiliary_data: None,
+            auxiliary_bytes: None,
+        })
+    }
+
     pub(crate) fn new_with_original_bytes(
         tx_body: TransactionBody,
         raw_body: Vec<u8>,
