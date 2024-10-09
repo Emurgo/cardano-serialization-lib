@@ -1,6 +1,6 @@
 use crate::*;
 use crate::tests::helpers::harden;
-use crate::tests::fakes::{fake_plutus_script, fake_bootsrap_witness, fake_tx_input, fake_vkey_witness};
+use crate::tests::fakes::{fake_plutus_script, fake_bootsrap_witness, fake_tx_input, fake_vkey_witness, fake_key_hash};
 
 #[test]
 fn native_script_hash() {
@@ -189,27 +189,15 @@ fn mint_to_negative_multiasset_empty() {
     assert_eq!(n_ass.get(&name1).unwrap(), amount1);
 }
 
-fn keyhash(x: u8) -> Ed25519KeyHash {
-    Ed25519KeyHash::from_bytes(vec![
-        x, 180, 186, 93, 223, 42, 243, 7, 81, 98, 86, 125, 97, 69, 110, 52, 130, 243, 244, 98, 246,
-        13, 33, 212, 128, 168, 136, 40,
-    ])
-    .unwrap()
-}
-
 fn pkscript(pk: &Ed25519KeyHash) -> NativeScript {
     NativeScript::new_script_pubkey(&ScriptPubkey::new(pk))
 }
 
-fn scripts_vec(scripts: Vec<&NativeScript>) -> NativeScripts {
-    NativeScripts(scripts.iter().map(|s| (*s).clone()).collect())
-}
-
 #[test]
 fn native_scripts_get_pubkeys() {
-    let keyhash1 = keyhash(1);
-    let keyhash2 = keyhash(2);
-    let keyhash3 = keyhash(3);
+    let keyhash1 = fake_key_hash(1);
+    let keyhash2 = fake_key_hash(2);
+    let keyhash3 = fake_key_hash(3);
 
     let pks1 = Ed25519KeyHashes::from(&pkscript(&keyhash1));
     assert_eq!(pks1.len(), 1);
@@ -220,26 +208,26 @@ fn native_scripts_get_pubkeys() {
     assert_eq!(pks2.len(), 0);
 
     let pks3 = Ed25519KeyHashes::from(&NativeScript::new_script_all(&ScriptAll::new(
-        &scripts_vec(vec![&pkscript(&keyhash1), &pkscript(&keyhash2)]),
+        &NativeScripts::from(vec![&pkscript(&keyhash1), &pkscript(&keyhash2)]),
     )));
     assert_eq!(pks3.len(), 2);
     assert!(pks3.contains(&keyhash1));
     assert!(pks3.contains(&keyhash2));
 
     let pks4 = Ed25519KeyHashes::from(&NativeScript::new_script_any(&ScriptAny::new(
-        &scripts_vec(vec![
+        &NativeScripts::from(vec![
             &NativeScript::new_script_n_of_k(&ScriptNOfK::new(
                 1,
-                &scripts_vec(vec![
+                &NativeScripts::from(vec![
                     &NativeScript::new_timelock_start(&TimelockStart::new(132)),
                     &pkscript(&keyhash3),
                 ]),
             )),
-            &NativeScript::new_script_all(&ScriptAll::new(&scripts_vec(vec![
+            &NativeScript::new_script_all(&ScriptAll::new(&NativeScripts::from(vec![
                 &NativeScript::new_timelock_expiry(&TimelockExpiry::new(132)),
                 &pkscript(&keyhash1),
             ]))),
-            &NativeScript::new_script_any(&ScriptAny::new(&scripts_vec(vec![
+            &NativeScript::new_script_any(&ScriptAny::new(&NativeScripts::from(vec![
                 &pkscript(&keyhash1),
                 &pkscript(&keyhash2),
                 &pkscript(&keyhash3),
@@ -448,8 +436,8 @@ fn min_ref_script_fee_test_fail(){
 #[test]
 fn ed25519_key_hashes_dedup() {
     let mut key_hashes = Ed25519KeyHashes::new();
-    let key_hash1 = keyhash(1);
-    let key_hash2 = keyhash(2);
+    let key_hash1 = fake_key_hash(1);
+    let key_hash2 = fake_key_hash(2);
 
     assert!(key_hashes.add(&key_hash1));
     assert!(key_hashes.add(&key_hash2));
@@ -476,8 +464,8 @@ fn bootstrap_witnesses_dedup() {
 #[test]
 fn credential_dedup() {
     let mut credentials = Credentials::new();
-    let credential1 = Credential::from_keyhash(&keyhash(1));
-    let credential2 = Credential::from_keyhash(&keyhash(2));
+    let credential1 = Credential::from_keyhash(&fake_key_hash(1));
+    let credential2 = Credential::from_keyhash(&fake_key_hash(2));
 
     assert!(credentials.add(&credential1));
     assert!(credentials.add(&credential2));
@@ -601,7 +589,7 @@ fn plutus_scripts_no_dedup_on_auxdata() {
 
 #[test]
 fn native_scripts_dedup_on_tx_witnesses_set() {
-    let keyhash1 = keyhash(1);
+    let keyhash1 = fake_key_hash(1);
 
     let native_scripts_1 = NativeScript::new_script_pubkey(&ScriptPubkey::new(
         &keyhash1,
@@ -638,7 +626,7 @@ fn native_scripts_dedup_on_tx_witnesses_set() {
 
 #[test]
 fn native_scripts_no_dedup_on_auxdata() {
-    let keyhash1 = keyhash(1);
+    let keyhash1 = fake_key_hash(1);
 
     let native_scripts_1 = NativeScript::new_script_pubkey(&ScriptPubkey::new(
         &keyhash1,

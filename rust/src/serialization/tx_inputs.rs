@@ -6,8 +6,7 @@ impl cbor_event::se::Serialize for TransactionInputs {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        //TODO: uncomment this line when we conway ero will come
-        //serializer.write_tag(258)?;
+        serializer.write_tag(258)?;
         serializer.write_array(cbor_event::Len::Len(self.len() as u64))?;
         for element in &self.inputs {
             element.serialize(serializer)?;
@@ -18,7 +17,7 @@ impl cbor_event::se::Serialize for TransactionInputs {
 
 impl Deserialize for TransactionInputs {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        skip_set_tag(raw)?;
+        let has_set_tag = skip_set_tag(raw)?;
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
@@ -34,6 +33,12 @@ impl Deserialize for TransactionInputs {
             Ok(())
         })()
             .map_err(|e| e.annotate("TransactionInputs"))?;
-        Ok(Self::from_vec(arr))
+        let mut inputs = TransactionInputs::from_vec(arr);
+        if has_set_tag {
+            inputs.set_set_type(CborSetType::Tagged);
+        } else {
+            inputs.set_set_type(CborSetType::Untagged);
+        }
+        Ok(inputs)
     }
 }

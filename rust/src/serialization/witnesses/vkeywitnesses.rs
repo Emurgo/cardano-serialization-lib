@@ -2,7 +2,7 @@ use std::io::{BufRead, Seek, Write};
 use cbor_event::de::Deserializer;
 use cbor_event::se::Serializer;
 use crate::protocol_types::Deserialize;
-use crate::{DeserializeError, Vkeywitness, Vkeywitnesses};
+use crate::{CborSetType, DeserializeError, Vkeywitness, Vkeywitnesses};
 use crate::serialization::utils::skip_set_tag;
 
 impl cbor_event::se::Serialize for Vkeywitnesses {
@@ -10,10 +10,15 @@ impl cbor_event::se::Serialize for Vkeywitnesses {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        //TODO: uncomment this line when we conway ero will come
-        //serializer.write_tag(258)?;
-        serializer.write_array(cbor_event::Len::Len(self.witnesses.len() as u64))?;
-        for element in &self.witnesses {
+        if self.force_original_cbor_set_type() {
+            if self.get_set_type() == CborSetType::Tagged {
+                serializer.write_tag(258)?;
+            }
+        } else {
+            serializer.write_tag(258)?;
+        }
+        serializer.write_array(cbor_event::Len::Len(self.len() as u64))?;
+        for element in self {
             element.serialize(serializer)?;
         }
         Ok(serializer)
@@ -22,7 +27,7 @@ impl cbor_event::se::Serialize for Vkeywitnesses {
 
 impl Deserialize for Vkeywitnesses {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        skip_set_tag(raw)?;
+        let has_set_tag = skip_set_tag(raw)?;
         let mut wits = Vkeywitnesses::new();
         let mut total = 0u64;
         (|| -> Result<_, DeserializeError> {
@@ -42,6 +47,12 @@ impl Deserialize for Vkeywitnesses {
             Ok(())
         })()
             .map_err(|e| e.annotate("Vkeywitnesses"))?;
+
+        if has_set_tag {
+            wits.set_set_type(CborSetType::Tagged);
+        } else {
+            wits.set_set_type(CborSetType::Untagged);
+        }
         Ok(wits)
     }
 }

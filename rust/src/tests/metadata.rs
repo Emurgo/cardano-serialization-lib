@@ -269,13 +269,13 @@ fn test_auxiliary_data_roundtrip() {
     let script_v2 = PlutusScript::from_bytes_v2(bytes.clone()).unwrap();
     let script_v3 = PlutusScript::from_bytes_v3(bytes.clone()).unwrap();
 
-    auxiliary_data_roundtrip(&PlutusScripts(vec![]));
-    auxiliary_data_roundtrip(&PlutusScripts(vec![script_v1.clone()]));
-    auxiliary_data_roundtrip(&PlutusScripts(vec![script_v2.clone()]));
-    auxiliary_data_roundtrip(&PlutusScripts(vec![script_v3.clone()]));
-    auxiliary_data_roundtrip(&PlutusScripts(vec![
+    auxiliary_data_roundtrip(&PlutusScripts::from_vec(vec![], None));
+    auxiliary_data_roundtrip(&PlutusScripts::from_vec(vec![script_v1.clone()], None));
+    auxiliary_data_roundtrip(&PlutusScripts::from_vec(vec![script_v2.clone()], None));
+    auxiliary_data_roundtrip(&PlutusScripts::from_vec(vec![script_v3.clone()], None));
+    auxiliary_data_roundtrip(&PlutusScripts::from_vec(vec![
         script_v1.clone(),
         script_v2.clone(),
         script_v3.clone(),
-    ]));
+    ], None));
 }

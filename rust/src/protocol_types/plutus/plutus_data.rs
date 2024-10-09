@@ -10,6 +10,7 @@ use cbor_event::{
 };
 
 use schemars::JsonSchema;
+use serde::ser::SerializeStruct;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
@@ -132,6 +133,7 @@ impl PlutusMap {
         PlutusList {
             elems: self.0.iter().map(|(k, _v)| k.clone()).collect::<Vec<_>>(),
             definite_encoding: None,
+            cbor_set_type: None,
         }
     }
 
@@ -437,39 +439,15 @@ impl<'de> serde::de::Deserialize<'de> for PlutusData {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug)]
 pub struct PlutusList {
     pub(crate) elems: Vec<PlutusData>,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
     // before computing datum hashes. This field will default to cardano-cli behavior if None
     // and will re-use the provided one if deserialized, unless the list is modified.
     pub(crate) definite_encoding: Option<bool>,
+    pub(crate) cbor_set_type: Option<CborSetType>,
 }
-
-impl NoneOrEmpty for PlutusList {
-    fn is_none_or_empty(&self) -> bool {
-        self.elems.is_empty()
-    }
-}
-
-impl<'a> IntoIterator for &'a PlutusList {
-    type Item = &'a PlutusData;
-    type IntoIter = std::slice::Iter<'a, PlutusData>;
-
-    fn into_iter(self) -> std::slice::Iter<'a, PlutusData> {
-        self.elems.iter()
-    }
-}
-
-impl std::cmp::PartialEq<Self> for PlutusList {
-    fn eq(&self, other: &Self) -> bool {
-        self.elems.eq(&other.elems)
-    }
-}
-
-impl std::cmp::Eq for PlutusList {}
-
-to_from_bytes!(PlutusList);
 
 #[wasm_bindgen]
 impl PlutusList {
@@ -477,6 +455,7 @@ impl PlutusList {
         Self {
             elems: Vec::new(),
             definite_encoding: None,
+            cbor_set_type: None,
         }
     }
 
@@ -526,19 +505,125 @@ impl PlutusList {
         Self {
             elems,
             definite_encoding: self.definite_encoding,
+            cbor_set_type: self.cbor_set_type.clone(),
         }
     }
 
     pub(crate) fn extend(&mut self, other: &PlutusList) {
         self.elems.extend(other.elems.iter().cloned());
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn set_set_type(&mut self, set_type: CborSetType) {
+        self.cbor_set_type = Some(set_type);
+    }
+
+    pub(crate) fn get_set_type(&self) -> Option<CborSetType> {
+        self.cbor_set_type.clone()
+    }
 }
+
+impl NoneOrEmpty for PlutusList {
+    fn is_none_or_empty(&self) -> bool {
+        self.elems.is_empty()
+    }
+}
+
+impl serde::Serialize for PlutusList {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("PlutusList", 2)?;
+        state.serialize_field("elems", &self.elems)?;
+        state.serialize_field("definite_encoding", &self.definite_encoding)?;
+        state.end()
+    }
+}
+
+
+#[derive(serde::Deserialize, JsonSchema)]
+struct PlutusListFields {
+    elems: Vec<PlutusData>,
+    definite_encoding: Option<bool>,
+}
+
+impl<'de> serde::de::Deserialize<'de> for PlutusList {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let fields = PlutusListFields::deserialize(deserializer)?;
+        Ok(Self {
+            elems: fields.elems,
+            definite_encoding: fields.definite_encoding,
+            cbor_set_type: None,
+        })
+    }
+}
+
+impl JsonSchema for PlutusList {
+    fn schema_name() -> String {
+        String::from("PlutusList")
+    }
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        PlutusListFields::json_schema(gen)
+    }
+    fn is_referenceable() -> bool {
+        PlutusListFields::is_referenceable()
+    }
+}
+
+impl<'a> IntoIterator for &'a PlutusList {
+    type Item = &'a PlutusData;
+    type IntoIter = std::slice::Iter<'a, PlutusData>;
+
+    fn into_iter(self) -> std::slice::Iter<'a, PlutusData> {
+        self.elems.iter()
+    }
+}
+
+impl PartialOrd for PlutusList {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.elems.partial_cmp(&other.elems) {
+            Some(core::cmp::Ordering::Equal) => self.definite_encoding.partial_cmp(&other.definite_encoding),
+            non_eq => non_eq,
+        }
+    }
+}
+
+impl Hash for PlutusList {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.elems.hash(state);
+        self.definite_encoding.hash(state);
+    }
+}
+
+impl Ord for PlutusList {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.elems.cmp(&other.elems) {
+            core::cmp::Ordering::Equal => self.definite_encoding.cmp(&other.definite_encoding),
+            non_eq => non_eq,
+        }
+    }
+}
+
+impl std::cmp::PartialEq<Self> for PlutusList {
+    fn eq(&self, other: &Self) -> bool {
+        self.elems.eq(&other.elems)
+    }
+}
+
+impl std::cmp::Eq for PlutusList {}
+
+to_from_bytes!(PlutusList);
 
 impl From<Vec<PlutusData>> for PlutusList {
     fn from(elems: Vec<PlutusData>) -> Self {
         Self {
             elems,
             definite_encoding: None,
+            cbor_set_type: None,
         }
     }
 }

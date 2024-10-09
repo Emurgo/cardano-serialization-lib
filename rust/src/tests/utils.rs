@@ -459,7 +459,7 @@ fn correct_script_data_hash() {
 
     assert_eq!(
         hex::encode(script_data_hash.to_bytes()),
-        "4415e6667e6d6bbd992af5092d48e3c2ba9825200d0234d2470068f7f0f178b3"
+        "8452337aed2f75d45838155503407b4241a75f021c3818ec90383c8e0faca5a4"
     );
 }
 
@@ -733,7 +733,7 @@ fn test_vasil_v1_costmodel_hashing() {
     );
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "887e1b6416d750d871c0f5b7136b54f7b8e8b0e293379d090f38f8f821d08a29"
+        "f173f8e25f385c61c33ab84c1e4a1af36fcd47dc7ab83d89f926828f618630f5"
     );
 }
 
@@ -750,4 +750,25 @@ fn bigint_as_int() {
     let neg = BigInt::from_str("-1024").unwrap();
     let neg_int = neg.as_int().unwrap();
     assert_eq!(neg_int.0, -1024i128);
+}
+
+#[test]
+fn has_transaction_set_tag_tx_with_only_tag() {
+    let hex = "84a400d90102818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00016f32030aa100d9010281825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee58406d68d8b7b2ee54f1f46b64e3f61a14f840be2ec125c858ec917f634a1eb898a51660654839226016a2588d39920e6dfe1b66d917027f198b5eb887d20f4ac805f5f6";
+    let tx_sets = has_transaction_set_tag(hex::decode(hex).unwrap()).unwrap();
+    assert_eq!(tx_sets, TransactionSetsState::AllSetsHaveTag);
+}
+
+#[test]
+fn has_transaction_set_tag_tx_without_tag() {
+    let hex = "84a400818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00016f32030aa10081825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee5840fae5de40c94d759ce13bf9886262159c4f26a289fd192e165995b785259e503f6887bf39dfa23a47cf163784c6eee23f61440e749bc1df3c73975f5231aeda0ff5f6";
+    let tx_sets = has_transaction_set_tag(hex::decode(hex).unwrap()).unwrap();
+    assert_eq!(tx_sets, TransactionSetsState::AllSetsHaveNoTag);
+}
+
+#[test]
+fn has_transaction_set_tag_mixed() {
+    let hex = "84a400818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00016f32030aa100d9010281825820f9aa3fccb7fe539e471188ccc9ee65514c5961c070b06ca185962484a4813bee58406d68d8b7b2ee54f1f46b64e3f61a14f840be2ec125c858ec917f634a1eb898a51660654839226016a2588d39920e6dfe1b66d917027f198b5eb887d20f4ac805f5f6";
+    let tx_sets = has_transaction_set_tag(hex::decode(hex).unwrap()).unwrap();
+    assert_eq!(tx_sets, TransactionSetsState::MixedSets);
 }

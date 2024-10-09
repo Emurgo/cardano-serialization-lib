@@ -6,6 +6,42 @@
  */
 
 /**
+ * @param {Address} address
+ * @param {TransactionUnspentOutputs} utxos
+ * @param {TransactionBuilderConfig} config
+ * @returns {TransactionBatchList}
+ */
+declare export function create_send_all(
+  address: Address,
+  utxos: TransactionUnspentOutputs,
+  config: TransactionBuilderConfig
+): TransactionBatchList;
+
+/**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
  * @param {Transaction} tx
  * @param {LinearFee} linear_fee
  * @returns {BigNum}
@@ -107,42 +143,6 @@ declare export function decode_metadatum_to_json_str(
 ): string;
 
 /**
- * @param {Address} address
- * @param {TransactionUnspentOutputs} utxos
- * @param {TransactionBuilderConfig} config
- * @returns {TransactionBatchList}
- */
-declare export function create_send_all(
-  address: Address,
-  utxos: TransactionUnspentOutputs,
-  config: TransactionBuilderConfig
-): TransactionBatchList;
-
-/**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
- */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
-
-/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -183,14 +183,6 @@ declare export function make_vkey_witness(
 declare export function hash_auxiliary_data(
   auxiliary_data: AuxiliaryData
 ): AuxiliaryDataHash;
-
-/**
- * @param {TransactionBody} tx_body
- * @returns {TransactionHash}
- */
-declare export function hash_transaction(
-  tx_body: TransactionBody
-): TransactionHash;
 
 /**
  * @param {PlutusData} plutus_data
@@ -268,63 +260,30 @@ declare export function encode_json_str_to_native_script(
 ): NativeScript;
 
 /**
+ * Returns the state of the transaction sets.
+ * If all sets have a tag, it returns AllSetsHaveTag.
+ * If all sets have no tag, it returns AllSetsHaveNoTag.
+ * If there is a mix of tagged and untagged sets, it returns MixedSets.
+ * This function is useful for checking if a transaction might be signed by a hardware wallet.
+ * And for checking which parameter should be used in a hardware wallet api.
+ * WARNING this function will be deleted after all tags for set types will be mandatory. Approx after next hf
+ * @param {Uint8Array} tx_bytes
+ * @returns {$Values<
+                typeof 
+                TransactionSetsState>}
  */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
+declare export function has_transaction_set_tag(
+  tx_bytes: Uint8Array
+): $Values<typeof TransactionSetsState>;
 
 /**
  */
 
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
-declare export var PlutusDataKind: {|
-  +ConstrPlutusData: 0, // 0
-  +Map: 1, // 1
-  +List: 2, // 2
-  +Integer: 3, // 3
-  +Bytes: 4, // 4
-|};
-
-/**
- */
-
-declare export var VoteKind: {|
-  +No: 0, // 0
-  +Yes: 1, // 1
-  +Abstain: 2, // 2
-|};
-
-/**
- */
-
-declare export var VoterKind: {|
-  +ConstitutionalCommitteeHotKeyHash: 0, // 0
-  +ConstitutionalCommitteeHotScriptHash: 1, // 1
-  +DRepKeyHash: 2, // 2
-  +DRepScriptHash: 3, // 3
-  +StakingPoolKeyHash: 4, // 4
-|};
-
-/**
- * Used to choosed the schema for a script JSON string
- */
-
-declare export var ScriptSchema: {|
-  +Wallet: 0, // 0
-  +Node: 1, // 1
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
 |};
 
 /**
@@ -347,37 +306,79 @@ declare export var PlutusDatumSchema: {|
 /**
  */
 
+declare export var RelayKind: {|
+  +SingleHostAddr: 0, // 0
+  +SingleHostName: 1, // 1
+  +MultiHostName: 2, // 2
+|};
+
+/**
+ */
+
+declare export var VoteKind: {|
+  +No: 0, // 0
+  +Yes: 1, // 1
+  +Abstain: 2, // 2
+|};
+
+/**
+ */
+
+declare export var AddressKind: {|
+  +Base: 0, // 0
+  +Pointer: 1, // 1
+  +Enterprise: 2, // 2
+  +Reward: 3, // 3
+  +Byron: 4, // 4
+  +Malformed: 5, // 5
+|};
+
+/**
+ * Each new language uses a different namespace for hashing its script
+ * This is because you could have a language where the same bytes have different semantics
+ * So this avoids scripts in different languages mapping to the same hash
+ * Note that the enum value here is different than the enum value for deciding the cost model of a script
+ */
+
+declare export var ScriptHashNamespace: {|
+  +NativeScript: 0, // 0
+  +PlutusScript: 1, // 1
+  +PlutusScriptV2: 2, // 2
+  +PlutusScriptV3: 3, // 3
+|};
+
+/**
+ */
+
+declare export var TransactionSetsState: {|
+  +AllSetsHaveTag: 0, // 0
+  +AllSetsHaveNoTag: 1, // 1
+  +MixedSets: 2, // 2
+|};
+
+/**
+ */
+
 declare export var CredKind: {|
   +Key: 0, // 0
   +Script: 1, // 1
 |};
 
 /**
+ * Used to choosed the schema for a script JSON string
  */
 
-declare export var NetworkIdKind: {|
-  +Testnet: 0, // 0
-  +Mainnet: 1, // 1
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
 |};
 
 /**
  */
 
-declare export var MIRKind: {|
-  +ToOtherPot: 0, // 0
-  +ToStakeCredentials: 1, // 1
-|};
-
-/**
- */
-
-declare export var NativeScriptKind: {|
-  +ScriptPubkey: 0, // 0
-  +ScriptAll: 1, // 1
-  +ScriptAny: 2, // 2
-  +ScriptNOfK: 3, // 3
-  +TimelockStart: 4, // 4
-  +TimelockExpiry: 5, // 5
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
 |};
 
 /**
@@ -395,13 +396,96 @@ declare export var RedeemerTagKind: {|
 /**
  */
 
-declare export var AddressKind: {|
-  +Base: 0, // 0
-  +Pointer: 1, // 1
-  +Enterprise: 2, // 2
-  +Reward: 3, // 3
-  +Byron: 4, // 4
-  +Malformed: 5, // 5
+declare export var PlutusDataKind: {|
+  +ConstrPlutusData: 0, // 0
+  +Map: 1, // 1
+  +List: 2, // 2
+  +Integer: 3, // 3
+  +Bytes: 4, // 4
+|};
+
+/**
+ */
+
+declare export var DRepKind: {|
+  +KeyHash: 0, // 0
+  +ScriptHash: 1, // 1
+  +AlwaysAbstain: 2, // 2
+  +AlwaysNoConfidence: 3, // 3
+|};
+
+/**
+ */
+
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
+|};
+
+/**
+ */
+
+declare export var LanguageKind: {|
+  +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
+  +PlutusV3: 2, // 2
+|};
+
+/**
+ */
+
+declare export var VoterKind: {|
+  +ConstitutionalCommitteeHotKeyHash: 0, // 0
+  +ConstitutionalCommitteeHotScriptHash: 1, // 1
+  +DRepKeyHash: 2, // 2
+  +DRepScriptHash: 3, // 3
+  +StakingPoolKeyHash: 4, // 4
+|};
+
+/**
+ */
+
+declare export var NetworkIdKind: {|
+  +Testnet: 0, // 0
+  +Mainnet: 1, // 1
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var GovernanceActionKind: {|
+  +ParameterChangeAction: 0, // 0
+  +HardForkInitiationAction: 1, // 1
+  +TreasuryWithdrawalsAction: 2, // 2
+  +NoConfidenceAction: 3, // 3
+  +UpdateCommitteeAction: 4, // 4
+  +NewConstitutionAction: 5, // 5
+  +InfoAction: 6, // 6
+|};
+
+/**
+ */
+
+declare export var BlockEra: {|
+  +Byron: 0, // 0
+  +Shelley: 1, // 1
+  +Allegra: 2, // 2
+  +Mary: 3, // 3
+  +Alonzo: 4, // 4
+  +Babbage: 5, // 5
+  +Conway: 6, // 6
+  +Unknown: 7, // 7
 |};
 
 /**
@@ -428,98 +512,40 @@ declare export var CertificateKind: {|
 |};
 
 /**
- * Each new language uses a different namespace for hashing its script
- * This is because you could have a language where the same bytes have different semantics
- * So this avoids scripts in different languages mapping to the same hash
- * Note that the enum value here is different than the enum value for deciding the cost model of a script
  */
 
-declare export var ScriptHashNamespace: {|
-  +NativeScript: 0, // 0
-  +PlutusScript: 1, // 1
-  +PlutusScriptV2: 2, // 2
-  +PlutusScriptV3: 3, // 3
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
 |};
 
 /**
  */
 
-declare export var CborContainerType: {|
-  +Array: 0, // 0
-  +Map: 1, // 1
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
 |};
 
 /**
  */
 
-declare export var RelayKind: {|
-  +SingleHostAddr: 0, // 0
-  +SingleHostName: 1, // 1
-  +MultiHostName: 2, // 2
+declare export var NativeScriptKind: {|
+  +ScriptPubkey: 0, // 0
+  +ScriptAll: 1, // 1
+  +ScriptAny: 2, // 2
+  +ScriptNOfK: 3, // 3
+  +TimelockStart: 4, // 4
+  +TimelockExpiry: 5, // 5
 |};
 
 /**
  */
 
-declare export var BlockEra: {|
-  +Byron: 0, // 0
-  +Shelley: 1, // 1
-  +Allegra: 2, // 2
-  +Mary: 3, // 3
-  +Alonzo: 4, // 4
-  +Babbage: 5, // 5
-  +Conway: 6, // 6
-  +Unknown: 7, // 7
-|};
-
-/**
- */
-
-declare export var LanguageKind: {|
-  +PlutusV1: 0, // 0
-  +PlutusV2: 1, // 1
-  +PlutusV3: 2, // 2
-|};
-
-/**
- */
-
-declare export var GovernanceActionKind: {|
-  +ParameterChangeAction: 0, // 0
-  +HardForkInitiationAction: 1, // 1
-  +TreasuryWithdrawalsAction: 2, // 2
-  +NoConfidenceAction: 3, // 3
-  +UpdateCommitteeAction: 4, // 4
-  +NewConstitutionAction: 5, // 5
-  +InfoAction: 6, // 6
-|};
-
-/**
- */
-
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-  +LargestFirstMultiAsset: 2, // 2
-  +RandomImproveMultiAsset: 3, // 3
-|};
-
-/**
- */
-
-declare export var MIRPot: {|
-  +Reserves: 0, // 0
-  +Treasury: 1, // 1
-|};
-
-/**
- */
-
-declare export var DRepKind: {|
-  +KeyHash: 0, // 0
-  +ScriptHash: 1, // 1
-  +AlwaysAbstain: 2, // 2
-  +AlwaysNoConfidence: 3, // 3
+declare export var CborSetType: {|
+  +Tagged: 0, // 0
+  +Untagged: 1, // 1
 |};
 
 /**
@@ -539,9 +565,9 @@ declare export class Address {
   to_json(): string;
 
   /**
-   * @returns {AddressJSON}
+   * @returns {any}
    */
-  to_js_value(): AddressJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -632,9 +658,9 @@ declare export class Anchor {
   to_json(): string;
 
   /**
-   * @returns {AnchorJSON}
+   * @returns {any}
    */
-  to_js_value(): AnchorJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -731,9 +757,9 @@ declare export class AssetName {
   to_json(): string;
 
   /**
-   * @returns {AssetNameJSON}
+   * @returns {any}
    */
-  to_js_value(): AssetNameJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -785,9 +811,9 @@ declare export class AssetNames {
   to_json(): string;
 
   /**
-   * @returns {AssetNamesJSON}
+   * @returns {any}
    */
-  to_js_value(): AssetNamesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -849,9 +875,9 @@ declare export class Assets {
   to_json(): string;
 
   /**
-   * @returns {AssetsJSON}
+   * @returns {any}
    */
-  to_js_value(): AssetsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -920,9 +946,9 @@ declare export class AuxiliaryData {
   to_json(): string;
 
   /**
-   * @returns {AuxiliaryDataJSON}
+   * @returns {any}
    */
-  to_js_value(): AuxiliaryDataJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -1123,9 +1149,9 @@ declare export class BigInt {
   to_json(): string;
 
   /**
-   * @returns {BigIntJSON}
+   * @returns {any}
    */
-  to_js_value(): BigIntJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -1248,9 +1274,9 @@ declare export class BigNum {
   to_json(): string;
 
   /**
-   * @returns {BigNumJSON}
+   * @returns {any}
    */
-  to_js_value(): BigNumJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -1561,9 +1587,9 @@ declare export class Block {
   to_json(): string;
 
   /**
-   * @returns {BlockJSON}
+   * @returns {any}
    */
-  to_js_value(): BlockJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -1684,9 +1710,9 @@ declare export class BootstrapWitness {
   to_json(): string;
 
   /**
-   * @returns {BootstrapWitnessJSON}
+   * @returns {any}
    */
-  to_js_value(): BootstrapWitnessJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -1761,9 +1787,9 @@ declare export class BootstrapWitnesses {
   to_json(): string;
 
   /**
-   * @returns {BootstrapWitnessesJSON}
+   * @returns {any}
    */
-  to_js_value(): BootstrapWitnessesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -1790,10 +1816,10 @@ declare export class BootstrapWitnesses {
   /**
    * Add a new `BootstrapWitness` to the set.
    * Returns `true` if the element was not already present in the set.
-   * @param {BootstrapWitness} elem
+   * @param {BootstrapWitness} witness
    * @returns {boolean}
    */
-  add(elem: BootstrapWitness): boolean;
+  add(witness: BootstrapWitness): boolean;
 }
 /**
  */
@@ -1899,9 +1925,9 @@ declare export class Certificate {
   to_json(): string;
 
   /**
-   * @returns {CertificateJSON}
+   * @returns {any}
    */
-  to_js_value(): CertificateJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -2201,9 +2227,9 @@ declare export class Certificates {
   to_json(): string;
 
   /**
-   * @returns {CertificatesJSON}
+   * @returns {any}
    */
-  to_js_value(): CertificatesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -2366,9 +2392,9 @@ declare export class Committee {
   to_json(): string;
 
   /**
-   * @returns {CommitteeJSON}
+   * @returns {any}
    */
-  to_js_value(): CommitteeJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -2437,9 +2463,9 @@ declare export class CommitteeColdResign {
   to_json(): string;
 
   /**
-   * @returns {CommitteeColdResignJSON}
+   * @returns {any}
    */
-  to_js_value(): CommitteeColdResignJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -2511,9 +2537,9 @@ declare export class CommitteeHotAuth {
   to_json(): string;
 
   /**
-   * @returns {CommitteeHotAuthJSON}
+   * @returns {any}
    */
-  to_js_value(): CommitteeHotAuthJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -2579,9 +2605,9 @@ declare export class Constitution {
   to_json(): string;
 
   /**
-   * @returns {ConstitutionJSON}
+   * @returns {any}
    */
-  to_js_value(): ConstitutionJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -2692,9 +2718,9 @@ declare export class CostModel {
   to_json(): string;
 
   /**
-   * @returns {CostModelJSON}
+   * @returns {any}
    */
-  to_js_value(): CostModelJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -2762,9 +2788,9 @@ declare export class Costmdls {
   to_json(): string;
 
   /**
-   * @returns {CostmdlsJSON}
+   * @returns {any}
    */
-  to_js_value(): CostmdlsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -2873,9 +2899,9 @@ declare export class Credential {
   to_json(): string;
 
   /**
-   * @returns {CredentialJSON}
+   * @returns {any}
    */
-  to_js_value(): CredentialJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -2916,9 +2942,9 @@ declare export class Credentials {
   to_json(): string;
 
   /**
-   * @returns {CredentialsJSON}
+   * @returns {any}
    */
-  to_js_value(): CredentialsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -2945,10 +2971,10 @@ declare export class Credentials {
   /**
    * Add a new `Credential` to the set.
    * Returns `true` if the element was not already present in the set.
-   * @param {Credential} elem
+   * @param {Credential} credential
    * @returns {boolean}
    */
-  add(elem: Credential): boolean;
+  add(credential: Credential): boolean;
 }
 /**
  */
@@ -2983,9 +3009,9 @@ declare export class DNSRecordAorAAAA {
   to_json(): string;
 
   /**
-   * @returns {DNSRecordAorAAAAJSON}
+   * @returns {any}
    */
-  to_js_value(): DNSRecordAorAAAAJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -3037,9 +3063,9 @@ declare export class DNSRecordSRV {
   to_json(): string;
 
   /**
-   * @returns {DNSRecordSRVJSON}
+   * @returns {any}
    */
-  to_js_value(): DNSRecordSRVJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -3091,9 +3117,9 @@ declare export class DRep {
   to_json(): string;
 
   /**
-   * @returns {DRepJSON}
+   * @returns {any}
    */
-  to_js_value(): DRepJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -3190,9 +3216,9 @@ declare export class DRepDeregistration {
   to_json(): string;
 
   /**
-   * @returns {DRepDeregistrationJSON}
+   * @returns {any}
    */
-  to_js_value(): DRepDeregistrationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -3255,9 +3281,9 @@ declare export class DRepRegistration {
   to_json(): string;
 
   /**
-   * @returns {DRepRegistrationJSON}
+   * @returns {any}
    */
-  to_js_value(): DRepRegistrationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -3337,9 +3363,9 @@ declare export class DRepUpdate {
   to_json(): string;
 
   /**
-   * @returns {DRepUpdateJSON}
+   * @returns {any}
    */
-  to_js_value(): DRepUpdateJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -3411,9 +3437,9 @@ declare export class DRepVotingThresholds {
   to_json(): string;
 
   /**
-   * @returns {DRepVotingThresholdsJSON}
+   * @returns {any}
    */
-  to_js_value(): DRepVotingThresholdsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -3691,9 +3717,9 @@ declare export class Ed25519KeyHashes {
   to_json(): string;
 
   /**
-   * @returns {Ed25519KeyHashesJSON}
+   * @returns {any}
    */
-  to_js_value(): Ed25519KeyHashesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -3720,10 +3746,10 @@ declare export class Ed25519KeyHashes {
   /**
    * Add a new `Ed25519KeyHash` to the set.
    * Returns `true` if the element was not already present in the set.
-   * @param {Ed25519KeyHash} elem
+   * @param {Ed25519KeyHash} keyhash
    * @returns {boolean}
    */
-  add(elem: Ed25519KeyHash): boolean;
+  add(keyhash: Ed25519KeyHash): boolean;
 
   /**
    * @param {Ed25519KeyHash} elem
@@ -3840,9 +3866,9 @@ declare export class ExUnitPrices {
   to_json(): string;
 
   /**
-   * @returns {ExUnitPricesJSON}
+   * @returns {any}
    */
-  to_js_value(): ExUnitPricesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -3900,9 +3926,9 @@ declare export class ExUnits {
   to_json(): string;
 
   /**
-   * @returns {ExUnitsJSON}
+   * @returns {any}
    */
-  to_js_value(): ExUnitsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -4028,6 +4054,12 @@ declare export class FixedTransaction {
     raw_auxiliary_data: Uint8Array,
     is_valid: boolean
   ): FixedTransaction;
+
+  /**
+   * @param {Uint8Array} raw_body
+   * @returns {FixedTransaction}
+   */
+  static new_from_body_bytes(raw_body: Uint8Array): FixedTransaction;
 
   /**
    * @returns {TransactionBody}
@@ -4297,9 +4329,9 @@ declare export class GeneralTransactionMetadata {
   to_json(): string;
 
   /**
-   * @returns {GeneralTransactionMetadataJSON}
+   * @returns {any}
    */
-  to_js_value(): GeneralTransactionMetadataJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -4446,9 +4478,9 @@ declare export class GenesisHashes {
   to_json(): string;
 
   /**
-   * @returns {GenesisHashesJSON}
+   * @returns {any}
    */
-  to_js_value(): GenesisHashesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -4510,9 +4542,9 @@ declare export class GenesisKeyDelegation {
   to_json(): string;
 
   /**
-   * @returns {GenesisKeyDelegationJSON}
+   * @returns {any}
    */
-  to_js_value(): GenesisKeyDelegationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -4580,9 +4612,9 @@ declare export class GovernanceAction {
   to_json(): string;
 
   /**
-   * @returns {GovernanceActionJSON}
+   * @returns {any}
    */
-  to_js_value(): GovernanceActionJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -4719,9 +4751,9 @@ declare export class GovernanceActionId {
   to_json(): string;
 
   /**
-   * @returns {GovernanceActionIdJSON}
+   * @returns {any}
    */
-  to_js_value(): GovernanceActionIdJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -4760,9 +4792,9 @@ declare export class GovernanceActionIds {
   to_json(): string;
 
   /**
-   * @returns {GovernanceActionIdsJSON}
+   * @returns {any}
    */
-  to_js_value(): GovernanceActionIdsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -4824,9 +4856,9 @@ declare export class HardForkInitiationAction {
   to_json(): string;
 
   /**
-   * @returns {HardForkInitiationActionJSON}
+   * @returns {any}
    */
-  to_js_value(): HardForkInitiationActionJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -4893,9 +4925,9 @@ declare export class Header {
   to_json(): string;
 
   /**
-   * @returns {HeaderJSON}
+   * @returns {any}
    */
-  to_js_value(): HeaderJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -4953,9 +4985,9 @@ declare export class HeaderBody {
   to_json(): string;
 
   /**
-   * @returns {HeaderBodyJSON}
+   * @returns {any}
    */
-  to_js_value(): HeaderBodyJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -5147,9 +5179,9 @@ declare export class Int {
   to_json(): string;
 
   /**
-   * @returns {IntJSON}
+   * @returns {any}
    */
-  to_js_value(): IntJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -5270,9 +5302,9 @@ declare export class Ipv4 {
   to_json(): string;
 
   /**
-   * @returns {Ipv4JSON}
+   * @returns {any}
    */
-  to_js_value(): Ipv4JSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -5324,9 +5356,9 @@ declare export class Ipv6 {
   to_json(): string;
 
   /**
-   * @returns {Ipv6JSON}
+   * @returns {any}
    */
-  to_js_value(): Ipv6JSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -5433,9 +5465,9 @@ declare export class Language {
   to_json(): string;
 
   /**
-   * @returns {LanguageJSON}
+   * @returns {any}
    */
-  to_js_value(): LanguageJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -5572,9 +5604,9 @@ declare export class MIRToStakeCredentials {
   to_json(): string;
 
   /**
-   * @returns {MIRToStakeCredentialsJSON}
+   * @returns {any}
    */
-  to_js_value(): MIRToStakeCredentialsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -5808,9 +5840,9 @@ declare export class Mint {
   to_json(): string;
 
   /**
-   * @returns {MintJSON}
+   * @returns {any}
    */
-  to_js_value(): MintJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -5996,9 +6028,9 @@ declare export class MintsAssets {
   to_json(): string;
 
   /**
-   * @returns {MintsAssetsJSON}
+   * @returns {any}
    */
-  to_js_value(): MintsAssetsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6060,9 +6092,9 @@ declare export class MoveInstantaneousReward {
   to_json(): string;
 
   /**
-   * @returns {MoveInstantaneousRewardJSON}
+   * @returns {any}
    */
-  to_js_value(): MoveInstantaneousRewardJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6151,9 +6183,9 @@ declare export class MoveInstantaneousRewardsCert {
   to_json(): string;
 
   /**
-   * @returns {MoveInstantaneousRewardsCertJSON}
+   * @returns {any}
    */
-  to_js_value(): MoveInstantaneousRewardsCertJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6207,9 +6239,9 @@ declare export class MultiAsset {
   to_json(): string;
 
   /**
-   * @returns {MultiAssetJSON}
+   * @returns {any}
    */
-  to_js_value(): MultiAssetJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6313,9 +6345,9 @@ declare export class MultiHostName {
   to_json(): string;
 
   /**
-   * @returns {MultiHostNameJSON}
+   * @returns {any}
    */
-  to_js_value(): MultiHostNameJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6367,9 +6399,9 @@ declare export class NativeScript {
   to_json(): string;
 
   /**
-   * @returns {NativeScriptJSON}
+   * @returns {any}
    */
-  to_js_value(): NativeScriptJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6550,9 +6582,9 @@ declare export class NativeScripts {
   to_json(): string;
 
   /**
-   * @returns {NativeScriptsJSON}
+   * @returns {any}
    */
-  to_js_value(): NativeScriptsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6593,9 +6625,9 @@ declare export class NetworkId {
   to_json(): string;
 
   /**
-   * @returns {NetworkIdJSON}
+   * @returns {any}
    */
-  to_js_value(): NetworkIdJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6690,9 +6722,9 @@ declare export class NewConstitutionAction {
   to_json(): string;
 
   /**
-   * @returns {NewConstitutionActionJSON}
+   * @returns {any}
    */
-  to_js_value(): NewConstitutionActionJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6764,9 +6796,9 @@ declare export class NoConfidenceAction {
   to_json(): string;
 
   /**
-   * @returns {NoConfidenceActionJSON}
+   * @returns {any}
    */
-  to_js_value(): NoConfidenceActionJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6825,9 +6857,9 @@ declare export class Nonce {
   to_json(): string;
 
   /**
-   * @returns {NonceJSON}
+   * @returns {any}
    */
-  to_js_value(): NonceJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6884,9 +6916,9 @@ declare export class OperationalCert {
   to_json(): string;
 
   /**
-   * @returns {OperationalCertJSON}
+   * @returns {any}
    */
-  to_js_value(): OperationalCertJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -6988,9 +7020,9 @@ declare export class ParameterChangeAction {
   to_json(): string;
 
   /**
-   * @returns {ParameterChangeActionJSON}
+   * @returns {any}
    */
-  to_js_value(): ParameterChangeActionJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -7193,6 +7225,27 @@ declare export class PlutusList {
   free(): void;
 
   /**
+   * @returns {PlutusList}
+   */
+  static new(): PlutusList;
+
+  /**
+   * @returns {number}
+   */
+  len(): number;
+
+  /**
+   * @param {number} index
+   * @returns {PlutusData}
+   */
+  get(index: number): PlutusData;
+
+  /**
+   * @param {PlutusData} elem
+   */
+  add(elem: PlutusData): void;
+
+  /**
    * @returns {Uint8Array}
    */
   to_bytes(): Uint8Array;
@@ -7213,27 +7266,6 @@ declare export class PlutusList {
    * @returns {PlutusList}
    */
   static from_hex(hex_str: string): PlutusList;
-
-  /**
-   * @returns {PlutusList}
-   */
-  static new(): PlutusList;
-
-  /**
-   * @returns {number}
-   */
-  len(): number;
-
-  /**
-   * @param {number} index
-   * @returns {PlutusData}
-   */
-  get(index: number): PlutusData;
-
-  /**
-   * @param {PlutusData} elem
-   */
-  add(elem: PlutusData): void;
 }
 /**
  */
@@ -7509,9 +7541,9 @@ declare export class PlutusScripts {
   to_json(): string;
 
   /**
-   * @returns {PlutusScriptsJSON}
+   * @returns {any}
    */
-  to_js_value(): PlutusScriptsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -7764,9 +7796,9 @@ declare export class PoolMetadata {
   to_json(): string;
 
   /**
-   * @returns {PoolMetadataJSON}
+   * @returns {any}
    */
-  to_js_value(): PoolMetadataJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -7863,9 +7895,9 @@ declare export class PoolParams {
   to_json(): string;
 
   /**
-   * @returns {PoolParamsJSON}
+   * @returns {any}
    */
-  to_js_value(): PoolParamsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -7975,9 +8007,9 @@ declare export class PoolRegistration {
   to_json(): string;
 
   /**
-   * @returns {PoolRegistrationJSON}
+   * @returns {any}
    */
-  to_js_value(): PoolRegistrationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -8029,9 +8061,9 @@ declare export class PoolRetirement {
   to_json(): string;
 
   /**
-   * @returns {PoolRetirementJSON}
+   * @returns {any}
    */
-  to_js_value(): PoolRetirementJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -8089,9 +8121,9 @@ declare export class PoolVotingThresholds {
   to_json(): string;
 
   /**
-   * @returns {PoolVotingThresholdsJSON}
+   * @returns {any}
    */
-  to_js_value(): PoolVotingThresholdsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -8246,9 +8278,9 @@ declare export class ProposedProtocolParameterUpdates {
   to_json(): string;
 
   /**
-   * @returns {ProposedProtocolParameterUpdatesJSON}
+   * @returns {any}
    */
-  to_js_value(): ProposedProtocolParameterUpdatesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -8320,9 +8352,9 @@ declare export class ProtocolParamUpdate {
   to_json(): string;
 
   /**
-   * @returns {ProtocolParamUpdateJSON}
+   * @returns {any}
    */
-  to_js_value(): ProtocolParamUpdateJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -8700,9 +8732,9 @@ declare export class ProtocolVersion {
   to_json(): string;
 
   /**
-   * @returns {ProtocolVersionJSON}
+   * @returns {any}
    */
-  to_js_value(): ProtocolVersionJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -8841,9 +8873,9 @@ declare export class Redeemer {
   to_json(): string;
 
   /**
-   * @returns {RedeemerJSON}
+   * @returns {any}
    */
-  to_js_value(): RedeemerJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -8918,9 +8950,9 @@ declare export class RedeemerTag {
   to_json(): string;
 
   /**
-   * @returns {RedeemerTagJSON}
+   * @returns {any}
    */
-  to_js_value(): RedeemerTagJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -8998,9 +9030,9 @@ declare export class Redeemers {
   to_json(): string;
 
   /**
-   * @returns {RedeemersJSON}
+   * @returns {any}
    */
-  to_js_value(): RedeemersJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9028,6 +9060,14 @@ declare export class Redeemers {
    * @param {Redeemer} elem
    */
   add(elem: Redeemer): void;
+
+  /**
+ * WARNING: This function will be removed in after next hard fork
+ * @returns {$Values<
+                typeof 
+                CborContainerType>}
+ */
+  get_container_type(): $Values<typeof CborContainerType>;
 
   /**
    * @returns {ExUnits}
@@ -9067,9 +9107,9 @@ declare export class Relay {
   to_json(): string;
 
   /**
-   * @returns {RelayJSON}
+   * @returns {any}
    */
-  to_js_value(): RelayJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9150,9 +9190,9 @@ declare export class Relays {
   to_json(): string;
 
   /**
-   * @returns {RelaysJSON}
+   * @returns {any}
    */
-  to_js_value(): RelaysJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9247,9 +9287,9 @@ declare export class RewardAddresses {
   to_json(): string;
 
   /**
-   * @returns {RewardAddressesJSON}
+   * @returns {any}
    */
-  to_js_value(): RewardAddressesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9311,9 +9351,9 @@ declare export class ScriptAll {
   to_json(): string;
 
   /**
-   * @returns {ScriptAllJSON}
+   * @returns {any}
    */
-  to_js_value(): ScriptAllJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9365,9 +9405,9 @@ declare export class ScriptAny {
   to_json(): string;
 
   /**
-   * @returns {ScriptAnyJSON}
+   * @returns {any}
    */
-  to_js_value(): ScriptAnyJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9497,9 +9537,9 @@ declare export class ScriptHashes {
   to_json(): string;
 
   /**
-   * @returns {ScriptHashesJSON}
+   * @returns {any}
    */
-  to_js_value(): ScriptHashesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9561,9 +9601,9 @@ declare export class ScriptNOfK {
   to_json(): string;
 
   /**
-   * @returns {ScriptNOfKJSON}
+   * @returns {any}
    */
-  to_js_value(): ScriptNOfKJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9621,9 +9661,9 @@ declare export class ScriptPubkey {
   to_json(): string;
 
   /**
-   * @returns {ScriptPubkeyJSON}
+   * @returns {any}
    */
-  to_js_value(): ScriptPubkeyJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9675,9 +9715,9 @@ declare export class ScriptRef {
   to_json(): string;
 
   /**
-   * @returns {ScriptRefJSON}
+   * @returns {any}
    */
-  to_js_value(): ScriptRefJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9758,9 +9798,9 @@ declare export class SingleHostAddr {
   to_json(): string;
 
   /**
-   * @returns {SingleHostAddrJSON}
+   * @returns {any}
    */
-  to_js_value(): SingleHostAddrJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9824,9 +9864,9 @@ declare export class SingleHostName {
   to_json(): string;
 
   /**
-   * @returns {SingleHostNameJSON}
+   * @returns {any}
    */
-  to_js_value(): SingleHostNameJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9884,9 +9924,9 @@ declare export class StakeAndVoteDelegation {
   to_json(): string;
 
   /**
-   * @returns {StakeAndVoteDelegationJSON}
+   * @returns {any}
    */
-  to_js_value(): StakeAndVoteDelegationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -9959,9 +9999,9 @@ declare export class StakeDelegation {
   to_json(): string;
 
   /**
-   * @returns {StakeDelegationJSON}
+   * @returns {any}
    */
-  to_js_value(): StakeDelegationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -10027,9 +10067,9 @@ declare export class StakeDeregistration {
   to_json(): string;
 
   /**
-   * @returns {StakeDeregistrationJSON}
+   * @returns {any}
    */
-  to_js_value(): StakeDeregistrationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -10101,9 +10141,9 @@ declare export class StakeRegistration {
   to_json(): string;
 
   /**
-   * @returns {StakeRegistrationJSON}
+   * @returns {any}
    */
-  to_js_value(): StakeRegistrationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -10175,9 +10215,9 @@ declare export class StakeRegistrationAndDelegation {
   to_json(): string;
 
   /**
-   * @returns {StakeRegistrationAndDelegationJSON}
+   * @returns {any}
    */
-  to_js_value(): StakeRegistrationAndDelegationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -10250,9 +10290,9 @@ declare export class StakeVoteRegistrationAndDelegation {
   to_json(): string;
 
   /**
-   * @returns {StakeVoteRegistrationAndDelegationJSON}
+   * @returns {any}
    */
-  to_js_value(): StakeVoteRegistrationAndDelegationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -10358,9 +10398,9 @@ declare export class TimelockExpiry {
   to_json(): string;
 
   /**
-   * @returns {TimelockExpiryJSON}
+   * @returns {any}
    */
-  to_js_value(): TimelockExpiryJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -10426,9 +10466,9 @@ declare export class TimelockStart {
   to_json(): string;
 
   /**
-   * @returns {TimelockStartJSON}
+   * @returns {any}
    */
-  to_js_value(): TimelockStartJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -10498,9 +10538,9 @@ declare export class Transaction {
   to_json(): string;
 
   /**
-   * @returns {TransactionJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -10610,9 +10650,9 @@ declare export class TransactionBodies {
   to_json(): string;
 
   /**
-   * @returns {TransactionBodiesJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionBodiesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -10674,9 +10714,9 @@ declare export class TransactionBody {
   to_json(): string;
 
   /**
-   * @returns {TransactionBodyJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionBodyJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -11736,9 +11776,9 @@ declare export class TransactionInput {
   to_json(): string;
 
   /**
-   * @returns {TransactionInputJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionInputJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -11796,9 +11836,9 @@ declare export class TransactionInputs {
   to_json(): string;
 
   /**
-   * @returns {TransactionInputsJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionInputsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -11825,11 +11865,10 @@ declare export class TransactionInputs {
   /**
    * Add a new `TransactionInput` to the set.
    * Returns `true` if the element was not already present in the set.
-   * Note that the `TransactionInput` is added to the set only if it is not already present.
-   * @param {TransactionInput} elem
+   * @param {TransactionInput} input
    * @returns {boolean}
    */
-  add(elem: TransactionInput): boolean;
+  add(input: TransactionInput): boolean;
 
   /**
    * @returns {TransactionInputs | void}
@@ -12006,9 +12045,9 @@ declare export class TransactionOutput {
   to_json(): string;
 
   /**
-   * @returns {TransactionOutputJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionOutputJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12204,9 +12243,9 @@ declare export class TransactionOutputs {
   to_json(): string;
 
   /**
-   * @returns {TransactionOutputsJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionOutputsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12268,9 +12307,9 @@ declare export class TransactionUnspentOutput {
   to_json(): string;
 
   /**
-   * @returns {TransactionUnspentOutputJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionUnspentOutputJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12309,9 +12348,9 @@ declare export class TransactionUnspentOutputs {
   to_json(): string;
 
   /**
-   * @returns {TransactionUnspentOutputsJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionUnspentOutputsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12373,9 +12412,9 @@ declare export class TransactionWitnessSet {
   to_json(): string;
 
   /**
-   * @returns {TransactionWitnessSetJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionWitnessSetJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12481,9 +12520,9 @@ declare export class TransactionWitnessSets {
   to_json(): string;
 
   /**
-   * @returns {TransactionWitnessSetsJSON}
+   * @returns {any}
    */
-  to_js_value(): TransactionWitnessSetsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12523,9 +12562,9 @@ declare export class TreasuryWithdrawals {
   to_json(): string;
 
   /**
-   * @returns {TreasuryWithdrawalsJSON}
+   * @returns {any}
    */
-  to_js_value(): TreasuryWithdrawalsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12593,9 +12632,9 @@ declare export class TreasuryWithdrawalsAction {
   to_json(): string;
 
   /**
-   * @returns {TreasuryWithdrawalsActionJSON}
+   * @returns {any}
    */
-  to_js_value(): TreasuryWithdrawalsActionJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12806,9 +12845,9 @@ declare export class URL {
   to_json(): string;
 
   /**
-   * @returns {URLJSON}
+   * @returns {any}
    */
-  to_js_value(): URLJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12860,9 +12899,9 @@ declare export class UnitInterval {
   to_json(): string;
 
   /**
-   * @returns {UnitIntervalJSON}
+   * @returns {any}
    */
-  to_js_value(): UnitIntervalJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12920,9 +12959,9 @@ declare export class Update {
   to_json(): string;
 
   /**
-   * @returns {UpdateJSON}
+   * @returns {any}
    */
-  to_js_value(): UpdateJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -12983,9 +13022,9 @@ declare export class UpdateCommitteeAction {
   to_json(): string;
 
   /**
-   * @returns {UpdateCommitteeActionJSON}
+   * @returns {any}
    */
-  to_js_value(): UpdateCommitteeActionJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13063,9 +13102,9 @@ declare export class VRFCert {
   to_json(): string;
 
   /**
-   * @returns {VRFCertJSON}
+   * @returns {any}
    */
-  to_js_value(): VRFCertJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13201,9 +13240,9 @@ declare export class Value {
   to_json(): string;
 
   /**
-   * @returns {ValueJSON}
+   * @returns {any}
    */
-  to_js_value(): ValueJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13318,9 +13357,9 @@ declare export class VersionedBlock {
   to_json(): string;
 
   /**
-   * @returns {VersionedBlockJSON}
+   * @returns {any}
    */
-  to_js_value(): VersionedBlockJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13380,9 +13419,9 @@ declare export class Vkey {
   to_json(): string;
 
   /**
-   * @returns {VkeyJSON}
+   * @returns {any}
    */
-  to_js_value(): VkeyJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13460,9 +13499,9 @@ declare export class Vkeywitness {
   to_json(): string;
 
   /**
-   * @returns {VkeywitnessJSON}
+   * @returns {any}
    */
-  to_js_value(): VkeywitnessJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13520,9 +13559,9 @@ declare export class Vkeywitnesses {
   to_json(): string;
 
   /**
-   * @returns {VkeywitnessesJSON}
+   * @returns {any}
    */
-  to_js_value(): VkeywitnessesJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13549,10 +13588,10 @@ declare export class Vkeywitnesses {
   /**
    * Add a new `Vkeywitness` to the set.
    * Returns `true` if the element was not already present in the set.
-   * @param {Vkeywitness} elem
+   * @param {Vkeywitness} witness
    * @returns {boolean}
    */
-  add(elem: Vkeywitness): boolean;
+  add(witness: Vkeywitness): boolean;
 }
 /**
  */
@@ -13587,9 +13626,9 @@ declare export class VoteDelegation {
   to_json(): string;
 
   /**
-   * @returns {VoteDelegationJSON}
+   * @returns {any}
    */
-  to_js_value(): VoteDelegationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13652,9 +13691,9 @@ declare export class VoteRegistrationAndDelegation {
   to_json(): string;
 
   /**
-   * @returns {VoteRegistrationAndDelegationJSON}
+   * @returns {any}
    */
-  to_js_value(): VoteRegistrationAndDelegationJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13727,9 +13766,9 @@ declare export class Voter {
   to_json(): string;
 
   /**
-   * @returns {VoterJSON}
+   * @returns {any}
    */
-  to_js_value(): VoterJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13798,9 +13837,9 @@ declare export class Voters {
   to_json(): string;
 
   /**
-   * @returns {VotersJSON}
+   * @returns {any}
    */
-  to_js_value(): VotersJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -13934,9 +13973,9 @@ declare export class VotingProcedure {
   to_json(): string;
 
   /**
-   * @returns {VotingProcedureJSON}
+   * @returns {any}
    */
-  to_js_value(): VotingProcedureJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -14009,9 +14048,9 @@ declare export class VotingProcedures {
   to_json(): string;
 
   /**
-   * @returns {VotingProceduresJSON}
+   * @returns {any}
    */
-  to_js_value(): VotingProceduresJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -14089,9 +14128,9 @@ declare export class VotingProposal {
   to_json(): string;
 
   /**
-   * @returns {VotingProposalJSON}
+   * @returns {any}
    */
-  to_js_value(): VotingProposalJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -14210,9 +14249,9 @@ declare export class VotingProposals {
   to_json(): string;
 
   /**
-   * @returns {VotingProposalsJSON}
+   * @returns {any}
    */
-  to_js_value(): VotingProposalsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -14237,12 +14276,23 @@ declare export class VotingProposals {
   get(index: number): VotingProposal;
 
   /**
-   * Add a proposal to the set of proposals
-   * Returns true if the proposal was added, false if it was already present
+   * Add a new `VotingProposal` to the set.
+   * Returns `true` if the element was not already present in the set.
    * @param {VotingProposal} proposal
    * @returns {boolean}
    */
   add(proposal: VotingProposal): boolean;
+
+  /**
+   * @param {VotingProposal} elem
+   * @returns {boolean}
+   */
+  contains(elem: VotingProposal): boolean;
+
+  /**
+   * @returns {VotingProposals | void}
+   */
+  to_option(): VotingProposals | void;
 }
 /**
  */
@@ -14277,9 +14327,9 @@ declare export class Withdrawals {
   to_json(): string;
 
   /**
-   * @returns {WithdrawalsJSON}
+   * @returns {any}
    */
-  to_js_value(): WithdrawalsJSON;
+  to_js_value(): any;
 
   /**
    * @param {string} json
@@ -14382,930 +14432,4 @@ declare export class WithdrawalsBuilder {
    * @returns {Withdrawals}
    */
   build(): Withdrawals;
-}
-export type AddressJSON = string;
-export type URLJSON = string;
-export interface AnchorJSON {
-  anchor_data_hash: string;
-  anchor_url: URLJSON;
-}
-export type AnchorDataHashJSON = string;
-export type AssetNameJSON = string;
-export type AssetNamesJSON = string[];
-export interface AssetsJSON {
-  [k: string]: string;
-}
-export type NativeScriptJSON =
-  | {
-      ScriptPubkey: ScriptPubkeyJSON,
-      ...
-    }
-  | {
-      ScriptAll: ScriptAllJSON,
-      ...
-    }
-  | {
-      ScriptAny: ScriptAnyJSON,
-      ...
-    }
-  | {
-      ScriptNOfK: ScriptNOfKJSON,
-      ...
-    }
-  | {
-      TimelockStart: TimelockStartJSON,
-      ...
-    }
-  | {
-      TimelockExpiry: TimelockExpiryJSON,
-      ...
-    };
-export type NativeScriptsJSON = NativeScriptJSON[];
-export type PlutusScriptsJSON = string[];
-export interface AuxiliaryDataJSON {
-  metadata?: {
-    [k: string]: string,
-  } | null;
-  native_scripts?: NativeScriptsJSON | null;
-  plutus_scripts?: PlutusScriptsJSON | null;
-  prefer_alonzo_format: boolean;
-}
-export interface ScriptPubkeyJSON {
-  addr_keyhash: string;
-}
-export interface ScriptAllJSON {
-  native_scripts: NativeScriptsJSON;
-}
-export interface ScriptAnyJSON {
-  native_scripts: NativeScriptsJSON;
-}
-export interface ScriptNOfKJSON {
-  n: number;
-  native_scripts: NativeScriptsJSON;
-}
-export interface TimelockStartJSON {
-  slot: string;
-}
-export interface TimelockExpiryJSON {
-  slot: string;
-}
-export type AuxiliaryDataHashJSON = string;
-export interface AuxiliaryDataSetJSON {
-  [k: string]: AuxiliaryDataJSON;
-}
-export type BigIntJSON = string;
-export type BigNumJSON = string;
-export type VkeyJSON = string;
-export type HeaderLeaderCertEnumJSON =
-  | {
-      /**
-       * @minItems 2
-       * @maxItems 2
-       */
-      NonceAndLeader: [VRFCertJSON, VRFCertJSON],
-      ...
-    }
-  | {
-      VrfResult: VRFCertJSON,
-      ...
-    };
-export type CertificateJSON =
-  | {
-      StakeRegistration: StakeRegistrationJSON,
-      ...
-    }
-  | {
-      StakeDeregistration: StakeDeregistrationJSON,
-      ...
-    }
-  | {
-      StakeDelegation: StakeDelegationJSON,
-      ...
-    }
-  | {
-      PoolRegistration: PoolRegistrationJSON,
-      ...
-    }
-  | {
-      PoolRetirement: PoolRetirementJSON,
-      ...
-    }
-  | {
-      GenesisKeyDelegation: GenesisKeyDelegationJSON,
-      ...
-    }
-  | {
-      MoveInstantaneousRewardsCert: MoveInstantaneousRewardsCertJSON,
-      ...
-    }
-  | {
-      CommitteeHotAuth: CommitteeHotAuthJSON,
-      ...
-    }
-  | {
-      CommitteeColdResign: CommitteeColdResignJSON,
-      ...
-    }
-  | {
-      DRepDeregistration: DRepDeregistrationJSON,
-      ...
-    }
-  | {
-      DRepRegistration: DRepRegistrationJSON,
-      ...
-    }
-  | {
-      DRepUpdate: DRepUpdateJSON,
-      ...
-    }
-  | {
-      StakeAndVoteDelegation: StakeAndVoteDelegationJSON,
-      ...
-    }
-  | {
-      StakeRegistrationAndDelegation: StakeRegistrationAndDelegationJSON,
-      ...
-    }
-  | {
-      StakeVoteRegistrationAndDelegation: StakeVoteRegistrationAndDelegationJSON,
-      ...
-    }
-  | {
-      VoteDelegation: VoteDelegationJSON,
-      ...
-    }
-  | {
-      VoteRegistrationAndDelegation: VoteRegistrationAndDelegationJSON,
-      ...
-    };
-export type CredTypeJSON =
-  | {
-      Key: string,
-      ...
-    }
-  | {
-      Script: string,
-      ...
-    };
-export type RelayJSON =
-  | {
-      SingleHostAddr: SingleHostAddrJSON,
-      ...
-    }
-  | {
-      SingleHostName: SingleHostNameJSON,
-      ...
-    }
-  | {
-      MultiHostName: MultiHostNameJSON,
-      ...
-    };
-/**
- * @minItems 4
- * @maxItems 4
- */
-export type Ipv4JSON = [number, number, number, number];
-/**
- * @minItems 16
- * @maxItems 16
- */
-export type Ipv6JSON = [
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number,
-  number
-];
-export type DNSRecordAorAAAAJSON = string;
-export type DNSRecordSRVJSON = string;
-export type RelaysJSON = RelayJSON[];
-export type MIRPotJSON = "Reserves" | "Treasury";
-export type MIREnumJSON =
-  | {
-      ToOtherPot: string,
-      ...
-    }
-  | {
-      ToStakeCredentials: StakeToCoinJSON[],
-      ...
-    };
-export type DRepJSON =
-  | ("AlwaysAbstain" | "AlwaysNoConfidence")
-  | {
-      KeyHash: string,
-      ...
-    }
-  | {
-      ScriptHash: string,
-      ...
-    };
-export type DataOptionJSON =
-  | {
-      DataHash: string,
-      ...
-    }
-  | {
-      Data: string,
-      ...
-    };
-export type ScriptRefJSON =
-  | {
-      NativeScript: NativeScriptJSON,
-      ...
-    }
-  | {
-      PlutusScript: string,
-      ...
-    };
-export type MintJSON = [string, MintAssetsJSON][];
-export type NetworkIdJSON = "Testnet" | "Mainnet";
-export type TransactionOutputsJSON = TransactionOutputJSON[];
-export type CostModelJSON = string[];
-export type VoterJSON =
-  | {
-      ConstitutionalCommitteeHotCred: CredTypeJSON,
-      ...
-    }
-  | {
-      DRep: CredTypeJSON,
-      ...
-    }
-  | {
-      StakingPool: string,
-      ...
-    };
-export type VoteKindJSON = "No" | "Yes" | "Abstain";
-export type GovernanceActionJSON =
-  | {
-      ParameterChangeAction: ParameterChangeActionJSON,
-      ...
-    }
-  | {
-      HardForkInitiationAction: HardForkInitiationActionJSON,
-      ...
-    }
-  | {
-      TreasuryWithdrawalsAction: TreasuryWithdrawalsActionJSON,
-      ...
-    }
-  | {
-      NoConfidenceAction: NoConfidenceActionJSON,
-      ...
-    }
-  | {
-      UpdateCommitteeAction: UpdateCommitteeActionJSON,
-      ...
-    }
-  | {
-      NewConstitutionAction: NewConstitutionActionJSON,
-      ...
-    }
-  | {
-      InfoAction: InfoActionJSON,
-      ...
-    };
-/**
- * @minItems 0
- * @maxItems 0
- */
-export type InfoActionJSON = [];
-export type TransactionBodiesJSON = TransactionBodyJSON[];
-export type RedeemerTagJSON =
-  | "Spend"
-  | "Mint"
-  | "Cert"
-  | "Reward"
-  | "Vote"
-  | "VotingProposal";
-export type TransactionWitnessSetsJSON = TransactionWitnessSetJSON[];
-export interface BlockJSON {
-  auxiliary_data_set: {
-    [k: string]: AuxiliaryDataJSON,
-  };
-  header: HeaderJSON;
-  invalid_transactions: number[];
-  transaction_bodies: TransactionBodiesJSON;
-  transaction_witness_sets: TransactionWitnessSetsJSON;
-}
-export interface HeaderJSON {
-  body_signature: string;
-  header_body: HeaderBodyJSON;
-}
-export interface HeaderBodyJSON {
-  block_body_hash: string;
-  block_body_size: number;
-  block_number: number;
-  issuer_vkey: VkeyJSON;
-  leader_cert: HeaderLeaderCertEnumJSON;
-  operational_cert: OperationalCertJSON;
-  prev_hash?: string | null;
-  protocol_version: ProtocolVersionJSON;
-  slot: string;
-  vrf_vkey: string;
-}
-export interface VRFCertJSON {
-  output: number[];
-  proof: number[];
-}
-export interface OperationalCertJSON {
-  hot_vkey: string;
-  kes_period: number;
-  sequence_number: number;
-  sigma: string;
-}
-export interface ProtocolVersionJSON {
-  major: number;
-  minor: number;
-}
-export interface TransactionBodyJSON {
-  auxiliary_data_hash?: string | null;
-  certs?: CertificateJSON[] | null;
-  collateral?: TransactionInputJSON[] | null;
-  collateral_return?: TransactionOutputJSON | null;
-  current_treasury_value?: string | null;
-  donation?: string | null;
-  fee: string;
-  inputs: TransactionInputJSON[];
-  mint?: MintJSON | null;
-  network_id?: NetworkIdJSON | null;
-  outputs: TransactionOutputsJSON;
-  reference_inputs?: TransactionInputJSON[] | null;
-  required_signers?: string[] | null;
-  script_data_hash?: string | null;
-  total_collateral?: string | null;
-  ttl?: string | null;
-  update?: UpdateJSON | null;
-  validity_start_interval?: string | null;
-  voting_procedures?: VoterVotesJSON[] | null;
-  voting_proposals?: VotingProposalJSON[] | null;
-  withdrawals?: {
-    [k: string]: string,
-  } | null;
-}
-export interface StakeRegistrationJSON {
-  coin?: string | null;
-  stake_credential: CredTypeJSON;
-}
-export interface StakeDeregistrationJSON {
-  coin?: string | null;
-  stake_credential: CredTypeJSON;
-}
-export interface StakeDelegationJSON {
-  pool_keyhash: string;
-  stake_credential: CredTypeJSON;
-}
-export interface PoolRegistrationJSON {
-  pool_params: PoolParamsJSON;
-}
-export interface PoolParamsJSON {
-  cost: string;
-  margin: UnitIntervalJSON;
-  operator: string;
-  pledge: string;
-  pool_metadata?: PoolMetadataJSON | null;
-  pool_owners: string[];
-  relays: RelaysJSON;
-  reward_account: string;
-  vrf_keyhash: string;
-}
-export interface UnitIntervalJSON {
-  denominator: string;
-  numerator: string;
-}
-export interface PoolMetadataJSON {
-  pool_metadata_hash: string;
-  url: URLJSON;
-}
-export interface SingleHostAddrJSON {
-  ipv4?: Ipv4JSON | null;
-  ipv6?: Ipv6JSON | null;
-  port?: number | null;
-}
-export interface SingleHostNameJSON {
-  dns_name: DNSRecordAorAAAAJSON;
-  port?: number | null;
-}
-export interface MultiHostNameJSON {
-  dns_name: DNSRecordSRVJSON;
-}
-export interface PoolRetirementJSON {
-  epoch: number;
-  pool_keyhash: string;
-}
-export interface GenesisKeyDelegationJSON {
-  genesis_delegate_hash: string;
-  genesishash: string;
-  vrf_keyhash: string;
-}
-export interface MoveInstantaneousRewardsCertJSON {
-  move_instantaneous_reward: MoveInstantaneousRewardJSON;
-}
-export interface MoveInstantaneousRewardJSON {
-  pot: MIRPotJSON;
-  variant: MIREnumJSON;
-}
-export interface StakeToCoinJSON {
-  amount: string;
-  stake_cred: CredTypeJSON;
-}
-export interface CommitteeHotAuthJSON {
-  committee_cold_credential: CredTypeJSON;
-  committee_hot_credential: CredTypeJSON;
-}
-export interface CommitteeColdResignJSON {
-  anchor?: AnchorJSON | null;
-  committee_cold_credential: CredTypeJSON;
-}
-export interface DRepDeregistrationJSON {
-  coin: string;
-  voting_credential: CredTypeJSON;
-}
-export interface DRepRegistrationJSON {
-  anchor?: AnchorJSON | null;
-  coin: string;
-  voting_credential: CredTypeJSON;
-}
-export interface DRepUpdateJSON {
-  anchor?: AnchorJSON | null;
-  voting_credential: CredTypeJSON;
-}
-export interface StakeAndVoteDelegationJSON {
-  drep: DRepJSON;
-  pool_keyhash: string;
-  stake_credential: CredTypeJSON;
-}
-export interface StakeRegistrationAndDelegationJSON {
-  coin: string;
-  pool_keyhash: string;
-  stake_credential: CredTypeJSON;
-}
-export interface StakeVoteRegistrationAndDelegationJSON {
-  coin: string;
-  drep: DRepJSON;
-  pool_keyhash: string;
-  stake_credential: CredTypeJSON;
-}
-export interface VoteDelegationJSON {
-  drep: DRepJSON;
-  stake_credential: CredTypeJSON;
-}
-export interface VoteRegistrationAndDelegationJSON {
-  coin: string;
-  drep: DRepJSON;
-  stake_credential: CredTypeJSON;
-}
-export interface TransactionInputJSON {
-  index: number;
-  transaction_id: string;
-}
-export interface TransactionOutputJSON {
-  address: string;
-  amount: ValueJSON;
-  plutus_data?: DataOptionJSON | null;
-  script_ref?: ScriptRefJSON | null;
-}
-export interface ValueJSON {
-  coin: string;
-  multiasset?: MultiAssetJSON | null;
-}
-export interface MultiAssetJSON {
-  [k: string]: AssetsJSON;
-}
-export interface MintAssetsJSON {
-  [k: string]: string;
-}
-export interface UpdateJSON {
-  epoch: number;
-  proposed_protocol_parameter_updates: {
-    [k: string]: ProtocolParamUpdateJSON,
-  };
-}
-export interface ProtocolParamUpdateJSON {
-  ada_per_utxo_byte?: string | null;
-  collateral_percentage?: number | null;
-  committee_term_limit?: number | null;
-  cost_models?: CostmdlsJSON | null;
-  d?: UnitIntervalJSON | null;
-  drep_deposit?: string | null;
-  drep_inactivity_period?: number | null;
-  drep_voting_thresholds?: DRepVotingThresholdsJSON | null;
-  execution_costs?: ExUnitPricesJSON | null;
-  expansion_rate?: UnitIntervalJSON | null;
-  extra_entropy?: NonceJSON | null;
-  governance_action_deposit?: string | null;
-  governance_action_validity_period?: number | null;
-  key_deposit?: string | null;
-  max_block_body_size?: number | null;
-  max_block_ex_units?: ExUnitsJSON | null;
-  max_block_header_size?: number | null;
-  max_collateral_inputs?: number | null;
-  max_epoch?: number | null;
-  max_tx_ex_units?: ExUnitsJSON | null;
-  max_tx_size?: number | null;
-  max_value_size?: number | null;
-  min_committee_size?: number | null;
-  min_pool_cost?: string | null;
-  minfee_a?: string | null;
-  minfee_b?: string | null;
-  n_opt?: number | null;
-  pool_deposit?: string | null;
-  pool_pledge_influence?: UnitIntervalJSON | null;
-  pool_voting_thresholds?: PoolVotingThresholdsJSON | null;
-  protocol_version?: ProtocolVersionJSON | null;
-  ref_script_coins_per_byte?: UnitIntervalJSON | null;
-  treasury_growth_rate?: UnitIntervalJSON | null;
-}
-export interface CostmdlsJSON {
-  [k: string]: CostModelJSON;
-}
-export interface DRepVotingThresholdsJSON {
-  committee_no_confidence: UnitIntervalJSON;
-  committee_normal: UnitIntervalJSON;
-  hard_fork_initiation: UnitIntervalJSON;
-  motion_no_confidence: UnitIntervalJSON;
-  pp_economic_group: UnitIntervalJSON;
-  pp_governance_group: UnitIntervalJSON;
-  pp_network_group: UnitIntervalJSON;
-  pp_technical_group: UnitIntervalJSON;
-  treasury_withdrawal: UnitIntervalJSON;
-  update_constitution: UnitIntervalJSON;
-}
-export interface ExUnitPricesJSON {
-  mem_price: UnitIntervalJSON;
-  step_price: UnitIntervalJSON;
-}
-export interface NonceJSON {
-  /**
-   * @minItems 32
-   * @maxItems 32
-   */
-  hash?:
-    | [
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number,
-        number
-      ]
-    | null;
-}
-export interface ExUnitsJSON {
-  mem: string;
-  steps: string;
-}
-export interface PoolVotingThresholdsJSON {
-  committee_no_confidence: UnitIntervalJSON;
-  committee_normal: UnitIntervalJSON;
-  hard_fork_initiation: UnitIntervalJSON;
-  motion_no_confidence: UnitIntervalJSON;
-  security_relevant_threshold: UnitIntervalJSON;
-}
-export interface VoterVotesJSON {
-  voter: VoterJSON;
-  votes: VoteJSON[];
-}
-export interface VoteJSON {
-  action_id: GovernanceActionIdJSON;
-  voting_procedure: VotingProcedureJSON;
-}
-export interface GovernanceActionIdJSON {
-  index: number;
-  transaction_id: string;
-}
-export interface VotingProcedureJSON {
-  anchor?: AnchorJSON | null;
-  vote: VoteKindJSON;
-}
-export interface VotingProposalJSON {
-  anchor: AnchorJSON;
-  deposit: string;
-  governance_action: GovernanceActionJSON;
-  reward_account: string;
-}
-export interface ParameterChangeActionJSON {
-  gov_action_id?: GovernanceActionIdJSON | null;
-  policy_hash?: string | null;
-  protocol_param_updates: ProtocolParamUpdateJSON;
-}
-export interface HardForkInitiationActionJSON {
-  gov_action_id?: GovernanceActionIdJSON | null;
-  protocol_version: ProtocolVersionJSON;
-}
-export interface TreasuryWithdrawalsActionJSON {
-  policy_hash?: string | null;
-  withdrawals: TreasuryWithdrawalsJSON;
-}
-export interface TreasuryWithdrawalsJSON {
-  [k: string]: string;
-}
-export interface NoConfidenceActionJSON {
-  gov_action_id?: GovernanceActionIdJSON | null;
-}
-export interface UpdateCommitteeActionJSON {
-  committee: CommitteeJSON;
-  gov_action_id?: GovernanceActionIdJSON | null;
-  members_to_remove: CredTypeJSON[];
-}
-export interface CommitteeJSON {
-  members: CommitteeMemberJSON[];
-  quorum_threshold: UnitIntervalJSON;
-}
-export interface CommitteeMemberJSON {
-  stake_credential: CredTypeJSON;
-  term_limit: number;
-}
-export interface NewConstitutionActionJSON {
-  constitution: ConstitutionJSON;
-  gov_action_id?: GovernanceActionIdJSON | null;
-}
-export interface ConstitutionJSON {
-  anchor: AnchorJSON;
-  script_hash?: string | null;
-}
-export interface TransactionWitnessSetJSON {
-  bootstraps?: BootstrapWitnessJSON[] | null;
-  native_scripts?: NativeScriptsJSON | null;
-  plutus_data?: PlutusListJSON | null;
-  plutus_scripts?: PlutusScriptsJSON | null;
-  redeemers?: RedeemerJSON[] | null;
-  vkeys?: VkeywitnessJSON[] | null;
-}
-export interface BootstrapWitnessJSON {
-  attributes: number[];
-  chain_code: number[];
-  signature: string;
-  vkey: VkeyJSON;
-}
-export interface PlutusListJSON {
-  definite_encoding?: boolean | null;
-  elems: string[];
-}
-export interface RedeemerJSON {
-  data: string;
-  ex_units: ExUnitsJSON;
-  index: string;
-  tag: RedeemerTagJSON;
-}
-export interface VkeywitnessJSON {
-  signature: string;
-  vkey: VkeyJSON;
-}
-export type BlockHashJSON = string;
-export type BootstrapWitnessesJSON = BootstrapWitnessJSON[];
-export type CertificateEnumJSON =
-  | {
-      StakeRegistration: StakeRegistrationJSON,
-      ...
-    }
-  | {
-      StakeDeregistration: StakeDeregistrationJSON,
-      ...
-    }
-  | {
-      StakeDelegation: StakeDelegationJSON,
-      ...
-    }
-  | {
-      PoolRegistration: PoolRegistrationJSON,
-      ...
-    }
-  | {
-      PoolRetirement: PoolRetirementJSON,
-      ...
-    }
-  | {
-      GenesisKeyDelegation: GenesisKeyDelegationJSON,
-      ...
-    }
-  | {
-      MoveInstantaneousRewardsCert: MoveInstantaneousRewardsCertJSON,
-      ...
-    }
-  | {
-      CommitteeHotAuth: CommitteeHotAuthJSON,
-      ...
-    }
-  | {
-      CommitteeColdResign: CommitteeColdResignJSON,
-      ...
-    }
-  | {
-      DRepDeregistration: DRepDeregistrationJSON,
-      ...
-    }
-  | {
-      DRepRegistration: DRepRegistrationJSON,
-      ...
-    }
-  | {
-      DRepUpdate: DRepUpdateJSON,
-      ...
-    }
-  | {
-      StakeAndVoteDelegation: StakeAndVoteDelegationJSON,
-      ...
-    }
-  | {
-      StakeRegistrationAndDelegation: StakeRegistrationAndDelegationJSON,
-      ...
-    }
-  | {
-      StakeVoteRegistrationAndDelegation: StakeVoteRegistrationAndDelegationJSON,
-      ...
-    }
-  | {
-      VoteDelegation: VoteDelegationJSON,
-      ...
-    }
-  | {
-      VoteRegistrationAndDelegation: VoteRegistrationAndDelegationJSON,
-      ...
-    };
-export type CertificatesJSON = CertificateJSON[];
-export type CredentialJSON = CredTypeJSON;
-export type CredentialsJSON = CredTypeJSON[];
-export type DRepEnumJSON =
-  | ("AlwaysAbstain" | "AlwaysNoConfidence")
-  | {
-      KeyHash: string,
-      ...
-    }
-  | {
-      ScriptHash: string,
-      ...
-    };
-export type DataHashJSON = string;
-export type Ed25519KeyHashJSON = string;
-export type Ed25519KeyHashesJSON = string[];
-export type Ed25519SignatureJSON = string;
-export interface GeneralTransactionMetadataJSON {
-  [k: string]: string;
-}
-export type GenesisDelegateHashJSON = string;
-export type GenesisHashJSON = string;
-export type GenesisHashesJSON = string[];
-export type GovernanceActionEnumJSON =
-  | {
-      ParameterChangeAction: ParameterChangeActionJSON,
-      ...
-    }
-  | {
-      HardForkInitiationAction: HardForkInitiationActionJSON,
-      ...
-    }
-  | {
-      TreasuryWithdrawalsAction: TreasuryWithdrawalsActionJSON,
-      ...
-    }
-  | {
-      NoConfidenceAction: NoConfidenceActionJSON,
-      ...
-    }
-  | {
-      UpdateCommitteeAction: UpdateCommitteeActionJSON,
-      ...
-    }
-  | {
-      NewConstitutionAction: NewConstitutionActionJSON,
-      ...
-    }
-  | {
-      InfoAction: InfoActionJSON,
-      ...
-    };
-export type GovernanceActionIdsJSON = GovernanceActionIdJSON[];
-export type IntJSON = string;
-/**
- * @minItems 4
- * @maxItems 4
- */
-export type KESVKeyJSON = string;
-export type LanguageJSON = LanguageKindJSON;
-export type LanguageKindJSON = "PlutusV1" | "PlutusV2" | "PlutusV3";
-export type LanguagesJSON = LanguageJSON[];
-export type MIRToStakeCredentialsJSON = StakeToCoinJSON[];
-export type MintsAssetsJSON = MintAssetsJSON[];
-export type NetworkIdKindJSON = "Testnet" | "Mainnet";
-export type PlutusScriptJSON = string;
-export type PoolMetadataHashJSON = string;
-export interface ProposedProtocolParameterUpdatesJSON {
-  [k: string]: ProtocolParamUpdateJSON;
-}
-export type PublicKeyJSON = string;
-export type RedeemerTagKindJSON =
-  | "Spend"
-  | "Mint"
-  | "Cert"
-  | "Reward"
-  | "Vote"
-  | "VotingProposal";
-export type RedeemersJSON = RedeemerJSON[];
-export type RelayEnumJSON =
-  | {
-      SingleHostAddr: SingleHostAddrJSON,
-      ...
-    }
-  | {
-      SingleHostName: SingleHostNameJSON,
-      ...
-    }
-  | {
-      MultiHostName: MultiHostNameJSON,
-      ...
-    };
-/**
- * @minItems 4
- * @maxItems 4
- */
-export type RewardAddressJSON = string;
-export type RewardAddressesJSON = string[];
-export type ScriptDataHashJSON = string;
-export type ScriptHashJSON = string;
-export type ScriptHashesJSON = string[];
-export type ScriptRefEnumJSON =
-  | {
-      NativeScript: NativeScriptJSON,
-      ...
-    }
-  | {
-      PlutusScript: string,
-      ...
-    };
-export interface TransactionJSON {
-  auxiliary_data?: AuxiliaryDataJSON | null;
-  body: TransactionBodyJSON;
-  is_valid: boolean;
-  witness_set: TransactionWitnessSetJSON;
-}
-export type TransactionHashJSON = string;
-export type TransactionInputsJSON = TransactionInputJSON[];
-export type TransactionMetadatumJSON = string;
-export interface TransactionUnspentOutputJSON {
-  input: TransactionInputJSON;
-  output: TransactionOutputJSON;
-}
-export type TransactionUnspentOutputsJSON = TransactionUnspentOutputJSON[];
-export type VRFKeyHashJSON = string;
-export type VRFVKeyJSON = string;
-export interface VersionedBlockJSON {
-  block: BlockJSON;
-  era_code: number;
-}
-export type VkeywitnessesJSON = VkeywitnessJSON[];
-export type VoterEnumJSON =
-  | {
-      ConstitutionalCommitteeHotCred: CredTypeJSON,
-      ...
-    }
-  | {
-      DRep: CredTypeJSON,
-      ...
-    }
-  | {
-      StakingPool: string,
-      ...
-    };
-export type VotersJSON = VoterJSON[];
-export type VotingProceduresJSON = VoterVotesJSON[];
-export type VotingProposalsJSON = VotingProposalJSON[];
-export interface WithdrawalsJSON {
-  [k: string]: string;
 }

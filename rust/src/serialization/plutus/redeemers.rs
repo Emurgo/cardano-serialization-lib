@@ -1,19 +1,19 @@
 use crate::*;
 use crate::serialization::utils::is_break_tag;
 
-impl cbor_event::se::Serialize for Redeemers {
+impl Serialize for Redeemers {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self.serialization_format {
-            Some(CborContainerType::Map) => {
+        match self.get_container_type() {
+            CborContainerType::Map => {
                 serializer.write_map(Len::Len(self.redeemers.len() as u64))?;
                 for element in &self.redeemers {
                     element.serialize_as_map_item(serializer)?;
                 }
             }
-            _ => {
+            CborContainerType::Array => {
                 serializer.write_array(Len::Len(self.redeemers.len() as u64))?;
                 for element in &self.redeemers {
                     element.serialize_as_array_item(serializer)?;

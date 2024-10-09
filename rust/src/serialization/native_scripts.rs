@@ -6,8 +6,8 @@ impl cbor_event::se::Serialize for NativeScripts {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-        for element in &self.0 {
+        serializer.write_array(cbor_event::Len::Len(self.len() as u64))?;
+        for element in self {
             element.serialize(serializer)?;
         }
         Ok(serializer)
@@ -20,17 +20,16 @@ impl NativeScripts {
         need_deduplication: bool,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        //TODO: uncomment this line when we conway ero will come
-        //serializer.write_tag(258)?;
+        serializer.write_tag(258)?;
         if need_deduplication {
             let view = self.deduplicated_view();
-            serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
+            serializer.write_array(cbor_event::Len::Len(self.scripts.len() as u64))?;
             for element in view {
                 element.serialize(serializer)?;
             }
         } else {
-            serializer.write_array(cbor_event::Len::Len(self.0.len() as u64))?;
-            for element in &self.0 {
+            serializer.write_array(cbor_event::Len::Len(self.len() as u64))?;
+            for element in self {
                 element.serialize(serializer)?;
             }
         }
@@ -40,7 +39,7 @@ impl NativeScripts {
 
 impl Deserialize for NativeScripts {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        skip_set_tag(raw)?;
+        let has_tag = skip_set_tag(raw)?;
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
@@ -56,6 +55,18 @@ impl Deserialize for NativeScripts {
             Ok(())
         })()
             .map_err(|e| e.annotate("NativeScripts"))?;
-        Ok(Self(arr))
+
+        let set_type = if has_tag {
+            CborSetType::Tagged
+        } else {
+            CborSetType::Untagged
+        };
+
+        Ok(
+            Self {
+                scripts: arr,
+                cbor_tag_type: Some(set_type),
+            }
+        )
     }
 }

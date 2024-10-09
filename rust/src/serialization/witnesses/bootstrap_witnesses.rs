@@ -1,7 +1,7 @@
 use std::io::{BufRead, Seek, Write};
 use cbor_event::de::Deserializer;
 use cbor_event::se::Serializer;
-use crate::{BootstrapWitness, BootstrapWitnesses, DeserializeError};
+use crate::{BootstrapWitness, BootstrapWitnesses, CborSetType, DeserializeError};
 use crate::protocol_types::Deserialize;
 use crate::serialization::utils::skip_set_tag;
 
@@ -10,8 +10,13 @@ impl cbor_event::se::Serialize for BootstrapWitnesses {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        //TODO: uncomment this line when we conway ero will come
-        //serializer.write_tag(258)?;
+        if self.force_original_cbor_set_type() {
+            if self.get_set_type() == CborSetType::Tagged {
+                serializer.write_tag(258)?;
+            }
+        } else {
+            serializer.write_tag(258)?;
+        }
         serializer.write_array(cbor_event::Len::Len(self.get_vec_wits().len() as u64))?;
         for element in self.get_vec_wits() {
             element.serialize(serializer)?;
@@ -22,7 +27,7 @@ impl cbor_event::se::Serialize for BootstrapWitnesses {
 
 impl Deserialize for BootstrapWitnesses {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        skip_set_tag(raw)?;
+        let has_set_tag = skip_set_tag(raw)?;
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
@@ -39,6 +44,14 @@ impl Deserialize for BootstrapWitnesses {
             Ok(())
         })()
             .map_err(|e| e.annotate("BootstrapWitnesses"))?;
-        Ok(Self::from_vec_wits(arr))
+
+        let mut witnesses = Self::from_vec(arr);
+        if has_set_tag {
+            witnesses.set_set_type(CborSetType::Tagged);
+        } else {
+            witnesses.set_set_type(CborSetType::Untagged);
+        }
+
+        Ok(witnesses)
     }
 }

@@ -10,12 +10,33 @@ use crate::*;
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FixedTxWitnessesSet {
-    pub(crate) raw_parts: TransactionWitnessSetRaw,
-    pub(crate) tx_witnesses_set: TransactionWitnessSet,
+    raw_parts: TransactionWitnessSetRaw,
+    tx_witnesses_set: TransactionWitnessSet,
 }
 
 #[wasm_bindgen]
 impl FixedTxWitnessesSet {
+
+    pub(crate) fn new(mut witnesses_set: TransactionWitnessSet, raw_parts: TransactionWitnessSetRaw) -> Self {
+        if let Some(bootstraps) = &mut witnesses_set.bootstraps {
+            bootstraps.set_force_original_cbor_set_type(true);
+        }
+        if let Some(vkeys) = &mut witnesses_set.vkeys {
+            vkeys.set_force_original_cbor_set_type(true);
+        }
+        Self {
+            tx_witnesses_set: witnesses_set,
+            raw_parts,
+        }
+    }
+
+    pub(crate) fn new_empty() -> Self {
+        Self {
+            tx_witnesses_set: TransactionWitnessSet::new(),
+            raw_parts: TransactionWitnessSetRaw::new(),
+        }
+    }
+
     pub fn tx_witnesses_set(&self) -> TransactionWitnessSet {
         self.tx_witnesses_set.clone()
     }
@@ -56,5 +77,13 @@ impl FixedTxWitnessesSet {
     pub fn from_bytes(data: Vec<u8>) -> Result<FixedTxWitnessesSet, JsError> {
         let mut raw = Deserializer::from(std::io::Cursor::new(data));
         Ok(Self::deserialize(&mut raw)?)
+    }
+
+    pub(crate) fn tx_witnesses_set_ref(&self) -> &TransactionWitnessSet {
+        &self.tx_witnesses_set
+    }
+
+    pub(crate) fn raw_parts_ref(&self) -> &TransactionWitnessSetRaw {
+        &self.raw_parts
     }
 }

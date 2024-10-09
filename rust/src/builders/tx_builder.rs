@@ -107,7 +107,7 @@ fn assert_required_mint_scripts(
     }
     let mint_scripts = maybe_mint_scripts.unwrap();
     let witness_hashes: HashSet<ScriptHash> =
-        mint_scripts.0.iter().map(|script| script.hash()).collect();
+        mint_scripts.iter().map(|script| script.hash()).collect();
     for mint_hash in mint.keys().0.iter() {
         if !witness_hashes.contains(mint_hash) {
             return Err(JsError::from_str(&format!(
@@ -930,8 +930,7 @@ impl TransactionBuilder {
                     if self
                         .inputs
                         .inputs()
-                        .inputs
-                        .iter()
+                        .into_iter()
                         .all(|used_input| input.input() != *used_input)
                     {
                         unused_inputs.add(input)
@@ -1289,7 +1288,7 @@ impl TransactionBuilder {
     pub fn set_mint(&mut self, mint: &Mint, mint_scripts: &NativeScripts) -> Result<(), JsError> {
         assert_required_mint_scripts(mint, Some(mint_scripts))?;
         let mut scripts_policies = HashMap::new();
-        for scipt in &mint_scripts.0 {
+        for scipt in mint_scripts {
             scripts_policies.insert(scipt.hash(), scipt.clone());
         }
 
@@ -1516,9 +1515,9 @@ impl TransactionBuilder {
         let mut inputs: HashSet<TransactionInput> = HashSet::new();
 
         let mut add_ref_inputs_set = |ref_inputs: TransactionInputs| {
-            for input in ref_inputs {
+            for input in &ref_inputs {
                 if !self.inputs.has_input(&input) {
-                    inputs.insert(input);
+                    inputs.insert(input.clone());
                 }
             }
         };
@@ -2271,24 +2270,23 @@ impl TransactionBuilder {
     fn get_combined_native_scripts(&self) -> Option<NativeScripts> {
         let mut ns = NativeScripts::new();
         if let Some(input_scripts) = self.inputs.get_native_input_scripts() {
-            input_scripts.0.iter().for_each(|s| {
+            input_scripts.iter().for_each(|s| {
                 ns.add(s);
             });
         }
         if let Some(input_scripts) = self.collateral.get_native_input_scripts() {
-            input_scripts.0.iter().for_each(|s| {
+            input_scripts.iter().for_each(|s| {
                 ns.add(s);
             });
         }
         if let Some(mint_builder) = &self.mint {
-            mint_builder.get_native_scripts().0.iter().for_each(|s| {
+            mint_builder.get_native_scripts().iter().for_each(|s| {
                 ns.add(s);
             });
         }
         if let Some(certificates_builder) = &self.certs {
             certificates_builder
                 .get_native_scripts()
-                .0
                 .iter()
                 .for_each(|s| {
                     ns.add(s);
@@ -2297,14 +2295,13 @@ impl TransactionBuilder {
         if let Some(withdrawals_builder) = &self.withdrawals {
             withdrawals_builder
                 .get_native_scripts()
-                .0
                 .iter()
                 .for_each(|s| {
                     ns.add(s);
                 });
         }
         if let Some(voting_builder) = &self.voting_procedures {
-            voting_builder.get_native_scripts().0.iter().for_each(|s| {
+            voting_builder.get_native_scripts().iter().for_each(|s| {
                 ns.add(s);
             });
         }

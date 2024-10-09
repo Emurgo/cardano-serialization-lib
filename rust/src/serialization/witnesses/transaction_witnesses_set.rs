@@ -181,9 +181,9 @@ pub(super) fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>, with_raw
         }
         read_len.finish()?;
         let mut plutus_scripts = None;
-        plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v1);
-        plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v2);
-        plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v3);
+        plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v1, &Language::new_plutus_v1());
+        plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v2, &Language::new_plutus_v2());
+        plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v3, &Language::new_plutus_v3());
 
         Ok((TransactionWitnessSet {
             vkeys,

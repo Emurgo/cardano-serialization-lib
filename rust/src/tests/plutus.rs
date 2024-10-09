@@ -40,13 +40,13 @@ pub fn plutus_list_serialization_cli_compatibility() {
     // witness_set should have fixed length array
     let mut witness_set = TransactionWitnessSet::new();
     witness_set.set_plutus_data(&list);
-    assert_eq!("a1049f01ff", hex::encode(witness_set.to_bytes()));
+    assert_eq!("a104d901029f01ff", hex::encode(witness_set.to_bytes()));
 
     list = PlutusList::new();
     list.add(&datum);
     witness_set.set_plutus_data(&list);
     assert_eq!(
-        format!("a1049f{}ff", datum_cli),
+        format!("a104d901029f{}ff", datum_cli),
         hex::encode(witness_set.to_bytes())
     );
 }
@@ -436,7 +436,7 @@ fn test_known_plutus_data_hash() {
     let hash = hash_script_data(&redeemers, &retained_cost_models, Some(pdata));
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "2fd8b7e248b376314d02989c885c278796ab0e1d6e8aa0cb91f562ff5f7dbd70"
+        "e77f547d8249947bf0af31c432fcfff9c1872b2502b3f34d8107002255695e07"
     );
 }
 
@@ -478,7 +478,7 @@ fn test_known_plutus_data_hash_with_no_datums() {
     );
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "6b244f15f895fd458a02bef3a8b56f17f24150fddcb06be482f8790a600578a1"
+        "5b235dbfaa999fb3616da9903d9affd09c7f2121c2d50db7ece0a9fb8587a038"
     );
 }
 
@@ -515,7 +515,7 @@ fn test_known_plutus_data_hash_2() {
     );
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "0a076247a05aacbecf72ea15b94e3d0331b21295a08d9ab7b8675c13840563a6"
+        "f3ae8e52bff4c7b8d803469ee61eabf37e96e89f8a3bb80115ad068ab5dff598"
     );
 }
 
@@ -589,6 +589,6 @@ fn script_data_hash_no_redeemers() {
     );
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "5f4e4b313590ed119c077f2ef78ff294118e7955c63982e304a791831238baf4"
+        "fd53a28a846ae6ccf8b221d03d4af122b0b3c442089c05b87e3d86c6792b3ef0"
     );
 }

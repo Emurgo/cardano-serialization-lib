@@ -333,7 +333,7 @@ impl MintBuilder {
                 _ => {}
             }
         }
-        NativeScripts(native_scripts)
+        NativeScripts::from(native_scripts)
     }
 
     pub fn get_plutus_witnesses(&self) -> PlutusWitnesses {

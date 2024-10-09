@@ -1,14 +1,17 @@
 use crate::*;
-use std::slice::Iter;
-use std::vec::IntoIter;
+use itertools::Itertools;
+use std::hash::{Hash, Hasher};
+use std::iter::Map;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::slice;
 
 #[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd,
-)]
+#[derive(Clone, Debug)]
 pub struct TransactionInputs {
-    pub(crate) inputs: Vec<TransactionInput>,
-    pub(crate) dedup: BTreeSet<TransactionInput>,
+    pub(crate) inputs: Vec<Rc<TransactionInput>>,
+    pub(crate) dedup: BTreeSet<Rc<TransactionInput>>,
+    pub(crate) cbor_set_type: CborSetType,
 }
 
 impl_to_from!(TransactionInputs);
@@ -25,6 +28,18 @@ impl TransactionInputs {
         Self {
             inputs: Vec::new(),
             dedup: BTreeSet::new(),
+            cbor_set_type: CborSetType::Tagged,
+        }
+    }
+
+    pub(crate) fn new_from_prepared_fields(
+        inputs: Vec<Rc<TransactionInput>>,
+        dedup: BTreeSet<Rc<TransactionInput>>,
+    ) -> Self {
+        Self {
+            inputs,
+            dedup,
+            cbor_set_type: CborSetType::Tagged,
         }
     }
 
@@ -33,15 +48,15 @@ impl TransactionInputs {
     }
 
     pub fn get(&self, index: usize) -> TransactionInput {
-        self.inputs[index].clone()
+        self.inputs[index].deref().clone()
     }
 
     /// Add a new `TransactionInput` to the set.
     /// Returns `true` if the element was not already present in the set.
-    /// Note that the `TransactionInput` is added to the set only if it is not already present.
-    pub fn add(&mut self, elem: &TransactionInput) -> bool {
-        if self.dedup.insert(elem.clone()) {
-            self.inputs.push(elem.clone());
+    pub fn add(&mut self, input: &TransactionInput) -> bool {
+        let input_rc = Rc::new(input.clone());
+        if self.dedup.insert(input_rc.clone()) {
+            self.inputs.push(input_rc.clone());
             true
         } else {
             false
@@ -53,64 +68,93 @@ impl TransactionInputs {
         self.dedup.contains(elem)
     }
 
-    pub(crate) fn add_move(&mut self, elem: TransactionInput) {
-        if self.dedup.insert(elem.clone()) {
-            self.inputs.push(elem);
-        }
-    }
-
-    pub(crate) fn from_vec(inputs_vec: Vec<TransactionInput>) -> Self {
-        let mut inputs = Self::new();
-        for input in inputs_vec {
-            inputs.add_move(input);
-        }
-        inputs
-    }
-
     pub fn to_option(&self) -> Option<TransactionInputs> {
-        if self.len() > 0 {
+        if !self.inputs.is_empty() {
             Some(self.clone())
         } else {
             None
         }
     }
+
+    pub(crate) fn from_vec(inputs_vec: Vec<TransactionInput>) -> Self {
+        let mut dedup = BTreeSet::new();
+        let mut inputs = Vec::new();
+        for input in inputs_vec {
+            let input_rc = Rc::new(input.clone());
+            if dedup.insert(input_rc.clone()) {
+                inputs.push(input_rc);
+            }
+        }
+
+        Self::new_from_prepared_fields(inputs, dedup)
+    }
+
+    pub(crate) fn get_set_type(&self) -> CborSetType {
+        self.cbor_set_type.clone()
+    }
+
+    pub(crate) fn set_set_type(&mut self, cbor_set_type: CborSetType) {
+        self.cbor_set_type = cbor_set_type;
+    }
 }
 
 impl<'a> IntoIterator for &'a TransactionInputs {
     type Item = &'a TransactionInput;
-    type IntoIter = Iter<'a, TransactionInput>;
+    type IntoIter = Map<
+        slice::Iter<'a, Rc<TransactionInput>>,
+        fn(&'a Rc<TransactionInput>) -> &'a TransactionInput,
+    >;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.inputs.iter()
+        self.inputs.iter().map(|rc| rc.as_ref())
     }
 }
 
-impl IntoIterator for TransactionInputs {
-    type Item = TransactionInput;
-    type IntoIter = IntoIter<TransactionInput>;
+impl PartialEq for TransactionInputs {
+    fn eq(&self, other: &Self) -> bool {
+        self.inputs == other.inputs
+    }
+}
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.inputs.into_iter()
+impl Eq for TransactionInputs {}
+
+impl PartialOrd for TransactionInputs {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.inputs.partial_cmp(&other.inputs)
+    }
+}
+
+impl Ord for TransactionInputs {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.inputs.cmp(&other.inputs)
+    }
+}
+
+impl Hash for TransactionInputs {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.inputs.hash(state);
     }
 }
 
 impl serde::Serialize for TransactionInputs {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
+    where
+        S: serde::Serializer,
     {
-        self.inputs.serialize(serializer)
+        self.inputs
+            .iter()
+            .map(|x| x.deref())
+            .collect_vec()
+            .serialize(serializer)
     }
 }
 
 impl<'de> serde::de::Deserialize<'de> for TransactionInputs {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::de::Deserializer<'de>,
+    where
+        D: serde::de::Deserializer<'de>,
     {
-        let vec = <Vec<_> as serde::de::Deserialize>::deserialize(
-            deserializer,
-        )?;
+        let vec = <Vec<TransactionInput> as serde::de::Deserialize>::deserialize(deserializer)?;
         Ok(Self::from_vec(vec))
     }
 }

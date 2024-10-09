@@ -6,8 +6,7 @@ impl Serialize for Certificates {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        //TODO: uncomment this line when we conway ero will come
-        //serializer.write_tag(258)?;
+        serializer.write_tag(258)?;
         serializer.write_array(Len::Len(self.len() as u64))?;
         for element in &self.certs {
             element.serialize(serializer)?;
@@ -18,7 +17,7 @@ impl Serialize for Certificates {
 
 impl Deserialize for Certificates {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        skip_set_tag(raw)?;
+        let has_set_tag= skip_set_tag(raw)?;
         let mut arr = Vec::new();
         (|| -> Result<_, DeserializeError> {
             let len = raw.array()?;
@@ -34,6 +33,12 @@ impl Deserialize for Certificates {
             Ok(())
         })()
         .map_err(|e| e.annotate("Certificates"))?;
-        Ok(Self::from_vec(arr))
+        let mut certs = Self::from_vec(arr);
+        if has_set_tag {
+            certs.set_set_type(CborSetType::Tagged);
+        } else {
+            certs.set_set_type(CborSetType::Untagged);
+        }
+        Ok(certs)
     }
 }

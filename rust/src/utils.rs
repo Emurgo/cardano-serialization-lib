@@ -580,11 +580,6 @@ pub fn hash_auxiliary_data(auxiliary_data: &AuxiliaryData) -> AuxiliaryDataHash 
 }
 
 #[wasm_bindgen]
-pub fn hash_transaction(tx_body: &TransactionBody) -> TransactionHash {
-    TransactionHash::from(crypto::blake2b256(tx_body.to_bytes().as_ref()))
-}
-
-#[wasm_bindgen]
 pub fn hash_plutus_data(plutus_data: &PlutusData) -> DataHash {
     DataHash::from(blake2b256(&plutus_data.to_bytes()))
 }
@@ -1086,5 +1081,141 @@ pub(crate) fn get_input_shortage(
         Ok(Some(shortage))
     } else {
         Ok(None)
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TransactionSetsState {
+    AllSetsHaveTag = 0,
+    AllSetsHaveNoTag = 1,
+    MixedSets = 2,
+}
+
+/// Returns the state of the transaction sets.
+/// If all sets have a tag, it returns AllSetsHaveTag.
+/// If all sets have no tag, it returns AllSetsHaveNoTag.
+/// If there is a mix of tagged and untagged sets, it returns MixedSets.
+/// This function is useful for checking if a transaction might be signed by a hardware wallet.
+/// And for checking which parameter should be used in a hardware wallet api.
+/// WARNING this function will be deleted after all tags for set types will be mandatory. Approx after next hf
+#[wasm_bindgen]
+pub fn has_transaction_set_tag(tx_bytes: Vec<u8>) -> Result<TransactionSetsState, JsError> {
+    let mut has_tag = false;
+    let mut has_no_tag  = false;
+
+    let tx = Transaction::from_bytes(tx_bytes)?;
+    tx.witness_set.bootstraps.as_ref().map(|bs| {
+        match bs.get_set_type() {
+            CborSetType::Tagged => has_tag = true,
+            CborSetType::Untagged => has_no_tag = true,
+        }
+    });
+    tx.witness_set.vkeys.as_ref().map(|vkeys| {
+        match vkeys.get_set_type() {
+            CborSetType::Tagged => has_tag = true,
+            CborSetType::Untagged => has_no_tag = true,
+        }
+    });
+    tx.witness_set.plutus_data.as_ref().map(|plutus_data| {
+        match plutus_data.get_set_type() {
+            Some(CborSetType::Tagged) => has_tag = true,
+            Some(CborSetType::Untagged) => has_no_tag = true,
+            None => has_tag = true,
+        }
+    });
+    tx.witness_set.native_scripts.as_ref().map(|native_scripts| {
+        match native_scripts.get_set_type() {
+            Some(CborSetType::Tagged) => has_tag = true,
+            Some(CborSetType::Untagged) => has_no_tag = true,
+            None => has_tag = true,
+        }
+    });
+    tx.witness_set.plutus_scripts.as_ref().map(|plutus_scripts| {
+        match plutus_scripts.get_set_type(&Language::new_plutus_v1()) {
+            Some(CborSetType::Tagged) => has_tag = true,
+            Some(CborSetType::Untagged) => has_no_tag = true,
+            None => has_tag = true,
+        }
+        match plutus_scripts.get_set_type(&Language::new_plutus_v2()) {
+            Some(CborSetType::Tagged) => has_tag = true,
+            Some(CborSetType::Untagged) => has_no_tag = true,
+            None => has_tag = true,
+        }
+        match plutus_scripts.get_set_type(&Language::new_plutus_v3()) {
+            Some(CborSetType::Tagged) => has_tag = true,
+            Some(CborSetType::Untagged) => has_no_tag = true,
+            None => has_tag = true,
+        }
+    });
+
+    match tx.body.inputs.get_set_type() {
+        CborSetType::Tagged => has_tag = true,
+        CborSetType::Untagged => has_no_tag = true,
+    }
+    tx.body.reference_inputs.as_ref().map(|ref_inputs| {
+        match ref_inputs.get_set_type() {
+            CborSetType::Tagged => has_tag = true,
+            CborSetType::Untagged => has_no_tag = true,
+        }
+    });
+    tx.body.required_signers.as_ref().map(|required_signers| {
+        match required_signers.get_set_type() {
+            CborSetType::Tagged => has_tag = true,
+            CborSetType::Untagged => has_no_tag = true,
+        }
+    });
+    tx.body.voting_proposals.as_ref().map(|voting_proposals| {
+        match voting_proposals.get_set_type() {
+            CborSetType::Tagged => has_tag = true,
+            CborSetType::Untagged => has_no_tag = true,
+        }
+    });
+    tx.body.collateral.as_ref().map(|collateral_inputs| {
+        match collateral_inputs.get_set_type() {
+            CborSetType::Tagged => has_tag = true,
+            CborSetType::Untagged => has_no_tag = true,
+        }
+    });
+    tx.body.certs.as_ref().map(|certs| {
+        match certs.get_set_type() {
+            CborSetType::Tagged => has_tag = true,
+            CborSetType::Untagged => has_no_tag = true,
+        }
+    });
+
+    tx.body.certs.as_ref().map(|certs| {
+        for cert in certs {
+            match &cert.0 {
+                CertificateEnum::PoolRegistration(pool_reg) => {
+                    match pool_reg.pool_params.pool_owners.get_set_type() {
+                        CborSetType::Tagged => has_tag = true,
+                        CborSetType::Untagged => has_no_tag = true,
+                    }
+                }
+                _ => {}
+            }
+        }
+    });
+
+    tx.body.voting_proposals.as_ref().map(|voting_proposals| {
+        for proposal in voting_proposals {
+            match &proposal.governance_action.0 {
+                GovernanceActionEnum::UpdateCommitteeAction(upd_action) => {
+                    match upd_action.members_to_remove.get_set_type() {
+                        CborSetType::Tagged => has_tag = true,
+                        CborSetType::Untagged => has_no_tag = true,
+                    }
+                }
+                _ => {}
+            }
+        }
+    });
+
+    match (has_tag, has_no_tag) {
+        (true, true) => Ok(TransactionSetsState::MixedSets),
+        (true, false) => Ok(TransactionSetsState::AllSetsHaveTag),
+        (false, true) => Ok(TransactionSetsState::AllSetsHaveNoTag),
+        (false, false) => Err(JsError::from_str("Transaction has invalid state")),
     }
 }

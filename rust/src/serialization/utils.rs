@@ -99,10 +99,11 @@ pub(super) fn check_len_indefinite<R: BufRead + Seek>(
 pub(crate) fn merge_option_plutus_list(
     left: Option<PlutusScripts>,
     right: Option<PlutusScripts>,
+    right_version: &Language,
 ) -> Option<PlutusScripts> {
     if let Some(left) = left {
         if let Some(right) = right {
-            return Some(left.merge(&right));
+            return Some(left.merge(&right, right_version));
         } else {
             return Some(left);
         }
@@ -114,7 +115,7 @@ pub(crate) fn merge_option_plutus_list(
 pub(super) fn skip_tag<R: BufRead + Seek>(
     raw: &mut Deserializer<R>,
     tag: u64,
-) -> Result<(), DeserializeError> {
+) -> Result<bool, DeserializeError> {
     if let Ok(extracted_tag) = raw.tag() {
         if extracted_tag != tag {
             return Err(DeserializeError::new(
@@ -125,14 +126,14 @@ pub(super) fn skip_tag<R: BufRead + Seek>(
                 },
             ));
         }
-        return Ok(());
+        return Ok(true);
     }
-    Ok(())
+    Ok(false)
 }
 
 pub(super) fn skip_set_tag<R: BufRead + Seek>(
     raw: &mut Deserializer<R>,
-) -> Result<(), DeserializeError> {
+) -> Result<bool, DeserializeError> {
     skip_tag(raw, 258)
 }
 

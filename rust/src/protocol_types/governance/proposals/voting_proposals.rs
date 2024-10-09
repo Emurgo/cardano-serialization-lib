@@ -1,18 +1,23 @@
+use std::hash::{Hash, Hasher};
+use std::ops::Deref;
+use std::rc::Rc;
+use std::slice;
+use std::iter::Map;
+use std::collections::HashSet;
+use std::cmp::Ordering;
+use itertools::Itertools;
+use schemars::JsonSchema;
 use crate::*;
 
+#[wasm_bindgen]
 #[derive(
     Clone,
     Debug,
-    Hash,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
 )]
-#[wasm_bindgen]
 pub struct VotingProposals {
-    pub(crate) proposals: Vec<VotingProposal>,
-    pub(crate) dedup: BTreeSet<VotingProposal>,
+    proposals: Vec<Rc<VotingProposal>>,
+    dedup: HashSet<Rc<VotingProposal>>,
+    cbor_set_type: CborSetType,
 }
 
 impl_to_from!(VotingProposals);
@@ -28,7 +33,19 @@ impl VotingProposals {
     pub fn new() -> Self {
         Self {
             proposals: Vec::new(),
-            dedup: BTreeSet::new(),
+            dedup: HashSet::new(),
+            cbor_set_type: CborSetType::Tagged,
+        }
+    }
+
+    pub(crate) fn new_from_prepared_fields(
+        proposals: Vec<Rc<VotingProposal>>,
+        dedup: HashSet<Rc<VotingProposal>>,
+    ) -> Self {
+        Self {
+            proposals,
+            dedup,
+            cbor_set_type: CborSetType::Tagged,
         }
     }
 
@@ -37,46 +54,102 @@ impl VotingProposals {
     }
 
     pub fn get(&self, index: usize) -> VotingProposal {
-        self.proposals[index].clone()
+        self.proposals[index].deref().clone()
     }
 
-    /// Add a proposal to the set of proposals
-    /// Returns true if the proposal was added, false if it was already present
+    /// Add a new `VotingProposal` to the set.
+    /// Returns `true` if the element was not already present in the set.
     pub fn add(&mut self, proposal: &VotingProposal) -> bool {
-        if self.dedup.insert(proposal.clone()) {
-            self.proposals.push(proposal.clone());
+        let proposal_rc = Rc::new(proposal.clone());
+        if self.dedup.insert(proposal_rc.clone()) {
+            self.proposals.push(proposal_rc.clone());
             true
         } else {
             false
         }
     }
 
-    pub(crate) fn add_move(&mut self, proposal: VotingProposal) {
-        if self.dedup.insert(proposal.clone()) {
-            self.proposals.push(proposal);
+    pub fn contains(&self, elem: &VotingProposal) -> bool {
+        self.dedup.contains(elem)
+    }
+
+    pub fn to_option(&self) -> Option<VotingProposals> {
+        if !self.proposals.is_empty() {
+            Some(self.clone())
+        } else {
+            None
         }
     }
 
-    pub(crate) fn from_vec(proposals: Vec<VotingProposal>) -> Self {
-        let mut voting_proposals = VotingProposals::new();
-        for proposal in proposals {
-            voting_proposals.add_move(proposal);
+    pub(crate) fn from_vec(proposal_vec: Vec<VotingProposal>) -> Self {
+        let mut dedup = HashSet::new();
+        let mut proposals = Vec::new();
+        for proposal in proposal_vec {
+            let proposal_rc = Rc::new(proposal.clone());
+            if dedup.insert(proposal_rc.clone()) {
+                proposals.push(proposal_rc);
+            }
         }
-        voting_proposals
+        Self::new_from_prepared_fields(proposals, dedup)
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn contains(&self, proposal: &VotingProposal) -> bool {
-        self.dedup.contains(proposal)
+    pub(crate) fn get_set_type(&self) -> CborSetType {
+        self.cbor_set_type.clone()
+    }
+
+    pub(crate) fn set_set_type(&mut self, cbor_set_type: CborSetType) {
+        self.cbor_set_type = cbor_set_type;
+    }
+}
+
+impl<'a> IntoIterator for &'a VotingProposals {
+    type Item = &'a VotingProposal;
+    type IntoIter = Map<
+        slice::Iter<'a, Rc<VotingProposal>>,
+        fn(&'a Rc<VotingProposal>) -> &'a VotingProposal,
+    >;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.proposals.iter().map(|rc| rc.as_ref())
+    }
+}
+
+impl PartialEq for VotingProposals {
+    fn eq(&self, other: &Self) -> bool {
+        self.proposals == other.proposals
+    }
+}
+
+impl Eq for VotingProposals {}
+
+impl PartialOrd for VotingProposals {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.proposals.partial_cmp(&other.proposals)
+    }
+}
+
+impl Ord for VotingProposals {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.proposals.cmp(&other.proposals)
+    }
+}
+
+impl Hash for VotingProposals {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.proposals.hash(state);
     }
 }
 
 impl serde::Serialize for VotingProposals {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
+    where
+        S: serde::Serializer,
     {
-        self.proposals.serialize(serializer)
+        self.proposals
+            .iter()
+            .map(|x| x.deref())
+            .collect_vec()
+            .serialize(serializer)
     }
 }
 
@@ -103,4 +176,3 @@ impl JsonSchema for VotingProposals {
         Vec::<VotingProposal>::is_referenceable()
     }
 }
-
