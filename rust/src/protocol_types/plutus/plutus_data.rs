@@ -310,7 +310,7 @@ impl PlutusData {
             AddrType::Base(addr) => Ok(addr.payment_cred()),
             AddrType::Enterprise(addr) => Ok(addr.payment_cred()),
             AddrType::Ptr(addr) => Ok(addr.payment_cred()),
-            AddrType::Reward(addr) => Err(JsError::from_str(
+            AddrType::Reward(_) => Err(JsError::from_str(
                 "Cannot convert Reward address to PlutusData",
             )),
             AddrType::Byron(_) => Err(JsError::from_str(
@@ -489,14 +489,14 @@ impl PlutusData {
 
         match index {
             0 => {
-                let key_hash = Ed25519KeyHash::from_bytes(bytes).map_err(|e| {
-                    JsError::from_str(&format!("Invalid KeyHash bytes: {}", e))
+                let key_hash = Ed25519KeyHash::from_bytes(bytes).map_err(|_| {
+                    JsError::from_str("Invalid KeyHash bytes")
                 })?;
                 Ok(Credential(CredType::Key(key_hash)))
             }
             1 => {
-                let script_hash = ScriptHash::from_bytes(bytes).map_err(|e| {
-                    JsError::from_str(&format!("Invalid ScriptHash bytes: {}", e))
+                let script_hash = ScriptHash::from_bytes(bytes).map_err(|_| {
+                    JsError::from_str("Invalid ScriptHash bytes")
                 })?;
                 Ok(Credential(CredType::Script(script_hash)))
             }
