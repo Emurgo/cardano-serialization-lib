@@ -449,6 +449,8 @@ pub struct PlutusList {
     pub(crate) cbor_set_type: Option<CborSetType>,
 }
 
+to_from_bytes!(PlutusList);
+
 #[wasm_bindgen]
 impl PlutusList {
     pub fn new() -> Self {
@@ -615,8 +617,6 @@ impl std::cmp::PartialEq<Self> for PlutusList {
 }
 
 impl std::cmp::Eq for PlutusList {}
-
-to_from_bytes!(PlutusList);
 
 impl From<Vec<PlutusData>> for PlutusList {
     fn from(elems: Vec<PlutusData>) -> Self {
