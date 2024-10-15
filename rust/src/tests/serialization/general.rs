@@ -1116,3 +1116,20 @@ fn plutus_list_round_trip_in_witnesses_set() {
 
     assert_eq!(plutus_data_list, new_plutus_data_list_json);
 }
+
+#[test]
+fn native_scripts_roundtrip() {
+    let native_script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&fake_key_hash(1)));
+    let native_scripts = NativeScripts::from(vec![&native_script]);
+
+    let bytes = native_scripts.to_bytes();
+    let new_native_scripts = NativeScripts::from_bytes(bytes.clone()).unwrap();
+
+    let json = native_scripts.to_json().unwrap();
+    let new_native_scripts_json = NativeScripts::from_json(&json).unwrap();
+
+    assert_eq!(native_scripts, new_native_scripts);
+    assert_eq!(native_scripts, new_native_scripts_json);
+    assert_eq!(bytes, new_native_scripts.to_bytes());
+    assert_eq!(json, new_native_scripts_json.to_json().unwrap());
+}
