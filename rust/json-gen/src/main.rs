@@ -7,6 +7,7 @@ use cardano_serialization_lib::*;
 macro_rules! gen_json_schema {
     ($name:ident) => {
         //let out_dir = std::env::var_os("OUT_DIR").expect("no env");
+        println!("Generating schema for {}", stringify!($name));
         let dest_path = Path::new(&"schemas").join(&format!("{}.json", stringify!($name)));
         fs::write(&dest_path, serde_json::to_string_pretty(&schemars::schema_for!($name)).unwrap()).unwrap();
     }
