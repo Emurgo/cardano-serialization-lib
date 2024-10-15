@@ -529,6 +529,12 @@ impl NoneOrEmpty for PlutusList {
     }
 }
 
+#[derive(serde::Deserialize, JsonSchema)]
+struct PlutusListFields {
+    elems: Vec<PlutusData>,
+    definite_encoding: Option<bool>,
+}
+
 impl serde::Serialize for PlutusList {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -541,12 +547,6 @@ impl serde::Serialize for PlutusList {
     }
 }
 
-
-#[derive(serde::Deserialize, JsonSchema)]
-struct PlutusListFields {
-    elems: Vec<PlutusData>,
-    definite_encoding: Option<bool>,
-}
 
 impl<'de> serde::de::Deserialize<'de> for PlutusList {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
