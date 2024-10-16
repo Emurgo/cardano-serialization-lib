@@ -310,7 +310,9 @@ impl PlutusData {
             AddrType::Base(addr) => Ok(addr.payment_cred()),
             AddrType::Enterprise(addr) => Ok(addr.payment_cred()),
             AddrType::Ptr(addr) => Ok(addr.payment_cred()),
-            AddrType::Reward(addr) => Ok(addr.payment_cred()),
+            AddrType::Reward(_) => Err(JsError::from_str(
+                "Cannot convert Reward address to PlutusData",
+            )),
             AddrType::Byron(_) => Err(JsError::from_str(
                 "Cannot convert Byron address to PlutusData",
             )),
@@ -321,7 +323,7 @@ impl PlutusData {
 
         let staking_data = match &address.0 {
             AddrType::Base(addr) => {
-                let staking_bytes_data = PlutusData::from_stake_credential(&addr.stake_cred())?;
+                let staking_bytes_data = PlutusData::from_credential(&addr.stake_cred())?;
                 Some(PlutusData::new_single_value_constr_plutus_data(
                     &BigNum::from(0u32),
                     &staking_bytes_data,
@@ -335,7 +337,7 @@ impl PlutusData {
             _ => None,
         };
 
-        let payment_data = PlutusData::from_stake_credential(&payment_cred)?;
+        let payment_data = PlutusData::from_credential(&payment_cred)?;
         let staking_optional_data = match (staking_data, pointer_data) {
             (Some(_), Some(_)) => Err(JsError::from_str(
                 "Address can't have both staking and pointer data",
@@ -364,7 +366,91 @@ impl PlutusData {
         )))
     }
 
-    fn from_stake_credential(stake_credential: &Credential) -> Result<PlutusData, JsError> {
+    pub fn as_address(&self, network: &NetworkInfo) -> Result<Address, JsError> {
+        let constr_data = self.as_constr_plutus_data().ok_or_else(|| {
+            JsError::from_str("Expected PlutusData to be a ConstrPlutusData")
+        })?;
+
+        if constr_data.alternative().0 != 0 {
+            return Err(JsError::from_str(
+                "Expected alternative 0 in ConstrPlutusData",
+            ));
+        }
+
+        let data_list = constr_data.data();
+        if data_list.len() != 2 {
+            return Err(JsError::from_str(
+                "Expected exactly 2 elements in the data list",
+            ));
+        }
+
+        let payment_data = data_list.get(0);
+        let payment_cred = payment_data.as_credential()?;
+
+        let staking_data = data_list.get(1);
+        let staking_cred_option =
+            if let Some(constr_staking_data) = staking_data.as_constr_plutus_data()
+        {
+            match constr_staking_data.alternative().0 {
+                0 => {
+                    let staking_inner_data = constr_staking_data.data();
+                    if staking_inner_data.len() != 1 {
+                        return Err(JsError::from_str(
+                            "Expected exactly 1 element in staking inner data",
+                        ));
+                    }
+                    let constr_staking_inner_data = staking_inner_data.get(0);
+                    Some(constr_staking_inner_data)
+                }
+                1 => {
+                    None
+                }
+                _ => {
+                    return Err(JsError::from_str(
+                        "Invalid alternative in staking data constructor",
+                    ));
+                }
+            }
+        } else {
+            return Err(JsError::from_str(
+                "Expected staking data to be a ConstrPlutusData",
+            ));
+        };
+
+        let network = network.network_id();
+        let address = if let Some(staking_cred_data) = staking_cred_option {
+            let staking_cred_constr = staking_cred_data.as_constr_plutus_data().ok_or_else(|| {
+                JsError::from_str("Expected staking data to be a ConstrPlutusData")
+            })?;
+            match staking_cred_constr.alternative.0 {
+                0 => {
+                    let staking_cred_constr_data = staking_cred_constr.data();
+                    if staking_cred_constr_data.len() != 1 {
+                        return Err(JsError::from_str(
+                            "Expected exactly 1 element in staking data constructor",
+                        ));
+                    }
+                    let staking_cred = staking_cred_constr_data.get(0).as_credential()?;
+                    BaseAddress::new(network, &payment_cred, &staking_cred).to_address()
+                }
+                1 => {
+                    let pointer = staking_cred_data.as_pointer()?;
+                    PointerAddress::new(network, &payment_cred, &pointer).to_address()
+                }
+                _ => {
+                    return Err(JsError::from_str(
+                        "Invalid alternative in staking data constructor",
+                    ));
+                }
+            }
+        } else {
+            EnterpriseAddress::new(network, &payment_cred).to_address()
+        };
+
+        Ok(address)
+    }
+
+    fn from_credential(stake_credential: &Credential) -> Result<PlutusData, JsError> {
         let (bytes_plutus_data, index) = match &stake_credential.0 {
             CredType::Key(key_hash) => (
                 PlutusData::new_bytes(key_hash.to_bytes().to_vec()),
@@ -382,6 +468,44 @@ impl PlutusData {
         ))
     }
 
+    fn as_credential(&self) -> Result<Credential, JsError> {
+        let constr_data = self.as_constr_plutus_data().ok_or_else(|| {
+            JsError::from_str("Expected PlutusData to be a ConstrPlutusData")
+        })?;
+
+        let index = constr_data.alternative().0;
+
+        let data_list = constr_data.data();
+        if data_list.len() != 1 {
+            return Err(JsError::from_str(
+                "Expected exactly one element in ConstrPlutusData data",
+            ));
+        }
+
+        let bytes_data = data_list.get(0);
+        let bytes = bytes_data.as_bytes().ok_or_else(|| {
+            JsError::from_str("Expected the inner PlutusData to be bytes")
+        })?;
+
+        match index {
+            0 => {
+                let key_hash = Ed25519KeyHash::from_bytes(bytes).map_err(|_| {
+                    JsError::from_str("Invalid KeyHash bytes")
+                })?;
+                Ok(Credential(CredType::Key(key_hash)))
+            }
+            1 => {
+                let script_hash = ScriptHash::from_bytes(bytes).map_err(|_| {
+                    JsError::from_str("Invalid ScriptHash bytes")
+                })?;
+                Ok(Credential(CredType::Script(script_hash)))
+            }
+            _ => Err(JsError::from_str(
+                "Invalid alternative index in ConstrPlutusData for Credential",
+            )),
+        }
+    }
+
     fn from_pointer(pointer: &Pointer) -> Result<PlutusData, JsError> {
         let mut data_list = PlutusList::new();
         data_list.add(&PlutusData::new_integer(&pointer.slot_bignum().into()));
@@ -394,6 +518,49 @@ impl PlutusData {
             &BigNum::from(1u32),
             &data_list,
         )))
+    }
+
+    fn as_pointer(&self) -> Result<Pointer, JsError> {
+        let constr_data = self.as_constr_plutus_data().ok_or_else(|| {
+            JsError::from_str("Expected PlutusData to be a ConstrPlutusData")
+        })?;
+
+        if constr_data.alternative() != BigNum(1) {
+            return Err(JsError::from_str("Expected alternative 1 in ConstrPlutusData"));
+        }
+
+        let data_list = constr_data.data();
+        if data_list.len() != 3 {
+            return Err(JsError::from_str("Expected exactly 3 elements in data list"));
+        }
+
+        let slot_data = data_list.get(0);
+        let tx_index_data = data_list.get(1);
+        let cert_index_data = data_list.get(2);
+
+        let slot_integer = slot_data.as_integer().ok_or_else(|| {
+            JsError::from_str("Expected slot data to be an integer")
+        })?;
+        let tx_index_integer = tx_index_data.as_integer().ok_or_else(|| {
+            JsError::from_str("Expected tx_index data to be an integer")
+        })?;
+        let cert_index_integer = cert_index_data.as_integer().ok_or_else(|| {
+            JsError::from_str("Expected cert_index data to be an integer")
+        })?;
+
+        let slot_bignum = slot_integer
+            .as_u64()
+            .ok_or_else(|| JsError::from_str("Slot integer must be positive"))?;
+        let tx_index_bignum = tx_index_integer
+            .as_u64()
+            .ok_or_else(|| JsError::from_str("Tx index integer must be positive"))?;
+        let cert_index_bignum = cert_index_integer
+            .as_u64()
+            .ok_or_else(|| JsError::from_str("Cert index integer must be positive"))?;
+
+        let pointer = Pointer::new_pointer(&slot_bignum, &tx_index_bignum, &cert_index_bignum);
+
+        Ok(pointer)
     }
 }
 
@@ -448,6 +615,8 @@ pub struct PlutusList {
     pub(crate) definite_encoding: Option<bool>,
     pub(crate) cbor_set_type: Option<CborSetType>,
 }
+
+to_from_bytes!(PlutusList);
 
 #[wasm_bindgen]
 impl PlutusList {
@@ -529,6 +698,12 @@ impl NoneOrEmpty for PlutusList {
     }
 }
 
+#[derive(serde::Deserialize, JsonSchema)]
+struct PlutusListFields {
+    elems: Vec<PlutusData>,
+    definite_encoding: Option<bool>,
+}
+
 impl serde::Serialize for PlutusList {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -541,12 +716,6 @@ impl serde::Serialize for PlutusList {
     }
 }
 
-
-#[derive(serde::Deserialize, JsonSchema)]
-struct PlutusListFields {
-    elems: Vec<PlutusData>,
-    definite_encoding: Option<bool>,
-}
 
 impl<'de> serde::de::Deserialize<'de> for PlutusList {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -615,8 +784,6 @@ impl std::cmp::PartialEq<Self> for PlutusList {
 }
 
 impl std::cmp::Eq for PlutusList {}
-
-to_from_bytes!(PlutusList);
 
 impl From<Vec<PlutusData>> for PlutusList {
     fn from(elems: Vec<PlutusData>) -> Self {

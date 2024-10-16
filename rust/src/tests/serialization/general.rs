@@ -1,5 +1,4 @@
-use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes, CborSetType, ScriptPubkey, NativeScripts, Language};
-
+use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes, CborSetType, ScriptPubkey, NativeScripts, Language, PlutusDatumSchema};
 use crate::protocol_types::ScriptRefEnum;
 use crate::tests::fakes::{fake_base_address, fake_bootsrap_witness, fake_bytes_32, fake_data_hash, fake_key_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey, fake_vkey_witness};
 
@@ -1079,4 +1078,58 @@ fn pure_plutus_list_always_should_be_without_tag() {
     let plutus_data_list_from_bytes = PlutusList::from_bytes(plutus_data_list_bytes).unwrap();
     assert_eq!(plutus_data_list, plutus_data_list_from_bytes);
     assert_eq!(plutus_data_list_from_bytes.get_set_type(), Some(CborSetType::Untagged));
+}
+
+#[test]
+fn plutus_list_round_trip() {
+    let plutus_data = PlutusData::new_integer(&BigInt::one());
+    let plutus_data_list = PlutusList::from(vec![plutus_data]);
+
+    let bytes = plutus_data_list.to_bytes();
+    let new_plutus_data_list = PlutusList::from_bytes(bytes.clone()).unwrap();
+
+    let json = PlutusData::new_list(&plutus_data_list).to_json(PlutusDatumSchema::DetailedSchema).unwrap();
+    let new_plutus_data_list_json = PlutusData::from_json(&json, PlutusDatumSchema::DetailedSchema).unwrap().as_list().unwrap();
+
+    assert_eq!(plutus_data_list, new_plutus_data_list);
+    assert_eq!(plutus_data_list, new_plutus_data_list_json);
+    assert_eq!(bytes, new_plutus_data_list.to_bytes());
+}
+
+#[test]
+fn plutus_list_round_trip_in_witnesses_set() {
+    let plutus_data = PlutusData::new_integer(&BigInt::one());
+    let plutus_data_list = PlutusList::from(vec![plutus_data]);
+
+    let mut witnesses_set = TransactionWitnessSet::new();
+    witnesses_set.set_plutus_data(&plutus_data_list);
+
+    let bytes = witnesses_set.to_bytes();
+    let new_witnesses_set = TransactionWitnessSet::from_bytes(bytes.clone()).unwrap();
+
+    let plutus_data_list_from_bytes = new_witnesses_set.plutus_data().unwrap();
+    assert_eq!(plutus_data_list, plutus_data_list_from_bytes);
+
+    let json = witnesses_set.to_json().unwrap();
+    let new_witnesses_set_json = TransactionWitnessSet::from_json(&json).unwrap();
+    let new_plutus_data_list_json = new_witnesses_set_json.plutus_data().unwrap();
+
+    assert_eq!(plutus_data_list, new_plutus_data_list_json);
+}
+
+#[test]
+fn native_scripts_roundtrip() {
+    let native_script = NativeScript::new_script_pubkey(&ScriptPubkey::new(&fake_key_hash(1)));
+    let native_scripts = NativeScripts::from(vec![&native_script]);
+
+    let bytes = native_scripts.to_bytes();
+    let new_native_scripts = NativeScripts::from_bytes(bytes.clone()).unwrap();
+
+    let json = native_scripts.to_json().unwrap();
+    let new_native_scripts_json = NativeScripts::from_json(&json).unwrap();
+
+    assert_eq!(native_scripts, new_native_scripts);
+    assert_eq!(native_scripts, new_native_scripts_json);
+    assert_eq!(bytes, new_native_scripts.to_bytes());
+    assert_eq!(json, new_native_scripts_json.to_json().unwrap());
 }

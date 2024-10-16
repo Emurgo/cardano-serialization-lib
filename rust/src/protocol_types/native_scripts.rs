@@ -179,13 +179,13 @@ impl<'de> serde::de::Deserialize<'de> for NativeScripts {
 
 impl JsonSchema for NativeScripts {
     fn is_referenceable() -> bool {
-        Vec::<NativeScripts>::is_referenceable()
+        Vec::<NativeScript>::is_referenceable()
     }
     fn schema_name() -> String {
         String::from("NativeScripts")
     }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        Vec::<NativeScripts>::json_schema(gen)
+        Vec::<NativeScript>::json_schema(gen)
     }
 }
 
