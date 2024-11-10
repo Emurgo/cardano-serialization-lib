@@ -249,14 +249,15 @@ fn voting_proposal_builder_with_plutus_script_witness() {
         fake_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, true);
 
     tx_builder.set_voting_proposal_builder(&builder);
-    tx_builder
-        .add_change_if_needed(&fake_change_address())
-        .unwrap();
 
     let mut cost_models = TxBuilderConstants::plutus_default_cost_models();
     cost_models = cost_models.retain_language_versions(&Languages(vec![Language::new_plutus_v2()]));
 
     tx_builder.calc_script_data_hash(&cost_models).unwrap();
+
+    tx_builder
+        .add_change_if_needed(&fake_change_address())
+        .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
 
@@ -357,14 +358,15 @@ fn voting_proposal_builder_with_ref_plutus_script_witness() {
         fake_tx_builder_with_amount_and_deposit_params(initial_amount, 500, 500, true);
 
     tx_builder.set_voting_proposal_builder(&builder);
-    tx_builder
-        .add_change_if_needed(&fake_change_address())
-        .unwrap();
 
     let mut cost_models = TxBuilderConstants::plutus_default_cost_models();
     cost_models = cost_models.retain_language_versions(&Languages(vec![Language::new_plutus_v2()]));
 
     tx_builder.calc_script_data_hash(&cost_models).unwrap();
+
+    tx_builder
+        .add_change_if_needed(&fake_change_address())
+        .unwrap();
 
     let tx = tx_builder.build_tx().unwrap();
 
