@@ -6574,3 +6574,20 @@ fn tx_builder_min_fee_big_automatic_fee_test() {
     let fee = res.unwrap().body().fee();
     assert!(fee > manual_fee);
 }
+
+#[test]
+fn tx_builder_exact_fee_burn_extra_issue() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    let manual_fee = BigNum(100u64);
+
+    let input= fake_tx_input(1);
+    let utxo_address = fake_base_address(2);
+    let utxo_value = Value::new(&Coin::from(1000u64));
+    tx_builder.add_regular_input(&utxo_address, &input, &utxo_value).unwrap();
+    tx_builder.set_fee(&manual_fee);
+    let change_res = tx_builder.add_inputs_from_and_change(&TransactionUnspentOutputs::new(), CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &ChangeConfig::new(&change_address));
+
+    assert!(change_res.is_err());
+}

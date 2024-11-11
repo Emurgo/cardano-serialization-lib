@@ -2145,7 +2145,7 @@ impl TransactionBuilder {
                         match fee_request {
                             TxBuilderFee::Exactly(fee) => {
                                 if burn_amount > fee {
-                                    return Err(JsError::from_str("Not enough ADA leftover to include a new change output and. But leftovers is more than fee restriction"));
+                                    return Err(JsError::from_str("Not enough ADA leftover to include a new change output. And leftovers is bigger than fee upper bound"));
                                 }
                             }
                             _ => {}
