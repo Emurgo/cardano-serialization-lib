@@ -1634,6 +1634,24 @@ impl TransactionBuilder {
         }
     }
 
+    fn validate_balance(&self) -> Result<(), JsError> {
+        let total_input = self.get_total_input()?;
+        let mut total_output = self.get_total_output()?;
+        let fee = self.get_fee_if_set();
+        if let Some(fee) = fee {
+            let out_coin = total_output.coin().checked_add(&fee)?;
+            total_output.set_coin(&out_coin);
+        }
+        if total_input != total_output {
+            Err(JsError::from_str(&format!(
+                "Total input and total output are not equal. Total input: {}, Total output: {}",
+                total_input.to_json()?, total_output.to_json()?
+            )))
+        } else {
+            Ok(())
+        }
+    }
+
     fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {
         let mut sizes_map = HashMap::new();
         fn add_to_map<'a>(
@@ -2546,6 +2564,7 @@ impl TransactionBuilder {
         }
         self.validate_inputs_intersection()?;
         self.validate_fee()?;
+        self.validate_balance()?;
         self.build_tx_unsafe()
     }
 
@@ -2565,6 +2584,6 @@ impl TransactionBuilder {
     pub fn min_fee(&self) -> Result<Coin, JsError> {
         let mut self_copy = self.clone();
         self_copy.set_final_fee((0x1_00_00_00_00u64).into());
-        min_fee(&self_copy)
+        Ok(self.fee_request.get_new_fee(min_fee(&self_copy)?))
     }
 }
