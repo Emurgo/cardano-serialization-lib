@@ -355,6 +355,24 @@ pub(crate) enum TxBuilderFee {
     Exactly(Coin),
 }
 
+impl TxBuilderFee {
+    fn get_new_fee(&self, new_fee: Coin) -> Coin {
+        match self {
+            TxBuilderFee::Unspecified => new_fee,
+            TxBuilderFee::NotLess(old_fee) => {
+                if &new_fee < old_fee {
+                    old_fee.clone()
+                } else {
+                    new_fee
+                }
+            }
+            TxBuilderFee::Exactly(old_fee) => {
+                old_fee.clone()
+            }
+        }
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionBuilder {
@@ -1103,10 +1121,13 @@ impl TransactionBuilder {
         self_copy.set_final_fee(BigNum::zero());
 
         let fee_before = min_fee(&self_copy)?;
+        let aligned_fee_before = self.fee_request.get_new_fee(fee_before);
 
         self_copy.add_output(&output)?;
         let fee_after = min_fee(&self_copy)?;
-        fee_after.checked_sub(&fee_before)
+        let aligned_fee_after = self.fee_request.get_new_fee(fee_after);
+
+        aligned_fee_after.checked_sub(&aligned_fee_before)
     }
 
     pub fn set_fee(&mut self, fee: &Coin) {
@@ -2002,9 +2023,9 @@ impl TransactionBuilder {
                             // this likely should never happen
                             return Err(JsError::from_str("NFTs too large for change output"));
                         }
-                        // we only add the minimum needed (for now) to cover this output
-                        let mut change_value = Value::new(&Coin::zero());
                         for nft_change in nft_changes.iter() {
+                            // we only add the minimum needed (for now) to cover this output
+                            let mut change_value = Value::new(&Coin::zero());
                             change_value.set_multiasset(&nft_change);
                             let mut calc = MinOutputAdaCalculator::new_empty(&utxo_cost)?;
                             //TODO add precise calculation
@@ -2101,7 +2122,16 @@ impl TransactionBuilder {
                         builder: &mut TransactionBuilder,
                         burn_amount: &BigNum,
                     ) -> Result<bool, JsError> {
+                        let fee_request = &builder.fee_request;
                         // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
+                        match fee_request {
+                            TxBuilderFee::Exactly(fee) => {
+                                if burn_amount > fee {
+                                    return Err(JsError::from_str("Not enough ADA leftover to include a new change output and. But leftovers is more than fee restriction"));
+                                }
+                            }
+                            _ => {}
+                        }
                         builder.set_final_fee(burn_amount.clone());
                         Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
                     }
