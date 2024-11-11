@@ -1598,7 +1598,7 @@ impl TransactionBuilder {
     }
 
     fn validate_fee(&self) -> Result<(), JsError> {
-        if let Some(fee) = &self.fee {
+        if let Some(fee) = &self.get_fee_if_set() {
             let min_fee = min_fee(&self)?;
             if fee < &min_fee {
                 Err(JsError::from_str(&format!(
@@ -2255,7 +2255,7 @@ impl TransactionBuilder {
 
     fn build_and_size(&self) -> Result<(TransactionBody, usize), JsError> {
         let fee = self
-            .fee
+            .get_fee_if_set()
             .or(self.get_fee_if_set())
             .ok_or_else(|| JsError::from_str("Fee not specified"))?;
 
