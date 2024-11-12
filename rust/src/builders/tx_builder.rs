@@ -1083,10 +1083,13 @@ impl TransactionBuilder {
         self_copy.set_final_fee(BigNum::zero());
 
         let fee_before = min_fee(&self_copy)?;
+        let aligned_fee_before = self.fee_request.get_new_fee(fee_before);
 
         self_copy.add_regular_input(&address, &input, &amount)?;
         let fee_after = min_fee(&self_copy)?;
-        fee_after.checked_sub(&fee_before)
+        let aligned_fee_after = self.fee_request.get_new_fee(fee_after);
+
+        aligned_fee_after.checked_sub(&aligned_fee_before)
     }
 
     /// Add explicit output via a TransactionOutput object
