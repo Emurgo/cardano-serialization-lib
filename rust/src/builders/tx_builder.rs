@@ -348,6 +348,31 @@ impl ChangeConfig {
     }
 }
 
+#[derive(Clone, Debug)]
+pub(crate) enum TxBuilderFee {
+    Unspecified,
+    NotLess(Coin),
+    Exactly(Coin),
+}
+
+impl TxBuilderFee {
+    fn get_new_fee(&self, new_fee: Coin) -> Coin {
+        match self {
+            TxBuilderFee::Unspecified => new_fee,
+            TxBuilderFee::NotLess(old_fee) => {
+                if &new_fee < old_fee {
+                    old_fee.clone()
+                } else {
+                    new_fee
+                }
+            }
+            TxBuilderFee::Exactly(old_fee) => {
+                old_fee.clone()
+            }
+        }
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionBuilder {
@@ -355,7 +380,8 @@ pub struct TransactionBuilder {
     pub(crate) inputs: TxInputsBuilder,
     pub(crate) collateral: TxInputsBuilder,
     pub(crate) outputs: TransactionOutputs,
-    pub(crate) fee: Option<Coin>,
+    pub(crate) fee_request: TxBuilderFee,
+    pub(crate) fee: Option<BigNum>,
     pub(crate) ttl: Option<SlotBigNum>, // absolute slot number
     pub(crate) certs: Option<CertificatesBuilder>,
     pub(crate) withdrawals: Option<WithdrawalsBuilder>,
@@ -917,7 +943,7 @@ impl TransactionBuilder {
         self.add_inputs_from(inputs, strategy)?;
         if self.fee.is_some() {
             return Err(JsError::from_str(
-                "Cannot calculate change if fee was explicitly specified",
+                "Cannot calculate change if it was calculated before",
             ))
         }
         let mut add_change_result = self
@@ -1061,13 +1087,16 @@ impl TransactionBuilder {
         // we need some value for these for it to be a a valid transaction
         // but since we're only calculating the difference between the fee of two transactions
         // it doesn't matter what these are set as, since it cancels out
-        self_copy.set_fee(&BigNum::zero());
+        self_copy.set_final_fee(BigNum::zero());
 
         let fee_before = min_fee(&self_copy)?;
+        let aligned_fee_before = self.fee_request.get_new_fee(fee_before);
 
         self_copy.add_regular_input(&address, &input, &amount)?;
         let fee_after = min_fee(&self_copy)?;
-        fee_after.checked_sub(&fee_before)
+        let aligned_fee_after = self.fee_request.get_new_fee(fee_after);
+
+        aligned_fee_after.checked_sub(&aligned_fee_before)
     }
 
     /// Add explicit output via a TransactionOutput object
@@ -1099,17 +1128,35 @@ impl TransactionBuilder {
         // we need some value for these for it to be a a valid transaction
         // but since we're only calculating the different between the fee of two transactions
         // it doesn't matter what these are set as, since it cancels out
-        self_copy.set_fee(&BigNum::zero());
+        self_copy.set_final_fee(BigNum::zero());
 
         let fee_before = min_fee(&self_copy)?;
+        let aligned_fee_before = self.fee_request.get_new_fee(fee_before);
 
         self_copy.add_output(&output)?;
         let fee_after = min_fee(&self_copy)?;
-        fee_after.checked_sub(&fee_before)
+        let aligned_fee_after = self.fee_request.get_new_fee(fee_after);
+
+        aligned_fee_after.checked_sub(&aligned_fee_before)
     }
 
     pub fn set_fee(&mut self, fee: &Coin) {
-        self.fee = Some(fee.clone())
+        self.fee_request = TxBuilderFee::Exactly(fee.clone());
+    }
+
+    pub fn set_min_fee(&mut self, fee: &Coin) {
+        self.fee_request = TxBuilderFee::NotLess(fee.clone());
+    }
+
+    fn set_final_fee(&mut self, fee: Coin) {
+        self.fee = match &self.fee_request {
+            TxBuilderFee::Exactly(exact_fee) => Some(exact_fee.clone()),
+            TxBuilderFee::NotLess(not_less) => {
+                if &fee >= not_less
+                { Some(fee) } else { Some(not_less.clone()) }
+            },
+            TxBuilderFee::Unspecified => Some(fee),
+        }
     }
 
     /// !!! DEPRECATED !!!
@@ -1498,6 +1545,7 @@ impl TransactionBuilder {
             inputs: TxInputsBuilder::new(),
             collateral: TxInputsBuilder::new(),
             outputs: TransactionOutputs::new(),
+            fee_request: TxBuilderFee::Unspecified,
             fee: None,
             ttl: None,
             certs: None,
@@ -1578,6 +1626,40 @@ impl TransactionBuilder {
             }
         }
         Ok(())
+    }
+
+    fn validate_fee(&self) -> Result<(), JsError> {
+        if let Some(fee) = &self.get_fee_if_set() {
+            let min_fee = min_fee(&self)?;
+            if fee < &min_fee {
+                Err(JsError::from_str(&format!(
+                    "Fee is less than the minimum fee. Min fee: {}, Fee: {}",
+                    min_fee, fee
+                )))
+            } else {
+                Ok(())
+            }
+        } else {
+            Err(JsError::from_str("Fee is not set"))
+        }
+    }
+
+    fn validate_balance(&self) -> Result<(), JsError> {
+        let total_input = self.get_total_input()?;
+        let mut total_output = self.get_total_output()?;
+        let fee = self.get_fee_if_set();
+        if let Some(fee) = fee {
+            let out_coin = total_output.coin().checked_add(&fee)?;
+            total_output.set_coin(&out_coin);
+        }
+        if total_input != total_output {
+            Err(JsError::from_str(&format!(
+                "Total input and total output are not equal. Total input: {}, Total output: {}",
+                total_input.to_json()?, total_output.to_json()?
+            )))
+        } else {
+            Ok(())
+        }
     }
 
     fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {
@@ -1726,7 +1808,15 @@ impl TransactionBuilder {
     }
 
     pub fn get_fee_if_set(&self) -> Option<Coin> {
-        self.fee.clone()
+        if let Some(fee) = &self.fee {
+           return Some(fee.clone())
+        };
+
+        match self.fee_request {
+            TxBuilderFee::Exactly(fee) => Some(fee),
+            TxBuilderFee::NotLess(fee) => Some(fee),
+            TxBuilderFee::Unspecified => None
+        }
     }
 
     /// Warning: this function will mutate the /fee/ field
@@ -1780,7 +1870,7 @@ impl TransactionBuilder {
         match &input_total.partial_cmp(&output_total.checked_add(&Value::new(&fee))?) {
             Some(Ordering::Equal) => {
                 // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
-                self.set_fee(&input_total.checked_sub(&output_total)?.coin());
+                self.set_final_fee(input_total.checked_sub(&output_total)?.coin());
                 Ok(false)
             }
             Some(Ordering::Less) => Err(JsError::from_str("Insufficient input in transaction")),
@@ -1961,9 +2051,9 @@ impl TransactionBuilder {
                             // this likely should never happen
                             return Err(JsError::from_str("NFTs too large for change output"));
                         }
-                        // we only add the minimum needed (for now) to cover this output
-                        let mut change_value = Value::new(&Coin::zero());
                         for nft_change in nft_changes.iter() {
+                            // we only add the minimum needed (for now) to cover this output
+                            let mut change_value = Value::new(&Coin::zero());
                             change_value.set_multiasset(&nft_change);
                             let mut calc = MinOutputAdaCalculator::new_empty(&utxo_cost)?;
                             //TODO add precise calculation
@@ -2029,7 +2119,7 @@ impl TransactionBuilder {
                             })?;
                         }
                     }
-                    self.set_fee(&new_fee);
+                    self.set_final_fee(new_fee);
                     // add in the rest of the ADA
                     if !change_left.is_zero() {
                         self.outputs.0.last_mut().unwrap().amount = self
@@ -2060,8 +2150,17 @@ impl TransactionBuilder {
                         builder: &mut TransactionBuilder,
                         burn_amount: &BigNum,
                     ) -> Result<bool, JsError> {
+                        let fee_request = &builder.fee_request;
                         // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
-                        builder.set_fee(burn_amount);
+                        match fee_request {
+                            TxBuilderFee::Exactly(fee) => {
+                                if burn_amount > fee {
+                                    return Err(JsError::from_str("Not enough ADA leftover to include a new change output. And leftovers is bigger than fee upper bound"));
+                                }
+                            }
+                            _ => {}
+                        }
+                        builder.set_final_fee(burn_amount.clone());
                         Ok(false) // not enough input to covert the extra fee from adding an output so we just burn whatever is left
                     }
                     match change_estimator.coin() >= min_ada {
@@ -2083,7 +2182,7 @@ impl TransactionBuilder {
                                 false => burn_extra(self, &change_estimator.coin()),
                                 true => {
                                     // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
-                                    self.set_fee(&new_fee);
+                                    self.set_final_fee(new_fee);
 
                                     self.add_output(&TransactionOutput {
                                         address: address.clone(),
@@ -2214,7 +2313,7 @@ impl TransactionBuilder {
 
     fn build_and_size(&self) -> Result<(TransactionBody, usize), JsError> {
         let fee = self
-            .fee
+            .get_fee_if_set()
             .ok_or_else(|| JsError::from_str("Fee not specified"))?;
 
         let built = TransactionBody {
@@ -2473,6 +2572,8 @@ impl TransactionBuilder {
             }
         }
         self.validate_inputs_intersection()?;
+        self.validate_fee()?;
+        self.validate_balance()?;
         self.build_tx_unsafe()
     }
 
@@ -2491,7 +2592,7 @@ impl TransactionBuilder {
     /// this is done to simplify the library code, but can be fixed later
     pub fn min_fee(&self) -> Result<Coin, JsError> {
         let mut self_copy = self.clone();
-        self_copy.set_fee(&(0x1_00_00_00_00u64).into());
-        min_fee(&self_copy)
+        self_copy.set_final_fee((0x1_00_00_00_00u64).into());
+        Ok(self.fee_request.get_new_fee(min_fee(&self_copy)?))
     }
 }

@@ -3893,7 +3893,6 @@ fn create_collateral() -> TxInputsBuilder {
 #[test]
 fn test_existing_plutus_scripts_require_data_hash() {
     let mut tx_builder = fake_reallistic_tx_builder();
-    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
     let (script1, _) = fake_plutus_script_and_hash(0);
     let datum = PlutusData::new_bytes(fake_bytes_32(1));
@@ -3917,6 +3916,8 @@ fn test_existing_plutus_scripts_require_data_hash() {
         assert!(e.as_string().unwrap().contains("script data hash"));
     }
 
+    tx_builder.add_change_if_needed(&fake_base_address(1)).unwrap();
+
     // Setting script data hash removes the error
     tx_builder.set_script_data_hash(&ScriptDataHash::from_bytes(fake_bytes_32(42)).unwrap());
     // Using SAFE `.build_tx`
@@ -3933,7 +3934,6 @@ fn test_existing_plutus_scripts_require_data_hash() {
 #[test]
 fn test_calc_script_hash_data() {
     let mut tx_builder = fake_reallistic_tx_builder();
-    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
 
     let (script1, _) = fake_plutus_script_and_hash(0);
@@ -3956,6 +3956,8 @@ fn test_calc_script_hash_data() {
         .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
         .unwrap();
 
+    tx_builder.add_change_if_needed(&fake_base_address(1)).unwrap();
+
     // Using SAFE `.build_tx`
     let res2 = tx_builder.build_tx();
     assert!(res2.is_ok());
@@ -3974,7 +3976,6 @@ fn test_calc_script_hash_data() {
 #[test]
 fn test_plutus_witness_redeemer_index_auto_changing() {
     let mut tx_builder = fake_reallistic_tx_builder();
-    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
     let (script1, _) = fake_plutus_script_and_hash(0);
     let (script2, _) = fake_plutus_script_and_hash(1);
@@ -4020,6 +4021,8 @@ fn test_plutus_witness_redeemer_index_auto_changing() {
         .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
         .unwrap();
 
+    tx_builder.add_change_if_needed(&fake_base_address(1)).expect("Failed to add change");
+
     let tx: Transaction = tx_builder.build_tx().unwrap();
     assert!(tx.witness_set.redeemers.is_some());
     let redeems = tx.witness_set.redeemers.unwrap();
@@ -4044,7 +4047,6 @@ fn test_plutus_witness_redeemer_index_auto_changing() {
 #[test]
 fn test_native_and_plutus_scripts_together() {
     let mut tx_builder = fake_reallistic_tx_builder();
-    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
     let (pscript1, _) = fake_plutus_script_and_hash(0);
     let (pscript2, _phash2) = fake_plutus_script_and_hash(1);
@@ -4095,6 +4097,8 @@ fn test_native_and_plutus_scripts_together() {
         .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
         .unwrap();
 
+    tx_builder.add_change_if_needed(&fake_base_address(1)).expect("Failed to add change");
+
     let tx: Transaction = tx_builder.build_tx().unwrap();
 
     let wits = tx.witness_set;
@@ -4130,7 +4134,6 @@ fn test_native_and_plutus_scripts_together() {
 #[test]
 fn test_json_serialization_native_and_plutus_scripts_together() {
     let mut tx_builder = fake_reallistic_tx_builder();
-    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
     let (pscript1, _) = fake_plutus_script_and_hash(0);
     let (pscript2, _phash2) = fake_plutus_script_and_hash(1);
@@ -4178,6 +4181,8 @@ fn test_json_serialization_native_and_plutus_scripts_together() {
     );
 
     tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models()).expect("Failed to calc script data hash");
+
+    tx_builder.add_change_if_needed(&fake_base_address(1)).expect("Failed to add change");
 
     let tx: Transaction = tx_builder.build_tx().unwrap();
 
@@ -4238,7 +4243,6 @@ fn test_regular_and_collateral_inputs_same_keyhash() {
 #[test]
 fn test_regular_and_collateral_inputs_together() {
     let mut tx_builder = fake_reallistic_tx_builder();
-    tx_builder.set_fee(&BigNum(42));
     let (pscript1, _) = fake_plutus_script_and_hash(0);
     let (pscript2, _) = fake_plutus_script_and_hash(1);
     let (nscript1, _) = mint_script_and_policy(0);
@@ -4290,6 +4294,8 @@ fn test_regular_and_collateral_inputs_together() {
     tx_builder
         .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
         .unwrap();
+
+    tx_builder.add_change_if_needed(&fake_base_address(1)).expect("Failed to add change");
 
     let w: &TransactionWitnessSet = &tx_builder.build_tx().unwrap().witness_set;
 
@@ -4968,7 +4974,6 @@ fn test_auto_calc_collateral_return_fails_on_no_collateral() {
 #[test]
 fn test_costmodel_retaining_for_v1() {
     let mut tx_builder = fake_reallistic_tx_builder();
-    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
 
     let (script1, _) = fake_plutus_script_and_hash(0);
@@ -4985,6 +4990,7 @@ fn test_costmodel_retaining_for_v1() {
         &Value::new(&BigNum(1_000_000)),
     );
 
+    tx_builder.add_change_if_needed(&fake_base_address(42)).unwrap();
     // Setting script data hash removes the error
     tx_builder
         .calc_script_data_hash(&TxBuilderConstants::plutus_vasil_cost_models())
@@ -6514,4 +6520,103 @@ fn multiple_boostrap_witnesses() {
     let min_fee = min_fee_for_size(tx_len, &fake_linear_fee(44, 155381)).unwrap();
 
     assert!(total_tx_fee >= min_fee);
+}
+
+#[test]
+fn tx_builder_exact_fee_test() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    let manual_fee = BigNum(1000000u64);
+
+    let input= fake_tx_input(1);
+    let utxo_address = fake_base_address(2);
+    let utxo_value = Value::new(&Coin::from(10000000u64));
+    tx_builder.add_regular_input(&utxo_address, &input, &utxo_value).unwrap();
+    tx_builder.set_fee(&manual_fee);
+    tx_builder.add_inputs_from_and_change(&TransactionUnspentOutputs::new(), CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &ChangeConfig::new(&change_address)).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_ok());
+
+    let fee = res.unwrap().body().fee();
+    assert_eq!(fee, manual_fee);
+}
+
+#[test]
+fn tx_builder_exact_fee_error_test() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    let manual_fee = BigNum(1064);
+
+    let input= fake_tx_input(1);
+    let utxo_address = fake_base_address(2);
+    let utxo_value = Value::new(&Coin::from(10000000u64));
+    tx_builder.add_regular_input(&utxo_address, &input, &utxo_value).unwrap();
+    tx_builder.set_fee(&manual_fee);
+    tx_builder.add_inputs_from_and_change(&TransactionUnspentOutputs::new(), CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &ChangeConfig::new(&change_address)).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_err());
+}
+
+
+#[test]
+fn tx_builder_min_fee_small_automatic_fee_test() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    let manual_fee = BigNum(1000000u64);
+
+    let input= fake_tx_input(1);
+    let utxo_address = fake_base_address(2);
+    let utxo_value = Value::new(&Coin::from(10000000u64));
+    tx_builder.add_regular_input(&utxo_address, &input, &utxo_value).unwrap();
+    tx_builder.set_min_fee(&manual_fee);
+    tx_builder.add_inputs_from_and_change(&TransactionUnspentOutputs::new(), CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &ChangeConfig::new(&change_address)).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_ok());
+
+    let fee = res.unwrap().body().fee();
+    assert_eq!(fee, manual_fee);
+}
+
+#[test]
+fn tx_builder_min_fee_big_automatic_fee_test() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    let manual_fee = BigNum(100u64);
+
+    let input= fake_tx_input(1);
+    let utxo_address = fake_base_address(2);
+    let utxo_value = Value::new(&Coin::from(10000000u64));
+    tx_builder.add_regular_input(&utxo_address, &input, &utxo_value).unwrap();
+    tx_builder.set_min_fee(&manual_fee);
+    tx_builder.add_inputs_from_and_change(&TransactionUnspentOutputs::new(), CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &ChangeConfig::new(&change_address)).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_ok());
+
+    let fee = res.unwrap().body().fee();
+    assert!(fee > manual_fee);
+}
+
+#[test]
+fn tx_builder_exact_fee_burn_extra_issue() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    let manual_fee = BigNum(100u64);
+
+    let input= fake_tx_input(1);
+    let utxo_address = fake_base_address(2);
+    let utxo_value = Value::new(&Coin::from(1000u64));
+    tx_builder.add_regular_input(&utxo_address, &input, &utxo_value).unwrap();
+    tx_builder.set_fee(&manual_fee);
+    let change_res = tx_builder.add_inputs_from_and_change(&TransactionUnspentOutputs::new(), CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &ChangeConfig::new(&change_address));
+
+    assert!(change_res.is_err());
 }
