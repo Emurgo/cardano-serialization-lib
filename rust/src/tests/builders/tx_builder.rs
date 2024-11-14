@@ -4930,6 +4930,35 @@ fn test_add_collateral_return_fails_no_enough_ada() {
 }
 
 #[test]
+fn test_add_collateral_return_fails_no_enough_ada_to_cover_return() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
+
+    let masset = fake_multiasset(123);
+
+    let mut inp = TxInputsBuilder::new();
+    let collateral_input_value = 2_000_000;
+    inp.add_regular_input(
+        &fake_base_address(0),
+        &fake_tx_input(0),
+        &Value::new_with_assets(&BigNum(collateral_input_value.clone()), &masset),
+    ).expect("Failed to add input");
+
+    tx_builder.set_collateral(&inp);
+
+    let collateral_return_address = fake_base_address(1);
+
+    let total_collateral = BigNum(collateral_input_value + 1);
+
+    let coll_add_res = tx_builder
+        .set_total_collateral_and_return(&total_collateral, &collateral_return_address);
+
+    assert!(coll_add_res.is_err());
+    assert!(tx_builder.total_collateral.is_none());
+    assert!(tx_builder.collateral_return.is_none());
+}
+
+#[test]
 fn test_auto_calc_collateral_return_fails_on_no_collateral() {
     let mut tx_builder = fake_reallistic_tx_builder();
     tx_builder.set_fee(&BigNum(123456));

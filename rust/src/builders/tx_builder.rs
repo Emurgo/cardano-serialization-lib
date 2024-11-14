@@ -829,6 +829,13 @@ impl TransactionBuilder {
             ));
         }
         let col_input_value: Value = collateral.total_value()?;
+        let col_input_coin = col_input_value.coin;
+        if col_input_coin < *total_collateral {
+            return Err(JsError::from_str(
+                "Total collateral value cannot exceed the sum of collateral inputs",
+            ));
+        }
+
         let col_return: Value = col_input_value.checked_sub(&Value::new(&total_collateral))?;
         if col_return.multiasset.is_some() || col_return.coin > BigNum::zero() {
             let return_output = TransactionOutput::new(return_address, &col_return);
