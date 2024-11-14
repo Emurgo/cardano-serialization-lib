@@ -2307,7 +2307,6 @@ impl TransactionBuilder {
     fn build_and_size(&self) -> Result<(TransactionBody, usize), JsError> {
         let fee = self
             .get_fee_if_set()
-            .or(self.get_fee_if_set())
             .ok_or_else(|| JsError::from_str("Fee not specified"))?;
 
         let built = TransactionBody {
