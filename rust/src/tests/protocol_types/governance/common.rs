@@ -1,5 +1,4 @@
-use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
-use crate::tests::mock_objects::create_anchor;
+use crate::tests::fakes::{fake_anchor, fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
 use crate::*;
 
 #[test]
@@ -31,6 +30,23 @@ fn drep_key_hash_setters_getters_test() {
 fn drep_script_hash_setters_getters_test() {
     let script_hash = fake_script_hash(1);
     let drep = DRep::new_script_hash(&script_hash);
+    assert_eq!(drep.kind(), DRepKind::ScriptHash);
+    assert_eq!(drep.to_key_hash(), None);
+    assert_eq!(drep.to_script_hash(), Some(script_hash));
+}
+
+#[test]
+fn drep_from_cred_test() {
+    let key_hash = fake_key_hash(1);
+    let cred = Credential::from_keyhash(&key_hash);
+    let drep = DRep::new_from_credential(&cred);
+    assert_eq!(drep.kind(), DRepKind::KeyHash);
+    assert_eq!(drep.to_key_hash(), Some(key_hash));
+    assert_eq!(drep.to_script_hash(), None);
+
+    let script_hash = fake_script_hash(1);
+    let cred = Credential::from_scripthash(&script_hash);
+    let drep = DRep::new_from_credential(&cred);
     assert_eq!(drep.kind(), DRepKind::ScriptHash);
     assert_eq!(drep.to_key_hash(), None);
     assert_eq!(drep.to_script_hash(), Some(script_hash));
@@ -74,14 +90,14 @@ fn governance_action_ids_setters_getters_test() {
 #[test]
 fn voter_drep_key_hash_setters_getters_test() {
     let key_hash = fake_key_hash(1);
-    let voter = Voter::new_drep(&Credential::from_keyhash(&key_hash));
+    let voter = Voter::new_drep_credential(&Credential::from_keyhash(&key_hash));
     assert_eq!(voter.kind(), VoterKind::DRepKeyHash);
     assert_eq!(
-        voter.to_drep_cred(),
+        voter.to_drep_credential(),
         Some(Credential::from_keyhash(&key_hash))
     );
-    assert_eq!(voter.to_staking_pool_key_hash(), None);
-    assert_eq!(voter.to_constitutional_committee_hot_cred(), None);
+    assert_eq!(voter.to_stake_pool_key_hash(), None);
+    assert_eq!(voter.to_constitutional_committee_hot_credential(), None);
     assert_eq!(voter.has_script_credentials(), false);
     assert_eq!(voter.to_key_hash(), Some(key_hash));
 }
@@ -89,14 +105,14 @@ fn voter_drep_key_hash_setters_getters_test() {
 #[test]
 fn voter_drep_script_hash_setters_getters_test() {
     let script_hash = fake_script_hash(1);
-    let voter = Voter::new_drep(&Credential::from_scripthash(&script_hash));
+    let voter = Voter::new_drep_credential(&Credential::from_scripthash(&script_hash));
     assert_eq!(voter.kind(), VoterKind::DRepScriptHash);
     assert_eq!(
-        voter.to_drep_cred(),
+        voter.to_drep_credential(),
         Some(Credential::from_scripthash(&script_hash))
     );
-    assert_eq!(voter.to_staking_pool_key_hash(), None);
-    assert_eq!(voter.to_constitutional_committee_hot_cred(), None);
+    assert_eq!(voter.to_stake_pool_key_hash(), None);
+    assert_eq!(voter.to_constitutional_committee_hot_credential(), None);
     assert_eq!(voter.has_script_credentials(), true);
     assert_eq!(voter.to_key_hash(), None);
 }
@@ -104,14 +120,14 @@ fn voter_drep_script_hash_setters_getters_test() {
 #[test]
 fn voter_constitutional_committee_hot_key_hash_setters_getters_test() {
     let key_hash = fake_key_hash(1);
-    let voter = Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&key_hash));
+    let voter = Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&key_hash));
     assert_eq!(voter.kind(), VoterKind::ConstitutionalCommitteeHotKeyHash);
     assert_eq!(
-        voter.to_constitutional_committee_hot_cred(),
+        voter.to_constitutional_committee_hot_credential(),
         Some(Credential::from_keyhash(&key_hash))
     );
-    assert_eq!(voter.to_staking_pool_key_hash(), None);
-    assert_eq!(voter.to_drep_cred(), None);
+    assert_eq!(voter.to_stake_pool_key_hash(), None);
+    assert_eq!(voter.to_drep_credential(), None);
     assert_eq!(voter.has_script_credentials(), false);
     assert_eq!(voter.to_key_hash(), Some(key_hash));
 }
@@ -120,17 +136,17 @@ fn voter_constitutional_committee_hot_key_hash_setters_getters_test() {
 fn voter_constitutional_committee_hot_script_hash_setters_getters_test() {
     let script_hash = fake_script_hash(1);
     let voter =
-        Voter::new_constitutional_committee_hot_key(&Credential::from_scripthash(&script_hash));
+        Voter::new_constitutional_committee_hot_credential(&Credential::from_scripthash(&script_hash));
     assert_eq!(
         voter.kind(),
         VoterKind::ConstitutionalCommitteeHotScriptHash
     );
     assert_eq!(
-        voter.to_constitutional_committee_hot_cred(),
+        voter.to_constitutional_committee_hot_credential(),
         Some(Credential::from_scripthash(&script_hash))
     );
-    assert_eq!(voter.to_staking_pool_key_hash(), None);
-    assert_eq!(voter.to_drep_cred(), None);
+    assert_eq!(voter.to_stake_pool_key_hash(), None);
+    assert_eq!(voter.to_drep_credential(), None);
     assert_eq!(voter.has_script_credentials(), true);
     assert_eq!(voter.to_key_hash(), None);
 }
@@ -138,11 +154,11 @@ fn voter_constitutional_committee_hot_script_hash_setters_getters_test() {
 #[test]
 fn voter_staking_pool_key_hash_setters_getters_test() {
     let key_hash = fake_key_hash(1);
-    let voter = Voter::new_staking_pool(&key_hash);
+    let voter = Voter::new_stake_pool_key_hash(&key_hash);
     assert_eq!(voter.kind(), VoterKind::StakingPoolKeyHash);
-    assert_eq!(voter.to_staking_pool_key_hash(), Some(key_hash.clone()));
-    assert_eq!(voter.to_constitutional_committee_hot_cred(), None);
-    assert_eq!(voter.to_drep_cred(), None);
+    assert_eq!(voter.to_stake_pool_key_hash(), Some(key_hash.clone()));
+    assert_eq!(voter.to_constitutional_committee_hot_credential(), None);
+    assert_eq!(voter.to_drep_credential(), None);
     assert_eq!(voter.has_script_credentials(), false);
     assert_eq!(voter.to_key_hash(), Some(key_hash));
 }
@@ -150,9 +166,9 @@ fn voter_staking_pool_key_hash_setters_getters_test() {
 #[test]
 fn voters_setters_getters_test() {
     let key_hash_1 = fake_key_hash(1);
-    let voter_1 = Voter::new_staking_pool(&key_hash_1);
+    let voter_1 = Voter::new_stake_pool_key_hash(&key_hash_1);
     let key_hash_2 = fake_key_hash(2);
-    let voter_2 = Voter::new_staking_pool(&key_hash_2);
+    let voter_2 = Voter::new_stake_pool_key_hash(&key_hash_2);
     let mut voters = Voters::new();
     voters.add(&voter_1);
     voters.add(&voter_2);
@@ -179,7 +195,7 @@ fn voting_procedure_setters_getters_test() {
 
 #[test]
 fn voting_procedure_with_anchor_setters_getters_test() {
-    let anchor = create_anchor();
+    let anchor = fake_anchor();
     let yes_procedure = VotingProcedure::new_with_anchor(VoteKind::Yes, &anchor);
     assert_eq!(yes_procedure.vote_kind(), VoteKind::Yes);
     assert_eq!(yes_procedure.anchor(), Some(anchor.clone()));
@@ -196,9 +212,9 @@ fn voting_procedure_with_anchor_setters_getters_test() {
 #[test]
 fn voting_procedures_setters_getters_test() {
     let key_hash_1 = fake_key_hash(1);
-    let voter_1 = Voter::new_staking_pool(&key_hash_1);
+    let voter_1 = Voter::new_stake_pool_key_hash(&key_hash_1);
     let key_hash_2 = fake_key_hash(2);
-    let voter_2 = Voter::new_staking_pool(&key_hash_2);
+    let voter_2 = Voter::new_stake_pool_key_hash(&key_hash_2);
     let governance_action_id_1 = GovernanceActionId::new(&fake_tx_hash(1), 1);
     let governance_action_id_2 = GovernanceActionId::new(&fake_tx_hash(2), 2);
     let governance_action_id_3 = GovernanceActionId::new(&fake_tx_hash(3), 3);

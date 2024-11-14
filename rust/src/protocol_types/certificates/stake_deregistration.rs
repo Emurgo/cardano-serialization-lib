@@ -37,7 +37,7 @@ impl StakeDeregistration {
         }
     }
 
-    pub fn new_with_coin(stake_credential: &Credential, coin: &Coin) -> Self {
+    pub fn new_with_explicit_refund(stake_credential: &Credential, coin: &Coin) -> Self {
         Self {
             stake_credential: stake_credential.clone(),
             coin: Some(coin.clone()),

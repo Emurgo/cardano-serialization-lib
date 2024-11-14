@@ -7,6 +7,7 @@ use cardano_serialization_lib::*;
 macro_rules! gen_json_schema {
     ($name:ident) => {
         //let out_dir = std::env::var_os("OUT_DIR").expect("no env");
+        println!("Generating schema for {}", stringify!($name));
         let dest_path = Path::new(&"schemas").join(&format!("{}.json", stringify!($name)));
         fs::write(&dest_path, serde_json::to_string_pretty(&schemars::schema_for!($name)).unwrap()).unwrap();
     }
@@ -88,6 +89,7 @@ fn main() {
     gen_json_schema!(TransactionWitnessSets);
     gen_json_schema!(AuxiliaryDataSet);
     gen_json_schema!(Block);
+    gen_json_schema!(VersionedBlock);
     gen_json_schema!(Header);
     gen_json_schema!(OperationalCert);
     gen_json_schema!(HeaderBody);
@@ -96,6 +98,7 @@ fn main() {
     gen_json_schema!(Assets);
     gen_json_schema!(MultiAsset);
     gen_json_schema!(MintAssets);
+    gen_json_schema!(MintsAssets);
     gen_json_schema!(Mint);
     gen_json_schema!(NetworkId);
     gen_json_schema!(NetworkIdKind);
@@ -175,9 +178,9 @@ fn main() {
     gen_json_schema!(VotingProcedures);
     gen_json_schema!(CommitteeHotAuth);
     gen_json_schema!(CommitteeColdResign);
-    gen_json_schema!(DrepDeregistration);
-    gen_json_schema!(DrepRegistration);
-    gen_json_schema!(DrepUpdate);
+    gen_json_schema!(DRepDeregistration);
+    gen_json_schema!(DRepRegistration);
+    gen_json_schema!(DRepUpdate);
     gen_json_schema!(StakeAndVoteDelegation);
     gen_json_schema!(StakeRegistrationAndDelegation);
     gen_json_schema!(StakeVoteRegistrationAndDelegation);
@@ -196,6 +199,6 @@ fn main() {
     gen_json_schema!(TreasuryWithdrawalsAction);
     gen_json_schema!(Committee);
     gen_json_schema!(Constitution);
-    gen_json_schema!(DrepVotingThresholds);
+    gen_json_schema!(DRepVotingThresholds);
     gen_json_schema!(PoolVotingThresholds);
 }

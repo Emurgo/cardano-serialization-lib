@@ -1,15 +1,16 @@
+use hashlink::LinkedHashMap;
 use crate::*;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct CertificatesBuilder {
-    certs: Vec<(Certificate, Option<ScriptWitnessType>)>,
+    certs: LinkedHashMap<Certificate, Option<ScriptWitnessType>>,
 }
 
 #[wasm_bindgen]
 impl CertificatesBuilder {
     pub fn new() -> Self {
-        Self { certs: Vec::new() }
+        Self { certs: LinkedHashMap::new() }
     }
 
     pub fn add(&mut self, cert: &Certificate) -> Result<(), JsError> {
@@ -20,7 +21,11 @@ impl CertificatesBuilder {
             ));
         }
 
-        self.certs.push((cert.clone(), None));
+        if self.certs.contains_key(cert) {
+            return Err(JsError::from_str("Certificate already exists"));
+        }
+
+        self.certs.insert(cert.clone(), None);
         Ok(())
     }
 
@@ -36,10 +41,14 @@ impl CertificatesBuilder {
             ));
         }
 
-        self.certs.push((
+        if self.certs.contains_key(cert) {
+            return Err(JsError::from_str("Certificate already exists"));
+        }
+
+        self.certs.insert(
             cert.clone(),
             Some(ScriptWitnessType::PlutusScriptWitness(witness.clone())),
-        ));
+        );
         Ok(())
     }
 
@@ -55,22 +64,28 @@ impl CertificatesBuilder {
             ));
         }
 
-        self.certs.push((
+        if self.certs.contains_key(cert) {
+            return Err(JsError::from_str("Certificate already exists"));
+        }
+
+        self.certs.insert(
             cert.clone(),
             Some(ScriptWitnessType::NativeScriptWitness(
                 native_script_source.0.clone(),
             )),
-        ));
+        );
         Ok(())
     }
 
-    pub(crate) fn get_required_signers(&self) -> RequiredSignersSet {
-        let mut set = RequiredSignersSet::new();
+    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashes {
+        let mut set = Ed25519KeyHashes::new();
         for (cert, script_wit) in &self.certs {
             let cert_req_signers = witness_keys_for_cert(&cert);
-            set.extend(cert_req_signers);
-            if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = script_wit {
-                set.extend(script_source.required_signers());
+            set.extend_move(cert_req_signers);
+            if let Some(script_wit) = script_wit {
+                if let Some(signers) = script_wit.get_required_signers() {
+                    set.extend(&signers);
+                }
             }
         }
         set
@@ -92,30 +107,25 @@ impl CertificatesBuilder {
         let mut inputs = Vec::new();
         for (_, script_wit) in self.certs.iter() {
             match script_wit {
-                Some(ScriptWitnessType::NativeScriptWitness(script_source)) => {
-                    if let NativeScriptSourceEnum::RefInput(input, _, _) = script_source {
-                        inputs.push(input.clone());
+                Some(script_witness) => {
+                    if let Some(input) = script_witness.get_script_ref_input() {
+                        inputs.push(input);
                     }
-                }
-                Some(ScriptWitnessType::PlutusScriptWitness(plutus_witness)) => {
-                    if let Some(DatumSourceEnum::RefInput(input)) = &plutus_witness.datum {
-                        inputs.push(input.clone());
-                    }
-                    if let PlutusScriptSourceEnum::RefInput(input, _, _) = &plutus_witness.script {
-                        inputs.push(input.clone());
+                    if let Some(input) = script_witness.get_datum_ref_input() {
+                        inputs.push(input);
                     }
                 }
                 None => {}
             }
         }
-        TransactionInputs(inputs)
+        TransactionInputs::from_vec(inputs)
     }
 
     pub fn get_native_scripts(&self) -> NativeScripts {
         let mut scripts = NativeScripts::new();
         for (_, script_wit) in self.certs.iter() {
             if let Some(ScriptWitnessType::NativeScriptWitness(
-                NativeScriptSourceEnum::NativeScript(script),
+                NativeScriptSourceEnum::NativeScript(script, _),
             )) = script_wit
             {
                 scripts.add(script);
@@ -128,14 +138,13 @@ impl CertificatesBuilder {
         let mut used_langs = BTreeSet::new();
         for (_, script_wit) in &self.certs {
             if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = script_wit {
-                if let Some(lang) = s.script.language() {
-                    used_langs.insert(lang.clone());
-                }
+                used_langs.insert(s.script.language().clone());
             }
         }
         used_langs
     }
 
+    #[allow(unused_variables)]
     pub fn get_certificates_refund(
         &self,
         pool_deposit: &BigNum,
@@ -151,10 +160,7 @@ impl CertificatesBuilder {
                         refund = refund.checked_add(&key_deposit)?;
                     }
                 }
-                CertificateEnum::PoolRetirement(_) => {
-                    refund = refund.checked_add(&pool_deposit)?;
-                }
-                CertificateEnum::DrepDeregistration(cert) => {
+                CertificateEnum::DRepDeregistration(cert) => {
                     refund = refund.checked_add(&cert.coin)?;
                 }
                 _ => {}
@@ -181,7 +187,7 @@ impl CertificatesBuilder {
                         deposit = deposit.checked_add(&key_deposit)?;
                     }
                 }
-                CertificateEnum::DrepRegistration(cert) => {
+                CertificateEnum::DRepRegistration(cert) => {
                     deposit = deposit.checked_add(&cert.coin)?;
                 }
                 CertificateEnum::StakeRegistrationAndDelegation(cert) => {
@@ -210,7 +216,20 @@ impl CertificatesBuilder {
 
     pub fn build(&self) -> Certificates {
         let certs = self.certs.iter().map(|(c, _)| c.clone()).collect();
-        Certificates(certs)
+        Certificates::from_vec(certs)
+    }
+
+    //return only ref inputs that are script refs with added size
+    //used for calculating the fee for the transaction
+    //another ref input and also script ref input without size are filtered out
+    pub(crate) fn get_script_ref_inputs_with_size(
+        &self,
+    ) -> impl Iterator<Item = (&TransactionInput, usize)> {
+        self.certs.iter()
+            .filter_map(|(_, opt_wit)| opt_wit.as_ref())
+            .filter_map(|script_wit| {
+                script_wit.get_script_ref_input_with_size()
+            })
     }
 }
 
@@ -237,9 +256,7 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
             }
         }
         CertificateEnum::PoolRegistration(cert) => {
-            for owner in &cert.pool_params().pool_owners().0 {
-                set.add(&owner.clone());
-            }
+            set.extend(&cert.pool_params().pool_owners());
             set.add(&cert.pool_params().operator());
         }
         CertificateEnum::PoolRetirement(cert) => {
@@ -251,21 +268,26 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
         // not witness as there is no single core node or genesis key that posts the certificate
         CertificateEnum::MoveInstantaneousRewardsCert(_cert) => {}
         CertificateEnum::CommitteeHotAuth(cert) => {
-            if let CredType::Key(key_hash) = &cert.committee_cold_key.0 {
+            if let CredType::Key(key_hash) = &cert.committee_cold_credential.0 {
                 set.add(key_hash);
             }
         }
         CertificateEnum::CommitteeColdResign(cert) => {
-            if let CredType::Key(key_hash) = &cert.committee_cold_key.0 {
+            if let CredType::Key(key_hash) = &cert.committee_cold_credential.0 {
                 set.add(key_hash);
             }
         }
-        CertificateEnum::DrepUpdate(cert) => {
+        CertificateEnum::DRepUpdate(cert) => {
             if let CredType::Key(key_hash) = &cert.voting_credential.0 {
                 set.add(key_hash);
             }
         }
-        CertificateEnum::DrepDeregistration(cert) => {
+        CertificateEnum::DRepRegistration(cert) => {
+            if let CredType::Key(key_hash) = &cert.voting_credential.0 {
+                set.add(key_hash);
+            }
+        }
+        CertificateEnum::DRepDeregistration(cert) => {
             if let CredType::Key(key_hash) = &cert.voting_credential.0 {
                 set.add(key_hash);
             }
@@ -295,7 +317,6 @@ fn witness_keys_for_cert(cert_enum: &Certificate) -> RequiredSigners {
                 set.add(key_hash);
             }
         }
-        CertificateEnum::DrepRegistration(_) => {}
     }
     set
 }

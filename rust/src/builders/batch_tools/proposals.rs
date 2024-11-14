@@ -204,7 +204,7 @@ impl TxProposal {
         }
 
         let body = TransactionBody::new(
-            &TransactionInputs(inputs),
+            &TransactionInputs::from_vec(inputs),
             &TransactionOutputs(outputs),
             &self.fee,
             None,

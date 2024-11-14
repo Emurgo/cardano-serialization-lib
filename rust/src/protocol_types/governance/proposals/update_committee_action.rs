@@ -16,7 +16,7 @@ use crate::*;
 pub struct UpdateCommitteeAction {
     pub(crate) gov_action_id: Option<GovernanceActionId>,
     pub(crate) committee: Committee,
-    pub(crate) members_to_remove: BTreeSet<Credential>,
+    pub(crate) members_to_remove: Credentials,
 }
 
 impl_to_from!(UpdateCommitteeAction);
@@ -32,15 +32,14 @@ impl UpdateCommitteeAction {
     }
 
     pub fn members_to_remove(&self) -> Credentials {
-        Credentials(self.members_to_remove.iter().cloned().collect())
+        self.members_to_remove.clone()
     }
 
     pub fn new(committee: &Committee, members_to_remove: &Credentials) -> Self {
-        let members_to_remove = members_to_remove.0.iter().cloned().collect();
         Self {
             gov_action_id: None,
             committee: committee.clone(),
-            members_to_remove,
+            members_to_remove: members_to_remove.clone(),
         }
     }
 
@@ -49,11 +48,10 @@ impl UpdateCommitteeAction {
         committee: &Committee,
         members_to_remove: &Credentials,
     ) -> Self {
-        let members_to_remove = members_to_remove.0.iter().cloned().collect();
         Self {
             gov_action_id: Some(gov_action_id.clone()),
             committee: committee.clone(),
-            members_to_remove,
+            members_to_remove: members_to_remove.clone(),
         }
     }
 }

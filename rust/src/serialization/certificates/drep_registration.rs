@@ -5,15 +5,15 @@ use crate::serialization::utils::{
 use crate::*;
 use num_traits::ToPrimitive;
 
-impl cbor_event::se::Serialize for DrepRegistration {
+impl cbor_event::se::Serialize for DRepRegistration {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(4))?;
 
-        let proposal_index = CertificateIndexNames::DrepRegistration.to_u64();
-        serialize_and_check_index(serializer, proposal_index, "DrepRegistration")?;
+        let proposal_index = CertificateIndexNames::DRepRegistration.to_u64();
+        serialize_and_check_index(serializer, proposal_index, "DRepRegistration")?;
 
         self.voting_credential.serialize(serializer)?;
         self.coin.serialize(serializer)?;
@@ -25,9 +25,9 @@ impl cbor_event::se::Serialize for DrepRegistration {
     }
 }
 
-impl_deserialize_for_wrapped_tuple!(DrepRegistration);
+impl_deserialize_for_wrapped_tuple!(DRepRegistration);
 
-impl DeserializeEmbeddedGroup for DrepRegistration {
+impl DeserializeEmbeddedGroup for DRepRegistration {
     fn deserialize_as_embedded_group<R: BufRead + Seek>(
         raw: &mut Deserializer<R>,
         len: cbor_event::Len,
@@ -38,7 +38,7 @@ impl DeserializeEmbeddedGroup for DrepRegistration {
             "(cert_index, voting_credential, coin, anchor / null)",
         )?;
 
-        let cert_index = CertificateIndexNames::DrepRegistration.to_u64();
+        let cert_index = CertificateIndexNames::DRepRegistration.to_u64();
         deserialize_and_check_index(raw, cert_index, "cert_index")?;
 
         let voting_credential =
@@ -48,7 +48,7 @@ impl DeserializeEmbeddedGroup for DrepRegistration {
 
         let anchor = Anchor::deserialize_nullable(raw).map_err(|e| e.annotate("anchor"))?;
 
-        Ok(DrepRegistration {
+        Ok(DRepRegistration {
             voting_credential,
             coin,
             anchor,

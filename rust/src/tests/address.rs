@@ -1,5 +1,5 @@
+use crate::tests::fakes::{fake_base_address, fake_enterprise_address, fake_malformed_address, fake_pointer_address, fake_reward_address, fake_key_hash};
 use crate::*;
-use crypto::*;
 
 #[test]
 fn variable_nat_encoding() {
@@ -34,7 +34,7 @@ fn ptr_serialize_consistency() {
     let ptr = PointerAddress::new(
         25,
         &Credential::from_keyhash(&Ed25519KeyHash::from([23; Ed25519KeyHash::BYTE_COUNT])),
-        &Pointer::new_pointer(&to_bignum(2354556573), &to_bignum(127), &to_bignum(0)),
+        &Pointer::new_pointer(&BigNum(2354556573), &BigNum(127), &BigNum(0)),
     );
     let addr = ptr.to_address();
     let addr2 = Address::from_bytes(addr.to_bytes()).unwrap();
@@ -118,20 +118,6 @@ fn byron_magic_parsing() {
         addr.network_id().unwrap(),
         NetworkInfo::mainnet().network_id()
     );
-
-    // original Byron testnet address
-    let addr = ByronAddress::from_base58(
-        "2cWKMJemoBaipzQe9BArYdo2iPUfJQdZAjm4iCzDA1AfNxJSTgm9FZQTmFCYhKkeYrede",
-    )
-    .unwrap();
-    assert_eq!(
-        addr.byron_protocol_magic(),
-        NetworkInfo::testnet().protocol_magic()
-    );
-    assert_eq!(
-        addr.network_id().unwrap(),
-        NetworkInfo::testnet().network_id()
-    );
 }
 
 #[test]
@@ -153,7 +139,7 @@ fn bip32_12_base() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -179,7 +165,8 @@ fn bip32_12_enterprise() {
         .to_public();
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 =
-        EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address();
+        EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address();
     assert_eq!(
         addr_net_0.to_bech32(None).unwrap(),
         "addr_test1vz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzerspjrlsz"
@@ -204,9 +191,9 @@ fn bip32_12_pointer() {
 
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 = PointerAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3)),
+        &Pointer::new_pointer(&BigNum(1), &BigNum(2), &BigNum(3)),
     )
     .to_address();
     assert_eq!(
@@ -216,7 +203,7 @@ fn bip32_12_pointer() {
     let addr_net_3 = PointerAddress::new(
         NetworkInfo::mainnet().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42)),
+        &Pointer::new_pointer(&BigNum(24157), &BigNum(177), &BigNum(42)),
     )
     .to_address();
     assert_eq!(
@@ -244,7 +231,7 @@ fn bip32_15_base() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -270,7 +257,8 @@ fn bip32_15_enterprise() {
         .to_public();
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 =
-        EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address();
+        EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address();
     assert_eq!(
         addr_net_0.to_bech32(None).unwrap(),
         "addr_test1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg57c2qv"
@@ -294,9 +282,9 @@ fn bip32_15_pointer() {
         .to_public();
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 = PointerAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3)),
+        &Pointer::new_pointer(&BigNum(1), &BigNum(2), &BigNum(3)),
     )
     .to_address();
     assert_eq!(
@@ -306,7 +294,7 @@ fn bip32_15_pointer() {
     let addr_net_3 = PointerAddress::new(
         NetworkInfo::mainnet().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42)),
+        &Pointer::new_pointer(&BigNum(24157), &BigNum(177), &BigNum(42)),
     )
     .to_address();
     assert_eq!(
@@ -378,7 +366,7 @@ fn bip32_24_base() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -404,7 +392,8 @@ fn bip32_24_enterprise() {
         .to_public();
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 =
-        EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address();
+        EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address();
     assert_eq!(
         addr_net_0.to_bech32(None).unwrap(),
         "addr_test1vqy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqtjtf68"
@@ -428,9 +417,9 @@ fn bip32_24_pointer() {
         .to_public();
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let addr_net_0 = PointerAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(1), &to_bignum(2), &to_bignum(3)),
+        &Pointer::new_pointer(&BigNum(1), &BigNum(2), &BigNum(3)),
     )
     .to_address();
     assert_eq!(
@@ -440,7 +429,7 @@ fn bip32_24_pointer() {
     let addr_net_3 = PointerAddress::new(
         NetworkInfo::mainnet().network_id(),
         &spend_cred,
-        &Pointer::new_pointer(&to_bignum(24157), &to_bignum(177), &to_bignum(42)),
+        &Pointer::new_pointer(&BigNum(24157), &BigNum(177), &BigNum(42)),
     )
     .to_address();
     assert_eq!(
@@ -460,7 +449,7 @@ fn bip32_12_reward() {
         .to_public();
     let staking_cred = Credential::from_keyhash(&staking_key.to_raw_key().hash());
     let addr_net_0 =
-        RewardAddress::new(NetworkInfo::testnet().network_id(), &staking_cred).to_address();
+        RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &staking_cred).to_address();
     assert_eq!(
         addr_net_0.to_bech32(None).unwrap(),
         "stake_test1uqevw2xnsc0pvn9t9r9c7qryfqfeerchgrlm3ea2nefr9hqp8n5xl"
@@ -492,7 +481,7 @@ fn bip32_24_base_multisig_hd_derivation() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -531,7 +520,7 @@ fn multisig_from_script() {
     let spend_cred = Credential::from_scripthash(&script_hash);
     let stake_cred = Credential::from_scripthash(&script_hash);
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -550,15 +539,15 @@ fn multisig_from_script() {
 fn pointer_address_big() {
     let addr = Address::from_bech32("addr_test1grqe6lg9ay8wkcu5k5e38lne63c80h3nq6xxhqfmhewf645pllllllllllll7lupllllllllllll7lupllllllllllll7lc9wayvj").unwrap();
     let ptr = PointerAddress::from_address(&addr).unwrap().stake;
-    assert_eq!(u64::MAX, from_bignum(&ptr.slot));
-    assert_eq!(u64::MAX, from_bignum(&ptr.tx_index));
-    assert_eq!(u64::MAX, from_bignum(&ptr.cert_index));
+    assert_eq!(u64::MAX, u64::from(ptr.slot));
+    assert_eq!(u64::MAX, u64::from(ptr.tx_index));
+    assert_eq!(u64::MAX, u64::from(ptr.cert_index));
 }
 
 #[test]
 fn point_address_old() {
     let p1 = Pointer::new(10, 20, 30);
-    let p2 = Pointer::new_pointer(&to_bignum(10), &to_bignum(20), &to_bignum(30));
+    let p2 = Pointer::new_pointer(&BigNum(10), &BigNum(20), &BigNum(30));
     assert_eq!(p1, p2);
 }
 
@@ -571,4 +560,139 @@ fn prepod_network_id_test() {
         .network_id()
         .unwrap();
     assert_eq!(network_id, NetworkInfo::testnet_preprod().network_id());
+}
+
+#[test]
+fn malformed_addres_deserialisation_errors() {
+    let address_bech32 = "addr1q9d66zzs27kppmx8qc8h43q7m4hkxp5d39377lvxefvxd8j7eukjsdqc5c97t2zg5guqadepqqx6rc9m7wtnxy6tajjvk4a0kze4ljyuvvrpexg5up2sqxj33363v35gtew";
+    let address = Address::from_bech32(address_bech32);
+    assert!(address.is_err());
+}
+
+#[test]
+fn malformed_addres_embedded() {
+    let address = MalformedAddress(vec![5u8; 32]);
+    let output = TransactionOutput::new(&address.to_address(), &Value::new(&Coin::from(100u64)));
+    let bytes = output.to_bytes();
+    let output2 = TransactionOutput::from_bytes(bytes).unwrap();
+
+    assert!(output2.address.is_malformed());
+    assert_eq!(&address.to_address(), &output2.address);
+}
+
+#[test]
+fn address_kind() {
+    let base_address = fake_base_address(1);
+    assert_eq!(base_address.kind(), AddressKind::Base);
+
+    let pointer_address = fake_pointer_address(2);
+    assert_eq!(pointer_address.kind(), AddressKind::Pointer);
+
+    let enterprise_address = fake_enterprise_address(3);
+    assert_eq!(enterprise_address.kind(), AddressKind::Enterprise);
+
+    let reward_address = fake_reward_address(4).to_address();
+    assert_eq!(reward_address.kind(), AddressKind::Reward);
+
+    let byron_address =
+        ByronAddress::from_base58("Ae2tdPwUPEZ6r6zbg4ibhFrNnyKHg7SYuPSfDpjKxgvwFX9LquRep7gj7FQ")
+            .unwrap()
+            .to_address();
+    assert_eq!(byron_address.kind(), AddressKind::Byron);
+
+    let malformed_address = fake_malformed_address();
+    assert_eq!(malformed_address.kind(), AddressKind::Malformed);
+}
+
+#[test]
+fn address_payment_cred() {
+    let key_hash_1 = fake_key_hash(1);
+    let key_hash_2 = fake_key_hash(2);
+    let key_hash_3 = fake_key_hash(3);
+    let key_hash_4 = fake_key_hash(4);
+    let key_hash_5 = fake_key_hash(5);
+    let credential_1 = Credential::from_keyhash(&key_hash_1);
+    let credential_2 = Credential::from_keyhash(&key_hash_2);
+    let credential_3 = Credential::from_keyhash(&key_hash_3);
+    let credential_4 = Credential::from_keyhash(&key_hash_4);
+    let credential_5 = Credential::from_keyhash(&key_hash_5);
+
+    let base_address = BaseAddress::new(
+        1,
+        &credential_1,
+        &credential_2,
+    ).to_address();
+    assert_eq!(base_address.payment_cred(), Some(credential_1));
+
+    let pointer_address = PointerAddress::new(
+        2,
+        &credential_3,
+        &Pointer::new_pointer(&BigNum(1), &BigNum(2), &BigNum(3)),
+    ).to_address();
+    assert_eq!(pointer_address.payment_cred(), Some(credential_3));
+
+    let enterprise_address = EnterpriseAddress::new(
+        3,
+        &credential_4,
+    ).to_address();
+    assert_eq!(enterprise_address.payment_cred(), Some(credential_4));
+
+    let reward_address = RewardAddress::new(
+        4,
+        &credential_5,
+    ).to_address();
+
+    assert_eq!(reward_address.payment_cred(), Some(credential_5));
+
+    let byron_address =
+        ByronAddress::from_base58("Ae2tdPwUPEZ6r6zbg4ibhFrNnyKHg7SYuPSfDpjKxgvwFX9LquRep7gj7FQ")
+            .unwrap()
+            .to_address();
+    assert_eq!(byron_address.payment_cred(), None);
+
+    let malformed_address = fake_malformed_address();
+    assert_eq!(malformed_address.payment_cred(), None);
+}
+
+
+#[test]
+fn addresses_network_id() {
+    let base_address = BaseAddress::new(
+        1,
+        &Credential::from_keyhash(&fake_key_hash(1)),
+        &Credential::from_keyhash(&fake_key_hash(2)),
+    );
+    assert_eq!(base_address.network_id(), 1);
+    assert_eq!(base_address.to_address().network_id().unwrap(), 1);
+
+    let pointer_address = PointerAddress::new(
+        2,
+        &Credential::from_keyhash(&fake_key_hash(3)),
+        &Pointer::new_pointer(&BigNum(1), &BigNum(2), &BigNum(3)),
+    );
+    assert_eq!(pointer_address.network_id(), 2);
+    assert_eq!(pointer_address.to_address().network_id().unwrap(), 2);
+
+    let enterprise_address = EnterpriseAddress::new(
+        3,
+        &Credential::from_keyhash(&fake_key_hash(4)),
+    );
+    assert_eq!(enterprise_address.network_id(), 3);
+    assert_eq!(enterprise_address.to_address().network_id().unwrap(), 3);
+
+    let reward_address = RewardAddress::new(
+        4,
+        &Credential::from_keyhash(&fake_key_hash(5)),
+    );
+    assert_eq!(reward_address.network_id(), 4);
+    assert_eq!(reward_address.to_address().network_id().unwrap(), 4);
+
+    let byron_address =
+        ByronAddress::from_base58("Ae2tdPwUPEZ6r6zbg4ibhFrNnyKHg7SYuPSfDpjKxgvwFX9LquRep7gj7FQ")
+            .unwrap();
+    assert_eq!(byron_address.network_id().unwrap(), 1);
+    assert_eq!(byron_address.to_address().network_id().unwrap(), 1);
+
+    let malformed_address = fake_malformed_address();
+    assert!(malformed_address.network_id().is_err());
 }

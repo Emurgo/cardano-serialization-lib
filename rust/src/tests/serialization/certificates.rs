@@ -1,8 +1,4 @@
-use crate::fakes::{
-    fake_anchor_data_hash, fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash,
-    fake_pool_metadata_hash, fake_script_hash, fake_vrf_key_hash,
-};
-use crate::tests::mock_objects::create_anchor;
+use crate::tests::fakes::{fake_anchor, fake_anchor_data_hash, fake_genesis_delegate_hash, fake_genesis_hash, fake_key_hash, fake_pool_metadata_hash, fake_script_hash, fake_vrf_key_hash};
 use crate::*;
 
 macro_rules! to_from_test {
@@ -47,7 +43,7 @@ fn committee_cold_resign_key_hash_ser_round_trip() {
 
 #[test]
 fn committee_cold_resign_with_anchor_ser_round_trip() {
-    let anchor = create_anchor();
+    let anchor = fake_anchor();
     let cert =
         CommitteeColdResign::new_with_anchor(&Credential::from_keyhash(&fake_key_hash(1)), &anchor);
     let cert_wrapped = Certificate::new_committee_cold_resign(&cert);
@@ -85,12 +81,12 @@ fn committee_hot_auth_ser_round_trip() {
 
 #[test]
 fn drep_registration_ser_round_trip() {
-    let cert = DrepRegistration::new(
+    let cert = DRepRegistration::new(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
     let cert_wrapped = Certificate::new_drep_registration(&cert);
-    to_from_test!(DrepRegistration, cert, cert_wrapped);
+    to_from_test!(DRepRegistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_registration().unwrap());
 }
 
@@ -99,32 +95,32 @@ fn drep_registration_with_anchor_ser_round_trip() {
     let url = URL::new("https://iohk.io".to_string()).unwrap();
     let anchor = Anchor::new(&url, &fake_anchor_data_hash(255));
 
-    let cert = DrepRegistration::new_with_anchor(
+    let cert = DRepRegistration::new_with_anchor(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
         &anchor,
     );
     let cert_wrapped = Certificate::new_drep_registration(&cert);
-    to_from_test!(DrepRegistration, cert, cert_wrapped);
+    to_from_test!(DRepRegistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_registration().unwrap());
 }
 
 #[test]
 fn drep_deregistration_ser_round_trip() {
-    let cert = DrepDeregistration::new(
+    let cert = DRepDeregistration::new(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
     let cert_wrapped = Certificate::new_drep_deregistration(&cert);
-    to_from_test!(DrepDeregistration, cert, cert_wrapped);
+    to_from_test!(DRepDeregistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_deregistration().unwrap());
 }
 
 #[test]
 fn drep_update_ser_round_trip() {
-    let cert = DrepUpdate::new(&Credential::from_keyhash(&fake_key_hash(1)));
+    let cert = DRepUpdate::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let cert_wrapped = Certificate::new_drep_update(&cert);
-    to_from_test!(DrepUpdate, cert, cert_wrapped);
+    to_from_test!(DRepUpdate, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_update().unwrap());
 }
 
@@ -132,9 +128,9 @@ fn drep_update_ser_round_trip() {
 fn drep_update_with_anchor_ser_round_trip() {
     let url = URL::new("https://iohk.io".to_string()).unwrap();
     let anchor = Anchor::new(&url, &fake_anchor_data_hash(255));
-    let cert = DrepUpdate::new_with_anchor(&Credential::from_keyhash(&fake_key_hash(1)), &anchor);
+    let cert = DRepUpdate::new_with_anchor(&Credential::from_keyhash(&fake_key_hash(1)), &anchor);
     let cert_wrapped = Certificate::new_drep_update(&cert);
-    to_from_test!(DrepUpdate, cert, cert_wrapped);
+    to_from_test!(DRepUpdate, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_drep_update().unwrap());
 }
 
@@ -193,7 +189,7 @@ fn move_instantaneous_reward_to_stake_creds_ser_round_trip() {
 #[test]
 fn pool_registration_ser_round_trip() {
     let staking_cred = Credential::from_keyhash(&fake_key_hash(1));
-    let reward_address = RewardAddress::new(NetworkInfo::testnet().network_id(), &staking_cred);
+    let reward_address = RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &staking_cred);
     let mut owners = Ed25519KeyHashes::new();
     owners.add(&fake_key_hash(2));
     owners.add(&fake_key_hash(3));
@@ -276,7 +272,7 @@ fn stake_deregistration_ser_round_trip() {
 
 #[test]
 fn stake_deregistration_with_coin_ser_round_trip() {
-    let cert = StakeDeregistration::new_with_coin(
+    let cert = StakeDeregistration::new_with_explicit_refund(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
@@ -286,22 +282,74 @@ fn stake_deregistration_with_coin_ser_round_trip() {
 }
 
 #[test]
+fn stake_deregistration_getter_test() {
+    let cert = StakeDeregistration::new(
+        &Credential::from_keyhash(&fake_key_hash(1))
+    );
+    let cert_wrapped = Certificate::new_stake_deregistration(&cert);
+    to_from_test!(StakeDeregistration, cert, cert_wrapped);
+    assert_eq!(cert, cert_wrapped.as_stake_deregistration().unwrap());
+    assert_eq!(None, cert_wrapped.as_unreg_cert());
+}
+
+#[test]
+fn unreg_cert_getter_test() {
+    let cert = StakeDeregistration::new_with_explicit_refund(
+        &Credential::from_keyhash(&fake_key_hash(1)),
+        &Coin::from(100u64),
+    );
+    let cert_wrapped = Certificate::new_unreg_cert(&cert).unwrap();
+    to_from_test!(StakeDeregistration, cert, cert_wrapped);
+    assert_eq!(cert, cert_wrapped.as_stake_deregistration().unwrap());
+    assert_eq!(cert, cert_wrapped.as_unreg_cert().unwrap());
+}
+
+#[test]
+fn unreg_cert_error_test() {
+    let cert = StakeDeregistration::new(
+        &Credential::from_keyhash(&fake_key_hash(1))
+    );
+    let res = Certificate::new_unreg_cert(&cert);
+    assert!(res.is_err());
+}
+
+#[test]
 fn stake_registration_ser_round_trip() {
     let cert = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
     let cert_wrapped = Certificate::new_stake_registration(&cert);
     to_from_test!(StakeRegistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_stake_registration().unwrap());
+    assert_eq!(None, cert_wrapped.as_reg_cert())
 }
 
 #[test]
 fn stake_registration_with_coin_ser_round_trip() {
-    let cert = StakeRegistration::new_with_coin(
+    let cert = StakeRegistration::new_with_explicit_deposit(
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Coin::from(100u64),
     );
     let cert_wrapped = Certificate::new_stake_registration(&cert);
     to_from_test!(StakeRegistration, cert, cert_wrapped);
     assert_eq!(cert, cert_wrapped.as_stake_registration().unwrap());
+}
+
+#[test]
+fn reg_cert_getter_test() {
+    let cert = StakeRegistration::new_with_explicit_deposit(
+        &Credential::from_keyhash(&fake_key_hash(1)),
+        &Coin::from(100u64),
+    );
+    let cert_wrapped = Certificate::new_reg_cert(&cert).unwrap();
+    to_from_test!(StakeRegistration, cert, cert_wrapped);
+    assert_eq!(cert, cert_wrapped.as_stake_registration().unwrap());
+    assert_eq!(cert, cert_wrapped.as_reg_cert().unwrap());
+}
+
+#[test]
+fn reg_cert_error_test() {
+    let cert = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
+    let res = Certificate::new_reg_cert(&cert);
+    assert!(res.is_err());
 }
 
 #[test]
@@ -389,4 +437,53 @@ fn block_with_tx_with_certs_under_tag_set() {
 
     let certs = block.unwrap().transaction_bodies.0[0].certs().unwrap();
     assert_eq!(certs.len(), 1);
+}
+
+#[test]
+fn certificates_collection_ser_round_trip() {
+    let mut certs = Certificates::new();
+    let cert_1 = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
+    certs.add(&Certificate::new_stake_registration(&cert_1));
+    let cert_2 = StakeDeregistration::new(&Credential::from_keyhash(&fake_key_hash(2)));
+    certs.add(&Certificate::new_stake_deregistration(&cert_2));
+    let cert_3 = StakeDelegation::new(
+        &Credential::from_keyhash(&fake_key_hash(3)),
+        &fake_key_hash(4),
+    );
+    certs.add(&Certificate::new_stake_delegation(&cert_3));
+
+    assert_eq!(certs.len(), 3);
+
+    let json = certs.to_json().unwrap();
+    let cbor = certs.to_bytes();
+    let hex_cbor = certs.to_hex();
+
+    assert_eq!(certs, Certificates::from_json(&json).unwrap());
+    assert_eq!(certs, Certificates::from_bytes(cbor).unwrap());
+    assert_eq!(certs, Certificates::from_hex(&hex_cbor).unwrap());
+}
+
+#[test]
+fn certificates_set_always_should_be_with_tag() {
+    let mut certs = Certificates::new();
+    let cert_1 = StakeRegistration::new(&Credential::from_keyhash(&fake_key_hash(1)));
+    certs.add(&Certificate::new_stake_registration(&cert_1));
+    let cert_2 = StakeDeregistration::new(&Credential::from_keyhash(&fake_key_hash(2)));
+    certs.add(&Certificate::new_stake_deregistration(&cert_2));
+
+    let cbor = certs.to_bytes();
+    let certs_decoded = Certificates::from_bytes(cbor).unwrap();
+
+    assert_eq!(certs, certs_decoded);
+    assert_eq!(certs_decoded.get_set_type(), CborSetType::Tagged);
+
+    let untagget_cbor_hex = "8282008200581c01efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee16482018200581c02efb5788e8713c844dfd32b2e91de1e309fefffd555f827cc9ee164";
+    let certs_decoded_untagged = Certificates::from_hex(untagget_cbor_hex).unwrap();
+    assert_eq!(certs, certs_decoded_untagged);
+    assert_eq!(certs_decoded_untagged.get_set_type(), CborSetType::Untagged);
+
+    let cbor_2 = certs_decoded_untagged.to_bytes();
+    let certs_decoded_2 = Certificates::from_bytes(cbor_2).unwrap();
+    assert_eq!(certs, certs_decoded_2);
+    assert_eq!(certs_decoded_2.get_set_type(), CborSetType::Tagged);
 }

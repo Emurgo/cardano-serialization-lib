@@ -1,4 +1,4 @@
-use crate::serialization::utils::{check_len_indefinite, serialize_and_check_index};
+use crate::serialization::utils::serialize_and_check_index;
 use crate::serialization::{check_len, deserialize_and_check_index};
 use crate::*;
 use map_names::VotingProposalIndexNames;
@@ -20,7 +20,6 @@ impl cbor_event::se::Serialize for HardForkInitiationAction {
             serializer.write_special(CBORSpecial::Null)?;
         }
 
-        serializer.write_array(cbor_event::Len::Len(1))?;
         self.protocol_version.serialize(serializer)?;
 
         Ok(serializer)
@@ -37,7 +36,7 @@ impl DeserializeEmbeddedGroup for HardForkInitiationAction {
         check_len(
             len,
             3,
-            "(proposal_index, gov_action_id // null, protocol_version)",
+            "(proposal_index, gov_action_id // null, [protocol_version])",
         )?;
 
         let desired_index = VotingProposalIndexNames::HardForkInitiationAction.to_u64();
@@ -46,24 +45,11 @@ impl DeserializeEmbeddedGroup for HardForkInitiationAction {
         let gov_action_id = GovernanceActionId::deserialize_nullable(raw)
             .map_err(|e| e.annotate("gov_action_id"))?;
 
-        let protocol_version = deserialize_embedded_protocol_version(raw)?;
+        let protocol_version = ProtocolVersion::deserialize(raw)?;
 
         return Ok(HardForkInitiationAction {
             gov_action_id,
             protocol_version,
         });
     }
-}
-
-fn deserialize_embedded_protocol_version<R: BufRead + Seek>(
-    raw: &mut Deserializer<R>,
-) -> Result<ProtocolVersion, DeserializeError> {
-    let len = raw.array()?;
-
-    check_len(len, 1, "(protocol_version)")?;
-
-    let protocol_version =
-        ProtocolVersion::deserialize(raw).map_err(|e| e.annotate("protocol_version"))?;
-    check_len_indefinite(raw, len)?;
-    Ok(protocol_version)
 }

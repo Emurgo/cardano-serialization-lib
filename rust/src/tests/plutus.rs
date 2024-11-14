@@ -1,10 +1,11 @@
 use crate::*;
 use hex::*;
+use crate::tests::fakes::{fake_byron_address, fake_key_hash, fake_script_hash};
 
 #[test]
 pub fn plutus_constr_data() {
     let constr_0 = PlutusData::new_constr_plutus_data(&ConstrPlutusData::new(
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusList::new(),
     ));
     let constr_0_hash = hex::encode(hash_plutus_data(&constr_0).to_bytes());
@@ -16,7 +17,7 @@ pub fn plutus_constr_data() {
     // TODO: do we want semantic equality or bytewise equality?
     // assert_eq!(constr_0, constr_0_roundtrip);
     // let constr_1854 = PlutusData::new_constr_plutus_data(
-    //     &ConstrPlutusData::new(&to_bignum(1854), &PlutusList::new())
+    //     &ConstrPlutusData::new(&BigNum(1854), &PlutusList::new())
     // );
     // let constr_1854_roundtrip = PlutusData::from_bytes(constr_1854.to_bytes()).unwrap();
     // assert_eq!(constr_1854, constr_1854_roundtrip);
@@ -40,13 +41,13 @@ pub fn plutus_list_serialization_cli_compatibility() {
     // witness_set should have fixed length array
     let mut witness_set = TransactionWitnessSet::new();
     witness_set.set_plutus_data(&list);
-    assert_eq!("a1049f01ff", hex::encode(witness_set.to_bytes()));
+    assert_eq!("a104d901029f01ff", hex::encode(witness_set.to_bytes()));
 
     list = PlutusList::new();
     list.add(&datum);
     witness_set.set_plutus_data(&list);
     assert_eq!(
-        format!("a1049f{}ff", datum_cli),
+        format!("a104d901029f{}ff", datum_cli),
         hex::encode(witness_set.to_bytes())
     );
 }
@@ -79,10 +80,12 @@ pub fn plutus_datum_from_json_basic() {
         .get(&PlutusData::new_integer(&BigInt::from_str("5").unwrap()))
         .unwrap();
     let utf8_bytes = "some utf8 string".as_bytes();
-    assert_eq!(map_5.as_bytes().unwrap(), utf8_bytes);
+    assert_eq!(map_5.get(0).unwrap().as_bytes().unwrap(), utf8_bytes);
     let map_deadbeef: PlutusList = map
         .get(&PlutusData::new_bytes(vec![222, 173, 190, 239]))
         .expect("DEADBEEF key not found")
+        .get(0)
+        .unwrap()
         .as_list()
         .expect("must be a map");
     assert_eq!(map_deadbeef.len(), 2);
@@ -90,6 +93,8 @@ pub fn plutus_datum_from_json_basic() {
     assert_eq!(inner_map.len(), 1);
     let reg_string = inner_map
         .get(&PlutusData::new_bytes("reg string".as_bytes().to_vec()))
+        .unwrap()
+        .get(0)
         .unwrap();
     assert_eq!(reg_string.as_map().expect("reg string: {}").len(), 0);
     assert_eq!(
@@ -102,6 +107,51 @@ pub fn plutus_datum_from_json_basic() {
         decode_plutus_datum_to_json_str(&datum, PlutusDatumSchema::BasicConversions).unwrap();
     let datum2 =
         encode_json_str_to_plutus_datum(&json2, PlutusDatumSchema::BasicConversions).unwrap();
+    assert_eq!(datum, datum2);
+}
+
+#[test]
+pub fn plutus_datum_from_json_detailed_duplicated_keys() {
+    let json = "{\"list\": [
+            {\"map\": [
+                {\"k\": {\"bytes\": \"DEADBEEF\"}, \"v\": {\"int\": 42}},
+                {\"k\": {\"bytes\": \"DEADBEEF\"}, \"v\": {\"int\": 43}},
+                {\"k\": {\"map\" : [
+                    {\"k\": {\"int\": 9}, \"v\": {\"int\": -5}}
+                ]}, \"v\": {\"list\": []}}
+            ]}
+        ]}";
+    let datum = encode_json_str_to_plutus_datum(json, PlutusDatumSchema::DetailedSchema).unwrap();
+
+    let list = datum.as_list().unwrap();
+    assert_eq!(1, list.len());
+    // map
+    let map = list.get(0).as_map().unwrap();
+    assert_eq!(map.len(), 2);
+    let map_deadbeef = map
+        .get(&PlutusData::new_bytes(vec![222, 173, 190, 239]))
+        .unwrap();
+    assert_eq!(map_deadbeef.len(), 2);
+    assert_eq!(map_deadbeef.get(0).unwrap().as_integer(), BigInt::from_str("42").ok());
+    assert_eq!(map_deadbeef.get(1).unwrap().as_integer(), BigInt::from_str("43").ok());
+    let mut long_key = PlutusMap::new();
+    long_key.add_value(
+        &PlutusData::new_integer(&BigInt::from_str("9").unwrap()),
+        &PlutusData::new_integer(&BigInt::from_str("-5").unwrap()),
+    );
+    let map_9_to_5 = map
+        .get(&PlutusData::new_map(&long_key))
+        .unwrap()
+        .get(0)
+        .unwrap()
+        .as_list()
+        .unwrap();
+    assert_eq!(map_9_to_5.len(), 0);
+
+    // test round-trip via generated JSON
+    let json2 = decode_plutus_datum_to_json_str(&datum, PlutusDatumSchema::DetailedSchema).unwrap();
+    let datum2 =
+        encode_json_str_to_plutus_datum(&json2, PlutusDatumSchema::DetailedSchema).unwrap();
     assert_eq!(datum, datum2);
 }
 
@@ -130,14 +180,16 @@ pub fn plutus_datum_from_json_detailed() {
     let map_deadbeef = map
         .get(&PlutusData::new_bytes(vec![222, 173, 190, 239]))
         .unwrap();
-    assert_eq!(map_deadbeef.as_integer(), BigInt::from_str("42").ok());
+    assert_eq!(map_deadbeef.get(0).unwrap().as_integer(), BigInt::from_str("42").ok());
     let mut long_key = PlutusMap::new();
-    long_key.insert(
+    long_key.add_value(
         &PlutusData::new_integer(&BigInt::from_str("9").unwrap()),
         &PlutusData::new_integer(&BigInt::from_str("-5").unwrap()),
     );
     let map_9_to_5 = map
         .get(&PlutusData::new_map(&long_key))
+        .unwrap()
+        .get(0)
         .unwrap()
         .as_list()
         .unwrap();
@@ -147,7 +199,7 @@ pub fn plutus_datum_from_json_detailed() {
     assert_eq!(bytes, [202, 254, 208, 13]);
     // constr data
     let constr = list.get(2).as_constr_plutus_data().unwrap();
-    assert_eq!(to_bignum(0), constr.alternative());
+    assert_eq!(BigNum(0), constr.alternative());
     let fields = constr.data();
     assert_eq!(fields.len(), 2);
     let field0 = fields.get(0).as_map().unwrap();
@@ -237,15 +289,15 @@ fn test_total_ex_units() {
     let mut r = Redeemers::new();
 
     fn assert_ex_units(eu: &ExUnits, exp_mem: u64, exp_steps: u64) {
-        assert_eq!(eu.mem, to_bignum(exp_mem));
-        assert_eq!(eu.steps, to_bignum(exp_steps));
+        assert_eq!(eu.mem, BigNum(exp_mem));
+        assert_eq!(eu.steps, BigNum(exp_steps));
     }
 
-    r.add(&redeemer_with_ex_units(&to_bignum(10), &to_bignum(100)));
+    r.add(&redeemer_with_ex_units(&BigNum(10), &BigNum(100)));
     assert_ex_units(&r.total_ex_units().unwrap(), 10, 100);
-    r.add(&redeemer_with_ex_units(&to_bignum(20), &to_bignum(200)));
+    r.add(&redeemer_with_ex_units(&BigNum(20), &BigNum(200)));
     assert_ex_units(&r.total_ex_units().unwrap(), 30, 300);
-    r.add(&redeemer_with_ex_units(&to_bignum(30), &to_bignum(300)));
+    r.add(&redeemer_with_ex_units(&BigNum(30), &BigNum(300)));
     assert_ex_units(&r.total_ex_units().unwrap(), 60, 600);
 }
 
@@ -370,11 +422,11 @@ fn test_known_plutus_data_hash() {
             ]),
         ),
     )]);
-    let redeemers = Redeemers(vec![Redeemer::new(
+    let redeemers = Redeemers::from(vec![Redeemer::new(
         &RedeemerTag::new_spend(),
         &BigNum::one(),
         &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
-        &ExUnits::new(&to_bignum(7000000), &to_bignum(3000000000)),
+        &ExUnits::new(&BigNum(7000000), &BigNum(3000000000)),
     )]);
     let lang = Language::new_plutus_v1();
     let lang_costmodel = TxBuilderConstants::plutus_vasil_cost_models()
@@ -385,7 +437,7 @@ fn test_known_plutus_data_hash() {
     let hash = hash_script_data(&redeemers, &retained_cost_models, Some(pdata));
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "2fd8b7e248b376314d02989c885c278796ab0e1d6e8aa0cb91f562ff5f7dbd70"
+        "e77f547d8249947bf0af31c432fcfff9c1872b2502b3f34d8107002255695e07"
     );
 }
 
@@ -416,18 +468,18 @@ fn test_known_plutus_data_hash_with_no_datums() {
             .unwrap(),
     );
     let hash = hash_script_data(
-        &Redeemers(vec![Redeemer::new(
+        &Redeemers::from(vec![Redeemer::new(
             &RedeemerTag::new_spend(),
             &BigNum::zero(),
             &PlutusData::new_empty_constr_plutus_data(&BigNum::zero()),
-            &ExUnits::new(&to_bignum(842996), &to_bignum(246100241)),
+            &ExUnits::new(&BigNum(842996), &BigNum(246100241)),
         )]),
         &costmodels,
         None,
     );
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "6b244f15f895fd458a02bef3a8b56f17f24150fddcb06be482f8790a600578a1"
+        "5b235dbfaa999fb3616da9903d9affd09c7f2121c2d50db7ece0a9fb8587a038"
     );
 }
 
@@ -450,11 +502,11 @@ fn test_known_plutus_data_hash_2() {
             ]),
         ),
     )]);
-    let redeemers = Redeemers(vec![Redeemer::new(
+    let redeemers = Redeemers::from(vec![Redeemer::new(
         &RedeemerTag::new_spend(),
         &BigNum::one(),
         &PlutusData::new_empty_constr_plutus_data(&BigNum::one()),
-        &ExUnits::new(&to_bignum(61300), &to_bignum(18221176)),
+        &ExUnits::new(&BigNum(61300), &BigNum(18221176)),
     )]);
     let hash = hash_script_data(
         &redeemers,
@@ -464,7 +516,7 @@ fn test_known_plutus_data_hash_2() {
     );
     assert_eq!(
         hex::encode(hash.to_bytes()),
-        "0a076247a05aacbecf72ea15b94e3d0331b21295a08d9ab7b8675c13840563a6"
+        "f3ae8e52bff4c7b8d803469ee61eabf37e96e89f8a3bb80115ad068ab5dff598"
     );
 }
 
@@ -522,4 +574,110 @@ fn datum_from_base_key_script_address() {
     let orig_datum = PlutusData::from_json("{\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"bytes\": \"88ac6bd19c1a17ed88051b1586536cd1cc408be21efb7ada33be6afd\"}]}, {\"constructor\": 0, \"fields\": [{\"constructor\": 0, \"fields\": [{\"constructor\": 1, \"fields\": [{\"bytes\": \"dc3b534f7621f6c83304bbb99e0f44ca168c3f0932b1b521ee0030a6\"}]}]}]}]}",
                                                PlutusDatumSchema::DetailedSchema).unwrap();
     assert_eq!(datum, orig_datum);
+}
+
+#[test]
+fn script_data_hash_no_redeemers() {
+    let datum = PlutusData::from_hex("d8799fd8799fd8799f581c7fbb4763847b9ec49a132d5359bd86aaecde9275a03aef294ffb79d0ffd8799fd8799fd8799f581cfa34f3b651ecb6a75834c80dc1fd162feb1d1b4cdcef0d065a5785aaffffffffd8799fd8799f581c7fbb4763847b9ec49a132d5359bd86aaecde9275a03aef294ffb79d0ffd8799fd8799fd8799f581cfa34f3b651ecb6a75834c80dc1fd162feb1d1b4cdcef0d065a5785aaffffffffd87a80d8799fd8799f4040ff1a059eb214ff1a001e84801a001e8480ff")
+        .unwrap();
+    let mut list = PlutusList::from(vec![datum]);
+    list.definite_encoding = Some(false);
+
+    let hash = hash_script_data(
+        &Redeemers::new(),
+        &Costmdls::new(),
+        Some(list),
+    );
+    assert_eq!(
+        hex::encode(hash.to_bytes()),
+        "fd53a28a846ae6ccf8b221d03d4af122b0b3c442089c05b87e3d86c6792b3ef0"
+    );
+}
+
+#[test]
+fn plutus_data_base_address_roundtrip_keyhash() {
+    let payment_cred = Credential::from_keyhash(&fake_key_hash(1));
+    let staking_cred = Credential::from_keyhash(&fake_key_hash(2));
+    let network_id = NetworkInfo::testnet_preprod().network_id();
+    let base_address = BaseAddress::new(network_id, &payment_cred, &staking_cred).to_address();
+    let plutus_data = PlutusData::from_address(&base_address).unwrap();
+    let address_from_data = plutus_data.as_address(&NetworkInfo::testnet_preprod()).unwrap();
+    assert_eq!(address_from_data, base_address);
+}
+
+#[test]
+fn plutus_data_base_address_roundtrip_scripthash() {
+    let payment_cred = Credential::from_scripthash(&fake_script_hash(1));
+    let staking_cred = Credential::from_scripthash(&fake_script_hash(2));
+    let network_id = NetworkInfo::testnet_preprod().network_id();
+    let base_address = BaseAddress::new(network_id, &payment_cred, &staking_cred).to_address();
+    let plutus_data = PlutusData::from_address(&base_address).unwrap();
+    let address_from_data = plutus_data.as_address(&NetworkInfo::testnet_preprod()).unwrap();
+    assert_eq!(address_from_data, base_address);
+}
+
+#[test]
+fn plutus_data_enterprise_address_roundtrip_scripthash() {
+    let payment_cred = Credential::from_scripthash(&fake_script_hash(1));
+    let network_id = NetworkInfo::testnet_preprod().network_id();
+    let enterprise_address = EnterpriseAddress::new(network_id, &payment_cred).to_address();
+    let plutus_data = PlutusData::from_address(&enterprise_address).unwrap();
+    let address_from_data = plutus_data.as_address(&NetworkInfo::testnet_preprod()).unwrap();
+    assert_eq!(address_from_data, enterprise_address);
+}
+
+#[test]
+fn plutus_data_enterprise_address_roundtrip_keyhash() {
+    let payment_cred = Credential::from_keyhash(&fake_key_hash(1));
+    let network_id = NetworkInfo::testnet_preprod().network_id();
+    let enterprise_address = EnterpriseAddress::new(network_id, &payment_cred).to_address();
+    let plutus_data = PlutusData::from_address(&enterprise_address).unwrap();
+    let address_from_data = plutus_data.as_address(&NetworkInfo::testnet_preprod()).unwrap();
+    assert_eq!(address_from_data, enterprise_address);
+}
+
+#[test]
+fn plutus_data_pointer_address_roundtrip_keyhash() {
+    let pointer = Pointer::new_pointer(&BigNum(1), &BigNum(256), &BigNum(99999999999999999));
+    let payment_cred = Credential::from_keyhash(&fake_key_hash(1));
+    let network_id = NetworkInfo::mainnet().network_id();
+    let pointer_address = PointerAddress::new(network_id, &payment_cred, &pointer).to_address();
+    let plutus_data = PlutusData::from_address(&pointer_address).unwrap();
+    let address_from_data = plutus_data.as_address(&NetworkInfo::mainnet()).unwrap();
+    assert_eq!(address_from_data, pointer_address);
+}
+
+#[test]
+fn plutus_data_pointer_address_roundtrip_scripthash() {
+    let pointer = Pointer::new_pointer(&BigNum(1), &BigNum(256), &BigNum(99999999999999999));
+    let payment_cred = Credential::from_scripthash(&fake_script_hash(2));
+    let network_id = NetworkInfo::testnet_preprod().network_id();
+    let pointer_address = PointerAddress::new(network_id, &payment_cred, &pointer).to_address();
+    let plutus_data = PlutusData::from_address(&pointer_address).unwrap();
+    let address_from_data = plutus_data.as_address(&NetworkInfo::testnet_preprod()).unwrap();
+    assert_eq!(address_from_data, pointer_address);
+}
+
+#[test]
+fn plutus_data_reward_address_error() {
+    let payment_cred = Credential::from_keyhash(&fake_key_hash(1));
+    let network_id = NetworkInfo::testnet_preprod().network_id();
+    let reward_address = RewardAddress::new(network_id, &payment_cred).to_address();
+
+    let plutus_data = PlutusData::from_address(&reward_address);
+    assert!(plutus_data.is_err());
+}
+
+#[test]
+fn plutus_data_byron_address_error() {
+    let byron_address = fake_byron_address();
+    let plutus_data = PlutusData::from_address(&byron_address);
+    assert!(plutus_data.is_err());
+}
+
+#[test]
+fn plutus_data_malformed_address_error() {
+    let malformed_address = MalformedAddress(vec![1, 2 ,3]).to_address();
+    let plutus_data = PlutusData::from_address(&malformed_address);
+    assert!(plutus_data.is_err());
 }

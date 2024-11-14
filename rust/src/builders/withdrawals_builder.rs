@@ -1,5 +1,5 @@
 use crate::*;
-use linked_hash_map::LinkedHashMap;
+use hashlink::LinkedHashMap;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
@@ -77,16 +77,18 @@ impl WithdrawalsBuilder {
         Ok(())
     }
 
-    pub(crate) fn get_required_signers(&self) -> RequiredSignersSet {
-        let mut set = RequiredSignersSet::new();
+    pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashes {
+        let mut set = Ed25519KeyHashes::new();
         for (address, (_, script_wit)) in &self.withdrawals {
             let req_signature = address.payment_cred().to_keyhash();
             if let Some(req_signature) = req_signature {
-                set.insert(req_signature);
+                set.add_move(req_signature);
             }
 
-            if let Some(ScriptWitnessType::NativeScriptWitness(script_source)) = script_wit {
-                set.extend(script_source.required_signers());
+            if let Some(script_wit) = script_wit {
+                if let Some(script_wit) = script_wit.get_required_signers() {
+                    set.extend_move(script_wit);
+                }
             }
         }
         set
@@ -108,30 +110,25 @@ impl WithdrawalsBuilder {
         let mut inputs = Vec::new();
         for (_, (_, script_wit)) in self.withdrawals.iter() {
             match script_wit {
-                Some(ScriptWitnessType::NativeScriptWitness(script_source)) => {
-                    if let NativeScriptSourceEnum::RefInput(input, _, _) = script_source {
-                        inputs.push(input.clone());
+                Some(script_witness) => {
+                    if let Some(input) = script_witness.get_script_ref_input() {
+                        inputs.push(input);
                     }
-                }
-                Some(ScriptWitnessType::PlutusScriptWitness(plutus_witness)) => {
-                    if let Some(DatumSourceEnum::RefInput(input)) = &plutus_witness.datum {
-                        inputs.push(input.clone());
-                    }
-                    if let PlutusScriptSourceEnum::RefInput(input, _, _) = &plutus_witness.script {
-                        inputs.push(input.clone());
+                    if let Some(input) = script_witness.get_datum_ref_input() {
+                        inputs.push(input);
                     }
                 }
                 None => {}
             }
         }
-        TransactionInputs(inputs)
+        TransactionInputs::from_vec(inputs)
     }
 
     pub fn get_native_scripts(&self) -> NativeScripts {
         let mut scripts = NativeScripts::new();
         for (_, (_, script_wit)) in self.withdrawals.iter() {
             if let Some(ScriptWitnessType::NativeScriptWitness(
-                NativeScriptSourceEnum::NativeScript(script),
+                NativeScriptSourceEnum::NativeScript(script, _),
             )) = script_wit
             {
                 scripts.add(script);
@@ -144,9 +141,7 @@ impl WithdrawalsBuilder {
         let mut used_langs = BTreeSet::new();
         for (_, (_, script_wit)) in &self.withdrawals {
             if let Some(ScriptWitnessType::PlutusScriptWitness(s)) = script_wit {
-                if let Some(lang) = s.script.language() {
-                    used_langs.insert(lang.clone());
-                }
+                used_langs.insert(s.script.language());
             }
         }
         used_langs
@@ -167,6 +162,17 @@ impl WithdrawalsBuilder {
             }
         }
         false
+    }
+
+    //return only ref inputs that are script refs with added size
+    //used for calculating the fee for the transaction
+    //another ref input and also script ref input without size are filtered out
+    pub(crate) fn get_script_ref_inputs_with_size(
+        &self,
+    ) -> impl Iterator<Item = (&TransactionInput, usize)> {
+        self.withdrawals.iter()
+            .filter_map(|(_, (_, script_wit))| script_wit.as_ref())
+            .filter_map(|script_wit| script_wit.get_script_ref_input_with_size())
     }
 
     pub fn build(&self) -> Withdrawals {

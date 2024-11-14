@@ -33,7 +33,7 @@ use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 // This file was code-generated using an experimental CDDL to rust tool:
 // https://github.com/Emurgo/cddl-codegen
 
-use cbor_event::Special as CBORSpecial;
+use cbor_event::{Len, Special as CBORSpecial};
 use cbor_event::Type as CBORType;
 use cbor_event::{
     self,
@@ -41,14 +41,12 @@ use cbor_event::{
     se::{Serialize, Serializer},
 };
 
-mod address;
-pub use address::*;
 mod builders;
 pub use builders::*;
 pub mod chain_core;
 pub mod chain_crypto;
 mod crypto;
-pub use crypto::*;
+pub(crate) use crypto::*;
 mod emip3;
 pub use emip3::*;
 mod error;
@@ -64,8 +62,9 @@ pub mod typed_bytes;
 #[macro_use]
 mod utils;
 pub use utils::*;
-pub(crate) mod fakes;
 mod serialization;
+mod rational;
+
 pub use serialization::*;
 
 use crate::traits::NoneOrEmpty;
@@ -74,6 +73,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::fmt::Display;
+use hashlink::LinkedHashMap;
 
 type DeltaCoin = Int;
 
@@ -117,7 +117,6 @@ impl UnitInterval {
 }
 
 type SubCoin = UnitInterval;
-type Rational = UnitInterval;
 type Epoch = u32;
 type Slot32 = u32;
 type SlotBigNum = BigNum;
@@ -176,47 +175,6 @@ type CertificateIndex = u32;
 type GovernanceActionIndex = u32;
 
 #[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct TransactionInputs(pub(crate) Vec<TransactionInput>);
-
-impl_to_from!(TransactionInputs);
-
-impl NoneOrEmpty for TransactionInputs {
-    fn is_none_or_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-#[wasm_bindgen]
-impl TransactionInputs {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> TransactionInput {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &TransactionInput) {
-        self.0.push(elem.clone());
-    }
-
-    pub fn to_option(&self) -> Option<TransactionInputs> {
-        if self.len() > 0 {
-            Some(self.clone())
-        } else {
-            None
-        }
-    }
-}
-
-#[wasm_bindgen]
 #[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionOutputs(Vec<TransactionOutput>);
 
@@ -250,100 +208,22 @@ impl<'a> IntoIterator for &'a TransactionOutputs {
     }
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum DataCostEnum {
-    CoinsPerWord(Coin),
-    CoinsPerByte(Coin),
-}
-
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct DataCost(DataCostEnum);
+pub struct DataCost{
+    coins_per_byte: Coin
+}
 
 #[wasm_bindgen]
 impl DataCost {
-    /// !!! DEPRECATED !!!
-    /// Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead.
-    #[deprecated(
-        since = "11.0.0",
-        note = "Since babbage era we should use coins per byte. Use `.new_coins_per_byte` instead."
-    )]
-    pub fn new_coins_per_word(coins_per_word: &Coin) -> DataCost {
-        if coins_per_word != &BigNum::zero() {
-            DataCost(DataCostEnum::CoinsPerWord(coins_per_word.clone()))
-        } else {
-            DataCost(DataCostEnum::CoinsPerByte(BigNum::zero()))
-        }
-    }
-
     pub fn new_coins_per_byte(coins_per_byte: &Coin) -> DataCost {
-        DataCost(DataCostEnum::CoinsPerByte(coins_per_byte.clone()))
+        DataCost {
+            coins_per_byte: coins_per_byte.clone()
+        }
     }
 
     pub fn coins_per_byte(&self) -> Coin {
-        match &self.0 {
-            DataCostEnum::CoinsPerByte(coins_per_byte) => coins_per_byte.clone(),
-            DataCostEnum::CoinsPerWord(coins_per_word) => {
-                let bytes_in_word = to_bignum(8);
-                coins_per_word.div_floor(&bytes_in_word)
-            }
-        }
-    }
-}
-
-pub type RequiredSigners = Ed25519KeyHashes;
-pub type RequiredSignersSet = BTreeSet<Ed25519KeyHash>;
-
-impl NoneOrEmpty for RequiredSigners {
-    fn is_none_or_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-impl From<&Ed25519KeyHashes> for RequiredSignersSet {
-    fn from(keys: &Ed25519KeyHashes) -> Self {
-        keys.0.iter().fold(BTreeSet::new(), |mut set, k| {
-            set.insert(k.clone());
-            set
-        })
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    JsonSchema,
-)]
-pub struct TransactionInput {
-    transaction_id: TransactionHash,
-    index: TransactionIndex,
-}
-
-impl_to_from!(TransactionInput);
-
-#[wasm_bindgen]
-impl TransactionInput {
-    pub fn transaction_id(&self) -> TransactionHash {
-        self.transaction_id.clone()
-    }
-
-    pub fn index(&self) -> TransactionIndex {
-        self.index.clone()
-    }
-
-    pub fn new(transaction_id: &TransactionHash, index: TransactionIndex) -> Self {
-        Self {
-            transaction_id: transaction_id.clone(),
-            index: index,
-        }
+        self.coins_per_byte.clone()
     }
 }
 
@@ -443,59 +323,6 @@ impl PartialEq for TransactionOutput {
     }
 }
 
-#[wasm_bindgen]
-#[derive(
-    Clone,
-    Debug,
-    Hash,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    serde::Serialize,
-    serde::Deserialize,
-    JsonSchema,
-)]
-pub struct Ed25519KeyHashes(pub(crate) Vec<Ed25519KeyHash>);
-
-impl_to_from!(Ed25519KeyHashes);
-
-#[wasm_bindgen]
-impl Ed25519KeyHashes {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> Ed25519KeyHash {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &Ed25519KeyHash) {
-        self.0.push(elem.clone());
-    }
-
-    pub fn to_option(&self) -> Option<Ed25519KeyHashes> {
-        if self.len() > 0 {
-            Some(self.clone())
-        } else {
-            None
-        }
-    }
-}
-
-impl IntoIterator for Ed25519KeyHashes {
-    type Item = Ed25519KeyHash;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
 type Port = u16;
 
 #[wasm_bindgen]
@@ -576,7 +403,7 @@ impl Ipv6 {
     }
 }
 
-static URL_MAX_LEN: usize = 64;
+static URL_MAX_LEN: usize = 128;
 
 #[wasm_bindgen]
 #[derive(
@@ -621,7 +448,7 @@ impl URL {
     }
 }
 
-static DNS_NAME_MAX_LEN: usize = 64;
+static DNS_NAME_MAX_LEN: usize = 128;
 
 #[wasm_bindgen]
 #[derive(
@@ -952,33 +779,6 @@ impl PoolMetadata {
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
-pub struct Credentials(Vec<Credential>);
-
-impl_to_from!(Credentials);
-
-#[wasm_bindgen]
-impl Credentials {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> Credential {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &Credential) {
-        self.0.push(elem.clone());
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
 pub struct RewardAddresses(pub(crate) Vec<RewardAddress>);
 
 impl_to_from!(RewardAddresses);
@@ -1004,7 +804,7 @@ impl RewardAddresses {
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Withdrawals(linked_hash_map::LinkedHashMap<RewardAddress, Coin>);
+pub struct Withdrawals(LinkedHashMap<RewardAddress, Coin>);
 
 impl_to_from!(Withdrawals);
 
@@ -1017,7 +817,7 @@ impl NoneOrEmpty for Withdrawals {
 #[wasm_bindgen]
 impl Withdrawals {
     pub fn new() -> Self {
-        Self(linked_hash_map::LinkedHashMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -1076,339 +876,6 @@ impl JsonSchema for Withdrawals {
     }
 }
 
-#[wasm_bindgen]
-#[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct TransactionWitnessSet {
-    vkeys: Option<Vkeywitnesses>,
-    native_scripts: Option<NativeScripts>,
-    bootstraps: Option<BootstrapWitnesses>,
-    plutus_scripts: Option<PlutusScripts>,
-    plutus_data: Option<PlutusList>,
-    redeemers: Option<Redeemers>,
-}
-
-impl_to_from!(TransactionWitnessSet);
-
-#[wasm_bindgen]
-impl TransactionWitnessSet {
-    pub fn set_vkeys(&mut self, vkeys: &Vkeywitnesses) {
-        self.vkeys = Some(vkeys.clone())
-    }
-
-    pub fn vkeys(&self) -> Option<Vkeywitnesses> {
-        self.vkeys.clone()
-    }
-
-    pub fn set_native_scripts(&mut self, native_scripts: &NativeScripts) {
-        self.native_scripts = Some(native_scripts.clone())
-    }
-
-    pub fn native_scripts(&self) -> Option<NativeScripts> {
-        self.native_scripts.clone()
-    }
-
-    pub fn set_bootstraps(&mut self, bootstraps: &BootstrapWitnesses) {
-        self.bootstraps = Some(bootstraps.clone())
-    }
-
-    pub fn bootstraps(&self) -> Option<BootstrapWitnesses> {
-        self.bootstraps.clone()
-    }
-
-    pub fn set_plutus_scripts(&mut self, plutus_scripts: &PlutusScripts) {
-        self.plutus_scripts = Some(plutus_scripts.clone())
-    }
-
-    pub fn plutus_scripts(&self) -> Option<PlutusScripts> {
-        self.plutus_scripts.clone()
-    }
-
-    pub fn set_plutus_data(&mut self, plutus_data: &PlutusList) {
-        self.plutus_data = Some(plutus_data.clone())
-    }
-
-    pub fn plutus_data(&self) -> Option<PlutusList> {
-        self.plutus_data.clone()
-    }
-
-    pub fn set_redeemers(&mut self, redeemers: &Redeemers) {
-        self.redeemers = Some(redeemers.clone())
-    }
-
-    pub fn redeemers(&self) -> Option<Redeemers> {
-        self.redeemers.clone()
-    }
-
-    pub fn new() -> Self {
-        Self {
-            vkeys: None,
-            native_scripts: None,
-            bootstraps: None,
-            plutus_scripts: None,
-            plutus_data: None,
-            redeemers: None,
-        }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct ScriptPubkey {
-    addr_keyhash: Ed25519KeyHash,
-}
-
-impl_to_from!(ScriptPubkey);
-
-#[wasm_bindgen]
-impl ScriptPubkey {
-    pub fn addr_keyhash(&self) -> Ed25519KeyHash {
-        self.addr_keyhash.clone()
-    }
-
-    pub fn new(addr_keyhash: &Ed25519KeyHash) -> Self {
-        Self {
-            addr_keyhash: addr_keyhash.clone(),
-        }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct ScriptAll {
-    native_scripts: NativeScripts,
-}
-
-impl_to_from!(ScriptAll);
-
-#[wasm_bindgen]
-impl ScriptAll {
-    pub fn native_scripts(&self) -> NativeScripts {
-        self.native_scripts.clone()
-    }
-
-    pub fn new(native_scripts: &NativeScripts) -> Self {
-        Self {
-            native_scripts: native_scripts.clone(),
-        }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct ScriptAny {
-    native_scripts: NativeScripts,
-}
-
-impl_to_from!(ScriptAny);
-
-#[wasm_bindgen]
-impl ScriptAny {
-    pub fn native_scripts(&self) -> NativeScripts {
-        self.native_scripts.clone()
-    }
-
-    pub fn new(native_scripts: &NativeScripts) -> Self {
-        Self {
-            native_scripts: native_scripts.clone(),
-        }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct ScriptNOfK {
-    n: u32,
-    native_scripts: NativeScripts,
-}
-
-impl_to_from!(ScriptNOfK);
-
-#[wasm_bindgen]
-impl ScriptNOfK {
-    pub fn n(&self) -> u32 {
-        self.n
-    }
-
-    pub fn native_scripts(&self) -> NativeScripts {
-        self.native_scripts.clone()
-    }
-
-    pub fn new(n: u32, native_scripts: &NativeScripts) -> Self {
-        Self {
-            n: n,
-            native_scripts: native_scripts.clone(),
-        }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct TimelockStart {
-    slot: SlotBigNum,
-}
-
-impl_to_from!(TimelockStart);
-
-#[wasm_bindgen]
-impl TimelockStart {
-    /// !!! DEPRECATED !!!
-    /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
-    /// Otherwise will just raise an error.
-    /// Use `.slot_bignum` instead
-    #[deprecated(
-        since = "10.1.0",
-        note = "Possible boundary error. Use slot_bignum instead"
-    )]
-    pub fn slot(&self) -> Result<Slot32, JsError> {
-        self.slot.try_into()
-    }
-
-    pub fn slot_bignum(&self) -> SlotBigNum {
-        self.slot
-    }
-
-    /// !!! DEPRECATED !!!
-    /// This constructor uses outdated slot number format.
-    /// Use `.new_timelockstart` instead.
-    #[deprecated(
-        since = "10.1.0",
-        note = "Underlying value capacity (BigNum u64) bigger then Slot32. Use new_bignum instead."
-    )]
-    pub fn new(slot: Slot32) -> Self {
-        Self { slot: slot.into() }
-    }
-
-    pub fn new_timelockstart(slot: &SlotBigNum) -> Self {
-        Self { slot: slot.clone() }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct TimelockExpiry {
-    slot: SlotBigNum,
-}
-
-impl_to_from!(TimelockExpiry);
-
-#[wasm_bindgen]
-impl TimelockExpiry {
-    pub fn slot(&self) -> Result<Slot32, JsError> {
-        self.slot.try_into()
-    }
-
-    pub fn slot_bignum(&self) -> SlotBigNum {
-        self.slot
-    }
-
-    /// !!! DEPRECATED !!!
-    /// This constructor uses outdated slot number format.
-    /// Use `.new_timelockexpiry` instead
-    #[deprecated(
-        since = "10.1.0",
-        note = "Underlying value capacity (BigNum u64) bigger then Slot32. Use new_bignum instead."
-    )]
-    pub fn new(slot: Slot32) -> Self {
-        Self {
-            slot: (slot.into()),
-        }
-    }
-
-    pub fn new_timelockexpiry(slot: &SlotBigNum) -> Self {
-        Self { slot: slot.clone() }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum NativeScriptKind {
-    ScriptPubkey,
-    ScriptAll,
-    ScriptAny,
-    ScriptNOfK,
-    TimelockStart,
-    TimelockExpiry,
-}
-
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub enum NativeScriptEnum {
-    ScriptPubkey(ScriptPubkey),
-    ScriptAll(ScriptAll),
-    ScriptAny(ScriptAny),
-    ScriptNOfK(ScriptNOfK),
-    TimelockStart(TimelockStart),
-    TimelockExpiry(TimelockExpiry),
-}
-
-#[derive(
-    Debug, Clone, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub enum ScriptRefEnum {
-    NativeScript(NativeScript),
-    PlutusScript(PlutusScript),
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct ScriptRef(ScriptRefEnum);
-
-impl_to_from!(ScriptRef);
-
-#[wasm_bindgen]
-impl ScriptRef {
-    pub fn new_native_script(native_script: &NativeScript) -> Self {
-        Self(ScriptRefEnum::NativeScript(native_script.clone()))
-    }
-
-    pub fn new_plutus_script(plutus_script: &PlutusScript) -> Self {
-        Self(ScriptRefEnum::PlutusScript(plutus_script.clone()))
-    }
-
-    pub fn is_native_script(&self) -> bool {
-        match &self.0 {
-            ScriptRefEnum::NativeScript(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_plutus_script(&self) -> bool {
-        match &self.0 {
-            ScriptRefEnum::PlutusScript(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn native_script(&self) -> Option<NativeScript> {
-        match &self.0 {
-            ScriptRefEnum::NativeScript(native_script) => Some(native_script.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn plutus_script(&self) -> Option<PlutusScript> {
-        match &self.0 {
-            ScriptRefEnum::PlutusScript(plutus_script) => Some(plutus_script.clone()),
-            _ => None,
-        }
-    }
-}
-
 #[derive(
     Debug, Clone, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
@@ -1446,14 +913,6 @@ impl OutputDatum {
     }
 }
 
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct NativeScript(NativeScriptEnum);
-
-impl_to_from!(NativeScript);
-
 /// Each new language uses a different namespace for hashing its script
 /// This is because you could have a language where the same bytes have different semantics
 /// So this avoids scripts in different languages mapping to the same hash
@@ -1465,145 +924,6 @@ pub enum ScriptHashNamespace {
     PlutusScript = 1,
     PlutusScriptV2 = 2,
     PlutusScriptV3 = 3,
-}
-
-#[wasm_bindgen]
-impl NativeScript {
-    pub fn hash(&self) -> ScriptHash {
-        let mut bytes = Vec::with_capacity(self.to_bytes().len() + 1);
-        bytes.extend_from_slice(&vec![ScriptHashNamespace::NativeScript as u8]);
-        bytes.extend_from_slice(&self.to_bytes());
-        ScriptHash::from(blake2b224(bytes.as_ref()))
-    }
-
-    pub fn new_script_pubkey(script_pubkey: &ScriptPubkey) -> Self {
-        Self(NativeScriptEnum::ScriptPubkey(script_pubkey.clone()))
-    }
-
-    pub fn new_script_all(script_all: &ScriptAll) -> Self {
-        Self(NativeScriptEnum::ScriptAll(script_all.clone()))
-    }
-
-    pub fn new_script_any(script_any: &ScriptAny) -> Self {
-        Self(NativeScriptEnum::ScriptAny(script_any.clone()))
-    }
-
-    pub fn new_script_n_of_k(script_n_of_k: &ScriptNOfK) -> Self {
-        Self(NativeScriptEnum::ScriptNOfK(script_n_of_k.clone()))
-    }
-
-    pub fn new_timelock_start(timelock_start: &TimelockStart) -> Self {
-        Self(NativeScriptEnum::TimelockStart(timelock_start.clone()))
-    }
-
-    pub fn new_timelock_expiry(timelock_expiry: &TimelockExpiry) -> Self {
-        Self(NativeScriptEnum::TimelockExpiry(timelock_expiry.clone()))
-    }
-
-    pub fn kind(&self) -> NativeScriptKind {
-        match &self.0 {
-            NativeScriptEnum::ScriptPubkey(_) => NativeScriptKind::ScriptPubkey,
-            NativeScriptEnum::ScriptAll(_) => NativeScriptKind::ScriptAll,
-            NativeScriptEnum::ScriptAny(_) => NativeScriptKind::ScriptAny,
-            NativeScriptEnum::ScriptNOfK(_) => NativeScriptKind::ScriptNOfK,
-            NativeScriptEnum::TimelockStart(_) => NativeScriptKind::TimelockStart,
-            NativeScriptEnum::TimelockExpiry(_) => NativeScriptKind::TimelockExpiry,
-        }
-    }
-
-    pub fn as_script_pubkey(&self) -> Option<ScriptPubkey> {
-        match &self.0 {
-            NativeScriptEnum::ScriptPubkey(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn as_script_all(&self) -> Option<ScriptAll> {
-        match &self.0 {
-            NativeScriptEnum::ScriptAll(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn as_script_any(&self) -> Option<ScriptAny> {
-        match &self.0 {
-            NativeScriptEnum::ScriptAny(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn as_script_n_of_k(&self) -> Option<ScriptNOfK> {
-        match &self.0 {
-            NativeScriptEnum::ScriptNOfK(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn as_timelock_start(&self) -> Option<TimelockStart> {
-        match &self.0 {
-            NativeScriptEnum::TimelockStart(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn as_timelock_expiry(&self) -> Option<TimelockExpiry> {
-        match &self.0 {
-            NativeScriptEnum::TimelockExpiry(x) => Some(x.clone()),
-            _ => None,
-        }
-    }
-
-    /// Returns an array of unique Ed25519KeyHashes
-    /// contained within this script recursively on any depth level.
-    /// The order of the keys in the result is not determined in any way.
-    pub fn get_required_signers(&self) -> Ed25519KeyHashes {
-        Ed25519KeyHashes(
-            RequiredSignersSet::from(self)
-                .iter()
-                .map(|k| k.clone())
-                .collect(),
-        )
-    }
-}
-
-#[wasm_bindgen]
-#[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
-)]
-pub struct NativeScripts(Vec<NativeScript>);
-
-#[wasm_bindgen]
-impl NativeScripts {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> NativeScript {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &NativeScript) {
-        self.0.push(elem.clone());
-    }
-}
-
-impl From<Vec<NativeScript>> for NativeScripts {
-    fn from(scripts: Vec<NativeScript>) -> Self {
-        scripts.iter().fold(NativeScripts::new(), |mut scripts, s| {
-            scripts.add(s);
-            scripts
-        })
-    }
-}
-
-impl NoneOrEmpty for NativeScripts {
-    fn is_none_or_empty(&self) -> bool {
-        self.0.is_empty()
-    }
 }
 
 #[wasm_bindgen]
@@ -1695,7 +1015,7 @@ impl ScriptHashes {
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ProposedProtocolParameterUpdates(
-    linked_hash_map::LinkedHashMap<GenesisHash, ProtocolParamUpdate>,
+    LinkedHashMap<GenesisHash, ProtocolParamUpdate>,
 );
 
 impl serde::Serialize for ProposedProtocolParameterUpdates {
@@ -1737,7 +1057,7 @@ impl_to_from!(ProposedProtocolParameterUpdates);
 #[wasm_bindgen]
 impl ProposedProtocolParameterUpdates {
     pub fn new() -> Self {
-        Self(linked_hash_map::LinkedHashMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -1802,65 +1122,13 @@ impl ProtocolVersion {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct TransactionBodies(pub(crate) Vec<TransactionBody>);
-
-impl_to_from!(TransactionBodies);
-
-#[wasm_bindgen]
-impl TransactionBodies {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> TransactionBody {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &TransactionBody) {
-        self.0.push(elem.clone());
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct TransactionWitnessSets(Vec<TransactionWitnessSet>);
-
-impl_to_from!(TransactionWitnessSets);
-
-#[wasm_bindgen]
-impl TransactionWitnessSets {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn get(&self, index: usize) -> TransactionWitnessSet {
-        self.0[index].clone()
-    }
-
-    pub fn add(&mut self, elem: &TransactionWitnessSet) {
-        self.0.push(elem.clone());
-    }
-}
-
-pub type TransactionIndexes = Vec<TransactionIndex>;
-
-#[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct AuxiliaryDataSet(linked_hash_map::LinkedHashMap<TransactionIndex, AuxiliaryData>);
+pub struct AuxiliaryDataSet(LinkedHashMap<TransactionIndex, AuxiliaryData>);
 
 #[wasm_bindgen]
 impl AuxiliaryDataSet {
     pub fn new() -> Self {
-        Self(linked_hash_map::LinkedHashMap::new())
+        Self(LinkedHashMap::new())
     }
 
     pub fn len(&self) -> usize {
@@ -1918,303 +1186,6 @@ impl JsonSchema for AuxiliaryDataSet {
     }
     fn is_referenceable() -> bool {
         std::collections::BTreeMap::<TransactionIndex, AuxiliaryData>::is_referenceable()
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct Block {
-    header: Header,
-    transaction_bodies: TransactionBodies,
-    transaction_witness_sets: TransactionWitnessSets,
-    auxiliary_data_set: AuxiliaryDataSet,
-    invalid_transactions: TransactionIndexes,
-}
-
-impl_to_from!(Block);
-
-#[wasm_bindgen]
-impl Block {
-    pub fn header(&self) -> Header {
-        self.header.clone()
-    }
-
-    pub fn transaction_bodies(&self) -> TransactionBodies {
-        self.transaction_bodies.clone()
-    }
-
-    pub fn transaction_witness_sets(&self) -> TransactionWitnessSets {
-        self.transaction_witness_sets.clone()
-    }
-
-    pub fn auxiliary_data_set(&self) -> AuxiliaryDataSet {
-        self.auxiliary_data_set.clone()
-    }
-
-    pub fn invalid_transactions(&self) -> TransactionIndexes {
-        self.invalid_transactions.clone()
-    }
-
-    pub fn new(
-        header: &Header,
-        transaction_bodies: &TransactionBodies,
-        transaction_witness_sets: &TransactionWitnessSets,
-        auxiliary_data_set: &AuxiliaryDataSet,
-        invalid_transactions: TransactionIndexes,
-    ) -> Self {
-        Self {
-            header: header.clone(),
-            transaction_bodies: transaction_bodies.clone(),
-            transaction_witness_sets: transaction_witness_sets.clone(),
-            auxiliary_data_set: auxiliary_data_set.clone(),
-            invalid_transactions: invalid_transactions,
-        }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct Header {
-    header_body: HeaderBody,
-    body_signature: KESSignature,
-}
-
-impl_to_from!(Header);
-
-#[wasm_bindgen]
-impl Header {
-    pub fn header_body(&self) -> HeaderBody {
-        self.header_body.clone()
-    }
-
-    pub fn body_signature(&self) -> KESSignature {
-        self.body_signature.clone()
-    }
-
-    pub fn new(header_body: &HeaderBody, body_signature: &KESSignature) -> Self {
-        Self {
-            header_body: header_body.clone(),
-            body_signature: body_signature.clone(),
-        }
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct OperationalCert {
-    hot_vkey: KESVKey,
-    sequence_number: u32,
-    kes_period: u32,
-    sigma: Ed25519Signature,
-}
-
-impl_to_from!(OperationalCert);
-
-#[wasm_bindgen]
-impl OperationalCert {
-    pub fn hot_vkey(&self) -> KESVKey {
-        self.hot_vkey.clone()
-    }
-
-    pub fn sequence_number(&self) -> u32 {
-        self.sequence_number.clone()
-    }
-
-    pub fn kes_period(&self) -> u32 {
-        self.kes_period.clone()
-    }
-
-    pub fn sigma(&self) -> Ed25519Signature {
-        self.sigma.clone()
-    }
-
-    pub fn new(
-        hot_vkey: &KESVKey,
-        sequence_number: u32,
-        kes_period: u32,
-        sigma: &Ed25519Signature,
-    ) -> Self {
-        Self {
-            hot_vkey: hot_vkey.clone(),
-            sequence_number: sequence_number,
-            kes_period: kes_period,
-            sigma: sigma.clone(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub enum HeaderLeaderCertEnum {
-    NonceAndLeader(VRFCert, VRFCert),
-    VrfResult(VRFCert),
-}
-
-#[wasm_bindgen]
-#[derive(Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
-pub struct HeaderBody {
-    block_number: u32,
-    slot: SlotBigNum,
-    prev_hash: Option<BlockHash>,
-    issuer_vkey: Vkey,
-    vrf_vkey: VRFVKey,
-    leader_cert: HeaderLeaderCertEnum,
-    block_body_size: u32,
-    block_body_hash: BlockHash,
-    operational_cert: OperationalCert,
-    protocol_version: ProtocolVersion,
-}
-
-impl_to_from!(HeaderBody);
-
-#[wasm_bindgen]
-impl HeaderBody {
-    pub fn block_number(&self) -> u32 {
-        self.block_number.clone()
-    }
-
-    /// !!! DEPRECATED !!!
-    /// Returns a Slot32 (u32) value in case the underlying original BigNum (u64) value is within the limits.
-    /// Otherwise will just raise an error.
-    #[deprecated(
-        since = "10.1.0",
-        note = "Possible boundary error. Use slot_bignum instead"
-    )]
-    pub fn slot(&self) -> Result<Slot32, JsError> {
-        self.slot.clone().try_into()
-    }
-
-    pub fn slot_bignum(&self) -> SlotBigNum {
-        self.slot.clone()
-    }
-
-    pub fn prev_hash(&self) -> Option<BlockHash> {
-        self.prev_hash.clone()
-    }
-
-    pub fn issuer_vkey(&self) -> Vkey {
-        self.issuer_vkey.clone()
-    }
-
-    pub fn vrf_vkey(&self) -> VRFVKey {
-        self.vrf_vkey.clone()
-    }
-
-    /// If this function returns true, the `.nonce_vrf_or_nothing`
-    /// and the `.leader_vrf_or_nothing` functions will return
-    /// non-empty results
-    pub fn has_nonce_and_leader_vrf(&self) -> bool {
-        match &self.leader_cert {
-            HeaderLeaderCertEnum::NonceAndLeader(_, _) => true,
-            _ => false,
-        }
-    }
-
-    /// Might return nothing in case `.has_nonce_and_leader_vrf` returns false
-    pub fn nonce_vrf_or_nothing(&self) -> Option<VRFCert> {
-        match &self.leader_cert {
-            HeaderLeaderCertEnum::NonceAndLeader(nonce, _) => Some(nonce.clone()),
-            _ => None,
-        }
-    }
-
-    /// Might return nothing in case `.has_nonce_and_leader_vrf` returns false
-    pub fn leader_vrf_or_nothing(&self) -> Option<VRFCert> {
-        match &self.leader_cert {
-            HeaderLeaderCertEnum::NonceAndLeader(_, leader) => Some(leader.clone()),
-            _ => None,
-        }
-    }
-
-    /// If this function returns true, the `.vrf_result_or_nothing`
-    /// function will return a non-empty result
-    pub fn has_vrf_result(&self) -> bool {
-        match &self.leader_cert {
-            HeaderLeaderCertEnum::VrfResult(_) => true,
-            _ => false,
-        }
-    }
-
-    /// Might return nothing in case `.has_vrf_result` returns false
-    pub fn vrf_result_or_nothing(&self) -> Option<VRFCert> {
-        match &self.leader_cert {
-            HeaderLeaderCertEnum::VrfResult(cert) => Some(cert.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn block_body_size(&self) -> u32 {
-        self.block_body_size.clone()
-    }
-
-    pub fn block_body_hash(&self) -> BlockHash {
-        self.block_body_hash.clone()
-    }
-
-    pub fn operational_cert(&self) -> OperationalCert {
-        self.operational_cert.clone()
-    }
-
-    pub fn protocol_version(&self) -> ProtocolVersion {
-        self.protocol_version.clone()
-    }
-
-    /// !!! DEPRECATED !!!
-    /// This constructor uses outdated slot number format.
-    /// Use `.new_headerbody` instead
-    #[deprecated(
-        since = "10.1.0",
-        note = "Underlying value capacity of slot (BigNum u64) bigger then Slot32. Use new_bignum instead."
-    )]
-    pub fn new(
-        block_number: u32,
-        slot: Slot32,
-        prev_hash: Option<BlockHash>,
-        issuer_vkey: &Vkey,
-        vrf_vkey: &VRFVKey,
-        vrf_result: &VRFCert,
-        block_body_size: u32,
-        block_body_hash: &BlockHash,
-        operational_cert: &OperationalCert,
-        protocol_version: &ProtocolVersion,
-    ) -> Self {
-        Self {
-            block_number: block_number,
-            slot: slot.clone().into(),
-            prev_hash: prev_hash.clone(),
-            issuer_vkey: issuer_vkey.clone(),
-            vrf_vkey: vrf_vkey.clone(),
-            leader_cert: HeaderLeaderCertEnum::VrfResult(vrf_result.clone()),
-            block_body_size: block_body_size,
-            block_body_hash: block_body_hash.clone(),
-            operational_cert: operational_cert.clone(),
-            protocol_version: protocol_version.clone(),
-        }
-    }
-
-    pub fn new_headerbody(
-        block_number: u32,
-        slot: &SlotBigNum,
-        prev_hash: Option<BlockHash>,
-        issuer_vkey: &Vkey,
-        vrf_vkey: &VRFVKey,
-        vrf_result: &VRFCert,
-        block_body_size: u32,
-        block_body_hash: &BlockHash,
-        operational_cert: &OperationalCert,
-        protocol_version: &ProtocolVersion,
-    ) -> Self {
-        Self {
-            block_number: block_number,
-            slot: slot.clone(),
-            prev_hash: prev_hash.clone(),
-            issuer_vkey: issuer_vkey.clone(),
-            vrf_vkey: vrf_vkey.clone(),
-            leader_cert: HeaderLeaderCertEnum::VrfResult(vrf_result.clone()),
-            block_body_size: block_body_size,
-            block_body_hash: block_body_hash.clone(),
-            operational_cert: operational_cert.clone(),
-            protocol_version: protocol_version.clone(),
-        }
     }
 }
 
@@ -2420,12 +1391,12 @@ impl MultiAsset {
         &mut self,
         policy_id: &PolicyID,
         asset_name: &AssetName,
-        value: BigNum,
+        value: &BigNum,
     ) -> Option<BigNum> {
         self.0
             .entry(policy_id.clone())
             .or_default()
-            .insert(asset_name, &value)
+            .insert(asset_name, value)
     }
 
     /// returns the amount of asset {asset_name} under policy {policy_id}
@@ -2453,7 +1424,7 @@ impl MultiAsset {
                 match lhs_ma.0.get_mut(policy) {
                     Some(assets) => match assets.0.get_mut(asset_name) {
                         Some(current) => match current.checked_sub(&amount) {
-                            Ok(new) => match new.compare(&to_bignum(0)) {
+                            Ok(new) => match new.compare(&BigNum(0)) {
                                 0 => {
                                     assets.0.remove(asset_name);
                                     match assets.0.len() {
@@ -2500,7 +1471,7 @@ impl PartialOrd for MultiAsset {
         fn amount_or_zero(ma: &MultiAsset, pid: &PolicyID, aname: &AssetName) -> Coin {
             ma.get(&pid)
                 .and_then(|assets| assets.get(aname))
-                .unwrap_or(to_bignum(0u64)) // assume 0 if asset not present
+                .unwrap_or(BigNum(0u64)) // assume 0 if asset not present
         }
 
         // idea: if (a-b) > 0 for some asset, then a > b for at least some asset
@@ -2509,7 +1480,7 @@ impl PartialOrd for MultiAsset {
                 for (aname, amount) in assets.0.iter() {
                     match amount
                         .clamped_sub(&amount_or_zero(&rhs, pid, aname))
-                        .cmp(&to_bignum(0))
+                        .cmp(&BigNum::zero())
                     {
                         std::cmp::Ordering::Equal => (),
                         _ => return false,
@@ -2529,19 +1500,27 @@ impl PartialOrd for MultiAsset {
 }
 
 #[wasm_bindgen]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct MintsAssets(Vec<MintAssets>);
 
+to_from_json!(MintsAssets);
+
+#[wasm_bindgen]
 impl MintsAssets {
     pub fn new() -> Self {
         Self(Vec::new())
     }
 
-    pub fn add(&mut self, mint_assets: MintAssets) {
-        self.0.push(mint_assets)
+    pub fn add(&mut self, mint_assets: &MintAssets) {
+        self.0.push(mint_assets.clone())
     }
 
     pub fn get(&self, index: usize) -> Option<MintAssets> {
         self.0.get(index).map(|v| v.clone())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
@@ -2562,7 +1541,7 @@ impl MintAssets {
             return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
         }
         let mut ma = MintAssets::new();
-        ma.insert(key, value.clone())?;
+        ma.insert(key, value)?;
         Ok(ma)
     }
 
@@ -2570,11 +1549,15 @@ impl MintAssets {
         self.0.len()
     }
 
-    pub fn insert(&mut self, key: &AssetName, value: Int) -> Result<Option<Int>, JsError> {
+    pub fn insert(&mut self, key: &AssetName, value: &Int) -> Result<Option<Int>, JsError> {
         if value.0 == 0 {
             return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
         }
-        Ok(self.0.insert(key.clone(), value))
+        Ok(self.0.insert(key.clone(), value.clone()))
+    }
+
+    pub(crate) fn insert_unchecked(&mut self, key: &AssetName, value: Int) -> Option<Int> {
+        self.0.insert(key.clone(), value)
     }
 
     pub fn get(&self, key: &AssetName) -> Option<Int> {
@@ -2627,22 +1610,7 @@ impl Mint {
         None
     }
 
-    /// !!! DEPRECATED !!!
-    /// Mint can store multiple entries for the same policy id.
-    /// Use `.get_all` instead.
-    #[deprecated(
-        since = "11.2.0",
-        note = "Mint can store multiple entries for the same policy id. Use `.get_all` instead."
-    )]
-    pub fn get(&self, key: &PolicyID) -> Option<MintAssets> {
-        self.0
-            .iter()
-            .filter(|(k, _)| k.eq(key))
-            .next()
-            .map(|(_k, v)| v.clone())
-    }
-
-    pub fn get_all(&self, key: &PolicyID) -> Option<MintsAssets> {
+    pub fn get(&self, key: &PolicyID) -> Option<MintsAssets> {
         let mints: Vec<MintAssets> = self
             .0
             .iter()
@@ -2749,29 +1717,18 @@ impl NetworkId {
     }
 }
 
-impl From<&NativeScript> for RequiredSignersSet {
+impl From<&NativeScript> for Ed25519KeyHashes {
     fn from(script: &NativeScript) -> Self {
         match &script.0 {
             NativeScriptEnum::ScriptPubkey(spk) => {
-                let mut set = BTreeSet::new();
-                set.insert(spk.addr_keyhash());
+                let mut set = Ed25519KeyHashes::new();
+                set.add_move(spk.addr_keyhash());
                 set
             }
-            NativeScriptEnum::ScriptAll(all) => RequiredSignersSet::from(&all.native_scripts),
-            NativeScriptEnum::ScriptAny(any) => RequiredSignersSet::from(&any.native_scripts),
-            NativeScriptEnum::ScriptNOfK(ofk) => RequiredSignersSet::from(&ofk.native_scripts),
-            _ => BTreeSet::new(),
+            NativeScriptEnum::ScriptAll(all) => Ed25519KeyHashes::from(&all.native_scripts),
+            NativeScriptEnum::ScriptAny(any) => Ed25519KeyHashes::from(&any.native_scripts),
+            NativeScriptEnum::ScriptNOfK(ofk) => Ed25519KeyHashes::from(&ofk.native_scripts),
+            _ => Ed25519KeyHashes::new(),
         }
-    }
-}
-
-impl From<&NativeScripts> for RequiredSignersSet {
-    fn from(scripts: &NativeScripts) -> Self {
-        scripts.0.iter().fold(BTreeSet::new(), |mut set, s| {
-            RequiredSignersSet::from(s).iter().for_each(|pk| {
-                set.insert(pk.clone());
-            });
-            set
-        })
     }
 }

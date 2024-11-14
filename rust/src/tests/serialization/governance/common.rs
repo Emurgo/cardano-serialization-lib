@@ -1,5 +1,5 @@
-use crate::fakes::{fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
 use crate::*;
+use crate::tests::fakes::{fake_anchor_data_hash, fake_key_hash, fake_script_hash, fake_tx_hash};
 
 #[test]
 fn anchor_ser_round_trip() {
@@ -74,6 +74,36 @@ fn drep_always_no_confidence_ser_round_trip() {
 }
 
 #[test]
+fn drep_to_from_bech32_keshhash() {
+    let drep = DRep::new_key_hash(&fake_key_hash(1));
+    let bech32 = drep.to_bech32().unwrap();
+    let drep_deser = DRep::from_bech32(&bech32).unwrap();
+    assert_eq!(drep, drep_deser);
+}
+
+#[test]
+fn drep_to_from_bech32_script_hash() {
+    let drep = DRep::new_script_hash(&fake_script_hash(1));
+    let bech32 = drep.to_bech32().unwrap();
+    let drep_deser = DRep::from_bech32(&bech32).unwrap();
+    assert_eq!(drep, drep_deser);
+}
+
+#[test]
+fn drep_to_from_bech32_always_abstain() {
+    let drep = DRep::new_always_abstain();
+    let bech32 = drep.to_bech32();
+    assert!(bech32.is_err());
+}
+
+#[test]
+fn drep_to_from_bech32_always_no_confidence() {
+    let drep = DRep::new_always_no_confidence();
+    let bech32 = drep.to_bech32();
+    assert!(bech32.is_err());
+}
+
+#[test]
 fn governance_action_id_ser_round_trip() {
     let gov_action_id =
         GovernanceActionId::new(&fake_tx_hash(1), GovernanceActionIndex::from(42u32));
@@ -93,7 +123,7 @@ fn governance_action_id_ser_round_trip() {
 #[test]
 fn voter_constitutional_committee_hot_key_hash_ser_round_trip() {
     let voter =
-        Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&fake_key_hash(1)));
+        Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&fake_key_hash(1)));
 
     let cbor = voter.to_bytes();
     let cbor_hex = voter.to_hex();
@@ -107,7 +137,7 @@ fn voter_constitutional_committee_hot_key_hash_ser_round_trip() {
 
 #[test]
 fn voter_constitutional_committee_hot_script_hash_ser_round_trip() {
-    let voter = Voter::new_constitutional_committee_hot_key(&Credential::from_scripthash(
+    let voter = Voter::new_constitutional_committee_hot_credential(&Credential::from_scripthash(
         &fake_script_hash(1),
     ));
 
@@ -126,7 +156,7 @@ fn voter_constitutional_committee_hot_script_hash_ser_round_trip() {
 
 #[test]
 fn voter_drep_key_hash_ser_round_trip() {
-    let voter = Voter::new_drep(&Credential::from_keyhash(&fake_key_hash(1)));
+    let voter = Voter::new_drep_credential(&Credential::from_keyhash(&fake_key_hash(1)));
 
     let cbor = voter.to_bytes();
     let cbor_hex = voter.to_hex();
@@ -140,7 +170,7 @@ fn voter_drep_key_hash_ser_round_trip() {
 
 #[test]
 fn voter_drep_script_hash_ser_round_trip() {
-    let voter = Voter::new_drep(&Credential::from_scripthash(&fake_script_hash(1)));
+    let voter = Voter::new_drep_credential(&Credential::from_scripthash(&fake_script_hash(1)));
 
     let cbor = voter.to_bytes();
     let cbor_hex = voter.to_hex();
@@ -154,7 +184,7 @@ fn voter_drep_script_hash_ser_round_trip() {
 
 #[test]
 fn voter_staking_pool_ser_round_trip() {
-    let voter = Voter::new_staking_pool(&fake_key_hash(1));
+    let voter = Voter::new_stake_pool_key_hash(&fake_key_hash(1));
 
     let cbor = voter.to_bytes();
     let cbor_hex = voter.to_hex();
@@ -222,7 +252,7 @@ fn voting_procedures_single_item_ser_round_trip() {
     let mut voting_procedures = VotingProcedures::new();
 
     voting_procedures.insert(
-        &Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&fake_key_hash(1))),
+        &Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&fake_key_hash(1))),
         &GovernanceActionId::new(&fake_tx_hash(1), GovernanceActionIndex::from(42u32)),
         &VotingProcedure::new(VoteKind::Yes),
     );
@@ -250,19 +280,19 @@ fn voting_procedures_muiltiple_items_ser_round_trip() {
     let mut voting_procedures = VotingProcedures::new();
 
     voting_procedures.insert(
-        &Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&fake_key_hash(1))),
+        &Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&fake_key_hash(1))),
         &GovernanceActionId::new(&fake_tx_hash(1), GovernanceActionIndex::from(42u32)),
         &VotingProcedure::new(VoteKind::Yes),
     );
 
     voting_procedures.insert(
-        &Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&fake_key_hash(2))),
+        &Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&fake_key_hash(2))),
         &GovernanceActionId::new(&fake_tx_hash(2), GovernanceActionIndex::from(43u32)),
         &VotingProcedure::new(VoteKind::No),
     );
 
     voting_procedures.insert(
-        &Voter::new_constitutional_committee_hot_key(&Credential::from_keyhash(&fake_key_hash(3))),
+        &Voter::new_constitutional_committee_hot_credential(&Credential::from_keyhash(&fake_key_hash(3))),
         &GovernanceActionId::new(&fake_tx_hash(3), GovernanceActionIndex::from(44u32)),
         &VotingProcedure::new(VoteKind::Abstain),
     );
@@ -302,3 +332,41 @@ fn tx_with_vote_deser_test() {
     assert!(voting_procedure.is_some());
 }
 
+#[test]
+fn voting_proposals_round_trip() {
+    let mut voting_proposals = VotingProposals::new();
+
+    let info_action = InfoAction::new();
+    let action = GovernanceAction::new_info_action(&info_action);
+    let proposal = VotingProposal::new(
+        &action,
+        &Anchor::new(
+            &URL::new("https://iohk.io".to_string()).unwrap(),
+            &fake_anchor_data_hash(1),
+        ),
+        &RewardAddress::new(
+            NetworkInfo::testnet_preprod().network_id(),
+            &Credential::from_keyhash(&fake_key_hash(1)),
+        ),
+        &Coin::from(1_000_011u64),
+    );
+
+    voting_proposals.add(&proposal);
+
+    let cbor = voting_proposals.to_bytes();
+    let cbor_hex = voting_proposals.to_hex();
+    let json = voting_proposals.to_json().unwrap();
+
+    assert_eq!(
+        voting_proposals,
+        VotingProposals::from_bytes(cbor).unwrap()
+    );
+    assert_eq!(
+        voting_proposals,
+        VotingProposals::from_hex(&cbor_hex).unwrap()
+    );
+    assert_eq!(
+        voting_proposals,
+        VotingProposals::from_json(&json).unwrap()
+    );
+}

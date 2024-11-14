@@ -15,7 +15,7 @@ pub struct TransactionBody {
     pub(crate) mint: Option<Mint>,
     pub(crate) script_data_hash: Option<ScriptDataHash>,
     pub(crate) collateral: Option<TransactionInputs>,
-    pub(crate) required_signers: Option<RequiredSigners>,
+    pub(crate) required_signers: Option<Ed25519KeyHashes>,
     pub(crate) network_id: Option<NetworkId>,
     pub(crate) collateral_return: Option<TransactionOutput>,
     pub(crate) total_collateral: Option<Coin>,
@@ -147,13 +147,6 @@ impl TransactionBody {
         self.mint.clone()
     }
 
-    /// This function returns the mint value of the transaction
-    /// Use `.mint()` instead.
-    #[deprecated(since = "10.0.0", note = "Weird naming. Use `.mint()`")]
-    pub fn multiassets(&self) -> Option<Mint> {
-        self.mint()
-    }
-
     pub fn set_reference_inputs(&mut self, reference_inputs: &TransactionInputs) {
         self.reference_inputs = Some(reference_inputs.clone())
     }
@@ -178,11 +171,11 @@ impl TransactionBody {
         self.collateral.clone()
     }
 
-    pub fn set_required_signers(&mut self, required_signers: &RequiredSigners) {
+    pub fn set_required_signers(&mut self, required_signers: &Ed25519KeyHashes) {
         self.required_signers = Some(required_signers.clone())
     }
 
-    pub fn required_signers(&self) -> Option<RequiredSigners> {
+    pub fn required_signers(&self) -> Option<Ed25519KeyHashes> {
         self.required_signers.clone()
     }
 
@@ -257,7 +250,7 @@ impl TransactionBody {
     ) -> Self {
         let mut tx = Self::new_tx_body(inputs, outputs, fee);
         if let Some(slot32) = ttl {
-            tx.set_ttl(&to_bignum(slot32 as u64));
+            tx.set_ttl(&(slot32 as u64).into());
         }
         tx
     }

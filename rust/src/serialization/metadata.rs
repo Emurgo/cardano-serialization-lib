@@ -1,6 +1,6 @@
-use linked_hash_map::LinkedHashMap;
+use hashlink::LinkedHashMap;
 use crate::*;
-use crate::serialization::utils::merge_option_plutus_list;
+use crate::serialization::utils::{is_break_tag, merge_option_plutus_list};
 
 impl cbor_event::se::Serialize for MetadataMap {
     fn serialize<'se, W: Write>(
@@ -26,8 +26,7 @@ impl Deserialize for MetadataMap {
                 cbor_event::Len::Len(n) => entries.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "MetadataMap")? {
                     break;
                 }
                 let key = TransactionMetadatum::deserialize(raw)?;
@@ -69,8 +68,7 @@ impl Deserialize for MetadataList {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "MetadataList")? {
                     break;
                 }
                 arr.push(TransactionMetadatum::deserialize(raw)?);
@@ -160,8 +158,7 @@ impl Deserialize for TransactionMetadatumLabels {
                 cbor_event::Len::Len(n) => arr.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "TransactionMetadatumLabels")? {
                     break;
                 }
                 arr.push(TransactionMetadatumLabel::deserialize(raw)?);
@@ -196,8 +193,7 @@ impl Deserialize for GeneralTransactionMetadata {
                 cbor_event::Len::Len(n) => table.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "GeneralTransactionMetadata")? {
                     break;
                 }
                 let key = TransactionMetadatumLabel::deserialize(raw)?;
@@ -260,18 +256,14 @@ impl cbor_event::se::Serialize for AuxiliaryData {
             }
             if let Some(plutus_scripts) = &self.plutus_scripts {
                 serializer.write_unsigned_integer(2)?;
-                plutus_scripts
-                    .by_version(&Language::new_plutus_v1())
-                    .serialize(serializer)?;
+                plutus_scripts.serialize_by_version(&Language::new_plutus_v1(), serializer)?;
                 if has_plutus_v2 {
-                    let v2 = plutus_scripts.by_version(&Language::new_plutus_v2());
                     serializer.write_unsigned_integer(3)?;
-                    v2.serialize(serializer)?;
+                    plutus_scripts.serialize_by_version(&Language::new_plutus_v2(), serializer)?;
                 }
                 if has_plutus_v3 {
-                    let v3 = plutus_scripts.by_version(&Language::new_plutus_v3());
                     serializer.write_unsigned_integer(4)?;
-                    v3.serialize(serializer)?;
+                    plutus_scripts.serialize_by_version(&Language::new_plutus_v3(), serializer)?;
                 }
             }
             Ok(serializer)
@@ -360,8 +352,7 @@ impl Deserialize for AuxiliaryData {
                                     plutus_scripts_v2 = Some(
                                         (|| -> Result<_, DeserializeError> {
                                             read_len.read_elems(1)?;
-                                            Ok(PlutusScripts::deserialize(raw)?
-                                                .map_as_version(&Language::new_plutus_v2()))
+                                            Ok(PlutusScripts::deserialize_with_version(raw, &Language::new_plutus_v2())?)
                                         })()
                                             .map_err(|e| e.annotate("plutus_scripts_v2"))?,
                                     );
@@ -375,8 +366,7 @@ impl Deserialize for AuxiliaryData {
                                     plutus_scripts_v3 = Some(
                                         (|| -> Result<_, DeserializeError> {
                                             read_len.read_elems(1)?;
-                                            Ok(PlutusScripts::deserialize(raw)?
-                                                .map_as_version(&Language::new_plutus_v3()))
+                                            Ok(PlutusScripts::deserialize_with_version(raw, &Language::new_plutus_v3())?)
                                         })()
                                             .map_err(|e| e.annotate("plutus_scripts_v3"))?,
                                     );
@@ -413,9 +403,9 @@ impl Deserialize for AuxiliaryData {
                     }
                     read_len.finish()?;
                     let mut  plutus_scripts = None;
-                    plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v1);
-                    plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v2);
-                    plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v3);
+                    plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v1, &Language::new_plutus_v1());
+                    plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v2, &Language::new_plutus_v2());
+                    plutus_scripts = merge_option_plutus_list(plutus_scripts, plutus_scripts_v3, &Language::new_plutus_v3());
 
                     Ok(Self {
                         metadata,

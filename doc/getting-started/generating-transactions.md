@@ -117,3 +117,53 @@ const transaction = CardanoWasm.Transaction.new(
 ## A note on fees
 
 Fees is Cardano Shelley are based directly on the size of the final encoded transaction. It is important to note that a transaction created by this library potentially can vary in size compared to one built with other tools. This is because transactions, as well as other Cardano Shelley structures, are encoded using [CBOR](https://cbor.io/) a binary JSON-like encoding. Due to arrays and maps allowing both definite or indefinite length encoding in the encoded transaction created by the library, the size can vary. This is because definite encoding consists of a tag containing the size of the array/map which can be 1 or more bytes long depending on the number of elements the size of the encoded structure, while indefinite length encoding consists of a 1 byte starting tag and after all elements are listed, a 1 byte ending tag. These variances should should only be a couple bytes and cardano-serialization-lib uses definite encoding which is the same length or smaller for any reasonable sized transaction.
+
+## UTxO Selection
+
+The `TransactionBuilder` struct allows you to manually enter inputs and outputs to create a valid transaction, of course, this means that you'll have to calculate things such as fees, change outputs, and perform UTxO selection on the inputs yourself.
+
+The `TransactionBuilder` struct has some exposed APIs that may be helpful in performing these actions. Namely the `builder.add_inputs_from_and_change` function. The function first looks at the outputs that already exists in the `builder`, then attempts to balance the transaction using `inputs` that are given in the arguments of the function. The function will set `inputs`, `outputs` and `fees` in the `builder`. 
+
+The reason why all 3 have to be set within a single function, is because unfortunately, they all affect each other. Performing UTxO selection on some given `outputs` may result in some extra `change output`, which maybe increase the `fees` needed, which in turn, may change the `inputs` required, thereby changing what's required in the `change output`, and so on.
+
+Further complications arise due to the `minimum UTxO value` requirements on the Cardano network, which is tied to the size of the output. Tokens significantly increase the size of each output, and so any inputs with tokens complicates UTxO selection somewhat.
+
+`builder.add_inputs_from_and_change` should correctly perform UTxO selection, add these into the `builder.inputs`, add one extra output for `change`, and set the `builder.fee`.
+
+## Example Code
+Here is a quick example of how it might be used
+
+```javascript
+const txBuilder = wasm.TransactionBuilder.new(
+    wasm.TransactionBuilderConfigBuilder.new()
+      .fee_algo(wasm.LinearFee.new(wasm.BigNum.from_str('44'), wasm.BigNum.from_str('155381')))
+      .coins_per_utxo_word(wasm.BigNum.from_str('34482'))
+      .pool_deposit(wasm.BigNum.from_str('500000000'))
+      .key_deposit(wasm.BigNum.from_str('2000000'))
+      .ex_unit_prices(
+        wasm.ExUnitPrices.new(
+          wasm.UnitInterval.new(wasm.BigNum.from_str('577'), wasm.BigNum.from_str('10000')),
+          wasm.UnitInterval.new(wasm.BigNum.from_str('721'), wasm.BigNum.from_str('10000000')),
+        ),
+      )
+      .max_value_size(5000)
+      .max_tx_size(16384)
+      .build(),
+  )
+const utxos = [
+    "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
+    "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"
+]
+const output = wasm.TransactionOutput.new(wasm.Address.from_bech32("addr_test1qppkqaf5044y2t46g2y6udz636c4uultszte5l5p0kvgl3tv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfsjre4xh"), wasm.Value.new(wasm.BigNum.from_str("969750")))
+txBuilder.add_output(output)
+
+const wasmUtxos = wasm.TransactionUnspentOutputs.new();
+for (let i = 0; i < utxos.length; i++) {
+    wasmUtxos.add(wasm.TransactionUnspentOutput.from_hex(utxos[i]));
+    }
+const wasmChangeConfig = wasm.ChangeConfig.new(wasm.Address.from_bech32("addr_test1qqzf7fhgm0gf370ngxgpskg5c3kgp2g0u4ltxlrmsvumaztv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfs43mc83"))
+
+txBuilder.add_inputs_from_and_change(wasmUtxos, wasm.CoinSelectionStrategyCIP2.LargestFirstMultiAsset, wasmChangeConfig)
+
+const transaction = txBuilder.build_tx()
+```

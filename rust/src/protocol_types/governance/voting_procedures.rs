@@ -49,7 +49,7 @@ impl_to_from!(VotingProcedures);
 
 impl NoneOrEmpty for VotingProcedures {
     fn is_none_or_empty(&self) -> bool {
-        self.0.is_empty()
+        self.0.is_empty() || self.0.values().all(|v| v.is_empty())
     }
 }
 

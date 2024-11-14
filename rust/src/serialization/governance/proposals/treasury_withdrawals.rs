@@ -1,5 +1,6 @@
 use crate::*;
 use std::collections::BTreeMap;
+use crate::serialization::utils::is_break_tag;
 
 impl Serialize for TreasuryWithdrawals {
     fn serialize<'se, W: Write>(
@@ -24,8 +25,7 @@ impl Deserialize for TreasuryWithdrawals {
                 cbor_event::Len::Len(n) => table.len() < n as usize,
                 cbor_event::Len::Indefinite => true,
             } {
-                if raw.cbor_type()? == CBORType::Special {
-                    assert_eq!(raw.special()?, CBORSpecial::Break);
+                if is_break_tag(raw, "TreasuryWithdrawals")? {
                     break;
                 }
                 let key = RewardAddress::deserialize(raw)?;

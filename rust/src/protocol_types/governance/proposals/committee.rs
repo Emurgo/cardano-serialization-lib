@@ -56,7 +56,7 @@ impl Committee {
     }
 
     pub fn members_keys(&self) -> Credentials {
-        Credentials(self.members.keys().cloned().collect())
+        Credentials::from_iter(self.members.keys().cloned())
     }
 
     pub fn quorum_threshold(&self) -> UnitInterval {

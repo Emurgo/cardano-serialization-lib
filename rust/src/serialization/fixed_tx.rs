@@ -1,5 +1,5 @@
 use crate::*;
-use std::io::SeekFrom;
+use crate::serialization::utils::deserilized_with_orig_bytes;
 
 impl cbor_event::se::Serialize for FixedTransaction {
     fn serialize<'se, W: Write>(
@@ -8,7 +8,7 @@ impl cbor_event::se::Serialize for FixedTransaction {
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(4))?;
         serializer.write_raw_bytes(&self.body_bytes)?;
-        serializer.write_raw_bytes(&self.witness_bytes)?;
+        self.witness_set.serialize(serializer)?;
         serializer.write_special(CBORSpecial::Bool(self.is_valid))?;
         match &self.auxiliary_bytes {
             Some(auxiliary_bytes) => serializer.write_raw_bytes(auxiliary_bytes)?,
@@ -52,9 +52,8 @@ impl DeserializeEmbeddedGroup for FixedTransaction {
         let (body, body_bytes) =
             deserilized_with_orig_bytes(raw, |raw| TransactionBody::deserialize(raw))
                 .map_err(|e| e.annotate("body"))?;
-        let (witness_set, witness_bytes) =
-            deserilized_with_orig_bytes(raw, |raw| TransactionWitnessSet::deserialize(raw))
-                .map_err(|e| e.annotate("witness_set"))?;
+        let witness_set = FixedTxWitnessesSet::deserialize(raw)
+            .map_err(|e| e.annotate("witness_set"))?;
         let mut checked_auxiliary_data = false;
         let mut auxiliary_data = None;
         let mut auxiliary_bytes = None;
@@ -106,28 +105,13 @@ impl DeserializeEmbeddedGroup for FixedTransaction {
             })()
             .map_err(|e| e.annotate("auxiliary_data"))?;
         }
-        Ok(FixedTransaction {
+        Ok(FixedTransaction::new_with_original_bytes(
             body,
             body_bytes,
             witness_set,
-            witness_bytes,
             is_valid,
             auxiliary_data,
             auxiliary_bytes,
-        })
+        ))
     }
-}
-
-fn deserilized_with_orig_bytes<R: BufRead + Seek, T>(
-    raw: &mut Deserializer<R>,
-    deserilizator: fn(&mut Deserializer<R>) -> Result<T, DeserializeError>,
-) -> Result<(T, Vec<u8>), DeserializeError> {
-    let before = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-    let value = deserilizator(raw)?;
-    let after = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-    let bytes_read = (after - before) as usize;
-    raw.as_mut_ref().seek(SeekFrom::Start(before)).unwrap();
-    let original_bytes = raw.as_mut_ref().fill_buf().unwrap()[..bytes_read].to_vec();
-    raw.as_mut_ref().seek(SeekFrom::Start(after)).unwrap();
-    Ok((value, original_bytes))
 }

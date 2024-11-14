@@ -1,7 +1,4 @@
-use crate::fakes::{
-    fake_anchor_data_hash, fake_key_hash, fake_reward_address, fake_script_hash, fake_tx_hash,
-};
-use crate::tests::mock_objects::{crate_full_protocol_param_update, create_anchor};
+use crate::tests::fakes::{fake_full_protocol_param_update, fake_anchor, fake_anchor_data_hash, fake_key_hash, fake_reward_address, fake_script_hash, fake_tx_hash};
 use crate::*;
 
 macro_rules! to_from_test {
@@ -258,7 +255,7 @@ fn no_confidence_action_with_action_id_ser_round_trip() {
 
 #[test]
 fn parameter_change_action_ser_round_trip() {
-    let parameters_update = crate_full_protocol_param_update();
+    let parameters_update = fake_full_protocol_param_update();
     let proposal = ParameterChangeAction::new(&parameters_update);
     let proposal_wrapped = GovernanceAction::new_parameter_change_action(&proposal);
     to_from_test!(ParameterChangeAction, proposal, proposal_wrapped);
@@ -271,8 +268,21 @@ fn parameter_change_action_ser_round_trip() {
 #[test]
 fn parameter_change_action_with_action_id_ser_round_trip() {
     let action_id = GovernanceActionId::new(&fake_tx_hash(1), 0);
-    let parameters_update = crate_full_protocol_param_update();
+    let parameters_update = fake_full_protocol_param_update();
     let proposal = ParameterChangeAction::new_with_action_id(&action_id, &parameters_update);
+    let proposal_wrapped = GovernanceAction::new_parameter_change_action(&proposal);
+    to_from_test!(ParameterChangeAction, proposal, proposal_wrapped);
+    assert_eq!(
+        proposal,
+        proposal_wrapped.as_parameter_change_action().unwrap()
+    );
+}
+
+#[test]
+fn parameter_change_action_with_script_hash() {
+    let parameters_update = fake_full_protocol_param_update();
+    let script_hash = ScriptHash::from(fake_script_hash(1));
+    let proposal = ParameterChangeAction::new_with_policy_hash(&parameters_update, &script_hash);
     let proposal_wrapped = GovernanceAction::new_parameter_change_action(&proposal);
     to_from_test!(ParameterChangeAction, proposal, proposal_wrapped);
     assert_eq!(
@@ -314,6 +324,29 @@ fn treasury_withdrawals_action_ser_round_trip() {
 }
 
 #[test]
+fn treasury_withdrawals_action_with_script_hash_ser_round_trip() {
+    let mut withdrawals = TreasuryWithdrawals::new();
+    let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
+    let addr2 = RewardAddress::new(2, &Credential::from_keyhash(&fake_key_hash(2)));
+    withdrawals.insert(&addr1, &Coin::from(1u32));
+    withdrawals.insert(&addr2, &Coin::from(2u32));
+
+    let script_hash = ScriptHash::from(fake_script_hash(1));
+    let proposal = TreasuryWithdrawalsAction::new_with_policy_hash(&withdrawals, &script_hash);
+
+    let proposal_wrapped = GovernanceAction::new_treasury_withdrawals_action(&proposal);
+
+    assert_eq!(proposal.policy_hash(), Some(script_hash));
+    assert_eq!(proposal.withdrawals(), withdrawals);
+
+    to_from_test!(TreasuryWithdrawalsAction, proposal, proposal_wrapped);
+    assert_eq!(
+        proposal,
+        proposal_wrapped.as_treasury_withdrawals_action().unwrap()
+    );
+}
+
+#[test]
 fn voting_proposals_ser_round_trip() {
     let mut proposals = VotingProposals::new();
     let mut withdrawals = TreasuryWithdrawals::new();
@@ -330,19 +363,19 @@ fn voting_proposals_ser_round_trip() {
 
     let proposal1 = VotingProposal::new(
         &action1,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(1),
         &Coin::from(100u32),
     );
     let proposal2 = VotingProposal::new(
         &action2,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(2),
         &Coin::from(200u32),
     );
     let proposal3 = VotingProposal::new(
         &action3,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(3),
         &Coin::from(300u32),
     );
@@ -375,7 +408,7 @@ fn voting_proposal_round_trip_test()
 
     let proposal = VotingProposal::new(
         &action1,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(1),
         &Coin::from(100u32),
     );
@@ -416,4 +449,59 @@ fn tx_with_info_proposal_deser_test() {
 
     let info = proposal.governance_action().as_info_action();
     assert!(info.is_some());
+}
+
+#[test]
+fn voting_proposals_set_always_should_be_with_tag() {
+    let mut proposals = VotingProposals::new();
+    let mut withdrawals = TreasuryWithdrawals::new();
+    let addr1 = RewardAddress::new(1, &Credential::from_keyhash(&fake_key_hash(1)));
+    let addr2 = RewardAddress::new(2, &Credential::from_keyhash(&fake_key_hash(2)));
+    withdrawals.insert(&addr1, &Coin::from(1u32));
+    withdrawals.insert(&addr2, &Coin::from(2u32));
+
+    let action1 = GovernanceAction::new_treasury_withdrawals_action(
+        &TreasuryWithdrawalsAction::new(&withdrawals),
+    );
+    let action2 = GovernanceAction::new_no_confidence_action(&NoConfidenceAction::new());
+    let action3 = GovernanceAction::new_info_action(&InfoAction::new());
+
+    let proposal1 = VotingProposal::new(
+        &action1,
+        &fake_anchor(),
+        &fake_reward_address(1),
+        &Coin::from(100u32),
+    );
+    let proposal2 = VotingProposal::new(
+        &action2,
+        &fake_anchor(),
+        &fake_reward_address(2),
+        &Coin::from(200u32),
+    );
+    let proposal3 = VotingProposal::new(
+        &action3,
+        &fake_anchor(),
+        &fake_reward_address(3),
+        &Coin::from(300u32),
+    );
+
+    proposals.add(&proposal1);
+    proposals.add(&proposal2);
+    proposals.add(&proposal3);
+
+    let cbor = proposals.to_bytes();
+
+    let mut proposals_deser = VotingProposals::from_bytes(cbor).unwrap();
+    assert_eq!(proposals_deser.get_set_type(), CborSetType::Tagged);
+    assert_eq!(proposals, proposals_deser);
+
+    proposals_deser.set_set_type(CborSetType::Untagged);
+    assert_eq!(proposals_deser.get_set_type(), CborSetType::Untagged);
+
+    let cbor = proposals_deser.to_bytes();
+    let proposals_deser_2 = VotingProposals::from_bytes(cbor).unwrap();
+    assert_eq!(proposals_deser_2.get_set_type(), CborSetType::Tagged);
+
+    assert_eq!(proposals, proposals_deser_2);
+
 }

@@ -26,7 +26,7 @@ impl cbor_event::se::Serialize for VoterEnum {
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(2))?;
         match &self {
-            VoterEnum::ConstitutionalCommitteeHotKey(cred) => match &cred.0 {
+            VoterEnum::ConstitutionalCommitteeHotCred(cred) => match &cred.0 {
                 CredType::Key(key_hash) => {
                     serializer.write_unsigned_integer(0u64)?;
                     key_hash.serialize(serializer)?;
@@ -70,10 +70,10 @@ impl Deserialize for VoterEnum {
                 }
             }
             let voter = match raw.unsigned_integer()? {
-                0 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(CredType::Key(
+                0 => VoterEnum::ConstitutionalCommitteeHotCred(Credential(CredType::Key(
                     Ed25519KeyHash::deserialize(raw)?,
                 ))),
-                1 => VoterEnum::ConstitutionalCommitteeHotKey(Credential(CredType::Script(
+                1 => VoterEnum::ConstitutionalCommitteeHotCred(Credential(CredType::Script(
                     ScriptHash::deserialize(raw)?,
                 ))),
                 2 => VoterEnum::DRep(Credential(CredType::Key(Ed25519KeyHash::deserialize(

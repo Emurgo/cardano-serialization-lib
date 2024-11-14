@@ -1,22 +1,21 @@
-use crate::fakes::{fake_asset_name, fake_auxiliary_data_hash, fake_base_address, fake_key_hash, fake_policy_id, fake_reward_address, fake_script_data_hash, fake_tx_hash, fake_tx_input};
 use crate::*;
-use crate::tests::mock_objects::create_anchor;
+use crate::tests::fakes::{fake_anchor, fake_asset_name, fake_auxiliary_data_hash, fake_base_address, fake_key_hash, fake_policy_id, fake_reward_address, fake_script_data_hash, fake_tx_hash, fake_tx_input};
 
 #[test]
 fn transaction_round_trip_test() {
     let input = fake_tx_input(1);
-    let output = TransactionOutput::new(&fake_base_address(2), &Value::new(&to_bignum(1_000_001)));
-    let inputs = TransactionInputs(vec![input]);
+    let output = TransactionOutput::new(&fake_base_address(2), &Value::new(&BigNum(1_000_001)));
+    let inputs = TransactionInputs::from_vec(vec![input]);
     let outputs = TransactionOutputs(vec![output]);
     let fee = Coin::from(1_000_002u64);
     let mut body = TransactionBody::new_tx_body(&inputs, &outputs, &fee);
     let mut mint = Mint::new();
     let mint_asset =
-        MintAssets::new_from_entry(&fake_asset_name(4), &Int::new(&to_bignum(1_000_003u64)))
+        MintAssets::new_from_entry(&fake_asset_name(4), &Int::new(&BigNum(1_000_003u64)))
             .unwrap();
     mint.insert(&fake_policy_id(3), &mint_asset);
 
-    let mut req_signers = RequiredSigners::new();
+    let mut req_signers = Ed25519KeyHashes::new();
     req_signers.add(&fake_key_hash(5));
 
     let mut collateral_inputs = TransactionInputs::new();
@@ -32,14 +31,14 @@ fn transaction_round_trip_test() {
     let mut withdrawals = Withdrawals::new();
     withdrawals.insert(
         &RewardAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &Credential::from_keyhash(&fake_key_hash(9)),
         ),
         &Coin::from(1_000_010u64),
     );
 
     let mut voting_procedures = VotingProcedures::new();
-    let voter = Voter::new_drep(&Credential::from_keyhash(&fake_key_hash(1)));
+    let voter = Voter::new_drep_credential(&Credential::from_keyhash(&fake_key_hash(1)));
     let gov_action_id = GovernanceActionId::new(&fake_tx_hash(2), 0);
     let procedure = VotingProcedure::new(VoteKind::Abstain);
     voting_procedures.insert(&voter, &gov_action_id, &procedure);
@@ -49,13 +48,13 @@ fn transaction_round_trip_test() {
     let action = GovernanceAction::new_info_action(&info_action);
     let proposal = VotingProposal::new(
         &action,
-        &create_anchor(),
+        &fake_anchor(),
         &fake_reward_address(3),
         &Coin::from(1_000_011u64),
     );
     voting_proposals.add(&proposal);
 
-    body.set_ttl(&to_bignum(1_000_003u64));
+    body.set_ttl(&BigNum(1_000_003u64));
     body.set_certs(&certs);
     body.set_withdrawals(&withdrawals);
     body.set_update(&Update::new(&ProposedProtocolParameterUpdates::new(), 1));
@@ -69,7 +68,7 @@ fn transaction_round_trip_test() {
     body.set_network_id(&NetworkId::testnet());
     body.set_collateral_return(&TransactionOutput::new(
         &fake_base_address(4),
-        &Value::new(&to_bignum(1_000_005u64)),
+        &Value::new(&BigNum(1_000_005u64)),
     ));
     body.set_total_collateral(&Coin::from(1_000_006u64));
     body.set_voting_procedures(&voting_procedures);

@@ -18,6 +18,7 @@ pub struct PoolVotingThresholds {
     pub(crate) committee_normal: UnitInterval,
     pub(crate) committee_no_confidence: UnitInterval,
     pub(crate) hard_fork_initiation: UnitInterval,
+    pub(crate) security_relevant_threshold: UnitInterval,
 }
 
 impl_to_from!(PoolVotingThresholds);
@@ -29,12 +30,14 @@ impl PoolVotingThresholds {
         committee_normal: &UnitInterval,
         committee_no_confidence: &UnitInterval,
         hard_fork_initiation: &UnitInterval,
+        security_relevant_threshold: &UnitInterval,
     ) -> Self {
         Self {
             motion_no_confidence: motion_no_confidence.clone(),
             committee_normal: committee_normal.clone(),
             committee_no_confidence: committee_no_confidence.clone(),
             hard_fork_initiation: hard_fork_initiation.clone(),
+            security_relevant_threshold: security_relevant_threshold.clone(),
         }
     }
 
@@ -53,6 +56,10 @@ impl PoolVotingThresholds {
     pub fn hard_fork_initiation(&self) -> UnitInterval {
         self.hard_fork_initiation.clone()
     }
+
+    pub fn security_relevant_threshold(&self) -> UnitInterval {
+        self.security_relevant_threshold.clone()
+    }
 }
 
 #[wasm_bindgen]
@@ -69,7 +76,7 @@ impl PoolVotingThresholds {
     serde::Deserialize,
     JsonSchema,
 )]
-pub struct DrepVotingThresholds {
+pub struct DRepVotingThresholds {
     pub(crate) motion_no_confidence: UnitInterval,
     pub(crate) committee_normal: UnitInterval,
     pub(crate) committee_no_confidence: UnitInterval,
@@ -82,10 +89,10 @@ pub struct DrepVotingThresholds {
     pub(crate) treasury_withdrawal: UnitInterval,
 }
 
-impl_to_from!(DrepVotingThresholds);
+impl_to_from!(DRepVotingThresholds);
 
 #[wasm_bindgen]
-impl DrepVotingThresholds {
+impl DRepVotingThresholds {
     pub fn new(
         motion_no_confidence: &UnitInterval,
         committee_normal: &UnitInterval,
@@ -109,12 +116,6 @@ impl DrepVotingThresholds {
             pp_technical_group: pp_technical_group.clone(),
             pp_governance_group: pp_governance_group.clone(),
             treasury_withdrawal: treasury_withdrawal.clone(),
-        }
-    }
-
-    pub fn new_default() -> Self {
-        Self {
-            ..Default::default()
         }
     }
 
@@ -223,7 +224,7 @@ pub struct ProtocolParamUpdate {
     pub(crate) max_epoch: Option<Epoch>,
     // desired number of stake pools
     pub(crate) n_opt: Option<u32>,
-    pub(crate) pool_pledge_influence: Option<Rational>,
+    pub(crate) pool_pledge_influence: Option<UnitInterval>,
     pub(crate) expansion_rate: Option<UnitInterval>,
     pub(crate) treasury_growth_rate: Option<UnitInterval>,
     // decentralization constant
@@ -240,13 +241,14 @@ pub struct ProtocolParamUpdate {
     pub(crate) collateral_percentage: Option<u32>,
     pub(crate) max_collateral_inputs: Option<u32>,
     pub(crate) pool_voting_thresholds: Option<PoolVotingThresholds>,
-    pub(crate) drep_voting_thresholds: Option<DrepVotingThresholds>,
+    pub(crate) drep_voting_thresholds: Option<DRepVotingThresholds>,
     pub(crate) min_committee_size: Option<u32>,
-    pub(crate) committee_term_limit: Option<u32>,
+    pub(crate) committee_term_limit: Option<Epoch>,
     pub(crate) governance_action_validity_period: Option<Epoch>,
     pub(crate) governance_action_deposit: Option<Coin>,
     pub(crate) drep_deposit: Option<Coin>,
     pub(crate) drep_inactivity_period: Option<Epoch>,
+    pub(crate) ref_script_coins_per_byte: Option<UnitInterval>,
 }
 
 impl_to_from!(ProtocolParamUpdate);
@@ -325,11 +327,11 @@ impl ProtocolParamUpdate {
         self.n_opt.clone()
     }
 
-    pub fn set_pool_pledge_influence(&mut self, pool_pledge_influence: &Rational) {
+    pub fn set_pool_pledge_influence(&mut self, pool_pledge_influence: &UnitInterval) {
         self.pool_pledge_influence = Some(pool_pledge_influence.clone())
     }
 
-    pub fn pool_pledge_influence(&self) -> Option<Rational> {
+    pub fn pool_pledge_influence(&self) -> Option<UnitInterval> {
         self.pool_pledge_influence.clone()
     }
 
@@ -463,11 +465,11 @@ impl ProtocolParamUpdate {
         self.pool_voting_thresholds.clone()
     }
 
-    pub fn set_drep_voting_thresholds(&mut self, drep_voting_thresholds: &DrepVotingThresholds) {
+    pub fn set_drep_voting_thresholds(&mut self, drep_voting_thresholds: &DRepVotingThresholds) {
         self.drep_voting_thresholds = Some(drep_voting_thresholds.clone())
     }
 
-    pub fn drep_voting_thresholds(&self) -> Option<DrepVotingThresholds> {
+    pub fn drep_voting_thresholds(&self) -> Option<DRepVotingThresholds> {
         self.drep_voting_thresholds.clone()
     }
 
@@ -479,11 +481,11 @@ impl ProtocolParamUpdate {
         self.min_committee_size.clone()
     }
 
-    pub fn set_committee_term_limit(&mut self, committee_term_limit: u32) {
+    pub fn set_committee_term_limit(&mut self, committee_term_limit: Epoch) {
         self.committee_term_limit = Some(committee_term_limit)
     }
 
-    pub fn committee_term_limit(&self) -> Option<u32> {
+    pub fn committee_term_limit(&self) -> Option<Epoch> {
         self.committee_term_limit.clone()
     }
 
@@ -517,6 +519,14 @@ impl ProtocolParamUpdate {
 
     pub fn drep_inactivity_period(&self) -> Option<Epoch> {
         self.drep_inactivity_period.clone()
+    }
+
+    pub fn set_ref_script_coins_per_byte(&mut self, ref_script_coins_per_byte: &UnitInterval) {
+        self.ref_script_coins_per_byte = Some(ref_script_coins_per_byte.clone());
+    }
+
+    pub fn ref_script_coins_per_byte(&self) -> Option<UnitInterval> {
+        self.ref_script_coins_per_byte.clone()
     }
 
     pub fn new() -> Self {
@@ -553,6 +563,7 @@ impl ProtocolParamUpdate {
             governance_action_deposit: None,
             drep_deposit: None,
             drep_inactivity_period: None,
+            ref_script_coins_per_byte: None,
         }
     }
 }

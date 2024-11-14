@@ -1,11 +1,8 @@
-use crate::fakes::{
-    fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_policy_id,
-    fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2,
-};
 use crate::tests::helpers::harden;
-use crate::tests::mock_objects::{byron_address, create_change_address, create_default_tx_builder, create_linear_fee, create_reallistic_tx_builder, create_rich_tx_builder, create_tx_builder_with_amount, create_tx_builder_with_fee, create_tx_builder_with_fee_and_pure_change, create_tx_builder_with_fee_and_val_size, create_tx_builder_with_key_deposit};
+use crate::tests::fakes::{fake_byron_address, fake_anchor, fake_change_address, fake_default_tx_builder, fake_linear_fee, fake_reallistic_tx_builder, fake_redeemer, fake_redeemer_zero_cost, fake_rich_tx_builder, fake_tx_builder, fake_tx_builder_with_amount, fake_tx_builder_with_fee, fake_tx_builder_with_fee_and_pure_change, fake_tx_builder_with_fee_and_val_size, fake_tx_builder_with_key_deposit, fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_plutus_script_and_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2, fake_vkey_witness, fake_root_key_15, fake_base_address_with_payment_cred, fake_bootsrap_witness_with_attrs};
 use crate::*;
 
+use crate::builders::fakes::fake_private_key;
 use fees::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -13,15 +10,6 @@ const MAX_TX_SIZE: u32 = 8000;
 
 fn genesis_id() -> TransactionHash {
     TransactionHash::from([0u8; TransactionHash::BYTE_COUNT])
-}
-
-fn root_key_15() -> Bip32PrivateKey {
-    // art forum devote street sure rather head chuckle guard poverty release quote oak craft enemy
-    let entropy = [
-        0x0c, 0xcb, 0x74, 0xf3, 0x6b, 0x7d, 0xa1, 0x64, 0x9a, 0x81, 0x44, 0x67, 0x55, 0x22, 0xd4,
-        0xd8, 0x09, 0x7c, 0x64, 0x12,
-    ];
-    Bip32PrivateKey::from_bip39_entropy(&entropy, &[])
 }
 
 #[test]
@@ -39,22 +27,22 @@ fn check_fake_private_key() {
 
 #[test]
 fn build_tx_with_change() {
-    let mut tx_builder = create_default_tx_builder();
-    let spend = root_key_15()
+    let mut tx_builder = fake_default_tx_builder();
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -65,7 +53,7 @@ fn build_tx_with_change() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -73,7 +61,7 @@ fn build_tx_with_change() {
     tx_builder.add_key_input(
         &spend.to_raw_key().hash(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     tx_builder
         .add_output(
@@ -81,7 +69,7 @@ fn build_tx_with_change() {
                 .with_address(&addr_net_0)
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(222))
+                .with_coin(&BigNum(222))
                 .build()
                 .unwrap(),
         )
@@ -90,7 +78,7 @@ fn build_tx_with_change() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -110,22 +98,22 @@ fn build_tx_with_change() {
             .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
             .unwrap()
     );
-    assert_eq!(tx_builder.full_size().unwrap(), 285);
+    assert_eq!(tx_builder.full_size().unwrap(), 291);
     assert_eq!(tx_builder.output_sizes(), vec![62, 65]);
     let _final_tx = tx_builder.build(); // just test that it doesn't throw
 }
 
 #[test]
 fn build_tx_with_change_with_datum() {
-    let mut tx_builder = create_default_tx_builder();
-    let spend = root_key_15()
+    let mut tx_builder = fake_default_tx_builder();
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -136,7 +124,7 @@ fn build_tx_with_change_with_datum() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -144,7 +132,7 @@ fn build_tx_with_change_with_datum() {
     tx_builder.add_key_input(
         &spend.to_raw_key().hash(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     tx_builder
         .add_output(
@@ -152,7 +140,7 @@ fn build_tx_with_change_with_datum() {
                 .with_address(&addr_net_0)
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(222))
+                .with_coin(&BigNum(222))
                 .build()
                 .unwrap(),
         )
@@ -161,10 +149,10 @@ fn build_tx_with_change_with_datum() {
 
     let datum_hash = fake_data_hash(20);
     let data_option = OutputDatum::new_data_hash(&datum_hash);
-    let (_, script_hash) = plutus_script_and_hash(15);
+    let (_, script_hash) = fake_plutus_script_and_hash(15);
     let change_cred = Credential::from_scripthash(&script_hash);
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -184,29 +172,29 @@ fn build_tx_with_change_with_datum() {
             .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
             .unwrap()
     );
-    assert_eq!(tx_builder.full_size().unwrap(), 319);
+    assert_eq!(tx_builder.full_size().unwrap(), 325);
     assert_eq!(tx_builder.output_sizes(), vec![62, 99]);
     let _final_tx = tx_builder.build(); // just test that it doesn't throw
 }
 
 #[test]
 fn build_tx_without_change() {
-    let mut tx_builder = create_default_tx_builder();
-    let spend = root_key_15()
+    let mut tx_builder = fake_default_tx_builder();
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -217,7 +205,7 @@ fn build_tx_without_change() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -225,7 +213,7 @@ fn build_tx_without_change() {
     tx_builder.add_key_input(
         &spend.to_raw_key().hash(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     tx_builder
         .add_output(
@@ -233,7 +221,7 @@ fn build_tx_without_change() {
                 .with_address(&addr_net_0)
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(880_000))
+                .with_coin(&BigNum(880_000))
                 .build()
                 .unwrap(),
         )
@@ -242,7 +230,7 @@ fn build_tx_without_change() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -267,22 +255,22 @@ fn build_tx_without_change() {
 
 #[test]
 fn build_tx_with_certs() {
-    let mut tx_builder = create_tx_builder_with_key_deposit(1_000_000);
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_key_deposit(1_000_000);
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -294,7 +282,7 @@ fn build_tx_with_certs() {
     tx_builder.add_key_input(
         &spend.to_raw_key().hash(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(5_000_000)),
+        &Value::new(&BigNum(5_000_000)),
     );
     tx_builder.set_ttl(1000);
 
@@ -310,14 +298,14 @@ fn build_tx_with_certs() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
     .to_address();
     tx_builder.add_change_if_needed(&change_addr).unwrap();
-    assert_eq!(tx_builder.min_fee().unwrap().to_str(), "214002");
-    assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "214002");
+    assert_eq!(tx_builder.min_fee().unwrap().to_str(), "218502");
+    assert_eq!(tx_builder.get_fee_if_set().unwrap().to_str(), "218502");
     assert_eq!(tx_builder.get_deposit().unwrap().to_str(), "1000000");
     assert_eq!(tx_builder.outputs.len(), 1);
     assert_eq!(
@@ -340,22 +328,22 @@ fn build_tx_with_certs() {
 #[test]
 fn build_tx_exact_amount() {
     // transactions where sum(input) == sum(output) exact should pass
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 0));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -365,12 +353,12 @@ fn build_tx_exact_amount() {
     tx_builder.add_key_input(
         &&spend.to_raw_key().hash(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(222)),
+        &Value::new(&BigNum(222)),
     );
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -381,7 +369,7 @@ fn build_tx_exact_amount() {
                 .with_address(&addr_net_0)
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(222))
+                .with_coin(&BigNum(222))
                 .build()
                 .unwrap(),
         )
@@ -390,7 +378,7 @@ fn build_tx_exact_amount() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -404,22 +392,22 @@ fn build_tx_exact_amount() {
 #[test]
 fn build_tx_exact_change() {
     // transactions where we have exactly enough ADA to add change should pass
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 0));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -429,12 +417,12 @@ fn build_tx_exact_change() {
     tx_builder.add_key_input(
         &&spend.to_raw_key().hash(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(700)),
+        &Value::new(&BigNum(700)),
     );
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -445,7 +433,7 @@ fn build_tx_exact_change() {
                 .with_address(&addr_net_0)
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(222))
+                .with_coin(&BigNum(222))
                 .build()
                 .unwrap(),
         )
@@ -454,7 +442,7 @@ fn build_tx_exact_change() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -470,22 +458,22 @@ fn build_tx_exact_change() {
 #[should_panic]
 fn build_tx_insufficient_deposit() {
     // transactions should fail with insufficient fees if a deposit is required
-    let mut tx_builder = create_tx_builder_with_key_deposit(5);
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_key_deposit(5);
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -495,12 +483,12 @@ fn build_tx_insufficient_deposit() {
     tx_builder.add_key_input(
         &&spend.to_raw_key().hash(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(5)),
+        &Value::new(&BigNum(5)),
     );
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -511,7 +499,7 @@ fn build_tx_insufficient_deposit() {
                 .with_address(&addr_net_0)
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(5))
+                .with_coin(&BigNum(5))
                 .build()
                 .unwrap(),
         )
@@ -523,11 +511,11 @@ fn build_tx_insufficient_deposit() {
     certs.add(&Certificate::new_stake_registration(
         &StakeRegistration::new(&stake_cred),
     ));
-    tx_builder.set_certs(&certs);
+    tx_builder.set_certs(&certs).expect("Failed to set certs");
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -538,15 +526,15 @@ fn build_tx_insufficient_deposit() {
 
 #[test]
 fn build_tx_with_inputs() {
-    let mut tx_builder = create_default_tx_builder();
-    let spend = root_key_15()
+    let mut tx_builder = fake_default_tx_builder();
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -561,54 +549,58 @@ fn build_tx_with_inputs() {
         assert_eq!(
             tx_builder
                 .fee_for_input(
-                    &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred)
-                        .to_address(),
+                    &EnterpriseAddress::new(
+                        NetworkInfo::testnet_preprod().network_id(),
+                        &spend_cred
+                    )
+                    .to_address(),
                     &TransactionInput::new(&genesis_id(), 0),
-                    &Value::new(&to_bignum(1_000_000))
+                    &Value::new(&BigNum(1_000_000))
                 )
                 .unwrap()
                 .to_str(),
-            "69500"
+            "71000"
         );
-        tx_builder.add_input(
-            &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+        tx_builder.add_regular_input(
+            &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+                .to_address(),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(1_000_000)),
-        );
+            &Value::new(&BigNum(1_000_000)),
+        ).expect("Failed to add input");
     }
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &BaseAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &spend_cred,
             &stake_cred,
         )
         .to_address(),
         &TransactionInput::new(&genesis_id(), 1),
-        &Value::new(&to_bignum(1_000_000)),
-    );
-    tx_builder.add_input(
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
+    tx_builder.add_regular_input(
         &PointerAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &spend_cred,
-            &Pointer::new_pointer(&to_bignum(0), &to_bignum(0), &to_bignum(0)),
+            &Pointer::new_pointer(&BigNum(0), &BigNum(0), &BigNum(0)),
         )
         .to_address(),
         &TransactionInput::new(&genesis_id(), 2),
-        &Value::new(&to_bignum(1_000_000)),
-    );
-    tx_builder.add_input(
-        &ByronAddress::icarus_from_key(&spend, NetworkInfo::testnet().protocol_magic())
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
+    tx_builder.add_regular_input(
+        &ByronAddress::icarus_from_key(&spend, NetworkInfo::testnet_preprod().protocol_magic())
             .to_address(),
         &TransactionInput::new(&genesis_id(), 3),
-        &Value::new(&to_bignum(1_000_000)),
-    );
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
 
     assert_eq!(tx_builder.inputs.len(), 4);
 }
 
 #[test]
 fn add_ref_inputs_to_builder() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 1));
     tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 2));
@@ -620,22 +612,22 @@ fn add_ref_inputs_to_builder() {
 
 #[test]
 fn build_tx_with_script_ref() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -651,25 +643,25 @@ fn build_tx_with_script_ref() {
     tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 3));
     tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 4));
 
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &PointerAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &spend_cred,
-            &Pointer::new_pointer(&to_bignum(0), &to_bignum(0), &to_bignum(0)),
+            &Pointer::new_pointer(&BigNum(0), &BigNum(0), &BigNum(0)),
         )
-        .to_address(),
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 2),
-        &Value::new(&to_bignum(1_000_000)),
-    );
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
     .to_address();
 
-    let output_amount = Value::new(&to_bignum(500));
+    let output_amount = Value::new(&BigNum(500));
 
     tx_builder
         .add_output(
@@ -685,7 +677,7 @@ fn build_tx_with_script_ref() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -696,27 +688,27 @@ fn build_tx_with_script_ref() {
     let final_tx = tx_builder.build().unwrap();
     assert_eq!(final_tx.outputs().len(), 2);
     assert_eq!(final_tx.reference_inputs().unwrap().len(), 4);
-    assert_eq!(final_tx.outputs().get(1).amount().coin(), to_bignum(999499));
+    assert_eq!(final_tx.outputs().get(1).amount().coin(), BigNum(999499));
 }
 
 #[test]
 fn serialization_tx_body_with_script_ref() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -732,25 +724,25 @@ fn serialization_tx_body_with_script_ref() {
     tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 3));
     tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 4));
 
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &PointerAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &spend_cred,
-            &Pointer::new_pointer(&to_bignum(0), &to_bignum(0), &to_bignum(0)),
+            &Pointer::new_pointer(&BigNum(0), &BigNum(0), &BigNum(0)),
         )
         .to_address(),
         &TransactionInput::new(&genesis_id(), 2),
-        &Value::new(&to_bignum(1_000_000)),
-    );
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
     .to_address();
 
-    let output_amount = Value::new(&to_bignum(500));
+    let output_amount = Value::new(&BigNum(500));
 
     tx_builder
         .add_output(
@@ -766,7 +758,7 @@ fn serialization_tx_body_with_script_ref() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -782,22 +774,22 @@ fn serialization_tx_body_with_script_ref() {
 
 #[test]
 fn json_serialization_tx_body_with_script_ref() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -813,25 +805,25 @@ fn json_serialization_tx_body_with_script_ref() {
     tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 3));
     tx_builder.add_reference_input(&TransactionInput::new(&genesis_id(), 4));
 
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &PointerAddress::new(
-            NetworkInfo::testnet().network_id(),
+            NetworkInfo::testnet_preprod().network_id(),
             &spend_cred,
-            &Pointer::new_pointer(&to_bignum(0), &to_bignum(0), &to_bignum(0)),
+            &Pointer::new_pointer(&BigNum(0), &BigNum(0), &BigNum(0)),
         )
         .to_address(),
         &TransactionInput::new(&genesis_id(), 2),
-        &Value::new(&to_bignum(1_000_000)),
-    );
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
     .to_address();
 
-    let output_amount = Value::new(&to_bignum(500));
+    let output_amount = Value::new(&BigNum(500));
 
     tx_builder
         .add_output(
@@ -847,7 +839,7 @@ fn json_serialization_tx_body_with_script_ref() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -865,22 +857,22 @@ fn json_serialization_tx_body_with_script_ref() {
 
 #[test]
 fn build_tx_with_mint_all_sent() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -892,14 +884,15 @@ fn build_tx_with_mint_all_sent() {
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
     // Input with 150 coins
-    tx_builder.add_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+    tx_builder.add_regular_input(
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(500)),
-    );
+        &Value::new(&BigNum(500)),
+    ).expect("Failed to add input");
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -907,10 +900,10 @@ fn build_tx_with_mint_all_sent() {
 
     let (min_script, policy_id) = mint_script_and_policy(0);
     let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
-    let amount = to_bignum(1234);
+    let amount = BigNum(1234);
 
     // Adding mint of the asset - which should work as an input
-    tx_builder.add_mint_asset(&min_script, &name, &Int::new(&amount));
+    tx_builder.add_mint_asset(&min_script, &name, &Int::new(&amount)).expect("Failed to add mint");
 
     let mut ass = Assets::new();
     ass.insert(&name, &amount);
@@ -918,7 +911,7 @@ fn build_tx_with_mint_all_sent() {
     mass.insert(&policy_id, &ass);
 
     // One coin and the minted asset goes into the output
-    let mut output_amount = Value::new(&to_bignum(264));
+    let mut output_amount = Value::new(&BigNum(264));
     output_amount.set_multiasset(&mass);
 
     tx_builder
@@ -935,7 +928,7 @@ fn build_tx_with_mint_all_sent() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -947,28 +940,28 @@ fn build_tx_with_mint_all_sent() {
 
     // Change must be one remaining coin because fee is one constant coin
     let change = tx_builder.outputs.get(1).amount();
-    assert_eq!(change.coin(), to_bignum(235));
+    assert_eq!(change.coin(), BigNum(235));
     assert!(change.multiasset().is_none());
 }
 
 #[test]
 fn build_tx_with_mint_in_change() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -980,14 +973,15 @@ fn build_tx_with_mint_in_change() {
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
     // Input with 600 coins
-    tx_builder.add_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+    tx_builder.add_regular_input(
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(600)),
-    );
+        &Value::new(&BigNum(600)),
+    ).expect("Failed to add input");
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -996,11 +990,11 @@ fn build_tx_with_mint_in_change() {
     let (min_script, policy_id) = mint_script_and_policy(0);
     let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
 
-    let amount_minted = to_bignum(1000);
-    let amount_sent = to_bignum(500);
+    let amount_minted = BigNum(1000);
+    let amount_sent = BigNum(500);
 
     // Adding mint of the asset - which should work as an input
-    tx_builder.add_mint_asset(&min_script, &name, &Int::new(&amount_minted));
+    tx_builder.add_mint_asset(&min_script, &name, &Int::new(&amount_minted)).expect("Failed to add mint");
 
     let mut ass = Assets::new();
     ass.insert(&name, &amount_sent);
@@ -1008,7 +1002,7 @@ fn build_tx_with_mint_in_change() {
     mass.insert(&policy_id, &ass);
 
     // One coin and the minted asset goes into the output
-    let mut output_amount = Value::new(&to_bignum(300));
+    let mut output_amount = Value::new(&BigNum(300));
     output_amount.set_multiasset(&mass);
 
     tx_builder
@@ -1025,7 +1019,7 @@ fn build_tx_with_mint_in_change() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1037,7 +1031,7 @@ fn build_tx_with_mint_in_change() {
 
     // Change must be one remaining coin because fee is one constant coin
     let change = tx_builder.outputs.get(1).amount();
-    assert_eq!(change.coin(), to_bignum(299));
+    assert_eq!(change.coin(), BigNum(299));
     assert!(change.multiasset().is_some());
 
     let change_assets = change.multiasset().unwrap();
@@ -1050,22 +1044,22 @@ fn build_tx_with_mint_in_change() {
 
 #[test]
 fn change_with_input_and_mint_not_enough_ada() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1079,9 +1073,9 @@ fn change_with_input_and_mint_not_enough_ada() {
     let (min_script, policy_id) = mint_script_and_policy(0);
     let asset_name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
 
-    let amount_minted = to_bignum(1000);
-    let amount_sent = to_bignum(500);
-    let amount_input_amount = to_bignum(600);
+    let amount_minted = BigNum(1000);
+    let amount_sent = BigNum(500);
+    let amount_input_amount = BigNum(600);
 
     let mut asset_input = Assets::new();
     asset_input.insert(&asset_name, &amount_input_amount);
@@ -1089,27 +1083,29 @@ fn change_with_input_and_mint_not_enough_ada() {
     mass_input.insert(&policy_id, &asset_input);
 
     // Input with 600 coins
-    tx_builder.add_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+    tx_builder.add_regular_input(
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(600)),
-    );
+        &Value::new(&BigNum(600)),
+    ).expect("Failed to add input");
 
-    tx_builder.add_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+    tx_builder.add_regular_input(
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 1),
-        &Value::new_with_assets(&to_bignum(1), &mass_input),
-    );
+        &Value::new_with_assets(&BigNum(1), &mass_input),
+    ).expect("Failed to add input");
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
     .to_address();
 
     // Adding mint of the asset - which should work as an input
-    tx_builder.add_mint_asset(&min_script, &asset_name, &Int::new(&amount_minted));
+    tx_builder.add_mint_asset(&min_script, &asset_name, &Int::new(&amount_minted)).expect("Failed to add mint");
 
     let mut asset = Assets::new();
     asset.insert(&asset_name, &amount_sent);
@@ -1117,7 +1113,7 @@ fn change_with_input_and_mint_not_enough_ada() {
     mass.insert(&policy_id, &asset);
 
     // One coin and the minted asset goes into the output
-    let mut output_amount = Value::new(&to_bignum(400));
+    let mut output_amount = Value::new(&BigNum(400));
     output_amount.set_multiasset(&mass);
 
     tx_builder
@@ -1134,7 +1130,7 @@ fn change_with_input_and_mint_not_enough_ada() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1146,22 +1142,22 @@ fn change_with_input_and_mint_not_enough_ada() {
 
 #[test]
 fn change_with_input_and_mint_not_enough_assets() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1175,9 +1171,9 @@ fn change_with_input_and_mint_not_enough_assets() {
     let (min_script, policy_id) = mint_script_and_policy(0);
     let asset_name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
 
-    let amount_minted = to_bignum(1000);
-    let amount_sent = to_bignum(100000);
-    let amount_input_amount = to_bignum(600);
+    let amount_minted = BigNum(1000);
+    let amount_sent = BigNum(100000);
+    let amount_input_amount = BigNum(600);
 
     let mut asset_input = Assets::new();
     asset_input.insert(&asset_name, &amount_input_amount);
@@ -1185,27 +1181,29 @@ fn change_with_input_and_mint_not_enough_assets() {
     mass_input.insert(&policy_id, &asset_input);
 
     // Input with 600 coins
-    tx_builder.add_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+    tx_builder.add_regular_input(
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(100000)),
-    );
+        &Value::new(&BigNum(100000)),
+    ).expect("Failed to add input");
 
-    tx_builder.add_input(
-        &EnterpriseAddress::new(NetworkInfo::testnet().network_id(), &spend_cred).to_address(),
+    tx_builder.add_regular_input(
+        &EnterpriseAddress::new(NetworkInfo::testnet_preprod().network_id(), &spend_cred)
+            .to_address(),
         &TransactionInput::new(&genesis_id(), 1),
-        &Value::new_with_assets(&to_bignum(1), &mass_input),
-    );
+        &Value::new_with_assets(&BigNum(1), &mass_input),
+    ).expect("Failed to add input");
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
     .to_address();
 
     // Adding mint of the asset - which should work as an input
-    tx_builder.add_mint_asset(&min_script, &asset_name, &Int::new(&amount_minted));
+    tx_builder.add_mint_asset(&min_script, &asset_name, &Int::new(&amount_minted)).expect("Failed to add mint");
 
     let mut asset = Assets::new();
     asset.insert(&asset_name, &amount_sent);
@@ -1213,7 +1211,7 @@ fn change_with_input_and_mint_not_enough_assets() {
     mass.insert(&policy_id, &asset);
 
     // One coin and the minted asset goes into the output
-    let mut output_amount = Value::new(&to_bignum(400));
+    let mut output_amount = Value::new(&BigNum(400));
     output_amount.set_multiasset(&mass);
 
     tx_builder
@@ -1230,7 +1228,7 @@ fn change_with_input_and_mint_not_enough_assets() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1242,22 +1240,22 @@ fn change_with_input_and_mint_not_enough_assets() {
 
 #[test]
 fn build_tx_with_native_assets_change() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1278,7 +1276,7 @@ fn build_tx_with_native_assets_change() {
             let mut multiasset = MultiAsset::new();
             multiasset.insert(policy_id, &{
                 let mut assets = Assets::new();
-                assets.insert(&name, &to_bignum(*input));
+                assets.insert(&name, &BigNum(*input));
                 assets
             });
             multiasset
@@ -1287,7 +1285,7 @@ fn build_tx_with_native_assets_change() {
 
     for (i, (multiasset, ada)) in multiassets
         .iter()
-        .zip([100u64, 1000].iter().cloned().map(to_bignum))
+        .zip([100u64, 1000].iter().cloned().map(|x| BigNum(x)))
         .enumerate()
     {
         let mut input_amount = Value::new(&ada);
@@ -1304,13 +1302,13 @@ fn build_tx_with_native_assets_change() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
     .to_address();
 
-    let mut output_amount = Value::new(&to_bignum(500));
+    let mut output_amount = Value::new(&BigNum(500));
     output_amount.set_multiasset(&multiassets[2]);
 
     tx_builder
@@ -1327,7 +1325,7 @@ fn build_tx_with_native_assets_change() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1348,31 +1346,31 @@ fn build_tx_with_native_assets_change() {
             .unwrap()
             .get(&name)
             .unwrap(),
-        to_bignum(ma_input1 + ma_input2 - ma_output1)
+        BigNum(ma_input1 + ma_input2 - ma_output1)
     );
-    assert_eq!(final_tx.outputs().get(1).amount().coin(), to_bignum(599));
+    assert_eq!(final_tx.outputs().get(1).amount().coin(), BigNum(599));
 }
 
 #[test]
 fn build_tx_with_native_assets_change_and_purification() {
-    let coin_per_utxo_word = to_bignum(8);
+    let coin_per_utxo_byte = BigNum(1);
     // Prefer pure change!
-    let mut tx_builder = create_tx_builder_with_fee_and_pure_change(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee_and_pure_change(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1393,7 +1391,7 @@ fn build_tx_with_native_assets_change_and_purification() {
             let mut multiasset = MultiAsset::new();
             multiasset.insert(policy_id, &{
                 let mut assets = Assets::new();
-                assets.insert(&name, &to_bignum(*input));
+                assets.insert(&name, &BigNum(*input));
                 assets
             });
             multiasset
@@ -1402,7 +1400,7 @@ fn build_tx_with_native_assets_change_and_purification() {
 
     for (i, (multiasset, ada)) in multiassets
         .iter()
-        .zip([100u64, 1000].iter().cloned().map(to_bignum))
+        .zip([100u64, 1000].iter().cloned().map(|x| BigNum(x)))
         .enumerate()
     {
         let mut input_amount = Value::new(&ada);
@@ -1419,13 +1417,13 @@ fn build_tx_with_native_assets_change_and_purification() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
     .to_address();
 
-    let mut output_amount = Value::new(&to_bignum(600));
+    let mut output_amount = Value::new(&BigNum(600));
     output_amount.set_multiasset(&multiassets[2]);
 
     tx_builder
@@ -1442,7 +1440,7 @@ fn build_tx_with_native_assets_change_and_purification() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1452,7 +1450,7 @@ fn build_tx_with_native_assets_change_and_purification() {
     assert_eq!(added_change, true);
     let final_tx = tx_builder.build().unwrap();
     assert_eq!(final_tx.outputs().len(), 3);
-    assert_eq!(final_tx.outputs().get(0).amount().coin(), to_bignum(600));
+    assert_eq!(final_tx.outputs().get(0).amount().coin(), BigNum(600));
     assert_eq!(
         final_tx
             .outputs()
@@ -1464,42 +1462,41 @@ fn build_tx_with_native_assets_change_and_purification() {
             .unwrap()
             .get(&name)
             .unwrap(),
-        to_bignum(ma_input1 + ma_input2 - ma_output1)
+        BigNum(ma_input1 + ma_input2 - ma_output1)
     );
     // The first change output that contains all the tokens contain minimum required Coin
-    let min_coin_for_dirty_change = min_ada_required(
-        &final_tx.outputs().get(1).amount(),
-        false,
-        &coin_per_utxo_word,
+    let min_coin_for_dirty_change = min_ada_for_output(
+        &final_tx.outputs().get(1),
+        &DataCost::new_coins_per_byte(&coin_per_utxo_byte),
     )
     .unwrap();
     assert_eq!(
         final_tx.outputs().get(1).amount().coin(),
         min_coin_for_dirty_change
     );
-    assert_eq!(final_tx.outputs().get(2).amount().coin(), to_bignum(236));
+    assert_eq!(final_tx.outputs().get(2).amount().coin(), BigNum(236));
     assert_eq!(final_tx.outputs().get(2).amount().multiasset(), None);
 }
 
 #[test]
 fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_coin() {
     // Prefer pure change!
-    let mut tx_builder = create_tx_builder_with_fee_and_pure_change(&create_linear_fee(1, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee_and_pure_change(&fake_linear_fee(1, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1520,7 +1517,7 @@ fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_co
             let mut multiasset = MultiAsset::new();
             multiasset.insert(policy_id, &{
                 let mut assets = Assets::new();
-                assets.insert(&name, &to_bignum(*input));
+                assets.insert(&name, &BigNum(*input));
                 assets
             });
             multiasset
@@ -1529,7 +1526,7 @@ fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_co
 
     for (i, (multiasset, ada)) in multiassets
         .iter()
-        .zip([300u64, 900].iter().cloned().map(to_bignum))
+        .zip([300u64, 900].iter().cloned().map(|x| BigNum(x)))
         .enumerate()
     {
         let mut input_amount = Value::new(&ada);
@@ -1546,13 +1543,13 @@ fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_co
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
     .to_address();
 
-    let mut output_amount = Value::new(&to_bignum(300));
+    let mut output_amount = Value::new(&BigNum(300));
     output_amount.set_multiasset(&multiassets[2]);
 
     tx_builder
@@ -1569,7 +1566,7 @@ fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_co
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1579,7 +1576,7 @@ fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_co
     assert_eq!(added_change, true);
     let final_tx = tx_builder.build().unwrap();
     assert_eq!(final_tx.outputs().len(), 2);
-    assert_eq!(final_tx.outputs().get(0).amount().coin(), to_bignum(300));
+    assert_eq!(final_tx.outputs().get(0).amount().coin(), BigNum(300));
     assert_eq!(
         final_tx
             .outputs()
@@ -1591,32 +1588,32 @@ fn build_tx_with_native_assets_change_and_no_purification_cuz_not_enough_pure_co
             .unwrap()
             .get(&name)
             .unwrap(),
-        to_bignum(ma_input1 + ma_input2 - ma_output1)
+        BigNum(ma_input1 + ma_input2 - ma_output1)
     );
     // The single change output contains more Coin then minimal utxo value
     // But not enough to cover the additional fee for a separate output
-    assert_eq!(final_tx.outputs().get(1).amount().coin(), to_bignum(499));
+    assert_eq!(final_tx.outputs().get(1).amount().coin(), BigNum(493));
 }
 
 #[test]
 #[should_panic]
 fn build_tx_leftover_assets() {
-    let mut tx_builder = create_default_tx_builder();
-    let spend = root_key_15()
+    let mut tx_builder = fake_default_tx_builder();
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -1627,7 +1624,7 @@ fn build_tx_leftover_assets() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -1636,11 +1633,11 @@ fn build_tx_leftover_assets() {
     // add an input that contains an asset not present in the output
     let policy_id = &PolicyID::from([0u8; 28]);
     let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
-    let mut input_amount = Value::new(&to_bignum(1_000_000));
+    let mut input_amount = Value::new(&BigNum(1_000_000));
     let mut input_multiasset = MultiAsset::new();
     input_multiasset.insert(policy_id, &{
         let mut assets = Assets::new();
-        assets.insert(&name, &to_bignum(100));
+        assets.insert(&name, &BigNum(100));
         assets
     });
     input_amount.set_multiasset(&input_multiasset);
@@ -1656,7 +1653,7 @@ fn build_tx_leftover_assets() {
                 .with_address(&addr_net_0)
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(880_000))
+                .with_coin(&BigNum(880_000))
                 .build()
                 .unwrap(),
         )
@@ -1665,7 +1662,7 @@ fn build_tx_leftover_assets() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -1691,7 +1688,7 @@ fn build_tx_leftover_assets() {
 #[test]
 fn build_tx_burn_less_than_min_ada() {
     // with this mainnet value we should end up with a final min_ada_required of just under 1_000_000
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let output_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
@@ -1702,19 +1699,19 @@ fn build_tx_burn_less_than_min_ada() {
                 .with_address(&output_addr.to_address())
                 .next()
                 .unwrap()
-                .with_value(&Value::new(&to_bignum(2_000_000)))
+                .with_value(&Value::new(&BigNum(2_000_000)))
                 .build()
                 .unwrap(),
         )
         .unwrap();
 
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
             .unwrap()
             .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(2_400_000)),
-    );
+        &Value::new(&BigNum(2_400_000)),
+    ).expect("Failed to add input");
 
     tx_builder.set_ttl(1);
 
@@ -1741,7 +1738,7 @@ fn build_tx_burn_less_than_min_ada() {
 
 #[test]
 fn build_tx_burn_empty_assets() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let output_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
@@ -1752,21 +1749,21 @@ fn build_tx_burn_empty_assets() {
                 .with_address(&output_addr.to_address())
                 .next()
                 .unwrap()
-                .with_value(&Value::new(&to_bignum(2_000_000)))
+                .with_value(&Value::new(&BigNum(2_000_000)))
                 .build()
                 .unwrap(),
         )
         .unwrap();
 
-    let mut input_value = Value::new(&to_bignum(2_400_000));
+    let mut input_value = Value::new(&BigNum(2_400_000));
     input_value.set_multiasset(&MultiAsset::new());
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
             .unwrap()
             .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &input_value,
-    );
+    ).expect("Failed to add input");
 
     tx_builder.set_ttl(1);
 
@@ -1795,35 +1792,35 @@ fn build_tx_burn_empty_assets() {
 
 #[test]
 fn build_tx_no_useless_multiasset() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let policy_id = &PolicyID::from([0u8; 28]);
     let name = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
 
     // add an output that uses up all the token but leaves ADA
-    let mut input_amount = Value::new(&to_bignum(5_000_000));
+    let mut input_amount = Value::new(&BigNum(5_000_000));
     let mut input_multiasset = MultiAsset::new();
     input_multiasset.insert(policy_id, &{
         let mut assets = Assets::new();
-        assets.insert(&name, &to_bignum(100));
+        assets.insert(&name, &BigNum(100));
         assets
     });
     input_amount.set_multiasset(&input_multiasset);
 
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
             .unwrap()
             .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &input_amount,
-    );
+    ).expect("Failed to add input");
 
     // add an input that contains an asset & ADA
-    let mut output_amount = Value::new(&to_bignum(2_000_000));
+    let mut output_amount = Value::new(&BigNum(2_000_000));
     let mut output_multiasset = MultiAsset::new();
     output_multiasset.insert(policy_id, &{
         let mut assets = Assets::new();
-        assets.insert(&name, &to_bignum(100));
+        assets.insert(&name, &BigNum(100));
         assets
     });
     output_amount.set_multiasset(&output_multiasset);
@@ -1872,7 +1869,7 @@ fn create_multiasset() -> (MultiAsset, [ScriptHash; 3], [AssetName; 3]) {
         |mut acc, (policy_id, name)| {
             acc.insert(policy_id, &{
                 let mut assets = Assets::new();
-                assets.insert(&name, &to_bignum(500));
+                assets.insert(&name, &BigNum(500));
                 assets
             });
             acc
@@ -1885,26 +1882,26 @@ fn create_multiasset() -> (MultiAsset, [ScriptHash; 3], [AssetName; 3]) {
 fn build_tx_add_change_split_nfts() {
     let max_value_size = 100; // super low max output size to test with fewer assets
     let mut tx_builder =
-        create_tx_builder_with_fee_and_val_size(&create_linear_fee(0, 1), max_value_size);
+        fake_tx_builder_with_fee_and_val_size(&fake_linear_fee(0, 1), max_value_size);
 
     let (multiasset, policy_ids, names) = create_multiasset();
 
-    let mut input_value = Value::new(&to_bignum(1000));
+    let mut input_value = Value::new(&BigNum(1000));
     input_value.set_multiasset(&multiasset);
 
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
             .unwrap()
             .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &input_value,
-    );
+    ).expect("Failed to add input");
 
     let output_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
             .unwrap()
             .to_address();
-    let output_amount = Value::new(&to_bignum(208));
+    let output_amount = Value::new(&BigNum(208));
 
     tx_builder
         .add_output(
@@ -1950,21 +1947,21 @@ fn build_tx_add_change_split_nfts() {
 
 #[test]
 fn build_tx_too_big_output() {
-    let mut tx_builder = create_tx_builder_with_fee_and_val_size(&create_linear_fee(0, 1), 10);
+    let mut tx_builder = fake_tx_builder_with_fee_and_val_size(&fake_linear_fee(0, 1), 10);
 
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
             .unwrap()
             .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(500)),
-    );
+        &Value::new(&BigNum(500)),
+    ).expect("Failed to add input");
 
     let output_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
             .unwrap()
             .to_address();
-    let mut output_amount = Value::new(&to_bignum(50));
+    let mut output_amount = Value::new(&BigNum(50));
     output_amount.set_multiasset(&create_multiasset().0);
 
     assert!(tx_builder
@@ -1982,8 +1979,8 @@ fn build_tx_too_big_output() {
 
 #[test]
 fn build_tx_add_change_nfts_not_enough_ada() {
-    let mut tx_builder = create_tx_builder_with_fee_and_val_size(
-        &create_linear_fee(0, 1),
+    let mut tx_builder = fake_tx_builder_with_fee_and_val_size(
+        &fake_linear_fee(0, 1),
         150, // super low max output size to test with fewer assets
     );
 
@@ -2003,29 +2000,29 @@ fn build_tx_add_change_nfts_not_enough_ada() {
         |mut acc, (policy_id, name)| {
             acc.insert(policy_id, &{
                 let mut assets = Assets::new();
-                assets.insert(&name, &to_bignum(500));
+                assets.insert(&name, &BigNum(500));
                 assets
             });
             acc
         },
     );
 
-    let mut input_value = Value::new(&to_bignum(58));
+    let mut input_value = Value::new(&BigNum(58));
     input_value.set_multiasset(&multiasset);
 
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
             .unwrap()
             .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &input_value,
-    );
+    ).expect("Failed to add input");
 
     let output_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
             .unwrap()
             .to_address();
-    let output_amount = Value::new(&to_bignum(208));
+    let output_amount = Value::new(&BigNum(208));
 
     tx_builder
         .add_output(
@@ -2066,7 +2063,7 @@ fn make_input(input_hash_byte: u8, value: Value) -> TransactionUnspentOutput {
 #[test]
 fn tx_builder_cip2_largest_first_increasing_fees() {
     // we have a = 1 to test increasing fees when more inputs are added
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 0));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 0));
     tx_builder
         .add_output(
             &TransactionOutputBuilder::new()
@@ -2078,17 +2075,17 @@ fn tx_builder_cip2_largest_first_increasing_fees() {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(9000))
+                .with_coin(&BigNum(9000))
                 .build()
                 .unwrap(),
         )
         .unwrap();
     let mut available_inputs = TransactionUnspentOutputs::new();
-    available_inputs.add(&make_input(0u8, Value::new(&to_bignum(1200))));
-    available_inputs.add(&make_input(1u8, Value::new(&to_bignum(1600))));
-    available_inputs.add(&make_input(2u8, Value::new(&to_bignum(6400))));
-    available_inputs.add(&make_input(3u8, Value::new(&to_bignum(2400))));
-    available_inputs.add(&make_input(4u8, Value::new(&to_bignum(800))));
+    available_inputs.add(&make_input(0u8, Value::new(&BigNum(1200))));
+    available_inputs.add(&make_input(1u8, Value::new(&BigNum(1600))));
+    available_inputs.add(&make_input(2u8, Value::new(&BigNum(6400))));
+    available_inputs.add(&make_input(3u8, Value::new(&BigNum(2400))));
+    available_inputs.add(&make_input(4u8, Value::new(&BigNum(800))));
     tx_builder
         .add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::LargestFirst)
         .unwrap();
@@ -2111,7 +2108,7 @@ fn tx_builder_cip2_largest_first_increasing_fees() {
 #[test]
 fn tx_builder_cip2_largest_first_static_fees() {
     // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 0));
     tx_builder
         .add_output(
             &TransactionOutputBuilder::new()
@@ -2123,17 +2120,17 @@ fn tx_builder_cip2_largest_first_static_fees() {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(1200))
+                .with_coin(&BigNum(1200))
                 .build()
                 .unwrap(),
         )
         .unwrap();
     let mut available_inputs = TransactionUnspentOutputs::new();
-    available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
-    available_inputs.add(&make_input(1u8, Value::new(&to_bignum(200))));
-    available_inputs.add(&make_input(2u8, Value::new(&to_bignum(800))));
-    available_inputs.add(&make_input(3u8, Value::new(&to_bignum(400))));
-    available_inputs.add(&make_input(4u8, Value::new(&to_bignum(100))));
+    available_inputs.add(&make_input(0u8, Value::new(&BigNum(150))));
+    available_inputs.add(&make_input(1u8, Value::new(&BigNum(200))));
+    available_inputs.add(&make_input(2u8, Value::new(&BigNum(800))));
+    available_inputs.add(&make_input(3u8, Value::new(&BigNum(400))));
+    available_inputs.add(&make_input(4u8, Value::new(&BigNum(100))));
     tx_builder
         .add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::LargestFirst)
         .unwrap();
@@ -2155,19 +2152,19 @@ fn tx_builder_cip2_largest_first_static_fees() {
 #[test]
 fn tx_builder_cip2_largest_first_multiasset() {
     // we have a = 0 so we know adding inputs/outputs doesn't change the fee so we can analyze more
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 0));
     let pid1 = PolicyID::from([1u8; 28]);
     let pid2 = PolicyID::from([2u8; 28]);
     let asset_name1 = AssetName::new(vec![1u8; 8]).unwrap();
     let asset_name2 = AssetName::new(vec![2u8; 11]).unwrap();
     let asset_name3 = AssetName::new(vec![3u8; 9]).unwrap();
 
-    let mut output_value = Value::new(&to_bignum(415));
+    let mut output_value = Value::new(&BigNum(415));
     let mut output_ma = MultiAsset::new();
-    output_ma.set_asset(&pid1, &asset_name1, to_bignum(5));
-    output_ma.set_asset(&pid1, &asset_name2, to_bignum(1));
-    output_ma.set_asset(&pid2, &asset_name2, to_bignum(2));
-    output_ma.set_asset(&pid2, &asset_name3, to_bignum(4));
+    output_ma.set_asset(&pid1, &asset_name1, &BigNum(5));
+    output_ma.set_asset(&pid1, &asset_name2, &BigNum(1));
+    output_ma.set_asset(&pid2, &asset_name2, &BigNum(2));
+    output_ma.set_asset(&pid2, &asset_name3, &BigNum(4));
     output_value.set_multiasset(&output_ma);
     tx_builder
         .add_output(&TransactionOutput::new(
@@ -2179,55 +2176,55 @@ fn tx_builder_cip2_largest_first_multiasset() {
 
     let mut available_inputs = TransactionUnspentOutputs::new();
     // should not be taken
-    available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
+    available_inputs.add(&make_input(0u8, Value::new(&BigNum(150))));
 
     // should not be taken
-    let mut input1 = make_input(1u8, Value::new(&to_bignum(200)));
+    let mut input1 = make_input(1u8, Value::new(&BigNum(200)));
     let mut ma1 = MultiAsset::new();
-    ma1.set_asset(&pid1, &asset_name1, to_bignum(10));
-    ma1.set_asset(&pid1, &asset_name2, to_bignum(1));
-    ma1.set_asset(&pid2, &asset_name2, to_bignum(2));
+    ma1.set_asset(&pid1, &asset_name1, &BigNum(10));
+    ma1.set_asset(&pid1, &asset_name2, &BigNum(1));
+    ma1.set_asset(&pid2, &asset_name2, &BigNum(2));
     input1.output.amount.set_multiasset(&ma1);
     available_inputs.add(&input1);
 
     // taken first to satisfy pid1:asset_name1 (but also satisfies pid2:asset_name3)
-    let mut input2 = make_input(2u8, Value::new(&to_bignum(10)));
+    let mut input2 = make_input(2u8, Value::new(&BigNum(10)));
     let mut ma2 = MultiAsset::new();
-    ma2.set_asset(&pid1, &asset_name1, to_bignum(20));
-    ma2.set_asset(&pid2, &asset_name3, to_bignum(4));
+    ma2.set_asset(&pid1, &asset_name1, &BigNum(20));
+    ma2.set_asset(&pid2, &asset_name3, &BigNum(4));
     input2.output.amount.set_multiasset(&ma2);
     available_inputs.add(&input2);
 
     // taken second to satisfy pid1:asset_name2 (but also satisfies pid2:asset_name1)
-    let mut input3 = make_input(3u8, Value::new(&to_bignum(50)));
+    let mut input3 = make_input(3u8, Value::new(&BigNum(50)));
     let mut ma3 = MultiAsset::new();
-    ma3.set_asset(&pid2, &asset_name1, to_bignum(5));
-    ma3.set_asset(&pid1, &asset_name2, to_bignum(15));
+    ma3.set_asset(&pid2, &asset_name1, &BigNum(5));
+    ma3.set_asset(&pid1, &asset_name2, &BigNum(15));
     input3.output.amount.multiasset = Some(ma3);
     available_inputs.add(&input3);
 
     // should not be taken either
-    let mut input4 = make_input(4u8, Value::new(&to_bignum(10)));
+    let mut input4 = make_input(4u8, Value::new(&BigNum(10)));
     let mut ma4 = MultiAsset::new();
-    ma4.set_asset(&pid1, &asset_name1, to_bignum(10));
-    ma4.set_asset(&pid1, &asset_name2, to_bignum(10));
+    ma4.set_asset(&pid1, &asset_name1, &BigNum(10));
+    ma4.set_asset(&pid1, &asset_name2, &BigNum(10));
     input4.output.amount.multiasset = Some(ma4);
     available_inputs.add(&input4);
 
     // taken third to satisfy pid2:asset_name_2
-    let mut input5 = make_input(5u8, Value::new(&to_bignum(10)));
+    let mut input5 = make_input(5u8, Value::new(&BigNum(10)));
     let mut ma5 = MultiAsset::new();
-    ma5.set_asset(&pid1, &asset_name2, to_bignum(10));
-    ma5.set_asset(&pid2, &asset_name2, to_bignum(3));
+    ma5.set_asset(&pid1, &asset_name2, &BigNum(10));
+    ma5.set_asset(&pid2, &asset_name2, &BigNum(3));
     input5.output.amount.multiasset = Some(ma5);
     available_inputs.add(&input5);
 
     // should be taken to get enough ADA
-    let input6 = make_input(6u8, Value::new(&to_bignum(900)));
+    let input6 = make_input(6u8, Value::new(&BigNum(900)));
     available_inputs.add(&input6);
 
     // should not be taken
-    available_inputs.add(&make_input(7u8, Value::new(&to_bignum(100))));
+    available_inputs.add(&make_input(7u8, Value::new(&BigNum(100))));
     tx_builder
         .add_inputs_from(
             &available_inputs,
@@ -2251,12 +2248,12 @@ fn tx_builder_cip2_largest_first_multiasset() {
     assert_eq!(6u8, tx.inputs().get(3).transaction_id().0[0]);
 
     let change = tx.outputs().get(1).amount;
-    assert_eq!(from_bignum(&change.coin), 555);
+    assert_eq!(u64::from(change.coin), 555);
     let change_ma = change.multiasset().unwrap();
-    assert_eq!(15, from_bignum(&change_ma.get_asset(&pid1, &asset_name1)));
-    assert_eq!(24, from_bignum(&change_ma.get_asset(&pid1, &asset_name2)));
-    assert_eq!(1, from_bignum(&change_ma.get_asset(&pid2, &asset_name2)));
-    assert_eq!(0, from_bignum(&change_ma.get_asset(&pid2, &asset_name3)));
+    assert_eq!(15, u64::from(change_ma.get_asset(&pid1, &asset_name1)));
+    assert_eq!(24, u64::from(change_ma.get_asset(&pid1, &asset_name2)));
+    assert_eq!(1, u64::from(change_ma.get_asset(&pid2, &asset_name2)));
+    assert_eq!(0, u64::from(change_ma.get_asset(&pid2, &asset_name3)));
     let expected_input = input2
         .output
         .amount
@@ -2272,19 +2269,19 @@ fn tx_builder_cip2_largest_first_multiasset() {
 
 #[test]
 fn tx_builder_cip2_random_improve_multiasset() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 0));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 0));
     let pid1 = PolicyID::from([1u8; 28]);
     let pid2 = PolicyID::from([2u8; 28]);
     let asset_name1 = AssetName::new(vec![1u8; 8]).unwrap();
     let asset_name2 = AssetName::new(vec![2u8; 11]).unwrap();
     let asset_name3 = AssetName::new(vec![3u8; 9]).unwrap();
 
-    let mut output_value = Value::new(&to_bignum(415));
+    let mut output_value = Value::new(&BigNum(415));
     let mut output_ma = MultiAsset::new();
-    output_ma.set_asset(&pid1, &asset_name1, to_bignum(5));
-    output_ma.set_asset(&pid1, &asset_name2, to_bignum(1));
-    output_ma.set_asset(&pid2, &asset_name2, to_bignum(2));
-    output_ma.set_asset(&pid2, &asset_name3, to_bignum(4));
+    output_ma.set_asset(&pid1, &asset_name1, &BigNum(5));
+    output_ma.set_asset(&pid1, &asset_name2, &BigNum(1));
+    output_ma.set_asset(&pid2, &asset_name2, &BigNum(2));
+    output_ma.set_asset(&pid2, &asset_name3, &BigNum(4));
     output_value.set_multiasset(&output_ma);
     tx_builder
         .add_output(&TransactionOutput::new(
@@ -2295,57 +2292,57 @@ fn tx_builder_cip2_random_improve_multiasset() {
         .unwrap();
 
     let mut available_inputs = TransactionUnspentOutputs::new();
-    available_inputs.add(&make_input(0u8, Value::new(&to_bignum(150))));
+    available_inputs.add(&make_input(0u8, Value::new(&BigNum(150))));
 
-    let mut input1 = make_input(1u8, Value::new(&to_bignum(200)));
+    let mut input1 = make_input(1u8, Value::new(&BigNum(200)));
     let mut ma1 = MultiAsset::new();
-    ma1.set_asset(&pid1, &asset_name1, to_bignum(10));
-    ma1.set_asset(&pid1, &asset_name2, to_bignum(1));
-    ma1.set_asset(&pid2, &asset_name2, to_bignum(2));
+    ma1.set_asset(&pid1, &asset_name1, &BigNum(10));
+    ma1.set_asset(&pid1, &asset_name2, &BigNum(1));
+    ma1.set_asset(&pid2, &asset_name2, &BigNum(2));
     input1.output.amount.set_multiasset(&ma1);
     available_inputs.add(&input1);
 
-    let mut input2 = make_input(2u8, Value::new(&to_bignum(10)));
+    let mut input2 = make_input(2u8, Value::new(&BigNum(10)));
     let mut ma2 = MultiAsset::new();
-    ma2.set_asset(&pid1, &asset_name1, to_bignum(20));
-    ma2.set_asset(&pid2, &asset_name3, to_bignum(4));
+    ma2.set_asset(&pid1, &asset_name1, &BigNum(20));
+    ma2.set_asset(&pid2, &asset_name3, &BigNum(4));
     input2.output.amount.set_multiasset(&ma2);
     available_inputs.add(&input2);
 
-    let mut input3 = make_input(3u8, Value::new(&to_bignum(50)));
+    let mut input3 = make_input(3u8, Value::new(&BigNum(50)));
     let mut ma3 = MultiAsset::new();
-    ma3.set_asset(&pid2, &asset_name1, to_bignum(5));
-    ma3.set_asset(&pid1, &asset_name2, to_bignum(15));
+    ma3.set_asset(&pid2, &asset_name1, &BigNum(5));
+    ma3.set_asset(&pid1, &asset_name2, &BigNum(15));
     input3.output.amount.multiasset = Some(ma3);
     available_inputs.add(&input3);
 
-    let mut input4 = make_input(4u8, Value::new(&to_bignum(10)));
+    let mut input4 = make_input(4u8, Value::new(&BigNum(10)));
     let mut ma4 = MultiAsset::new();
-    ma4.set_asset(&pid1, &asset_name1, to_bignum(10));
-    ma4.set_asset(&pid1, &asset_name2, to_bignum(10));
+    ma4.set_asset(&pid1, &asset_name1, &BigNum(10));
+    ma4.set_asset(&pid1, &asset_name2, &BigNum(10));
     input4.output.amount.multiasset = Some(ma4);
     available_inputs.add(&input4);
 
-    let mut input5 = make_input(5u8, Value::new(&to_bignum(10)));
+    let mut input5 = make_input(5u8, Value::new(&BigNum(10)));
     let mut ma5 = MultiAsset::new();
-    ma5.set_asset(&pid1, &asset_name2, to_bignum(10));
-    ma5.set_asset(&pid2, &asset_name2, to_bignum(3));
+    ma5.set_asset(&pid1, &asset_name2, &BigNum(10));
+    ma5.set_asset(&pid2, &asset_name2, &BigNum(3));
     input5.output.amount.multiasset = Some(ma5);
     available_inputs.add(&input5);
 
-    let input6 = make_input(6u8, Value::new(&to_bignum(1000)));
+    let input6 = make_input(6u8, Value::new(&BigNum(1000)));
     available_inputs.add(&input6);
-    available_inputs.add(&make_input(7u8, Value::new(&to_bignum(100))));
+    available_inputs.add(&make_input(7u8, Value::new(&BigNum(100))));
 
-    let mut input8 = make_input(8u8, Value::new(&to_bignum(10)));
+    let mut input8 = make_input(8u8, Value::new(&BigNum(10)));
     let mut ma8 = MultiAsset::new();
-    ma8.set_asset(&pid2, &asset_name2, to_bignum(10));
+    ma8.set_asset(&pid2, &asset_name2, &BigNum(10));
     input8.output.amount.multiasset = Some(ma8);
     available_inputs.add(&input8);
 
-    let mut input9 = make_input(9u8, Value::new(&to_bignum(10)));
+    let mut input9 = make_input(9u8, Value::new(&BigNum(10)));
     let mut ma9 = MultiAsset::new();
-    ma9.set_asset(&pid2, &asset_name3, to_bignum(10));
+    ma9.set_asset(&pid2, &asset_name3, &BigNum(10));
     input9.output.amount.multiasset = Some(ma9);
     available_inputs.add(&input9);
 
@@ -2356,12 +2353,12 @@ fn tx_builder_cip2_random_improve_multiasset() {
         )
         .unwrap();
 
-    let input_for_cover_change = make_input(10u8, Value::new(&to_bignum(1000)));
-    tx_builder.add_input(
+    let input_for_cover_change = make_input(10u8, Value::new(&BigNum(1000)));
+    tx_builder.add_regular_input(
         &input_for_cover_change.output.address,
         &input_for_cover_change.input,
         &input_for_cover_change.output.amount,
-    );
+    ).expect("Failed to add input");
 
     let change_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho")
@@ -2380,7 +2377,7 @@ fn tx_builder_cip2_random_improve_multiasset() {
 #[test]
 fn tx_builder_cip2_random_improve() {
     // we have a = 1 to test increasing fees when more inputs are added
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(1, 0));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 0));
     const COST: u64 = 10000;
     tx_builder
         .add_output(
@@ -2393,19 +2390,19 @@ fn tx_builder_cip2_random_improve() {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(COST))
+                .with_coin(&BigNum(COST))
                 .build()
                 .unwrap(),
         )
         .unwrap();
     let mut available_inputs = TransactionUnspentOutputs::new();
-    available_inputs.add(&make_input(0u8, Value::new(&to_bignum(1500))));
-    available_inputs.add(&make_input(1u8, Value::new(&to_bignum(2000))));
-    available_inputs.add(&make_input(2u8, Value::new(&to_bignum(8000))));
-    available_inputs.add(&make_input(3u8, Value::new(&to_bignum(4000))));
-    available_inputs.add(&make_input(4u8, Value::new(&to_bignum(1000))));
-    available_inputs.add(&make_input(5u8, Value::new(&to_bignum(2000))));
-    available_inputs.add(&make_input(6u8, Value::new(&to_bignum(1500))));
+    available_inputs.add(&make_input(0u8, Value::new(&BigNum(1500))));
+    available_inputs.add(&make_input(1u8, Value::new(&BigNum(2000))));
+    available_inputs.add(&make_input(2u8, Value::new(&BigNum(8000))));
+    available_inputs.add(&make_input(3u8, Value::new(&BigNum(4000))));
+    available_inputs.add(&make_input(4u8, Value::new(&BigNum(1000))));
+    available_inputs.add(&make_input(5u8, Value::new(&BigNum(2000))));
+    available_inputs.add(&make_input(6u8, Value::new(&BigNum(1500))));
     let add_inputs_res =
         tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
     assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
@@ -2425,7 +2422,7 @@ fn tx_builder_cip2_random_improve() {
     }
     let mut encountered = std::collections::HashSet::new();
     let mut input_total = Value::new(&Coin::zero());
-    for input in tx.inputs.0.iter() {
+    for input in &tx.inputs {
         let txid = input.transaction_id();
         if !encountered.insert(txid.clone()) {
             panic!("Input {:?} duplicated", txid);
@@ -2439,7 +2436,7 @@ fn tx_builder_cip2_random_improve() {
                 &tx_builder
                     .min_fee()
                     .unwrap()
-                    .checked_add(&to_bignum(COST))
+                    .checked_add(&BigNum(COST))
                     .unwrap()
             )
     );
@@ -2448,14 +2445,14 @@ fn tx_builder_cip2_random_improve() {
 #[test]
 fn tx_builder_cip2_random_improve_when_using_all_available_inputs() {
     // we have a = 1 to test increasing fees when more inputs are added
-    let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+    let linear_fee = LinearFee::new(&BigNum(1), &BigNum(0));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(0))
-        .key_deposit(&to_bignum(0))
+        .pool_deposit(&BigNum(0))
+        .key_deposit(&BigNum(0))
         .max_value_size(9999)
         .max_tx_size(9999)
-        .coins_per_utxo_word(&Coin::zero())
+        .coins_per_utxo_byte(&Coin::zero())
         .build()
         .unwrap();
     let mut tx_builder = TransactionBuilder::new(&cfg);
@@ -2471,14 +2468,14 @@ fn tx_builder_cip2_random_improve_when_using_all_available_inputs() {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(COST))
+                .with_coin(&BigNum(COST))
                 .build()
                 .unwrap(),
         )
         .unwrap();
     let mut available_inputs = TransactionUnspentOutputs::new();
-    available_inputs.add(&make_input(1u8, Value::new(&to_bignum(800))));
-    available_inputs.add(&make_input(2u8, Value::new(&to_bignum(800))));
+    available_inputs.add(&make_input(1u8, Value::new(&BigNum(800))));
+    available_inputs.add(&make_input(2u8, Value::new(&BigNum(800))));
     let add_inputs_res =
         tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
     assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
@@ -2487,14 +2484,14 @@ fn tx_builder_cip2_random_improve_when_using_all_available_inputs() {
 #[test]
 fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
     // we have a = 1 to test increasing fees when more inputs are added
-    let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+    let linear_fee = LinearFee::new(&BigNum(1), &BigNum(0));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(0))
-        .key_deposit(&to_bignum(0))
+        .pool_deposit(&BigNum(0))
+        .key_deposit(&BigNum(0))
         .max_value_size(9999)
         .max_tx_size(9999)
-        .coins_per_utxo_word(&Coin::zero())
+        .coins_per_utxo_byte(&Coin::zero())
         .build()
         .unwrap();
     let mut tx_builder = TransactionBuilder::new(&cfg);
@@ -2510,20 +2507,20 @@ fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
                 )
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(COST))
+                .with_coin(&BigNum(COST))
                 .build()
                 .unwrap(),
         )
         .unwrap();
-    assert_eq!(tx_builder.min_fee().unwrap(), to_bignum(53));
+    assert_eq!(tx_builder.min_fee().unwrap(), BigNum(56));
     let mut available_inputs = TransactionUnspentOutputs::new();
-    available_inputs.add(&make_input(1u8, Value::new(&to_bignum(150))));
-    available_inputs.add(&make_input(2u8, Value::new(&to_bignum(150))));
-    available_inputs.add(&make_input(3u8, Value::new(&to_bignum(150))));
+    available_inputs.add(&make_input(1u8, Value::new(&BigNum(150))));
+    available_inputs.add(&make_input(2u8, Value::new(&BigNum(150))));
+    available_inputs.add(&make_input(3u8, Value::new(&BigNum(150))));
     let add_inputs_res =
         tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
     assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
-    assert_eq!(tx_builder.min_fee().unwrap(), to_bignum(264));
+    assert_eq!(tx_builder.min_fee().unwrap(), BigNum(270));
     let change_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho")
             .unwrap()
@@ -2534,8 +2531,8 @@ fn tx_builder_cip2_random_improve_adds_enough_for_fees() {
 
 #[test]
 fn build_tx_pay_to_multisig() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(10, 2));
+    let spend = fake_root_key_15()
         .derive(harden(1854))
         .derive(harden(1815))
         .derive(harden(0))
@@ -2543,7 +2540,7 @@ fn build_tx_pay_to_multisig() {
         .derive(0)
         .to_public();
 
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -2555,7 +2552,7 @@ fn build_tx_pay_to_multisig() {
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
 
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -2564,7 +2561,7 @@ fn build_tx_pay_to_multisig() {
     tx_builder.add_key_input(
         &spend.to_raw_key().hash(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     tx_builder
         .add_output(
@@ -2572,13 +2569,13 @@ fn build_tx_pay_to_multisig() {
                 .with_address(&addr_net_0)
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(999_000))
+                .with_coin(&BigNum(999_000))
                 .build()
                 .unwrap(),
         )
         .unwrap();
     tx_builder.set_ttl(1000);
-    tx_builder.set_fee(&to_bignum(1_000));
+    tx_builder.set_fee(&BigNum(1_000));
 
     assert_eq!(tx_builder.outputs.len(), 1);
     assert_eq!(
@@ -2610,16 +2607,16 @@ fn build_full_tx(
 
 #[test]
 fn build_tx_multisig_spend_1on1_unsigned() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(10, 2));
 
-    let spend = root_key_15() //multisig
+    let spend = fake_root_key_15() //multisig
         .derive(harden(1854))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let stake = root_key_15() //multisig
+    let stake = fake_root_key_15() //multisig
         .derive(harden(1854))
         .derive(harden(1815))
         .derive(harden(0))
@@ -2627,7 +2624,7 @@ fn build_tx_multisig_spend_1on1_unsigned() {
         .derive(0)
         .to_public();
 
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -2639,23 +2636,23 @@ fn build_tx_multisig_spend_1on1_unsigned() {
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let addr_multisig = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
     .to_address();
     let addr_output = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
     .to_address();
 
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &addr_multisig,
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
 
     tx_builder
         .add_output(
@@ -2663,13 +2660,13 @@ fn build_tx_multisig_spend_1on1_unsigned() {
                 .with_address(&addr_output)
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(999_000))
+                .with_coin(&BigNum(999_000))
                 .build()
                 .unwrap(),
         )
         .unwrap();
     tx_builder.set_ttl(1000);
-    tx_builder.set_fee(&to_bignum(1_000));
+    tx_builder.set_fee(&BigNum(1_000));
 
     let mut auxiliary_data = AuxiliaryData::new();
     let mut pubkey_native_scripts = NativeScripts::new();
@@ -2712,15 +2709,15 @@ fn build_tx_multisig_spend_1on1_unsigned() {
 
 #[test]
 fn build_tx_multisig_1on1_signed() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(10, 2));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(10, 2));
+    let spend = fake_root_key_15()
         .derive(harden(1854)) //multisig
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1854)) //multisig
         .derive(harden(1815))
         .derive(harden(0))
@@ -2731,7 +2728,7 @@ fn build_tx_multisig_1on1_signed() {
     let spend_cred = Credential::from_keyhash(&spend.to_raw_key().hash());
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     let addr_net_0 = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &spend_cred,
         &stake_cred,
     )
@@ -2739,7 +2736,7 @@ fn build_tx_multisig_1on1_signed() {
     tx_builder.add_key_input(
         &spend.to_raw_key().hash(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     tx_builder
         .add_output(
@@ -2747,13 +2744,13 @@ fn build_tx_multisig_1on1_signed() {
                 .with_address(&addr_net_0)
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(999_000))
+                .with_coin(&BigNum(999_000))
                 .build()
                 .unwrap(),
         )
         .unwrap();
     tx_builder.set_ttl(1000);
-    tx_builder.set_fee(&to_bignum(1_000));
+    tx_builder.set_fee(&BigNum(1_000));
 
     let mut auxiliary_data = AuxiliaryData::new();
     let mut pubkey_native_scripts = NativeScripts::new();
@@ -2788,8 +2785,9 @@ fn build_tx_multisig_1on1_signed() {
 
     let mut witness_set = TransactionWitnessSet::new();
     let mut vkw = Vkeywitnesses::new();
+    let fixed_tx = FixedTransaction::new_from_body_bytes(&body.to_bytes()).unwrap();
     vkw.add(&make_vkey_witness(
-        &hash_transaction(&body),
+        &fixed_tx.transaction_hash(),
         &PrivateKey::from_normal_bytes(
             &hex::decode("c660e50315d76a53d80732efda7630cae8885dfb85c46378684b3c6103e1284a")
                 .unwrap(),
@@ -2809,16 +2807,16 @@ fn build_tx_multisig_1on1_signed() {
 
 #[test]
 fn add_change_splits_change_into_multiple_outputs_when_nfts_overflow_output_size() {
-    let linear_fee = LinearFee::new(&to_bignum(0), &to_bignum(1));
+    let linear_fee = LinearFee::new(&BigNum(0), &BigNum(1));
     let max_value_size = 100; // super low max output size to test with fewer assets
     let mut tx_builder = TransactionBuilder::new(
         &TransactionBuilderConfigBuilder::new()
             .fee_algo(&linear_fee)
-            .pool_deposit(&to_bignum(0))
-            .key_deposit(&to_bignum(0))
+            .pool_deposit(&BigNum(0))
+            .key_deposit(&BigNum(0))
             .max_value_size(max_value_size)
             .max_tx_size(MAX_TX_SIZE)
-            .coins_per_utxo_word(&to_bignum(8))
+            .coins_per_utxo_byte(&BigNum(1))
             .prefer_pure_change(true)
             .build()
             .unwrap(),
@@ -2833,28 +2831,28 @@ fn add_change_splits_change_into_multiple_outputs_when_nfts_overflow_output_size
         AssetName::new(vec![6u8, 5, 6, 7]).unwrap(),
     ];
     let assets = names.iter().fold(Assets::new(), |mut a, name| {
-        a.insert(&name, &to_bignum(500));
+        a.insert(&name, &BigNum(500));
         a
     });
     let mut multiasset = MultiAsset::new();
     multiasset.insert(&policy_id, &assets);
 
-    let mut input_value = Value::new(&to_bignum(1200));
+    let mut input_value = Value::new(&BigNum(1200));
     input_value.set_multiasset(&multiasset);
 
-    tx_builder.add_input(
+    tx_builder.add_regular_input(
         &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
             .unwrap()
             .to_address(),
         &TransactionInput::new(&genesis_id(), 0),
         &input_value,
-    );
+    ).expect("Failed to add input");
 
     let output_addr =
         ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
             .unwrap()
             .to_address();
-    let output_amount = Value::new(&to_bignum(208));
+    let output_amount = Value::new(&BigNum(208));
 
     tx_builder
         .add_output(
@@ -2885,9 +2883,9 @@ fn add_change_splits_change_into_multiple_outputs_when_nfts_overflow_output_size
     assert_eq!(change1.address, change2.address);
     assert_eq!(change1.address, change3.address);
 
-    assert_eq!(change1.amount.coin, to_bignum(288));
-    assert_eq!(change2.amount.coin, to_bignum(293));
-    assert_eq!(change3.amount.coin, to_bignum(410));
+    assert_eq!(change1.amount.coin, BigNum(288));
+    assert_eq!(change2.amount.coin, BigNum(293));
+    assert_eq!(change3.amount.coin, BigNum(410));
 
     assert!(change1.amount.multiasset.is_some());
     assert!(change2.amount.multiasset.is_some());
@@ -2908,7 +2906,7 @@ fn add_change_splits_change_into_multiple_outputs_when_nfts_overflow_output_size
         let v1 = asset1.get(name);
         let v2 = asset2.get(name);
         assert_ne!(v1.is_some(), v2.is_some());
-        assert_eq!(v1.or(v2).unwrap(), to_bignum(500));
+        assert_eq!(v1.or(v2).unwrap(), BigNum(500));
     });
 }
 
@@ -2948,9 +2946,9 @@ fn assert_json_metadatum(dat: &TransactionMetadatum) {
 
 #[test]
 fn set_metadata_with_empty_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
-    let num = to_bignum(42);
+    let num = BigNum(42);
     tx_builder.set_metadata(&create_aux_with_metadata(&num).metadata().unwrap());
 
     assert!(tx_builder.auxiliary_data.is_some());
@@ -2968,12 +2966,12 @@ fn set_metadata_with_empty_auxiliary() {
 
 #[test]
 fn set_metadata_with_existing_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
-    let num1 = to_bignum(42);
+    let num1 = BigNum(42);
     tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
 
-    let num2 = to_bignum(84);
+    let num2 = BigNum(84);
     tx_builder.set_metadata(&create_aux_with_metadata(&num2).metadata().unwrap());
 
     let aux = tx_builder.auxiliary_data.unwrap();
@@ -2989,9 +2987,9 @@ fn set_metadata_with_existing_auxiliary() {
 
 #[test]
 fn add_metadatum_with_empty_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
-    let num = to_bignum(42);
+    let num = BigNum(42);
     tx_builder.add_metadatum(&num, &create_json_metadatum());
 
     assert!(tx_builder.auxiliary_data.is_some());
@@ -3009,12 +3007,12 @@ fn add_metadatum_with_empty_auxiliary() {
 
 #[test]
 fn add_metadatum_with_existing_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
-    let num1 = to_bignum(42);
+    let num1 = BigNum(42);
     tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
 
-    let num2 = to_bignum(84);
+    let num2 = BigNum(84);
     tx_builder.add_metadatum(&num2, &create_json_metadatum());
 
     let aux = tx_builder.auxiliary_data.unwrap();
@@ -3030,9 +3028,9 @@ fn add_metadatum_with_existing_auxiliary() {
 
 #[test]
 fn add_json_metadatum_with_empty_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
-    let num = to_bignum(42);
+    let num = BigNum(42);
     tx_builder
         .add_json_metadatum(&num, create_json_metadatum_string())
         .unwrap();
@@ -3052,12 +3050,12 @@ fn add_json_metadatum_with_empty_auxiliary() {
 
 #[test]
 fn add_json_metadatum_with_existing_auxiliary() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
-    let num1 = to_bignum(42);
+    let num1 = BigNum(42);
     tx_builder.set_auxiliary_data(&create_aux_with_metadata(&num1));
 
-    let num2 = to_bignum(84);
+    let num2 = BigNum(84);
     tx_builder
         .add_json_metadatum(&num2, create_json_metadatum_string())
         .unwrap();
@@ -3083,7 +3081,7 @@ fn create_mint_asset() -> MintAssets {
 
 fn create_assets() -> Assets {
     let mut assets = Assets::new();
-    assets.insert(&create_asset_name(), &to_bignum(1234));
+    assets.insert(&create_asset_name(), &BigNum(1234));
     return assets;
 }
 
@@ -3102,7 +3100,11 @@ fn assert_mint_asset(mint: &Mint, policy_id: &PolicyID) {
     let result_asset = mint.get(&policy_id).unwrap();
     assert_eq!(result_asset.len(), 1);
     assert_eq!(
-        result_asset.get(&create_asset_name()).unwrap(),
+        result_asset
+            .get(0)
+            .unwrap()
+            .get(&create_asset_name())
+            .unwrap(),
         Int::new_i32(1234)
     );
 }
@@ -3119,23 +3121,18 @@ fn mint_script_and_policy(x: u8) -> (NativeScript, ScriptHash) {
     (m, p)
 }
 
-fn plutus_script_and_hash(x: u8) -> (PlutusScript, ScriptHash) {
-    let s = PlutusScript::new(fake_bytes_32(x));
-    (s.clone(), s.hash())
-}
-
 #[test]
 fn set_mint_asset_with_empty_mint() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let (mint_script, policy_id) = mint_script_and_policy(0);
-    tx_builder.set_mint_asset(&mint_script, &create_mint_asset());
+    tx_builder.set_mint_asset(&mint_script, &create_mint_asset()).expect("Failed to set mint asset");
 
     assert!(tx_builder.mint.is_some());
     let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
     assert!(mint_scripts.len() > 0);
 
-    let mint = tx_builder.mint.unwrap().build();
+    let mint = tx_builder.mint.unwrap().build().expect("Failed to build mint");
 
     assert_eq!(mint.len(), 1);
     assert_mint_asset(&mint, &policy_id);
@@ -3146,7 +3143,7 @@ fn set_mint_asset_with_empty_mint() {
 
 #[test]
 fn set_mint_asset_with_existing_mint() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let (mint_script1, policy_id1) = mint_script_and_policy(0);
     let (mint_script2, policy_id2) = mint_script_and_policy(1);
@@ -3158,13 +3155,13 @@ fn set_mint_asset_with_existing_mint() {
         )
         .unwrap();
 
-    tx_builder.set_mint_asset(&mint_script2, &create_mint_asset());
+    tx_builder.set_mint_asset(&mint_script2, &create_mint_asset()).expect("Failed to set mint asset");
 
     assert!(tx_builder.mint.is_some());
     let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
     assert!(mint_scripts.len() > 0);
 
-    let mint = tx_builder.mint.unwrap().build();
+    let mint = tx_builder.mint.unwrap().build().expect("Failed to build mint");
 
     assert_eq!(mint.len(), 2);
     assert_mint_asset(&mint, &policy_id1);
@@ -3173,7 +3170,6 @@ fn set_mint_asset_with_existing_mint() {
     // Only second script is present in the scripts
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -3186,17 +3182,17 @@ fn set_mint_asset_with_existing_mint() {
 
 #[test]
 fn add_mint_asset_with_empty_mint() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let (mint_script, policy_id) = mint_script_and_policy(0);
 
-    tx_builder.add_mint_asset(&mint_script, &create_asset_name(), &Int::new_i32(1234));
+    tx_builder.add_mint_asset(&mint_script, &create_asset_name(), &Int::new_i32(1234)).expect("Failed to add mint asset");
 
     assert!(tx_builder.mint.is_some());
     let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
     assert!(mint_scripts.len() > 0);
 
-    let mint = tx_builder.mint.unwrap().build();
+    let mint = tx_builder.mint.unwrap().build().expect("Failed to build mint");
 
     assert_eq!(mint.len(), 1);
     assert_mint_asset(&mint, &policy_id);
@@ -3207,7 +3203,7 @@ fn add_mint_asset_with_empty_mint() {
 
 #[test]
 fn add_mint_asset_with_existing_mint() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let (mint_script1, policy_id1) = mint_script_and_policy(0);
     let (mint_script2, policy_id2) = mint_script_and_policy(1);
@@ -3218,13 +3214,13 @@ fn add_mint_asset_with_existing_mint() {
             &NativeScripts::from(vec![mint_script1.clone()]),
         )
         .unwrap();
-    tx_builder.add_mint_asset(&mint_script2, &create_asset_name(), &Int::new_i32(1234));
+    tx_builder.add_mint_asset(&mint_script2, &create_asset_name(), &Int::new_i32(1234)).expect("Failed to add mint asset");
 
     assert!(tx_builder.mint.is_some());
     let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
     assert!(mint_scripts.len() > 0);
 
-    let mint = tx_builder.mint.unwrap().build();
+    let mint = tx_builder.mint.unwrap().build().expect("Failed to build mint");
 
     assert_eq!(mint.len(), 2);
     assert_mint_asset(&mint, &policy_id1);
@@ -3232,7 +3228,6 @@ fn add_mint_asset_with_existing_mint() {
 
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -3245,14 +3240,14 @@ fn add_mint_asset_with_existing_mint() {
 
 #[test]
 fn add_output_amount() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let policy_id1 = PolicyID::from([0u8; 28]);
     let multiasset = create_multiasset_one_asset(&policy_id1);
-    let mut value = Value::new(&to_bignum(249));
+    let mut value = Value::new(&BigNum(249));
     value.set_multiasset(&multiasset);
 
-    let address = byron_address();
+    let address = fake_byron_address();
     tx_builder
         .add_output(
             &TransactionOutputBuilder::new()
@@ -3274,10 +3269,10 @@ fn add_output_amount() {
 
 #[test]
 fn add_output_coin() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
-    let address = byron_address();
-    let coin = to_bignum(208);
+    let address = fake_byron_address();
+    let coin = BigNum(208);
     tx_builder
         .add_output(
             &TransactionOutputBuilder::new()
@@ -3300,13 +3295,13 @@ fn add_output_coin() {
 
 #[test]
 fn add_output_coin_and_multiasset() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let policy_id1 = PolicyID::from([0u8; 28]);
     let multiasset = create_multiasset_one_asset(&policy_id1);
 
-    let address = byron_address();
-    let coin = to_bignum(249);
+    let address = fake_byron_address();
+    let coin = BigNum(249);
 
     tx_builder
         .add_output(
@@ -3330,12 +3325,12 @@ fn add_output_coin_and_multiasset() {
 
 #[test]
 fn add_output_asset_and_min_required_coin() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let policy_id1 = PolicyID::from([0u8; 28]);
     let multiasset = create_multiasset_one_asset(&policy_id1);
 
-    let address = byron_address();
+    let address = fake_byron_address();
 
     tx_builder
         .add_output(
@@ -3358,12 +3353,12 @@ fn add_output_asset_and_min_required_coin() {
 
     assert_eq!(out.address.to_bytes(), address.to_bytes());
     assert_eq!(out.amount.multiasset.unwrap(), multiasset);
-    assert_eq!(out.amount.coin, to_bignum(1146460));
+    assert_eq!(out.amount.coin, BigNum(1146460));
 }
 
 #[test]
 fn add_mint_asset_and_output() {
-    let mut tx_builder = create_default_tx_builder();
+    let mut tx_builder = fake_default_tx_builder();
 
     let (mint_script0, policy_id0) = mint_script_and_policy(0);
     let (mint_script1, policy_id1) = mint_script_and_policy(1);
@@ -3371,11 +3366,11 @@ fn add_mint_asset_and_output() {
     let name = create_asset_name();
     let amount = Int::new_i32(1234);
 
-    let address = byron_address();
-    let coin = to_bignum(249);
+    let address = fake_byron_address();
+    let coin = BigNum(249);
 
     // Add unrelated mint first to check it is NOT added to output later
-    tx_builder.add_mint_asset(&mint_script0, &name, &amount.clone());
+    tx_builder.add_mint_asset(&mint_script0, &name, &amount.clone()).expect("Failed to add mint asset");
 
     tx_builder
         .add_mint_asset_and_output(
@@ -3394,7 +3389,7 @@ fn add_mint_asset_and_output() {
     let mint_scripts = &tx_builder.mint.as_ref().unwrap().get_native_scripts();
     assert!(mint_scripts.len() > 0);
 
-    let mint = &tx_builder.mint.unwrap().build();
+    let mint = &tx_builder.mint.unwrap().build().expect("Failed to build mint");
 
     // Mint contains two entries
     assert_eq!(mint.len(), 2);
@@ -3403,7 +3398,6 @@ fn add_mint_asset_and_output() {
 
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -3429,12 +3423,12 @@ fn add_mint_asset_and_output() {
 
     let asset = multiasset.get(&policy_id1).unwrap();
     assert_eq!(asset.len(), 1);
-    assert_eq!(asset.get(&name).unwrap(), to_bignum(1234));
+    assert_eq!(asset.get(&name).unwrap(), BigNum(1234));
 }
 
 #[test]
 fn add_mint_asset_and_min_required_coin() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let (mint_script0, policy_id0) = mint_script_and_policy(0);
     let (mint_script1, policy_id1) = mint_script_and_policy(1);
@@ -3442,10 +3436,10 @@ fn add_mint_asset_and_min_required_coin() {
     let name = create_asset_name();
     let amount = Int::new_i32(1234);
 
-    let address = byron_address();
+    let address = fake_byron_address();
 
     // Add unrelated mint first to check it is NOT added to output later
-    tx_builder.add_mint_asset(&mint_script0, &name, &amount);
+    tx_builder.add_mint_asset(&mint_script0, &name, &amount).expect("Failed to add mint asset");
 
     tx_builder
         .add_mint_asset_and_output_min_required_coin(
@@ -3463,7 +3457,7 @@ fn add_mint_asset_and_min_required_coin() {
     let mint_scripts = tx_builder.mint.as_ref().unwrap().get_native_scripts();
     assert!(mint_scripts.len() > 0);
 
-    let mint = &tx_builder.mint.unwrap().build();
+    let mint = &tx_builder.mint.unwrap().build().expect("Failed to build mint");
 
     // Mint contains two entries
     assert_eq!(mint.len(), 2);
@@ -3472,7 +3466,6 @@ fn add_mint_asset_and_min_required_coin() {
 
     assert_eq!(mint_scripts.len(), 2);
     let actual_scripts = mint_scripts
-        .0
         .iter()
         .cloned()
         .collect::<BTreeSet<NativeScript>>();
@@ -3487,7 +3480,7 @@ fn add_mint_asset_and_min_required_coin() {
     let out = tx_builder.outputs.get(0);
 
     assert_eq!(out.address.to_bytes(), address.to_bytes());
-    assert_eq!(out.amount.coin, to_bignum(1146460));
+    assert_eq!(out.amount.coin, BigNum(1146460));
 
     let multiasset = out.amount.multiasset.unwrap();
 
@@ -3498,12 +3491,12 @@ fn add_mint_asset_and_min_required_coin() {
 
     let asset = multiasset.get(&policy_id1).unwrap();
     assert_eq!(asset.len(), 1);
-    assert_eq!(asset.get(&name).unwrap(), to_bignum(1234));
+    assert_eq!(asset.get(&name).unwrap(), BigNum(1234));
 }
 
 #[test]
 fn add_mint_includes_witnesses_into_fee_estimation() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     let hash0 = fake_key_hash(0);
 
@@ -3521,25 +3514,25 @@ fn add_mint_includes_witnesses_into_fee_estimation() {
     tx_builder.add_key_input(
         &hash0,
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(10_000_000)),
+        &Value::new(&BigNum(10_000_000)),
     );
 
     // One input from same address as mint
     tx_builder.add_key_input(
         &hash1,
         &TransactionInput::new(&genesis_id(), 1),
-        &Value::new(&to_bignum(10_000_000)),
+        &Value::new(&BigNum(10_000_000)),
     );
 
     // Original tx fee now assumes two VKey signatures for two inputs
     let original_tx_fee = tx_builder.min_fee().unwrap();
-    assert_eq!(original_tx_fee, to_bignum(168361));
+    assert_eq!(original_tx_fee, BigNum(168625));
 
     // Add minting four assets from three different policies
-    tx_builder.add_mint_asset(&mint_script1, &name1, &amount);
-    tx_builder.add_mint_asset(&mint_script2, &name2, &amount);
-    tx_builder.add_mint_asset(&mint_script3, &name3, &amount);
-    tx_builder.add_mint_asset(&mint_script3, &name4, &amount);
+    tx_builder.add_mint_asset(&mint_script1, &name1, &amount).expect("Failed to add mint asset");
+    tx_builder.add_mint_asset(&mint_script2, &name2, &amount).expect("Failed to add mint asset");
+    tx_builder.add_mint_asset(&mint_script3, &name3, &amount).expect("Failed to add mint asset");
+    tx_builder.add_mint_asset(&mint_script3, &name4, &amount).expect("Failed to add mint asset");
 
     let mint = tx_builder.get_mint().unwrap();
     let mint_len = mint.to_bytes().len();
@@ -3551,15 +3544,15 @@ fn add_mint_includes_witnesses_into_fee_estimation() {
     let fee_coefficient = tx_builder.config.fee_algo.coefficient();
 
     let raw_mint_fee = fee_coefficient
-        .checked_mul(&to_bignum(mint_len as u64))
+        .checked_mul(&BigNum(mint_len as u64))
         .unwrap();
 
     let raw_mint_script_fee = fee_coefficient
-        .checked_mul(&to_bignum(mint_scripts_len as u64))
+        .checked_mul(&BigNum(mint_scripts_len as u64))
         .unwrap();
 
-    assert_eq!(raw_mint_fee, to_bignum(5544));
-    assert_eq!(raw_mint_script_fee, to_bignum(4312));
+    assert_eq!(raw_mint_fee, BigNum(5544));
+    assert_eq!(raw_mint_script_fee, BigNum(4444));
 
     let new_tx_fee = tx_builder.min_fee().unwrap();
 
@@ -3571,10 +3564,10 @@ fn add_mint_includes_witnesses_into_fee_estimation() {
         .checked_sub(&raw_mint_script_fee)
         .unwrap();
 
-    assert_eq!(witness_fee_increase, to_bignum(8932));
+    assert_eq!(witness_fee_increase, BigNum(8932));
 
-    let fee_increase_bytes = from_bignum(&witness_fee_increase)
-        .checked_div(from_bignum(&fee_coefficient))
+    let fee_increase_bytes = u64::from(&witness_fee_increase)
+        .checked_div(u64::from(&fee_coefficient))
         .unwrap();
 
     // Two vkey witnesses 96 bytes each (32 byte pubkey + 64 byte signature)
@@ -3587,7 +3580,7 @@ fn add_mint_includes_witnesses_into_fee_estimation() {
 
 #[test]
 fn fee_estimation_fails_on_missing_mint_scripts() {
-    let mut tx_builder = create_reallistic_tx_builder();
+    let mut tx_builder = fake_reallistic_tx_builder();
 
     // No error estimating fee without mint
     assert!(tx_builder.min_fee().is_ok());
@@ -3611,7 +3604,7 @@ fn fee_estimation_fails_on_missing_mint_scripts() {
     let est1 = tx_builder.min_fee();
     assert!(est1.is_ok());
 
-    tx_builder.add_mint_asset(&mint_script2, &name1, &amount);
+    tx_builder.add_mint_asset(&mint_script2, &name1, &amount).expect("Failed to add mint asset");
 
     let est2 = tx_builder.min_fee();
     assert!(est2.is_ok());
@@ -3648,8 +3641,8 @@ fn fee_estimation_fails_on_missing_mint_scripts() {
 
 #[test]
 fn total_input_output_with_mint_and_burn() {
-    let mut tx_builder = create_tx_builder_with_fee(&create_linear_fee(0, 1));
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(0, 1));
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -3672,12 +3665,12 @@ fn total_input_output_with_mint_and_burn() {
             let mut multiasset = MultiAsset::new();
             multiasset.insert(&policy_id1, &{
                 let mut assets = Assets::new();
-                assets.insert(&name, &to_bignum(*input));
+                assets.insert(&name, &BigNum(*input));
                 assets
             });
             multiasset.insert(&policy_id2, &{
                 let mut assets = Assets::new();
-                assets.insert(&name, &to_bignum(*input));
+                assets.insert(&name, &BigNum(*input));
                 assets
             });
             multiasset
@@ -3686,7 +3679,7 @@ fn total_input_output_with_mint_and_burn() {
 
     for (i, (multiasset, ada)) in multiassets
         .iter()
-        .zip([100u64, 100, 100].iter().cloned().map(to_bignum))
+        .zip([100u64, 100, 100].iter().cloned().map(BigNum::from))
         .enumerate()
     {
         let mut input_amount = Value::new(&ada);
@@ -3702,10 +3695,10 @@ fn total_input_output_with_mint_and_burn() {
     tx_builder
         .add_output(
             &TransactionOutputBuilder::new()
-                .with_address(&byron_address())
+                .with_address(&fake_byron_address())
                 .next()
                 .unwrap()
-                .with_coin(&to_bignum(208))
+                .with_coin(&BigNum(208))
                 .build()
                 .unwrap(),
         )
@@ -3714,188 +3707,89 @@ fn total_input_output_with_mint_and_burn() {
     let total_input_before_mint = tx_builder.get_total_input().unwrap();
     let total_output_before_mint = tx_builder.get_total_output().unwrap();
 
-    assert_eq!(total_input_before_mint.coin, to_bignum(300));
-    assert_eq!(total_output_before_mint.coin, to_bignum(208));
+    assert_eq!(total_input_before_mint.coin, BigNum(300));
+    assert_eq!(total_output_before_mint.coin, BigNum(208));
     let ma1_input = total_input_before_mint.multiasset.unwrap();
     let ma1_output = total_output_before_mint.multiasset;
     assert_eq!(
         ma1_input.get(&policy_id1).unwrap().get(&name).unwrap(),
-        to_bignum(360)
+        BigNum(360)
     );
     assert_eq!(
         ma1_input.get(&policy_id2).unwrap().get(&name).unwrap(),
-        to_bignum(360)
+        BigNum(360)
     );
     assert!(ma1_output.is_none());
 
     // Adding mint
-    tx_builder.add_mint_asset(&mint_script1, &name, &Int::new_i32(40));
+    tx_builder.add_mint_asset(&mint_script1, &name, &Int::new_i32(40)).expect("Failed to add mint asset");
 
     // Adding burn
-    tx_builder.add_mint_asset(&mint_script2, &name, &Int::new_i32(-40));
+    tx_builder.add_mint_asset(&mint_script2, &name, &Int::new_i32(-40)).expect("Failed to add mint asset");
 
     let total_input_after_mint = tx_builder.get_total_input().unwrap();
     let total_output_after_mint = tx_builder.get_total_output().unwrap();
 
-    assert_eq!(total_input_after_mint.coin, to_bignum(300));
-    assert_eq!(total_output_before_mint.coin, to_bignum(208));
+    assert_eq!(total_input_after_mint.coin, BigNum(300));
+    assert_eq!(total_output_before_mint.coin, BigNum(208));
     let ma2_input = total_input_after_mint.multiasset.unwrap();
     let ma2_output = total_output_after_mint.multiasset.unwrap();
     assert_eq!(
         ma2_input.get(&policy_id1).unwrap().get(&name).unwrap(),
-        to_bignum(400)
+        BigNum(400)
     );
     assert_eq!(
         ma2_input.get(&policy_id2).unwrap().get(&name).unwrap(),
-        to_bignum(360)
+        BigNum(360)
     );
     assert_eq!(
         ma2_output.get(&policy_id2).unwrap().get(&name).unwrap(),
-        to_bignum(40)
+        BigNum(40)
     );
-}
-
-fn create_base_address_from_script_hash(sh: &ScriptHash) -> Address {
-    BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
-        &Credential::from_scripthash(sh),
-        &Credential::from_keyhash(&fake_key_hash(0)),
-    )
-    .to_address()
-}
-
-#[test]
-fn test_set_input_scripts() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    let (script1, hash1) = mint_script_and_policy(0);
-    let (script2, hash2) = mint_script_and_policy(1);
-    let (script3, _hash3) = mint_script_and_policy(2);
-    // Trying to set native scripts to the builder
-    let rem0 = tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![
-        script1.clone(),
-        script2.clone(),
-        script3.clone(),
-    ]));
-    assert_eq!(rem0, 0);
-    let missing0 = tx_builder.count_missing_input_scripts();
-    assert_eq!(missing0, 0);
-    // Adding two script inputs using script1 and script2 hashes
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&hash1),
-        &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&hash2),
-        &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
-    // Setting a non-matching script will not change anything
-    let rem1 =
-        tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![script3.clone()]));
-    assert_eq!(rem1, 2);
-    let missing1 = tx_builder.count_missing_input_scripts();
-    assert_eq!(missing1, 2);
-    // Setting one of the required scripts leaves one to be required
-    let rem2 = tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![
-        script1.clone(),
-        script3.clone(),
-    ]));
-    assert_eq!(rem2, 1);
-    let missing2 = tx_builder.count_missing_input_scripts();
-    assert_eq!(missing2, 1);
-    // Setting one non-required script again does not change anything
-    // But shows the state has changed
-    let rem3 =
-        tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![script3.clone()]));
-    assert_eq!(rem3, 1);
-    let missing3 = tx_builder.count_missing_input_scripts();
-    assert_eq!(missing3, 1);
-    // Setting two required scripts will show both of them added
-    // And the remainder required is zero
-    let rem4 = tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![
-        script1.clone(),
-        script2.clone(),
-    ]));
-    assert_eq!(rem4, 0);
-    let missing4 = tx_builder.count_missing_input_scripts();
-    assert_eq!(missing4, 0);
-    // Setting empty scripts does not change anything
-    // But shows the state has changed
-    let rem5 = tx_builder.add_required_native_input_scripts(&NativeScripts::new());
-    assert_eq!(rem5, 0);
 }
 
 #[test]
 fn test_add_native_script_input() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    let (script1, _hash1) = mint_script_and_policy(0);
-    let (script2, _hash2) = mint_script_and_policy(1);
-    let (script3, hash3) = mint_script_and_policy(2);
-    // Adding two script inputs directly with their witness
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let (script1, _) = mint_script_and_policy(0);
+    let (script2, _) = mint_script_and_policy(1);
+
+    // Adding two script inputs using script1 and script2 hashes
     tx_builder.add_native_script_input(
         &script1,
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     tx_builder.add_native_script_input(
         &script2,
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
-    // Adding one script input indirectly via hash3 address
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&hash3),
-        &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
-    // Checking missing input scripts shows one
-    // Because first two inputs already have their witness
-    let missing1 = tx_builder.count_missing_input_scripts();
-    assert_eq!(missing1, 1);
-    // Setting the required script leaves none to be required`
-    let rem1 =
-        tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![script3.clone()]));
-    assert_eq!(rem1, 0);
-    let missing2 = tx_builder.count_missing_input_scripts();
-    assert_eq!(missing2, 0);
-}
 
-fn unsafe_tx_len(b: &TransactionBuilder) -> usize {
-    b.build_tx_unsafe().unwrap().to_bytes().len()
+    assert_eq!(
+        tx_builder.inputs.get_native_input_scripts().unwrap().len(),
+        2
+    );
 }
 
 #[test]
 fn test_native_input_scripts_are_added_to_the_witnesses() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    let (script1, _hash1) = mint_script_and_policy(0);
-    let (script2, hash2) = mint_script_and_policy(1);
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let (script1, _) = mint_script_and_policy(0);
+    let (script2, _) = mint_script_and_policy(1);
+    tx_builder.set_fee(&BigNum(42));
+
     tx_builder.add_native_script_input(
         &script1,
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
-    let tx_len_before_new_script_input = unsafe_tx_len(&tx_builder);
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&hash2),
+    tx_builder.add_native_script_input(
+        &script2,
         &TransactionInput::new(&genesis_id(), 1),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
-    let tx_len_after_new_script_input = unsafe_tx_len(&tx_builder);
-    // Tx size increased cuz input is added even without the witness
-    assert!(tx_len_after_new_script_input > tx_len_before_new_script_input);
-    tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![script2.clone()]));
-    let tx_len_after_adding_script_witness = unsafe_tx_len(&tx_builder);
-    // Tx size increased cuz the witness is added to the witnesses
-    assert!(tx_len_after_adding_script_witness > tx_len_after_new_script_input);
-    tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![
-        script1.clone(),
-        script2.clone(),
-    ]));
-    let tx_len_after_adding_script_witness_again = unsafe_tx_len(&tx_builder);
-    // Tx size did not change because calling to add same witnesses again doesn't change anything
-    assert!(tx_len_after_adding_script_witness == tx_len_after_adding_script_witness_again);
+
     let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
     assert!(tx.witness_set.native_scripts.is_some());
     let native_scripts = tx.witness_set.native_scripts.unwrap();
@@ -3905,57 +3799,24 @@ fn test_native_input_scripts_are_added_to_the_witnesses() {
 }
 
 #[test]
-fn test_building_with_missing_witness_script_fails() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    let (script1, _hash1) = mint_script_and_policy(0);
-    let (script2, hash2) = mint_script_and_policy(1);
-    tx_builder.set_fee(&to_bignum(42));
-    // Ok to build before any inputs
-    assert!(tx_builder.build_tx().is_ok());
-    // Adding native script input which adds the witness right away
-    tx_builder.add_native_script_input(
-        &script1,
-        &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
-    // Ok to build when witness is added along with the input
-    assert!(tx_builder.build_tx().is_ok());
-    // Adding script input without the witness
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&hash2),
-        &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
-    // Not ok to build when missing a witness
-    assert!(tx_builder.build_tx().is_err());
-    // Can force to build using unsafe
-    assert!(tx_builder.build_tx_unsafe().is_ok());
-    // Adding the missing witness script
-    tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![script2.clone()]));
-    // Ok to build when all witnesses are added
-    assert!(tx_builder.build_tx().is_ok());
-}
-
-#[test]
 fn test_adding_plutus_script_input() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    let (script1, _) = plutus_script_and_hash(0);
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let (script1, _) = fake_plutus_script_and_hash(0);
     let datum = PlutusData::new_bytes(fake_bytes_32(1));
     let redeemer_datum = PlutusData::new_bytes(fake_bytes_32(2));
     let redeemer = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &redeemer_datum,
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
     tx_builder.add_plutus_script_input(
         &PlutusWitness::new(&script1, &datum, &redeemer),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
-    tx_builder.set_fee(&to_bignum(42));
+    tx_builder.set_fee(&BigNum(42));
     // There are no missing script witnesses
-    assert_eq!(tx_builder.count_missing_input_scripts(), 0);
     let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
     assert!(tx.witness_set.plutus_scripts.is_some());
     assert_eq!(tx.witness_set.plutus_scripts.unwrap().get(0), script1);
@@ -3967,50 +3828,35 @@ fn test_adding_plutus_script_input() {
 
 #[test]
 fn test_adding_plutus_script_witnesses() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
-    let (script1, hash1) = plutus_script_and_hash(0);
-    let (script2, hash2) = plutus_script_and_hash(1);
-    let (script3, _hash3) = plutus_script_and_hash(3);
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
+    let (script1, _) = fake_plutus_script_and_hash(0);
+    let (script2, _) = fake_plutus_script_and_hash(1);
     let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
     let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
     let redeemer1 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusData::new_bytes(fake_bytes_32(20)),
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
     let redeemer2 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(1),
+        &BigNum(1),
         &PlutusData::new_bytes(fake_bytes_32(21)),
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&hash1),
+    tx_builder.add_plutus_script_input(
+        &PlutusWitness::new(&script1, &datum1, &redeemer1),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&hash2),
+    tx_builder.add_plutus_script_input(
+        &PlutusWitness::new(&script2, &datum2, &redeemer2),
         &TransactionInput::new(&genesis_id(), 1),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
-    // There are TWO missing script witnesses
-    assert_eq!(tx_builder.count_missing_input_scripts(), 2);
-    // Calling to add two plutus witnesses, one of which is irrelevant
-    tx_builder.add_required_plutus_input_scripts(&PlutusWitnesses::from(vec![
-        PlutusWitness::new(&script1, &datum1, &redeemer1),
-        PlutusWitness::new(&script3, &datum2, &redeemer2),
-    ]));
-    // There is now ONE missing script witnesses
-    assert_eq!(tx_builder.count_missing_input_scripts(), 1);
-    // Calling to add the one remaining relevant plutus witness now
-    tx_builder.add_required_plutus_input_scripts(&PlutusWitnesses::from(vec![PlutusWitness::new(
-        &script2, &datum2, &redeemer2,
-    )]));
-    // There is now no missing script witnesses
-    assert_eq!(tx_builder.count_missing_input_scripts(), 0);
+
     let tx: Transaction = tx_builder.build_tx_unsafe().unwrap();
     // Check there are two correct scripts
     assert!(tx.witness_set.plutus_scripts.is_some());
@@ -4034,32 +3880,34 @@ fn test_adding_plutus_script_witnesses() {
 
 fn create_collateral() -> TxInputsBuilder {
     let mut collateral_builder = TxInputsBuilder::new();
-    collateral_builder.add_input(
-        &byron_address(),
-        &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
+    collateral_builder
+        .add_regular_input(
+            &fake_byron_address(),
+            &TransactionInput::new(&genesis_id(), 0),
+            &Value::new(&BigNum(1_000_000)),
+        )
+        .unwrap();
     collateral_builder
 }
 
 #[test]
 fn test_existing_plutus_scripts_require_data_hash() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
-    let (script1, _) = plutus_script_and_hash(0);
+    let (script1, _) = fake_plutus_script_and_hash(0);
     let datum = PlutusData::new_bytes(fake_bytes_32(1));
     let redeemer_datum = PlutusData::new_bytes(fake_bytes_32(2));
     let redeemer = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &redeemer_datum,
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
     tx_builder.add_plutus_script_input(
         &PlutusWitness::new(&script1, &datum, &redeemer),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
 
     // Using SAFE `.build_tx`
@@ -4084,23 +3932,23 @@ fn test_existing_plutus_scripts_require_data_hash() {
 
 #[test]
 fn test_calc_script_hash_data() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
 
-    let (script1, _) = plutus_script_and_hash(0);
+    let (script1, _) = fake_plutus_script_and_hash(0);
     let datum = PlutusData::new_bytes(fake_bytes_32(1));
     let redeemer_datum = PlutusData::new_bytes(fake_bytes_32(2));
     let redeemer = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &redeemer_datum,
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
     tx_builder.add_plutus_script_input(
         &PlutusWitness::new(&script1, &datum, &redeemer),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
 
     // Setting script data hash removes the error
@@ -4125,46 +3973,46 @@ fn test_calc_script_hash_data() {
 
 #[test]
 fn test_plutus_witness_redeemer_index_auto_changing() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
-    let (script1, _) = plutus_script_and_hash(0);
-    let (script2, _) = plutus_script_and_hash(1);
+    let (script1, _) = fake_plutus_script_and_hash(0);
+    let (script2, _) = fake_plutus_script_and_hash(1);
     let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
     let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
 
     // Creating redeemers with indexes ZERO
     let redeemer1 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusData::new_bytes(fake_bytes_32(20)),
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
     let redeemer2 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusData::new_bytes(fake_bytes_32(21)),
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
 
     // Add a regular NON-script input first
-    tx_builder.add_input(
-        &byron_address(),
+    tx_builder.add_regular_input(
+        &fake_byron_address(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
 
     // Adding two plutus inputs then
     // both have redeemers with index ZERO
     tx_builder.add_plutus_script_input(
         &PlutusWitness::new(&script1, &datum1, &redeemer1),
         &TransactionInput::new(&genesis_id(), 1),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     tx_builder.add_plutus_script_input(
         &PlutusWitness::new(&script2, &datum2, &redeemer2),
         &TransactionInput::new(&genesis_id(), 2),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
 
     // Calc the script data hash
@@ -4189,77 +4037,59 @@ fn test_plutus_witness_redeemer_index_auto_changing() {
     // Note the redeemers from the result transaction are equal with source redeemers
     // In everything EXCEPT the index field, the indexes have changed to 1 and 2
     // To match the position of their corresponding input
-    assert_eq!(redeems.get(0).index(), to_bignum(1));
-    assert_eq!(redeems.get(1).index(), to_bignum(2));
+    assert_eq!(redeems.get(0).index(), BigNum(1));
+    assert_eq!(redeems.get(1).index(), BigNum(2));
 }
 
 #[test]
 fn test_native_and_plutus_scripts_together() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
-    let (pscript1, _) = plutus_script_and_hash(0);
-    let (pscript2, phash2) = plutus_script_and_hash(1);
+    let (pscript1, _) = fake_plutus_script_and_hash(0);
+    let (pscript2, _phash2) = fake_plutus_script_and_hash(1);
     let (nscript1, _) = mint_script_and_policy(0);
-    let (nscript2, nhash2) = mint_script_and_policy(1);
+    let (nscript2, _nhash2) = mint_script_and_policy(1);
     let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
     let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
     // Creating redeemers with indexes ZERO
     let redeemer1 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusData::new_bytes(fake_bytes_32(20)),
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
     let redeemer2 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusData::new_bytes(fake_bytes_32(21)),
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
 
     // Add one plutus input directly with witness
     tx_builder.add_plutus_script_input(
         &PlutusWitness::new(&pscript1, &datum1, &redeemer1),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     // Add one native input directly with witness
     tx_builder.add_native_script_input(
         &nscript1,
         &TransactionInput::new(&genesis_id(), 1),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     // Add one plutus input generically without witness
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&phash2),
+    tx_builder.add_plutus_script_input(
+        &PlutusWitness::new(&pscript2, &datum2, &redeemer2),
         &TransactionInput::new(&genesis_id(), 2),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     // Add one native input generically without witness
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&nhash2),
+    tx_builder.add_native_script_input(
+        &nscript2,
         &TransactionInput::new(&genesis_id(), 3),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
-
-    // There are two missing script witnesses
-    assert_eq!(tx_builder.count_missing_input_scripts(), 2);
-
-    let remaining1 = tx_builder.add_required_plutus_input_scripts(&PlutusWitnesses::from(vec![
-        PlutusWitness::new(&pscript2, &datum2, &redeemer2),
-    ]));
-
-    // There is one missing script witness now
-    assert_eq!(remaining1, 1);
-    assert_eq!(tx_builder.count_missing_input_scripts(), 1);
-
-    let remaining2 =
-        tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![nscript2.clone()]));
-
-    // There are no missing script witnesses now
-    assert_eq!(remaining2, 0);
-    assert_eq!(tx_builder.count_missing_input_scripts(), 0);
 
     tx_builder
         .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
@@ -4294,78 +4124,60 @@ fn test_native_and_plutus_scripts_together() {
 
     // The second plutus input redeemer index has automatically changed to 2
     // because it was added on the third position
-    assert_eq!(redeems.get(1), redeemer2.clone_with_index(&to_bignum(2)));
+    assert_eq!(redeems.get(1), redeemer2.clone_with_index(&BigNum(2)));
 }
 
 #[test]
 fn test_json_serialization_native_and_plutus_scripts_together() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
-    let (pscript1, _) = plutus_script_and_hash(0);
-    let (pscript2, phash2) = plutus_script_and_hash(1);
+    let (pscript1, _) = fake_plutus_script_and_hash(0);
+    let (pscript2, _phash2) = fake_plutus_script_and_hash(1);
     let (nscript1, _) = mint_script_and_policy(0);
-    let (nscript2, nhash2) = mint_script_and_policy(1);
+    let (nscript2, _nhash2) = mint_script_and_policy(1);
     let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
     let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
     // Creating redeemers with indexes ZERO
     let redeemer1 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusData::new_bytes(fake_bytes_32(20)),
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
     let redeemer2 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusData::new_bytes(fake_bytes_32(21)),
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
 
     // Add one plutus input directly with witness
     tx_builder.add_plutus_script_input(
         &PlutusWitness::new(&pscript1, &datum1, &redeemer1),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     // Add one native input directly with witness
     tx_builder.add_native_script_input(
         &nscript1,
         &TransactionInput::new(&genesis_id(), 1),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     // Add one plutus input generically without witness
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&phash2),
+    tx_builder.add_plutus_script_input(
+        &PlutusWitness::new(&pscript2, &datum2, &redeemer2),
         &TransactionInput::new(&genesis_id(), 2),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     // Add one native input generically without witness
-    tx_builder.add_input(
-        &create_base_address_from_script_hash(&nhash2),
+    tx_builder.add_native_script_input(
+        &nscript2,
         &TransactionInput::new(&genesis_id(), 3),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
 
-    // There are two missing script witnesses
-    assert_eq!(tx_builder.count_missing_input_scripts(), 2);
-
-    let remaining1 = tx_builder.add_required_plutus_input_scripts(&PlutusWitnesses::from(vec![
-        PlutusWitness::new(&pscript2, &datum2, &redeemer2),
-    ]));
-
-    // There is one missing script witness now
-    assert_eq!(remaining1, 1);
-    assert_eq!(tx_builder.count_missing_input_scripts(), 1);
-
-    let remaining2 =
-        tx_builder.add_required_native_input_scripts(&NativeScripts::from(vec![nscript2.clone()]));
-
-    // There are no missing script witnesses now
-    assert_eq!(remaining2, 0);
-    assert_eq!(tx_builder.count_missing_input_scripts(), 0);
-
-    tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models());
+    tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models()).expect("Failed to calc script data hash");
 
     let tx: Transaction = tx_builder.build_tx().unwrap();
 
@@ -4382,20 +4194,20 @@ fn test_regular_and_collateral_inputs_same_keyhash() {
     let mut collateral_builder = TxInputsBuilder::new();
 
     // Add a single input of both kinds with the SAME keyhash
-    input_builder.add_input(
+    input_builder.add_regular_input(
         &fake_base_address(0),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
-    collateral_builder.add_input(
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
+    collateral_builder.add_regular_input(
         &fake_base_address(0),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
 
     fn get_fake_vkeys_count(i: &TxInputsBuilder, c: &TxInputsBuilder) -> usize {
-        let mut tx_builder = create_reallistic_tx_builder();
-        tx_builder.set_fee(&to_bignum(42));
+        let mut tx_builder = fake_reallistic_tx_builder();
+        tx_builder.set_fee(&BigNum(42));
         tx_builder.set_inputs(i);
         tx_builder.set_collateral(c);
         let tx: Transaction = fake_full_tx(&tx_builder, tx_builder.build().unwrap()).unwrap();
@@ -4407,16 +4219,16 @@ fn test_regular_and_collateral_inputs_same_keyhash() {
     assert_eq!(get_fake_vkeys_count(&input_builder, &collateral_builder), 1);
 
     // Add a new input of each kind with DIFFERENT keyhashes
-    input_builder.add_input(
+    input_builder.add_regular_input(
         &fake_base_address(1),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
-    collateral_builder.add_input(
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
+    collateral_builder.add_regular_input(
         &fake_base_address(2),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
-    );
+        &Value::new(&BigNum(1_000_000)),
+    ).expect("Failed to add input");
 
     // There are now three fake witnesses in the builder
     // because all three unique keyhashes got combined
@@ -4425,10 +4237,10 @@ fn test_regular_and_collateral_inputs_same_keyhash() {
 
 #[test]
 fn test_regular_and_collateral_inputs_together() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
-    let (pscript1, _) = plutus_script_and_hash(0);
-    let (pscript2, _) = plutus_script_and_hash(1);
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
+    let (pscript1, _) = fake_plutus_script_and_hash(0);
+    let (pscript2, _) = fake_plutus_script_and_hash(1);
     let (nscript1, _) = mint_script_and_policy(0);
     let (nscript2, _) = mint_script_and_policy(1);
     let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
@@ -4436,40 +4248,40 @@ fn test_regular_and_collateral_inputs_together() {
     // Creating redeemers with indexes ZERO
     let redeemer1 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusData::new_bytes(fake_bytes_32(20)),
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
     let redeemer2 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &PlutusData::new_bytes(fake_bytes_32(21)),
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
 
     let mut input_builder = TxInputsBuilder::new();
     let mut collateral_builder = TxInputsBuilder::new();
 
     input_builder.add_native_script_input(
-        &nscript1,
+        &NativeScriptSource::new(&nscript1),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     collateral_builder.add_native_script_input(
-        &nscript2,
+        &NativeScriptSource::new(&nscript2),
         &TransactionInput::new(&genesis_id(), 1),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
 
     input_builder.add_plutus_script_input(
         &PlutusWitness::new(&pscript1, &datum1, &redeemer1),
         &TransactionInput::new(&genesis_id(), 2),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
     collateral_builder.add_plutus_script_input(
         &PlutusWitness::new(&pscript2, &datum2, &redeemer2),
         &TransactionInput::new(&genesis_id(), 3),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
 
     tx_builder.set_inputs(&input_builder);
@@ -4502,8 +4314,8 @@ fn test_regular_and_collateral_inputs_together() {
     assert!(w.redeemers.is_some());
     let redeemers = w.redeemers.as_ref().unwrap();
     assert_eq!(redeemers.len(), 2);
-    assert_eq!(redeemers.get(0), redeemer1.clone_with_index(&to_bignum(1)));
-    assert_eq!(redeemers.get(1), redeemer2.clone_with_index(&to_bignum(1)));
+    assert_eq!(redeemers.get(0), redeemer1.clone_with_index(&BigNum(1)));
+    assert_eq!(redeemers.get(1), redeemer2.clone_with_index(&BigNum(1)));
 }
 
 #[test]
@@ -4513,32 +4325,32 @@ fn test_ex_unit_costs_are_added_to_the_fees() {
         let mut collateral_builder = TxInputsBuilder::new();
 
         // Add a single input of both kinds with the SAME keyhash
-        input_builder.add_input(
+        input_builder.add_regular_input(
             &fake_base_address(0),
             &TransactionInput::new(&genesis_id(), 0),
-            &Value::new(&to_bignum(1_000_000)),
-        );
-        collateral_builder.add_input(
+            &Value::new(&BigNum(1_000_000)),
+        ).expect("Failed to add input");
+        collateral_builder.add_regular_input(
             &fake_base_address(0),
             &TransactionInput::new(&genesis_id(), 1),
-            &Value::new(&to_bignum(1_000_000)),
-        );
+            &Value::new(&BigNum(1_000_000)),
+        ).expect("Failed to add input");
 
-        let (pscript1, _) = plutus_script_and_hash(0);
+        let (pscript1, _) = fake_plutus_script_and_hash(0);
         let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
         let redeemer1 = Redeemer::new(
             &RedeemerTag::new_spend(),
-            &to_bignum(0),
+            &BigNum(0),
             &PlutusData::new_bytes(fake_bytes_32(20)),
-            &ExUnits::new(&to_bignum(mem), &to_bignum(step)),
+            &ExUnits::new(&BigNum(mem), &BigNum(step)),
         );
         input_builder.add_plutus_script_input(
             &PlutusWitness::new(&pscript1, &datum1, &redeemer1),
             &TransactionInput::new(&genesis_id(), 2),
-            &Value::new(&to_bignum(1_000_000)),
+            &Value::new(&BigNum(1_000_000)),
         );
 
-        let mut tx_builder = create_reallistic_tx_builder();
+        let mut tx_builder = fake_reallistic_tx_builder();
         tx_builder.set_inputs(&input_builder);
         tx_builder.set_collateral(&collateral_builder);
 
@@ -4549,19 +4361,19 @@ fn test_ex_unit_costs_are_added_to_the_fees() {
         tx_builder.get_fee_if_set().unwrap()
     }
 
-    assert_eq!(calc_fee_with_ex_units(0, 0), to_bignum(173509));
-    assert_eq!(calc_fee_with_ex_units(10000, 0), to_bignum(174174));
-    assert_eq!(calc_fee_with_ex_units(0, 10000000), to_bignum(174406));
-    assert_eq!(calc_fee_with_ex_units(10000, 10000000), to_bignum(175071));
+    assert_eq!(calc_fee_with_ex_units(0, 0), BigNum(174213));
+    assert_eq!(calc_fee_with_ex_units(10000, 0), BigNum(174878));
+    assert_eq!(calc_fee_with_ex_units(0, 10000000), BigNum(175110));
+    assert_eq!(calc_fee_with_ex_units(10000, 10000000), BigNum(175775));
 }
 
 #[test]
 fn test_script_inputs_ordering() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
     let (nscript1, _) = mint_script_and_policy(0);
-    let (pscript1, _) = plutus_script_and_hash(0);
-    let (pscript2, _) = plutus_script_and_hash(1);
+    let (pscript1, _) = fake_plutus_script_and_hash(0);
+    let (pscript2, _) = fake_plutus_script_and_hash(1);
     let datum1 = PlutusData::new_bytes(fake_bytes_32(10));
     let datum2 = PlutusData::new_bytes(fake_bytes_32(11));
     // Creating redeemers with indexes ZERO
@@ -4569,15 +4381,15 @@ fn test_script_inputs_ordering() {
     let pdata2 = PlutusData::new_bytes(fake_bytes_32(21));
     let redeemer1 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &pdata1,
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
     let redeemer2 = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &pdata2,
-        &ExUnits::new(&to_bignum(1), &to_bignum(2)),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
     );
 
     tx_builder.add_plutus_script_input(
@@ -4607,17 +4419,17 @@ fn test_script_inputs_ordering() {
 
     // Redeemer1 now has the index 2 even tho the input was added first
     assert_eq!(r.get(0).data(), pdata1);
-    assert_eq!(r.get(0).index(), to_bignum(2));
+    assert_eq!(r.get(0).index(), BigNum(2));
 
     // Redeemer1 now has the index 1 even tho the input was added last
     assert_eq!(r.get(1).data(), pdata2);
-    assert_eq!(r.get(1).index(), to_bignum(1));
+    assert_eq!(r.get(1).index(), BigNum(1));
 }
 
 #[test]
 fn test_required_signers() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
     let tx1: TransactionBody = tx_builder.build().unwrap();
     assert!(tx1.required_signers.is_none());
 
@@ -4632,27 +4444,27 @@ fn test_required_signers() {
     let tx1: TransactionBody = tx_builder.build().unwrap();
     assert!(tx1.required_signers.is_some());
 
-    let rs: RequiredSigners = tx1.required_signers.unwrap();
+    let rs: Ed25519KeyHashes = tx1.required_signers.unwrap();
     assert_eq!(rs.len(), 3);
-    assert_eq!(rs.get(0), s1);
-    assert_eq!(rs.get(1), s3);
-    assert_eq!(rs.get(2), s2);
+    assert!(rs.contains(&s1));
+    assert!(rs.contains(&s2));
+    assert!(rs.contains(&s3));
 }
 
 #[test]
 fn test_required_signers_are_added_to_the_witness_estimate() {
     fn count_fake_witnesses_with_required_signers(keys: &Ed25519KeyHashes) -> usize {
-        let mut tx_builder = create_reallistic_tx_builder();
-        tx_builder.set_fee(&to_bignum(42));
-        tx_builder.add_input(
-            &fake_base_address(0),
+        let mut tx_builder = fake_reallistic_tx_builder();
+        tx_builder.set_fee(&BigNum(42));
+        tx_builder.add_regular_input(
+            &fake_base_address_with_payment_cred(Credential::from_keyhash(&fake_key_hash(0))),
             &TransactionInput::new(&fake_tx_hash(0), 0),
-            &Value::new(&to_bignum(10_000_000)),
-        );
+            &Value::new(&BigNum(10_000_000)),
+        ).expect("Failed to add input");
 
-        keys.0.iter().for_each(|k| {
+        for k in keys {
             tx_builder.add_required_signer(k);
-        });
+        }
 
         let tx: Transaction = fake_full_tx(&tx_builder, tx_builder.build().unwrap()).unwrap();
         tx.witness_set.vkeys.unwrap().len()
@@ -4664,12 +4476,14 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
     );
 
     assert_eq!(
-        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes(vec![fake_key_hash(1)]),),
+        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes::from_vec(vec![
+            fake_key_hash(1)
+        ]),),
         2
     );
 
     assert_eq!(
-        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes(vec![
+        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes::from_vec(vec![
             fake_key_hash(1),
             fake_key_hash(2)
         ]),),
@@ -4678,7 +4492,7 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
 
     // This case still produces only 3 fake signatures, because the same key is already used in the input address
     assert_eq!(
-        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes(vec![
+        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes::from_vec(vec![
             fake_key_hash(1),
             fake_key_hash(2),
             fake_key_hash(0)
@@ -4688,7 +4502,7 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
 
     // When a different key is used - 4 fake witnesses are produced
     assert_eq!(
-        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes(vec![
+        count_fake_witnesses_with_required_signers(&Ed25519KeyHashes::from_vec(vec![
             fake_key_hash(1),
             fake_key_hash(2),
             fake_key_hash(3)
@@ -4699,17 +4513,19 @@ fn test_required_signers_are_added_to_the_witness_estimate() {
 
 #[test]
 fn collateral_return_and_total_collateral_setters() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let mut inp = TxInputsBuilder::new();
-    inp.add_input(&fake_base_address(0), &fake_tx_input(0), &fake_value());
+    inp.
+        add_regular_input(&fake_base_address(0), &fake_tx_input(0), &fake_value())
+        .expect("Failed to add input");
 
     tx_builder.set_inputs(&inp);
     tx_builder.set_collateral(&inp);
 
     let col_return = TransactionOutput::new(&fake_base_address(1), &fake_value2(123123));
-    let col_total = to_bignum(234234);
+    let col_total = BigNum(234234);
 
     tx_builder.set_collateral_return(&col_return);
     tx_builder.set_total_collateral(&col_total);
@@ -4726,7 +4542,7 @@ fn fake_multiasset(amount: u64) -> MultiAsset {
     let mut assets = Assets::new();
     assets.insert(
         &AssetName::new(fake_bytes_32(235)).unwrap(),
-        &to_bignum(amount),
+        &BigNum(amount),
     );
     let mut masset = MultiAsset::new();
     masset.insert(&policy_id, &assets);
@@ -4738,45 +4554,45 @@ fn inputs_builder_total_value() {
     let mut b = TxInputsBuilder::new();
     assert_eq!(b.total_value().unwrap(), Value::zero());
 
-    b.add_input(
+    b.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
         &fake_value2(100_000),
-    );
-    assert_eq!(b.total_value().unwrap(), Value::new(&to_bignum(100_000)));
+    ).expect("Failed to add input");
+    assert_eq!(b.total_value().unwrap(), Value::new(&BigNum(100_000)));
 
-    b.add_input(
+    b.add_regular_input(
         &fake_base_address(1),
         &fake_tx_input(1),
         &fake_value2(200_000),
-    );
-    assert_eq!(b.total_value().unwrap(), Value::new(&to_bignum(300_000)));
+    ).expect("Failed to add input");
+    assert_eq!(b.total_value().unwrap(), Value::new(&BigNum(300_000)));
 
     let masset = fake_multiasset(123);
 
-    b.add_input(
+    b.add_regular_input(
         &fake_base_address(2),
         &fake_tx_input(2),
-        &Value::new_with_assets(&to_bignum(300_000), &masset),
-    );
+        &Value::new_with_assets(&BigNum(300_000), &masset),
+    ).expect("Failed to add input");
     assert_eq!(
         b.total_value().unwrap(),
-        Value::new_with_assets(&to_bignum(600_000), &masset)
+        Value::new_with_assets(&BigNum(600_000), &masset)
     );
 }
 
 #[test]
 fn test_auto_calc_total_collateral() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let mut inp = TxInputsBuilder::new();
     let collateral_input_value = 2_000_000;
-    inp.add_input(
+    inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
         &fake_value2(collateral_input_value.clone()),
-    );
+    ).expect("Failed to add input");
 
     tx_builder.set_collateral(&inp);
 
@@ -4796,31 +4612,31 @@ fn test_auto_calc_total_collateral() {
     assert!(tx_builder.total_collateral.is_some());
     assert_eq!(
         tx_builder.total_collateral.unwrap(),
-        to_bignum(collateral_input_value - collateral_return_value),
+        BigNum(collateral_input_value - collateral_return_value),
     );
 }
 
 #[test]
 fn test_auto_calc_total_collateral_with_assets() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let masset = fake_multiasset(123);
 
     let mut inp = TxInputsBuilder::new();
     let collateral_input_value = 2_000_000;
-    inp.add_input(
+    inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
-        &Value::new_with_assets(&to_bignum(collateral_input_value.clone()), &masset),
-    );
+        &Value::new_with_assets(&BigNum(collateral_input_value.clone()), &masset),
+    ).expect("Failed to add input");
 
     tx_builder.set_collateral(&inp);
 
     let collateral_return_value = 1_345_678;
     let col_return = TransactionOutput::new(
         &fake_base_address(1),
-        &Value::new_with_assets(&to_bignum(collateral_return_value.clone()), &masset),
+        &Value::new_with_assets(&BigNum(collateral_return_value.clone()), &masset),
     );
 
     tx_builder
@@ -4833,24 +4649,24 @@ fn test_auto_calc_total_collateral_with_assets() {
     assert!(tx_builder.total_collateral.is_some());
     assert_eq!(
         tx_builder.total_collateral.unwrap(),
-        to_bignum(collateral_input_value - collateral_return_value),
+        BigNum(collateral_input_value - collateral_return_value),
     );
 }
 
 #[test]
 fn test_auto_calc_total_collateral_fails_with_assets() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let masset = fake_multiasset(123);
 
     let mut inp = TxInputsBuilder::new();
     let collateral_input_value = 2_000_000;
-    inp.add_input(
+    inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
-        &Value::new_with_assets(&to_bignum(collateral_input_value.clone()), &masset),
-    );
+        &Value::new_with_assets(&BigNum(collateral_input_value.clone()), &masset),
+    ).expect("Failed to add input");
 
     tx_builder.set_collateral(&inp);
 
@@ -4873,8 +4689,8 @@ fn test_auto_calc_total_collateral_fails_with_assets() {
 
 #[test]
 fn test_auto_calc_total_collateral_fails_on_no_collateral() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let res = tx_builder.set_collateral_return_and_total(&TransactionOutput::new(
         &fake_base_address(1),
@@ -4891,16 +4707,16 @@ fn test_auto_calc_total_collateral_fails_on_no_collateral() {
 
 #[test]
 fn test_auto_calc_total_collateral_fails_on_no_ada() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let mut inp = TxInputsBuilder::new();
     let collateral_input_value = 2_000_000;
-    inp.add_input(
+    inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
-        &Value::new(&to_bignum(collateral_input_value.clone())),
-    );
+        &Value::new(&BigNum(collateral_input_value.clone())),
+    ).expect("Failed to add input");
 
     tx_builder.set_collateral(&inp);
 
@@ -4919,16 +4735,16 @@ fn test_auto_calc_total_collateral_fails_on_no_ada() {
 
 #[test]
 fn test_auto_calc_collateral_return() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let mut inp = TxInputsBuilder::new();
     let collateral_input_value = 2_000_000;
-    inp.add_input(
+    inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
         &fake_value2(collateral_input_value.clone()),
-    );
+    ).expect("Failed to add input");
 
     tx_builder.set_collateral(&inp);
 
@@ -4937,7 +4753,7 @@ fn test_auto_calc_collateral_return() {
 
     tx_builder
         .set_total_collateral_and_return(
-            &to_bignum(total_collateral_value.clone()),
+            &BigNum(total_collateral_value.clone()),
             &collateral_return_address,
         )
         .unwrap();
@@ -4945,7 +4761,7 @@ fn test_auto_calc_collateral_return() {
     assert!(tx_builder.total_collateral.is_some());
     assert_eq!(
         tx_builder.total_collateral.unwrap(),
-        to_bignum(total_collateral_value.clone()),
+        BigNum(total_collateral_value.clone()),
     );
 
     assert!(tx_builder.collateral_return.is_some());
@@ -4953,24 +4769,24 @@ fn test_auto_calc_collateral_return() {
     assert_eq!(col_return.address, collateral_return_address);
     assert_eq!(
         col_return.amount,
-        Value::new(&to_bignum(collateral_input_value - total_collateral_value),)
+        Value::new(&BigNum(collateral_input_value - total_collateral_value),)
     );
 }
 
 #[test]
 fn test_auto_calc_collateral_return_with_assets() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let masset = fake_multiasset(123);
 
     let mut inp = TxInputsBuilder::new();
     let collateral_input_value = 2_000_000;
-    inp.add_input(
+    inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
-        &Value::new_with_assets(&to_bignum(collateral_input_value.clone()), &masset),
-    );
+        &Value::new_with_assets(&BigNum(collateral_input_value.clone()), &masset),
+    ).expect("Failed to add input");
 
     tx_builder.set_collateral(&inp);
 
@@ -4979,7 +4795,7 @@ fn test_auto_calc_collateral_return_with_assets() {
 
     tx_builder
         .set_total_collateral_and_return(
-            &to_bignum(total_collateral_value.clone()),
+            &BigNum(total_collateral_value.clone()),
             &collateral_return_address,
         )
         .unwrap();
@@ -4987,7 +4803,7 @@ fn test_auto_calc_collateral_return_with_assets() {
     assert!(tx_builder.total_collateral.is_some());
     assert_eq!(
         tx_builder.total_collateral.unwrap(),
-        to_bignum(total_collateral_value.clone()),
+        BigNum(total_collateral_value.clone()),
     );
 
     assert!(tx_builder.collateral_return.is_some());
@@ -4996,7 +4812,7 @@ fn test_auto_calc_collateral_return_with_assets() {
     assert_eq!(
         col_return.amount,
         Value::new_with_assets(
-            &to_bignum(collateral_input_value - total_collateral_value),
+            &BigNum(collateral_input_value - total_collateral_value),
             &masset,
         )
     );
@@ -5004,18 +4820,18 @@ fn test_auto_calc_collateral_return_with_assets() {
 
 #[test]
 fn test_add_collateral_return_succeed_with_border_amount() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let masset = fake_multiasset(123);
 
     let mut inp = TxInputsBuilder::new();
     let collateral_input_value = 2_000_000;
-    inp.add_input(
+    inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
-        &Value::new_with_assets(&to_bignum(collateral_input_value.clone()), &masset),
-    );
+        &Value::new_with_assets(&BigNum(collateral_input_value.clone()), &masset),
+    ).expect("Failed to add input");
 
     tx_builder.set_collateral(&inp);
 
@@ -5025,7 +4841,7 @@ fn test_add_collateral_return_succeed_with_border_amount() {
     let fake_out = TransactionOutput::new(&collateral_return_address, &possible_ret);
     let min_ada = min_ada_for_output(&fake_out, &tx_builder.config.utxo_cost()).unwrap();
 
-    let total_collateral_value = to_bignum(collateral_input_value)
+    let total_collateral_value = BigNum(collateral_input_value)
         .checked_sub(&min_ada)
         .unwrap();
 
@@ -5045,16 +4861,16 @@ fn test_add_collateral_return_succeed_with_border_amount() {
 
 #[test]
 fn test_add_zero_collateral_return() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let mut inp = TxInputsBuilder::new();
     let collateral_input_value = 2_000_000;
-    inp.add_input(
+    inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
-        &Value::new(&to_bignum(collateral_input_value.clone())),
-    );
+        &Value::new(&BigNum(collateral_input_value.clone())),
+    ).expect("Failed to add input");
 
     tx_builder.set_collateral(&inp);
 
@@ -5062,7 +4878,7 @@ fn test_add_zero_collateral_return() {
 
     tx_builder
         .set_total_collateral_and_return(
-            &to_bignum(collateral_input_value.clone()),
+            &BigNum(collateral_input_value.clone()),
             &collateral_return_address,
         )
         .unwrap();
@@ -5073,18 +4889,18 @@ fn test_add_zero_collateral_return() {
 
 #[test]
 fn test_add_collateral_return_fails_no_enough_ada() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
     let masset = fake_multiasset(123);
 
     let mut inp = TxInputsBuilder::new();
     let collateral_input_value = 2_000_000;
-    inp.add_input(
+    inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
-        &Value::new_with_assets(&to_bignum(collateral_input_value.clone()), &masset),
-    );
+        &Value::new_with_assets(&BigNum(collateral_input_value.clone()), &masset),
+    ).expect("Failed to add input");
 
     tx_builder.set_collateral(&inp);
 
@@ -5093,11 +4909,11 @@ fn test_add_collateral_return_fails_no_enough_ada() {
     let possible_ret = Value::new_from_assets(&masset);
     let fake_out = TransactionOutput::new(&collateral_return_address, &possible_ret);
     let min_ada = min_ada_for_output(&fake_out, &tx_builder.config.utxo_cost()).unwrap();
-    let mut total_collateral_value = to_bignum(collateral_input_value)
+    let mut total_collateral_value = BigNum(collateral_input_value)
         .checked_sub(&min_ada)
         .unwrap();
     //make total collateral value bigger for make collateral return less then min ada
-    total_collateral_value = total_collateral_value.checked_add(&to_bignum(1)).unwrap();
+    total_collateral_value = total_collateral_value.checked_add(&BigNum(1)).unwrap();
 
     let coll_add_res = tx_builder
         .set_total_collateral_and_return(&total_collateral_value, &collateral_return_address);
@@ -5109,11 +4925,11 @@ fn test_add_collateral_return_fails_no_enough_ada() {
 
 #[test]
 fn test_auto_calc_collateral_return_fails_on_no_collateral() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(123456));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(123456));
 
-    let res = tx_builder
-        .set_total_collateral_and_return(&to_bignum(345_678.clone()), &fake_base_address(1));
+    let res =
+        tx_builder.set_total_collateral_and_return(&BigNum(345_678.clone()), &fake_base_address(1));
 
     assert!(res.is_err());
     assert!(tx_builder.total_collateral.is_none());
@@ -5122,22 +4938,22 @@ fn test_auto_calc_collateral_return_fails_on_no_collateral() {
 
 #[test]
 fn test_costmodel_retaining_for_v1() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
 
-    let (script1, _) = plutus_script_and_hash(0);
+    let (script1, _) = fake_plutus_script_and_hash(0);
     let datum = PlutusData::new_integer(&BigInt::from_str("42").unwrap());
     let redeemer = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &datum,
-        &ExUnits::new(&to_bignum(1700), &to_bignum(368100)),
+        &ExUnits::new(&BigNum(1700), &BigNum(368100)),
     );
     tx_builder.add_plutus_script_input(
         &PlutusWitness::new(&script1, &datum, &redeemer),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
 
     // Setting script data hash removes the error
@@ -5166,22 +4982,22 @@ fn test_costmodel_retaining_for_v1() {
 
 #[test]
 fn test_costmodel_retaining_fails_on_missing_costmodel() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_reallistic_tx_builder();
+    tx_builder.set_fee(&BigNum(42));
     tx_builder.set_collateral(&create_collateral());
 
-    let (script1, _) = plutus_script_and_hash(0);
+    let (script1, _) = fake_plutus_script_and_hash(0);
     let datum = PlutusData::new_integer(&BigInt::from_str("42").unwrap());
     let redeemer = Redeemer::new(
         &RedeemerTag::new_spend(),
-        &to_bignum(0),
+        &BigNum(0),
         &datum,
-        &ExUnits::new(&to_bignum(1700), &to_bignum(368100)),
+        &ExUnits::new(&BigNum(1700), &BigNum(368100)),
     );
     tx_builder.add_plutus_script_input(
         &PlutusWitness::new(&script1, &datum, &redeemer),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(1_000_000)),
+        &Value::new(&BigNum(1_000_000)),
     );
 
     let v2 = Language::new_plutus_v2();
@@ -5626,419 +5442,18 @@ fn coin_selection_random_improve_multi_asset() {
 }",
     )
     .unwrap();
-    let mut builder = create_reallistic_tx_builder();
+    let mut builder = fake_reallistic_tx_builder();
     builder.add_output(&output).unwrap();
     let res = builder.add_inputs_from(&utoxs, CoinSelectionStrategyCIP2::RandomImproveMultiAsset);
     assert!(res.is_ok());
 }
 
 #[test]
-fn plutus_mint_test() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    let colateral_adress = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w").unwrap();
-    let colateral_input = TransactionInput::from_json("\
-          {
-            \"transaction_id\": \"69b0b867056a2d4fdc3827e23aa7069b125935e2def774941ca8cc7f9e0de774\",
-            \"index\": 1
-          }").unwrap();
-
-    let tx_input = TransactionInput::from_json("\
-          {
-            \"transaction_id\": \"f58a5bc761b1efdcf4b5684f6ad5495854a0d64b866e2f0f525d134750d3511b\",
-            \"index\": 1
-          }").unwrap();
-    let plutus_script = PlutusScript::from_hex("5907d2010000332323232323232323232323232323322323232323222232325335332201b3333573466e1cd55ce9baa0044800080608c98c8060cd5ce00c80c00b1999ab9a3370e6aae7540092000233221233001003002323232323232323232323232323333573466e1cd55cea8062400046666666666664444444444442466666666666600201a01801601401201000e00c00a00800600466a02a02c6ae854030cd4054058d5d0a80599a80a80b9aba1500a3335501975ca0306ae854024ccd54065d7280c1aba1500833501502035742a00e666aa032042eb4d5d0a8031919191999ab9a3370e6aae75400920002332212330010030023232323333573466e1cd55cea8012400046644246600200600466a056eb4d5d0a80118161aba135744a004464c6405c66ae700bc0b80b04d55cf280089baa00135742a0046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40add69aba15002302c357426ae8940088c98c80b8cd5ce01781701609aab9e5001137540026ae84d5d1280111931901519ab9c02b02a028135573ca00226ea8004d5d0a80299a80abae35742a008666aa03203a40026ae85400cccd54065d710009aba15002301f357426ae8940088c98c8098cd5ce01381301209aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226aae7940044dd50009aba15002300f357426ae8940088c98c8060cd5ce00c80c00b080b89931900b99ab9c4910350543500017135573ca00226ea800448c88c008dd6000990009aa80a911999aab9f0012500a233500930043574200460066ae880080508c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8050cd5ce00a80a00909aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8064cd5ce00d00c80b89aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403666ae7007006c06406005c4d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802c02a02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355012223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301213574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900819ab9c01101000e00d135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01101000e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00d00c00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00580500409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00a00980880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae700340300280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801401200e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7002c02802001c0184d55cea80089baa0012323333573466e1d40052002200723333573466e1d40092000212200123263200633573800e00c00800626aae74dd5000a4c24002920103505431001220021123230010012233003300200200133351222335122335004335500248811c2b194b7d10a3d2d3152c5f3a628ff50cb9fc11e59453e8ac7a1aea4500488104544e4654005005112212330010030021120011122002122122330010040031200101").unwrap();
-    let redeemer = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Mint\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"1042996\",
-              \"steps\": \"446100241\"
-            }
-          }",
-    )
-    .unwrap();
-    let asset_name = AssetName::from_hex("44544e4654").unwrap();
-    let mut mint_builder = MintBuilder::new();
-    let plutus_script_source = PlutusScriptSource::new(&plutus_script);
-    let mint_witnes = MintWitness::new_plutus_script(&plutus_script_source, &redeemer);
-    mint_builder.add_asset(&mint_witnes, &asset_name, &Int::new(&BigNum::from(100u64)));
-
-    let output_adress = Address::from_bech32("addr_test1qpm5njmgzf4t7225v6j34wl30xfrufzt3jtqtdzf3en9ahpmnhtmynpasyc8fq75zv0uaj86vzsr7g3g8q5ypgu5fwtqr9zsgj").unwrap();
-    let mut output_assets = MultiAsset::new();
-    let mut asset = Assets::new();
-    asset.insert(&asset_name, &BigNum::from(100u64));
-    output_assets.insert(&plutus_script.hash(), &asset);
-    let output_value = Value::new_with_assets(&Coin::from(50000u64), &output_assets);
-    let output = TransactionOutput::new(&output_adress, &output_value);
-
-    let mut col_builder = TxInputsBuilder::new();
-    col_builder.add_input(
-        &colateral_adress,
-        &colateral_input,
-        &Value::new(&Coin::from(1000000000u64)),
-    );
-    tx_builder.set_collateral(&col_builder);
-    tx_builder.add_output(&output);
-    tx_builder.add_input(
-        &output_adress,
-        &tx_input,
-        &Value::new(&BigNum::from(100000000000u64)),
-    );
-    tx_builder.set_mint_builder(&mint_builder);
-
-    tx_builder
-        .calc_script_data_hash(&TxBuilderConstants::plutus_vasil_cost_models())
-        .unwrap();
-
-    let change_res = tx_builder.add_change_if_needed(&output_adress);
-    assert!(change_res.is_ok());
-
-    let build_res = tx_builder.build_tx();
-    assert!(build_res.is_ok());
-
-    assert!(mint_builder.get_plutus_witnesses().len() == 1);
-
-    let tx = build_res.unwrap();
-    assert!(tx.body.mint.is_some());
-    assert_eq!(
-        tx.body.mint.unwrap().0.iter().next().unwrap().0,
-        plutus_script.hash()
-    );
-}
-
-#[test]
-fn plutus_mint_with_script_ref_test() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    let colateral_adress = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w").unwrap();
-    let colateral_input = TransactionInput::from_json("\
-          {
-            \"transaction_id\": \"69b0b867056a2d4fdc3827e23aa7069b125935e2def774941ca8cc7f9e0de774\",
-            \"index\": 1
-          }").unwrap();
-
-    let tx_input = TransactionInput::from_json("\
-          {
-            \"transaction_id\": \"f58a5bc761b1efdcf4b5684f6ad5495854a0d64b866e2f0f525d134750d3511b\",
-            \"index\": 1
-          }").unwrap();
-    let tx_input_ref = TransactionInput::from_json("\
-          {
-            \"transaction_id\": \"f58a5bc7adaadadcf4b5684f6ad5495854a0d64b866e2f0f525d134750d3511b\",
-            \"index\": 2
-          }").unwrap();
-    let plutus_script = PlutusScript::from_hex("5907d2010000332323232323232323232323232323322323232323222232325335332201b3333573466e1cd55ce9baa0044800080608c98c8060cd5ce00c80c00b1999ab9a3370e6aae7540092000233221233001003002323232323232323232323232323333573466e1cd55cea8062400046666666666664444444444442466666666666600201a01801601401201000e00c00a00800600466a02a02c6ae854030cd4054058d5d0a80599a80a80b9aba1500a3335501975ca0306ae854024ccd54065d7280c1aba1500833501502035742a00e666aa032042eb4d5d0a8031919191999ab9a3370e6aae75400920002332212330010030023232323333573466e1cd55cea8012400046644246600200600466a056eb4d5d0a80118161aba135744a004464c6405c66ae700bc0b80b04d55cf280089baa00135742a0046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40add69aba15002302c357426ae8940088c98c80b8cd5ce01781701609aab9e5001137540026ae84d5d1280111931901519ab9c02b02a028135573ca00226ea8004d5d0a80299a80abae35742a008666aa03203a40026ae85400cccd54065d710009aba15002301f357426ae8940088c98c8098cd5ce01381301209aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226aae7940044dd50009aba15002300f357426ae8940088c98c8060cd5ce00c80c00b080b89931900b99ab9c4910350543500017135573ca00226ea800448c88c008dd6000990009aa80a911999aab9f0012500a233500930043574200460066ae880080508c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8050cd5ce00a80a00909aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8064cd5ce00d00c80b89aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403666ae7007006c06406005c4d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802c02a02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355012223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301213574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900819ab9c01101000e00d135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01101000e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00d00c00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00580500409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00a00980880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae700340300280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801401200e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7002c02802001c0184d55cea80089baa0012323333573466e1d40052002200723333573466e1d40092000212200123263200633573800e00c00800626aae74dd5000a4c24002920103505431001220021123230010012233003300200200133351222335122335004335500248811c2b194b7d10a3d2d3152c5f3a628ff50cb9fc11e59453e8ac7a1aea4500488104544e4654005005112212330010030021120011122002122122330010040031200101").unwrap();
-    let plutus_script2 = PlutusScript::from_hex("5907adaada00332323232323232323232323232323322323232323222232325335332201b3333573466e1cd55ce9baa0044800080608c98c8060cd5ce00c80c00b1999ab9a3370e6aae7540092000233221233001003002323232323232323232323232323333573466e1cd55cea8062400046666666666664444444444442466666666666600201a01801601401201000e00c00a00800600466a02a02c6ae854030cd4054058d5d0a80599a80a80b9aba1500a3335501975ca0306ae854024ccd54065d7280c1aba1500833501502035742a00e666aa032042eb4d5d0a8031919191999ab9a3370e6aae75400920002332212330010030023232323333573466e1cd55cea8012400046644246600200600466a056eb4d5d0a80118161aba135744a004464c6405c66ae700bc0b80b04d55cf280089baa00135742a0046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40add69aba15002302c357426ae8940088c98c80b8cd5ce01781701609aab9e5001137540026ae84d5d1280111931901519ab9c02b02a028135573ca00226ea8004d5d0a80299a80abae35742a008666aa03203a40026ae85400cccd54065d710009aba15002301f357426ae8940088c98c8098cd5ce01381301209aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226aae7940044dd50009aba15002300f357426ae8940088c98c8060cd5ce00c80c00b080b89931900b99ab9c4910350543500017135573ca00226ea800448c88c008dd6000990009aa80a911999aab9f0012500a233500930043574200460066ae880080508c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8050cd5ce00a80a00909aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8064cd5ce00d00c80b89aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403666ae7007006c06406005c4d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802c02a02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355012223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301213574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900819ab9c01101000e00d135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01101000e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00d00c00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00580500409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00a00980880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae700340300280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801401200e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7002c02802001c0184d55cea80089baa0012323333573466e1d40052002200723333573466e1d40092000212200123263200633573800e00c00800626aae74dd5000a4c24002920103505431001220021123230010012233003300200200133351222335122335004335500248811c2b194b7d10a3d2d3152c5f3a628ff50cb9fc11e59453e8ac7a1aea4500488104544e4654005005112212330010030021120011122002122122330010040031200101").unwrap();
-
-    let redeemer = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Mint\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"1042996\",
-              \"steps\": \"446100241\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let redeemer2 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Mint\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"2929292\",
-              \"steps\": \"446188888\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let asset_name = AssetName::from_hex("44544e4654").unwrap();
-    let mut mint_builder = MintBuilder::new();
-    let plutus_script_source = PlutusScriptSource::new(&plutus_script);
-    let plutus_script_source_ref = PlutusScriptSource::new_ref_input_with_lang_ver(
-        &plutus_script2.hash(),
-        &tx_input_ref,
-        &Language::new_plutus_v2(),
-    );
-    let mint_witnes = MintWitness::new_plutus_script(&plutus_script_source, &redeemer);
-    let mint_witnes_ref = MintWitness::new_plutus_script(&plutus_script_source_ref, &redeemer2);
-    mint_builder.add_asset(&mint_witnes, &asset_name, &Int::new(&BigNum::from(100u64)));
-    mint_builder.add_asset(
-        &mint_witnes_ref,
-        &asset_name,
-        &Int::new(&BigNum::from(100u64)),
-    );
-
-    let output_adress = Address::from_bech32("addr_test1qpm5njmgzf4t7225v6j34wl30xfrufzt3jtqtdzf3en9ahpmnhtmynpasyc8fq75zv0uaj86vzsr7g3g8q5ypgu5fwtqr9zsgj").unwrap();
-    let mut output_assets = MultiAsset::new();
-    let mut asset = Assets::new();
-    asset.insert(&asset_name, &BigNum::from(100u64));
-    output_assets.insert(&plutus_script.hash(), &asset);
-    let output_value = Value::new_with_assets(&Coin::from(50000u64), &output_assets);
-    let output = TransactionOutput::new(&output_adress, &output_value);
-
-    let mut col_builder = TxInputsBuilder::new();
-    col_builder.add_input(
-        &colateral_adress,
-        &colateral_input,
-        &Value::new(&Coin::from(1000000000u64)),
-    );
-    tx_builder.set_collateral(&col_builder);
-    tx_builder.add_output(&output);
-    tx_builder.add_input(
-        &output_adress,
-        &tx_input,
-        &Value::new(&BigNum::from(100000000000u64)),
-    );
-    tx_builder.set_mint_builder(&mint_builder);
-
-    tx_builder
-        .calc_script_data_hash(&TxBuilderConstants::plutus_vasil_cost_models())
-        .unwrap();
-
-    let change_res = tx_builder.add_change_if_needed(&output_adress);
-    assert!(change_res.is_ok());
-
-    let build_res = tx_builder.build_tx();
-    assert!(build_res.is_ok());
-
-    let tx = build_res.unwrap();
-    assert_eq!(tx.witness_set.plutus_scripts.unwrap().len(), 1usize);
-    assert_eq!(tx.witness_set.redeemers.unwrap().len(), 2usize);
-    assert!(tx.witness_set.plutus_data.is_none());
-    assert_eq!(tx.body.reference_inputs.unwrap().len(), 1usize);
-    assert!(tx.body.mint.is_some());
-    assert_eq!(tx.body.mint.unwrap().len(), 2usize);
-}
-
-#[test]
-fn plutus_mint_defferent_redeemers_test() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    let colateral_adress = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w").unwrap();
-    let colateral_input = TransactionInput::from_json("\
-          {
-            \"transaction_id\": \"69b0b867056a2d4fdc3827e23aa7069b125935e2def774941ca8cc7f9e0de774\",
-            \"index\": 1
-          }").unwrap();
-
-    let tx_input = TransactionInput::from_json("\
-          {
-            \"transaction_id\": \"f58a5bc761b1efdcf4b5684f6ad5495854a0d64b866e2f0f525d134750d3511b\",
-            \"index\": 1
-          }").unwrap();
-    let plutus_script = PlutusScript::from_hex("5907d2010000332323232323232323232323232323322323232323222232325335332201b3333573466e1cd55ce9baa0044800080608c98c8060cd5ce00c80c00b1999ab9a3370e6aae7540092000233221233001003002323232323232323232323232323333573466e1cd55cea8062400046666666666664444444444442466666666666600201a01801601401201000e00c00a00800600466a02a02c6ae854030cd4054058d5d0a80599a80a80b9aba1500a3335501975ca0306ae854024ccd54065d7280c1aba1500833501502035742a00e666aa032042eb4d5d0a8031919191999ab9a3370e6aae75400920002332212330010030023232323333573466e1cd55cea8012400046644246600200600466a056eb4d5d0a80118161aba135744a004464c6405c66ae700bc0b80b04d55cf280089baa00135742a0046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40add69aba15002302c357426ae8940088c98c80b8cd5ce01781701609aab9e5001137540026ae84d5d1280111931901519ab9c02b02a028135573ca00226ea8004d5d0a80299a80abae35742a008666aa03203a40026ae85400cccd54065d710009aba15002301f357426ae8940088c98c8098cd5ce01381301209aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226aae7940044dd50009aba15002300f357426ae8940088c98c8060cd5ce00c80c00b080b89931900b99ab9c4910350543500017135573ca00226ea800448c88c008dd6000990009aa80a911999aab9f0012500a233500930043574200460066ae880080508c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8050cd5ce00a80a00909aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8064cd5ce00d00c80b89aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403666ae7007006c06406005c4d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802c02a02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355012223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301213574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900819ab9c01101000e00d135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01101000e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00d00c00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00580500409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00a00980880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae700340300280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801401200e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7002c02802001c0184d55cea80089baa0012323333573466e1d40052002200723333573466e1d40092000212200123263200633573800e00c00800626aae74dd5000a4c24002920103505431001220021123230010012233003300200200133351222335122335004335500248811c2b194b7d10a3d2d3152c5f3a628ff50cb9fc11e59453e8ac7a1aea4500488104544e4654005005112212330010030021120011122002122122330010040031200101").unwrap();
-
-    let redeemer = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Mint\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"1042996\",
-              \"steps\": \"446100241\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let redeemer2 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Mint\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"2929292\",
-              \"steps\": \"446188888\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let asset_name = AssetName::from_hex("44544e4654").unwrap();
-    let mut mint_builder = MintBuilder::new();
-    let plutus_script_source = PlutusScriptSource::new(&plutus_script);
-    let mint_witnes = MintWitness::new_plutus_script(&plutus_script_source, &redeemer);
-    let mint_witnes2 = MintWitness::new_plutus_script(&plutus_script_source, &redeemer2);
-    mint_builder.add_asset(&mint_witnes, &asset_name, &Int::new(&BigNum::from(100u64)));
-    mint_builder.add_asset(&mint_witnes2, &asset_name, &Int::new(&BigNum::from(100u64)));
-
-    let output_adress = Address::from_bech32("addr_test1qpm5njmgzf4t7225v6j34wl30xfrufzt3jtqtdzf3en9ahpmnhtmynpasyc8fq75zv0uaj86vzsr7g3g8q5ypgu5fwtqr9zsgj").unwrap();
-    let mut output_assets = MultiAsset::new();
-    let mut asset = Assets::new();
-    asset.insert(&asset_name, &BigNum::from(100u64));
-    output_assets.insert(&plutus_script.hash(), &asset);
-    let output_value = Value::new_with_assets(&Coin::from(1142150u64), &output_assets);
-    let output = TransactionOutput::new(&output_adress, &output_value);
-
-    let mut col_builder = TxInputsBuilder::new();
-    col_builder.add_input(
-        &colateral_adress,
-        &colateral_input,
-        &Value::new(&Coin::from(1000000000u64)),
-    );
-    tx_builder.set_collateral(&col_builder);
-    tx_builder.add_output(&output).unwrap();
-    tx_builder.add_input(
-        &output_adress,
-        &tx_input,
-        &Value::new(&BigNum::from(100000000000u64)),
-    );
-    tx_builder.set_mint_builder(&mint_builder);
-
-    tx_builder
-        .calc_script_data_hash(&TxBuilderConstants::plutus_vasil_cost_models())
-        .unwrap();
-
-    let change_res = tx_builder.add_change_if_needed(&output_adress);
-    assert!(change_res.is_ok());
-
-    let build_res = tx_builder.build_tx();
-    assert!(build_res.is_ok());
-
-    let tx = build_res.unwrap();
-    assert_eq!(tx.witness_set.plutus_scripts.unwrap().len(), 1usize);
-    assert_eq!(tx.witness_set.redeemers.unwrap().len(), 2usize);
-    assert!(tx.witness_set.plutus_data.is_none());
-    assert!(tx.body.reference_inputs.is_none());
-    assert!(tx.body.mint.is_some());
-    assert_eq!(tx.body.mint.unwrap().len(), 2usize);
-}
-
-#[test]
 fn multiple_plutus_inputs_test() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    let plutus_script = PlutusScript::from_hex("5907d2010000332323232323232323232323232323322323232323222232325335332201b3333573466e1cd55ce9baa0044800080608c98c8060cd5ce00c80c00b1999ab9a3370e6aae7540092000233221233001003002323232323232323232323232323333573466e1cd55cea8062400046666666666664444444444442466666666666600201a01801601401201000e00c00a00800600466a02a02c6ae854030cd4054058d5d0a80599a80a80b9aba1500a3335501975ca0306ae854024ccd54065d7280c1aba1500833501502035742a00e666aa032042eb4d5d0a8031919191999ab9a3370e6aae75400920002332212330010030023232323333573466e1cd55cea8012400046644246600200600466a056eb4d5d0a80118161aba135744a004464c6405c66ae700bc0b80b04d55cf280089baa00135742a0046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40add69aba15002302c357426ae8940088c98c80b8cd5ce01781701609aab9e5001137540026ae84d5d1280111931901519ab9c02b02a028135573ca00226ea8004d5d0a80299a80abae35742a008666aa03203a40026ae85400cccd54065d710009aba15002301f357426ae8940088c98c8098cd5ce01381301209aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226aae7940044dd50009aba15002300f357426ae8940088c98c8060cd5ce00c80c00b080b89931900b99ab9c4910350543500017135573ca00226ea800448c88c008dd6000990009aa80a911999aab9f0012500a233500930043574200460066ae880080508c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8050cd5ce00a80a00909aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8064cd5ce00d00c80b89aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403666ae7007006c06406005c4d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802c02a02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355012223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301213574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900819ab9c01101000e00d135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01101000e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00d00c00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00580500409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00a00980880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae700340300280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801401200e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7002c02802001c0184d55cea80089baa0012323333573466e1d40052002200723333573466e1d40092000212200123263200633573800e00c00800626aae74dd5000a4c24002920103505431001220021123230010012233003300200200133351222335122335004335500248811c2b194b7d10a3d2d3152c5f3a628ff50cb9fc11e59453e8ac7a1aea4500488104544e4654005005112212330010030021120011122002122122330010040031200101").unwrap();
-    let redeemer1 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Mint\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"1042996\",
-              \"steps\": \"446100241\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let redeemer2 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Mint\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"1042996\",
-              \"steps\": \"446100241\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let mut in_builder = TxInputsBuilder::new();
-    let input_1 = TransactionInput::new(
-        &TransactionHash::from_bytes(
-            hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
-                .unwrap(),
-        )
-        .unwrap(),
-        1,
-    );
-    let input_2 = TransactionInput::new(
-        &TransactionHash::from_bytes(
-            hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
-                .unwrap(),
-        )
-        .unwrap(),
-        2,
-    );
-
-    let colateral_adress = Address::from_bech32("addr_test1qpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ewvxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2qum8x5w").unwrap();
-    let colateral_input = TransactionInput::new(
-        &TransactionHash::from_bytes(
-            hex::decode("3b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b7")
-                .unwrap(),
-        )
-        .unwrap(),
-        3,
-    );
-
-    let output_adress = Address::from_bech32("addr_test1qpm5njmgzf4t7225v6j34wl30xfrufzt3jtqtdzf3en9ahpmnhtmynpasyc8fq75zv0uaj86vzsr7g3g8q5ypgu5fwtqr9zsgj").unwrap();
-    let output_value = Value::new(&Coin::from(500000u64));
-    let output = TransactionOutput::new(&output_adress, &output_value);
-
-    tx_builder.add_output(&output);
-    let mut col_builder = TxInputsBuilder::new();
-    col_builder.add_input(
-        &colateral_adress,
-        &colateral_input,
-        &Value::new(&Coin::from(1000000000u64)),
-    );
-    tx_builder.set_collateral(&col_builder);
-
-    let datum = PlutusData::new_bytes(fake_bytes_32(11));
-    let plutus_wit1 = PlutusWitness::new(&plutus_script, &datum, &redeemer1);
-
-    let plutus_wit2 = PlutusWitness::new(&plutus_script, &datum, &redeemer2);
-
-    let value = Value::new(&Coin::from(100000000u64));
-
-    in_builder.add_plutus_script_input(&plutus_wit1, &input_1, &value);
-    in_builder.add_plutus_script_input(&plutus_wit2, &input_2, &value);
-
-    tx_builder.set_inputs(&in_builder);
-    tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_vasil_cost_models());
-    tx_builder.add_change_if_needed(&output_adress);
-    let build_res = tx_builder.build_tx();
-    assert!(&build_res.is_ok());
-    let tx = build_res.unwrap();
-    assert_eq!(tx.witness_set.plutus_scripts.unwrap().len(), 1usize);
-    assert_eq!(tx.witness_set.redeemers.unwrap().len(), 2usize);
-}
-
-#[test]
-fn multiple_plutus_inputs_with_missed_wit_test() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    let plutus_script = PlutusScript::from_hex("5907d2010000332323232323232323232323232323322323232323222232325335332201b3333573466e1cd55ce9baa0044800080608c98c8060cd5ce00c80c00b1999ab9a3370e6aae7540092000233221233001003002323232323232323232323232323333573466e1cd55cea8062400046666666666664444444444442466666666666600201a01801601401201000e00c00a00800600466a02a02c6ae854030cd4054058d5d0a80599a80a80b9aba1500a3335501975ca0306ae854024ccd54065d7280c1aba1500833501502035742a00e666aa032042eb4d5d0a8031919191999ab9a3370e6aae75400920002332212330010030023232323333573466e1cd55cea8012400046644246600200600466a056eb4d5d0a80118161aba135744a004464c6405c66ae700bc0b80b04d55cf280089baa00135742a0046464646666ae68cdc39aab9d5002480008cc8848cc00400c008cd40add69aba15002302c357426ae8940088c98c80b8cd5ce01781701609aab9e5001137540026ae84d5d1280111931901519ab9c02b02a028135573ca00226ea8004d5d0a80299a80abae35742a008666aa03203a40026ae85400cccd54065d710009aba15002301f357426ae8940088c98c8098cd5ce01381301209aba25001135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135744a00226aae7940044dd50009aba15002300f357426ae8940088c98c8060cd5ce00c80c00b080b89931900b99ab9c4910350543500017135573ca00226ea800448c88c008dd6000990009aa80a911999aab9f0012500a233500930043574200460066ae880080508c8c8cccd5cd19b8735573aa004900011991091980080180118061aba150023005357426ae8940088c98c8050cd5ce00a80a00909aab9e5001137540024646464646666ae68cdc39aab9d5004480008cccc888848cccc00401401000c008c8c8c8cccd5cd19b8735573aa0049000119910919800801801180a9aba1500233500f014357426ae8940088c98c8064cd5ce00d00c80b89aab9e5001137540026ae854010ccd54021d728039aba150033232323333573466e1d4005200423212223002004357426aae79400c8cccd5cd19b875002480088c84888c004010dd71aba135573ca00846666ae68cdc3a801a400042444006464c6403666ae7007006c06406005c4d55cea80089baa00135742a00466a016eb8d5d09aba2500223263201533573802c02a02626ae8940044d5d1280089aab9e500113754002266aa002eb9d6889119118011bab00132001355012223233335573e0044a010466a00e66442466002006004600c6aae754008c014d55cf280118021aba200301213574200222440042442446600200800624464646666ae68cdc3a800a40004642446004006600a6ae84d55cf280191999ab9a3370ea0049001109100091931900819ab9c01101000e00d135573aa00226ea80048c8c8cccd5cd19b875001480188c848888c010014c01cd5d09aab9e500323333573466e1d400920042321222230020053009357426aae7940108cccd5cd19b875003480088c848888c004014c01cd5d09aab9e500523333573466e1d40112000232122223003005375c6ae84d55cf280311931900819ab9c01101000e00d00c00b135573aa00226ea80048c8c8cccd5cd19b8735573aa004900011991091980080180118029aba15002375a6ae84d5d1280111931900619ab9c00d00c00a135573ca00226ea80048c8cccd5cd19b8735573aa002900011bae357426aae7940088c98c8028cd5ce00580500409baa001232323232323333573466e1d4005200c21222222200323333573466e1d4009200a21222222200423333573466e1d400d2008233221222222233001009008375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c4664424444444660040120106eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc8848888888cc018024020c030d5d0a8049bae357426ae8940248cccd5cd19b875006480088c848888888c01c020c034d5d09aab9e500b23333573466e1d401d2000232122222223005008300e357426aae7940308c98c804ccd5ce00a00980880800780700680600589aab9d5004135573ca00626aae7940084d55cf280089baa0012323232323333573466e1d400520022333222122333001005004003375a6ae854010dd69aba15003375a6ae84d5d1280191999ab9a3370ea0049000119091180100198041aba135573ca00c464c6401866ae700340300280244d55cea80189aba25001135573ca00226ea80048c8c8cccd5cd19b875001480088c8488c00400cdd71aba135573ca00646666ae68cdc3a8012400046424460040066eb8d5d09aab9e500423263200933573801401200e00c26aae7540044dd500089119191999ab9a3370ea00290021091100091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a400042444004464c6401466ae7002c02802001c0184d55cea80089baa0012323333573466e1d40052002200723333573466e1d40092000212200123263200633573800e00c00800626aae74dd5000a4c24002920103505431001220021123230010012233003300200200133351222335122335004335500248811c2b194b7d10a3d2d3152c5f3a628ff50cb9fc11e59453e8ac7a1aea4500488104544e4654005005112212330010030021120011122002122122330010040031200101").unwrap();
-    let redeemer1 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Mint\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"1042996\",
-              \"steps\": \"446100241\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let redeemer2 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Mint\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"1042996\",
-              \"steps\": \"446100241\"
-            }
-          }",
-    )
-    .unwrap();
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let (plutus_script, _) = fake_plutus_script_and_hash(1);
+    let redeemer1 = fake_redeemer(1);
+    let redeemer2 = fake_redeemer(2);
 
     let mut in_builder = TxInputsBuilder::new();
     let input_1 = TransactionInput::new(
@@ -6072,13 +5487,13 @@ fn multiple_plutus_inputs_with_missed_wit_test() {
     let output_value = Value::new(&Coin::from(5000000u64));
     let output = TransactionOutput::new(&output_adress, &output_value);
 
-    tx_builder.add_output(&output).unwrap();
+    tx_builder.add_output(&output).expect("Failed to add output");
     let mut col_builder = TxInputsBuilder::new();
-    col_builder.add_input(
+    col_builder.add_regular_input(
         &colateral_adress,
         &colateral_input,
         &Value::new(&Coin::from(1000000000u64)),
-    );
+    ).expect("Failed to add input");
     tx_builder.set_collateral(&col_builder);
 
     let datum = PlutusData::new_bytes(fake_bytes_32(11));
@@ -6089,21 +5504,11 @@ fn multiple_plutus_inputs_with_missed_wit_test() {
     let value = Value::new(&Coin::from(100000000u64));
 
     in_builder.add_plutus_script_input(&plutus_wit1, &input_1, &value);
-    let script_addr = create_base_address_from_script_hash(&plutus_script.hash());
-    in_builder.add_input(&script_addr, &input_2, &value);
-
-    assert_eq!(in_builder.count_missing_input_scripts(), 1usize);
-    let mut inputs_with_wit = InputsWithScriptWitness::new();
-    let in_with_wit = InputWithScriptWitness::new_with_plutus_witness(&input_2, &plutus_wit2);
-    inputs_with_wit.add(&in_with_wit);
-    in_builder.add_required_script_input_witnesses(&inputs_with_wit);
+    in_builder.add_plutus_script_input(&plutus_wit2, &input_2, &value);
 
     tx_builder.set_inputs(&in_builder);
-
-    tx_builder
-        .calc_script_data_hash(&TxBuilderConstants::plutus_vasil_cost_models())
-        .unwrap();
-    tx_builder.add_change_if_needed(&output_adress).unwrap();
+    tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_vasil_cost_models()).expect("Failed to calculate script data hash");
+    tx_builder.add_change_if_needed(&output_adress).expect("Failed to add change");
     let build_res = tx_builder.build_tx();
     assert!(&build_res.is_ok());
     let tx = build_res.unwrap();
@@ -6113,29 +5518,29 @@ fn multiple_plutus_inputs_with_missed_wit_test() {
 
 #[test]
 fn build_tx_with_certs_withdrawals_plutus_script_address() {
-    let mut tx_builder = create_tx_builder_with_key_deposit(1_000_000);
-    let spend = root_key_15()
+    let mut tx_builder = fake_tx_builder_with_key_deposit(1_000_000);
+    let spend = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(0)
         .derive(0)
         .to_public();
-    let change_key = root_key_15()
+    let change_key = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(1)
         .derive(0)
         .to_public();
-    let stake = root_key_15()
+    let stake = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
         .derive(2)
         .derive(0)
         .to_public();
-    let reward = root_key_15()
+    let reward = fake_root_key_15()
         .derive(harden(1852))
         .derive(harden(1815))
         .derive(harden(0))
@@ -6143,93 +5548,29 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
         .derive(1)
         .to_public();
 
-    let redeemer_cert1 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Spend\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"1\",
-              \"steps\": \"1\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let redeemer_cert2 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Spend\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"2\",
-              \"steps\": \"2\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let redeemer_cert3 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Spend\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"2\",
-              \"steps\": \"2\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let redeemer_withdraw1 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Spend\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"4\",
-              \"steps\": \"4\"
-            }
-          }",
-    )
-    .unwrap();
-
-    let redeemer_withdraw2 = Redeemer::from_json(
-        "\
-         {
-            \"tag\": \"Spend\",
-            \"index\": \"0\",
-            \"data\": \"{\\\"constructor\\\":0,\\\"fields\\\":[]}\",
-            \"ex_units\": {
-              \"mem\": \"5\",
-              \"steps\": \"5\"
-            }
-          }",
-    )
-    .unwrap();
+    let redeemer_cert1 = fake_redeemer(1);
+    let redeemer_cert2 = fake_redeemer(2);
+    let redeemer_cert3 = fake_redeemer(3);
+    let redeemer_withdraw1 = fake_redeemer(4);
+    let redeemer_withdraw2 = fake_redeemer(5);
 
     let stake_cred = Credential::from_keyhash(&stake.to_raw_key().hash());
     tx_builder.add_key_input(
         &spend.to_raw_key().hash(),
         &TransactionInput::new(&genesis_id(), 0),
-        &Value::new(&to_bignum(5_000_000)),
+        &Value::new(&BigNum(5_000_000)),
     );
     tx_builder.set_ttl(1000);
-    let (cert_script1, cert_script_hash1) = plutus_script_and_hash(1);
+    let (cert_script1, cert_script_hash1) = fake_plutus_script_and_hash(1);
     let cert_script_cred1 = Credential::from_scripthash(&cert_script_hash1);
 
-    let (cert_script2, cert_script_hash2) = plutus_script_and_hash(2);
+    let (cert_script2, cert_script_hash2) = fake_plutus_script_and_hash(2);
     let cert_script_cred2 = Credential::from_scripthash(&cert_script_hash2);
 
     let cert_script_hash3 = fake_script_hash(3);
     let cert_script_cred3 = Credential::from_scripthash(&cert_script_hash3);
 
-    let (withdraw_script1, withdraw_script_hash1) = plutus_script_and_hash(3);
+    let (withdraw_script1, withdraw_script_hash1) = fake_plutus_script_and_hash(3);
     let withdraw_script_cred1 = Credential::from_scripthash(&withdraw_script_hash1);
 
     let withdraw_script_hash2 = fake_script_hash(3);
@@ -6240,15 +5581,17 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
 
     let ref_cert_script_input_3 = fake_tx_input(1);
     let ref_cert_withdrawal_input_2 = fake_tx_input(2);
-    let plutus_cert_source = PlutusScriptSource::new_ref_input_with_lang_ver(
+    let plutus_cert_source = PlutusScriptSource::new_ref_input(
         &cert_script_hash3,
         &ref_cert_script_input_3,
         &Language::new_plutus_v2(),
+        0,
     );
-    let plutus_withdrawal_source = PlutusScriptSource::new_ref_input_with_lang_ver(
+    let plutus_withdrawal_source = PlutusScriptSource::new_ref_input(
         &withdraw_script_hash2,
         &ref_cert_withdrawal_input_2,
         &Language::new_plutus_v2(),
+        0,
     );
 
     let cert_witness_3 =
@@ -6301,20 +5644,26 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
     let reward_cred = Credential::from_keyhash(&reward.to_raw_key().hash());
     withdrawals
         .add(
-            &RewardAddress::new(NetworkInfo::testnet().network_id(), &reward_cred),
+            &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &reward_cred),
             &Coin::from(1u32),
         )
         .unwrap();
     withdrawals
         .add_with_plutus_witness(
-            &RewardAddress::new(NetworkInfo::testnet().network_id(), &withdraw_script_cred1),
+            &RewardAddress::new(
+                NetworkInfo::testnet_preprod().network_id(),
+                &withdraw_script_cred1,
+            ),
             &Coin::from(2u32),
             &withdraw_witness1,
         )
         .unwrap();
     withdrawals
         .add_with_plutus_witness(
-            &RewardAddress::new(NetworkInfo::testnet().network_id(), &withdraw_script_cred2),
+            &RewardAddress::new(
+                NetworkInfo::testnet_preprod().network_id(),
+                &withdraw_script_cred2,
+            ),
             &Coin::from(3u32),
             &withdraw_witness2,
         )
@@ -6323,7 +5672,7 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
 
     let change_cred = Credential::from_keyhash(&change_key.to_raw_key().hash());
     let change_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &change_cred,
         &stake_cred,
     )
@@ -6331,17 +5680,17 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
     let cost_models = TxBuilderConstants::plutus_default_cost_models();
     let collateral_input = fake_tx_input(1);
     let collateral_addr = BaseAddress::new(
-        NetworkInfo::testnet().network_id(),
+        NetworkInfo::testnet_preprod().network_id(),
         &Credential::from_keyhash(&fake_key_hash(1)),
         &Credential::from_keyhash(&fake_key_hash(2)),
     )
     .to_address();
     let mut collateral_builder = TxInputsBuilder::new();
-    collateral_builder.add_input(
+    collateral_builder.add_regular_input(
         &collateral_addr,
         &collateral_input,
         &Value::new(&Coin::from(123u32)),
-    );
+    ).expect("Failed to add input");
     tx_builder.set_collateral(&collateral_builder);
     tx_builder.calc_script_data_hash(&cost_models).unwrap();
     tx_builder.add_change_if_needed(&change_addr).unwrap();
@@ -6370,7 +5719,7 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
     assert_eq!(final_tx_wits.plutus_scripts().unwrap().len(), 3);
     assert_eq!(final_tx_wits.redeemers().unwrap().len(), 5);
 
-    let certs = final_tx_body.certs().unwrap().0;
+    let certs = final_tx_body.certs().unwrap().certs;
     let withdraws = final_tx_body
         .withdrawals()
         .unwrap()
@@ -6382,7 +5731,7 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
     let mut indexes = HashMap::new();
     indexes.insert(RedeemerTag::new_cert(), HashSet::new());
     indexes.insert(RedeemerTag::new_reward(), HashSet::new());
-    for redeemer in &redeemers.0 {
+    for redeemer in &redeemers.redeemers {
         let tag_set = indexes.get_mut(&redeemer.tag()).unwrap();
         assert_ne!(tag_set.contains(&redeemer.index()), true);
         tag_set.insert(redeemer.index());
@@ -6399,28 +5748,41 @@ fn build_tx_with_certs_withdrawals_plutus_script_address() {
 
 #[test]
 pub fn test_extra_datum() {
-    let mut tx_builder = create_reallistic_tx_builder();
-    tx_builder.set_fee(&to_bignum(42));
+    let mut tx_builder = fake_tx_builder(&fake_linear_fee(1, 100000), 1, 1, 1);
 
     let datum = PlutusData::new_bytes(fake_bytes_32(1));
     tx_builder.add_extra_witness_datum(&datum);
 
     let mut inp = TxInputsBuilder::new();
-    inp.add_input(
+    inp.add_regular_input(
         &fake_base_address(0),
         &fake_tx_input(0),
-        &Value::new(&to_bignum(1000000u64)),
-    );
+        &Value::new(&BigNum(100000000000000u64)),
+    )
+    .unwrap();
 
     tx_builder.set_inputs(&inp);
     tx_builder
         .calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models())
         .unwrap();
 
+    let change_address = fake_change_address();
+
+    tx_builder.add_change_if_needed(&change_address).unwrap();
     let res = tx_builder.build_tx();
     assert!(res.is_ok());
 
     let tx = res.unwrap();
+
+    let tx_size = tx.to_bytes().len();
+    let fake_input_wit_size = fake_vkey_witness(1).to_bytes().len();
+    let real_fee = min_fee_for_size(
+        tx_size + fake_input_wit_size,
+        &LinearFee::new(&Coin::from(1u64), &Coin::from(100000u64)),
+    )
+    .unwrap();
+
+    assert!(real_fee.less_than(&tx.body.fee));
 
     let data_hash = hash_script_data(
         &Redeemers::new(),
@@ -6445,15 +5807,20 @@ pub fn test_extra_datum() {
 #[test]
 fn current_treasure_value_test() {
     let input_amount = 10000000000;
-    let mut builder = create_tx_builder_with_amount(input_amount, false);
+    let mut builder = fake_tx_builder_with_amount(input_amount, false);
     let treasure_value = Coin::from(1000000000u64);
 
     assert_eq!(builder.get_current_treasury_value(), None);
 
     builder.set_current_treasury_value(&treasure_value).unwrap();
-    builder.add_change_if_needed(&create_change_address()).unwrap();
+    builder
+        .add_change_if_needed(&fake_change_address())
+        .unwrap();
 
-    assert_eq!(builder.get_current_treasury_value().unwrap(), treasure_value);
+    assert_eq!(
+        builder.get_current_treasury_value().unwrap(),
+        treasure_value
+    );
 
     let tx = builder.build_tx().unwrap();
     assert_eq!(tx.body().outputs().len(), 1);
@@ -6466,7 +5833,7 @@ fn current_treasure_value_test() {
 
 #[test]
 fn current_treasure_value_zero_error_test() {
-    let mut builder = create_rich_tx_builder(false);
+    let mut builder = fake_rich_tx_builder(false);
     let treasure_value = Coin::from(0u64);
 
     assert_eq!(builder.get_current_treasury_value(), None);
@@ -6478,13 +5845,15 @@ fn current_treasure_value_zero_error_test() {
 #[test]
 fn donation_test() {
     let input_amount = 10000000000;
-    let mut builder = create_tx_builder_with_amount(input_amount, false);
+    let mut builder = fake_tx_builder_with_amount(input_amount, false);
     let donation = Coin::from(1000u64);
 
     assert_eq!(builder.get_donation(), None);
 
     builder.set_donation(&donation);
-    builder.add_change_if_needed(&create_change_address()).unwrap();
+    builder
+        .add_change_if_needed(&fake_change_address())
+        .unwrap();
 
     assert_eq!(builder.get_donation().unwrap(), donation);
 
@@ -6496,4 +5865,624 @@ fn donation_test() {
     total_out = total_out.checked_add(&donation).unwrap();
 
     assert_eq!(total_out, Coin::from(input_amount));
+}
+
+#[test]
+fn ref_script_fee_from_all_builders() {
+    let mut mint_builder = MintBuilder::new();
+    let mut cert_builder = CertificatesBuilder::new();
+    let mut withdrawal_builder = WithdrawalsBuilder::new();
+    let mut voting_builder = VotingBuilder::new();
+    let mut voting_proposal_builder = VotingProposalBuilder::new();
+    let mut tx_input_builder = TxInputsBuilder::new();
+
+    let tx_in_1 = fake_tx_input(1);
+    let tx_in_2 = fake_tx_input(2);
+    let tx_in_3 = fake_tx_input(3);
+    let tx_in_4 = fake_tx_input(4);
+    let tx_in_5 = fake_tx_input(5);
+    let tx_in_6 = fake_tx_input(6);
+    let tx_in_7 = fake_tx_input(7);
+    let tx_in_8 = fake_tx_input(8);
+    let tx_in_9 = fake_tx_input(9);
+    let tx_in_10 = fake_tx_input(10);
+
+    let script_hash_1 = fake_script_hash(1);
+    let script_hash_2 = fake_script_hash(2);
+    let script_hash_3 = fake_script_hash(3);
+    let script_hash_4 = fake_script_hash(4);
+    let script_hash_5 = fake_script_hash(5);
+    let script_hash_6 = fake_script_hash(6);
+    let script_hash_7 = fake_script_hash(7);
+    let script_hash_8 = fake_script_hash(8);
+
+    let redeemer_1 = fake_redeemer_zero_cost(1);
+    let redeemer_2 = fake_redeemer_zero_cost(2);
+    let redeemer_3 = fake_redeemer_zero_cost(3);
+    let redeemer_4 = fake_redeemer_zero_cost(4);
+    let redeemer_5 = fake_redeemer_zero_cost(5);
+    let redeemer_6 = fake_redeemer_zero_cost(6);
+    let redeemer_8 = fake_redeemer_zero_cost(8);
+
+    let plutus_source_1 = PlutusScriptSource::new_ref_input(&script_hash_1, &tx_in_1, &Language::new_plutus_v2(), 10);
+    let plutus_source_2 = PlutusScriptSource::new_ref_input(&script_hash_2, &tx_in_2, &Language::new_plutus_v2(), 11);
+    let plutus_source_3 = PlutusScriptSource::new_ref_input(&script_hash_3, &tx_in_3, &Language::new_plutus_v2(), 111);
+    let plutus_source_4 = PlutusScriptSource::new_ref_input(&script_hash_4, &tx_in_4, &Language::new_plutus_v2(), 200);
+    let plutus_source_5 = PlutusScriptSource::new_ref_input(&script_hash_5, &tx_in_5, &Language::new_plutus_v2(), 3000);
+    let plutus_source_6 = PlutusScriptSource::new_ref_input(&script_hash_6, &tx_in_6, &Language::new_plutus_v2(), 5000);
+    let native_script_source = NativeScriptSource::new_ref_input(&script_hash_7, &tx_in_7, 10000);
+    let plutus_source_8 = PlutusScriptSource::new_ref_input(&script_hash_8, &tx_in_8, &Language::new_plutus_v2(), 50000);
+
+    mint_builder.add_asset(
+        &MintWitness::new_plutus_script(&plutus_source_1, &redeemer_1),
+        &AssetName::from_hex("44544e4654").unwrap(),
+        &Int::new(&BigNum::from(100u64))
+    ).unwrap();
+
+    mint_builder.add_asset(
+        &MintWitness::new_plutus_script(&plutus_source_2, &redeemer_2),
+        &AssetName::from_hex("44544e4654").unwrap(),
+        &Int::new(&BigNum::from(100u64))
+    ).unwrap();
+
+    withdrawal_builder.add_with_plutus_witness(
+        &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &Credential::from_scripthash(&script_hash_3)),
+        &Coin::from(1u64),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_3, &redeemer_3)
+    ).unwrap();
+
+    withdrawal_builder.add_with_native_script(
+        &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &Credential::from_scripthash(&script_hash_7)),
+        &Coin::from(1u64),
+        &native_script_source
+    ).unwrap();
+
+    cert_builder.add_with_plutus_witness(
+        &Certificate::new_stake_delegation(&StakeDelegation::new(&Credential::from_scripthash(&script_hash_4), &fake_key_hash(1))),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_4, &redeemer_4)
+    ).unwrap();
+
+    voting_builder.add_with_plutus_witness(
+        &Voter::new_drep_credential(&Credential::from_scripthash(&script_hash_5)),
+        &GovernanceActionId::new(&fake_tx_hash(1), 1),
+        &VotingProcedure::new(VoteKind::Abstain),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_5, &redeemer_5)
+    ).unwrap();
+
+    voting_proposal_builder.add_with_plutus_witness(
+        &VotingProposal::new(
+            &GovernanceAction::new_new_constitution_action(
+                &NewConstitutionAction::new(
+                    &Constitution::new_with_script_hash(&fake_anchor(), &script_hash_6)
+                )
+            ),
+            &fake_anchor(),
+            &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &Credential::from_keyhash(&fake_key_hash(1))),
+            &Coin::from(0u64),
+        ),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_6, &redeemer_6)
+    ).unwrap();
+
+    let input_coin = Coin::from(1000000000u64);
+    tx_input_builder.add_plutus_script_input(
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_8, &redeemer_8),
+        &tx_in_10,
+        &Value::new(&input_coin)
+    );
+
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    tx_builder.set_mint_builder(&mint_builder);
+    tx_builder.set_certs_builder(&cert_builder);
+    tx_builder.set_withdrawals_builder(&withdrawal_builder);
+    tx_builder.set_voting_builder(&voting_builder);
+    tx_builder.set_voting_proposal_builder(&voting_proposal_builder);
+    tx_builder.set_inputs(&tx_input_builder);
+    tx_builder.add_script_reference_input(&tx_in_9, 16000);
+
+    let fake_collateral = fake_tx_input(99);
+    let mut collateral_builder = TxInputsBuilder::new();
+    collateral_builder.add_regular_input(
+        &fake_base_address(99),
+        &fake_collateral,
+        &Value::new(&Coin::from(1000000000u64))
+    ).unwrap();
+
+    tx_builder.set_collateral(&collateral_builder);
+    tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models()).unwrap();
+    tx_builder.add_change_if_needed(&change_address).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_ok());
+
+    let mut tx = res.unwrap();
+    let mut vkey_witneses = Vkeywitnesses::new();
+    vkey_witneses.add(&fake_vkey_witness(1));
+    let mut wit_set = tx.witness_set();
+    wit_set.set_vkeys(&vkey_witneses);
+    tx = Transaction::new(&tx.body(), &wit_set, tx.auxiliary_data());
+
+    let ref_script_fee = BigNum::from(53099u64);
+    let total_tx_fee = tx.body().fee();
+
+    //TODO: check change calculation for pessimistic size estimation.
+    let tx_size = tx.to_bytes().len() + 4;
+
+    let min_tx_fee = min_fee_for_size(tx_size, &fake_linear_fee(44, 155381)).unwrap();
+    let fee_leftover = total_tx_fee.checked_sub(&min_tx_fee).unwrap();
+    assert_eq!(ref_script_fee, fee_leftover);
+
+    let tx_out_coin = tx.body().outputs().get(0).amount().coin();
+    let total_out = tx_out_coin
+        .checked_add(&total_tx_fee).unwrap()
+        .checked_sub(&Coin::from(2u64)).unwrap(); // withdrawals
+
+    assert_eq!(total_out, input_coin);
+
+    let ref_inputs = tx.body().reference_inputs().unwrap();
+    assert!(ref_inputs.contains(&tx_in_1));
+    assert!(ref_inputs.contains(&tx_in_2));
+    assert!(ref_inputs.contains(&tx_in_3));
+    assert!(ref_inputs.contains(&tx_in_4));
+    assert!(ref_inputs.contains(&tx_in_5));
+    assert!(ref_inputs.contains(&tx_in_6));
+    assert!(ref_inputs.contains(&tx_in_7));
+    assert!(ref_inputs.contains(&tx_in_8));
+    assert!(ref_inputs.contains(&tx_in_9));
+    assert_eq!(ref_inputs.len(), 9);
+}
+
+
+#[test]
+fn utxo_selection_accounts_for_change_min_utxo_test() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let hex_utxos = [
+        "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
+        "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"
+    ];
+    let output = TransactionOutput::new(&Address::from_bech32("addr_test1qppkqaf5044y2t46g2y6udz636c4uultszte5l5p0kvgl3tv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfsjre4xh").unwrap(), &Value::new(&BigNum::from_str("969750").unwrap()));
+    tx_builder.add_output(&output).expect("Failed to add output");
+    let mut utxos = TransactionUnspentOutputs::new();
+    for hex_utxo in hex_utxos {
+        utxos.add(&TransactionUnspentOutput::from_hex(hex_utxo).unwrap());
+    }
+    let change_config = ChangeConfig::new(&Address::from_bech32("addr_test1qqzf7fhgm0gf370ngxgpskg5c3kgp2g0u4ltxlrmsvumaztv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfs43mc83").unwrap());
+    assert!(&tx_builder.add_inputs_from_and_change(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config).is_ok());
+    let build_res = tx_builder.build_tx();
+    assert!(&build_res.is_ok());
+}
+
+#[test]
+fn utxo_selection_with_collateral_return_test() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let hex_utxos = [
+        "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
+        "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"
+    ];
+
+    let collateral_percent = BigNum(150);
+    let output = TransactionOutput::new(&Address::from_bech32("addr_test1qppkqaf5044y2t46g2y6udz636c4uultszte5l5p0kvgl3tv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfsjre4xh").unwrap(), &Value::new(&BigNum::from_str("969750").unwrap()));
+    tx_builder.add_output(&output).unwrap();
+    let mut utxos = TransactionUnspentOutputs::new();
+    for hex_utxo in hex_utxos {
+        utxos.add(&TransactionUnspentOutput::from_hex(hex_utxo).unwrap());
+    }
+    let mut collateral_builder = TxInputsBuilder::new();
+    let collateral_input = TransactionUnspentOutput::from_hex(hex_utxos[1]).unwrap();
+    collateral_builder.add_regular_input(&collateral_input.output.address, &collateral_input.input, &collateral_input.output.amount).unwrap();
+    tx_builder.set_collateral(&collateral_builder);
+
+    let change_config = ChangeConfig::new(&Address::from_bech32("addr_test1qqzf7fhgm0gf370ngxgpskg5c3kgp2g0u4ltxlrmsvumaztv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfs43mc83").unwrap());
+    assert!(&tx_builder.add_inputs_from_and_change_with_collateral_return(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config, &collateral_percent).is_ok());
+
+    let build_res = tx_builder.build_tx();
+    assert!(&build_res.is_ok());
+
+    let tx = build_res.unwrap();
+    assert!(&tx.body.collateral_return().is_some());
+
+    let mut vkey_witneses = Vkeywitnesses::new();
+    vkey_witneses.add(&fake_vkey_witness(1));
+    vkey_witneses.add(&fake_vkey_witness(2));
+    let mut wit_set = tx.witness_set();
+    wit_set.set_vkeys(&vkey_witneses);
+
+    let tx_with_vkeys = Transaction::new(&tx.body(), &wit_set, tx.auxiliary_data());
+    let tx_size = tx_with_vkeys.to_bytes().len();
+    let fee = tx.body().fee();
+    let min_fee = min_fee_for_size(tx_size, &fake_linear_fee(44, 155381)).unwrap();
+    assert!(fee >= min_fee);
+
+    let collateral_amount = tx.body.total_collateral.unwrap();
+    let calculated_collateral = fee.
+        checked_mul(&collateral_percent).unwrap()
+        .div_floor(&BigNum(100))
+        .checked_add(&BigNum(1)).unwrap();
+
+    assert_eq!(collateral_amount, calculated_collateral);
+}
+
+#[test]
+fn utxo_selection_with_collateral_return_error() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let hex_utxos = [
+        "82825820731224c9d2bc3528578009fec9f9e34a67110aca2bd4dde0f050845a2daf660d0082583900436075347d6a452eba4289ae345a8eb15e73eb80979a7e817d988fc56c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e493821a001deabfa1581c9a5e0d55cdf4ce4e19c8acbff7b4dafc890af67a594a4c46d7dd1c0fa14001",
+        "82825820a04996d5ef87fdece0c74625f02ee5c1497a06e0e476c5095a6b0626b295074a00825839001772f234940519e71318bb9c5c8ad6eacfe8fd91a509050624e3855e6c8e2cfd5a9478355fa1d60759f93751237af3299d7faa947023e4931a0016e360"
+    ];
+
+    //we use big percentage to lead not enough collaterals to cover the collateral fee
+    let collateral_percent = BigNum(15000);
+    let output = TransactionOutput::new(&Address::from_bech32("addr_test1qppkqaf5044y2t46g2y6udz636c4uultszte5l5p0kvgl3tv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfsjre4xh").unwrap(), &Value::new(&BigNum::from_str("969750").unwrap()));
+    tx_builder.add_output(&output).unwrap();
+    let mut utxos = TransactionUnspentOutputs::new();
+    for hex_utxo in hex_utxos {
+        utxos.add(&TransactionUnspentOutput::from_hex(hex_utxo).unwrap());
+    }
+    let mut collateral_builder = TxInputsBuilder::new();
+    let collateral_input = TransactionUnspentOutput::from_hex(hex_utxos[1]).unwrap();
+    collateral_builder.add_regular_input(&collateral_input.output.address, &collateral_input.input, &collateral_input.output.amount).unwrap();
+    tx_builder.set_collateral(&collateral_builder);
+
+    let change_config = ChangeConfig::new(&Address::from_bech32("addr_test1qqzf7fhgm0gf370ngxgpskg5c3kgp2g0u4ltxlrmsvumaztv3ck06k550q64lgwkqavljd63yda0x2va074fguprujfs43mc83").unwrap());
+    let change_res = tx_builder.add_inputs_from_and_change_with_collateral_return(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config, &collateral_percent);
+    assert!(change_res.is_err());
+}
+
+
+#[test]
+fn tx_builder_huge_implicit_input_coin_selection() {
+    // we have a = 1 to test increasing fees when more inputs are added
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 0));
+    tx_builder
+        .add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(
+                    &Address::from_bech32(
+                        "addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z",
+                    )
+                        .unwrap(),
+                )
+                .next()
+                .unwrap()
+                .with_coin(&BigNum(10000))
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
+    let mut cert_builder = CertificatesBuilder::new();
+    cert_builder
+        .add(
+            &Certificate::new_stake_deregistration(&StakeDeregistration::new_with_explicit_refund(
+                &Credential::from_keyhash(&fake_key_hash(1)),
+                &BigNum(9999999999),
+            )),
+        )
+        .unwrap();
+
+    tx_builder.set_certs_builder(&cert_builder);
+    let mut available_inputs = TransactionUnspentOutputs::new();
+    available_inputs.add(&make_input(0u8, Value::new(&BigNum(1500))));
+    available_inputs.add(&make_input(1u8, Value::new(&BigNum(2000))));
+
+    let add_inputs_res =
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
+    assert!(add_inputs_res.is_ok(), "{:?}", add_inputs_res.err());
+    assert_eq!(tx_builder.inputs.len(), 1);
+
+    let change_addr =
+        ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho")
+            .unwrap()
+            .to_address();
+    let add_change_res = tx_builder.add_change_if_needed(&change_addr);
+    assert!(add_change_res.is_ok(), "{:?}", add_change_res.err());
+    let tx_build_res = tx_builder.build();
+    assert!(tx_build_res.is_ok(), "{:?}", tx_build_res.err());
+}
+
+#[test]
+fn tx_builder_no_any_input_coin_selection() {
+    // we have a = 1 to test increasing fees when more inputs are added
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(1, 0));
+    tx_builder
+        .add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(
+                    &Address::from_bech32(
+                        "addr1vyy6nhfyks7wdu3dudslys37v252w2nwhv0fw2nfawemmnqs6l44z",
+                    )
+                        .unwrap(),
+                )
+                .next()
+                .unwrap()
+                .with_coin(&BigNum(10000))
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
+    let mut cert_builder = CertificatesBuilder::new();
+    cert_builder
+        .add(
+            &Certificate::new_stake_deregistration(&StakeDeregistration::new_with_explicit_refund(
+                &Credential::from_keyhash(&fake_key_hash(1)),
+                &BigNum(9999999999),
+            )),
+        )
+        .unwrap();
+
+    tx_builder.set_certs_builder(&cert_builder);
+    let available_inputs = TransactionUnspentOutputs::new();
+
+    let add_inputs_res =
+        tx_builder.add_inputs_from(&available_inputs, CoinSelectionStrategyCIP2::RandomImprove);
+    assert!(add_inputs_res.is_err());
+}
+
+
+#[test]
+fn ref_inputs_debuplication_test() {
+    let mut mint_builder = MintBuilder::new();
+    let mut cert_builder = CertificatesBuilder::new();
+    let mut withdrawal_builder = WithdrawalsBuilder::new();
+    let mut voting_builder = VotingBuilder::new();
+    let mut voting_proposal_builder = VotingProposalBuilder::new();
+    let mut tx_input_builder = TxInputsBuilder::new();
+
+    let tx_in_1 = fake_tx_input(1);
+    let tx_in_2 = fake_tx_input(2);
+    let tx_in_3 = fake_tx_input(3);
+    let tx_in_4 = fake_tx_input(4);
+    let tx_in_5 = fake_tx_input(5);
+    let tx_in_6 = fake_tx_input(6);
+    let tx_in_7 = fake_tx_input(7);
+    let tx_in_8 = fake_tx_input(8);
+    let tx_in_9 = fake_tx_input(9);
+    let tx_in_10 = fake_tx_input(10);
+
+    let script_hash_1 = fake_script_hash(1);
+    let script_hash_2 = fake_script_hash(2);
+    let script_hash_3 = fake_script_hash(3);
+    let script_hash_4 = fake_script_hash(4);
+    let script_hash_5 = fake_script_hash(5);
+    let script_hash_6 = fake_script_hash(6);
+    let script_hash_7 = fake_script_hash(7);
+    let script_hash_8 = fake_script_hash(8);
+
+    let redeemer_1 = fake_redeemer_zero_cost(1);
+    let redeemer_2 = fake_redeemer_zero_cost(2);
+    let redeemer_3 = fake_redeemer_zero_cost(3);
+    let redeemer_4 = fake_redeemer_zero_cost(4);
+    let redeemer_5 = fake_redeemer_zero_cost(5);
+    let redeemer_6 = fake_redeemer_zero_cost(6);
+    let redeemer_8 = fake_redeemer_zero_cost(8);
+
+    let plutus_source_1 = PlutusScriptSource::new_ref_input(&script_hash_1, &tx_in_1, &Language::new_plutus_v2(), 10);
+    let plutus_source_2 = PlutusScriptSource::new_ref_input(&script_hash_2, &tx_in_2, &Language::new_plutus_v2(), 11);
+    let plutus_source_3 = PlutusScriptSource::new_ref_input(&script_hash_3, &tx_in_3, &Language::new_plutus_v2(), 111);
+    let plutus_source_4 = PlutusScriptSource::new_ref_input(&script_hash_4, &tx_in_4, &Language::new_plutus_v2(), 200);
+    let plutus_source_5 = PlutusScriptSource::new_ref_input(&script_hash_5, &tx_in_5, &Language::new_plutus_v2(), 3000);
+    let plutus_source_6 = PlutusScriptSource::new_ref_input(&script_hash_6, &tx_in_6, &Language::new_plutus_v2(), 5000);
+    let native_script_source = NativeScriptSource::new_ref_input(&script_hash_7, &tx_in_7, 10000);
+    let plutus_source_8 = PlutusScriptSource::new_ref_input(&script_hash_8, &tx_in_8, &Language::new_plutus_v2(), 50000);
+
+    mint_builder.add_asset(
+        &MintWitness::new_plutus_script(&plutus_source_1, &redeemer_1),
+        &AssetName::from_hex("44544e4654").unwrap(),
+        &Int::new(&BigNum::from(100u64))
+    ).unwrap();
+
+    mint_builder.add_asset(
+        &MintWitness::new_plutus_script(&plutus_source_2, &redeemer_2),
+        &AssetName::from_hex("44544e4654").unwrap(),
+        &Int::new(&BigNum::from(100u64))
+    ).unwrap();
+
+    withdrawal_builder.add_with_plutus_witness(
+        &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &Credential::from_scripthash(&script_hash_3)),
+        &Coin::from(1u64),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_3, &redeemer_3)
+    ).unwrap();
+
+    withdrawal_builder.add_with_native_script(
+        &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &Credential::from_scripthash(&script_hash_7)),
+        &Coin::from(1u64),
+        &native_script_source
+    ).unwrap();
+
+    cert_builder.add_with_plutus_witness(
+        &Certificate::new_stake_delegation(&StakeDelegation::new(&Credential::from_scripthash(&script_hash_4), &fake_key_hash(1))),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_4, &redeemer_4)
+    ).unwrap();
+
+    voting_builder.add_with_plutus_witness(
+        &Voter::new_drep_credential(&Credential::from_scripthash(&script_hash_5)),
+        &GovernanceActionId::new(&fake_tx_hash(1), 1),
+        &VotingProcedure::new(VoteKind::Abstain),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_5, &redeemer_5)
+    ).unwrap();
+
+    voting_proposal_builder.add_with_plutus_witness(
+        &VotingProposal::new(
+            &GovernanceAction::new_new_constitution_action(
+                &NewConstitutionAction::new(
+                    &Constitution::new_with_script_hash(&fake_anchor(), &script_hash_6)
+                )
+            ),
+            &fake_anchor(),
+            &RewardAddress::new(NetworkInfo::testnet_preprod().network_id(), &Credential::from_keyhash(&fake_key_hash(1))),
+            &Coin::from(0u64),
+        ),
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_6, &redeemer_6)
+    ).unwrap();
+
+    let input_coin = Coin::from(1000000000u64);
+    tx_input_builder.add_plutus_script_input(
+        &PlutusWitness::new_with_ref_without_datum(&plutus_source_8, &redeemer_8),
+        &tx_in_10,
+        &Value::new(&input_coin)
+    );
+
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    tx_builder.set_mint_builder(&mint_builder);
+    tx_builder.set_certs_builder(&cert_builder);
+    tx_builder.set_withdrawals_builder(&withdrawal_builder);
+    tx_builder.set_voting_builder(&voting_builder);
+    tx_builder.set_voting_proposal_builder(&voting_proposal_builder);
+    tx_builder.set_inputs(&tx_input_builder);
+    tx_builder.add_script_reference_input(&tx_in_9, 16000);
+
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_1, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_2, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_3, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_4, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_5, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_6, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_7, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_8, &Value::new(&Coin::from(1000000000u64))).unwrap();
+
+
+    let fake_collateral = fake_tx_input(99);
+    let mut collateral_builder = TxInputsBuilder::new();
+    collateral_builder.add_regular_input(
+        &fake_base_address(99),
+        &fake_collateral,
+        &Value::new(&Coin::from(1000000000u64))
+    ).unwrap();
+
+    tx_builder.set_collateral(&collateral_builder);
+    tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_default_cost_models()).unwrap();
+    tx_builder.add_change_if_needed(&change_address).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_ok());
+
+    let mut tx = res.unwrap();
+    let mut vkey_witneses = Vkeywitnesses::new();
+    vkey_witneses.add(&fake_vkey_witness(1));
+    let mut wit_set = tx.witness_set();
+    wit_set.set_vkeys(&vkey_witneses);
+    tx = Transaction::new(&tx.body(), &wit_set, tx.auxiliary_data());
+
+    let total_tx_fee = tx.body().fee();
+
+    let tx_out_coin = tx.body().outputs().get(0).amount().coin();
+    let total_out = tx_out_coin
+        .checked_add(&total_tx_fee).unwrap()
+        .checked_sub(&Coin::from(2u64)).unwrap(); // withdrawals
+
+    assert_eq!(total_out, input_coin.checked_mul(&BigNum(9)).unwrap());
+
+    let ref_inputs = tx.body().reference_inputs().unwrap();
+    assert!(ref_inputs.contains(&tx_in_9));
+    assert_eq!(ref_inputs.len(), 1);
+}
+
+#[test]
+fn ref_inputs_and_reg_inputs_intersection_error() {
+    let tx_in_1 = fake_tx_input(1);
+    let tx_in_2 = fake_tx_input(2);
+
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_1, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_2, &Value::new(&Coin::from(1000000000u64))).unwrap();
+
+    tx_builder.add_reference_input(&tx_in_1);
+    tx_builder.add_change_if_needed(&change_address).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_err());
+}
+
+#[test]
+fn ref_inputs_and_reg_inputs_no_intersection_error() {
+    let tx_in_1 = fake_tx_input(1);
+    let tx_in_2 = fake_tx_input(2);
+    let tx_in_3 = fake_tx_input(3);
+
+    let linear_fee = LinearFee::new(&BigNum(1), &BigNum(0));
+    let cfg = TransactionBuilderConfigBuilder::new()
+        .fee_algo(&linear_fee)
+        .pool_deposit(&BigNum(0))
+        .key_deposit(&BigNum(0))
+        .max_value_size(9999)
+        .max_tx_size(9999)
+        .coins_per_utxo_byte(&Coin::zero())
+        .deduplicate_explicit_ref_inputs_with_regular_inputs(true)
+        .build()
+        .unwrap();
+    let mut tx_builder = TransactionBuilder::new(&cfg);
+    let change_address = fake_base_address(1);
+
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_1, &Value::new(&Coin::from(1000000000u64))).unwrap();
+    tx_builder.add_regular_input(&fake_base_address(1), &tx_in_2, &Value::new(&Coin::from(1000000000u64))).unwrap();
+
+    tx_builder.add_reference_input(&tx_in_1);
+    tx_builder.add_reference_input(&tx_in_3);
+    tx_builder.add_change_if_needed(&change_address).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_ok());
+
+    let tx = res.unwrap();
+
+    let ref_inputs = tx.body().reference_inputs().unwrap();
+    assert!(ref_inputs.contains(&tx_in_3));
+    assert_eq!(ref_inputs.len(), 1);
+}
+
+#[test]
+fn multiple_boostrap_witnesses() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+    let change_address = fake_base_address(1);
+    let input_1 = fake_tx_input(1);
+    let input_2 = fake_tx_input(2);
+    let input_3 = fake_tx_input(3);
+    let input_4 = fake_tx_input(4);
+    let input_5 = fake_tx_input(5);
+
+    let addr_1 = ByronAddress::from_base58("Ae2tdPwUPEZBF8HDUYPkACXQrnZtmbKrdJfpBdx3NwcVs6TkvHsgTCi8DKJ").unwrap().to_address();
+    let addr_2 = ByronAddress::from_base58("Ae2tdPwUPEZAmhukfkcunjRRHJyuYEgM8YiKxMxUtaGvmEEy3fpcCdf8urC").unwrap().to_address();
+    let addr_3 = ByronAddress::from_base58("Ae2tdPwUPEZ2rukBdtHHiNpdXJ2BU6PbQUFZP6FsJ4ZdbRDCwdKpCEYPGWS").unwrap().to_address();
+    let addr_4 = ByronAddress::from_base58("Ae2tdPwUPEZ6EbrKDUyyv3tNr7tyC3SFumXvuLEZc8UUz9m65Sx8BFnkAm5").unwrap().to_address();
+    let addr_5 = ByronAddress::from_base58("Ae2tdPwUPEZ5N7ubvrUXM4YJPLsyeuc6A3bN2kAuFTEK9iYiumrn7REkb9V").unwrap().to_address();
+
+    let value_1 = Value::new(&Coin::from(4000000u64));
+    let value_2 = Value::new(&Coin::from(5000000u64));
+    let value_3 = Value::new(&Coin::from(2000000u64));
+    let value_4 = Value::new(&Coin::from(1000000u64));
+    let value_5 = Value::new(&Coin::from(3000000u64));
+
+    tx_builder.add_regular_input(&addr_1, &input_1, &value_1).unwrap();
+    tx_builder.add_regular_input(&addr_2, &input_2, &value_2).unwrap();
+    tx_builder.add_regular_input(&addr_3, &input_3, &value_3).unwrap();
+    tx_builder.add_regular_input(&addr_4, &input_4, &value_4).unwrap();
+    tx_builder.add_regular_input(&addr_5, &input_5, &value_5).unwrap();
+
+    tx_builder.add_change_if_needed(&change_address).unwrap();
+
+    let res = tx_builder.build_tx();
+    assert!(res.is_ok());
+
+    let attributes = vec![127u8];
+    let mut bootstrap_witnesses = BootstrapWitnesses::new();
+    bootstrap_witnesses.add(&fake_bootsrap_witness_with_attrs(1, attributes.clone()));
+    bootstrap_witnesses.add(&fake_bootsrap_witness_with_attrs(2, attributes.clone()));
+    bootstrap_witnesses.add(&fake_bootsrap_witness_with_attrs(3, attributes.clone()));
+    bootstrap_witnesses.add(&fake_bootsrap_witness_with_attrs(4, attributes.clone()));
+    bootstrap_witnesses.add(&fake_bootsrap_witness_with_attrs(5, attributes.clone()));
+
+    let mut tx = res.unwrap();
+    let mut wit_set = tx.witness_set();
+    wit_set.set_bootstraps(&bootstrap_witnesses);
+    tx = Transaction::new(&tx.body(), &wit_set, tx.auxiliary_data());
+    let tx_len = tx.to_bytes().len();
+
+    let total_tx_fee = tx.body().fee();
+    let min_fee = min_fee_for_size(tx_len, &fake_linear_fee(44, 155381)).unwrap();
+
+    assert!(total_tx_fee >= min_fee);
 }

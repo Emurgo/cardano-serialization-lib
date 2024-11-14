@@ -3,56 +3,26 @@
 use crate::*;
 
 use super::*;
+use crate::builders::fakes::{fake_bootstrap_witness, fake_raw_key_public, fake_raw_key_sig};
 use crate::fees;
 use crate::utils;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-pub(crate) fn fake_private_key() -> Bip32PrivateKey {
-    Bip32PrivateKey::from_bytes(&[
-        0xb8, 0xf2, 0xbe, 0xce, 0x9b, 0xdf, 0xe2, 0xb0, 0x28, 0x2f, 0x5b, 0xad, 0x70, 0x55, 0x62,
-        0xac, 0x99, 0x6e, 0xfb, 0x6a, 0xf9, 0x6b, 0x64, 0x8f, 0x44, 0x45, 0xec, 0x44, 0xf4, 0x7a,
-        0xd9, 0x5c, 0x10, 0xe3, 0xd7, 0x2f, 0x26, 0xed, 0x07, 0x54, 0x22, 0xa3, 0x6e, 0xd8, 0x58,
-        0x5c, 0x74, 0x5a, 0x0e, 0x11, 0x50, 0xbc, 0xce, 0xba, 0x23, 0x57, 0xd0, 0x58, 0x63, 0x69,
-        0x91, 0xf3, 0x8a, 0x37, 0x91, 0xe2, 0x48, 0xde, 0x50, 0x9c, 0x07, 0x0d, 0x81, 0x2a, 0xb2,
-        0xfd, 0xa5, 0x78, 0x60, 0xac, 0x87, 0x6b, 0xc4, 0x89, 0x19, 0x2c, 0x1e, 0xf4, 0xce, 0x25,
-        0x3c, 0x19, 0x7e, 0xe2, 0x19, 0xa4,
-    ])
-    .unwrap()
-}
-
-pub(crate) fn fake_raw_key_sig() -> Ed25519Signature {
-    Ed25519Signature::from_bytes(vec![
-        36, 248, 153, 211, 155, 23, 253, 93, 102, 193, 146, 196, 181, 13, 52, 62, 66, 247, 35, 91,
-        48, 80, 76, 138, 231, 97, 159, 147, 200, 40, 220, 109, 206, 69, 104, 221, 105, 23, 124, 85,
-        24, 40, 73, 45, 119, 122, 103, 39, 253, 102, 194, 251, 204, 189, 168, 194, 174, 237, 146,
-        3, 44, 153, 121, 10,
-    ])
-    .unwrap()
-}
-
-pub(crate) fn fake_raw_key_public() -> PublicKey {
-    PublicKey::from_bytes(&[
-        207, 118, 57, 154, 33, 13, 232, 114, 14, 159, 168, 148, 228, 94, 65, 226, 154, 181, 37,
-        227, 11, 196, 2, 128, 28, 7, 98, 80, 209, 88, 91, 205,
-    ])
-    .unwrap()
-}
-
 fn count_needed_vkeys(tx_builder: &TransactionBuilder) -> usize {
-    let mut input_hashes: RequiredSignersSet = RequiredSignersSet::from(&tx_builder.inputs);
-    input_hashes.extend(RequiredSignersSet::from(&tx_builder.collateral));
-    input_hashes.extend(RequiredSignersSet::from(&tx_builder.required_signers));
+    let mut input_hashes: Ed25519KeyHashes = Ed25519KeyHashes::from(&tx_builder.inputs);
+    input_hashes.extend_move(Ed25519KeyHashes::from(&tx_builder.collateral));
+    input_hashes.extend_move(tx_builder.required_signers.clone());
     if let Some(mint_builder) = &tx_builder.mint {
-        input_hashes.extend(RequiredSignersSet::from(&mint_builder.get_native_scripts()));
+        input_hashes.extend_move(Ed25519KeyHashes::from(&mint_builder.get_native_scripts()));
     }
     if let Some(withdrawals_builder) = &tx_builder.withdrawals {
-        input_hashes.extend(withdrawals_builder.get_required_signers());
+        input_hashes.extend_move(withdrawals_builder.get_required_signers());
     }
     if let Some(certs_builder) = &tx_builder.certs {
-        input_hashes.extend(certs_builder.get_required_signers());
+        input_hashes.extend_move(certs_builder.get_required_signers());
     }
     if let Some(voting_builder) = &tx_builder.voting_procedures {
-        input_hashes.extend(voting_builder.get_required_signers());
+        input_hashes.extend_move(voting_builder.get_required_signers());
     }
     input_hashes.len()
 }
@@ -64,17 +34,16 @@ pub(crate) fn fake_full_tx(
     tx_builder: &TransactionBuilder,
     body: TransactionBody,
 ) -> Result<Transaction, JsError> {
-    let fake_key_root = fake_private_key();
-    let raw_key_public = fake_raw_key_public();
     let fake_sig = fake_raw_key_sig();
 
     // recall: this includes keys for input, certs and withdrawals
     let vkeys = match count_needed_vkeys(tx_builder) {
         0 => None,
         x => {
-            let fake_vkey_witness = Vkeywitness::new(&Vkey::new(&raw_key_public), &fake_sig);
             let mut result = Vkeywitnesses::new();
-            for _i in 0..x {
+            for i in 0..x {
+                let raw_key_public = fake_raw_key_public(i as u64);
+                let fake_vkey_witness = Vkeywitness::new(&Vkey::new(&raw_key_public), &fake_sig);
                 result.add(&fake_vkey_witness.clone());
             }
             Some(result)
@@ -85,18 +54,16 @@ pub(crate) fn fake_full_tx(
         0 => None,
         _x => {
             let mut result = BootstrapWitnesses::new();
+            let mut number = 1;
             for addr in bootstraps {
+                number += 1;
                 // picking icarus over daedalus for fake witness generation shouldn't matter
-                result.add(&make_icarus_bootstrap_witness(
-                    &TransactionHash::from([0u8; TransactionHash::BYTE_COUNT]),
-                    &ByronAddress::from_bytes(addr.clone()).unwrap(),
-                    &fake_key_root,
-                ));
+                result.add(&fake_bootstrap_witness(number, &ByronAddress::from_bytes(addr)?));
             }
             Some(result)
         }
     };
-    let (plutus_scripts, plutus_data, redeemers) = {
+    let (plutus_scripts, mut plutus_data, redeemers) = {
         if let Some(s) = tx_builder.get_combined_plutus_scripts() {
             let (s, d, r) = s.collect();
             (Some(s), d, Some(r))
@@ -104,14 +71,23 @@ pub(crate) fn fake_full_tx(
             (None, None, None)
         }
     };
-    let witness_set = TransactionWitnessSet {
+
+    if let Some(extra_datums) = &tx_builder.extra_datums {
+        if let Some(d) = &mut plutus_data {
+            d.extend(extra_datums);
+        } else {
+            plutus_data = Some(extra_datums.clone());
+        }
+    }
+
+    let witness_set = TransactionWitnessSet::new_with_partial_dedup(
         vkeys,
-        native_scripts: tx_builder.get_combined_native_scripts(),
-        bootstraps: bootstrap_keys,
+        tx_builder.get_combined_native_scripts(),
+        bootstrap_keys,
         plutus_scripts,
         plutus_data,
         redeemers,
-    };
+    );
     Ok(Transaction {
         body,
         witness_set,
@@ -131,7 +107,7 @@ fn assert_required_mint_scripts(
     }
     let mint_scripts = maybe_mint_scripts.unwrap();
     let witness_hashes: HashSet<ScriptHash> =
-        mint_scripts.0.iter().map(|script| script.hash()).collect();
+        mint_scripts.iter().map(|script| script.hash()).collect();
     for mint_hash in mint.keys().0.iter() {
         if !witness_hashes.contains(mint_hash) {
             return Err(JsError::from_str(&format!(
@@ -152,16 +128,31 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     //     assert_required_mint_scripts(mint, tx_builder.mint_scripts.as_ref())?;
     // }
     let full_tx = fake_full_tx(tx_builder, tx_builder.build()?)?;
-    let fee: Coin = fees::min_fee(&full_tx, &tx_builder.config.fee_algo)?;
+    let mut fee: Coin = fees::min_fee(&full_tx, &tx_builder.config.fee_algo)?;
+
     if let Some(ex_unit_prices) = &tx_builder.config.ex_unit_prices {
         let script_fee: Coin = fees::min_script_fee(&full_tx, &ex_unit_prices)?;
-        return fee.checked_add(&script_fee);
+        fee = fee.checked_add(&script_fee)?;
+    } else {
+        if tx_builder.has_plutus_inputs() {
+            return Err(JsError::from_str(
+                "Plutus inputs are present but ex_unit_prices are missing in the config!",
+            ));
+        }
     }
-    if tx_builder.has_plutus_inputs() {
-        return Err(JsError::from_str(
-            "Plutus inputs are present but ex unit prices are missing in the config!",
-        ));
+
+    let total_ref_script_size = tx_builder.get_total_ref_scripts_size()?;
+    if let Some(ref_script_coins_per_byte) = &tx_builder.config.ref_script_coins_per_byte {
+        let script_ref_fee = min_ref_script_fee(total_ref_script_size, ref_script_coins_per_byte)?;
+        fee = fee.checked_add(&script_ref_fee)?;
+    } else {
+        if total_ref_script_size > 0 {
+            return Err(JsError::from_str(
+                "Plutus scripts are present but ref_script_coins_per_byte are missing in the config!",
+            ));
+        }
     }
+
     Ok(fee)
 }
 
@@ -181,13 +172,15 @@ pub enum CoinSelectionStrategyCIP2 {
 #[derive(Clone, Debug)]
 pub struct TransactionBuilderConfig {
     pub(crate) fee_algo: fees::LinearFee,
-    pub(crate) pool_deposit: Coin,            // protocol parameter
-    pub(crate) key_deposit: Coin,             // protocol parameter
-    pub(crate) max_value_size: u32,           // protocol parameter
-    pub(crate) max_tx_size: u32,              // protocol parameter
-    pub(crate) data_cost: DataCost,           // protocol parameter
+    pub(crate) pool_deposit: Coin,  // protocol parameter
+    pub(crate) key_deposit: Coin,   // protocol parameter
+    pub(crate) max_value_size: u32, // protocol parameter
+    pub(crate) max_tx_size: u32,    // protocol parameter
+    pub(crate) data_cost: DataCost, // protocol parameter
     pub(crate) ex_unit_prices: Option<ExUnitPrices>, // protocol parameter
+    pub(crate) ref_script_coins_per_byte: Option<UnitInterval>, // protocol parameter
     pub(crate) prefer_pure_change: bool,
+    pub(crate) deduplicate_explicit_ref_inputs_with_regular_inputs: bool,
 }
 
 impl TransactionBuilderConfig {
@@ -200,13 +193,15 @@ impl TransactionBuilderConfig {
 #[derive(Clone, Debug)]
 pub struct TransactionBuilderConfigBuilder {
     fee_algo: Option<fees::LinearFee>,
-    pool_deposit: Option<Coin>,            // protocol parameter
-    key_deposit: Option<Coin>,             // protocol parameter
-    max_value_size: Option<u32>,           // protocol parameter
-    max_tx_size: Option<u32>,              // protocol parameter
-    data_cost: Option<DataCost>,           // protocol parameter
-    ex_unit_prices: Option<ExUnitPrices>,  // protocol parameter
+    pool_deposit: Option<Coin>,                      // protocol parameter
+    key_deposit: Option<Coin>,                       // protocol parameter
+    max_value_size: Option<u32>,                     // protocol parameter
+    max_tx_size: Option<u32>,                        // protocol parameter
+    data_cost: Option<DataCost>,                     // protocol parameter
+    ex_unit_prices: Option<ExUnitPrices>,            // protocol parameter
+    ref_script_coins_per_byte: Option<UnitInterval>, // protocol parameter
     prefer_pure_change: bool,
+    deduplicate_explicit_ref_inputs_with_regular_inputs: bool,
 }
 
 #[wasm_bindgen]
@@ -220,25 +215,15 @@ impl TransactionBuilderConfigBuilder {
             max_tx_size: None,
             data_cost: None,
             ex_unit_prices: None,
+            ref_script_coins_per_byte: None,
             prefer_pure_change: false,
+            deduplicate_explicit_ref_inputs_with_regular_inputs: false,
         }
     }
 
     pub fn fee_algo(&self, fee_algo: &fees::LinearFee) -> Self {
         let mut cfg = self.clone();
         cfg.fee_algo = Some(fee_algo.clone());
-        cfg
-    }
-
-    /// !!! DEPRECATED !!!
-    /// Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead.
-    #[deprecated(
-        since = "11.0.0",
-        note = "Since babbage era cardano nodes use coins per byte. Use '.coins_per_utxo_byte' instead."
-    )]
-    pub fn coins_per_utxo_word(&self, coins_per_utxo_word: &Coin) -> Self {
-        let mut cfg = self.clone();
-        cfg.data_cost = Some(DataCost::new_coins_per_word(coins_per_utxo_word));
         cfg
     }
 
@@ -278,9 +263,22 @@ impl TransactionBuilderConfigBuilder {
         cfg
     }
 
+    pub fn ref_script_coins_per_byte(&self, ref_script_coins_per_byte: &UnitInterval) -> Self {
+        let mut cfg = self.clone();
+        cfg.ref_script_coins_per_byte = Some(ref_script_coins_per_byte.clone());
+        cfg
+    }
+
     pub fn prefer_pure_change(&self, prefer_pure_change: bool) -> Self {
         let mut cfg = self.clone();
         cfg.prefer_pure_change = prefer_pure_change;
+        cfg
+    }
+
+    ///Removes a ref input (that was set via set_reference_inputs) if the ref inputs was presented in regular tx inputs
+    pub fn deduplicate_explicit_ref_inputs_with_regular_inputs(&self, deduplicate_explicit_ref_inputs_with_regular_inputs: bool) -> Self {
+        let mut cfg = self.clone();
+        cfg.deduplicate_explicit_ref_inputs_with_regular_inputs = deduplicate_explicit_ref_inputs_with_regular_inputs;
         cfg
     }
 
@@ -306,8 +304,47 @@ impl TransactionBuilderConfigBuilder {
                 "uninitialized field: coins_per_utxo_byte or coins_per_utxo_word",
             ))?,
             ex_unit_prices: cfg.ex_unit_prices,
+            ref_script_coins_per_byte: cfg.ref_script_coins_per_byte,
             prefer_pure_change: cfg.prefer_pure_change,
+            deduplicate_explicit_ref_inputs_with_regular_inputs: cfg.deduplicate_explicit_ref_inputs_with_regular_inputs,
         })
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone, Debug)]
+pub struct ChangeConfig {
+    address: Address,
+    plutus_data: Option<OutputDatum>,
+    script_ref: Option<ScriptRef>,
+}
+
+#[wasm_bindgen]
+impl ChangeConfig {
+    pub fn new(address: &Address) -> Self {
+        Self {
+            address: address.clone(),
+            plutus_data: None,
+            script_ref: None,
+        }
+    }
+
+    pub fn change_address(&self, address: &Address) -> Self {
+        let mut c_cfg = self.clone();
+        c_cfg.address = address.clone();
+        c_cfg
+    }
+
+    pub fn change_plutus_data(&self, plutus_data: &OutputDatum) -> Self {
+        let mut c_cfg = self.clone();
+        c_cfg.plutus_data = Some(plutus_data.clone());
+        c_cfg
+    }
+
+    pub fn change_script_ref(&self, script_ref: &ScriptRef) -> Self {
+        let mut c_cfg = self.clone();
+        c_cfg.script_ref = Some(script_ref.clone());
+        c_cfg
     }
 }
 
@@ -329,7 +366,7 @@ pub struct TransactionBuilder {
     pub(crate) required_signers: Ed25519KeyHashes,
     pub(crate) collateral_return: Option<TransactionOutput>,
     pub(crate) total_collateral: Option<Coin>,
-    pub(crate) reference_inputs: HashSet<TransactionInput>,
+    pub(crate) reference_inputs: HashMap<TransactionInput, usize>,
     pub(crate) extra_datums: Option<PlutusList>,
     pub(crate) voting_procedures: Option<VotingBuilder>,
     pub(crate) voting_proposals: Option<VotingProposalBuilder>,
@@ -351,11 +388,28 @@ impl TransactionBuilder {
         inputs: &TransactionUnspentOutputs,
         strategy: CoinSelectionStrategyCIP2,
     ) -> Result<(), JsError> {
-        let available_inputs = &inputs.0.clone();
+        let mut available_inputs: Vec<&TransactionUnspentOutput> = inputs.0.iter().collect();
+        let have_no_inputs_in_tx = !self.inputs.has_inputs();
         let mut input_total = self.get_total_input()?;
         let mut output_total = self
             .get_total_output()?
             .checked_add(&Value::new(&self.min_fee()?))?;
+
+        if (input_total.coin >= output_total.coin) && have_no_inputs_in_tx {
+            if available_inputs.is_empty() {
+                return Err(JsError::from_str("No inputs to add. Transaction should have at least one input"));
+            }
+
+            //just add first input, to cover needs of one input
+            let input = available_inputs.pop().unwrap();
+            self.add_regular_input(
+                &input.output.address,
+                &input.input,
+                &input.output.amount,
+            )?;
+            input_total = input_total.checked_add(&input.output.amount)?;
+        }
+
         match strategy {
             CoinSelectionStrategyCIP2::LargestFirst => {
                 if self
@@ -367,7 +421,7 @@ impl TransactionBuilder {
                     return Err(JsError::from_str("Multiasset values not supported by LargestFirst. Please use LargestFirstMultiAsset"));
                 }
                 self.cip2_largest_first_by(
-                    available_inputs,
+                    &available_inputs,
                     &mut (0..available_inputs.len()).collect(),
                     &mut input_total,
                     &mut output_total,
@@ -388,7 +442,7 @@ impl TransactionBuilder {
                 let mut available_indices =
                     (0..available_inputs.len()).collect::<BTreeSet<usize>>();
                 self.cip2_random_improve_by(
-                    available_inputs,
+                    &available_inputs,
                     &mut available_indices,
                     &mut input_total,
                     &mut output_total,
@@ -414,7 +468,11 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_input(&input.output.address, &input.input, &input.output.amount);
+                    self.add_regular_input(
+                        &input.output.address,
+                        &input.input,
+                        &input.output.amount,
+                    )?;
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -427,7 +485,7 @@ impl TransactionBuilder {
                     for (policy_id, assets) in ma.0.iter() {
                         for (asset_name, _) in assets.0.iter() {
                             self.cip2_largest_first_by(
-                                available_inputs,
+                                &available_inputs,
                                 &mut available_indices,
                                 &mut input_total,
                                 &mut output_total,
@@ -438,7 +496,7 @@ impl TransactionBuilder {
                 }
                 // add in remaining ADA
                 self.cip2_largest_first_by(
-                    available_inputs,
+                    &available_inputs,
                     &mut available_indices,
                     &mut input_total,
                     &mut output_total,
@@ -455,7 +513,7 @@ impl TransactionBuilder {
                     for (policy_id, assets) in ma.0.iter() {
                         for (asset_name, _) in assets.0.iter() {
                             self.cip2_random_improve_by(
-                                available_inputs,
+                                &available_inputs,
                                 &mut available_indices,
                                 &mut input_total,
                                 &mut output_total,
@@ -468,7 +526,7 @@ impl TransactionBuilder {
                 }
                 // add in remaining ADA
                 self.cip2_random_improve_by(
-                    available_inputs,
+                    &available_inputs,
                     &mut available_indices,
                     &mut input_total,
                     &mut output_total,
@@ -494,7 +552,11 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_input(&input.output.address, &input.input, &input.output.amount);
+                    self.add_regular_input(
+                        &input.output.address,
+                        &input.input,
+                        &input.output.amount,
+                    )?;
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -506,7 +568,7 @@ impl TransactionBuilder {
 
     fn cip2_largest_first_by<F>(
         &mut self,
-        available_inputs: &Vec<TransactionUnspentOutput>,
+        available_inputs: &Vec<&TransactionUnspentOutput>,
         available_indices: &mut Vec<usize>,
         input_total: &mut Value,
         output_total: &mut Value,
@@ -532,7 +594,7 @@ impl TransactionBuilder {
             // differing from CIP2, we include the needed fees in the targets instead of just output values
             let input_fee =
                 self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
-            self.add_input(&input.output.address, &input.input, &input.output.amount);
+            self.add_regular_input(&input.output.address, &input.input, &input.output.amount)?;
             *input_total = input_total.checked_add(&input.output.amount)?;
             *output_total = output_total.checked_add(&Value::new(&input_fee))?;
             available_indices.swap_remove(available_indices.iter().position(|j| i == j).unwrap());
@@ -549,7 +611,7 @@ impl TransactionBuilder {
 
     fn cip2_random_improve_by<F>(
         &mut self,
-        available_inputs: &Vec<TransactionUnspentOutput>,
+        available_inputs: &Vec<&TransactionUnspentOutput>,
         available_indices: &mut BTreeSet<usize>,
         input_total: &mut Value,
         output_total: &mut Value,
@@ -617,24 +679,26 @@ impl TransactionBuilder {
         if !relevant_indices.is_empty() && pure_ada {
             // Phase 2: Improvement
             for output in outputs.iter_mut() {
-                let associated = associated_indices.get_mut(output).unwrap();
-                for i in associated.iter_mut() {
-                    let random_index = rng.gen_range(0..relevant_indices.len());
-                    let j: &mut usize = relevant_indices.get_mut(random_index).unwrap();
-                    let input = &available_inputs[*i];
-                    let new_input = &available_inputs[*j];
-                    let cur = from_bignum(&by(&input.output.amount).unwrap_or(BigNum::zero()));
-                    let new = from_bignum(&by(&new_input.output.amount).unwrap_or(BigNum::zero()));
-                    let min = from_bignum(&by(&output.amount).unwrap_or(BigNum::zero()));
-                    let ideal = 2 * min;
-                    let max = 3 * min;
-                    let move_closer =
-                        (ideal as i128 - new as i128).abs() < (ideal as i128 - cur as i128).abs();
-                    let not_exceed_max = new < max;
-                    if move_closer && not_exceed_max {
-                        std::mem::swap(i, j);
-                        available_indices.insert(*i);
-                        available_indices.remove(j);
+                let associated = associated_indices.get_mut(output);
+                if let Some(associated) = associated {
+                    for i in associated.iter_mut() {
+                        let random_index = rng.gen_range(0..relevant_indices.len());
+                        let j: &mut usize = relevant_indices.get_mut(random_index).unwrap();
+                        let input = &available_inputs[*i];
+                        let new_input = &available_inputs[*j];
+                        let cur: u64 = (&by(&input.output.amount).unwrap_or(BigNum::zero())).into();
+                        let new: u64 = (&by(&new_input.output.amount).unwrap_or(BigNum::zero())).into();
+                        let min: u64 = (&by(&output.amount).unwrap_or(BigNum::zero())).into();
+                        let ideal = 2 * min;
+                        let max = 3 * min;
+                        let move_closer =
+                            (ideal as i128 - new as i128).abs() < (ideal as i128 - cur as i128).abs();
+                        let not_exceed_max = new < max;
+                        if move_closer && not_exceed_max {
+                            std::mem::swap(i, j);
+                            available_indices.insert(*i);
+                            available_indices.remove(j);
+                        }
                     }
                 }
             }
@@ -650,7 +714,11 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_input(&input.output.address, &input.input, &input.output.amount);
+                    self.add_regular_input(
+                        &input.output.address,
+                        &input.input,
+                        &input.output.amount,
+                    )?;
                     *input_total = input_total.checked_add(&input.output.amount)?;
                     *output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -670,6 +738,10 @@ impl TransactionBuilder {
 
     pub fn set_collateral_return(&mut self, collateral_return: &TransactionOutput) {
         self.collateral_return = Some(collateral_return.clone());
+    }
+
+    pub fn remove_collateral_return(&mut self) {
+        self.collateral_return = None;
     }
 
     /// This function will set the collateral-return value and then auto-calculate and assign
@@ -712,6 +784,10 @@ impl TransactionBuilder {
         self.total_collateral = Some(total_collateral.clone());
     }
 
+    pub fn remove_total_collateral(&mut self) {
+        self.total_collateral = None;
+    }
+
     /// This function will set the total-collateral coin and then auto-calculate and assign
     /// the collateral return value. Will raise an error in case no collateral inputs are set.
     /// The specified address will be the received of the collateral return
@@ -747,7 +823,16 @@ impl TransactionBuilder {
     }
 
     pub fn add_reference_input(&mut self, reference_input: &TransactionInput) {
-        self.reference_inputs.insert(reference_input.clone());
+        self.reference_inputs.insert(reference_input.clone(), 0);
+    }
+
+    pub fn add_script_reference_input(
+        &mut self,
+        reference_input: &TransactionInput,
+        script_size: usize,
+    ) {
+        self.reference_inputs
+            .insert(reference_input.clone(), script_size);
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -763,23 +848,6 @@ impl TransactionBuilder {
         self.inputs.add_key_input(hash, input, amount);
     }
 
-    /// This method adds the input to the builder BUT leaves a missing spot for the witness native script
-    ///
-    /// After adding the input with this method, use `.add_required_native_input_scripts`
-    /// and `.add_required_plutus_input_scripts` to add the witness scripts
-    ///
-    /// Or instead use `.add_native_script_input` and `.add_plutus_script_input`
-    /// to add inputs right along with the script, instead of the script hash
-    #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
-    pub fn add_script_input(
-        &mut self,
-        hash: &ScriptHash,
-        input: &TransactionInput,
-        amount: &Value,
-    ) {
-        self.inputs.add_script_input(hash, input, amount);
-    }
-
     /// This method will add the input to the builder and also register the required native script witness
     #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
     pub fn add_native_script_input(
@@ -788,7 +856,10 @@ impl TransactionBuilder {
         input: &TransactionInput,
         amount: &Value,
     ) {
-        self.inputs.add_native_script_input(script, input, amount);
+        self.inputs.add_native_script_input(
+            &NativeScriptSource::new(script),
+            input,
+            amount);
     }
 
     /// This method will add the input to the builder and also register the required plutus witness
@@ -812,40 +883,150 @@ impl TransactionBuilder {
         self.inputs.add_bootstrap_input(hash, input, amount);
     }
 
-    /// Note that for script inputs this method will use underlying generic `.add_script_input`
-    /// which leaves a required empty spot for the script witness (or witnesses in case of Plutus).
-    /// You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.
-    #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
-    pub fn add_input(&mut self, address: &Address, input: &TransactionInput, amount: &Value) {
-        self.inputs.add_input(address, input, amount);
+    /// This function is replace for previous one add_input.
+    /// The functions adds a non script input, if it is a script input it returns an error.
+    /// To add script input you need to use add_native_script_input or add_plutus_script_input.
+    /// Also we recommend to use TxInputsBuilder and .set_inputs, because all add_*_input functions might be removed from transaction builder.
+    #[deprecated(since = "12.0.0", note = "Use `.set_inputs`")]
+    pub fn add_regular_input(
+        &mut self,
+        address: &Address,
+        input: &TransactionInput,
+        amount: &Value,
+    ) -> Result<(), JsError> {
+        self.inputs.add_regular_input(address, input, amount)
     }
 
-    /// Returns the number of still missing input scripts (either native or plutus)
-    /// Use `.add_required_native_input_scripts` or `.add_required_plutus_input_scripts` to add the missing scripts
-    #[deprecated(
-        since = "10.2.0",
-        note = "Use `.count_missing_input_scripts` from `TxInputsBuilder`"
-    )]
-    pub fn count_missing_input_scripts(&self) -> usize {
-        self.inputs.count_missing_input_scripts()
+    // This method should be used after outputs of the transaction is defined.
+    // It will attempt utxo selection initially then add change, if adding change fails
+    // then it will attempt to use up the rest of the available inputs, attempting to add change
+    // after every extra input.
+    pub fn add_inputs_from_and_change(
+        &mut self,
+        inputs: &TransactionUnspentOutputs,
+        strategy: CoinSelectionStrategyCIP2,
+        change_config: &ChangeConfig,
+    ) -> Result<bool, JsError> {
+        self.add_inputs_from(inputs, strategy)?;
+        if self.fee.is_some() {
+            return Err(JsError::from_str(
+                "Cannot calculate change if fee was explicitly specified",
+            ))
+        }
+        let mut add_change_result = self
+            .add_change_if_needed_with_optional_script_and_datum(
+                &change_config.address,
+                change_config
+                    .plutus_data
+                    .clone()
+                    .map_or(None, |od| Some(od.0)),
+                change_config.script_ref.clone(),
+            );
+        match add_change_result {
+            Ok(v) => Ok(v),
+            Err(e) => {
+                let mut unused_inputs = TransactionUnspentOutputs::new();
+                for input in inputs.into_iter() {
+                    if self
+                        .inputs
+                        .inputs()
+                        .into_iter()
+                        .all(|used_input| input.input() != *used_input)
+                    {
+                        unused_inputs.add(input)
+                    }
+                }
+                unused_inputs.0.sort_by_key(|input| {
+                    input
+                        .clone()
+                        .output
+                        .amount
+                        .multiasset
+                        .map_or(0, |ma| ma.len())
+                });
+                unused_inputs.0.reverse();
+                while unused_inputs.0.len() > 0 {
+                    let last_input = unused_inputs.0.pop();
+                    match last_input {
+                        Some(input) => {
+                            self.add_regular_input(
+                                &input.output().address(),
+                                &input.input(),
+                                &input.output().amount(),
+                            )?;
+                            add_change_result = self
+                                .add_change_if_needed_with_optional_script_and_datum(
+                                    &change_config.address,
+                                    change_config
+                                        .plutus_data
+                                        .clone()
+                                        .map_or(None, |od| Some(od.0)),
+                                    change_config.script_ref.clone(),
+                                );
+                            if let Ok(value) = add_change_result {
+                                return Ok(value);
+                            }
+                        }
+                        None => {
+                            return Err(JsError::from_str(
+                                "Unable to balance tx with available inputs",
+                            ))
+                        }
+                    }
+                }
+                Err(e)
+            }
+        }
     }
 
-    /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-    /// Any scripts that don't match any of the previously added inputs will be ignored
-    /// Returns the number of remaining required missing witness scripts
-    /// Use `.count_missing_input_scripts` to find the number of still missing scripts
-    #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
-    pub fn add_required_native_input_scripts(&mut self, scripts: &NativeScripts) -> usize {
-        self.inputs.add_required_native_input_scripts(scripts)
-    }
+    // This method should be used after outputs of the transaction is defined.
+    // It will attempt to fill the required values using the inputs given.
+    // After which, it will attempt to set a collateral return output.
+    pub fn add_inputs_from_and_change_with_collateral_return(
+        &mut self,
+        inputs: &TransactionUnspentOutputs,
+        strategy: CoinSelectionStrategyCIP2,
+        change_config: &ChangeConfig,
+        collateral_percentage: &BigNum,
+    ) -> Result<(), JsError> {
+        let mut total_collateral = Value::zero();
+        for collateral_input in self.collateral.iter() {
+            total_collateral = total_collateral.checked_add(&collateral_input.amount)?;
+        }
 
-    /// Try adding the specified scripts as witnesses for ALREADY ADDED script inputs
-    /// Any scripts that don't match any of the previously added inputs will be ignored
-    /// Returns the number of remaining required missing witness scripts
-    /// Use `.count_missing_input_scripts` to find the number of still missing scripts
-    #[deprecated(since = "10.2.0", note = "Use `.set_inputs`")]
-    pub fn add_required_plutus_input_scripts(&mut self, scripts: &PlutusWitnesses) -> usize {
-        self.inputs.add_required_plutus_input_scripts(scripts)
+        //set fake max total collateral and return
+        self.set_total_collateral(&total_collateral.coin());
+        self.set_collateral_return(&TransactionOutput::new(
+            &change_config.address,
+            &total_collateral,
+        ));
+
+        let add_change_result = self.add_inputs_from_and_change(inputs, strategy, change_config);
+
+        self.remove_collateral_return();
+        self.remove_total_collateral();
+
+        //check if adding inputs and change was successful
+        add_change_result?;
+
+        let fee = self.get_fee_if_set().ok_or(JsError::from_str(
+            "Cannot calculate collateral return if fee was not set",
+        ))?;
+
+        let collateral_required = fee
+            .checked_mul(&collateral_percentage)?
+            .div_floor(&BigNum(100))
+            .checked_add(&BigNum::one())?;
+        let set_collateral_result =
+            self.set_total_collateral_and_return(&collateral_required, &change_config.address);
+
+        if let Err(e) = set_collateral_result {
+            self.remove_collateral_return();
+            self.remove_total_collateral();
+            return Err(e);
+        }
+
+        Ok(())
     }
 
     /// Returns a copy of the current script input witness scripts in the builder
@@ -873,11 +1054,11 @@ impl TransactionBuilder {
         // we need some value for these for it to be a a valid transaction
         // but since we're only calculating the difference between the fee of two transactions
         // it doesn't matter what these are set as, since it cancels out
-        self_copy.set_fee(&to_bignum(0));
+        self_copy.set_fee(&BigNum::zero());
 
         let fee_before = min_fee(&self_copy)?;
 
-        self_copy.add_input(&address, &input, &amount);
+        self_copy.add_regular_input(&address, &input, &amount)?;
         let fee_after = min_fee(&self_copy)?;
         fee_after.checked_sub(&fee_before)
     }
@@ -895,8 +1076,8 @@ impl TransactionBuilder {
         if output.amount().coin() < min_ada {
             Err(JsError::from_str(&format!(
                 "Value {} less than the minimum UTXO value {}",
-                from_bignum(&output.amount().coin()),
-                from_bignum(&min_ada)
+                output.amount().coin(),
+                min_ada
             )))
         } else {
             self.outputs.add(output);
@@ -911,7 +1092,7 @@ impl TransactionBuilder {
         // we need some value for these for it to be a a valid transaction
         // but since we're only calculating the different between the fee of two transactions
         // it doesn't matter what these are set as, since it cancels out
-        self_copy.set_fee(&to_bignum(0));
+        self_copy.set_fee(&BigNum::zero());
 
         let fee_before = min_fee(&self_copy)?;
 
@@ -938,6 +1119,10 @@ impl TransactionBuilder {
         self.ttl = Some(ttl.clone())
     }
 
+    pub fn remove_ttl(&mut self) {
+        self.ttl = None;
+    }
+
     /// !!! DEPRECATED !!!
     /// Uses outdated slot number format.
     #[deprecated(
@@ -952,6 +1137,10 @@ impl TransactionBuilder {
         self.validity_start_interval = Some(validity_start_interval.clone())
     }
 
+    pub fn remove_validity_start_interval(&mut self) {
+        self.validity_start_interval = None;
+    }
+
     /// !!! DEPRECATED !!!
     /// Can emit error if add a cert with script credential.
     /// Use set_certs_builder instead.
@@ -961,13 +1150,17 @@ impl TransactionBuilder {
     )]
     pub fn set_certs(&mut self, certs: &Certificates) -> Result<(), JsError> {
         let mut builder = CertificatesBuilder::new();
-        for cert in &certs.0 {
+        for cert in &certs.certs {
             builder.add(cert)?;
         }
 
         self.certs = Some(builder);
 
         Ok(())
+    }
+
+    pub fn remove_certs(&mut self) {
+        self.certs = None;
     }
 
     pub fn set_certs_builder(&mut self, certs: &CertificatesBuilder) {
@@ -1004,6 +1197,10 @@ impl TransactionBuilder {
         self.voting_proposals = Some(voting_proposal_builder.clone());
     }
 
+    pub fn remove_withdrawals(&mut self) {
+        self.withdrawals = None;
+    }
+
     pub fn get_auxiliary_data(&self) -> Option<AuxiliaryData> {
         self.auxiliary_data.clone()
     }
@@ -1012,6 +1209,10 @@ impl TransactionBuilder {
     /// It might contain some metadata plus native or Plutus scripts
     pub fn set_auxiliary_data(&mut self, auxiliary_data: &AuxiliaryData) {
         self.auxiliary_data = Some(auxiliary_data.clone())
+    }
+
+    pub fn remove_auxiliary_data(&mut self) {
+        self.auxiliary_data = None;
     }
 
     /// Set metadata using a GeneralTransactionMetadata object
@@ -1066,6 +1267,10 @@ impl TransactionBuilder {
         self.mint = Some(mint_builder.clone());
     }
 
+    pub fn remove_mint_builder(&mut self) {
+        self.mint = None;
+    }
+
     pub fn get_mint_builder(&self) -> Option<MintBuilder> {
         self.mint.clone()
     }
@@ -1083,7 +1288,7 @@ impl TransactionBuilder {
     pub fn set_mint(&mut self, mint: &Mint, mint_scripts: &NativeScripts) -> Result<(), JsError> {
         assert_required_mint_scripts(mint, Some(mint_scripts))?;
         let mut scripts_policies = HashMap::new();
-        for scipt in &mint_scripts.0 {
+        for scipt in mint_scripts {
             scripts_policies.insert(scipt.hash(), scipt.clone());
         }
 
@@ -1092,8 +1297,9 @@ impl TransactionBuilder {
         for (policy_id, asset_map) in &mint.0 {
             for (asset_name, amount) in &asset_map.0 {
                 if let Some(script) = scripts_policies.get(policy_id) {
-                    let mint_witness = MintWitness::new_native_script(script);
-                    mint_builder.set_asset(&mint_witness, asset_name, amount);
+                    let native_script_source = NativeScriptSource::new(script);
+                    let mint_witness = MintWitness::new_native_script(&native_script_source);
+                    mint_builder.set_asset(&mint_witness, asset_name, amount)?;
                 } else {
                     return Err(JsError::from_str(
                         "Mint policy does not have a matching script",
@@ -1115,7 +1321,7 @@ impl TransactionBuilder {
     /// Returns a copy of the current mint state in the builder
     pub fn get_mint(&self) -> Option<Mint> {
         match &self.mint {
-            Some(mint) => Some(mint.build()),
+            Some(mint) => Some(mint.build().expect("MintBuilder is invalid")),
             None => None,
         }
     }
@@ -1138,19 +1344,21 @@ impl TransactionBuilder {
     /// Add a mint entry to this builder using a PolicyID and MintAssets object
     /// It will be securely added to existing or new Mint in this builder
     /// It will replace any existing mint assets with the same PolicyID
-    pub fn set_mint_asset(&mut self, policy_script: &NativeScript, mint_assets: &MintAssets) {
-        let mint_witness = MintWitness::new_native_script(policy_script);
+    pub fn set_mint_asset(&mut self, policy_script: &NativeScript, mint_assets: &MintAssets) -> Result<(), JsError> {
+        let native_script_source = NativeScriptSource::new(policy_script);
+        let mint_witness = MintWitness::new_native_script(&native_script_source);
         if let Some(mint) = &mut self.mint {
             for (asset, amount) in mint_assets.0.iter() {
-                mint.set_asset(&mint_witness, asset, amount);
+                mint.set_asset(&mint_witness, asset, amount)?;
             }
         } else {
             let mut mint = MintBuilder::new();
             for (asset, amount) in mint_assets.0.iter() {
-                mint.set_asset(&mint_witness, asset, amount);
+                mint.set_asset(&mint_witness, asset, amount)?;
             }
             self.mint = Some(mint);
         }
+        Ok(())
     }
 
     /// !!! DEPRECATED !!!
@@ -1168,15 +1376,17 @@ impl TransactionBuilder {
         policy_script: &NativeScript,
         asset_name: &AssetName,
         amount: &Int,
-    ) {
-        let mint_witness = MintWitness::new_native_script(policy_script);
+    ) -> Result<(), JsError> {
+        let native_script_source = NativeScriptSource::new(policy_script);
+        let mint_witness = MintWitness::new_native_script(&native_script_source);
         if let Some(mint) = &mut self.mint {
-            mint.add_asset(&mint_witness, asset_name, &amount);
+            mint.add_asset(&mint_witness, asset_name, &amount)?;
         } else {
             let mut mint = MintBuilder::new();
-            mint.add_asset(&mint_witness, asset_name, &amount);
+            mint.add_asset(&mint_witness, asset_name, &amount)?;
             self.mint = Some(mint);
         }
+        Ok(())
     }
 
     /// Add a mint entry together with an output to this builder
@@ -1195,12 +1405,10 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         let policy_id: PolicyID = policy_script.hash();
-        self.add_mint_asset(policy_script, asset_name, amount);
-        let multiasset = Mint::new_from_entry(
-            &policy_id,
-            &MintAssets::new_from_entry(asset_name, amount)?,
-        )
-        .as_positive_multiasset();
+        self.add_mint_asset(policy_script, asset_name, amount)?;
+        let multiasset =
+            Mint::new_from_entry(&policy_id, &MintAssets::new_from_entry(asset_name, amount)?)
+                .as_positive_multiasset();
 
         self.add_output(
             &output_builder
@@ -1225,12 +1433,10 @@ impl TransactionBuilder {
             return Err(JsError::from_str("Output value must be positive!"));
         }
         let policy_id: PolicyID = policy_script.hash();
-        self.add_mint_asset(policy_script, asset_name, amount);
-        let multiasset = Mint::new_from_entry(
-            &policy_id,
-            &MintAssets::new_from_entry(asset_name, amount)?,
-        )
-        .as_positive_multiasset();
+        self.add_mint_asset(policy_script, asset_name, amount)?;
+        let multiasset =
+            Mint::new_from_entry(&policy_id, &MintAssets::new_from_entry(asset_name, amount)?)
+                .as_positive_multiasset();
 
         self.add_output(
             &output_builder
@@ -1264,7 +1470,10 @@ impl TransactionBuilder {
         self.donation.clone()
     }
 
-    pub fn set_current_treasury_value(&mut self, current_treasury_value: &Coin) -> Result<(), JsError> {
+    pub fn set_current_treasury_value(
+        &mut self,
+        current_treasury_value: &Coin,
+    ) -> Result<(), JsError> {
         if current_treasury_value == &Coin::zero() {
             return Err(JsError::from_str("Current treasury value cannot be zero!"));
         }
@@ -1293,7 +1502,7 @@ impl TransactionBuilder {
             required_signers: Ed25519KeyHashes::new(),
             collateral_return: None,
             total_collateral: None,
-            reference_inputs: HashSet::new(),
+            reference_inputs: HashMap::new(),
             extra_datums: None,
             voting_procedures: None,
             voting_proposals: None,
@@ -1303,43 +1512,122 @@ impl TransactionBuilder {
     }
 
     pub fn get_reference_inputs(&self) -> TransactionInputs {
-        let mut inputs = self.reference_inputs.clone();
-        for input in self.inputs.get_ref_inputs().0 {
-            inputs.insert(input);
-        }
+        let mut inputs: HashSet<TransactionInput> = HashSet::new();
+
+        let mut add_ref_inputs_set = |ref_inputs: TransactionInputs| {
+            for input in &ref_inputs {
+                if !self.inputs.has_input(&input) {
+                    inputs.insert(input.clone());
+                }
+            }
+        };
+
+        add_ref_inputs_set(self.inputs.get_ref_inputs());
 
         if let Some(mint) = &self.mint {
-            for input in mint.get_ref_inputs().0 {
-                inputs.insert(input);
-            }
+            add_ref_inputs_set(mint.get_ref_inputs());
         }
 
         if let Some(withdrawals) = &self.withdrawals {
-            for input in withdrawals.get_ref_inputs().0 {
-                inputs.insert(input);
-            }
+            add_ref_inputs_set(withdrawals.get_ref_inputs());
         }
 
         if let Some(certs) = &self.certs {
-            for input in certs.get_ref_inputs().0 {
-                inputs.insert(input);
-            }
+            add_ref_inputs_set(certs.get_ref_inputs());
         }
 
         if let Some(voting_procedures) = &self.voting_procedures {
-            for input in voting_procedures.get_ref_inputs().0 {
-                inputs.insert(input);
-            }
+            add_ref_inputs_set(voting_procedures.get_ref_inputs());
         }
 
         if let Some(voting_proposals) = &self.voting_proposals {
-            for input in voting_proposals.get_ref_inputs().0 {
+            add_ref_inputs_set(voting_proposals.get_ref_inputs());
+        }
+
+        if self.config.deduplicate_explicit_ref_inputs_with_regular_inputs {
+            add_ref_inputs_set(TransactionInputs::from_vec(
+                self.reference_inputs.keys().cloned().collect())
+            )
+        } else {
+            for input in self.reference_inputs.keys().cloned() {
                 inputs.insert(input);
             }
         }
 
         let vec_inputs = inputs.into_iter().collect();
-        TransactionInputs(vec_inputs)
+        TransactionInputs::from_vec(vec_inputs)
+    }
+
+    fn validate_inputs_intersection(&self) -> Result<(), JsError> {
+        let ref_inputs = self.get_reference_inputs();
+        for input in &ref_inputs {
+            if self.inputs.has_input(input) {
+                return Err(JsError::from_str(&format!(
+                    "The reference input {:?} is also present in the regular transaction inputs set. \
+    It's not allowed to have the same inputs in both the transaction's inputs set and the reference inputs set. \
+    You can use the `deduplicate_explicit_ref_inputs_with_regular_inputs` parameter in the `TransactionConfigBuilder` \
+    to enforce the removal of duplicate reference inputs."
+                    , input)));
+            }
+        }
+        Ok(())
+    }
+
+    fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {
+        let mut sizes_map = HashMap::new();
+        fn add_to_map<'a>(
+            item: (&'a TransactionInput, usize),
+            sizes_map: &mut HashMap<&'a TransactionInput, usize>,
+        ) -> Result<(), JsError> {
+            if sizes_map.entry(item.0).or_insert(item.1) != &item.1 {
+                Err(JsError::from_str(&format!(
+                    "Different script sizes for the same ref input {}",
+                    item.0
+                )))
+            } else {
+                Ok(())
+            }
+        }
+
+        for item in self.inputs.get_script_ref_inputs_with_size() {
+            add_to_map(item, &mut sizes_map)?
+        }
+
+        for (tx_in, size) in &self.reference_inputs {
+            add_to_map((tx_in, *size), &mut sizes_map)?
+        }
+
+        if let Some(mint) = &self.mint {
+            for item in mint.get_script_ref_inputs_with_size() {
+                add_to_map(item, &mut sizes_map)?
+            }
+        }
+
+        if let Some(withdrawals) = &self.withdrawals {
+            for item in withdrawals.get_script_ref_inputs_with_size() {
+                add_to_map(item, &mut sizes_map)?
+            }
+        }
+
+        if let Some(certs) = &self.certs {
+            for item in certs.get_script_ref_inputs_with_size() {
+                add_to_map(item, &mut sizes_map)?
+            }
+        }
+
+        if let Some(voting_procedures) = &self.voting_procedures {
+            for item in voting_procedures.get_script_ref_inputs_with_size() {
+                add_to_map(item, &mut sizes_map)?
+            }
+        }
+
+        if let Some(voting_proposals) = &self.voting_proposals {
+            for item in voting_proposals.get_script_ref_inputs_with_size() {
+                add_to_map(item, &mut sizes_map)?
+            }
+        }
+
+        Ok(sizes_map.values().sum())
     }
 
     /// does not include refunds or withdrawals
@@ -1372,9 +1660,10 @@ impl TransactionBuilder {
         self.mint
             .as_ref()
             .map(|m| {
+                let mint = m.build_unchecked();
                 (
-                    Value::new_from_assets(&m.build().as_positive_multiasset()),
-                    Value::new_from_assets(&m.build().as_negative_multiasset()),
+                    Value::new_from_assets(&mint.as_positive_multiasset()),
+                    Value::new_from_assets(&mint.as_negative_multiasset()),
                 )
             })
             .unwrap_or((Value::zero(), Value::zero()))
@@ -1391,7 +1680,8 @@ impl TransactionBuilder {
     /// Return explicit output plus deposit plus burn
     pub fn get_total_output(&self) -> Result<Value, JsError> {
         let (_, burn_value) = self.get_mint_as_values();
-        let mut total = self.get_explicit_output()?
+        let mut total = self
+            .get_explicit_output()?
             .checked_add(&Value::new(&self.get_deposit()?))?
             .checked_add(&burn_value)?;
         if let Some(donation) = &self.donation {
@@ -1405,7 +1695,7 @@ impl TransactionBuilder {
         self.outputs
             .0
             .iter()
-            .try_fold(Value::new(&to_bignum(0)), |acc, ref output| {
+            .try_fold(Value::new(&BigNum::zero()), |acc, ref output| {
                 acc.checked_add(&output.amount())
             })
     }
@@ -1421,9 +1711,8 @@ impl TransactionBuilder {
         }
 
         if let Some(voting_proposal_builder) = &self.voting_proposals {
-            total_deposit = total_deposit.checked_add(
-                &voting_proposal_builder.get_total_deposit()?,
-            )?;
+            total_deposit =
+                total_deposit.checked_add(&voting_proposal_builder.get_total_deposit()?)?;
         }
 
         Ok(total_deposit)
@@ -1934,7 +2223,9 @@ impl TransactionBuilder {
                 .as_ref()
                 .map(|x| utils::hash_auxiliary_data(x)),
             validity_start_interval: self.validity_start_interval,
-            mint: self.mint.as_ref().map(|x| x.build()),
+            mint: self.mint.as_ref()
+                .map(|x| x.build())
+                .transpose()?,
             script_data_hash: self.script_data_hash.clone(),
             collateral: self.collateral.inputs_option(),
             required_signers: self.required_signers.to_option(),
@@ -1979,24 +2270,23 @@ impl TransactionBuilder {
     fn get_combined_native_scripts(&self) -> Option<NativeScripts> {
         let mut ns = NativeScripts::new();
         if let Some(input_scripts) = self.inputs.get_native_input_scripts() {
-            input_scripts.0.iter().for_each(|s| {
+            input_scripts.iter().for_each(|s| {
                 ns.add(s);
             });
         }
         if let Some(input_scripts) = self.collateral.get_native_input_scripts() {
-            input_scripts.0.iter().for_each(|s| {
+            input_scripts.iter().for_each(|s| {
                 ns.add(s);
             });
         }
         if let Some(mint_builder) = &self.mint {
-            mint_builder.get_native_scripts().0.iter().for_each(|s| {
+            mint_builder.get_native_scripts().iter().for_each(|s| {
                 ns.add(s);
             });
         }
         if let Some(certificates_builder) = &self.certs {
             certificates_builder
                 .get_native_scripts()
-                .0
                 .iter()
                 .for_each(|s| {
                     ns.add(s);
@@ -2005,14 +2295,13 @@ impl TransactionBuilder {
         if let Some(withdrawals_builder) = &self.withdrawals {
             withdrawals_builder
                 .get_native_scripts()
-                .0
                 .iter()
                 .for_each(|s| {
                     ns.add(s);
                 });
         }
         if let Some(voting_builder) = &self.voting_procedures {
-            voting_builder.get_native_scripts().0.iter().for_each(|s| {
+            voting_builder.get_native_scripts().iter().for_each(|s| {
                 ns.add(s);
             });
         }
@@ -2164,11 +2453,6 @@ impl TransactionBuilder {
     /// NOTE: is_valid set to true
     /// NOTE: Will fail in case there are any script inputs added with no corresponding witness
     pub fn build_tx(&self) -> Result<Transaction, JsError> {
-        if self.count_missing_input_scripts() > 0 {
-            return Err(JsError::from_str(
-                "There are some script inputs added that don't have the corresponding script provided as a witness!",
-            ));
-        }
         if self.has_plutus_inputs() {
             if self.script_data_hash.is_none() {
                 return Err(JsError::from_str(
@@ -2181,6 +2465,7 @@ impl TransactionBuilder {
                 ));
             }
         }
+        self.validate_inputs_intersection()?;
         self.build_tx_unsafe()
     }
 
@@ -2199,7 +2484,7 @@ impl TransactionBuilder {
     /// this is done to simplify the library code, but can be fixed later
     pub fn min_fee(&self) -> Result<Coin, JsError> {
         let mut self_copy = self.clone();
-        self_copy.set_fee(&to_bignum(0x1_00_00_00_00));
+        self_copy.set_fee(&(0x1_00_00_00_00u64).into());
         min_fee(&self_copy)
     }
 }

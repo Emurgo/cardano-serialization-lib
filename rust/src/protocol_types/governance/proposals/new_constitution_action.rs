@@ -46,4 +46,8 @@ impl NewConstitutionAction {
             constitution: constitution.clone(),
         }
     }
+
+    pub fn has_script_hash(&self) -> bool {
+        self.constitution.script_hash.is_some()
+    }
 }

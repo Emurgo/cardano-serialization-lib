@@ -53,4 +53,12 @@ impl VotingProposal {
             deposit: deposit.clone(),
         }
     }
+
+    pub(crate) fn has_script_hash(&self) -> bool {
+        match self.governance_action.0 {
+            GovernanceActionEnum::ParameterChangeAction(ref action) => action.has_script_hash(),
+            GovernanceActionEnum::TreasuryWithdrawalsAction(ref action) => action.has_script_hash(),
+            _ => false,
+        }
+    }
 }

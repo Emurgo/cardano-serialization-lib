@@ -1,6 +1,5 @@
-use crate::fakes::fake_policy_id;
 use crate::fees::{min_fee, LinearFee};
-use crate::tests::mock_objects::generate_address;
+use crate::tests::fakes::{fake_policy_id, fake_base_address};
 use crate::*;
 
 fn generate_assets(
@@ -16,7 +15,7 @@ fn generate_assets(
         let policy_id = fake_policy_id(i as u8);
         for j in from_asset..(assets_count + from_asset) {
             let asset_name = AssetName::new(vec![j as u8; asset_name_size]).unwrap();
-            assets.set_asset(&policy_id, &asset_name, amount_per_asset);
+            assets.set_asset(&policy_id, &asset_name, &amount_per_asset);
         }
     }
 
@@ -64,8 +63,8 @@ fn generate_utxo(
 
 fn generate_big_ada_utoxs_bacth() -> TransactionUnspentOutputs {
     let mut utxos = Vec::new();
-    let address = generate_address(1);
-    let address_2 = generate_address(2);
+    let address = fake_base_address(1);
+    let address_2 = fake_base_address(2);
     for i in 0..10 {
         let utxo = generate_utxo(
             &address,
@@ -100,8 +99,8 @@ fn generate_big_ada_utoxs_bacth() -> TransactionUnspentOutputs {
 
 fn generate_big_utoxs_bacth() -> TransactionUnspentOutputs {
     let mut utxos = Vec::new();
-    let address = generate_address(1);
-    let address_2 = generate_address(2);
+    let address = fake_base_address(1);
+    let address_2 = fake_base_address(2);
     for i in 0..200 {
         let utxo = generate_utxo(
             &address,
@@ -215,22 +214,22 @@ fn check_tx_size_limit(batches: &TransactionBatchList, cfg: &TransactionBuilderC
 #[test]
 pub fn test_big_utoxs_batch() {
     let utxos = generate_big_utoxs_bacth();
-    let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+    let linear_fee = LinearFee::new(&BigNum(44), &BigNum(155381));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(4000)
         .max_tx_size(8000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -244,22 +243,22 @@ pub fn test_big_utoxs_batch() {
 #[test]
 pub fn test_big_utoxs_ada_batch() {
     let utxos = generate_big_ada_utoxs_bacth();
-    let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+    let linear_fee = LinearFee::new(&BigNum(44), &BigNum(155381));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(4000)
         .max_tx_size(8000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -272,7 +271,7 @@ pub fn test_big_utoxs_ada_batch() {
 
 #[test]
 pub fn test_one_utxo() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo = generate_utxo(
         &address,
         1,
@@ -287,22 +286,22 @@ pub fn test_one_utxo() {
 
     let utxos = TransactionUnspentOutputs(vec![utxo]);
 
-    let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+    let linear_fee = LinearFee::new(&BigNum(44), &BigNum(155381));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(4000)
         .max_tx_size(8000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -315,7 +314,7 @@ pub fn test_one_utxo() {
 
 #[test]
 pub fn test_one_utxo_one_asset_per_output() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo_1 = generate_utxo(
         &address,
         1,
@@ -354,22 +353,22 @@ pub fn test_one_utxo_one_asset_per_output() {
 
     let utxos = TransactionUnspentOutputs(vec![utxo_1, utxo_2, utxo_3]);
 
-    let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+    let linear_fee = LinearFee::new(&BigNum(1), &BigNum(0));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(80)
         .max_tx_size(8000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -394,7 +393,7 @@ pub fn test_one_utxo_one_asset_per_output() {
 
 #[test]
 pub fn test_one_utxo_one_asset_per_tx() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo_1 = generate_utxo(
         &address,
         1,
@@ -433,22 +432,22 @@ pub fn test_one_utxo_one_asset_per_tx() {
 
     let utxos = TransactionUnspentOutputs(vec![utxo_1, utxo_2, utxo_3]);
 
-    let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+    let linear_fee = LinearFee::new(&BigNum(1), &BigNum(0));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(80)
         .max_tx_size(300)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -474,7 +473,7 @@ pub fn test_one_utxo_one_asset_per_tx() {
 
 #[test]
 pub fn test_only_ada_utxo() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo = generate_utxo(
         &address,
         1,
@@ -489,22 +488,22 @@ pub fn test_only_ada_utxo() {
 
     let utxos = TransactionUnspentOutputs(vec![utxo]);
 
-    let linear_fee = LinearFee::new(&to_bignum(1), &to_bignum(0));
+    let linear_fee = LinearFee::new(&BigNum(1), &BigNum(0));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(4000)
         .max_tx_size(8000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -517,33 +516,33 @@ pub fn test_only_ada_utxo() {
 
 #[test]
 pub fn test_not_enough_ada() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo = generate_utxo(&address, 1, 0, 0, 0, 0, 20, Coin::zero(), Coin::from(1u64));
 
     let utxos = TransactionUnspentOutputs(vec![utxo]);
 
-    let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+    let linear_fee = LinearFee::new(&BigNum(44), &BigNum(155381));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(4000)
         .max_tx_size(8000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_err());
 }
 
 #[test]
 pub fn test_value_limit_error() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo = generate_utxo(
         &address,
         1,
@@ -558,28 +557,28 @@ pub fn test_value_limit_error() {
 
     let utxos = TransactionUnspentOutputs(vec![utxo]);
 
-    let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+    let linear_fee = LinearFee::new(&BigNum(44), &BigNum(155381));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(10)
         .max_tx_size(8000000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_err());
 }
 
 #[test]
 pub fn test_tx_limit_error() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let utxo = generate_utxo(
         &address,
         1,
@@ -594,22 +593,22 @@ pub fn test_tx_limit_error() {
 
     let utxos = TransactionUnspentOutputs(vec![utxo]);
 
-    let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+    let linear_fee = LinearFee::new(&BigNum(44), &BigNum(155381));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(100)
         .max_tx_size(2000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_err());
 }
 
@@ -617,22 +616,22 @@ pub fn test_tx_limit_error() {
 pub fn test_no_utxos() {
     let utxos = TransactionUnspentOutputs(vec![]);
 
-    let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+    let linear_fee = LinearFee::new(&BigNum(44), &BigNum(155381));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(10)
         .max_tx_size(8000000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();
@@ -646,28 +645,28 @@ pub fn test_script_input_error() {
     let utxo = generate_utxo(&address, 1, 0, 0, 0, 0, 20, Coin::zero(), Coin::from(1u64));
     let utxos = TransactionUnspentOutputs(vec![utxo]);
 
-    let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+    let linear_fee = LinearFee::new(&BigNum(44), &BigNum(155381));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(10)
         .max_tx_size(8000000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_err());
 }
 
 #[test]
 pub fn test_two_asset_utxo_one_ada_utxo() {
-    let address = generate_address(1);
+    let address = fake_base_address(1);
     let asset_utxo_1 = generate_utxo(
         &address,
         1,
@@ -706,22 +705,22 @@ pub fn test_two_asset_utxo_one_ada_utxo() {
 
     let utxos = TransactionUnspentOutputs(vec![asset_utxo_1, asset_utxo_2, ada_utxo]);
 
-    let linear_fee = LinearFee::new(&to_bignum(44), &to_bignum(155381));
+    let linear_fee = LinearFee::new(&BigNum(44), &BigNum(155381));
     let cfg = TransactionBuilderConfigBuilder::new()
         .fee_algo(&linear_fee)
-        .pool_deposit(&to_bignum(500000000))
-        .key_deposit(&to_bignum(2000000))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
         .max_value_size(4000)
         .max_tx_size(8000)
-        .coins_per_utxo_word(&to_bignum(34_482))
+        .coins_per_utxo_byte(&BigNum(34_482 / 8))
         .ex_unit_prices(&ExUnitPrices::new(
-            &SubCoin::new(&to_bignum(577), &to_bignum(10000)),
-            &SubCoin::new(&to_bignum(721), &to_bignum(10000000)),
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
         ))
         .build()
         .unwrap();
 
-    let res = create_send_all(&generate_address(10000), &utxos, &cfg);
+    let res = create_send_all(&fake_base_address(10000), &utxos, &cfg);
     assert!(res.is_ok());
 
     let batches = res.unwrap();

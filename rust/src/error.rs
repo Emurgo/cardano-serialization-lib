@@ -1,3 +1,4 @@
+use std::string::ToString;
 use super::*;
 use crate::chain_crypto;
 use cbor_event::{self};
@@ -59,6 +60,7 @@ pub enum DeserializeFailure {
     UnexpectedKeyType(cbor_event::Type),
     VariableLenNatDecodeFailed,
     IoError(String),
+    ExpectedType(String, cbor_event::Type),
     CustomError(String),
 }
 
@@ -140,6 +142,9 @@ impl std::fmt::Display for DeserializeError {
             }
             DeserializeFailure::IoError(e) => write!(f, "IO error: {}", e),
             DeserializeFailure::CustomError(e) => write!(f, "Deserialize error: {}", e),
+            DeserializeFailure::ExpectedType(expected, found) => {
+                write!(f, "Expected type {}, found {:?}", expected, found)
+            }
         }
     }
 }
@@ -222,3 +227,27 @@ impl std::fmt::Display for JsError {
 
 #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
 impl std::error::Error for JsError {}
+
+pub(crate) enum BuilderError {
+    RegularInputIsScript,
+    RegularInputIsFromRewardAddress,
+    MalformedAddress,
+    MintBuilderDifferentScriptType,
+    MintBuilderDifferentRedeemerDataAndExUnits(String, String),
+    MintBuilderDifferentWitnessTypeRef,
+    MintBuilderDifferentWitnessTypeNonRef
+}
+
+impl BuilderError {
+    pub(crate) fn as_str(&self) -> String {
+        match self {
+            BuilderError::RegularInputIsScript => "You can't add a script input to this function. You can use `.add_native_script_input` or `.add_plutus_script_input` directly to register the input along with the witness.".to_string(),
+            BuilderError::RegularInputIsFromRewardAddress => "You can't use an input from reward address. To spend funds from reward address you to use withdrawal mechanism.".to_string(),
+            BuilderError::MalformedAddress => "The address is malformed.".to_string(),
+            BuilderError::MintBuilderDifferentScriptType => "You can't add a mint to the same policy id but with different script type.".to_string(),
+            BuilderError::MintBuilderDifferentRedeemerDataAndExUnits(redeemer1, redeemer2) => format!("You can't add a mint to the same policy id but with different redeemer data and ex units. Current redeemer  {redeemer1}, your redeemer {redeemer2}"),
+            BuilderError::MintBuilderDifferentWitnessTypeRef => "You can't add a mint to the same policy id but with different witness type. Current witness is ref input".to_string(),
+            BuilderError::MintBuilderDifferentWitnessTypeNonRef => "You can't add a mint to the same policy id but with different witness type. Current witness is non ref".to_string(),
+        }
+    }
+}
