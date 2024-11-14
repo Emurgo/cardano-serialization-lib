@@ -1140,10 +1140,12 @@ impl TransactionBuilder {
         aligned_fee_after.checked_sub(&aligned_fee_before)
     }
 
+    ///Set exact fee for the transaction. If the real fee will be bigger then the set value, the transaction will not be created on .build_tx()
     pub fn set_fee(&mut self, fee: &Coin) {
         self.fee_request = TxBuilderFee::Exactly(fee.clone());
     }
 
+    ///Set minimal fee for the transaction. If the real fee will be bigger then the set value, the transaction will be created with the real fee.
     pub fn set_min_fee(&mut self, fee: &Coin) {
         self.fee_request = TxBuilderFee::NotLess(fee.clone());
     }
