@@ -148,7 +148,7 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     } else {
         if total_ref_script_size > 0 {
             return Err(JsError::from_str(
-                "Plutus scripts are present but ref_script_coins_per_byte are missing in the config!",
+                "Referenced scripts are present but ref_script_coins_per_byte is missing in the config!",
             ));
         }
     }
@@ -1680,6 +1680,12 @@ impl TransactionBuilder {
             }
         }
 
+        //inputs with an inlined scripts
+        for item in self.inputs.get_inputs_with_ref_script_size() {
+            add_to_map(item, &mut sizes_map)?
+        }
+
+        //inputs with a ref script witness
         for item in self.inputs.get_script_ref_inputs_with_size() {
             add_to_map(item, &mut sizes_map)?
         }
