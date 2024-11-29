@@ -265,3 +265,44 @@ fn voting_procedures_setters_getters_test() {
     assert!(governance_action_ids_2.0.contains(&governance_action_id_2));
     assert!(governance_action_ids_2.0.contains(&governance_action_id_3));
 }
+
+
+#[test]
+fn drep_bech32_129_parsing_key_test() {
+    let drep1 = DRep::from_bech32("drep1uz9v5d3vzyp3xwh8y2ceswqxqx4ljecfwd2kwnjysjapzh3avs7").unwrap();
+    let drep2 = DRep::from_bech32("drep_vkh1uz9v5d3vzyp3xwh8y2ceswqxqx4ljecfwd2kwnjysjapz3kx3ey").unwrap();
+    let drep3 = DRep::from_bech32("drep1ytsg4j3k9sgsxye6uu3trxpcqcq6h7t8p9e42e6wgjzt5yggls86y").unwrap();
+    assert_eq!(drep1.kind(), DRepKind::KeyHash);
+    assert_eq!(drep2.kind(), DRepKind::KeyHash);
+    assert_eq!(drep3.kind(), DRepKind::KeyHash);
+    assert_eq!(drep1.to_key_hash().unwrap(), drep2.to_key_hash().unwrap());
+    assert_eq!(drep1.to_key_hash().unwrap(), drep3.to_key_hash().unwrap());
+}
+
+#[test]
+fn drep_bech32_129_parsing_script_test() {
+    let drep1 = DRep::from_bech32("drep_script1dja6lg0xdt4tfrd7r2svc3ywh5xqrl6w85axjp0gtdu6xw6h2wn").unwrap();
+    let drep2 = DRep::from_bech32("drep1ydkthtapue4w4dydhcd2pnzy367scq0lfc7n56g9apdhngcaf8d6w").unwrap();
+    assert_eq!(drep1.kind(), DRepKind::ScriptHash);
+    assert_eq!(drep2.kind(), DRepKind::ScriptHash);
+    assert_eq!(drep1.to_script_hash().unwrap(), drep2.to_script_hash().unwrap());
+
+}
+
+#[test]
+fn drep_bech32_to_bech() {
+    let drep1 = DRep::from_bech32("drep1uz9v5d3vzyp3xwh8y2ceswqxqx4ljecfwd2kwnjysjapzh3avs7").unwrap();
+    let drep2 = DRep::from_bech32("drep_vkh1uz9v5d3vzyp3xwh8y2ceswqxqx4ljecfwd2kwnjysjapz3kx3ey").unwrap();
+    let drep3 = DRep::from_bech32("drep_script1dja6lg0xdt4tfrd7r2svc3ywh5xqrl6w85axjp0gtdu6xw6h2wn").unwrap();
+    assert_eq!(drep1.to_bech32(false).unwrap(), "drep_vkh1uz9v5d3vzyp3xwh8y2ceswqxqx4ljecfwd2kwnjysjapz3kx3ey");
+    assert_eq!(drep2.to_bech32(false).unwrap(), "drep_vkh1uz9v5d3vzyp3xwh8y2ceswqxqx4ljecfwd2kwnjysjapz3kx3ey");
+    assert_eq!(drep3.to_bech32(false).unwrap(), "drep_script1dja6lg0xdt4tfrd7r2svc3ywh5xqrl6w85axjp0gtdu6xw6h2wn");
+}
+
+#[test]
+fn drep_bech32_to_bech_cip_129() {
+    let drep1 = DRep::from_bech32("drep1uz9v5d3vzyp3xwh8y2ceswqxqx4ljecfwd2kwnjysjapzh3avs7").unwrap();
+    let drep2 = DRep::from_bech32("drep_script1dja6lg0xdt4tfrd7r2svc3ywh5xqrl6w85axjp0gtdu6xw6h2wn").unwrap();
+    assert_eq!(drep1.to_bech32(true).unwrap(), "drep1ytsg4j3k9sgsxye6uu3trxpcqcq6h7t8p9e42e6wgjzt5yggls86y");
+    assert_eq!(drep2.to_bech32(true).unwrap(), "drep1ydkthtapue4w4dydhcd2pnzy367scq0lfc7n56g9apdhngcaf8d6w");
+}
