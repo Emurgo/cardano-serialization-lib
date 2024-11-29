@@ -100,7 +100,7 @@ impl DRep {
     pub fn to_bech32(&self, cip_129_format: bool) -> Result<String, JsError> {
         if cip_129_format {
             let gov_identifier: GovernanceIdentifier = self.try_into()?;
-            gov_identifier.to_bech32().map_err(|e| JsError::from_str(&e.to_string()))
+            gov_identifier.to_bech32()
         } else {
             let (hrp, data) = match &self.0 {
                 DRepEnum::KeyHash(keyhash) => Ok(("drep_vkh", keyhash.to_bytes())),
