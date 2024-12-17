@@ -239,6 +239,23 @@ pub(crate) fn fake_tx_builder_full(
     TransactionBuilder::new(&cfg)
 }
 
+pub(crate) fn fake_realistic_tx_builder_config_builder() -> TransactionBuilderConfigBuilder {
+    TransactionBuilderConfigBuilder::new()
+        .fee_algo(&fake_linear_fee(44, 155381))
+        .pool_deposit(&BigNum(500000000))
+        .key_deposit(&BigNum(2000000))
+        .max_value_size(5000)
+        .max_tx_size(MAX_TX_SIZE)
+        .coins_per_utxo_byte(&BigNum(4310))
+        .ex_unit_prices(&ExUnitPrices::new(
+            &SubCoin::new(&BigNum(577), &BigNum(10000)),
+            &SubCoin::new(&BigNum(721), &BigNum(10000000)),
+        ))
+        .ref_script_coins_per_byte(
+            &UnitInterval::new(&BigNum(1), &BigNum(2)),
+        )
+}
+
 pub(crate) fn fake_tx_builder(
     linear_fee: &LinearFee,
     coins_per_utxo_byte: u64,
