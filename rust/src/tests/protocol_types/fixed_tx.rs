@@ -1,5 +1,7 @@
 use crate::*;
 use hex;
+use crate::fakes::fake_bootstrap_witness;
+use crate::tests::fakes::{fake_byron_address, fake_vkey_witness};
 
 #[test]
 fn simple_round_trip() {
@@ -170,4 +172,54 @@ fn fixed_transaction_with_plutus_witnesses() {
 
     assert!(fixed_tx_roundtrip.witness_set().vkeys().unwrap().contains(&vkey_witness_1));
     assert_eq!(fixed_tx.transaction_hash(), fixed_tx_roundtrip.transaction_hash());
+}
+
+#[test]
+fn add_witnesses_to_tagged_tx() {
+    let hex = "84a400d90102818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00016f32030aa0f5f6";
+    let vkey_witness = fake_vkey_witness(1);
+    let byron_address = ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
+        .unwrap();
+    let bootstrap_witness = fake_bootstrap_witness(1, &byron_address);
+    let mut fixed_tx = FixedTransaction::from_hex(hex).unwrap();
+    fixed_tx.add_bootstrap_witness(&bootstrap_witness);
+    fixed_tx.add_vkey_witness(&vkey_witness);
+
+    let new_bytes = fixed_tx.to_bytes();
+
+    let tx_sets = has_transaction_set_tag(hex::decode(hex).unwrap()).unwrap();
+    assert_eq!(tx_sets, TransactionSetsState::AllSetsHaveTag);
+
+    let new_tx_sets = has_transaction_set_tag(new_bytes.clone()).unwrap();
+    assert_eq!(new_tx_sets, TransactionSetsState::AllSetsHaveTag);
+
+    let new_tx = FixedTransaction::from_bytes(new_bytes).unwrap();
+
+    let wit_set_tag = has_transaction_witnesses_set_tag(&new_tx.witness_set());
+    assert_eq!(wit_set_tag, Some(TransactionSetsState::AllSetsHaveTag));
+}
+
+#[test]
+fn add_witnesses_to_untagged_tx() {
+    let hex = "84a400818258203b40265111d8bb3c3c608d95b3a0bf83461ace32d79336579a1939b3aad1c0b700018182581d611c616f1acb460668a9b2f123c80372c2adad3583b9c6cd2b1deeed1c01021a00016f32030aa0f5f6";
+    let vkey_witness = fake_vkey_witness(1);
+    let byron_address = ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
+        .unwrap();
+    let bootstrap_witness = fake_bootstrap_witness(1, &byron_address);
+    let mut fixed_tx = FixedTransaction::from_hex(hex).unwrap();
+    fixed_tx.add_bootstrap_witness(&bootstrap_witness);
+    fixed_tx.add_vkey_witness(&vkey_witness);
+
+    let new_bytes = fixed_tx.to_bytes();
+
+    let tx_sets = has_transaction_set_tag(hex::decode(hex).unwrap()).unwrap();
+    assert_eq!(tx_sets, TransactionSetsState::AllSetsHaveNoTag);
+
+    let new_tx_sets = has_transaction_set_tag(new_bytes.clone()).unwrap();
+    assert_eq!(new_tx_sets, TransactionSetsState::AllSetsHaveNoTag);
+
+    let new_tx = FixedTransaction::from_bytes(new_bytes).unwrap();
+
+    let wit_set_tag = has_transaction_witnesses_set_tag(&new_tx.witness_set());
+    assert_eq!(wit_set_tag, Some(TransactionSetsState::AllSetsHaveNoTag));
 }
