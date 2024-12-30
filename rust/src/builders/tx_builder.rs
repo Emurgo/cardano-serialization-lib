@@ -1644,7 +1644,7 @@ impl TransactionBuilder {
         }
     }
 
-    fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {
+    pub(crate) fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {
         let mut sizes_map = HashMap::new();
         fn add_to_map<'a>(
             item: (&'a TransactionInput, usize),
