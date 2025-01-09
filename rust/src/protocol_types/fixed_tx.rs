@@ -4,16 +4,16 @@ use crate::*;
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FixedTransaction {
-    pub(crate) body: TransactionBody,
-    pub(crate) body_bytes: Vec<u8>,
-    pub(crate) tx_hash: TransactionHash,
+    body: TransactionBody,
+    body_bytes: Vec<u8>,
+    tx_hash: TransactionHash,
 
-    pub(crate) witness_set: FixedTxWitnessesSet,
+    witness_set: FixedTxWitnessesSet,
 
-    pub(crate) is_valid: bool,
+    is_valid: bool,
 
-    pub(crate) auxiliary_data: Option<AuxiliaryData>,
-    pub(crate) auxiliary_bytes: Option<Vec<u8>>,
+    auxiliary_data: Option<AuxiliaryData>,
+    auxiliary_bytes: Option<Vec<u8>>,
 }
 
 to_from_bytes!(FixedTransaction);
@@ -26,8 +26,16 @@ impl FixedTransaction {
         is_valid: bool,
     ) -> Result<FixedTransaction, JsError> {
         let body = TransactionBody::from_bytes(raw_body.to_vec())?;
-        let witness_set = FixedTxWitnessesSet::from_bytes(raw_witness_set.to_vec())?;
+        let mut witness_set = FixedTxWitnessesSet::from_bytes(raw_witness_set.to_vec())?;
         let tx_hash = TransactionHash::from(blake2b256(raw_body));
+
+        let tag_state =
+            has_transaction_set_tag_internal(&body, Some(witness_set.tx_witnesses_set_ref()))?;
+        let force_set_tag = match tag_state {
+            TransactionSetsState::AllSetsHaveNoTag => false,
+            _ => true,
+        };
+        witness_set.force_set_tags_for_new_witnesses(force_set_tag);
 
         Ok(FixedTransaction {
             body,
@@ -47,9 +55,17 @@ impl FixedTransaction {
         is_valid: bool,
     ) -> Result<FixedTransaction, JsError> {
         let body = TransactionBody::from_bytes(raw_body.to_vec())?;
-        let witness_set = FixedTxWitnessesSet::from_bytes(raw_witness_set.to_vec())?;
+        let mut witness_set = FixedTxWitnessesSet::from_bytes(raw_witness_set.to_vec())?;
         let tx_hash = TransactionHash::from(blake2b256(raw_body));
         let auxiliary_data = Some(AuxiliaryData::from_bytes(raw_auxiliary_data.to_vec())?);
+
+        let tag_state =
+            has_transaction_set_tag_internal(&body, Some(witness_set.tx_witnesses_set_ref()))?;
+        let force_set_tag = match tag_state {
+            TransactionSetsState::AllSetsHaveNoTag => false,
+            _ => true,
+        };
+        witness_set.force_set_tags_for_new_witnesses(force_set_tag);
 
         Ok(FixedTransaction {
             body,
@@ -66,11 +82,20 @@ impl FixedTransaction {
         let body = TransactionBody::from_bytes(raw_body.to_vec())?;
         let tx_hash = TransactionHash::from(blake2b256(raw_body));
 
+        let tag_state = has_transaction_set_tag_internal(&body, None)?;
+        let force_set_tag = match tag_state {
+            TransactionSetsState::AllSetsHaveNoTag => false,
+            _ => true,
+        };
+
+        let mut witness_set = FixedTxWitnessesSet::new_empty();
+        witness_set.force_set_tags_for_new_witnesses(force_set_tag);
+
         Ok(FixedTransaction {
             body,
             body_bytes: raw_body.to_vec(),
             tx_hash,
-            witness_set: FixedTxWitnessesSet::new_empty(),
+            witness_set,
             is_valid: true,
             auxiliary_data: None,
             auxiliary_bytes: None,
@@ -80,14 +105,25 @@ impl FixedTransaction {
     pub(crate) fn new_with_original_bytes(
         tx_body: TransactionBody,
         raw_body: Vec<u8>,
-        tx_witnesses_set: FixedTxWitnessesSet,
+        mut tx_witnesses_set: FixedTxWitnessesSet,
         is_valid: bool,
         auxiliary_data: Option<AuxiliaryData>,
         raw_auxiliary_data: Option<Vec<u8>>,
-    ) -> FixedTransaction {
+    ) -> Result<FixedTransaction, JsError> {
         let tx_hash = TransactionHash::from(blake2b256(&raw_body));
 
-        FixedTransaction {
+        let tag_state = has_transaction_set_tag_internal(
+            &tx_body,
+            Some(tx_witnesses_set.tx_witnesses_set_ref()),
+        )?;
+        let force_set_tag = match tag_state {
+            TransactionSetsState::AllSetsHaveNoTag => false,
+            _ => true,
+        };
+
+        tx_witnesses_set.force_set_tags_for_new_witnesses(force_set_tag);
+
+        Ok(FixedTransaction {
             body: tx_body,
             body_bytes: raw_body,
             tx_hash,
@@ -95,7 +131,7 @@ impl FixedTransaction {
             is_valid,
             auxiliary_data,
             auxiliary_bytes: raw_auxiliary_data,
-        }
+        })
     }
 
     pub fn body(&self) -> TransactionBody {
@@ -116,7 +152,10 @@ impl FixedTransaction {
     /// We do not recommend using this function, since it might lead to script integrity hash.
     /// The only purpose of this struct is to sign the transaction from third-party sources.
     /// Use `.sign_and_add_vkey_signature` or `.sign_and_add_icarus_bootstrap_signature` or `.sign_and_add_daedalus_bootstrap_signature` instead.
-    #[deprecated(since = "12.1.0", note = "Use `.sign_and_add_vkey_signature` or `.sign_and_add_icarus_bootstrap_signature` or `.sign_and_add_daedalus_bootstrap_signature` instead.")]
+    #[deprecated(
+        since = "12.1.0",
+        note = "Use `.sign_and_add_vkey_signature` or `.sign_and_add_icarus_bootstrap_signature` or `.sign_and_add_daedalus_bootstrap_signature` instead."
+    )]
     pub fn set_witness_set(&mut self, raw_witness_set: &[u8]) -> Result<(), JsError> {
         let witness_set = FixedTxWitnessesSet::from_bytes(raw_witness_set.to_vec())?;
         self.witness_set = witness_set;
@@ -172,15 +211,35 @@ impl FixedTransaction {
         Ok(())
     }
 
-    pub fn sign_and_add_icarus_bootstrap_signature(&mut self, addr: &ByronAddress, private_key: &Bip32PrivateKey) -> Result<(), JsError> {
+    pub fn sign_and_add_icarus_bootstrap_signature(
+        &mut self,
+        addr: &ByronAddress,
+        private_key: &Bip32PrivateKey,
+    ) -> Result<(), JsError> {
         let bootstrap_witness = make_icarus_bootstrap_witness(&self.tx_hash, addr, private_key);
         self.witness_set.add_bootstrap_witness(&bootstrap_witness);
         Ok(())
     }
 
-    pub fn sign_and_add_daedalus_bootstrap_signature(&mut self, addr: &ByronAddress, private_key: &LegacyDaedalusPrivateKey) -> Result<(), JsError> {
+    pub fn sign_and_add_daedalus_bootstrap_signature(
+        &mut self,
+        addr: &ByronAddress,
+        private_key: &LegacyDaedalusPrivateKey,
+    ) -> Result<(), JsError> {
         let bootstrap_witness = make_daedalus_bootstrap_witness(&self.tx_hash, addr, private_key);
         self.witness_set.add_bootstrap_witness(&bootstrap_witness);
         Ok(())
+    }
+
+    pub(crate) fn body_bytes_ref(&self) -> &Vec<u8> {
+        &self.body_bytes
+    }
+
+    pub(crate) fn witnesses_set_ref(&self) -> &FixedTxWitnessesSet {
+        &self.witness_set
+    }
+
+    pub(crate) fn auxiliary_bytes_ref(&self) -> Option<&Vec<u8>> {
+        self.auxiliary_bytes.as_ref()
     }
 }
