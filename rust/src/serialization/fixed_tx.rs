@@ -1,5 +1,5 @@
-use crate::*;
 use crate::serialization::utils::deserilized_with_orig_bytes;
+use crate::*;
 
 impl cbor_event::se::Serialize for FixedTransaction {
     fn serialize<'se, W: Write>(
@@ -7,10 +7,10 @@ impl cbor_event::se::Serialize for FixedTransaction {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_array(cbor_event::Len::Len(4))?;
-        serializer.write_raw_bytes(&self.body_bytes)?;
-        self.witness_set.serialize(serializer)?;
-        serializer.write_special(CBORSpecial::Bool(self.is_valid))?;
-        match &self.auxiliary_bytes {
+        serializer.write_raw_bytes(&self.body_bytes_ref())?;
+        self.witnesses_set_ref().serialize(serializer)?;
+        serializer.write_special(CBORSpecial::Bool(self.is_valid()))?;
+        match &self.auxiliary_bytes_ref() {
             Some(auxiliary_bytes) => serializer.write_raw_bytes(auxiliary_bytes)?,
             None => serializer.write_special(CBORSpecial::Null)?,
         };
@@ -52,8 +52,8 @@ impl DeserializeEmbeddedGroup for FixedTransaction {
         let (body, body_bytes) =
             deserilized_with_orig_bytes(raw, |raw| TransactionBody::deserialize(raw))
                 .map_err(|e| e.annotate("body"))?;
-        let witness_set = FixedTxWitnessesSet::deserialize(raw)
-            .map_err(|e| e.annotate("witness_set"))?;
+        let witness_set =
+            FixedTxWitnessesSet::deserialize(raw).map_err(|e| e.annotate("witness_set"))?;
         let mut checked_auxiliary_data = false;
         let mut auxiliary_data = None;
         let mut auxiliary_bytes = None;
@@ -105,13 +105,20 @@ impl DeserializeEmbeddedGroup for FixedTransaction {
             })()
             .map_err(|e| e.annotate("auxiliary_data"))?;
         }
-        Ok(FixedTransaction::new_with_original_bytes(
+        FixedTransaction::new_with_original_bytes(
             body,
             body_bytes,
             witness_set,
             is_valid,
             auxiliary_data,
             auxiliary_bytes,
-        ))
+        )
+        .map_err(|_| {
+            DeserializeError::new(
+                "FixedTransaction",
+                DeserializeFailure::CustomError("Failed to create FixedTransaction. \
+                Smth wrong with FixedTransaction::new_with_original_bytes()".to_string()),
+            )
+        })
     }
 }
