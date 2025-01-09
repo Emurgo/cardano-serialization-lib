@@ -12,6 +12,7 @@ use crate::*;
 pub struct FixedTxWitnessesSet {
     raw_parts: TransactionWitnessSetRaw,
     tx_witnesses_set: TransactionWitnessSet,
+    transaction_has_set_tags: bool,
 }
 
 #[wasm_bindgen]
@@ -27,6 +28,7 @@ impl FixedTxWitnessesSet {
         Self {
             tx_witnesses_set: witnesses_set,
             raw_parts,
+            transaction_has_set_tags: true,
         }
     }
 
@@ -34,6 +36,7 @@ impl FixedTxWitnessesSet {
         Self {
             tx_witnesses_set: TransactionWitnessSet::new(),
             raw_parts: TransactionWitnessSetRaw::new(),
+            transaction_has_set_tags: true
         }
     }
 
@@ -43,7 +46,14 @@ impl FixedTxWitnessesSet {
 
     pub fn add_vkey_witness(&mut self, vkey_witness: &Vkeywitness) {
         if self.tx_witnesses_set.vkeys.is_none() {
-            self.tx_witnesses_set.vkeys = Some(Vkeywitnesses::new());
+            let mut vkeys = Vkeywitnesses::new();
+            vkeys.set_force_original_cbor_set_type(true);
+            if self.transaction_has_set_tags {
+                vkeys.set_set_type(CborSetType::Tagged)
+            } else {
+                vkeys.set_set_type(CborSetType::Untagged)
+            }
+            self.tx_witnesses_set.vkeys = Some(vkeys);
         }
         if let Some(vkeys) = &mut self.tx_witnesses_set.vkeys {
             vkeys.add(vkey_witness);
@@ -53,7 +63,14 @@ impl FixedTxWitnessesSet {
 
     pub fn add_bootstrap_witness(&mut self, bootstrap_witness: &BootstrapWitness) {
         if self.tx_witnesses_set.bootstraps.is_none() {
-            self.tx_witnesses_set.bootstraps = Some(BootstrapWitnesses::new());
+            let mut bootstraps = BootstrapWitnesses::new();
+            bootstraps.set_force_original_cbor_set_type(true);
+            if self.transaction_has_set_tags {
+                bootstraps.set_set_type(CborSetType::Tagged)
+            } else {
+                bootstraps.set_set_type(CborSetType::Untagged)
+            }
+            self.tx_witnesses_set.bootstraps = Some(bootstraps);
         }
         if let Some(bootstraps) = &mut self.tx_witnesses_set.bootstraps {
             bootstraps.add(bootstrap_witness);
@@ -85,5 +102,9 @@ impl FixedTxWitnessesSet {
 
     pub(crate) fn raw_parts_ref(&self) -> &TransactionWitnessSetRaw {
         &self.raw_parts
+    }
+
+    pub(crate) fn force_set_tags_for_new_witnesses(&mut self, set_tags: bool) {
+        self.transaction_has_set_tags = set_tags;
     }
 }
