@@ -1,7 +1,7 @@
 use crate::*;
 use hex;
 use crate::fakes::fake_bootstrap_witness;
-use crate::tests::fakes::{fake_byron_address, fake_vkey_witness};
+use crate::tests::fakes::fake_vkey_witness;
 
 #[test]
 fn simple_round_trip() {
