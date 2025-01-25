@@ -1,5 +1,5 @@
 use crate::tests::helpers::harden;
-use crate::tests::fakes::{fake_byron_address, fake_anchor, fake_change_address, fake_default_tx_builder, fake_linear_fee, fake_reallistic_tx_builder, fake_redeemer, fake_redeemer_zero_cost, fake_rich_tx_builder, fake_tx_builder, fake_tx_builder_with_amount, fake_tx_builder_with_fee, fake_tx_builder_with_fee_and_pure_change, fake_tx_builder_with_fee_and_val_size, fake_tx_builder_with_key_deposit, fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_plutus_script_and_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2, fake_vkey_witness, fake_root_key_15, fake_base_address_with_payment_cred, fake_bootsrap_witness_with_attrs};
+use crate::tests::fakes::{fake_byron_address, fake_anchor, fake_change_address, fake_default_tx_builder, fake_linear_fee, fake_reallistic_tx_builder, fake_redeemer, fake_redeemer_zero_cost, fake_rich_tx_builder, fake_tx_builder, fake_tx_builder_with_amount, fake_tx_builder_with_fee, fake_tx_builder_with_fee_and_pure_change, fake_tx_builder_with_fee_and_val_size, fake_tx_builder_with_key_deposit, fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_plutus_script_and_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2, fake_vkey_witness, fake_root_key_15, fake_base_address_with_payment_cred, fake_bootsrap_witness_with_attrs, fake_realistic_tx_builder_config_builder};
 use crate::*;
 
 use crate::builders::fakes::fake_private_key;
@@ -6619,4 +6619,147 @@ fn tx_builder_exact_fee_burn_extra_issue() {
     let change_res = tx_builder.add_inputs_from_and_change(&TransactionUnspentOutputs::new(), CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &ChangeConfig::new(&change_address));
 
     assert!(change_res.is_err());
+}
+
+#[test]
+fn build_tx_do_not_burn_extra_error_test() {
+    let mut config_builder = fake_realistic_tx_builder_config_builder();
+    config_builder = config_builder.do_not_burn_extra_change(true);
+    let config = config_builder.build().unwrap();
+    let mut tx_builder = TransactionBuilder::new(&config);
+
+    let output_addr =
+        ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
+            .unwrap();
+    tx_builder
+        .add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(&output_addr.to_address())
+                .next()
+                .unwrap()
+                .with_value(&Value::new(&BigNum(2_000_000)))
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
+
+    tx_builder.add_regular_input(
+        &ByronAddress::from_base58("Ae2tdPwUPEZ5uzkzh1o2DHECiUi3iugvnnKHRisPgRRP3CTF4KCMvy54Xd3")
+            .unwrap()
+            .to_address(),
+        &TransactionInput::new(&genesis_id(), 0),
+        &Value::new(&BigNum(2_400_000)),
+    ).expect("Failed to add input");
+
+    tx_builder.set_ttl(1);
+
+    let change_addr =
+        ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho")
+            .unwrap();
+    let added_change = tx_builder.add_change_if_needed(&change_addr.to_address());
+    assert!(added_change.is_err());
+}
+
+#[test]
+fn build_tx_burn_extra_coin_selection_test() {
+    let mut config_builder = fake_realistic_tx_builder_config_builder();
+    config_builder = config_builder.do_not_burn_extra_change(false);
+    let config = config_builder.build().unwrap();
+    let mut tx_builder = TransactionBuilder::new(&config);
+
+    let mut available_inputs = TransactionUnspentOutputs::new();
+    available_inputs.add(&make_input(0u8, Value::new(&BigNum(2000000))));
+    available_inputs.add(&make_input(1u8, Value::new(&BigNum(1000000))));
+
+    let output_addr =
+        ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
+            .unwrap();
+    tx_builder
+        .add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(&output_addr.to_address())
+                .next()
+                .unwrap()
+                .with_value(&Value::new(&BigNum(1_000_000)))
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
+
+    let change_config = ChangeConfig::new(
+        &ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho")
+            .unwrap()
+            .to_address(),
+    );
+    tx_builder.add_inputs_from_and_change(&available_inputs, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config).unwrap();
+
+    assert_eq!(tx_builder.outputs.len(), 1);
+    assert_eq!(
+        tx_builder
+            .get_explicit_input()
+            .unwrap()
+            .checked_add(&tx_builder.get_implicit_input().unwrap())
+            .unwrap(),
+        tx_builder
+            .get_explicit_output()
+            .unwrap()
+            .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
+            .unwrap()
+    );
+
+    let fee = tx_builder.get_fee_if_set().unwrap();
+    assert_eq!(fee, BigNum(1000000u64));
+    tx_builder.build_tx().expect("Failed to build tx");
+}
+
+#[test]
+fn build_tx_do_not_burn_extra_coin_selection_test() {
+    let mut config_builder = fake_realistic_tx_builder_config_builder();
+    config_builder = config_builder.do_not_burn_extra_change(true);
+    let config = config_builder.build().unwrap();
+    let mut tx_builder = TransactionBuilder::new(&config);
+
+    let mut available_inputs = TransactionUnspentOutputs::new();
+    available_inputs.add(&make_input(0u8, Value::new(&BigNum(2000000))));
+    available_inputs.add(&make_input(1u8, Value::new(&BigNum(1000000))));
+
+    let output_addr =
+        ByronAddress::from_base58("Ae2tdPwUPEZD9QQf2ZrcYV34pYJwxK4vqXaF8EXkup1eYH73zUScHReM42b")
+            .unwrap();
+    tx_builder
+        .add_output(
+            &TransactionOutputBuilder::new()
+                .with_address(&output_addr.to_address())
+                .next()
+                .unwrap()
+                .with_value(&Value::new(&BigNum(1_000_000)))
+                .build()
+                .unwrap(),
+        )
+        .unwrap();
+
+    let change_config = ChangeConfig::new(
+        &ByronAddress::from_base58("Ae2tdPwUPEZGUEsuMAhvDcy94LKsZxDjCbgaiBBMgYpR8sKf96xJmit7Eho")
+            .unwrap()
+            .to_address(),
+    );
+    tx_builder.add_inputs_from_and_change(&available_inputs, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config).unwrap();
+
+    assert_eq!(tx_builder.outputs.len(), 2);
+    assert_eq!(
+        tx_builder
+            .get_explicit_input()
+            .unwrap()
+            .checked_add(&tx_builder.get_implicit_input().unwrap())
+            .unwrap(),
+        tx_builder
+            .get_explicit_output()
+            .unwrap()
+            .checked_add(&Value::new(&tx_builder.get_fee_if_set().unwrap()))
+            .unwrap()
+    );
+
+    let fee = tx_builder.get_fee_if_set().unwrap();
+    assert!(fee < BigNum(1000000u64));
+    tx_builder.build_tx().expect("Failed to build tx");
 }
