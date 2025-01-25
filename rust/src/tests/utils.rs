@@ -772,3 +772,42 @@ fn has_transaction_set_tag_mixed() {
     let tx_sets = has_transaction_set_tag(hex::decode(hex).unwrap()).unwrap();
     assert_eq!(tx_sets, TransactionSetsState::MixedSets);
 }
+
+
+#[test]
+fn value_empty_asset_equal() {
+    let a = Value {
+        coin: BigNum(0),
+        multiasset: None,
+    };
+    let b = Value {
+        coin: BigNum(0),
+        multiasset: Some(MultiAsset::new()),
+    };
+    let c = Value {
+        coin: BigNum(0),
+        multiasset: None,
+    };
+
+    assert_eq!(a, b);
+    assert_eq!(a, c);
+}
+
+#[test]
+fn value_empty_asset_not_equal() {
+    let a = Value {
+        coin: BigNum(1),
+        multiasset: None,
+    };
+    let b = Value {
+        coin: BigNum(2),
+        multiasset: Some(MultiAsset::new()),
+    };
+    let c = Value {
+        coin: BigNum(3),
+        multiasset: None,
+    };
+
+    assert_ne!(a, b);
+    assert_ne!(a, c);
+}

@@ -148,9 +148,7 @@ impl<'a> IntoIterator for &'a TransactionUnspentOutputs {
 #[derive(
     Clone,
     Debug,
-    Eq,
     /*Hash,*/ Ord,
-    PartialEq,
     serde::Serialize,
     serde::Deserialize,
     JsonSchema,
@@ -298,6 +296,16 @@ impl Value {
     }
 }
 
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        let self_ma = self.multiasset.as_ref().map(|ma| ma.reduce_empty_to_none()).flatten();
+        let other_ma = other.multiasset.as_ref().map(|ma| ma.reduce_empty_to_none()).flatten();
+        self.coin == other.coin && self_ma == other_ma
+    }
+}
+
+impl Eq for Value {}
+
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         use std::cmp::Ordering::*;
@@ -334,19 +342,17 @@ impl cbor_event::se::Serialize for Value {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        let multiasset_len = match &self.multiasset {
-            Some(multiasset) => multiasset.len(),
-            None => 0,
-        };
+        let multiasset = self.multiasset
+            .as_ref()
+            .map(|ma| ma.reduce_empty_to_none())
+            .flatten();
 
-        if multiasset_len == 0 {
-            self.coin.serialize(serializer)?;
-        } else {
+        if let Some(multiasset) = multiasset {
             serializer.write_array(cbor_event::Len::Len(2))?;
             self.coin.serialize(serializer)?;
-            if let Some(multiasset) = &self.multiasset {
-                multiasset.serialize(serializer)?;
-            }
+            multiasset.serialize(serializer)?;
+        } else {
+            self.coin.serialize(serializer)?;
         }
 
         Ok(serializer)
