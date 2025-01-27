@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) struct TxBuilderInput {
     pub(crate) input: TransactionInput,
     pub(crate) amount: Value, // we need to keep track of the amount in the inputs for input selection
+    pub(crate) input_ref_script_size: Option<usize>,
 }
 
 // We need to know how many of each type of witness will be in the transaction so we can calculate the tx fee
@@ -40,8 +41,68 @@ impl TxInputsBuilder {
         }
     }
 
-    fn push_input(&mut self, e: (TxBuilderInput, Option<ScriptHash>)) {
-        self.inputs.insert(e.0.input.clone(), e);
+    pub fn add_regular_utxo(&mut self, utxo: &TransactionUnspentOutput) -> Result<(), JsError> {
+        let input = &utxo.input;
+        let output = &utxo.output;
+
+        let address = &output.address;
+        let address_kind = address.kind();
+        if address_kind == AddressKind::Malformed || address_kind == AddressKind::Reward {
+            return Err(JsError::from_str(&BuilderError::RegularAddressTypeMismatch.as_str()));
+        }
+
+        let ref_script_size = output.script_ref.as_ref().map(|x| x.to_unwrapped_bytes().len());
+        self.add_regular_input_extended(&output.address, input, &output.amount, ref_script_size)
+    }
+
+    pub fn add_plutus_script_utxo(&mut self, utxo: &TransactionUnspentOutput, witness: &PlutusWitness) -> Result<(), JsError> {
+        let input = &utxo.input;
+        let output = &utxo.output;
+        let address = &output.address;
+        let address_kind = address.kind();
+        if address_kind == AddressKind::Malformed || address_kind == AddressKind::Reward || address_kind == AddressKind::Byron{
+            return Err(JsError::from_str(&BuilderError::ScriptAddressTypeMismatch.as_str()));
+        }
+
+        let payment_cred = address.payment_cred();
+        if let Some(payment_cred) = payment_cred {
+            if !payment_cred.has_script_hash() {
+                return Err(JsError::from_str(&BuilderError::ScriptAddressCredentialMismatch.as_str()));
+            }
+        }
+
+        let ref_script_size = output.script_ref.as_ref().map(|x| x.to_unwrapped_bytes().len());
+        let hash = witness.script.script_hash();
+
+        self.add_script_input(&hash, input, &output.amount, ref_script_size);
+        let witness = ScriptWitnessType::PlutusScriptWitness(witness.clone());
+        self.insert_input_with_witness(&hash, input, &witness);
+        Ok(())
+    }
+
+    pub fn add_native_script_utxo(&mut self, utxo: &TransactionUnspentOutput, witness: &NativeScriptSource) -> Result<(), JsError> {
+        let input = &utxo.input;
+        let output = &utxo.output;
+        let address = &output.address;
+        let address_kind = address.kind();
+        if address_kind == AddressKind::Malformed || address_kind == AddressKind::Reward || address_kind == AddressKind::Byron{
+            return Err(JsError::from_str(&BuilderError::ScriptAddressTypeMismatch.as_str()));
+        }
+
+        let payment_cred = address.payment_cred();
+        if let Some(payment_cred) = payment_cred {
+            if !payment_cred.has_script_hash() {
+                return Err(JsError::from_str(&BuilderError::ScriptAddressCredentialMismatch.as_str()));
+            }
+        }
+
+        let ref_script_size = output.script_ref.as_ref().map(|x| x.to_unwrapped_bytes().len());
+        let hash = witness.script_hash();
+
+        self.add_script_input(&hash, input, &output.amount, ref_script_size);
+        let witness = ScriptWitnessType::NativeScriptWitness(witness.0.clone());
+        self.insert_input_with_witness(&hash, input, &witness);
+        Ok(())
     }
 
     /// We have to know what kind of inputs these are to know what kind of mock witnesses to create since
@@ -53,18 +114,30 @@ impl TxInputsBuilder {
         input: &TransactionInput,
         amount: &Value,
     ) {
+        self.add_key_input_extended(hash, input, amount, None);
+    }
+
+    fn add_key_input_extended(
+        &mut self,
+        hash: &Ed25519KeyHash,
+        input: &TransactionInput,
+        amount: &Value,
+        input_ref_script_size: Option<usize>,
+    ) {
         let inp = TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
+            input_ref_script_size,
         };
         self.push_input((inp, None));
         self.required_witnesses.vkeys.add_move(hash.clone());
     }
 
-    fn add_script_input(&mut self, hash: &ScriptHash, input: &TransactionInput, amount: &Value) {
+    fn add_script_input(&mut self, hash: &ScriptHash, input: &TransactionInput, amount: &Value, input_ref_script_size: Option<usize>) {
         let inp = TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
+            input_ref_script_size,
         };
         self.push_input((inp, Some(hash.clone())));
         self.insert_input_with_empty_witness(hash, input);
@@ -78,7 +151,7 @@ impl TxInputsBuilder {
         amount: &Value,
     ) {
         let hash = script.script_hash();
-        self.add_script_input(&hash, input, amount);
+        self.add_script_input(&hash, input, amount, None);
         let witness = ScriptWitnessType::NativeScriptWitness(script.0.clone());
         self.insert_input_with_witness(&hash, input, &witness);
     }
@@ -91,8 +164,7 @@ impl TxInputsBuilder {
         amount: &Value,
     ) {
         let hash = witness.script.script_hash();
-
-        self.add_script_input(&hash, input, amount);
+        self.add_script_input(&hash, input, amount, None);
         let witness = ScriptWitnessType::PlutusScriptWitness(witness.clone());
         self.insert_input_with_witness(&hash, input, &witness);
     }
@@ -103,13 +175,25 @@ impl TxInputsBuilder {
         input: &TransactionInput,
         amount: &Value,
     ) {
+        self.add_bootstrap_input_extended(address, input, amount, None);
+    }
+
+    fn add_bootstrap_input_extended(
+        &mut self,
+        address: &ByronAddress,
+        input: &TransactionInput,
+        amount: &Value,
+        input_ref_script_size: Option<usize>,
+    ) {
         let inp = TxBuilderInput {
             input: input.clone(),
             amount: amount.clone(),
+            input_ref_script_size,
         };
         self.push_input((inp, None));
         self.required_witnesses.bootstraps.insert(address.to_bytes());
     }
+
 
     /// Adds non script input, in case of script or reward address input it will return an error
     pub fn add_regular_input(
@@ -118,10 +202,20 @@ impl TxInputsBuilder {
         input: &TransactionInput,
         amount: &Value,
     ) -> Result<(), JsError> {
+        self.add_regular_input_extended(address, input, amount, None)
+    }
+
+    fn add_regular_input_extended(
+        &mut self,
+        address: &Address,
+        input: &TransactionInput,
+        amount: &Value,
+        input_ref_script_size: Option<usize>,
+    ) -> Result<(), JsError> {
         match &address.0 {
             AddrType::Base(base_addr) => match &base_addr.payment.0 {
                 CredType::Key(key) => {
-                    self.add_key_input(key, input, amount);
+                    self.add_key_input_extended(key, input, amount, input_ref_script_size);
                     Ok(())
                 }
                 CredType::Script(_) => Err(JsError::from_str(
@@ -130,7 +224,7 @@ impl TxInputsBuilder {
             },
             AddrType::Enterprise(ent_aaddr) => match &ent_aaddr.payment.0 {
                 CredType::Key(key) => {
-                    self.add_key_input(key, input, amount);
+                    self.add_key_input_extended(key, input, amount, input_ref_script_size);
                     Ok(())
                 }
                 CredType::Script(_) => Err(JsError::from_str(
@@ -139,7 +233,7 @@ impl TxInputsBuilder {
             },
             AddrType::Ptr(ptr_addr) => match &ptr_addr.payment.0 {
                 CredType::Key(key) => {
-                    self.add_key_input(key, input, amount);
+                    self.add_key_input_extended(key, input, amount, input_ref_script_size);
                     Ok(())
                 }
                 CredType::Script(_) => Err(JsError::from_str(
@@ -147,7 +241,7 @@ impl TxInputsBuilder {
                 )),
             },
             AddrType::Byron(byron_addr) => {
-                self.add_bootstrap_input(byron_addr, input, amount);
+                self.add_bootstrap_input_extended(byron_addr, input, amount, input_ref_script_size);
                 Ok(())
             }
             AddrType::Reward(_) => Err(JsError::from_str(
@@ -328,6 +422,18 @@ impl TxInputsBuilder {
             .filter_map(|wit| wit.get_script_ref_input_with_size())
     }
 
+    pub(crate) fn get_inputs_with_ref_script_size(
+        &self,
+    ) -> impl Iterator<Item = (&TransactionInput, usize)> {
+        self.inputs.iter().filter_map(|(tx_in, (tx_builder_input, _))| {
+            if let Some(size) = tx_builder_input.input_ref_script_size {
+                Some((tx_in, size))
+            } else {
+                None
+            }
+        })
+    }
+
     #[allow(dead_code)]
     pub(crate) fn get_required_signers(&self) -> Ed25519KeyHashes {
         self.into()
@@ -339,6 +445,10 @@ impl TxInputsBuilder {
 
     pub(crate) fn has_input(&self, input: &TransactionInput) -> bool {
         self.inputs.contains_key(input)
+    }
+
+    fn push_input(&mut self, e: (TxBuilderInput, Option<ScriptHash>)) {
+        self.inputs.insert(e.0.input.clone(), e);
     }
 
     fn insert_input_with_witness(

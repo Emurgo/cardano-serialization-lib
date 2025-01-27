@@ -148,7 +148,7 @@ fn min_fee(tx_builder: &TransactionBuilder) -> Result<Coin, JsError> {
     } else {
         if total_ref_script_size > 0 {
             return Err(JsError::from_str(
-                "Plutus scripts are present but ref_script_coins_per_byte are missing in the config!",
+                "Referenced scripts are present but ref_script_coins_per_byte is missing in the config!",
             ));
         }
     }
@@ -440,11 +440,7 @@ impl TransactionBuilder {
 
             //just add first input, to cover needs of one input
             let input = available_inputs.pop().unwrap();
-            self.add_regular_input(
-                &input.output.address,
-                &input.input,
-                &input.output.amount,
-            )?;
+            self.inputs.add_regular_utxo(&input)?;
             input_total = input_total.checked_add(&input.output.amount)?;
         }
 
@@ -506,11 +502,7 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_regular_input(
-                        &input.output.address,
-                        &input.input,
-                        &input.output.amount,
-                    )?;
+                    self.inputs.add_regular_utxo(&input)?;
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -590,11 +582,7 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_regular_input(
-                        &input.output.address,
-                        &input.input,
-                        &input.output.amount,
-                    )?;
+                    self.inputs.add_regular_utxo(&input)?;
                     input_total = input_total.checked_add(&input.output.amount)?;
                     output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -632,7 +620,7 @@ impl TransactionBuilder {
             // differing from CIP2, we include the needed fees in the targets instead of just output values
             let input_fee =
                 self.fee_for_input(&input.output.address, &input.input, &input.output.amount)?;
-            self.add_regular_input(&input.output.address, &input.input, &input.output.amount)?;
+            self.inputs.add_regular_utxo(&input)?;
             *input_total = input_total.checked_add(&input.output.amount)?;
             *output_total = output_total.checked_add(&Value::new(&input_fee))?;
             available_indices.swap_remove(available_indices.iter().position(|j| i == j).unwrap());
@@ -752,11 +740,7 @@ impl TransactionBuilder {
                         &input.input,
                         &input.output.amount,
                     )?;
-                    self.add_regular_input(
-                        &input.output.address,
-                        &input.input,
-                        &input.output.amount,
-                    )?;
+                    self.inputs.add_regular_utxo(&input)?;
                     *input_total = input_total.checked_add(&input.output.amount)?;
                     *output_total = output_total.checked_add(&Value::new(&input_fee))?;
                 }
@@ -994,11 +978,7 @@ impl TransactionBuilder {
                     let last_input = unused_inputs.0.pop();
                     match last_input {
                         Some(input) => {
-                            self.add_regular_input(
-                                &input.output().address(),
-                                &input.input(),
-                                &input.output().amount(),
-                            )?;
+                            self.inputs.add_regular_utxo(&input)?;
                             add_change_result = self
                                 .add_change_if_needed_with_optional_script_and_datum(
                                     &change_config.address,
@@ -1676,7 +1656,7 @@ impl TransactionBuilder {
         }
     }
 
-    fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {
+    pub(crate) fn get_total_ref_scripts_size(&self) -> Result<usize, JsError> {
         let mut sizes_map = HashMap::new();
         fn add_to_map<'a>(
             item: (&'a TransactionInput, usize),
@@ -1692,6 +1672,12 @@ impl TransactionBuilder {
             }
         }
 
+        //inputs with an inlined scripts
+        for item in self.inputs.get_inputs_with_ref_script_size() {
+            add_to_map(item, &mut sizes_map)?
+        }
+
+        //inputs with a ref script witness
         for item in self.inputs.get_script_ref_inputs_with_size() {
             add_to_map(item, &mut sizes_map)?
         }

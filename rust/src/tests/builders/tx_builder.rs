@@ -1,5 +1,5 @@
 use crate::tests::helpers::harden;
-use crate::tests::fakes::{fake_byron_address, fake_anchor, fake_change_address, fake_default_tx_builder, fake_linear_fee, fake_reallistic_tx_builder, fake_redeemer, fake_redeemer_zero_cost, fake_rich_tx_builder, fake_tx_builder, fake_tx_builder_with_amount, fake_tx_builder_with_fee, fake_tx_builder_with_fee_and_pure_change, fake_tx_builder_with_fee_and_val_size, fake_tx_builder_with_key_deposit, fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_plutus_script_and_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2, fake_vkey_witness, fake_root_key_15, fake_base_address_with_payment_cred, fake_bootsrap_witness_with_attrs, fake_realistic_tx_builder_config_builder};
+use crate::tests::fakes::{fake_realistic_tx_builder_config_builder, fake_byron_address, fake_anchor, fake_change_address, fake_default_tx_builder, fake_linear_fee, fake_reallistic_tx_builder, fake_redeemer, fake_redeemer_zero_cost, fake_rich_tx_builder, fake_tx_builder, fake_tx_builder_with_amount, fake_tx_builder_with_fee, fake_tx_builder_with_fee_and_pure_change, fake_tx_builder_with_fee_and_val_size, fake_tx_builder_with_key_deposit, fake_base_address, fake_bytes_32, fake_data_hash, fake_key_hash, fake_plutus_script_and_hash, fake_policy_id, fake_script_hash, fake_tx_hash, fake_tx_input, fake_tx_input2, fake_value, fake_value2, fake_vkey_witness, fake_root_key_15, fake_base_address_with_payment_cred, fake_bootsrap_witness_with_attrs, fake_plutus_script, fake_base_script_address};
 use crate::*;
 
 use crate::builders::fakes::fake_private_key;
@@ -6605,20 +6605,132 @@ fn tx_builder_min_fee_big_automatic_fee_test() {
 }
 
 #[test]
-fn tx_builder_exact_fee_burn_extra_issue() {
+fn tx_builder_add_utxo_with_inlined_script() {
     let mut tx_builder = fake_reallistic_tx_builder();
-    let change_address = fake_base_address(1);
+    let mut inputs_builder = TxInputsBuilder::new();
 
-    let manual_fee = BigNum(100u64);
+    let utxo_address_1 = fake_base_address(1);
+    let utxo_address_2 = fake_base_script_address(2);
+    let utxo_address_3 = fake_base_script_address(3);
 
-    let input= fake_tx_input(1);
-    let utxo_address = fake_base_address(2);
-    let utxo_value = Value::new(&Coin::from(1000u64));
-    tx_builder.add_regular_input(&utxo_address, &input, &utxo_value).unwrap();
-    tx_builder.set_fee(&manual_fee);
-    let change_res = tx_builder.add_inputs_from_and_change(&TransactionUnspentOutputs::new(), CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &ChangeConfig::new(&change_address));
+    let utxo_input_1 = fake_tx_input(1);
+    let utxo_input_2 = fake_tx_input(2);
+    let utxo_input_3 = fake_tx_input(3);
 
-    assert!(change_res.is_err());
+    let utxo_value_1 = Value::new(&Coin::from(10000000u64));
+    let utxo_value_2 = Value::new(&Coin::from(20000000u64));
+    let utxo_value_3 = Value::new(&Coin::from(30000000u64));
+
+    let mut utxo_output_1 = TransactionOutput::new(&utxo_address_1, &utxo_value_1);
+    let mut utxo_output_2 = TransactionOutput::new(&utxo_address_2, &utxo_value_2);
+    let mut utxo_output_3 = TransactionOutput::new(&utxo_address_3, &utxo_value_3);
+
+    let plutus_script_1 = fake_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_script_2 = fake_plutus_script(2, &Language::new_plutus_v2());
+    let plutus_script_3 = fake_plutus_script(3, &Language::new_plutus_v2());
+
+    let script_ref_1 = ScriptRef::new_plutus_script(&plutus_script_1);
+    let script_ref_2 = ScriptRef::new_plutus_script(&plutus_script_2);
+    let script_ref_3 = ScriptRef::new_plutus_script(&plutus_script_3);
+
+    let script_ref_size_1 = script_ref_1.to_unwrapped_bytes().len();
+    let script_ref_size_2 = script_ref_2.to_unwrapped_bytes().len();
+    let script_ref_size_3 = script_ref_3.to_unwrapped_bytes().len();
+
+    utxo_output_1.set_script_ref(&script_ref_1);
+    utxo_output_2.set_script_ref(&script_ref_2);
+    utxo_output_3.set_script_ref(&script_ref_3);
+
+    let utxo_1 = TransactionUnspentOutput::new(&utxo_input_1, &utxo_output_1);
+    let utxo_2 = TransactionUnspentOutput::new(&utxo_input_2, &utxo_output_2);
+    let utxo_3 = TransactionUnspentOutput::new(&utxo_input_3, &utxo_output_3);
+
+    inputs_builder.add_regular_utxo(&utxo_1).expect("Failed to add utxo");
+
+    let native_script = NativeScript::new_timelock_start(&TimelockStart::new_timelockstart(&BigNum(1000)));
+    let native_script_source = NativeScriptSource::new(&native_script);
+
+    inputs_builder.add_native_script_utxo(&utxo_2, &native_script_source).expect("Failed to add utxo");
+
+    let datum = PlutusData::new_empty_constr_plutus_data(&BigNum(1000));
+    let redeemer = Redeemer::new(
+        &RedeemerTag::new_spend(),
+        &BigNum(1000),
+        &datum,
+        &ExUnits::new(&BigNum(1000), &BigNum(1000)),
+    );
+    let plutus_script = fake_plutus_script(4, &Language::new_plutus_v2());
+    let plutus_script_source = PlutusScriptSource::new(&plutus_script);
+    let datum_source = DatumSource::new(&datum);
+
+    let plutus_witness = PlutusWitness::new_with_ref(&plutus_script_source, &datum_source, &redeemer);
+
+    inputs_builder.add_plutus_script_utxo(&utxo_3, &plutus_witness).expect("Failed to add utxo");
+
+    tx_builder.set_inputs(&inputs_builder);
+
+    let ref_scripts_size = tx_builder.get_total_ref_scripts_size().expect("Failed to get total ref scripts size");
+    assert_eq!(ref_scripts_size, script_ref_size_1 + script_ref_size_2 + script_ref_size_3);
+}
+
+#[test]
+fn tx_builder_utxo_selection_with_inlined_script() {
+    let mut tx_builder = fake_reallistic_tx_builder();
+
+    let utxo_address_1 = fake_base_address(1);
+    let utxo_address_2 = fake_base_address(2);
+    let utxo_address_3 = fake_base_address(3);
+
+    let utxo_input_1 = fake_tx_input(1);
+    let utxo_input_2 = fake_tx_input(2);
+    let utxo_input_3 = fake_tx_input(3);
+
+    let utxo_value_1 = Value::new(&Coin::from(10000000u64));
+    let utxo_value_2 = Value::new(&Coin::from(20000000u64));
+    let utxo_value_3 = Value::new(&Coin::from(1000000u64));
+
+    let mut utxo_output_1 = TransactionOutput::new(&utxo_address_1, &utxo_value_1);
+    let mut utxo_output_2 = TransactionOutput::new(&utxo_address_2, &utxo_value_2);
+    let mut utxo_output_3 = TransactionOutput::new(&utxo_address_3, &utxo_value_3);
+
+    let plutus_script_1 = fake_plutus_script(1, &Language::new_plutus_v2());
+    let plutus_script_2 = fake_plutus_script(2, &Language::new_plutus_v2());
+    let plutus_script_3 = fake_plutus_script(3, &Language::new_plutus_v2());
+
+    let script_ref_1 = ScriptRef::new_plutus_script(&plutus_script_1);
+    let script_ref_2 = ScriptRef::new_plutus_script(&plutus_script_2);
+    let script_ref_3 = ScriptRef::new_plutus_script(&plutus_script_3);
+
+    let script_ref_size_1 = script_ref_1.to_unwrapped_bytes().len();
+    let script_ref_size_2 = script_ref_2.to_unwrapped_bytes().len();
+    let script_ref_size_3 = script_ref_3.to_unwrapped_bytes().len();
+
+    utxo_output_1.set_script_ref(&script_ref_1);
+    utxo_output_2.set_script_ref(&script_ref_2);
+    utxo_output_3.set_script_ref(&script_ref_3);
+
+    let mut utxos = TransactionUnspentOutputs::new();
+    utxos.add(&TransactionUnspentOutput::new(&utxo_input_1, &utxo_output_1));
+    utxos.add(&TransactionUnspentOutput::new(&utxo_input_2, &utxo_output_2));
+    utxos.add(&TransactionUnspentOutput::new(&utxo_input_3, &utxo_output_3));
+
+    tx_builder.add_output(&TransactionOutput::new(
+        &fake_base_address(4),
+        &Value::new(&Coin::from(30000000u64))
+    )).expect("Failed to add output");
+
+    let change_config = ChangeConfig::new(&fake_base_address(5));
+
+    let res = tx_builder.add_inputs_from_and_change(&utxos, CoinSelectionStrategyCIP2::LargestFirstMultiAsset, &change_config);
+    assert!(res.is_ok());
+
+    let ref_scripts_size = tx_builder.get_total_ref_scripts_size().expect("Failed to get total ref scripts size");
+    assert_eq!(ref_scripts_size, script_ref_size_1 + script_ref_size_2 + script_ref_size_3);
+
+    let tx = tx_builder.build_tx().expect("Failed to build tx");
+
+    let inputs = tx.body().inputs();
+    assert_eq!(inputs.len(), 3);
 }
 
 #[test]
