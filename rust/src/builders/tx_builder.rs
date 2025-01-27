@@ -181,6 +181,7 @@ pub struct TransactionBuilderConfig {
     pub(crate) ref_script_coins_per_byte: Option<UnitInterval>, // protocol parameter
     pub(crate) prefer_pure_change: bool,
     pub(crate) deduplicate_explicit_ref_inputs_with_regular_inputs: bool,
+    pub(crate) do_not_burn_extra_change: bool,
 }
 
 impl TransactionBuilderConfig {
@@ -202,6 +203,7 @@ pub struct TransactionBuilderConfigBuilder {
     ref_script_coins_per_byte: Option<UnitInterval>, // protocol parameter
     prefer_pure_change: bool,
     deduplicate_explicit_ref_inputs_with_regular_inputs: bool,
+    do_not_burn_extra_change: bool,
 }
 
 #[wasm_bindgen]
@@ -218,6 +220,7 @@ impl TransactionBuilderConfigBuilder {
             ref_script_coins_per_byte: None,
             prefer_pure_change: false,
             deduplicate_explicit_ref_inputs_with_regular_inputs: false,
+            do_not_burn_extra_change: false,
         }
     }
 
@@ -282,6 +285,14 @@ impl TransactionBuilderConfigBuilder {
         cfg
     }
 
+    ///If set to true, the transaction builder will not burn extra change if it's impossible to crate change output
+    ///due to the value being too small to cover min ada for change output. Instead, tx builder will throw an error.
+    pub fn do_not_burn_extra_change(&self, do_not_burn_extra_change: bool) -> Self {
+        let mut cfg = self.clone();
+        cfg.do_not_burn_extra_change = do_not_burn_extra_change;
+        cfg
+    }
+
     pub fn build(&self) -> Result<TransactionBuilderConfig, JsError> {
         let cfg: Self = self.clone();
         Ok(TransactionBuilderConfig {
@@ -307,6 +318,7 @@ impl TransactionBuilderConfigBuilder {
             ref_script_coins_per_byte: cfg.ref_script_coins_per_byte,
             prefer_pure_change: cfg.prefer_pure_change,
             deduplicate_explicit_ref_inputs_with_regular_inputs: cfg.deduplicate_explicit_ref_inputs_with_regular_inputs,
+            do_not_burn_extra_change: cfg.do_not_burn_extra_change,
         })
     }
 }
@@ -2138,6 +2150,9 @@ impl TransactionBuilder {
                         builder: &mut TransactionBuilder,
                         burn_amount: &BigNum,
                     ) -> Result<bool, JsError> {
+                        if builder.config.do_not_burn_extra_change {
+                            return Err(JsError::from_str("Not enough ADA leftover to include a new change output"));
+                        }
                         let fee_request = &builder.fee_request;
                         // recall: min_fee assumed the fee was the maximum possible so we definitely have enough input to cover whatever fee it ends up being
                         match fee_request {

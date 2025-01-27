@@ -1458,6 +1458,16 @@ impl MultiAsset {
         }
         lhs_ma
     }
+
+    pub(crate) fn reduce_empty_to_none(&self) -> Option<&MultiAsset> {
+        for (_policy, assets) in self.0.iter() {
+            if assets.len() > 0 {
+                return Some(self);
+            }
+        }
+
+        None
+    }
 }
 
 // deriving PartialOrd doesn't work in a way that's useful , as the
