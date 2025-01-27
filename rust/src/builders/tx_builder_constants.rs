@@ -5,16 +5,14 @@ use crate::*;
 // The cost-model values are taken from the genesis block - https://github.com/input-output-hk/cardano-node/blob/master/configuration/cardano/mainnet-alonzo-genesis.json#L26-L195
 // The keys on the genesis block object (operation names) are sorted plain alphabetically.
 
-#[wasm_bindgen]
-pub struct TxBuilderConstants();
+pub(crate) struct TxBuilderConstants();
 
-#[wasm_bindgen]
 impl TxBuilderConstants {
-    pub fn plutus_default_cost_models() -> Costmdls {
+    pub(crate) fn plutus_default_cost_models() -> Costmdls {
         TxBuilderConstants::plutus_vasil_cost_models()
     }
 
-    pub fn plutus_alonzo_cost_models() -> Costmdls {
+    pub(crate) fn plutus_alonzo_cost_models() -> Costmdls {
         let mut res = Costmdls::new();
         res.insert(
             &Language::new_plutus_v1(),
@@ -36,7 +34,7 @@ impl TxBuilderConstants {
         res
     }
 
-    pub fn plutus_vasil_cost_models() -> Costmdls {
+    pub(crate) fn plutus_vasil_cost_models() -> Costmdls {
         let mut res = Costmdls::new();
         res.insert(
             &Language::new_plutus_v1(),
@@ -74,7 +72,7 @@ impl TxBuilderConstants {
         res
     }
 
-    pub fn plutus_conway_cost_models() -> Costmdls {
+    pub(crate) fn plutus_conway_cost_models() -> Costmdls {
         let mut res = Costmdls::new();
         res.insert(
             &Language::new_plutus_v1(),
