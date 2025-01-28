@@ -31,6 +31,7 @@ mod tx_builder;
 pub use tx_builder::*;
 
 mod tx_builder_constants;
-pub use tx_builder_constants::*;
+#[allow(unused_imports)]
+pub(crate) use tx_builder_constants::*;
 
 pub mod fakes;

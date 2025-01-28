@@ -5,8 +5,10 @@ use crate::*;
 // The cost-model values are taken from the genesis block - https://github.com/input-output-hk/cardano-node/blob/master/configuration/cardano/mainnet-alonzo-genesis.json#L26-L195
 // The keys on the genesis block object (operation names) are sorted plain alphabetically.
 
+#[allow(dead_code)]
 pub(crate) struct TxBuilderConstants();
 
+#[allow(dead_code)]
 impl TxBuilderConstants {
     pub(crate) fn plutus_default_cost_models() -> Costmdls {
         TxBuilderConstants::plutus_vasil_cost_models()
