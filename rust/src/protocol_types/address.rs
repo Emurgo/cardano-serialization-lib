@@ -1,4 +1,4 @@
-use crate::legacy_address::ExtendedAddr;
+use crate::legacy_address::{ExtendedAddr, ByronAddressType};
 use crate::*;
 use bech32::ToBase32;
 use ed25519_bip32::XPub;
@@ -179,11 +179,13 @@ impl ByronAddress {
     /// returns the byron protocol magic embedded in the address, or mainnet id if none is present
     /// note: for bech32 addresses, you need to use network_id instead
     pub fn byron_protocol_magic(&self) -> u32 {
-        match self.0.attributes.protocol_magic {
-            Some(x) => x,
-            None => NetworkInfo::mainnet().protocol_magic(), // mainnet is implied if omitted
-        }
+        self.0.attributes.protocol_magic.unwrap_or_else(|| NetworkInfo::mainnet().protocol_magic())
     }
+
+    pub fn byron_address_kind(&self) -> ByronAddressType {
+        self.0.addr_type.clone()
+    }
+
     pub fn attributes(&self) -> Vec<u8> {
         let mut attributes_bytes = Serializer::new_vec();
         self.0.attributes.serialize(&mut attributes_bytes).unwrap();

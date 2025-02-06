@@ -3,7 +3,7 @@
 //! Address components are:
 //! * `HashedSpendingData` computed from `SpendingData`
 //! * `Attributes`
-//! * `AddrType`
+//! * `ByronAddressType`
 //!
 //! All this components form an `ExtendedAddr`, which serialized
 //! to binary makes an `Addr`
@@ -22,42 +22,44 @@ use std::{
     fmt,
     io::{BufRead, Write},
 };
+use crate::wasm_bindgen;
 
+#[wasm_bindgen]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 #[cfg_attr(feature = "generic-serialization", derive(Serialize, Deserialize))]
-pub enum AddrType {
+pub enum ByronAddressType {
     ATPubKey,
     ATScript,
     ATRedeem,
 }
-impl fmt::Display for AddrType {
+impl fmt::Display for ByronAddressType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AddrType::ATPubKey => write!(f, "Public Key"),
-            AddrType::ATScript => write!(f, "Script"),
-            AddrType::ATRedeem => write!(f, "Redeem"),
+            ByronAddressType::ATPubKey => write!(f, "Public Key"),
+            ByronAddressType::ATScript => write!(f, "Script"),
+            ByronAddressType::ATRedeem => write!(f, "Redeem"),
         }
     }
 }
 // [TkListLen 1, TkInt (fromEnum t)]
-impl AddrType {
+impl ByronAddressType {
     fn from_u64(v: u64) -> Option<Self> {
         match v {
-            0 => Some(AddrType::ATPubKey),
-            1 => Some(AddrType::ATScript),
-            2 => Some(AddrType::ATRedeem),
+            0 => Some(ByronAddressType::ATPubKey),
+            1 => Some(ByronAddressType::ATScript),
+            2 => Some(ByronAddressType::ATRedeem),
             _ => None,
         }
     }
     fn to_byte(self) -> u8 {
         match self {
-            AddrType::ATPubKey => 0,
-            AddrType::ATScript => 1,
-            AddrType::ATRedeem => 2,
+            ByronAddressType::ATPubKey => 0,
+            ByronAddressType::ATScript => 1,
+            ByronAddressType::ATRedeem => 2,
         }
     }
 }
-impl cbor_event::se::Serialize for AddrType {
+impl cbor_event::se::Serialize for ByronAddressType {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
@@ -65,11 +67,11 @@ impl cbor_event::se::Serialize for AddrType {
         serializer.write_unsigned_integer(self.to_byte() as u64)
     }
 }
-impl cbor_event::de::Deserialize for AddrType {
+impl cbor_event::de::Deserialize for ByronAddressType {
     fn deserialize<R: BufRead>(reader: &mut Deserializer<R>) -> cbor_event::Result<Self> {
-        match AddrType::from_u64(reader.unsigned_integer()?) {
+        match ByronAddressType::from_u64(reader.unsigned_integer()?) {
             Some(addr_type) => Ok(addr_type),
-            None => Err(cbor_event::Error::CustomError(format!("Invalid AddrType"))),
+            None => Err(cbor_event::Error::CustomError(format!("Invalid ByronAddressType"))),
         }
     }
 }
@@ -175,7 +177,7 @@ fn sha3_then_blake2b224(data: &[u8]) -> [u8; 28] {
     out
 }
 
-fn hash_spending_data(addr_type: AddrType, xpub: &XPub, attrs: &Attributes) -> [u8; 28] {
+fn hash_spending_data(addr_type: ByronAddressType, xpub: &XPub, attrs: &Attributes) -> [u8; 28] {
     let buf = cbor!(&(&addr_type, &SpendingData(xpub), attrs))
         .expect("serialize the HashedSpendingData's digest data");
     sha3_then_blake2b224(&buf)
@@ -281,14 +283,14 @@ const EXTENDED_ADDR_LEN: usize = 28;
 pub struct ExtendedAddr {
     pub addr: [u8; EXTENDED_ADDR_LEN],
     pub attributes: Attributes,
-    pub addr_type: AddrType,
+    pub addr_type: ByronAddressType,
 }
 impl ExtendedAddr {
     pub fn new(xpub: &XPub, attrs: Attributes) -> Self {
         ExtendedAddr {
-            addr: hash_spending_data(AddrType::ATPubKey, xpub, &attrs),
+            addr: hash_spending_data(ByronAddressType::ATPubKey, xpub, &attrs),
             attributes: attrs,
-            addr_type: AddrType::ATPubKey,
+            addr_type: ByronAddressType::ATPubKey,
         }
     }
 
