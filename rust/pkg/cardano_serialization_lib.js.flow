@@ -6,143 +6,6 @@
  */
 
 /**
- * @param {string} json
- * @param {$Values<
-                typeof 
-                PlutusDatumSchema>} schema
- * @returns {PlutusData}
- */
-declare export function encode_json_str_to_plutus_datum(
-  json: string,
-  schema: $Values<typeof PlutusDatumSchema>
-): PlutusData;
-
-/**
- * @param {PlutusData} datum
- * @param {$Values<
-                typeof 
-                PlutusDatumSchema>} schema
- * @returns {string}
- */
-declare export function decode_plutus_datum_to_json_str(
-  datum: PlutusData,
-  schema: $Values<typeof PlutusDatumSchema>
-): string;
-
-/**
- * @param {Uint8Array} bytes
- * @returns {TransactionMetadatum}
- */
-declare export function encode_arbitrary_bytes_as_metadatum(
-  bytes: Uint8Array
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadata
- * @returns {Uint8Array}
- */
-declare export function decode_arbitrary_bytes_from_metadatum(
-  metadata: TransactionMetadatum
-): Uint8Array;
-
-/**
- * @param {string} json
- * @param {$Values<
-                typeof 
-                MetadataJsonSchema>} schema
- * @returns {TransactionMetadatum}
- */
-declare export function encode_json_str_to_metadatum(
-  json: string,
-  schema: $Values<typeof MetadataJsonSchema>
-): TransactionMetadatum;
-
-/**
- * @param {TransactionMetadatum} metadatum
- * @param {$Values<
-                typeof 
-                MetadataJsonSchema>} schema
- * @returns {string}
- */
-declare export function decode_metadatum_to_json_str(
-  metadatum: TransactionMetadatum,
-  schema: $Values<typeof MetadataJsonSchema>
-): string;
-
-/**
- * @param {string} password
- * @param {string} salt
- * @param {string} nonce
- * @param {string} data
- * @returns {string}
- */
-declare export function encrypt_with_password(
-  password: string,
-  salt: string,
-  nonce: string,
-  data: string
-): string;
-
-/**
- * @param {string} password
- * @param {string} data
- * @returns {string}
- */
-declare export function decrypt_with_password(
-  password: string,
-  data: string
-): string;
-
-/**
- * @param {Address} address
- * @param {TransactionUnspentOutputs} utxos
- * @param {TransactionBuilderConfig} config
- * @returns {TransactionBatchList}
- */
-declare export function create_send_all(
-  address: Address,
-  utxos: TransactionUnspentOutputs,
-  config: TransactionBuilderConfig
-): TransactionBatchList;
-
-/**
- * @param {Transaction} tx
- * @param {LinearFee} linear_fee
- * @returns {BigNum}
- */
-declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
-
-/**
- * @param {ExUnits} ex_units
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function calculate_ex_units_ceil_cost(
-  ex_units: ExUnits,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
-
-/**
- * @param {Transaction} tx
- * @param {ExUnitPrices} ex_unit_prices
- * @returns {BigNum}
- */
-declare export function min_script_fee(
-  tx: Transaction,
-  ex_unit_prices: ExUnitPrices
-): BigNum;
-
-/**
- * @param {number} total_ref_scripts_size
- * @param {UnitInterval} ref_script_coins_per_byte
- * @returns {BigNum}
- */
-declare export function min_ref_script_fee(
-  total_ref_scripts_size: number,
-  ref_script_coins_per_byte: UnitInterval
-): BigNum;
-
-/**
  * @param {TransactionHash} tx_body_hash
  * @param {ByronAddress} addr
  * @param {LegacyDaedalusPrivateKey} key
@@ -277,6 +140,172 @@ declare export function has_transaction_set_tag(
 ): $Values<typeof TransactionSetsState>;
 
 /**
+ * @param {Address} address
+ * @param {TransactionUnspentOutputs} utxos
+ * @param {TransactionBuilderConfig} config
+ * @returns {TransactionBatchList}
+ */
+declare export function create_send_all(
+  address: Address,
+  utxos: TransactionUnspentOutputs,
+  config: TransactionBuilderConfig
+): TransactionBatchList;
+
+/**
+ * @param {Transaction} tx
+ * @param {LinearFee} linear_fee
+ * @returns {BigNum}
+ */
+declare export function min_fee(tx: Transaction, linear_fee: LinearFee): BigNum;
+
+/**
+ * @param {ExUnits} ex_units
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function calculate_ex_units_ceil_cost(
+  ex_units: ExUnits,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
+
+/**
+ * @param {Transaction} tx
+ * @param {ExUnitPrices} ex_unit_prices
+ * @returns {BigNum}
+ */
+declare export function min_script_fee(
+  tx: Transaction,
+  ex_unit_prices: ExUnitPrices
+): BigNum;
+
+/**
+ * @param {number} total_ref_scripts_size
+ * @param {UnitInterval} ref_script_coins_per_byte
+ * @returns {BigNum}
+ */
+declare export function min_ref_script_fee(
+  total_ref_scripts_size: number,
+  ref_script_coins_per_byte: UnitInterval
+): BigNum;
+
+/**
+ * @param {string} json
+ * @param {$Values<
+                typeof 
+                PlutusDatumSchema>} schema
+ * @returns {PlutusData}
+ */
+declare export function encode_json_str_to_plutus_datum(
+  json: string,
+  schema: $Values<typeof PlutusDatumSchema>
+): PlutusData;
+
+/**
+ * @param {PlutusData} datum
+ * @param {$Values<
+                typeof 
+                PlutusDatumSchema>} schema
+ * @returns {string}
+ */
+declare export function decode_plutus_datum_to_json_str(
+  datum: PlutusData,
+  schema: $Values<typeof PlutusDatumSchema>
+): string;
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_arbitrary_bytes_as_metadatum(
+  bytes: Uint8Array
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadata
+ * @returns {Uint8Array}
+ */
+declare export function decode_arbitrary_bytes_from_metadatum(
+  metadata: TransactionMetadatum
+): Uint8Array;
+
+/**
+ * @param {string} json
+ * @param {$Values<
+                typeof 
+                MetadataJsonSchema>} schema
+ * @returns {TransactionMetadatum}
+ */
+declare export function encode_json_str_to_metadatum(
+  json: string,
+  schema: $Values<typeof MetadataJsonSchema>
+): TransactionMetadatum;
+
+/**
+ * @param {TransactionMetadatum} metadatum
+ * @param {$Values<
+                typeof 
+                MetadataJsonSchema>} schema
+ * @returns {string}
+ */
+declare export function decode_metadatum_to_json_str(
+  metadatum: TransactionMetadatum,
+  schema: $Values<typeof MetadataJsonSchema>
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} salt
+ * @param {string} nonce
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function encrypt_with_password(
+  password: string,
+  salt: string,
+  nonce: string,
+  data: string
+): string;
+
+/**
+ * @param {string} password
+ * @param {string} data
+ * @returns {string}
+ */
+declare export function decrypt_with_password(
+  password: string,
+  data: string
+): string;
+
+/**
+ */
+
+declare export var NativeScriptKind: {|
+  +ScriptPubkey: 0, // 0
+  +ScriptAll: 1, // 1
+  +ScriptAny: 2, // 2
+  +ScriptNOfK: 3, // 3
+  +TimelockStart: 4, // 4
+  +TimelockExpiry: 5, // 5
+|};
+
+/**
+ */
+
+declare export var CborSetType: {|
+  +Tagged: 0, // 0
+  +Untagged: 1, // 1
+|};
+
+/**
+ */
+
+declare export var VoteKind: {|
+  +No: 0, // 0
+  +Yes: 1, // 1
+  +Abstain: 2, // 2
+|};
+
+/**
  */
 
 declare export var BlockEra: {|
@@ -302,20 +331,68 @@ declare export var TransactionSetsState: {|
 /**
  */
 
-declare export var MIRPot: {|
-  +Reserves: 0, // 0
-  +Treasury: 1, // 1
+declare export var MIRKind: {|
+  +ToOtherPot: 0, // 0
+  +ToStakeCredentials: 1, // 1
 |};
 
 /**
  */
 
-declare export var VoterKind: {|
-  +ConstitutionalCommitteeHotKeyHash: 0, // 0
-  +ConstitutionalCommitteeHotScriptHash: 1, // 1
-  +DRepKeyHash: 2, // 2
-  +DRepScriptHash: 3, // 3
-  +StakingPoolKeyHash: 4, // 4
+declare export var RedeemerTagKind: {|
+  +Spend: 0, // 0
+  +Mint: 1, // 1
+  +Cert: 2, // 2
+  +Reward: 3, // 3
+  +Vote: 4, // 4
+  +VotingProposal: 5, // 5
+|};
+
+/**
+ */
+
+declare export var ByronAddressType: {|
+  +ATPubKey: 0, // 0
+  +ATScript: 1, // 1
+  +ATRedeem: 2, // 2
+|};
+
+/**
+ */
+
+declare export var CredKind: {|
+  +Key: 0, // 0
+  +Script: 1, // 1
+|};
+
+/**
+ */
+
+declare export var DRepKind: {|
+  +KeyHash: 0, // 0
+  +ScriptHash: 1, // 1
+  +AlwaysAbstain: 2, // 2
+  +AlwaysNoConfidence: 3, // 3
+|};
+
+/**
+ */
+
+declare export var PlutusDataKind: {|
+  +ConstrPlutusData: 0, // 0
+  +Map: 1, // 1
+  +List: 2, // 2
+  +Integer: 3, // 3
+  +Bytes: 4, // 4
+|};
+
+/**
+ */
+
+declare export var RelayKind: {|
+  +SingleHostAddr: 0, // 0
+  +SingleHostName: 1, // 1
+  +MultiHostName: 2, // 2
 |};
 
 /**
@@ -329,13 +406,10 @@ declare export var NetworkIdKind: {|
 /**
  */
 
-declare export var RedeemerTagKind: {|
-  +Spend: 0, // 0
-  +Mint: 1, // 1
-  +Cert: 2, // 2
-  +Reward: 3, // 3
-  +Vote: 4, // 4
-  +VotingProposal: 5, // 5
+declare export var LanguageKind: {|
+  +PlutusV1: 0, // 0
+  +PlutusV2: 1, // 1
+  +PlutusV3: 2, // 2
 |};
 
 /**
@@ -353,113 +427,43 @@ declare export var ScriptHashNamespace: {|
 |};
 
 /**
+ * Used to choosed the schema for a script JSON string
  */
 
-declare export var CredKind: {|
-  +Key: 0, // 0
-  +Script: 1, // 1
+declare export var ScriptSchema: {|
+  +Wallet: 0, // 0
+  +Node: 1, // 1
 |};
 
 /**
  */
 
-declare export var LanguageKind: {|
-  +PlutusV1: 0, // 0
-  +PlutusV2: 1, // 1
-  +PlutusV3: 2, // 2
+declare export var MIRPot: {|
+  +Reserves: 0, // 0
+  +Treasury: 1, // 1
 |};
 
 /**
  */
 
-declare export var PlutusDataKind: {|
-  +ConstrPlutusData: 0, // 0
-  +Map: 1, // 1
-  +List: 2, // 2
-  +Integer: 3, // 3
-  +Bytes: 4, // 4
+declare export var AddressKind: {|
+  +Base: 0, // 0
+  +Pointer: 1, // 1
+  +Enterprise: 2, // 2
+  +Reward: 3, // 3
+  +Byron: 4, // 4
+  +Malformed: 5, // 5
 |};
 
 /**
  */
 
-declare export var CoinSelectionStrategyCIP2: {|
-  +LargestFirst: 0, // 0
-  +RandomImprove: 1, // 1
-  +LargestFirstMultiAsset: 2, // 2
-  +RandomImproveMultiAsset: 3, // 3
-|};
-
-/**
- */
-
-declare export var DRepKind: {|
-  +KeyHash: 0, // 0
-  +ScriptHash: 1, // 1
-  +AlwaysAbstain: 2, // 2
-  +AlwaysNoConfidence: 3, // 3
-|};
-
-/**
- */
-
-declare export var GovernanceActionKind: {|
-  +ParameterChangeAction: 0, // 0
-  +HardForkInitiationAction: 1, // 1
-  +TreasuryWithdrawalsAction: 2, // 2
-  +NoConfidenceAction: 3, // 3
-  +UpdateCommitteeAction: 4, // 4
-  +NewConstitutionAction: 5, // 5
-  +InfoAction: 6, // 6
-|};
-
-/**
- */
-
-declare export var RelayKind: {|
-  +SingleHostAddr: 0, // 0
-  +SingleHostName: 1, // 1
-  +MultiHostName: 2, // 2
-|};
-
-/**
- */
-
-declare export var NativeScriptKind: {|
-  +ScriptPubkey: 0, // 0
-  +ScriptAll: 1, // 1
-  +ScriptAny: 2, // 2
-  +ScriptNOfK: 3, // 3
-  +TimelockStart: 4, // 4
-  +TimelockExpiry: 5, // 5
-|};
-
-/**
- */
-
-declare export var TransactionMetadatumKind: {|
-  +MetadataMap: 0, // 0
-  +MetadataList: 1, // 1
-  +Int: 2, // 2
-  +Bytes: 3, // 3
-  +Text: 4, // 4
-|};
-
-/**
- */
-
-declare export var MetadataJsonSchema: {|
-  +NoConversions: 0, // 0
-  +BasicConversions: 1, // 1
-  +DetailedSchema: 2, // 2
-|};
-
-/**
- */
-
-declare export var CborContainerType: {|
-  +Array: 0, // 0
-  +Map: 1, // 1
+declare export var VoterKind: {|
+  +ConstitutionalCommitteeHotKeyHash: 0, // 0
+  +ConstitutionalCommitteeHotScriptHash: 1, // 1
+  +DRepKeyHash: 2, // 2
+  +DRepScriptHash: 3, // 3
+  +StakingPoolKeyHash: 4, // 4
 |};
 
 /**
@@ -486,49 +490,11 @@ declare export var CertificateKind: {|
 |};
 
 /**
- * Used to choosed the schema for a script JSON string
  */
 
-declare export var ScriptSchema: {|
-  +Wallet: 0, // 0
-  +Node: 1, // 1
-|};
-
-/**
- */
-
-declare export var CborSetType: {|
-  +Tagged: 0, // 0
-  +Untagged: 1, // 1
-|};
-
-/**
- */
-
-declare export var VoteKind: {|
-  +No: 0, // 0
-  +Yes: 1, // 1
-  +Abstain: 2, // 2
-|};
-
-/**
- */
-
-declare export var MIRKind: {|
-  +ToOtherPot: 0, // 0
-  +ToStakeCredentials: 1, // 1
-|};
-
-/**
- */
-
-declare export var AddressKind: {|
-  +Base: 0, // 0
-  +Pointer: 1, // 1
-  +Enterprise: 2, // 2
-  +Reward: 3, // 3
-  +Byron: 4, // 4
-  +Malformed: 5, // 5
+declare export var CborContainerType: {|
+  +Array: 0, // 0
+  +Map: 1, // 1
 |};
 
 /**
@@ -546,6 +512,49 @@ declare export var AddressKind: {|
 declare export var PlutusDatumSchema: {|
   +BasicConversions: 0, // 0
   +DetailedSchema: 1, // 1
+|};
+
+/**
+ */
+
+declare export var TransactionMetadatumKind: {|
+  +MetadataMap: 0, // 0
+  +MetadataList: 1, // 1
+  +Int: 2, // 2
+  +Bytes: 3, // 3
+  +Text: 4, // 4
+|};
+
+/**
+ */
+
+declare export var MetadataJsonSchema: {|
+  +NoConversions: 0, // 0
+  +BasicConversions: 1, // 1
+  +DetailedSchema: 2, // 2
+|};
+
+/**
+ */
+
+declare export var CoinSelectionStrategyCIP2: {|
+  +LargestFirst: 0, // 0
+  +RandomImprove: 1, // 1
+  +LargestFirstMultiAsset: 2, // 2
+  +RandomImproveMultiAsset: 3, // 3
+|};
+
+/**
+ */
+
+declare export var GovernanceActionKind: {|
+  +ParameterChangeAction: 0, // 0
+  +HardForkInitiationAction: 1, // 1
+  +TreasuryWithdrawalsAction: 2, // 2
+  +NoConfidenceAction: 3, // 3
+  +UpdateCommitteeAction: 4, // 4
+  +NewConstitutionAction: 5, // 5
+  +InfoAction: 6, // 6
 |};
 
 /**
@@ -1848,6 +1857,13 @@ declare export class ByronAddress {
    * @returns {number}
    */
   byron_protocol_magic(): number;
+
+  /**
+ * @returns {$Values<
+                typeof 
+                ByronAddressType>}
+ */
+  byron_address_kind(): $Values<typeof ByronAddressType>;
 
   /**
    * @returns {Uint8Array}
