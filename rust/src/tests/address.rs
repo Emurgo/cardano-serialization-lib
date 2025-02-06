@@ -706,7 +706,7 @@ fn byron_addr_type_pubkey() {
 }
 
 #[test]
-fn byron_add_type_no_redeem() {
+fn byron_addr_type_no_redeem() {
     let byron_addr = ByronAddress::from_base58("Ae2tdPwUPEZ9vtyppa1FdJzvqJZkEcXgdHxVYAzTWcPaoNycVq5rc36LC1S").unwrap();
     assert_eq!(byron_addr.byron_address_kind(), ByronAddressType::ATRedeem);
 }
