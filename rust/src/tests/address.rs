@@ -1,5 +1,6 @@
 use crate::tests::fakes::{fake_base_address, fake_enterprise_address, fake_malformed_address, fake_pointer_address, fake_reward_address, fake_key_hash};
 use crate::*;
+use crate::legacy_address::ByronAddressType;
 
 #[test]
 fn variable_nat_encoding() {
@@ -695,4 +696,17 @@ fn addresses_network_id() {
 
     let malformed_address = fake_malformed_address();
     assert!(malformed_address.network_id().is_err());
+}
+
+
+#[test]
+fn byron_addr_type_pubkey() {
+    let byron_addr = ByronAddress::from_base58("Ae2tdPwUPEZ6r6zbg4ibhFrNnyKHg7SYuPSfDpjKxgvwFX9LquRep7gj7FQ").unwrap();
+    assert_eq!(byron_addr.byron_address_kind(), ByronAddressType::ATPubKey);
+}
+
+#[test]
+fn byron_addr_type_redeem() {
+    let byron_addr = ByronAddress::from_base58("Ae2tdPwUPEZ9vtyppa1FdJzvqJZkEcXgdHxVYAzTWcPaoNycVq5rc36LC1S").unwrap();
+    assert_eq!(byron_addr.byron_address_kind(), ByronAddressType::ATRedeem);
 }
