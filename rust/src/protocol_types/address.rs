@@ -393,17 +393,17 @@ impl Address {
     }
 
     fn from_bytes_impl_safe(data: &[u8]) -> Result<Address, DeserializeError> {
-        Self::from_bytes_internal_impl(data)
+        Self::from_bytes_internal_impl(data, false)
     }
 
     fn from_bytes_impl_unsafe(data: &[u8]) -> Address {
-        match Self::from_bytes_internal_impl(data) {
+        match Self::from_bytes_internal_impl(data, true) {
             Ok(addr) => addr,
             Err(_) => Address(AddrType::Malformed(MalformedAddress(data.to_vec())))
         }
     }
 
-    fn from_bytes_internal_impl(data: &[u8]) -> Result<Address, DeserializeError> {
+    fn from_bytes_internal_impl(data: &[u8], ignore_leftover_bytes: bool) -> Result<Address, DeserializeError> {
         use std::convert::TryInto;
         // header has 4 bits addr type discrim then 4 bits network discrim.
         // Copied from shelley.cddl:
@@ -426,8 +426,13 @@ impl Address {
             let header = data[0];
             let network = header & 0x0F;
             const HASH_LEN: usize = Ed25519KeyHash::BYTE_COUNT;
-            // should be static assert but it's maybe not worth importing a whole external crate for it now
-            assert_eq!(ScriptHash::BYTE_COUNT, HASH_LEN);
+
+            if ScriptHash::BYTE_COUNT != HASH_LEN {
+                return Err(DeserializeFailure::CustomError(
+                    "ScriptHash and Ed25519KeyHash must have the same length".to_string(),
+                ).into());
+            }
+
             // checks the /bit/ bit of the header for key vs scripthash then reads the credential starting at byte position /pos/
             let read_addr_cred = |bit: u8, pos: usize| {
                 let hash_bytes: [u8; HASH_LEN] = data[pos..pos + HASH_LEN].try_into().unwrap();
@@ -444,7 +449,7 @@ impl Address {
                     const BASE_ADDR_SIZE: usize = 1 + HASH_LEN * 2;
                     if data.len() < BASE_ADDR_SIZE {
                         Err(cbor_event::Error::NotEnough(data.len(), BASE_ADDR_SIZE).into())
-                    } else if data.len() > BASE_ADDR_SIZE {
+                    } else if data.len() > BASE_ADDR_SIZE && !ignore_leftover_bytes {
                         Err(cbor_event::Error::TrailingData.into())
                     } else {
                         Ok(AddrType::Base(BaseAddress::new(
@@ -468,7 +473,7 @@ impl Address {
                         match Self::decode_pointer(&data[byte_index..]) {
                             Ok((pointer, offset)) => {
                                 byte_index += offset;
-                                if byte_index < data.len() {
+                                if byte_index < data.len() && !ignore_leftover_bytes {
                                     Err(cbor_event::Error::TrailingData.into())
                                 } else {
                                     Ok(AddrType::Ptr(PointerAddress::new(
@@ -488,7 +493,7 @@ impl Address {
                     if data.len() < ENTERPRISE_ADDR_SIZE {
                         Err(cbor_event::Error::NotEnough(data.len(), ENTERPRISE_ADDR_SIZE).into())
                     } else {
-                        if data.len() > ENTERPRISE_ADDR_SIZE {
+                        if data.len() > ENTERPRISE_ADDR_SIZE && !ignore_leftover_bytes {
                             Err(cbor_event::Error::TrailingData.into())
                         } else {
                             Ok(AddrType::Enterprise(EnterpriseAddress::new(
@@ -504,7 +509,7 @@ impl Address {
                     if data.len() < REWARD_ADDR_SIZE {
                         Err(cbor_event::Error::NotEnough(data.len(), REWARD_ADDR_SIZE).into())
                     } else {
-                        if data.len() > REWARD_ADDR_SIZE {
+                        if data.len() > REWARD_ADDR_SIZE && !ignore_leftover_bytes{
                             Err(cbor_event::Error::TrailingData.into())
                         } else {
                             Ok(AddrType::Reward(RewardAddress::new(
@@ -590,7 +595,8 @@ impl Address {
     pub fn from_bech32(bech_str: &str) -> Result<Address, JsError> {
         let (_hrp, u5data) =
             bech32::decode(bech_str).map_err(|e| JsError::from_str(&e.to_string()))?;
-        let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data).unwrap();
+        let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data)
+            .map_err(|_| JsError::from_str("Can't decode data from base32"))?;
         Ok(Self::from_bytes_impl_safe(data.as_ref())?)
     }
 
