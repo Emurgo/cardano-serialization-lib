@@ -1,0 +1,50 @@
+{
+  "name": "example",
+  "version": "0.1.0",
+  "private": true,
+  "cracoConfig": "craco.config.js",
+  "dependencies": {
+    "@emurgo/cardano-serialization-lib-browser": "14.1.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.126",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "craco start --config craco.config.js",
+    "build": "CI=false && craco build",
+    "test": "craco test",
+    "eject": "craco eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@craco/craco": "^7.1.0",
+    "bip39": "^3.1.0",
+    "react-scripts": "^5.0.1",
+    "typescript": "^5.7.3"
+  }
+}
