@@ -60,11 +60,11 @@ const TransactionCreator: React.FC = () => {
 
   return (
     <div>
-      <h2>Создание транзакции</h2>
-      <button onClick={createTransaction}>Создать транзакцию</button>
+      <h2>Creating a simple transaction</h2>
+      <button onClick={createTransaction}>Create a transaction</button>
       {transactionHex && (
         <div>
-          <h3>Транзакция (hex):</h3>
+          <h3>Transaction (hex):</h3>
           <p>{transactionHex}</p>
         </div>
       )}

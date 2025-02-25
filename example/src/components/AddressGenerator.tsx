@@ -19,11 +19,11 @@ const AddressGenerator: React.FC = () => {
 
   return (
     <div>
-      <h2>Генератор адреса Cardano</h2>
-      <button onClick={generateAddress}>Сгенерировать адрес</button>
+      <h2>Cardano address generator</h2>
+      <button onClick={generateAddress}>Generate address</button>
       {address && (
         <div>
-          <h3>Ваш адрес:</h3>
+          <h3>Your address:</h3>
           <p>{address}</p>
         </div>
       )}

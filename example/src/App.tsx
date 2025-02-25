@@ -58,7 +58,7 @@ const App: React.FC = () => {
 
   return (
     <div className="App">
-      <h1>Демонстрация Cardano Serialization Library</h1>
+      <h1>Cardano Serialization Library demonstration</h1>
       <AddressGenerator />
       <TransactionCreator />
     </div>
