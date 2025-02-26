@@ -1,0 +1,16 @@
+.center {
+    display: flex;
+    justify-content: center;
+}
+
+.connected {
+    display: flex;
+    flex-direction: column;
+}
+
+.available-wallets {
+    padding-top: 16px;
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+}

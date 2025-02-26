@@ -3,7 +3,8 @@ import AddressGenerator from "./components/AddressGenerator";
 import TransactionCreator from "./components/TransactionCreator";
 import "./styles.css";
 import useCardanoApi, { CardanoApiType } from "./context/CardanoContext";
-import { CONNECTED, NO_CARDANO } from "./utils/connectionStates";
+import { CONNECTED } from "./utils/connectionStates";
+import WalletConnector from "./components/WalletConnector";
 
 const App: React.FC = () => {
   const {
@@ -13,7 +14,6 @@ const App: React.FC = () => {
     setConnectionStateFalse,
   } = useCardanoApi();
   const isWalletConnected = connectionState === CONNECTED;
-  const isNotCardanoWallet = connectionState === NO_CARDANO;
 
   const walletStateWithTimeout = async (
     walletObject: CardanoApiType,
@@ -59,6 +59,7 @@ const App: React.FC = () => {
   return (
     <div className="App">
       <h1>Cardano Serialization Library demonstration</h1>
+      <WalletConnector />
       <AddressGenerator />
       <TransactionCreator />
     </div>
