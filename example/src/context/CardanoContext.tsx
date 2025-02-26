@@ -35,6 +35,7 @@ export type CardanoApiType = {
   signTx: Function;
   submitTx: Function;
   isEnabled: () => Promise<boolean>;
+  icon: string;
 };
 
 type WalletObjectType = {
@@ -138,20 +139,20 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
 
   useEffect(() => {
     if (!window.cardano) {
-      console.warn("[dApp] There are no cardano wallets are installed");
+      console.warn("There are no cardano wallets are installed");
       setConnectionState(NO_CARDANO);
       return;
     }
 
     const tryConnectSilent = async (walletName: string): Promise<void> => {
       let connectResult = null;
-      console.debug(`[dApp][tryConnectSilent] is called`);
+      console.debug(`[CardanoContext][tryConnectSilent] is called`);
       try {
-        console.debug(`[dApp][tryConnectSilent] trying {false, true}`);
+        console.debug(`[CardanoContext][tryConnectSilent] trying {false, true}`);
         setConnectionState(IN_PROGRESS);
         connectResult = await connect(walletName, false, true, false);
         if (connectResult != null) {
-          console.log("[dApp][tryConnectSilent] RE-CONNECTED!");
+          console.log("[CardanoContext][tryConnectSilent] RE-CONNECTED!");
           setSelectedWallet(walletName);
           setConnectionState(CONNECTED);
           return;
@@ -164,7 +165,7 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
     };
 
     const availableWallets = getAvailableWallets();
-    console.log("[dApp] allInfoWallets: ", availableWallets);
+    console.log("[CardanoContext] allInfoWallets: ", availableWallets);
     setAvailableWallets(availableWallets);
 
     if (availableWallets.length === 1) {
@@ -173,7 +174,7 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
       walletObject
         .isEnabled()
         .then((response: boolean) => {
-          console.debug(`[dApp] Connection is enabled: ${response}`);
+          console.debug(`[CardanoContext] Connection is enabled: ${response}`);
           if (response) {
             tryConnectSilent(existingWallet).then();
           } else {
@@ -184,6 +185,8 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
           setConnectionState(NOT_CONNECTED);
           console.error(err);
         });
+    } else {
+      setConnectionState(NOT_CONNECTED);
     }
   }, []);
 
@@ -195,7 +198,7 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
   ): Promise<any> => {
     setConnectionState(IN_PROGRESS);
     setCardanoApi(null);
-    console.debug(`[dApp][connect] is called`);
+    console.debug(`[CardanoContext][connect] is called`);
 
     if (!window.cardano) {
       console.error("There are no cardano wallets are installed");
@@ -203,9 +206,9 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
       return;
     }
 
-    console.log(`[dApp][connect] connecting the wallet "${walletName}"`);
+    console.log(`[CardanoContext][connect] connecting the wallet "${walletName}"`);
     console.debug(
-      `[dApp][connect] {requestIdentification: ${requestId}, onlySilent: ${silent}}`
+      `[CardanoContext][connect] {requestIdentification: ${requestId}, onlySilent: ${silent}}`
     );
 
     try {
@@ -213,21 +216,21 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
         requestIdentification: requestId,
         onlySilent: silent,
       });
-      console.debug(`[dApp][connect] wallet API object is received`);
+      console.debug(`[CardanoContext][connect] wallet API object is received`);
       setCardanoApi(connectedApi);
       setSelectedWallet(walletName);
       setConnectionState(CONNECTED);
       return connectedApi;
     } catch (error) {
       console.error(
-        `[dApp][connect] The error received while connecting the wallet`
+        `[CardanoContext][connect] The error received while connecting the wallet`
       );
       setSelectedWallet("");
       setConnectionState(NOT_CONNECTED);
       if (throwError) {
         throw new Error(JSON.stringify(error));
       } else {
-        console.error(`[dApp][connect] ${JSON.stringify(error)}`);
+        console.error(`[CardanoContext][connect] ${JSON.stringify(error)}`);
       }
     }
   };
