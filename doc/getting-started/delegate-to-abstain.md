@@ -112,6 +112,8 @@ function main(): void {
 
 
   const txBody = txBuilder.build();
+
+  //Use FixedTransaction for each time when you need to sign a transaction, especially if you recieved it from a third party
   const transaction = FixedTransaction.new_from_body_bytes(txBody.to_bytes());
 
   // sign the tx with stake and payment keys
