@@ -23,6 +23,8 @@ import {
   TransactionInput,
   TransactionHash,
   Value,
+  ExUnitPrices,
+  UnitInterval,
 } from "@emurgo/cardano-serialization-lib-nodejs";
 import { mnemonicToEntropy } from "bip39";
 
@@ -63,13 +65,25 @@ function main(): void {
     BigNum.from_str("155381")
   );
 
+  // these parameters is used as an example, you should use the latest actual protocol params from cardano-node, cardano-cli or from 3rd party API providers
   const txBuilderCfg = TransactionBuilderConfigBuilder.new()
     .fee_algo(linearFee)
     .pool_deposit(BigNum.from_str("500000000"))
     .key_deposit(BigNum.from_str("2000000"))
-    .max_value_size(4000)
-    .max_tx_size(8000)
-    .coins_per_utxo_byte(BigNum.from_str("34482"))
+    .max_value_size(5000)
+    .max_tx_size(16384)
+    .coins_per_utxo_byte(BigNum.from_str("4310"))
+    .ex_unit_prices(ExUnitPrices.new(
+      UnitInterval.new(
+        BigNum.from_str("577"),
+        BigNum.from_str("10000")
+      ),
+      UnitInterval.new(
+        BigNum.from_str("721"),
+        BigNum.from_str("10000000")
+      )
+    ))
+    .build();
     .build();
 
   const txBuilder = TransactionBuilder.new(txBuilderCfg);
