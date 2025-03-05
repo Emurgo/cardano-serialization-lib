@@ -1,10 +1,10 @@
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import {
   CONNECTED,
   IN_PROGRESS,
   NO_CARDANO,
   NOT_CONNECTED,
-} from "../utils/connectionStates";
+} from '../utils/connectionStates';
 
 declare global {
   interface Window {
@@ -21,16 +21,16 @@ type Cip95Type = {
 
 export type CardanoApiType = {
   cip95: Cip95Type;
-  getBalance: Function;
-  getChangeAddress: Function;
-  getCollateral: Function;
-  getCollateralUtxos: Function;
+  getBalance: () => Promise<string>;
+  getChangeAddress: () => Promise<string>;
+  getCollateral: () => Promise<string>;
+  getCollateralUtxos: () => Promise<Array<string>>;
   getExtensions: Function;
   getNetworkId: Function;
   getRewardAddresses: Function;
   getUnusedAddresses: Function;
   getUsedAddresses: Function;
-  getUtxos: Function;
+  getUtxos: () => Promise<Array<string>>;
   signData: Function;
   signTx: Function;
   submitTx: Function;
@@ -73,12 +73,12 @@ const defaultCardanoContextState = {
     walletName: string,
     requestId: boolean,
     silent: boolean,
-    throwError: boolean = false
+    throwError: boolean = false,
   ) => {},
   connectionState: NOT_CONNECTED,
   availableWallets: [],
   setAvailableWallets: (availableWallets: WalletObjectType[]) => {},
-  selectedWallet: "",
+  selectedWallet: '',
   setConnectionState: (connectionState: number) => {},
   setConnectionStateFalse: () => {},
   setSelectedWallet: (selectedWallet: string) => {},
@@ -89,23 +89,23 @@ type CardanoProviderProps = {
 };
 
 const reservedKeys = [
-  "enable",
-  "isEnabled",
-  "getBalance",
-  "signData",
-  "signTx",
-  "submitTx",
-  "getUtxos",
-  "getCollateral",
-  "getUsedAddresses",
-  "getUnusedAddresses",
-  "getChangeAddress",
-  "getRewardAddress",
-  "getNetworkId",
-  "onAccountChange",
-  "onNetworkChange",
-  "off",
-  "_events",
+  'enable',
+  'isEnabled',
+  'getBalance',
+  'signData',
+  'signTx',
+  'submitTx',
+  'getUtxos',
+  'getCollateral',
+  'getUsedAddresses',
+  'getUnusedAddresses',
+  'getChangeAddress',
+  'getRewardAddress',
+  'getNetworkId',
+  'onAccountChange',
+  'onNetworkChange',
+  'off',
+  '_events',
 ];
 
 export const CardanoContext = createContext(defaultCardanoContextState);
@@ -113,10 +113,8 @@ export const CardanoContext = createContext(defaultCardanoContextState);
 export function CardanoProvider({ children }: CardanoProviderProps) {
   const [cardanoApi, setCardanoApi] = useState<CardanoApiType | null>();
   const [connectionState, setConnectionState] = useState(NO_CARDANO);
-  const [availableWallets, setAvailableWallets] = useState<WalletObjectType[]>(
-    []
-  );
-  const [selectedWallet, setSelectedWallet] = useState("");
+  const [availableWallets, setAvailableWallets] = useState<WalletObjectType[]>([]);
+  const [selectedWallet, setSelectedWallet] = useState('');
 
   const setConnectionStateFalse = () => {
     setConnectionState(NOT_CONNECTED);
@@ -127,7 +125,7 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
     // We need to filter like this because of the Nami wallet.
     // It injects everything into the cardano object not only the object "nami".
     const userWallets = Object.keys(window.cardano).filter(
-      (cardanoKey) => !reservedKeys.includes(cardanoKey)
+      (cardanoKey) => !reservedKeys.includes(cardanoKey),
     );
     return userWallets.map((walletName) => {
       return {
@@ -139,7 +137,7 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
 
   useEffect(() => {
     if (!window.cardano) {
-      console.warn("There are no cardano wallets are installed");
+      console.warn('There are no cardano wallets are installed');
       setConnectionState(NO_CARDANO);
       return;
     }
@@ -152,20 +150,20 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
         setConnectionState(IN_PROGRESS);
         connectResult = await connect(walletName, false, true, false);
         if (connectResult != null) {
-          console.log("[CardanoContext][tryConnectSilent] RE-CONNECTED!");
+          console.log('[CardanoContext][tryConnectSilent] RE-CONNECTED!');
           setSelectedWallet(walletName);
           setConnectionState(CONNECTED);
           return;
         }
       } catch (error) {
-        setSelectedWallet("");
+        setSelectedWallet('');
         setConnectionState(NOT_CONNECTED);
         console.error(error);
       }
     };
 
     const availableWallets = getAvailableWallets();
-    console.log("[CardanoContext] allInfoWallets: ", availableWallets);
+    console.log('[CardanoContext] allInfoWallets: ', availableWallets);
     setAvailableWallets(availableWallets);
 
     if (availableWallets.length === 1) {
@@ -194,21 +192,21 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
     walletName: string,
     requestId: boolean,
     silent: boolean,
-    throwError: boolean = false
+    throwError: boolean = false,
   ): Promise<any> => {
     setConnectionState(IN_PROGRESS);
     setCardanoApi(null);
     console.debug(`[CardanoContext][connect] is called`);
 
     if (!window.cardano) {
-      console.error("There are no cardano wallets are installed");
+      console.error('There are no cardano wallets are installed');
       setConnectionState(NOT_CONNECTED);
       return;
     }
 
     console.log(`[CardanoContext][connect] connecting the wallet "${walletName}"`);
     console.debug(
-      `[CardanoContext][connect] {requestIdentification: ${requestId}, onlySilent: ${silent}}`
+      `[CardanoContext][connect] {requestIdentification: ${requestId}, onlySilent: ${silent}}`,
     );
 
     try {
@@ -223,9 +221,9 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
       return connectedApi;
     } catch (error) {
       console.error(
-        `[CardanoContext][connect] The error received while connecting the wallet`
+        `[CardanoContext][connect] The error received while connecting the wallet`,
       );
-      setSelectedWallet("");
+      setSelectedWallet('');
       setConnectionState(NOT_CONNECTED);
       if (throwError) {
         throw new Error(JSON.stringify(error));
@@ -247,19 +245,17 @@ export function CardanoProvider({ children }: CardanoProviderProps) {
     setSelectedWallet,
   };
 
-  return (
-    <CardanoContext.Provider value={values}>{children}</CardanoContext.Provider>
-  );
+  return <CardanoContext.Provider value={values}>{children}</CardanoContext.Provider>;
 }
 
 const useCardanoApi = () => {
-    const context = useContext(CardanoContext)
-  
-    if (context === undefined) {
-      throw new Error('Install any Cardano wallet')
-    }
-  
-    return context
+  const context = useContext(CardanoContext);
+
+  if (context === undefined) {
+    throw new Error('Install any Cardano wallet');
   }
 
-  export default useCardanoApi
+  return context;
+};
+
+export default useCardanoApi;

@@ -4,14 +4,11 @@ import './index.css';
 import App from './App';
 import { CardanoProvider } from './context/CardanoContext';
 
-const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
-);
+const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
     <CardanoProvider>
       <App />
     </CardanoProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );
-

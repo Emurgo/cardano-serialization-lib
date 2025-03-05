@@ -1,27 +1,20 @@
-import React, { useEffect } from "react";
-import AddressGenerator from "./components/AddressGenerator";
-import TransactionCreator from "./components/TransactionCreator";
-import "./styles.css";
-import useCardanoApi, { CardanoApiType } from "./context/CardanoContext";
-import { CONNECTED } from "./utils/connectionStates";
-import WalletConnector from "./components/WalletConnector";
+import React, { useEffect } from 'react';
+import AddressGenerator from './components-UI/AddressGenerator';
+import TransactionCreator from './components-UI/TransactionCreator';
+import './styles.css';
+import useCardanoApi, { CardanoApiType } from './context/CardanoContext';
+import { CONNECTED } from './utils/connectionStates';
+import WalletConnector from './components-UI/WalletConnector';
 
 const App: React.FC = () => {
-  const {
-    connectionState,
-    selectedWallet,
-    setConnectionState,
-    setConnectionStateFalse,
-  } = useCardanoApi();
+  const { connectionState, selectedWallet, setConnectionState, setConnectionStateFalse } =
+    useCardanoApi();
   const isWalletConnected = connectionState === CONNECTED;
 
-  const walletStateWithTimeout = async (
-    walletObject: CardanoApiType,
-    timeout = 2000
-  ) => {
+  const walletStateWithTimeout = async (walletObject: CardanoApiType, timeout = 2000) => {
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => {
-        reject(new Error("Checking connection timeout"));
+        reject(new Error('Checking connection timeout'));
       }, timeout);
     });
     const walletEnabledPromise = walletObject.isEnabled();
@@ -31,30 +24,30 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const getConnectionState = async () => {
-      console.debug(`[dApp][App] Checking connection works`)
+      console.debug(`[dApp][App] Checking connection works`);
       try {
-        const walletObject: CardanoApiType = window.cardano[selectedWallet]
-        const conState = await walletStateWithTimeout(walletObject, 5000)
+        const walletObject: CardanoApiType = window.cardano[selectedWallet];
+        const conState = await walletStateWithTimeout(walletObject, 5000);
 
         if (conState) {
-          setConnectionState(CONNECTED)
+          setConnectionState(CONNECTED);
         } else {
-          setConnectionStateFalse()
+          setConnectionStateFalse();
         }
       } catch (error) {
-        setConnectionStateFalse()
-        console.error(error)
+        setConnectionStateFalse();
+        console.error(error);
       }
-    }
+    };
 
     if (isWalletConnected) {
-      const connectionTimer = setInterval(getConnectionState, 3000)
+      const connectionTimer = setInterval(getConnectionState, 3000);
       return () => {
-        console.debug(`[dApp][App] Checking connection is stopped`)
-        clearInterval(connectionTimer)
-      }
+        console.debug(`[dApp][App] Checking connection is stopped`);
+        clearInterval(connectionTimer);
+      };
     }
-  }, [isWalletConnected, selectedWallet, setConnectionState, setConnectionStateFalse])
+  }, [isWalletConnected, selectedWallet, setConnectionState, setConnectionStateFalse]);
 
   return (
     <div className="App">
