@@ -44,6 +44,7 @@
   "devDependencies": {
     "@craco/craco": "^7.1.0",
     "bip39": "^3.1.0",
+    "buffer": "^6.0.3",
     "react-scripts": "^5.0.1",
     "typescript": "^5.7.3"
   }
