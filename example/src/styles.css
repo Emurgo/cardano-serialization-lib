@@ -27,3 +27,8 @@ p {
   border-radius: 5px;
   word-wrap: break-word;
 }
+
+.center {
+  display: flex;
+  justify-content: center;
+}
