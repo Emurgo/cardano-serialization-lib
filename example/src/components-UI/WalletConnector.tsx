@@ -1,12 +1,12 @@
-import React, { useState } from "react";
-import useCardanoApi from "../context/CardanoContext";
+import React, { useState } from 'react';
+import useCardanoApi from '../context/CardanoContext';
 import {
   NO_CARDANO,
   NOT_CONNECTED,
   IN_PROGRESS,
   CONNECTED,
-} from "../utils/connectionStates";
-import "./WalletConnector.css";
+} from '../utils/connectionStates';
+import './WalletConnector.css';
 
 const WalletConnector: React.FC = () => {
   const {
@@ -16,7 +16,7 @@ const WalletConnector: React.FC = () => {
     setSelectedWallet,
     connectionState,
   } = useCardanoApi();
-  const [selectedUserWallet, setSelectedUserWallet] = useState("");
+  const [selectedUserWallet, setSelectedUserWallet] = useState('');
   const [showWallets, setShowWallets] = useState(false);
 
   console.log(`[dApp][WalletConnector] is called`);
@@ -33,8 +33,7 @@ const WalletConnector: React.FC = () => {
 
   const getWalletName = () => {
     const walletName = window.cardano[selectedWallet].name;
-    const capitilizedFirstLetter =
-      walletName[0].toUpperCase() + walletName.substring(1);
+    const capitilizedFirstLetter = walletName[0].toUpperCase() + walletName.substring(1);
 
     return capitilizedFirstLetter;
   };
@@ -51,14 +50,14 @@ const WalletConnector: React.FC = () => {
     return (
       <div className="center">
         <div className="connected">
-        <div  className="center">
-          <img src={getWalletIcon()} alt="wallet icon" width="72" />
-        </div>
-        <div>
-          <div>
-            <div className="center">Connected to {getWalletName()}</div>
+          <div className="center">
+            <img src={getWalletIcon()} alt="wallet icon" width="72" />
           </div>
-        </div>
+          <div>
+            <div>
+              <div className="center">Connected to {getWalletName()}</div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -82,9 +81,7 @@ const WalletConnector: React.FC = () => {
                     name="available_wallets"
                     value={walletInfo.walletObjKey.toLowerCase()}
                     onChange={() =>
-                      setSelectedUserWallet(
-                        walletInfo.walletObjKey.toLowerCase()
-                      )
+                      setSelectedUserWallet(walletInfo.walletObjKey.toLowerCase())
                     }
                   />
                   {walletInfo.walletObjKey.toLowerCase()}
