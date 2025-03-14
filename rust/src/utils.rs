@@ -407,7 +407,7 @@ impl Deserialize for Value {
     }
 }
 
-pub(crate) const BOUNDED_BYTES_CHUNK_SIZE: usize = 64;
+pub(crate) const BOUNDED_BYTES_CHUNK_SIZE: usize = 640;
 
 pub(crate) fn write_bounded_bytes<'se, W: Write>(
     serializer: &'se mut Serializer<W>,

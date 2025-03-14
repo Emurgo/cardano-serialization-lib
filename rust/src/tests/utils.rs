@@ -399,11 +399,15 @@ fn bounded_bytes_read_chunked() {
 
 #[test]
 fn bounded_bytes_write_chunked() {
-    let mut chunk_64 = vec![0x58, crate::utils::BOUNDED_BYTES_CHUNK_SIZE as u8];
-    chunk_64.extend(std::iter::repeat(37).take(crate::utils::BOUNDED_BYTES_CHUNK_SIZE));
-    let chunks = vec![chunk_64, vec![0x44, 0x01, 0x02, 0x03, 0x04]];
+    // Use the two-byte header for a length of 640 (0x0280 in big-endian)
+    let mut chunk_640 = vec![0x59, 0x02, 0x80];
+    chunk_640.extend(std::iter::repeat(37).take(crate::utils::BOUNDED_BYTES_CHUNK_SIZE));
+    
+    let chunks = vec![chunk_640, vec![0x44, 0x01, 0x02, 0x03, 0x04]];
     let mut input = Vec::new();
-    input.extend_from_slice(&chunks[0][2..]);
+    // Adjust the offset: skip 3 bytes for the first chunk (header is 3 bytes now)
+    input.extend_from_slice(&chunks[0][3..]);
+    // The second chunk header remains a single byte so skip 1 byte
     input.extend_from_slice(&chunks[1][1..]);
     let mut serializer = cbor_event::se::Serializer::new_vec();
     write_bounded_bytes(&mut serializer, &input).unwrap();
