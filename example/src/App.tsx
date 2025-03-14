@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
-import AddressGenerator from './components-UI/AddressGenerator';
-import TransactionCreator from './components-UI/TransactionCreator';
+import AddressGenerator from './components-ui/AddressGenerator';
+import TransactionCreator from './components-ui/TransactionCreator';
 import './styles.css';
 import useCardanoApi, { CardanoApiType } from './context/CardanoContext';
 import { CONNECTED } from './utils/connectionStates';
-import WalletConnector from './components-UI/WalletConnector';
+import WalletConnector from './components-ui/WalletConnector';
 
 const App: React.FC = () => {
   const { connectionState, selectedWallet, setConnectionState, setConnectionStateFalse } =

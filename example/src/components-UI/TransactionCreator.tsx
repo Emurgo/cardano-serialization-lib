@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BuildTransactionInputType, createTransaction } from '../components-Logic/TransactionCreator';
+import { BuildTransactionInputType, createTransaction } from '../components-logic/TransactionCreator';
 import useCardanoApi from '../context/CardanoContext';
 import './TransactionCreator.css';
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { generateAddress } from '../components-Logic/AddressGenerator';
+import { generateAddress } from '../components-logic/AddressGenerator';
 
 const AddressGenerator: React.FC = () => {
   const [address, setAddress] = useState<string>('');
