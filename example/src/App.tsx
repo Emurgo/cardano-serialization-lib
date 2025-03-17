@@ -6,6 +6,7 @@ import useCardanoApi, { CardanoApiType } from './context/CardanoContext';
 import { CONNECTED } from './utils/connectionStates';
 import WalletConnector from './components-ui/WalletConnector';
 import StakingKeyRegistrar from './components-ui/StakingKeyRegistrar';
+import StakingKeyDeregistrar from './components-ui/StakingKeyDeregistrar';
 
 const App: React.FC = () => {
   const { connectionState, selectedWallet, setConnectionState, setConnectionStateFalse } =
@@ -57,6 +58,7 @@ const App: React.FC = () => {
       <AddressGenerator />
       <TransactionCreator />
       <StakingKeyRegistrar />
+      <StakingKeyDeregistrar />
     </div>
   );
 };
