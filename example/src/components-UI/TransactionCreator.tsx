@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { BuildTransactionInputType, createTransaction } from '../components-logic/TransactionCreator';
 import useCardanoApi from '../context/CardanoContext';
-import './TransactionCreator.css';
 
 const TransactionCreator: React.FC = () => {
   const { cardanoApi } = useCardanoApi();
@@ -64,7 +63,7 @@ const TransactionCreator: React.FC = () => {
             <>
               <div>
                 <div className="inputWithLabel">
-                  <label htmlFor="input-createTx-receiverAddress">Receiver address (Bech32)</label>
+                  <label htmlFor="input-createTx-receiverAddress">Receiver address (Bech32):</label>
                   <input
                     type="text"
                     id="input-createTx-receiverAddress"
@@ -87,7 +86,7 @@ const TransactionCreator: React.FC = () => {
                   </label>
                 </div>
                 <div className="inputWithLabel">
-                  <label htmlFor="input-createTx-amount">Amount (lovelaces)</label>
+                  <label htmlFor="input-createTx-amount">Amount (lovelaces):</label>
                   <input
                     type="number"
                     id="input-createTx-amount"
@@ -109,7 +108,7 @@ const TransactionCreator: React.FC = () => {
 
       {transactionHex && (
         <div>
-          <h3>Transaction (hex):</h3>
+          <h3>Unsigned Transaction (hex):</h3>
           <p>{transactionHex}</p>
         </div>
       )}
