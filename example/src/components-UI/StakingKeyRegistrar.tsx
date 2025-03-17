@@ -75,7 +75,7 @@ const StakingKeyRegistrar: React.FC = () => {
                   <label htmlFor="input-createTx-depositAmount">Deposit amount(lovelaces):</label>
                   <input
                     type="text"
-                    id="input-createTx-receiverAddress"
+                    id="input-createTx-depositAmount"
                     value={stakeDepositAmount}
                     onChange={(event) => setStakeDepositAmount(event.target.value)}
                     disabled={!useConway}
