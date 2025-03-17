@@ -45,13 +45,13 @@ const StakingKeyRegistrar: React.FC = () => {
     <div>
       <h2>Creating a transaction with the Stake Registration certificate</h2>
 
-      <button onClick={openPopup}>Create tx with StakeRegistration cert</button>
+      <button onClick={openPopup}>Create tx with StakeRegistration certificate</button>
 
       {isPopupOpen && <div id="overlay" onClick={closePopup}></div>}
 
       {isPopupOpen && (
         <div id="popup">
-          <h2>Tx with StakeRegistration cert</h2>
+          <h2>Tx with StakeRegistration certificate</h2>
 
           {loader ? (
             <div className="loader-container">
@@ -72,7 +72,7 @@ const StakingKeyRegistrar: React.FC = () => {
                   </label>
                 </div>
                 <div className="inputWithLabel">
-                  <label htmlFor="input-createTx-depositAmount">Deposit amount:</label>
+                  <label htmlFor="input-createTx-depositAmount">Deposit amount(lovelaces):</label>
                   <input
                     type="text"
                     id="input-createTx-receiverAddress"
