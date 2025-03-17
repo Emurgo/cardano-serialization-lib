@@ -13,9 +13,9 @@ declare global {
 }
 
 type Cip95Type = {
-  getPubDRepKey: Function;
-  getRegisteredPubStakeKeys: Function;
-  getUnregisteredPubStakeKeys: Function;
+  getPubDRepKey: () => Promise<string>;
+  getRegisteredPubStakeKeys: () => Promise<string>;
+  getUnregisteredPubStakeKeys: () => Promise<string>;
   signData: Function;
 };
 
@@ -28,8 +28,8 @@ export type CardanoApiType = {
   getExtensions: Function;
   getNetworkId: Function;
   getRewardAddresses: Function;
-  getUnusedAddresses: Function;
-  getUsedAddresses: Function;
+  getUnusedAddresses: () => Promise<Array<string>>;
+  getUsedAddresses: () => Promise<Array<string>>;
   getUtxos: () => Promise<Array<string>>;
   signData: Function;
   signTx: Function;
