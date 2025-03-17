@@ -12,12 +12,12 @@ const StakingKeyRegistrar: React.FC = () => {
   const [unsignedTransactionHex, setUnsignedTransactionHex] = useState<string>('');
 
   const openPopup = () => {
-    console.log('[StakingKeyRegisteror][openPopup] is called');
+    console.log('[StakingKeyRegistrar][openPopup] is called');
     setIsPopupOpen(true);
   };
 
   const closePopup = () => {
-    console.log('[StakingKeyRegisteror][closePopup] is called');
+    console.log('[StakingKeyRegistrar][closePopup] is called');
     setIsPopupOpen(false);
   };
 

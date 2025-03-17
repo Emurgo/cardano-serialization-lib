@@ -43,7 +43,7 @@ export const createTxWithStakeRegistrationCert = async (
 ) => {
   const txBuilder = getTxBuilder();
   const unregPubStakeKeyHash = await cardanoApi.cip95.getUnregisteredPubStakeKeys();
-  console.log('[StakingKeyRegisteror] unregPubStakeKeyHash:', unregPubStakeKeyHash);
+  console.log('[StakingKeyRegistrar] unregPubStakeKeyHash:', unregPubStakeKeyHash);
   if (unregPubStakeKeyHash.length < 1) {
     throw new Error(`Your wallet public stake key is already registered`);
   }
