@@ -58,3 +58,23 @@ export const getCslUtxos = (utxosHex: Array<string>) => {
 export const getTransactionOutput = (cslOutputAddress: CSL.Address, txAmountLovelaces: string) => {
   return CSL.TransactionOutput.new(cslOutputAddress, CSL.Value.new(strToBigNum(txAmountLovelaces)));
 };
+
+export const getCredential = (keyHash: CSL.Ed25519KeyHash) => CSL.Credential.from_keyhash(keyHash);
+
+export const getPublicKeyFromHex = (publicKeyHex: string) => CSL.PublicKey.from_hex(publicKeyHex)
+
+export const keyHashFromHex = (hexValue: string) => CSL.Ed25519KeyHash.from_hex(hexValue);
+
+export const keyHashFromBech32 = (bech32Value: string) => CSL.Ed25519KeyHash.from_bech32(bech32Value);
+
+export const getCslCredentialFromHex = (hexValue: string) => {
+  const keyHash = keyHashFromHex(hexValue);
+  return getCredential(keyHash);
+};
+
+export const getCslCredentialFromBech32 = (bech32Value: string) => {
+  const keyHash = keyHashFromBech32(bech32Value);
+  return getCredential(keyHash);
+};
+
+export const getLargestFirstMultiAsset = () => CSL.CoinSelectionStrategyCIP2.LargestFirstMultiAsset;
