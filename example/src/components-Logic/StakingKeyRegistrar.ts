@@ -1,5 +1,14 @@
 import * as CSL from '@emurgo/cardano-serialization-lib-browser';
-import { getAddressFromBytes, getCslCredentialFromHex, getCslUtxos, getLargestFirstMultiAsset, getPublicKeyFromHex, getTransactionOutput, getTxBuilder, strToBigNum } from './core';
+import {
+  getAddressFromBytes,
+  getCslCredentialFromHex,
+  getCslUtxos,
+  getLargestFirstMultiAsset,
+  getPublicKeyFromHex,
+  getTransactionOutput,
+  getTxBuilder,
+  strToBigNum,
+} from './core';
 import { CardanoApiType } from '../context/CardanoContext';
 import { bytesToHex } from '../utils/helpers';
 
@@ -27,13 +36,16 @@ const buildRegStakeKey = (stakeKeyHash: string, useConway: boolean, stakeDeposit
   return certBuilder;
 };
 
-export const createTxWithStakeRegistrationCert = async (cardanoApi: CardanoApiType, useConway: boolean, stakeDepositAmount: string) => {
+export const createTxWithStakeRegistrationCert = async (
+  cardanoApi: CardanoApiType,
+  useConway: boolean,
+  stakeDepositAmount: string,
+) => {
   const txBuilder = getTxBuilder();
   const unregPubStakeKeyHash = await cardanoApi.cip95.getUnregisteredPubStakeKeys();
   console.log('[StakingKeyRegisteror] unregPubStakeKeyHash:', unregPubStakeKeyHash);
   if (unregPubStakeKeyHash.length < 1) {
     throw new Error(`Your wallet public stake key is already registered`);
-    
   }
   const unregPubStakeKey = unregPubStakeKeyHash[0];
   const stakeKeyHash = getPublicKeyFromHex(unregPubStakeKey).hash().to_hex();

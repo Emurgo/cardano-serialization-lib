@@ -61,14 +61,12 @@ const StakingKeyRegistrar: React.FC = () => {
           ) : (
             <>
               <div>
-              <div className="checkbox">
+                <div className="checkbox">
                   <label>
                     <input
                       type="checkbox"
                       checked={useConway}
-                      onChange={(event) =>
-                        setUseConway(event.target.checked)
-                      }
+                      onChange={(event) => setUseConway(event.target.checked)}
                     />
                     Use Conway
                   </label>
@@ -79,9 +77,7 @@ const StakingKeyRegistrar: React.FC = () => {
                     type="text"
                     id="input-createTx-receiverAddress"
                     value={stakeDepositAmount}
-                    onChange={(event) =>
-                      setStakeDepositAmount(event.target.value)
-                    }
+                    onChange={(event) => setStakeDepositAmount(event.target.value)}
                     disabled={!useConway}
                   />
                 </div>
@@ -102,9 +98,6 @@ const StakingKeyRegistrar: React.FC = () => {
       )}
     </div>
   );
-
-
-
 };
 
 export default StakingKeyRegistrar;
