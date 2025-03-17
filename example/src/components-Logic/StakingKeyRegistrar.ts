@@ -1,6 +1,7 @@
 import * as CSL from '@emurgo/cardano-serialization-lib-browser';
 import {
   getAddressFromBytes,
+  getCertificateBuilder,
   getCslCredentialFromHex,
   getCslUtxos,
   getLargestFirstMultiAsset,
@@ -12,20 +13,25 @@ import {
 import { CardanoApiType } from '../context/CardanoContext';
 import { bytesToHex } from '../utils/helpers';
 
-export const getCertificateBuilder = () => CSL.CertificatesBuilder.new();
+export const getStakeKeyRegCertWithExplicitDeposit = (
+  stakeCred: CSL.Credential,
+  deposit: string,
+): CSL.StakeRegistration => CSL.StakeRegistration.new_with_explicit_deposit(stakeCred, strToBigNum(deposit));
 
-export const getStakeKeyRegCertWithExplicitDeposit = (stakeCred: CSL.Credential, deposit: string) =>
-  CSL.StakeRegistration.new_with_explicit_deposit(stakeCred, strToBigNum(deposit));
+export const getStakeKeyRegCert = (stakeCred: CSL.Credential): CSL.StakeRegistration =>
+  CSL.StakeRegistration.new(stakeCred);
 
-export const getStakeKeyRegCert = (stakeCred: CSL.Credential) => CSL.StakeRegistration.new(stakeCred);
-
-export const getCertOfNewStakeReg = (stakeKeyRegCert: CSL.StakeRegistration) =>
+export const getCertOfNewStakeReg = (stakeKeyRegCert: CSL.StakeRegistration): CSL.Certificate =>
   CSL.Certificate.new_stake_registration(stakeKeyRegCert);
 
-const buildRegStakeKey = (stakeKeyHash: string, useConway: boolean, stakeDepositAmount: string) => {
+const buildRegStakeKey = (
+  stakeKeyHash: string,
+  useConway: boolean,
+  stakeDepositAmount: string,
+): CSL.CertificatesBuilder => {
   const certBuilder = getCertificateBuilder();
   const stakeCred = getCslCredentialFromHex(stakeKeyHash);
-  let stakeKeyRegCert;
+  let stakeKeyRegCert: CSL.StakeRegistration;
   if (useConway) {
     stakeKeyRegCert = getStakeKeyRegCertWithExplicitDeposit(stakeCred, stakeDepositAmount);
   } else {
