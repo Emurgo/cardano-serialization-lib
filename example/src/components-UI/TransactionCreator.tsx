@@ -24,9 +24,15 @@ const TransactionCreator: React.FC = () => {
   };
 
   const createTransactionClick = async () => {
+    if (!cardanoApi) {
+      setLoader(false);
+      closePopup();
+      alert('A Cardano wallet is not connected');
+      return null;
+    }
     if (buildTransactionInput.sendAll && !buildTransactionInput.address) {
       alert('Receiver address is required');
-      throw new Error('Receiver address is required');
+      return null;
     } else {
       setLoader(true);
       try {
