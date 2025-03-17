@@ -78,3 +78,5 @@ export const getCslCredentialFromBech32 = (bech32Value: string) => {
 };
 
 export const getLargestFirstMultiAsset = () => CSL.CoinSelectionStrategyCIP2.LargestFirstMultiAsset;
+
+export const getCertificateBuilder = () => CSL.CertificatesBuilder.new();
