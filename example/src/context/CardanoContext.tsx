@@ -14,8 +14,8 @@ declare global {
 
 type Cip95Type = {
   getPubDRepKey: () => Promise<string>;
-  getRegisteredPubStakeKeys: () => Promise<string>;
-  getUnregisteredPubStakeKeys: () => Promise<string>;
+  getRegisteredPubStakeKeys: () => Promise<Array<string>>;
+  getUnregisteredPubStakeKeys: () => Promise<Array<string>>;
   signData: Function;
 };
 
