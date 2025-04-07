@@ -53,8 +53,8 @@ export const createTxWithStakeDeregistrationCert = async (
   if (regPubStakeKeyHash.length < 1) {
     throw new Error(`Your wallet public stake key is not registered`);
   }
-  const unregPubStakeKey = regPubStakeKeyHash[0];
-  const stakeKeyHash = getPublicKeyFromHex(unregPubStakeKey).hash().to_hex();
+  const regPubStakeKey = regPubStakeKeyHash[0];
+  const stakeKeyHash = getPublicKeyFromHex(regPubStakeKey).hash().to_hex();
   const certBuilder = buildDeregStakeKey(stakeKeyHash, useConway, stakeRefundAmount);
   txBuilder.set_certs_builder(certBuilder);
 
