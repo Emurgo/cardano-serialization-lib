@@ -67,6 +67,10 @@ export const keyHashFromHex = (hexValue: string) => CSL.Ed25519KeyHash.from_hex(
 
 export const keyHashFromBech32 = (bech32Value: string) => CSL.Ed25519KeyHash.from_bech32(bech32Value);
 
+export const scriptHashFromBech32 = (bech32Value: string) => CSL.ScriptHash.from_bech32(bech32Value);
+
+export const scriptHashFromHex = (hexValue: string) => CSL.ScriptHash.from_hex(hexValue);
+
 export const getCslCredentialFromHex = (hexValue: string) => {
   const keyHash = keyHashFromHex(hexValue);
   return getCredential(keyHash);
