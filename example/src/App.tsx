@@ -30,7 +30,7 @@ const App: React.FC = () => {
       console.debug(`[dApp][App] Checking connection works`);
       try {
         const walletObject: CardanoApiType = window.cardano[selectedWallet];
-        const conState = await walletStateWithTimeout(walletObject, 5000);
+        const conState = await walletStateWithTimeout(walletObject, 10000);
 
         if (conState) {
           setConnectionState(CONNECTED);
@@ -44,7 +44,7 @@ const App: React.FC = () => {
     };
 
     if (isWalletConnected) {
-      const connectionTimer = setInterval(getConnectionState, 3000);
+      const connectionTimer = setInterval(getConnectionState, 10000);
       return () => {
         console.debug(`[dApp][App] Checking connection is stopped`);
         clearInterval(connectionTimer);
