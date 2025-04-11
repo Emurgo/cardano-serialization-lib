@@ -23,7 +23,7 @@ import {
   TransactionInput,
   TransactionHash,
   Value,
-} from "@emurgo/cardano-serialization-lib-nodejs";
+} from "@emurgo/cardano-serialization-lib-nodejs-gc";
 import { mnemonicToEntropy } from "bip39";
 import { Buffer } from "node:buffer";
 
