@@ -14,7 +14,7 @@ import {
   TransactionHash,
   Address,
   Value,
-} from "@emurgo/cardano-serialization-lib-nodejs";
+} from "@emurgo/cardano-serialization-lib-nodejs-gc";
 import { mnemonicToEntropy } from "bip39";
 import { Buffer } from "node:buffer";
  
@@ -23,7 +23,7 @@ const MNEMONIC = "key in your 24 words of your mnemonic here, words separated by
 const TX_HASH ="372467a317554bcf1e1d172b5418b9eed850fc7f2c1a1d15f91c06b05fc09499"
 const TX_INDEX =0; 
 const INPUT_AMOUNT = "397000000" ;  //Lovelace on your UTXO
-const TO_ADDRESS="addr_test1qqew6jaz63u389gwnp8w92qntetzxs6j9222pn4cnej672vazs7a6wnrseqggj4d4ur43yq9e23r4q0m879t7efyhzjq8mvzua";
+const TO_ADDRESS="addr_test1your_address";
 const AMOUNT="2000000";
 
 function harden(num: number): number {
@@ -84,8 +84,8 @@ txBuilder.add_output(
 // calculate the min fee required and send any change to an address
 txBuilder.add_change_if_needed(addr.to_address());
 
-const txBody = txBuilder.build();
-const transaction = FixedTransaction.new_from_body_bytes(txBody.to_bytes());
+const tx = txBuilder.build_tx();
+const transaction = FixedTransaction.from_bytes(tx.to_bytes());
 
 // sign transaction with payment vkey
 transaction.sign_and_add_vkey_signature(utxoPrivKey.to_raw_key());
