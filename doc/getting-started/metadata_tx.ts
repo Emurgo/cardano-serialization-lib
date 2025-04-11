@@ -6,7 +6,7 @@ const MNEMONIC = "key in your 24 words of your mnemonic here, words separated by
 const INPUT_HASH ="9fc9bb3ea1f2540ae870076e6543b5d804566a548db9da9e16c5271596e8dc9d"
 const INPUT_INDEX =1; 
 const INPUT_AMOUNT = "113185492" ;  //Lovelace on your UTXO
-const TO_ADDRESS="addr_test1qqew6jaz63u389gwnp8w92qntetzxs6j9222pn4cnej672vazs7a6wnrseqggj4d4ur43yq9e23r4q0m879t7efyhzjq8mvzua";
+const TO_ADDRESS="addr_test1your_address_in_bech32";
 const AMOUNT="2000000";
 
 function harden(num: number): number {
@@ -87,23 +87,16 @@ txBuilder.set_auxiliary_data(auxData);
 txBuilder.add_change_if_needed(addr.to_address());
 
 
-const txBody = txBuilder.build()
-const txBodyBytes = CSL.FixedTransaction.new_from_body_bytes(txBody.to_bytes());
-let tx_hash = txBodyBytes.transaction_hash();
+const tx = txBuilder.build_tx()
+const fixedTx = CSL.FixedTransaction.from_bytes(tx.to_bytes());
+let txHash = fixedTx.transaction_hash();
 
-const witnesses = CSL.TransactionWitnessSet.new();
-const vkeyWitnesses = CSL.Vkeywitnesses.new();
-const vkeyWitness = CSL.make_vkey_witness(tx_hash,paymentKey);
-    vkeyWitnesses.add(vkeyWitness);
-    witnesses.set_vkeys(vkeyWitnesses);
-
-
-
-// Step 6.=========Create Transaction with 03 components========
-const transaction = CSL.Transaction.new(txBody, witnesses, auxData);
+// Step 6.=========Make and add vkey witness if it necessary========
+const vkeyWitness = CSL.make_vkey_witness(txHash,paymentKey);
+fixedTx.add_vkey_witness(vkeyWitness)
 
 // Step 7.=========Serialize Transaction to hex========
-const txSerialized = Buffer.from(transaction.to_bytes()).toString("hex");
+const txSerialized = fixedTx.to_hex();
 console.log("Transaction serialized:", txSerialized);
 
  
