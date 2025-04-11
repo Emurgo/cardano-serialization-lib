@@ -125,7 +125,7 @@ const mintNft = async (
   txBuilder.add_change_if_needed(addr);
 
   const tx = txBuilder.build_tx();
-  const fixedTx = FixedTransaction.from_bytes(txBody.to_bytes());
+  const fixedTx = FixedTransaction.from_bytes(tx.to_bytes());
   let txHash = fixedTx.transaction_hash();
 
   console.log(`TX_HASH: ${txHash.to_hex()}`);
