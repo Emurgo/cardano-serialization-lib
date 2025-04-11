@@ -101,38 +101,22 @@ txBuilder.add_mint_asset_and_output_min_required_coin(
 //==============Adds an input to the transaction=====================
 txBuilder.add_key_input(
   publicKeyHash,
-TransactionInput.new(
-  TransactionHash.from_bytes(Buffer.from(INPUT_HASH, "hex")),
-  INPUT_INDEX
-),Value.new(BigNum.from_str(INPUT_AMOUNT))
+  TransactionInput.new(
+    TransactionHash.from_bytes(Buffer.from(INPUT_HASH, "hex")),
+    INPUT_INDEX
+  ),Value.new(BigNum.from_str(INPUT_AMOUNT))
 );
 
 txBuilder.add_change_if_needed(addr);
 
-//==============Builds the transaction body (txBody) and converts it to bytes==
-const txBody = txBuilder.build();
-const txBodyBytes = FixedTransaction.new_from_body_bytes(txBody.to_bytes());
-let txHash = txBodyBytes.transaction_hash();
-console.log(`Tx_hash of transaction: ${Buffer.from(txHash.to_bytes()).toString("hex")}`);
+const tx = txBuilder.build_tx();
+const fixedTx = FixedTransaction.from_bytes(tx.to_bytes());
+let txHash = fixedTx.transaction_hash();
+console.log(`Tx_hash of transaction: ${txHash.to_hex()}`);
 
-//==============Creates a witness set to sign the transaction=====================
-const witnesses = TransactionWitnessSet.new();
-const vkeyWitnesses = Vkeywitnesses.new();
-vkeyWitnesses.add(make_vkey_witness(txHash,payment_skey));
-// vkeyWitnesses.add(make_vkey_witness(txHash,Other_skey));//Add additional keys if you use them in policy
-witnesses.set_vkeys(vkeyWitnesses);
-witnesses.set_native_scripts;
-const witnessScripts = NativeScripts.new();
-witnessScripts.add(mintScript);
-witnesses.set_native_scripts(witnessScripts);
+//==============Sign transaction=====================
+fixedTx.sign_and_add_vkey_signature(payment_skey);
 
-//==============Create signed transaction=====================
-const unsignedTx = txBuilder.build_tx();
-const tx = Transaction.new(
-  unsignedTx.body(),
-  witnesses,
-  null // using unsignedTx.auxiliary_data() for metadata
-);
-const signedTx = Buffer.from(tx.to_bytes()).toString("hex");
+const signedTx = fixedTx.to_hex();
 
 console.log(`CBOR of signed transaction: ${signedTx}`);
