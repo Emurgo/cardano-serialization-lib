@@ -23,7 +23,7 @@ import {
   TransactionInput,
   TransactionHash,
   Value,
-} from "@emurgo/cardano-serialization-lib-nodejs";
+} from "@emurgo/cardano-serialization-lib-nodejs-gc";
 import { mnemonicToEntropy } from "bip39";
 import { Buffer } from "node:buffer";
 import cbor from "cbor";
@@ -125,7 +125,7 @@ const mintNft = async (
   txBuilder.add_change_if_needed(addr);
 
   const tx = txBuilder.build_tx();
-  const fixedTx = FixedTransaction.new_from_body_bytes(txBody.to_bytes());
+  const fixedTx = FixedTransaction.from_bytes(txBody.to_bytes());
   let txHash = txBodyBytes.transaction_hash();
 
   console.log(`TX_HASH: ${txHash.to_hex()}`);
