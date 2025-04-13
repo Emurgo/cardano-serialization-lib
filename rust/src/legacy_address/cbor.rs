@@ -23,7 +23,12 @@ pub mod util {
         raw: &mut Deserializer<R>,
     ) -> cbor_event::Result<Vec<u8>> {
         let len = raw.array()?;
-        assert!(len == Len::Len(2));
+        if len != Len::Len(2) {
+            return Err(cbor_event::Error::CustomError(format!(
+                "Invalid array length: {:?}, expected Len(2)",
+                len
+            )));
+        }
 
         let tag = raw.tag()?;
         if tag != 24 {
