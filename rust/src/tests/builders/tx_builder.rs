@@ -6875,3 +6875,76 @@ fn build_tx_do_not_burn_extra_coin_selection_test() {
     assert!(fee < BigNum(1000000u64));
     tx_builder.build_tx().expect("Failed to build tx");
 }
+
+#[test]
+fn test_minimum_required_coin_for_native_asset() {
+    let linear_fee = fake_linear_fee(44, 155381);
+    let tx_builder_cfg = TransactionBuilderConfigBuilder::new()
+        .fee_algo(&linear_fee)
+        .pool_deposit(&BigNum::from_str("500000000").unwrap())
+        .key_deposit(&BigNum::from_str("2000000").unwrap())
+        .max_value_size(5000)
+        .max_tx_size(16384)
+        .coins_per_utxo_byte(&BigNum::from_str("4310").unwrap())
+        .build()
+        .unwrap();
+    let mut tx_builder = TransactionBuilder::new(&tx_builder_cfg);
+
+    let address = ByronAddress::from_base58("DdzFFzCqrht5sQ6gwv7tcc7JKPph7uP4JCB1GNeAN5XTmadgF9t1E4A1vhEZ5Ef8k3wRpDroes5pUQmWhUDkFYSJpbczr4QmJkqtRMVJ")
+        .unwrap()
+        .to_address();
+
+    let multi_asset = {
+        let mut assets = Assets::new();
+        assets.insert(
+            &AssetName::new(hex::decode("4c414d424f").unwrap()).unwrap(),
+            &BigNum::from_str("254545845").unwrap(),
+        );
+
+        let mut multi_asset = MultiAsset::new();
+        multi_asset.insert(
+            &ScriptHash::from_bytes(hex::decode("defce71d5df55e8041a94008fe0547f85e35f1725da1e87741510423").unwrap()).unwrap(),
+            &assets,
+        );
+        multi_asset
+    };
+
+    let tx_output = TransactionOutputBuilder::new()
+        .with_address(&address)
+        .next()
+        .unwrap()
+        .with_asset_and_min_required_coin_by_utxo_cost(
+            &multi_asset,
+            &DataCost::new_coins_per_byte(&BigNum::from_str("4310").unwrap()),
+        )
+        .unwrap()
+        .build()
+        .unwrap();
+
+    tx_builder.add_output(&tx_output).unwrap();
+
+    let input = fake_tx_input(1);
+    let mut input_value = Value::new(&BigNum::from_str("10000000").unwrap());
+    input_value.set_multiasset(&multi_asset);
+
+    tx_builder.add_regular_input(
+        &address,
+        &input,
+        &input_value
+    ).unwrap();
+
+    let change_addr = fake_base_address(1);
+    tx_builder.add_change_if_needed(&change_addr).unwrap();
+
+    let tx = tx_builder.build_tx().unwrap();
+
+    // Verify the output contains the multi_asset and the correct amount of ADA
+    let outputs = tx.body().outputs();
+    assert_eq!(outputs.len(), 2); // Output + change
+
+    let main_output = outputs.get(0);
+    assert!(main_output.amount().multiasset().is_some());
+
+    // The amount should include the minimum required ADA for the asset
+    assert!(main_output.amount().coin() > BigNum::zero());
+}
