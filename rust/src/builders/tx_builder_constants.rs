@@ -5,15 +5,48 @@ use crate::*;
 // The cost-model values are taken from the genesis block - https://github.com/input-output-hk/cardano-node/blob/master/configuration/cardano/mainnet-alonzo-genesis.json#L26-L195
 // The keys on the genesis block object (operation names) are sorted plain alphabetically.
 
+/// !!! DEPRECATED !!!
+/// Use API provider or cardano cli to retrieve the latest cost modes
+/// Predefined cost models will be deleted in the CSL from 15.0.0 version.
+#[deprecated(
+    since = "14.0.1",
+    note = "Use API provider or cardano cli to retrieve the latest cost modes. \
+        Predefined cost models will be deleted in the CSL from 15.0.0 version."
+)]
 #[allow(dead_code)]
 pub(crate) struct TxBuilderConstants();
 
+/// !!! DEPRECATED !!!
+/// Use API provider or cardano cli to retrieve the latest cost modes
+/// Predefined cost models will be deleted in the CSL from 15.0.0 version.
+#[deprecated(
+    since = "14.0.1",
+    note = "Use API provider or cardano cli to retrieve the latest cost modes. \
+        Predefined cost models will be deleted in the CSL from 15.0.0 version."
+)]
 #[allow(dead_code)]
 impl TxBuilderConstants {
+
+    /// !!! DEPRECATED !!!
+    /// Use API provider or cardano cli to retrieve the latest cost modes
+    /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
+    #[deprecated(
+        since = "14.0.1",
+        note = "Use API provider or cardano cli to retrieve the latest cost modes. \
+        Predefined cost models will be deleted in the CSL from 15.0.0 version."
+    )]
     pub(crate) fn plutus_default_cost_models() -> Costmdls {
-        TxBuilderConstants::plutus_vasil_cost_models()
+        TxBuilderConstants::plutus_conway_cost_models()
     }
 
+    /// !!! DEPRECATED !!!
+    /// Use API provider or cardano cli to retrieve the latest cost modes
+    /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
+    #[deprecated(
+        since = "14.0.1",
+        note = "Use API provider or cardano cli to retrieve the latest cost modes. \
+        Predefined cost models will be deleted in the CSL from 15.0.0 version."
+    )]
     pub(crate) fn plutus_alonzo_cost_models() -> Costmdls {
         let mut res = Costmdls::new();
         res.insert(
@@ -36,6 +69,14 @@ impl TxBuilderConstants {
         res
     }
 
+    /// !!! DEPRECATED !!!
+    /// Use API provider or cardano cli to retrieve the latest cost modes
+    /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
+    #[deprecated(
+        since = "14.0.1",
+        note = "Use API provider or cardano cli to retrieve the latest cost modes. \
+        Predefined cost models will be deleted in the CSL from 15.0.0 version."
+    )]
     pub(crate) fn plutus_vasil_cost_models() -> Costmdls {
         let mut res = Costmdls::new();
         res.insert(
@@ -74,6 +115,14 @@ impl TxBuilderConstants {
         res
     }
 
+    /// !!! DEPRECATED !!!
+    /// Use API provider or cardano cli to retrieve the latest cost modes
+    /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
+    #[deprecated(
+        since = "14.0.1",
+        note = "Use API provider or cardano cli to retrieve the latest cost modes. \
+        Predefined cost models will be deleted in the CSL from 15.0.0 version."
+    )]
     pub(crate) fn plutus_conway_cost_models() -> Costmdls {
         let mut res = Costmdls::new();
         res.insert(
@@ -129,7 +178,9 @@ impl TxBuilderConstants {
                 18, 52948122, 18, 1995836, 36, 3227919, 12, 901022, 1, 166917843, 4307, 36, 284546,
                 36, 158221314, 26549, 36, 74698472, 36, 333849714, 1, 254006273, 72, 2174038, 72,
                 2261318, 64571, 4, 207616, 8310, 4, 1293828, 28716, 63, 0, 1, 1006041, 43623, 251,
-                0, 1,
+                0, 1, 100181, 726, 719, 0, 1, 100181, 726, 719, 0, 1, 100181, 726, 719, 0, 1,
+                107878, 680, 0, 1, 95336, 1, 281145, 18848, 0, 1, 180194, 159, 1, 1, 158519, 8942,
+                0, 1, 159378, 8813, 0, 1, 107490, 3298, 1, 106057, 655, 1, 1964219, 24520, 3,
             ]),
         );
 
