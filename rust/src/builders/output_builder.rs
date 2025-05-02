@@ -93,41 +93,35 @@ impl TransactionOutputAmountBuilder {
         cfg
     }
 
-    pub fn with_asset_and_min_required_coin_by_utxo_cost(
-        &self,
-        multiasset: &MultiAsset,
-        data_cost: &DataCost,
-    ) -> Result<TransactionOutputAmountBuilder, JsError> {
-        // TODO: double ada calculation needs to check if it redundant
-        let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
-        if let Some(data) = &self.data {
-            match data {
-                DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
-                DataOption::Data(datum) => calc.set_plutus_data(datum),
-            };
-        }
-        if let Some(script_ref) = &self.script_ref {
-            calc.set_script_ref(script_ref);
-        }
-        let min_possible_coin = calc.calculate_ada()?;
-        let mut value = Value::new(&min_possible_coin);
-        value.set_multiasset(multiasset);
+pub fn with_asset_and_min_required_coin_by_utxo_cost(
+    &self,
+    multiasset: &MultiAsset,
+    data_cost: &DataCost,
+) -> Result<TransactionOutputAmountBuilder, JsError> {
+    let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
 
-        let mut calc = MinOutputAdaCalculator::new_empty(data_cost)?;
-        calc.set_amount(&value);
-        if let Some(data) = &self.data {
-            match data {
-                DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
-                DataOption::Data(datum) => calc.set_plutus_data(datum),
-            };
-        }
-        if let Some(script_ref) = &self.script_ref {
-            calc.set_script_ref(script_ref);
-        }
-        let required_coin = calc.calculate_ada()?;
+    calc.set_address(&self.address);
 
-        Ok(self.with_coin_and_asset(&required_coin, &multiasset))
+    if let Some(data) = &self.data {
+        match data {
+            DataOption::DataHash(data_hash) => calc.set_data_hash(data_hash),
+            DataOption::Data(datum) => calc.set_plutus_data(datum),
+        };
     }
+
+    if let Some(script_ref) = &self.script_ref {
+        calc.set_script_ref(script_ref);
+    }
+
+    let mut value = Value::new(&Coin::zero());
+    value.set_multiasset(multiasset);
+
+    calc.set_amount(&value);
+
+    let required_coin = calc.calculate_ada()?;
+
+    Ok(self.with_coin_and_asset(&required_coin, &multiasset))
+}
 
     pub fn build(&self) -> Result<TransactionOutput, JsError> {
         Ok(TransactionOutput {
