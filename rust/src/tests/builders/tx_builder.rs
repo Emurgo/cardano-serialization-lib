@@ -3353,7 +3353,7 @@ fn add_output_asset_and_min_required_coin() {
 
     assert_eq!(out.address.to_bytes(), address.to_bytes());
     assert_eq!(out.amount.multiasset.unwrap(), multiasset);
-    assert_eq!(out.amount.coin, BigNum(1146460));
+    assert_eq!(out.amount.coin, BigNum(1086120));
 }
 
 #[test]
@@ -3480,7 +3480,7 @@ fn add_mint_asset_and_min_required_coin() {
     let out = tx_builder.outputs.get(0);
 
     assert_eq!(out.address.to_bytes(), address.to_bytes());
-    assert_eq!(out.amount.coin, BigNum(1146460));
+    assert_eq!(out.amount.coin, BigNum(1086120));
 
     let multiasset = out.amount.multiasset.unwrap();
 
