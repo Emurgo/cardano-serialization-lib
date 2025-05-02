@@ -13,8 +13,8 @@ serde::Deserialize,
 JsonSchema,
 )]
 pub enum CredType {
-    Key(Ed25519KeyHash),
     Script(ScriptHash),
+    Key(Ed25519KeyHash),
 }
 
 #[wasm_bindgen]
