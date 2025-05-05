@@ -9,7 +9,7 @@ use crate::*;
 /// Use API provider or cardano cli to retrieve the latest cost modes
 /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
 #[deprecated(
-    since = "14.0.1",
+    since = "14.1.2",
     note = "Use API provider or cardano cli to retrieve the latest cost modes. \
         Predefined cost models will be deleted in the CSL from 15.0.0 version."
 )]
@@ -20,7 +20,7 @@ pub(crate) struct TxBuilderConstants();
 /// Use API provider or cardano cli to retrieve the latest cost modes
 /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
 #[deprecated(
-    since = "14.0.1",
+    since = "14.1.2",
     note = "Use API provider or cardano cli to retrieve the latest cost modes. \
         Predefined cost models will be deleted in the CSL from 15.0.0 version."
 )]
@@ -31,7 +31,7 @@ impl TxBuilderConstants {
     /// Use API provider or cardano cli to retrieve the latest cost modes
     /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
     #[deprecated(
-        since = "14.0.1",
+        since = "14.1.2",
         note = "Use API provider or cardano cli to retrieve the latest cost modes. \
         Predefined cost models will be deleted in the CSL from 15.0.0 version."
     )]
@@ -43,7 +43,7 @@ impl TxBuilderConstants {
     /// Use API provider or cardano cli to retrieve the latest cost modes
     /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
     #[deprecated(
-        since = "14.0.1",
+        since = "14.1.2",
         note = "Use API provider or cardano cli to retrieve the latest cost modes. \
         Predefined cost models will be deleted in the CSL from 15.0.0 version."
     )]
@@ -73,7 +73,7 @@ impl TxBuilderConstants {
     /// Use API provider or cardano cli to retrieve the latest cost modes
     /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
     #[deprecated(
-        since = "14.0.1",
+        since = "14.1.2",
         note = "Use API provider or cardano cli to retrieve the latest cost modes. \
         Predefined cost models will be deleted in the CSL from 15.0.0 version."
     )]
@@ -119,7 +119,7 @@ impl TxBuilderConstants {
     /// Use API provider or cardano cli to retrieve the latest cost modes
     /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
     #[deprecated(
-        since = "14.0.1",
+        since = "14.1.2",
         note = "Use API provider or cardano cli to retrieve the latest cost modes. \
         Predefined cost models will be deleted in the CSL from 15.0.0 version."
     )]
