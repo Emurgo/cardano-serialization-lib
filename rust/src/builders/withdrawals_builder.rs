@@ -1,17 +1,18 @@
+use std::collections::BTreeMap;
 use crate::*;
 use hashlink::LinkedHashMap;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct WithdrawalsBuilder {
-    withdrawals: LinkedHashMap<RewardAddress, (Coin, Option<ScriptWitnessType>)>,
+    withdrawals: BTreeMap<RewardAddress, (Coin, Option<ScriptWitnessType>)>,
 }
 
 #[wasm_bindgen]
 impl WithdrawalsBuilder {
     pub fn new() -> Self {
         Self {
-            withdrawals: LinkedHashMap::new(),
+            withdrawals: BTreeMap::new(),
         }
     }
 

@@ -6948,3 +6948,94 @@ fn test_minimum_required_coin_for_native_asset() {
     // The amount should include the minimum required ADA for the asset
     assert!(main_output.amount().coin() > BigNum::zero());
 }
+
+#[test]
+fn test_withdrawals_sorting_order() {
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(10, 2));
+    let mut withdrawals_builder = WithdrawalsBuilder::new();
+    let fake_input = fake_tx_input(10);
+    let fake_address = fake_base_address(11);
+
+    let mut collateral_builder = TxInputsBuilder::new();
+    collateral_builder.add_regular_input(&fake_address, &fake_input, &Value::new(&BigNum(100000000)));
+    tx_builder.set_collateral(&collateral_builder);
+
+    let (script1, script_hash1) = fake_plutus_script_and_hash(1);
+    let key_hash1 = fake_key_hash(1);
+    let key_hash2 = fake_key_hash(2);
+
+    let redeemer = Redeemer::new(
+        &RedeemerTag::new_reward(),
+        &BigNum(0),
+        &PlutusData::new_integer(&BigInt::from_str("42").unwrap()),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
+    );
+
+    let plutus_witness = PlutusWitness::new_without_datum(&script1, &redeemer);
+
+    withdrawals_builder
+        .add(
+            &RewardAddress::new(
+                NetworkInfo::testnet_preprod().network_id(),
+                &Credential::from_keyhash(&key_hash1),
+            ),
+            &Coin::from(1u32),
+        )
+        .unwrap();
+
+    withdrawals_builder
+        .add_with_plutus_witness(
+            &RewardAddress::new(
+                NetworkInfo::testnet_preprod().network_id(),
+                &Credential::from_scripthash(&script_hash1),
+            ),
+            &Coin::from(3u32),
+            &plutus_witness,
+        )
+        .unwrap();
+
+    withdrawals_builder
+        .add(
+            &RewardAddress::new(
+                NetworkInfo::testnet_preprod().network_id(),
+                &Credential::from_keyhash(&key_hash2),
+            ),
+            &Coin::from(4u32),
+        )
+        .unwrap();
+
+    tx_builder.set_withdrawals_builder(&withdrawals_builder);
+
+    // Add necessary transaction components
+    tx_builder.add_key_input(
+        &fake_key_hash(1),
+        &TransactionInput::new(&genesis_id(), 0),
+        &Value::new(&BigNum(5_000_000)),
+    );
+    tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_conway_cost_models()); 
+    tx_builder.add_change_if_needed(&fake_base_address(2)).unwrap();
+    
+    let tx = tx_builder.build_tx().unwrap();
+
+    let withdrawals_raw = tx.body().withdrawals().unwrap();
+    // Get withdrawals from the built transaction
+    let withdrawals = withdrawals_raw.as_vec();
+
+    assert_eq!(withdrawals.len(), 3);
+    assert!(withdrawals[0].0.payment_cred().to_scripthash().is_some());
+    assert!(withdrawals[1].0.payment_cred().to_keyhash().is_some());
+    assert!(withdrawals[2].0.payment_cred().to_keyhash().is_some());
+
+    assert_eq!(
+        &withdrawals[0].0.payment_cred().to_scripthash().unwrap(),
+        &script_hash1
+    );
+    assert_eq!(
+        &withdrawals[1].0.payment_cred().to_keyhash().unwrap(),
+        &key_hash1
+    );
+    assert_eq!(
+        &withdrawals[2].0.payment_cred().to_keyhash().unwrap(),
+        &key_hash2
+    );
+}
