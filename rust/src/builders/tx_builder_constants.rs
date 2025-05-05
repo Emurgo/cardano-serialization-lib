@@ -5,48 +5,16 @@ use crate::*;
 // The cost-model values are taken from the genesis block - https://github.com/input-output-hk/cardano-node/blob/master/configuration/cardano/mainnet-alonzo-genesis.json#L26-L195
 // The keys on the genesis block object (operation names) are sorted plain alphabetically.
 
-/// !!! DEPRECATED !!!
-/// Use API provider or cardano cli to retrieve the latest cost modes
-/// Predefined cost models will be deleted in the CSL from 15.0.0 version.
-#[deprecated(
-    since = "14.1.2",
-    note = "Use API provider or cardano cli to retrieve the latest cost modes. \
-        Predefined cost models will be deleted in the CSL from 15.0.0 version."
-)]
 #[allow(dead_code)]
 pub(crate) struct TxBuilderConstants();
 
-/// !!! DEPRECATED !!!
-/// Use API provider or cardano cli to retrieve the latest cost modes
-/// Predefined cost models will be deleted in the CSL from 15.0.0 version.
-#[deprecated(
-    since = "14.1.2",
-    note = "Use API provider or cardano cli to retrieve the latest cost modes. \
-        Predefined cost models will be deleted in the CSL from 15.0.0 version."
-)]
 #[allow(dead_code)]
 impl TxBuilderConstants {
 
-    /// !!! DEPRECATED !!!
-    /// Use API provider or cardano cli to retrieve the latest cost modes
-    /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
-    #[deprecated(
-        since = "14.1.2",
-        note = "Use API provider or cardano cli to retrieve the latest cost modes. \
-        Predefined cost models will be deleted in the CSL from 15.0.0 version."
-    )]
     pub(crate) fn plutus_default_cost_models() -> Costmdls {
         TxBuilderConstants::plutus_conway_cost_models()
     }
 
-    /// !!! DEPRECATED !!!
-    /// Use API provider or cardano cli to retrieve the latest cost modes
-    /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
-    #[deprecated(
-        since = "14.1.2",
-        note = "Use API provider or cardano cli to retrieve the latest cost modes. \
-        Predefined cost models will be deleted in the CSL from 15.0.0 version."
-    )]
     pub(crate) fn plutus_alonzo_cost_models() -> Costmdls {
         let mut res = Costmdls::new();
         res.insert(
@@ -69,14 +37,6 @@ impl TxBuilderConstants {
         res
     }
 
-    /// !!! DEPRECATED !!!
-    /// Use API provider or cardano cli to retrieve the latest cost modes
-    /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
-    #[deprecated(
-        since = "14.1.2",
-        note = "Use API provider or cardano cli to retrieve the latest cost modes. \
-        Predefined cost models will be deleted in the CSL from 15.0.0 version."
-    )]
     pub(crate) fn plutus_vasil_cost_models() -> Costmdls {
         let mut res = Costmdls::new();
         res.insert(
@@ -115,14 +75,6 @@ impl TxBuilderConstants {
         res
     }
 
-    /// !!! DEPRECATED !!!
-    /// Use API provider or cardano cli to retrieve the latest cost modes
-    /// Predefined cost models will be deleted in the CSL from 15.0.0 version.
-    #[deprecated(
-        since = "14.1.2",
-        note = "Use API provider or cardano cli to retrieve the latest cost modes. \
-        Predefined cost models will be deleted in the CSL from 15.0.0 version."
-    )]
     pub(crate) fn plutus_conway_cost_models() -> Costmdls {
         let mut res = Costmdls::new();
         res.insert(
