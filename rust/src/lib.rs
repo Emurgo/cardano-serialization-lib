@@ -840,6 +840,11 @@ impl Withdrawals {
                 .collect::<Vec<RewardAddress>>(),
         )
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn as_vec(&self) -> Vec<(&RewardAddress, &Coin)> {
+        self.0.iter().collect()
+    }
 }
 
 impl serde::Serialize for Withdrawals {
