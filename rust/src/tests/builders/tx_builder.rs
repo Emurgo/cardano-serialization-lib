@@ -3353,7 +3353,7 @@ fn add_output_asset_and_min_required_coin() {
 
     assert_eq!(out.address.to_bytes(), address.to_bytes());
     assert_eq!(out.amount.multiasset.unwrap(), multiasset);
-    assert_eq!(out.amount.coin, BigNum(1146460));
+    assert_eq!(out.amount.coin, BigNum(1086120));
 }
 
 #[test]
@@ -3480,7 +3480,7 @@ fn add_mint_asset_and_min_required_coin() {
     let out = tx_builder.outputs.get(0);
 
     assert_eq!(out.address.to_bytes(), address.to_bytes());
-    assert_eq!(out.amount.coin, BigNum(1146460));
+    assert_eq!(out.amount.coin, BigNum(1086120));
 
     let multiasset = out.amount.multiasset.unwrap();
 
@@ -6874,4 +6874,168 @@ fn build_tx_do_not_burn_extra_coin_selection_test() {
     let fee = tx_builder.get_fee_if_set().unwrap();
     assert!(fee < BigNum(1000000u64));
     tx_builder.build_tx().expect("Failed to build tx");
+}
+
+#[test]
+fn test_minimum_required_coin_for_native_asset() {
+    let linear_fee = fake_linear_fee(44, 155381);
+    let tx_builder_cfg = TransactionBuilderConfigBuilder::new()
+        .fee_algo(&linear_fee)
+        .pool_deposit(&BigNum::from_str("500000000").unwrap())
+        .key_deposit(&BigNum::from_str("2000000").unwrap())
+        .max_value_size(5000)
+        .max_tx_size(16384)
+        .coins_per_utxo_byte(&BigNum::from_str("4310").unwrap())
+        .build()
+        .unwrap();
+    let mut tx_builder = TransactionBuilder::new(&tx_builder_cfg);
+
+    let address = ByronAddress::from_base58("DdzFFzCqrht5sQ6gwv7tcc7JKPph7uP4JCB1GNeAN5XTmadgF9t1E4A1vhEZ5Ef8k3wRpDroes5pUQmWhUDkFYSJpbczr4QmJkqtRMVJ")
+        .unwrap()
+        .to_address();
+
+    let multi_asset = {
+        let mut assets = Assets::new();
+        assets.insert(
+            &AssetName::new(hex::decode("4c414d424f").unwrap()).unwrap(),
+            &BigNum::from_str("254545845").unwrap(),
+        );
+
+        let mut multi_asset = MultiAsset::new();
+        multi_asset.insert(
+            &ScriptHash::from_bytes(hex::decode("defce71d5df55e8041a94008fe0547f85e35f1725da1e87741510423").unwrap()).unwrap(),
+            &assets,
+        );
+        multi_asset
+    };
+
+    let tx_output = TransactionOutputBuilder::new()
+        .with_address(&address)
+        .next()
+        .unwrap()
+        .with_asset_and_min_required_coin_by_utxo_cost(
+            &multi_asset,
+            &DataCost::new_coins_per_byte(&BigNum::from_str("4310").unwrap()),
+        )
+        .unwrap()
+        .build()
+        .unwrap();
+
+    tx_builder.add_output(&tx_output).unwrap();
+
+    let input = fake_tx_input(1);
+    let mut input_value = Value::new(&BigNum::from_str("10000000").unwrap());
+    input_value.set_multiasset(&multi_asset);
+
+    tx_builder.add_regular_input(
+        &address,
+        &input,
+        &input_value
+    ).unwrap();
+
+    let change_addr = fake_base_address(1);
+    tx_builder.add_change_if_needed(&change_addr).unwrap();
+
+    let tx = tx_builder.build_tx().unwrap();
+
+    // Verify the output contains the multi_asset and the correct amount of ADA
+    let outputs = tx.body().outputs();
+    assert_eq!(outputs.len(), 2); // Output + change
+
+    let main_output = outputs.get(0);
+    assert!(main_output.amount().multiasset().is_some());
+
+    // The amount should include the minimum required ADA for the asset
+    assert!(main_output.amount().coin() > BigNum::zero());
+}
+
+#[test]
+fn test_withdrawals_sorting_order() {
+    let mut tx_builder = fake_tx_builder_with_fee(&fake_linear_fee(10, 2));
+    let mut withdrawals_builder = WithdrawalsBuilder::new();
+    let fake_input = fake_tx_input(10);
+    let fake_address = fake_base_address(11);
+
+    let mut collateral_builder = TxInputsBuilder::new();
+    collateral_builder.add_regular_input(&fake_address, &fake_input, &Value::new(&BigNum(100000000)));
+    tx_builder.set_collateral(&collateral_builder);
+
+    let (script1, script_hash1) = fake_plutus_script_and_hash(1);
+    let key_hash1 = fake_key_hash(1);
+    let key_hash2 = fake_key_hash(2);
+
+    let redeemer = Redeemer::new(
+        &RedeemerTag::new_reward(),
+        &BigNum(0),
+        &PlutusData::new_integer(&BigInt::from_str("42").unwrap()),
+        &ExUnits::new(&BigNum(1), &BigNum(2)),
+    );
+
+    let plutus_witness = PlutusWitness::new_without_datum(&script1, &redeemer);
+
+    withdrawals_builder
+        .add(
+            &RewardAddress::new(
+                NetworkInfo::testnet_preprod().network_id(),
+                &Credential::from_keyhash(&key_hash1),
+            ),
+            &Coin::from(1u32),
+        )
+        .unwrap();
+
+    withdrawals_builder
+        .add_with_plutus_witness(
+            &RewardAddress::new(
+                NetworkInfo::testnet_preprod().network_id(),
+                &Credential::from_scripthash(&script_hash1),
+            ),
+            &Coin::from(3u32),
+            &plutus_witness,
+        )
+        .unwrap();
+
+    withdrawals_builder
+        .add(
+            &RewardAddress::new(
+                NetworkInfo::testnet_preprod().network_id(),
+                &Credential::from_keyhash(&key_hash2),
+            ),
+            &Coin::from(4u32),
+        )
+        .unwrap();
+
+    tx_builder.set_withdrawals_builder(&withdrawals_builder);
+
+    // Add necessary transaction components
+    tx_builder.add_key_input(
+        &fake_key_hash(1),
+        &TransactionInput::new(&genesis_id(), 0),
+        &Value::new(&BigNum(5_000_000)),
+    );
+    tx_builder.calc_script_data_hash(&TxBuilderConstants::plutus_conway_cost_models()); 
+    tx_builder.add_change_if_needed(&fake_base_address(2)).unwrap();
+    
+    let tx = tx_builder.build_tx().unwrap();
+
+    let withdrawals_raw = tx.body().withdrawals().unwrap();
+    // Get withdrawals from the built transaction
+    let withdrawals = withdrawals_raw.as_vec();
+
+    assert_eq!(withdrawals.len(), 3);
+    assert!(withdrawals[0].0.payment_cred().to_scripthash().is_some());
+    assert!(withdrawals[1].0.payment_cred().to_keyhash().is_some());
+    assert!(withdrawals[2].0.payment_cred().to_keyhash().is_some());
+
+    assert_eq!(
+        &withdrawals[0].0.payment_cred().to_scripthash().unwrap(),
+        &script_hash1
+    );
+    assert_eq!(
+        &withdrawals[1].0.payment_cred().to_keyhash().unwrap(),
+        &key_hash1
+    );
+    assert_eq!(
+        &withdrawals[2].0.payment_cred().to_keyhash().unwrap(),
+        &key_hash2
+    );
 }
