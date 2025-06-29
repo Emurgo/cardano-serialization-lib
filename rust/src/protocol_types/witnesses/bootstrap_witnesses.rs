@@ -1,9 +1,9 @@
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
 use std::ops::Deref;
 use std::slice;
 use std::iter::Map;
 use std::collections::HashSet;
+use std::sync::Arc;
 use itertools::Itertools;
 use schemars::JsonSchema;
 use crate::*;
@@ -11,8 +11,8 @@ use crate::*;
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct BootstrapWitnesses {
-    witnesses: Vec<Rc<BootstrapWitness>>,
-    dedup: HashSet<Rc<BootstrapWitness>>,
+    witnesses: Vec<Arc<BootstrapWitness>>,
+    dedup: HashSet<Arc<BootstrapWitness>>,
     cbor_set_type: CborSetType,
     force_original_cbor_set_type: bool,
 }
@@ -37,8 +37,8 @@ impl BootstrapWitnesses {
     }
 
     pub(crate) fn new_from_prepared_fields(
-        witnesses: Vec<Rc<BootstrapWitness>>,
-        dedup: HashSet<Rc<BootstrapWitness>>,
+        witnesses: Vec<Arc<BootstrapWitness>>,
+        dedup: HashSet<Arc<BootstrapWitness>>,
     ) -> Self {
         Self {
             witnesses,
@@ -59,7 +59,7 @@ impl BootstrapWitnesses {
     /// Add a new `BootstrapWitness` to the set.
     /// Returns `true` if the element was not already present in the set.
     pub fn add(&mut self, witness: &BootstrapWitness) -> bool {
-        let witness_rc = Rc::new(witness.clone());
+        let witness_rc = Arc::new(witness.clone());
         if self.dedup.insert(witness_rc.clone()) {
             self.witnesses.push(witness_rc);
             true
@@ -72,7 +72,7 @@ impl BootstrapWitnesses {
         let mut dedup = HashSet::new();
         let mut witnesses = Vec::new();
         for witness in witnesses_vec {
-            let witness_rc = Rc::new(witness.clone());
+            let witness_rc = Arc::new(witness.clone());
             if dedup.insert(witness_rc.clone()) {
                 witnesses.push(witness_rc);
             }
@@ -89,7 +89,7 @@ impl BootstrapWitnesses {
         self.cbor_set_type = cbor_set_type;
     }
 
-    pub(crate) fn get_vec_wits(&self) -> &Vec<Rc<BootstrapWitness>> {
+    pub(crate) fn get_vec_wits(&self) -> &Vec<Arc<BootstrapWitness>> {
         &self.witnesses
     }
 
@@ -110,8 +110,8 @@ impl BootstrapWitnesses {
 impl<'a> IntoIterator for &'a BootstrapWitnesses {
     type Item = &'a BootstrapWitness;
     type IntoIter = Map<
-        slice::Iter<'a, Rc<BootstrapWitness>>,
-        fn(&'a Rc<BootstrapWitness>) -> &'a BootstrapWitness,
+        slice::Iter<'a, Arc<BootstrapWitness>>,
+        fn(&'a Arc<BootstrapWitness>) -> &'a BootstrapWitness,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
