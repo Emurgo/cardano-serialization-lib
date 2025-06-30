@@ -4,14 +4,14 @@ use std::hash::{Hash, Hasher};
 use std::iter::Map;
 use itertools::Itertools;
 use std::ops::Deref;
-use std::rc::Rc;
 use std::slice;
+use std::sync::Arc;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct Certificates {
-    pub(crate) certs: Vec<Rc<Certificate>>,
-    pub(crate) dedup: HashSet<Rc<Certificate>>,
+    pub(crate) certs: Vec<Arc<Certificate>>,
+    pub(crate) dedup: HashSet<Arc<Certificate>>,
     pub(crate) cbor_set_type: CborSetType,
 }
 
@@ -44,7 +44,7 @@ impl Certificates {
     /// Add a new `Certificate` to the set.
     /// Returns `true` if the element was not already present in the set.
     pub fn add(&mut self, elem: &Certificate) -> bool {
-        let rc_elem = Rc::new(elem.clone());
+        let rc_elem = Arc::new(elem.clone());
         if self.dedup.insert(rc_elem.clone()) {
             self.certs.push(rc_elem.clone());
             true
@@ -54,7 +54,7 @@ impl Certificates {
     }
 
     pub(crate) fn add_move(&mut self, elem: Certificate) {
-        let rc_elem = Rc::new(elem);
+        let rc_elem = Arc::new(elem);
         if self.dedup.insert(rc_elem.clone()) {
             self.certs.push(rc_elem.clone());
         }
@@ -106,8 +106,8 @@ impl Hash for Certificates {
 impl<'a> IntoIterator for &'a Certificates {
     type Item = &'a Certificate;
     type IntoIter = Map<
-        slice::Iter<'a, Rc<Certificate>>,
-        fn(&'a Rc<Certificate>) -> &'a Certificate,
+        slice::Iter<'a, Arc<Certificate>>,
+        fn(&'a Arc<Certificate>) -> &'a Certificate,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
