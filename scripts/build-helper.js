@@ -78,7 +78,8 @@ program
     return value;
   })
   .action((options) => {
-    publishPackage(options.target, options.variant, options.gc, options.env);
+    const config = { target: options.target, variant: options.variant, gc: options.gc };
+    handlePackagePublish(config, options.env, { runTests: true });
     console.log(`\n✅ Publish completed successfully!`);
   });
 
@@ -171,113 +172,65 @@ function getPackageInfo(packageJsonPath) {
   }
 }
 
-function publishPackage(target, variant, gc, env) {
+function handlePackagePublish(config, env, options = {}) {
+  const { dryRun = false, runTests = false } = options;
+  const { target, variant, gc } = config;
   const publishTag = env === 'beta' ? '--tag beta' : '';
   
   // Build first
   buildRust(target, variant, gc);
 
-  // Run tests
-  run('npm run rust:test', 'Running Rust tests');
+  // Run tests if requested
+  if (runTests) {
+    run('npm run rust:test', 'Running Rust tests');
+  }
   
   // Prepare publish
   run('npm run js:prepublish', 'Preparing for publish');
   
   // Configure package
-  const targetSuffix = variant === 'normal' ? target : `${target}-${variant}`;
+  let targetSuffix = variant === 'normal' ? target : `${target}-${variant}`;
+  if(targetSuffix === 'browser-asm') {
+    targetSuffix = "asmjs"
+  }
   const gcSuffix = gc ? ' -gc' : '';
   const helperCmd = `node ./scripts/publish-helper -${targetSuffix}${gcSuffix}`;
   
   run(helperCmd, 'Configuring package for publish');
   
   // Check if version already exists
+  let skipPublish = false;
   const packageInfo = getPackageInfo('./publish/package.json');
   if (packageInfo) {
     console.log(`\n🔍 Checking if ${packageInfo.name}@${packageInfo.version} already exists...`);
     
     if (checkVersionExists(packageInfo.name, packageInfo.version)) {
-      console.log(`\n⚠️  WARNING: Package ${packageInfo.name}@${packageInfo.version} already exists on npm!`);
-      console.log(`   Please bump the version in package.json before publishing.`);
-      console.log(`\n❌ Aborting publish to prevent duplicate version.`);
-      process.exit(1);
+      if (dryRun) {
+        console.log(`\n⚠️  Package ${packageInfo.name}@${packageInfo.version} already exists on npm.`);
+        console.log(`   In a real publish, this would require a version bump.`);
+      } else {
+        console.log(`\n⚠️  WARNING: Package ${packageInfo.name}@${packageInfo.version} already exists on npm!`);
+        console.log(`   Please bump the version in package.json before publishing.`);
+        console.log(`\n❌ Publish will be skipped.`);
+        skipPublish = true;
+      }
     } else {
       console.log(`✅ Version ${packageInfo.version} is available for publishing.`);
     }
   }
   
-  // Publish
-  run(`cd publish && npm publish ${publishTag} --access public`, `Publishing to npm${env === 'beta' ? ' (beta)' : ''}`);
-}
+  if (skipPublish && !dryRun) {
+    console.log(`\n⚠️  Skipping publish due to existing version.`);
+    return;
+  }
 
-function publishSinglePackage(config, env) {
-  const { target: configTarget, variant: configVariant, gc: configGc } = config;
-  const publishTag = env === 'beta' ? '--tag beta' : '';
-  
-  // Build first
-  buildRust(configTarget, configVariant, configGc);
-  
-  // Prepare publish
-  run('npm run js:prepublish', 'Preparing for publish');
-  
-  // Configure package
-  const targetSuffix = configVariant === 'normal' ? configTarget : `${configTarget}-${configVariant}`;
-  const gcSuffix = configGc ? ' -gc' : '';
-  const helperCmd = `node ./scripts/publish-helper -${targetSuffix}${gcSuffix}`;
-  
-  run(helperCmd, 'Configuring package for publish');
-  
-  // Check if version already exists
-  const packageInfo = getPackageInfo('./publish/package.json');
-  if (packageInfo) {
-    console.log(`\n🔍 Checking if ${packageInfo.name}@${packageInfo.version} already exists...`);
-    
-    if (checkVersionExists(packageInfo.name, packageInfo.version)) {
-      console.log(`\n⚠️  WARNING: Package ${packageInfo.name}@${packageInfo.version} already exists on npm!`);
-      console.log(`   Please bump the version in package.json before publishing.`);
-      console.log(`\n❌ Aborting publish to prevent duplicate version.`);
-      throw new Error(`Version ${packageInfo.version} already exists`);
-    } else {
-      console.log(`✅ Version ${packageInfo.version} is available for publishing.`);
-    }
+  // Publish or test publish
+  if (dryRun) {
+    run(`cd publish && npm publish ${publishTag} --access public --dry-run`, `Testing publish to npm${env === 'beta' ? ' (beta)' : ''} (dry-run)`);
+    run(`cd publish && npm pack`, 'Creating package tarball');
+  } else {
+    run(`cd publish && npm publish ${publishTag} --access public`, `Publishing to npm${env === 'beta' ? ' (beta)' : ''}`);
   }
-  
-  // Publish
-  run(`cd publish && npm publish ${publishTag} --access public`, `Publishing to npm${env === 'beta' ? ' (beta)' : ''}`);
-}
-
-function testPublishSinglePackage(config, env) {
-  const { target: configTarget, variant: configVariant, gc: configGc } = config;
-  const publishTag = env === 'beta' ? '--tag beta' : '';
-  
-  // Build first
-  buildRust(configTarget, configVariant, configGc);
-  
-  // Prepare publish
-  run('npm run js:prepublish', 'Preparing for publish');
-  
-  // Configure package
-  const targetSuffix = configVariant === 'normal' ? configTarget : `${configTarget}-${configVariant}`;
-  const gcSuffix = configGc ? ' -gc' : '';
-  const helperCmd = `node ./scripts/publish-helper -${targetSuffix}${gcSuffix}`;
-  
-  run(helperCmd, 'Configuring package for publish');
-  
-  // Check if version already exists
-  const packageInfo = getPackageInfo('./publish/package.json');
-  if (packageInfo) {
-    console.log(`\n🔍 Checking if ${packageInfo.name}@${packageInfo.version} already exists...`);
-    
-    if (checkVersionExists(packageInfo.name, packageInfo.version)) {
-      console.log(`\n⚠️  Package ${packageInfo.name}@${packageInfo.version} already exists on npm.`);
-      console.log(`   In a real publish, this would require a version bump.`);
-    } else {
-      console.log(`✅ Version ${packageInfo.version} is available for publishing.`);
-    }
-  }
-  
-  // Test publish using dry-run and pack
-  run(`cd publish && npm publish ${publishTag} --access public --dry-run`, `Testing publish to npm${env === 'beta' ? ' (beta)' : ''} (dry-run)`);
-  run(`cd publish && npm pack`, 'Creating package tarball');
 }
 
 function publishAllPackages(env, dryRun = false) {
@@ -314,11 +267,7 @@ function publishAllPackages(env, dryRun = false) {
     console.log(`\n📦 ${dryRun ? 'Testing' : 'Publishing'} ${configName}...`);
     
     try {
-      if (dryRun) {
-        testPublishSinglePackage(config, env);
-      } else {
-        publishSinglePackage(config, env);
-      }
+      handlePackagePublish(config, env, { dryRun });
       console.log(`✅ Successfully ${dryRun ? 'tested' : 'published'} ${configName}`);
       results.push({ config: configName, status: 'success' });
     } catch (error) {
