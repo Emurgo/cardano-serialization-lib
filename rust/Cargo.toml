@@ -19,6 +19,7 @@ arbitrary-precision-json = ["serde_json/arbitrary_precision"]
 property-test-api = []
 generic-serialization = []
 with-bench = []
+dont-expose-wasm = []
 
 [lib]
 crate-type = ["cdylib", "rlib"]
