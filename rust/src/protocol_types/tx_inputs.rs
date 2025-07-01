@@ -3,14 +3,14 @@ use itertools::Itertools;
 use std::hash::{Hash, Hasher};
 use std::iter::Map;
 use std::ops::Deref;
-use std::rc::Rc;
 use std::slice;
+use std::sync::Arc;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct TransactionInputs {
-    pub(crate) inputs: Vec<Rc<TransactionInput>>,
-    pub(crate) dedup: BTreeSet<Rc<TransactionInput>>,
+    pub(crate) inputs: Vec<Arc<TransactionInput>>,
+    pub(crate) dedup: BTreeSet<Arc<TransactionInput>>,
     pub(crate) cbor_set_type: CborSetType,
 }
 
@@ -33,8 +33,8 @@ impl TransactionInputs {
     }
 
     pub(crate) fn new_from_prepared_fields(
-        inputs: Vec<Rc<TransactionInput>>,
-        dedup: BTreeSet<Rc<TransactionInput>>,
+        inputs: Vec<Arc<TransactionInput>>,
+        dedup: BTreeSet<Arc<TransactionInput>>,
     ) -> Self {
         Self {
             inputs,
@@ -54,7 +54,7 @@ impl TransactionInputs {
     /// Add a new `TransactionInput` to the set.
     /// Returns `true` if the element was not already present in the set.
     pub fn add(&mut self, input: &TransactionInput) -> bool {
-        let input_rc = Rc::new(input.clone());
+        let input_rc = Arc::new(input.clone());
         if self.dedup.insert(input_rc.clone()) {
             self.inputs.push(input_rc.clone());
             true
@@ -80,7 +80,7 @@ impl TransactionInputs {
         let mut dedup = BTreeSet::new();
         let mut inputs = Vec::new();
         for input in inputs_vec {
-            let input_rc = Rc::new(input.clone());
+            let input_rc = Arc::new(input.clone());
             if dedup.insert(input_rc.clone()) {
                 inputs.push(input_rc);
             }
@@ -101,8 +101,8 @@ impl TransactionInputs {
 impl<'a> IntoIterator for &'a TransactionInputs {
     type Item = &'a TransactionInput;
     type IntoIter = Map<
-        slice::Iter<'a, Rc<TransactionInput>>,
-        fn(&'a Rc<TransactionInput>) -> &'a TransactionInput,
+        slice::Iter<'a, Arc<TransactionInput>>,
+        fn(&'a Arc<TransactionInput>) -> &'a TransactionInput,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
