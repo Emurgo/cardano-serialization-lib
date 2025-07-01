@@ -114,7 +114,7 @@ macro_rules! to_from_json {
                     .map_err(|e| JsError::from_str(&format!("to_json: {}", e)))
             }
 
-            #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+            #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten"), not(feature = "dont-expose-wasm")))]
             pub fn to_js_value(&self) -> Result<JsValue, JsError> {
                 let mut serializer = serde_wasm_bindgen::Serializer::json_compatible();
                 serde::Serialize::serialize(self, &serializer)
