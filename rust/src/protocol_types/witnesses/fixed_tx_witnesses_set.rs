@@ -84,13 +84,13 @@ impl FixedTxWitnessesSet {
         buf.finalize()
     }
 
-    #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+    #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"), feature = "dont-expose-wasm")))]
     pub fn from_bytes(data: Vec<u8>) -> Result<FixedTxWitnessesSet, DeserializeError> {
         let mut raw = Deserializer::from(std::io::Cursor::new(data));
         Self::deserialize(&mut raw)
     }
 
-    #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+    #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten"), not(feature = "dont-expose-wasm")))]
     pub fn from_bytes(data: Vec<u8>) -> Result<FixedTxWitnessesSet, JsError> {
         let mut raw = Deserializer::from(std::io::Cursor::new(data));
         Ok(Self::deserialize(&mut raw)?)
