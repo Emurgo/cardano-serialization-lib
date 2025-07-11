@@ -9,7 +9,7 @@ macro_rules! from_bytes {
     // Custom from_bytes() code
     ($name:ident, $data: ident, $body:block) => {
         // wasm-exposed JsError return - JsError panics when used outside wasm
-        #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+        #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten"), not(feature = "dont-expose-wasm")))]
         #[wasm_bindgen]
         impl $name {
             pub fn from_bytes($data: Vec<u8>) -> Result<$name, JsError> {
@@ -17,7 +17,7 @@ macro_rules! from_bytes {
             }
         }
         // non-wasm exposed DeserializeError return
-        #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+        #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"), not(feature = "dont-expose-wasm"))))]
         impl $name {
             pub fn from_bytes($data: Vec<u8>) -> Result<$name, DeserializeError> $body
         }
@@ -54,7 +54,7 @@ macro_rules! from_hex {
     // Custom from_bytes() code
     ($name:ident, $data: ident, $body:block) => {
         // wasm-exposed JsError return - JsError panics when used outside wasm
-        #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+        #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten"), not(feature = "dont-expose-wasm")))]
         #[wasm_bindgen]
         impl $name {
             pub fn from_hex($data: &str) -> Result<$name, JsError> {
@@ -66,7 +66,7 @@ macro_rules! from_hex {
             }
         }
         // non-wasm exposed DeserializeError return
-        #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+        #[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"), not(feature = "dont-expose-wasm"))))]
         impl $name {
             pub fn from_hex($data: &str) -> Result<$name, DeserializeError> $body
         }
@@ -114,9 +114,10 @@ macro_rules! to_from_json {
                     .map_err(|e| JsError::from_str(&format!("to_json: {}", e)))
             }
 
-            #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+            #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten"), not(feature = "dont-expose-wasm")))]
             pub fn to_js_value(&self) -> Result<JsValue, JsError> {
-                serde_wasm_bindgen::to_value(&self)
+                let serializer = serde_wasm_bindgen::Serializer::json_compatible();
+                serde::Serialize::serialize(self, &serializer)
                     .map_err(|e| JsError::from_str(&format!("to_js_value: {}", e)))
             }
 

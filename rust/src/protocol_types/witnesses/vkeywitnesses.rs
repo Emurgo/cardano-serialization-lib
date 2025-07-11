@@ -1,9 +1,9 @@
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::rc::Rc;
 use std::slice;
 use std::iter::Map;
 use std::collections::HashSet;
+use std::sync::Arc;
 use itertools::Itertools;
 use schemars::JsonSchema;
 use crate::*;
@@ -14,8 +14,8 @@ use crate::*;
     Debug,
 )]
 pub struct Vkeywitnesses {
-    witnesses: Vec<Rc<Vkeywitness>>,
-    dedup: HashSet<Rc<Vkeywitness>>,
+    witnesses: Vec<Arc<Vkeywitness>>,
+    dedup: HashSet<Arc<Vkeywitness>>,
     cbor_set_type: CborSetType,
     force_original_cbor_set_type: bool,
 }
@@ -40,8 +40,8 @@ impl Vkeywitnesses {
     }
 
     pub(crate) fn new_from_prepared_fields(
-        witnesses: Vec<Rc<Vkeywitness>>,
-        dedup: HashSet<Rc<Vkeywitness>>,
+        witnesses: Vec<Arc<Vkeywitness>>,
+        dedup: HashSet<Arc<Vkeywitness>>,
     ) -> Self {
         Self {
             witnesses,
@@ -62,7 +62,7 @@ impl Vkeywitnesses {
     /// Add a new `Vkeywitness` to the set.
     /// Returns `true` if the element was not already present in the set.
     pub fn add(&mut self, witness: &Vkeywitness) -> bool {
-        let witness_rc = Rc::new(witness.clone());
+        let witness_rc = Arc::new(witness.clone());
         if self.dedup.insert(witness_rc.clone()) {
             self.witnesses.push(witness_rc.clone());
             true
@@ -72,7 +72,7 @@ impl Vkeywitnesses {
     }
 
     pub(crate) fn add_move(&mut self, witness: Vkeywitness) {
-        let witness_rc = Rc::new(witness);
+        let witness_rc = Arc::new(witness);
         if self.dedup.insert(witness_rc.clone()) {
             self.witnesses.push(witness_rc);
         }
@@ -82,7 +82,7 @@ impl Vkeywitnesses {
         let mut dedup = HashSet::new();
         let mut witnesses = Vec::new();
         for witness in vec {
-            let witness_rc = Rc::new(witness.clone());
+            let witness_rc = Arc::new(witness.clone());
             if dedup.insert(witness_rc.clone()) {
                 witnesses.push(witness_rc);
             }
@@ -115,8 +115,8 @@ impl Vkeywitnesses {
 impl<'a> IntoIterator for &'a Vkeywitnesses {
     type Item = &'a Vkeywitness;
     type IntoIter = Map<
-        slice::Iter<'a, Rc<Vkeywitness>>,
-        fn(&'a Rc<Vkeywitness>) -> &'a Vkeywitness,
+        slice::Iter<'a, Arc<Vkeywitness>>,
+        fn(&'a Arc<Vkeywitness>) -> &'a Vkeywitness,
     >;
 
     fn into_iter(self) -> Self::IntoIter {

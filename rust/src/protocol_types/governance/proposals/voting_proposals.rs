@@ -1,10 +1,10 @@
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::rc::Rc;
 use std::slice;
 use std::iter::Map;
 use std::collections::HashSet;
 use std::cmp::Ordering;
+use std::sync::Arc;
 use itertools::Itertools;
 use schemars::JsonSchema;
 use crate::*;
@@ -15,8 +15,8 @@ use crate::*;
     Debug,
 )]
 pub struct VotingProposals {
-    proposals: Vec<Rc<VotingProposal>>,
-    dedup: HashSet<Rc<VotingProposal>>,
+    proposals: Vec<Arc<VotingProposal>>,
+    dedup: HashSet<Arc<VotingProposal>>,
     cbor_set_type: CborSetType,
 }
 
@@ -39,8 +39,8 @@ impl VotingProposals {
     }
 
     pub(crate) fn new_from_prepared_fields(
-        proposals: Vec<Rc<VotingProposal>>,
-        dedup: HashSet<Rc<VotingProposal>>,
+        proposals: Vec<Arc<VotingProposal>>,
+        dedup: HashSet<Arc<VotingProposal>>,
     ) -> Self {
         Self {
             proposals,
@@ -60,7 +60,7 @@ impl VotingProposals {
     /// Add a new `VotingProposal` to the set.
     /// Returns `true` if the element was not already present in the set.
     pub fn add(&mut self, proposal: &VotingProposal) -> bool {
-        let proposal_rc = Rc::new(proposal.clone());
+        let proposal_rc = Arc::new(proposal.clone());
         if self.dedup.insert(proposal_rc.clone()) {
             self.proposals.push(proposal_rc.clone());
             true
@@ -85,7 +85,7 @@ impl VotingProposals {
         let mut dedup = HashSet::new();
         let mut proposals = Vec::new();
         for proposal in proposal_vec {
-            let proposal_rc = Rc::new(proposal.clone());
+            let proposal_rc = Arc::new(proposal.clone());
             if dedup.insert(proposal_rc.clone()) {
                 proposals.push(proposal_rc);
             }
@@ -105,8 +105,8 @@ impl VotingProposals {
 impl<'a> IntoIterator for &'a VotingProposals {
     type Item = &'a VotingProposal;
     type IntoIter = Map<
-        slice::Iter<'a, Rc<VotingProposal>>,
-        fn(&'a Rc<VotingProposal>) -> &'a VotingProposal,
+        slice::Iter<'a, Arc<VotingProposal>>,
+        fn(&'a Arc<VotingProposal>) -> &'a VotingProposal,
     >;
 
     fn into_iter(self) -> Self::IntoIter {
