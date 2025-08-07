@@ -9,9 +9,12 @@ pub(crate) fn variable_nat_decode(bytes: &[u8]) -> Option<(u64, usize)> {
     let mut output = 0u128;
     let mut bytes_read = 0;
     for byte in bytes {
-        output = (output << 7) | (byte & 0x7F) as u128;
+        if output < u64::MAX.into() {
+            output = (output << 7) | (byte & 0x7F) as u128;
+        }
+        //Since Conway era forbids pointer addresses, technically such large numbers would not make sense on mainnet
         if output > u64::MAX.into() {
-            return None;
+            output = u64::MAX.into();
         }
         bytes_read += 1;
         if (byte & 0x80) == 0 {
@@ -399,7 +402,10 @@ impl Address {
     fn from_bytes_impl_unsafe(data: &[u8]) -> Address {
         match Self::from_bytes_internal_impl(data, true) {
             Ok(addr) => addr,
-            Err(_) => Address(AddrType::Malformed(MalformedAddress(data.to_vec())))
+            Err(err) => {
+                println!("Address deserialization error: {:?}", err);
+                return Address(AddrType::Malformed(MalformedAddress(data.to_vec())));
+            }
         }
     }
 
