@@ -5,15 +5,18 @@ use ed25519_bip32::XPub;
 
 // returns (Number represented, bytes read) if valid encoding
 // or None if decoding prematurely finished
-pub(crate) fn variable_nat_decode(bytes: &[u8]) -> Option<(u64, usize)> {
+pub(crate) fn variable_nat_decode(bytes: &[u8], fallback_to_max: bool) -> Option<(u64, usize)> {
     let mut output = 0u128;
     let mut bytes_read = 0;
     for byte in bytes {
-        if output < u64::MAX.into() {
+        if output < u64::MAX.into() || !fallback_to_max {
             output = (output << 7) | (byte & 0x7F) as u128;
         }
         //Since Conway era forbids pointer addresses, technically such large numbers would not make sense on mainnet
-        if output > u64::MAX.into() {
+        if output > u64::MAX.into(){
+            if !fallback_to_max {
+                return None;
+            }
             output = u64::MAX.into();
         }
         bytes_read += 1;
@@ -546,19 +549,19 @@ impl Address {
 
     fn decode_pointer(data: &[u8]) -> Result<(Pointer, usize), DeserializeError> {
         let mut offset = 0;
-        let (slot, slot_bytes) = variable_nat_decode(&data).ok_or(DeserializeError::new(
+        let (slot, slot_bytes) = variable_nat_decode(&data, true).ok_or(DeserializeError::new(
             "Address.Pointer.slot",
             DeserializeFailure::VariableLenNatDecodeFailed,
         ))?;
         offset += slot_bytes;
         let (tx_index, tx_bytes) =
-            variable_nat_decode(&data[offset..]).ok_or(DeserializeError::new(
+            variable_nat_decode(&data[offset..], true).ok_or(DeserializeError::new(
                 "Address.Pointer.tx_index",
                 DeserializeFailure::VariableLenNatDecodeFailed,
             ))?;
         offset += tx_bytes;
         let (cert_index, cert_bytes) =
-            variable_nat_decode(&data[offset..]).ok_or(DeserializeError::new(
+            variable_nat_decode(&data[offset..], true).ok_or(DeserializeError::new(
                 "Address.Pointer.cert_index",
                 DeserializeFailure::VariableLenNatDecodeFailed,
             ))?;

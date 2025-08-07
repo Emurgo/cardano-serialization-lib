@@ -7,7 +7,7 @@ fn variable_nat_encoding() {
     let cases = [0u64, 127u64, 128u64, 255u64, 256275757658493284u64];
     for case in cases.iter() {
         let encoded = variable_nat_encode(*case);
-        let decoded = variable_nat_decode(&encoded).unwrap().0;
+        let decoded = variable_nat_decode(&encoded, true).unwrap().0;
         assert_eq!(*case, decoded);
     }
 }
@@ -15,7 +15,13 @@ fn variable_nat_encoding() {
 #[test]
 fn variable_nat_decode_too_big() {
     let too_big = [129, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127];
-    assert_eq!(None, variable_nat_decode(&too_big));
+    assert_eq!(None, variable_nat_decode(&too_big, false));
+}
+
+#[test]
+fn variable_nat_decode_too_big_fallback() {
+    let too_big = [129, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127];
+    assert_eq!(Some((u64::MAX, 11usize)), variable_nat_decode(&too_big, true));
 }
 
 #[test]
