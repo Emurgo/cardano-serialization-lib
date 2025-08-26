@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::rc::Rc;
+use std::sync::Arc;
 use itertools::Itertools;
 use crate::*;
 
@@ -11,8 +11,8 @@ use crate::*;
     Debug,
 )]
 pub struct Credentials {
-    pub(crate) credentials: Vec<Rc<Credential>>,
-    pub(crate) dedup: HashSet<Rc<Credential>>,
+    pub(crate) credentials: Vec<Arc<Credential>>,
+    pub(crate) dedup: HashSet<Arc<Credential>>,
     pub(crate) cbor_set_type: CborSetType,
 }
 
@@ -29,8 +29,8 @@ impl Credentials {
     }
 
     pub(crate) fn new_from_prepared_fields(
-        credentials: Vec<Rc<Credential>>,
-        dedup: HashSet<Rc<Credential>>,
+        credentials: Vec<Arc<Credential>>,
+        dedup: HashSet<Arc<Credential>>,
     ) -> Self {
         Self {
             credentials,
@@ -50,7 +50,7 @@ impl Credentials {
     /// Add a new `Credential` to the set.
     /// Returns `true` if the element was not already present in the set.
     pub fn add(&mut self,credential: &Credential) -> bool {
-        let credential_rc = Rc::new(credential.clone());
+        let credential_rc = Arc::new(credential.clone());
         if self.dedup.insert(credential_rc.clone()) {
             self.credentials.push(credential_rc);
             true
@@ -60,7 +60,7 @@ impl Credentials {
     }
 
     pub(crate) fn add_move(&mut self, credential: Credential) {
-        let credential_rc = Rc::new(credential);
+        let credential_rc = Arc::new(credential);
         if self.dedup.insert(credential_rc.clone()) {
             self.credentials.push(credential_rc);
         }
@@ -75,7 +75,7 @@ impl Credentials {
         let mut dedup = HashSet::new();
         let mut credentials = Vec::new();
         for elem in vec {
-            let elem_rc = Rc::new(elem);
+            let elem_rc = Arc::new(elem);
             if dedup.insert(elem_rc.clone()) {
                 credentials.push(elem_rc);
             }
@@ -87,7 +87,7 @@ impl Credentials {
         let mut dedup = HashSet::new();
         let mut credentials = Vec::new();
         for elem in iter {
-            let elem_rc = Rc::new(elem);
+            let elem_rc = Arc::new(elem);
             if dedup.insert(elem_rc.clone()) {
                 credentials.push(elem_rc);
             }

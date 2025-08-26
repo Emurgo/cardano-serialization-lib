@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use crate::*;
-use hashlink::LinkedHashMap;
 
 #[wasm_bindgen]
 #[derive(Clone, Debug)]

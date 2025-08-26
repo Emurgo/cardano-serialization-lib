@@ -19,6 +19,12 @@ if (process.argv.slice(2)[0] === '-browser' || process.argv.slice(2)[0] === '-as
     oldPkg.files.push(missingFile);
   }
 }
+if (process.argv.slice(2)[0] === '-browser-inlined' || process.argv.slice(2)[0] === '-asmjs') {
+  const indexWasm = oldPkg.files.indexOf('cardano_serialization_lib_bg.wasm');
+  if (indexWasm !== -1) oldPkg.files.splice(indexWasm, 1);
+  const indexWasmDts = oldPkg.files.indexOf('cardano_serialization_lib_bg.wasm.d.ts');
+  if (indexWasmDts !== -1) oldPkg.files.splice(indexWasmDts, 1);
+}
 if (process.argv.slice(2)[0] === '-asmjs') {
   // need to replace WASM with ASM package 
   const missingFile = 'cardano_serialization_lib_bg.wasm';

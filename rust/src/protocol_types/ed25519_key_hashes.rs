@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::rc::Rc;
 use std::slice;
 use std::iter::Map;
+use std::sync::Arc;
 use itertools::Itertools;
 pub use crate::*;
 
@@ -15,8 +15,8 @@ pub type RequiredSigners = Ed25519KeyHashes;
     Debug,
 )]
 pub struct Ed25519KeyHashes {
-    keyhashes: Vec<Rc<Ed25519KeyHash>>,
-    dedup: HashSet<Rc<Ed25519KeyHash>>,
+    keyhashes: Vec<Arc<Ed25519KeyHash>>,
+    dedup: HashSet<Arc<Ed25519KeyHash>>,
     cbor_set_type: CborSetType,
 }
 
@@ -33,8 +33,8 @@ impl Ed25519KeyHashes {
     }
 
     pub(crate) fn new_from_prepared_fields(
-        keyhashes: Vec<Rc<Ed25519KeyHash>>,
-        dedup: HashSet<Rc<Ed25519KeyHash>>,
+        keyhashes: Vec<Arc<Ed25519KeyHash>>,
+        dedup: HashSet<Arc<Ed25519KeyHash>>,
     ) -> Self {
         Self {
             keyhashes,
@@ -54,7 +54,7 @@ impl Ed25519KeyHashes {
     /// Add a new `Ed25519KeyHash` to the set.
     /// Returns `true` if the element was not already present in the set.
     pub fn add(&mut self, keyhash: &Ed25519KeyHash) -> bool {
-        let keyhash_rc = Rc::new(keyhash.clone());
+        let keyhash_rc = Arc::new(keyhash.clone());
         if self.dedup.insert(keyhash_rc.clone()) {
             self.keyhashes.push(keyhash_rc.clone());
             true
@@ -76,7 +76,7 @@ impl Ed25519KeyHashes {
     }
 
     pub(crate) fn add_move(&mut self, keyhash: Ed25519KeyHash) {
-        let keyhash_rc = Rc::new(keyhash);
+        let keyhash_rc = Arc::new(keyhash);
         if self.dedup.insert(keyhash_rc.clone()) {
             self.keyhashes.push(keyhash_rc);
         }
@@ -100,7 +100,7 @@ impl Ed25519KeyHashes {
         let mut dedup = HashSet::new();
         let mut keyhashes = Vec::new();
         for keyhash in keyhash_vec {
-            let keyhash_rc = Rc::new(keyhash.clone());
+            let keyhash_rc = Arc::new(keyhash.clone());
             if dedup.insert(keyhash_rc.clone()) {
                 keyhashes.push(keyhash_rc);
             }
@@ -121,8 +121,8 @@ impl Ed25519KeyHashes {
 impl<'a> IntoIterator for &'a Ed25519KeyHashes {
     type Item = &'a Ed25519KeyHash;
     type IntoIter = Map<
-        slice::Iter<'a, Rc<Ed25519KeyHash>>,
-        fn(&'a Rc<Ed25519KeyHash>) -> &'a Ed25519KeyHash,
+        slice::Iter<'a, Arc<Ed25519KeyHash>>,
+        fn(&'a Arc<Ed25519KeyHash>) -> &'a Ed25519KeyHash,
     >;
 
     fn into_iter(self) -> Self::IntoIter {

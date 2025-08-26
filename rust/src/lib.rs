@@ -24,10 +24,10 @@ extern crate num_derive;
 use std::convert::TryInto;
 use std::io::{BufRead, Seek, Write};
 
-#[cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))]
+#[cfg(any(not(all(target_arch = "wasm32", not(target_os = "emscripten"))), feature = "dont-expose-wasm"))]
 use noop_proc_macro::wasm_bindgen;
 
-#[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+#[cfg(all(target_arch = "wasm32", not(target_os = "emscripten"), not(feature = "dont-expose-wasm")))]
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
 // This file was code-generated using an experimental CDDL to rust tool:
@@ -841,6 +841,7 @@ impl Withdrawals {
         )
     }
 
+    #[allow(dead_code)]
     pub(crate) fn as_vec(&self) -> Vec<(&RewardAddress, &Coin)> {
         self.0.iter().collect()
     }
