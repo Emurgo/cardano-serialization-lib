@@ -58,3 +58,6 @@ pub use script_ref::*;
 
 mod block;
 pub use block::*;
+
+mod pointer;
+pub use pointer::*;

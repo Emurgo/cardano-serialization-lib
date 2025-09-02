@@ -3,41 +3,6 @@ use crate::*;
 use bech32::ToBase32;
 use ed25519_bip32::XPub;
 
-// returns (Number represented, bytes read) if valid encoding
-// or None if decoding prematurely finished
-pub(crate) fn variable_nat_decode(bytes: &[u8], fallback_to_max: bool) -> Option<(u64, usize)> {
-    let mut output = 0u128;
-    let mut bytes_read = 0;
-    for byte in bytes {
-        if output < u64::MAX.into() || !fallback_to_max {
-            output = (output << 7) | (byte & 0x7F) as u128;
-        }
-        //Since Conway era forbids pointer addresses, technically such large numbers would not make sense on mainnet
-        if output > u64::MAX.into(){
-            if !fallback_to_max {
-                return None;
-            }
-            output = u64::MAX.into();
-        }
-        bytes_read += 1;
-        if (byte & 0x80) == 0 {
-            return Some((output as u64, bytes_read));
-        }
-    }
-    None
-}
-
-pub(crate) fn variable_nat_encode(mut num: u64) -> Vec<u8> {
-    let mut output = vec![num as u8 & 0x7F];
-    num /= 128;
-    while num > 0 {
-        output.push((num & 0x7F) as u8 | 0x80);
-        num /= 128;
-    }
-    output.reverse();
-    output
-}
-
 #[wasm_bindgen]
 #[derive(Debug, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum AddressKind {
@@ -375,9 +340,7 @@ impl Address {
                     0b0100_0000 | ((ptr.payment.kind() as u8) << 4) | (ptr.network & 0xF);
                 buf.push(header);
                 buf.extend(ptr.payment.to_raw_bytes());
-                buf.extend(variable_nat_encode(ptr.stake.slot.into()));
-                buf.extend(variable_nat_encode(ptr.stake.tx_index.into()));
-                buf.extend(variable_nat_encode(ptr.stake.cert_index.into()));
+                buf.extend(ptr.stake.to_bytes());
             }
             AddrType::Enterprise(enterprise) => {
                 let header: u8 = 0b0110_0000
@@ -479,7 +442,7 @@ impl Address {
                         let mut byte_index = 1;
                         let payment_cred = read_addr_cred(4, 1);
                         byte_index += HASH_LEN;
-                        match Self::decode_pointer(&data[byte_index..]) {
+                        match Pointer::from_bytes(&data[byte_index..]) {
                             Ok((pointer, offset)) => {
                                 byte_index += offset;
                                 if byte_index < data.len() && !ignore_leftover_bytes {
@@ -545,35 +508,6 @@ impl Address {
             Ok(Address(addr?))
         })()
         .map_err(|e| e.annotate("Address"))
-    }
-
-    fn decode_pointer(data: &[u8]) -> Result<(Pointer, usize), DeserializeError> {
-        let mut offset = 0;
-        let (slot, slot_bytes) = variable_nat_decode(&data, true).ok_or(DeserializeError::new(
-            "Address.Pointer.slot",
-            DeserializeFailure::VariableLenNatDecodeFailed,
-        ))?;
-        offset += slot_bytes;
-        let (tx_index, tx_bytes) =
-            variable_nat_decode(&data[offset..], true).ok_or(DeserializeError::new(
-                "Address.Pointer.tx_index",
-                DeserializeFailure::VariableLenNatDecodeFailed,
-            ))?;
-        offset += tx_bytes;
-        let (cert_index, cert_bytes) =
-            variable_nat_decode(&data[offset..], true).ok_or(DeserializeError::new(
-                "Address.Pointer.cert_index",
-                DeserializeFailure::VariableLenNatDecodeFailed,
-            ))?;
-        offset += cert_bytes;
-        Ok((
-            Pointer::new_pointer(
-                &slot.into(),
-                &tx_index.into(),
-                &cert_index.into(),
-            ),
-            offset,
-        ))
     }
 
     pub fn to_bech32(&self, prefix: Option<String>) -> Result<String, JsError> {
@@ -814,64 +748,6 @@ impl Deserialize for RewardAddress {
             }
         })()
         .map_err(|e| e.annotate("RewardAddress"))
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Pointer {
-    pub(crate) slot: BigNum,
-    pub(crate) tx_index: BigNum,
-    pub(crate) cert_index: BigNum,
-}
-
-#[wasm_bindgen]
-impl Pointer {
-    /// !!! DEPRECATED !!!
-    /// This constructor uses outdated slot number format for the ttl value, tx_index and cert_index.
-    /// Use `.new_pointer` instead
-    #[deprecated(
-        since = "10.1.0",
-        note = "Underlying value capacity of ttl (BigNum u64) bigger then Slot32. Use new_pointer instead."
-    )]
-    pub fn new(slot: Slot32, tx_index: TransactionIndex, cert_index: CertificateIndex) -> Self {
-        Self {
-            slot: slot.into(),
-            tx_index: tx_index.into(),
-            cert_index: cert_index.into(),
-        }
-    }
-
-    pub fn new_pointer(slot: &SlotBigNum, tx_index: &BigNum, cert_index: &BigNum) -> Self {
-        Self {
-            slot: slot.clone(),
-            tx_index: tx_index.clone(),
-            cert_index: cert_index.clone(),
-        }
-    }
-
-    pub fn slot(&self) -> Result<u32, JsError> {
-        self.slot.clone().try_into()
-    }
-
-    pub fn tx_index(&self) -> Result<u32, JsError> {
-        self.tx_index.clone().try_into()
-    }
-
-    pub fn cert_index(&self) -> Result<u32, JsError> {
-        self.cert_index.clone().try_into()
-    }
-
-    pub fn slot_bignum(&self) -> BigNum {
-        self.slot.clone()
-    }
-
-    pub fn tx_index_bignum(&self) -> BigNum {
-        self.tx_index.clone()
-    }
-
-    pub fn cert_index_bignum(&self) -> BigNum {
-        self.cert_index.clone()
     }
 }
 
