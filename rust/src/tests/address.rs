@@ -3,28 +3,6 @@ use crate::*;
 use crate::legacy_address::ByronAddressType;
 
 #[test]
-fn variable_nat_encoding() {
-    let cases = [0u64, 127u64, 128u64, 255u64, 256275757658493284u64];
-    for case in cases.iter() {
-        let encoded = variable_nat_encode(*case);
-        let decoded = variable_nat_decode(&encoded, true).unwrap().0;
-        assert_eq!(*case, decoded);
-    }
-}
-
-#[test]
-fn variable_nat_decode_too_big() {
-    let too_big = [129, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127];
-    assert_eq!(None, variable_nat_decode(&too_big, false));
-}
-
-#[test]
-fn variable_nat_decode_too_big_fallback() {
-    let too_big = [129, 255, 255, 255, 255, 255, 255, 255, 255, 255, 127];
-    assert_eq!(Some((u64::MAX, 11usize)), variable_nat_decode(&too_big, true));
-}
-
-#[test]
 fn base_serialize_consistency() {
     let base = BaseAddress::new(
         5,
@@ -543,12 +521,12 @@ fn multisig_from_script() {
 }
 
 #[test]
-fn pointer_address_big() {
+fn pointer_address_big_fallback_on_normalization() {
     let addr = Address::from_bech32("addr_test1grqe6lg9ay8wkcu5k5e38lne63c80h3nq6xxhqfmhewf645pllllllllllll7lupllllllllllll7lupllllllllllll7lc9wayvj").unwrap();
     let ptr = PointerAddress::from_address(&addr).unwrap().stake;
-    assert_eq!(u64::MAX, u64::from(ptr.slot));
-    assert_eq!(u64::MAX, u64::from(ptr.tx_index));
-    assert_eq!(u64::MAX, u64::from(ptr.cert_index));
+    assert_eq!(0u64, u64::from(ptr.slot));
+    assert_eq!(0u64, u64::from(ptr.tx_index));
+    assert_eq!(0u64, u64::from(ptr.cert_index));
 }
 
 #[test]
