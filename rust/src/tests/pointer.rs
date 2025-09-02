@@ -38,7 +38,7 @@ fn test_overflow_normalization() {
 
 #[test]
 fn test_overflow_without_normalization() {
-    // Create data with very large numbers that should not trigger normalization bacuase after u64 overflow it would be less than u32::MAX
+    // Create data with very large numbers that should not trigger normalization because after u64 overflow it would be less than u32::MAX
     let garbage_data = vec![
         0xFF, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7F, // Huge number
         0x64, // 100
