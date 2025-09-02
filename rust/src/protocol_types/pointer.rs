@@ -99,7 +99,7 @@ fn analyze_and_convert(slot_no: u64, tx_ix: u64, cert_ix: u64) -> Pointer {
     let needs_normalization =
         slot_no > u32::MAX as u64 || tx_ix > u16::MAX as u64 || cert_ix > u16::MAX as u64;
 
-    // Normalization is (0,0,0). Ha-ha-ha. 
+    // If any value exceeds its allowed maximum, normalization sets the pointer to (0,0,0) to indicate an invalid or out-of-range pointer.
     if needs_normalization {
             Pointer {
                 slot: 0u64.into(),
