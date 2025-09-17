@@ -1,6 +1,6 @@
 {
   "name": "cardano-serialization-lib",
-  "version": "15.0.1",
+  "version": "15.0.2-beta.1",
   "description": "(De)serialization functions for the Cardano blockchain along with related utility functions",
   "scripts": {
     "publish-all:prod": "node scripts/build-helper.js publish-all --env prod",
