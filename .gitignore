@@ -1,6 +1,8 @@
 node_modules/
 publish/
 rust/target
+rust/bench/target
+tools/metadata-cddl-checker/target
 .vscode/
 .idea
 rust/.idea
