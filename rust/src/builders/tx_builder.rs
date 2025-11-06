@@ -1181,7 +1181,7 @@ impl TransactionBuilder {
         self.validity_start_interval = Some(validity_start_interval.into())
     }
 
-    pub fn set_validity_start_interval_bignum(&mut self, validity_start_interval: SlotBigNum) {
+    pub fn set_validity_start_interval_bignum(&mut self, validity_start_interval: &SlotBigNum) {
         self.validity_start_interval = Some(validity_start_interval.clone())
     }
 

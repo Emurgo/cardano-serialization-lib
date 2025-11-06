@@ -159,6 +159,12 @@ impl From<u32> for BigNum {
     }
 }
 
+impl From<u16> for BigNum {
+    fn from(value: u16) -> Self {
+        return BigNum(value.into());
+    }
+}
+
 impl From<u8> for BigNum {
     fn from(value: u8) -> Self {
         return BigNum(value.into());
