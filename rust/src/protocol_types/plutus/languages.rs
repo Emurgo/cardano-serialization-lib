@@ -28,3 +28,5 @@ impl Languages {
         Languages(vec![Language::new_plutus_v1(), Language::new_plutus_v2()])
     }
 }
+
+impl_vec_wrapper!(Languages, Language);

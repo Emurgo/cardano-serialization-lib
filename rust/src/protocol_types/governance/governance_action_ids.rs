@@ -35,3 +35,5 @@ impl GovernanceActionIds {
         self.0.len()
     }
 }
+
+impl_vec_wrapper!(GovernanceActionIds, GovernanceActionId);

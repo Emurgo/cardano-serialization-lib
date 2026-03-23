@@ -16,14 +16,7 @@ impl TransactionBatchList {
     }
 }
 
-impl<'a> IntoIterator for &'a TransactionBatchList {
-    type Item = &'a TransactionBatch;
-    type IntoIter = std::slice::Iter<'a, TransactionBatch>;
-
-    fn into_iter(self) -> std::slice::Iter<'a, TransactionBatch> {
-        self.0.iter()
-    }
-}
+impl_vec_wrapper!(TransactionBatchList, TransactionBatch);
 
 #[wasm_bindgen]
 #[derive(Clone)]

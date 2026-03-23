@@ -68,6 +68,8 @@ impl Relays {
     }
 }
 
+impl_vec_wrapper!(Relays, Relay);
+
 #[wasm_bindgen]
 #[derive(
     Clone,

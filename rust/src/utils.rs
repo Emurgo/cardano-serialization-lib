@@ -135,14 +135,7 @@ impl TransactionUnspentOutputs {
     }
 }
 
-impl<'a> IntoIterator for &'a TransactionUnspentOutputs {
-    type Item = &'a TransactionUnspentOutput;
-    type IntoIter = std::slice::Iter<'a, TransactionUnspentOutput>;
-
-    fn into_iter(self) -> std::slice::Iter<'a, TransactionUnspentOutput> {
-        self.0.iter()
-    }
-}
+impl_vec_wrapper!(TransactionUnspentOutputs, TransactionUnspentOutput);
 
 #[wasm_bindgen]
 #[derive(

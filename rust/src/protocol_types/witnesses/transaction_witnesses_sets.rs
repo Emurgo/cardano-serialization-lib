@@ -24,3 +24,5 @@ impl TransactionWitnessSets {
         self.0.push(elem.clone());
     }
 }
+
+impl_vec_wrapper!(TransactionWitnessSets, TransactionWitnessSet);

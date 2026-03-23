@@ -80,6 +80,54 @@ macro_rules! impl_num_ops {
     };
 }
 
+macro_rules! impl_vec_wrapper {
+    ($wrapper:ident, $item:ty) => {
+        impl<'a> std::iter::IntoIterator for &'a $wrapper {
+            type Item = &'a $item;
+            type IntoIter = std::slice::Iter<'a, $item>;
+
+            fn into_iter(self) -> std::slice::Iter<'a, $item> {
+                self.0.iter()
+            }
+        }
+
+        impl std::iter::IntoIterator for $wrapper {
+            type Item = $item;
+            type IntoIter = std::vec::IntoIter<$item>;
+
+            fn into_iter(self) -> std::vec::IntoIter<$item> {
+                self.0.into_iter()
+            }
+        }
+
+        impl std::iter::FromIterator<$item> for $wrapper {
+            fn from_iter<I: IntoIterator<Item = $item>>(iter: I) -> Self {
+                Self(iter.into_iter().collect())
+            }
+        }
+
+        impl std::iter::Extend<$item> for $wrapper {
+            fn extend<I: IntoIterator<Item = $item>>(&mut self, iter: I) {
+                self.0.extend(iter);
+            }
+        }
+
+        impl std::ops::Index<usize> for $wrapper {
+            type Output = $item;
+
+            fn index(&self, index: usize) -> &$item {
+                &self.0[index]
+            }
+        }
+
+        impl<const N: usize> std::convert::From<[$item; N]> for $wrapper {
+            fn from(slice: [$item; N]) -> $wrapper {
+                Self(Vec::from(slice))
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     mod impl_num {
@@ -159,6 +207,58 @@ mod tests {
         fn one() {
             use num_traits::One;
             assert_eq!(TestNum::one(), TestNum(1));
+        }
+    }
+
+    mod impl_vec_wrapper {
+        #[derive(Debug, PartialEq)]
+        struct TestWrapper(Vec<u32>);
+        impl_vec_wrapper!(TestWrapper, u32);
+
+        #[quickcheck]
+        fn uses_vec_into_iterator_owned(vec: Vec<u32>) {
+            assert_eq!(
+                TestWrapper(vec.clone()).into_iter().collect::<Vec<_>>(),
+                vec
+            );
+        }
+
+        #[quickcheck]
+        fn uses_vec_into_iterator_ref(vec: Vec<u32>) {
+            assert_eq!(
+                (&TestWrapper(vec.clone())).into_iter().collect::<Vec<_>>(),
+                vec.iter().collect::<Vec<_>>()
+            );
+        }
+
+        #[quickcheck]
+        fn uses_vec_from_iterator(vec: Vec<u32>) {
+            assert_eq!(
+                TestWrapper(vec.clone()),
+                vec.into_iter().collect::<TestWrapper>()
+            )
+        }
+
+        #[quickcheck]
+        fn uses_vec_extend(vec1: Vec<u32>, vec2: Vec<u32>) {
+            let mut wrapper = TestWrapper(vec1.clone());
+            wrapper.extend(vec2.iter().cloned());
+            assert_eq!(wrapper, TestWrapper([vec1, vec2].concat()))
+        }
+
+        #[quickcheck]
+        fn uses_vec_index(vec: Vec<u32>, index: usize) {
+            let len = vec.len();
+            if len != 0 {
+                assert_eq!(TestWrapper(vec.clone())[index % len], vec[index % len])
+            }
+        }
+
+        #[test]
+        fn uses_vec_from_slice() {
+            let mut arr = [0; 32];
+            arr.copy_from_slice(&(0..32).collect::<Vec<_>>());
+            assert_eq!(TestWrapper::from(arr.clone()), TestWrapper(arr.to_vec()))
         }
     }
 }

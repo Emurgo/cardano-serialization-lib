@@ -22,3 +22,5 @@ impl PublicKeys {
         self.0.push(key.clone());
     }
 }
+
+impl_vec_wrapper!(PublicKeys, PublicKey);
