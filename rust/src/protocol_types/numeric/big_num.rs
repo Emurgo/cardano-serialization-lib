@@ -15,6 +15,7 @@ pub type Coin = BigNum;
 impl_to_from!(BigNum);
 impl_num_from!(BigNum, u8, u16, u32, u64);
 impl_num_into!(BigNum, u64, u128, i128);
+impl_num_ops!(BigNum, u64);
 
 impl std::fmt::Display for BigNum {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

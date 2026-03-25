@@ -8,6 +8,7 @@ use crate::*;
 pub struct BigInt(pub(crate) num_bigint::BigInt);
 
 impl_to_from!(BigInt);
+impl_num_ops!(BigInt, num_bigint::BigInt);
 
 impl std::fmt::Display for BigInt {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
