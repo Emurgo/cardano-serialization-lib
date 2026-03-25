@@ -13,6 +13,8 @@ pub struct BigNum(pub(crate) u64);
 pub type Coin = BigNum;
 
 impl_to_from!(BigNum);
+impl_num_from!(BigNum, u8, u16, u32, u64);
+impl_num_into!(BigNum, u64, u128, i128);
 
 impl std::fmt::Display for BigNum {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -120,51 +122,15 @@ impl TryFrom<BigNum> for u32 {
     }
 }
 
-impl From<BigNum> for u64 {
-    fn from(value: BigNum) -> Self {
-        value.0
-    }
-}
-
-impl From<&BigNum> for u64 {
-    fn from(value: &BigNum) -> Self {
-        value.0
-    }
-}
-
 impl From<BigNum> for usize {
     fn from(value: BigNum) -> Self {
         value.0 as usize
     }
 }
 
-impl From<u64> for BigNum {
-    fn from(value: u64) -> Self {
-        return BigNum(value);
-    }
-}
-
 impl From<usize> for BigNum {
     fn from(value: usize) -> Self {
         return BigNum(value as u64);
-    }
-}
-
-impl From<u32> for BigNum {
-    fn from(value: u32) -> Self {
-        return BigNum(value.into());
-    }
-}
-
-impl From<u16> for BigNum {
-    fn from(value: u16) -> Self {
-        return BigNum(value.into());
-    }
-}
-
-impl From<u8> for BigNum {
-    fn from(value: u8) -> Self {
-        return BigNum(value.into());
     }
 }
 
