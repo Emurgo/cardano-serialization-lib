@@ -24,10 +24,7 @@ impl std::fmt::Display for BigNum {
 impl BigNum {
     // Create a BigNum from a standard rust string representation
     pub fn from_str(string: &str) -> Result<BigNum, JsError> {
-        string
-            .parse::<u64>()
-            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
-            .map(BigNum)
+        <Self as std::str::FromStr>::from_str(string)
     }
 
     // String representation of the BigNum value for use from environments that don't support BigInt
@@ -168,6 +165,16 @@ impl From<u16> for BigNum {
 impl From<u8> for BigNum {
     fn from(value: u8) -> Self {
         return BigNum(value.into());
+    }
+}
+
+impl std::str::FromStr for BigNum {
+    type Err = JsError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse::<u64>()
+            .map_err(|e| JsError::from_str(&format!("{:?}", e)))
+            .map(BigNum)
     }
 }
 

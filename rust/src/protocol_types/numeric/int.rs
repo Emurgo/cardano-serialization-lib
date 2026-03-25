@@ -2,7 +2,7 @@ use crate::*;
 
 // CBOR has int = uint / nint
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Int(pub(crate) i128);
 
 impl_to_from!(Int);
@@ -86,7 +86,21 @@ impl Int {
 
     // Create an Int from a standard rust string representation
     pub fn from_str(string: &str) -> Result<Int, JsError> {
-        let x = string
+        <Self as std::str::FromStr>::from_str(string)
+    }
+}
+
+impl std::fmt::Display for Int {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::str::FromStr for Int {
+    type Err = JsError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let x = s
             .parse::<i128>()
             .map_err(|e| JsError::from_str(&format! {"{:?}", e}))?;
         if x.abs() > u64::MAX as i128 {

@@ -9,6 +9,22 @@ pub struct BigInt(pub(crate) num_bigint::BigInt);
 
 impl_to_from!(BigInt);
 
+impl std::fmt::Display for BigInt {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::str::FromStr for BigInt {
+    type Err = JsError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse::<num_bigint::BigInt>()
+            .map_err(|e| JsError::from_str(&format!("{:?}", e)))
+            .map(Self)
+    }
+}
+
 impl serde::Serialize for BigInt {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
@@ -77,10 +93,7 @@ impl BigInt {
     }
 
     pub fn from_str(text: &str) -> Result<BigInt, JsError> {
-        use std::str::FromStr;
-        num_bigint::BigInt::from_str(text)
-            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
-            .map(Self)
+        <Self as std::str::FromStr>::from_str(text)
     }
 
     pub fn to_str(&self) -> String {
