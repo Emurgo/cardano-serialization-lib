@@ -8,7 +8,6 @@ pub struct Int(pub(crate) i128);
 impl_to_from!(Int);
 impl_num_from!(Int, i32, u32, i64, u64, BigNum);
 impl_num_into!(Int, i128);
-impl_num_ops!(Int, i128);
 
 #[wasm_bindgen]
 impl Int {
