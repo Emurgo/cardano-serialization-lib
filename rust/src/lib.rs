@@ -41,6 +41,8 @@ use cbor_event::{
     se::{Serialize, Serializer},
 };
 
+#[macro_use]
+mod macros;
 mod builders;
 pub use builders::*;
 pub mod chain_core;

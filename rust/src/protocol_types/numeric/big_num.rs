@@ -13,6 +13,9 @@ pub struct BigNum(pub(crate) u64);
 pub type Coin = BigNum;
 
 impl_to_from!(BigNum);
+impl_num_from!(BigNum, u8, u16, u32, u64);
+impl_num_into!(BigNum, u64, u128, i128);
+impl_num_ops!(BigNum, u64);
 
 impl std::fmt::Display for BigNum {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -24,10 +27,7 @@ impl std::fmt::Display for BigNum {
 impl BigNum {
     // Create a BigNum from a standard rust string representation
     pub fn from_str(string: &str) -> Result<BigNum, JsError> {
-        string
-            .parse::<u64>()
-            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))
-            .map(BigNum)
+        <Self as std::str::FromStr>::from_str(string)
     }
 
     // String representation of the BigNum value for use from environments that don't support BigInt
@@ -123,27 +123,9 @@ impl TryFrom<BigNum> for u32 {
     }
 }
 
-impl From<BigNum> for u64 {
-    fn from(value: BigNum) -> Self {
-        value.0
-    }
-}
-
-impl From<&BigNum> for u64 {
-    fn from(value: &BigNum) -> Self {
-        value.0
-    }
-}
-
 impl From<BigNum> for usize {
     fn from(value: BigNum) -> Self {
         value.0 as usize
-    }
-}
-
-impl From<u64> for BigNum {
-    fn from(value: u64) -> Self {
-        return BigNum(value);
     }
 }
 
@@ -153,21 +135,13 @@ impl From<usize> for BigNum {
     }
 }
 
-impl From<u32> for BigNum {
-    fn from(value: u32) -> Self {
-        return BigNum(value.into());
-    }
-}
+impl std::str::FromStr for BigNum {
+    type Err = JsError;
 
-impl From<u16> for BigNum {
-    fn from(value: u16) -> Self {
-        return BigNum(value.into());
-    }
-}
-
-impl From<u8> for BigNum {
-    fn from(value: u8) -> Self {
-        return BigNum(value.into());
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse::<u64>()
+            .map_err(|e| JsError::from_str(&format!("{:?}", e)))
+            .map(BigNum)
     }
 }
 

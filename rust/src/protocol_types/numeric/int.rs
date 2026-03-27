@@ -2,10 +2,12 @@ use crate::*;
 
 // CBOR has int = uint / nint
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Int(pub(crate) i128);
 
 impl_to_from!(Int);
+impl_num_from!(Int, i32, u32, i64, u64, BigNum);
+impl_num_into!(Int, i128);
 
 #[wasm_bindgen]
 impl Int {
@@ -86,9 +88,20 @@ impl Int {
 
     // Create an Int from a standard rust string representation
     pub fn from_str(string: &str) -> Result<Int, JsError> {
-        let x = string
-            .parse::<i128>()
-            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))?;
+        <Self as std::str::FromStr>::from_str(string)
+    }
+}
+
+impl std::fmt::Display for Int {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::convert::TryFrom<i128> for Int {
+    type Error = JsError;
+
+    fn try_from(x: i128) -> Result<Self, Self::Error> {
         if x.abs() > u64::MAX as i128 {
             return Err(JsError::from_str(&format!(
                 "{} out of bounds. Value (without sign) must fit within 4 bytes limit of {}",
@@ -97,6 +110,16 @@ impl Int {
             )));
         }
         Ok(Self(x))
+    }
+}
+
+impl std::str::FromStr for Int {
+    type Err = JsError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse::<i128>()
+            .map_err(|e| JsError::from_str(&format! {"{:?}", e}))?
+            .try_into()
     }
 }
 
