@@ -101,6 +101,8 @@ impl MetadataList {
     }
 }
 
+impl_vec_wrapper!(MetadataList, TransactionMetadatum);
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum TransactionMetadatumKind {
@@ -276,6 +278,8 @@ impl TransactionMetadatumLabels {
         self.0.push(elem.clone());
     }
 }
+
+impl_vec_wrapper!(TransactionMetadatumLabels, TransactionMetadatumLabel);
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]

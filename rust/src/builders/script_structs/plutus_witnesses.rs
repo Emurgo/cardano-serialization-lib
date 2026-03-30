@@ -57,6 +57,8 @@ impl PlutusWitnesses {
     }
 }
 
+impl_vec_wrapper!(PlutusWitnesses, PlutusWitness);
+
 impl From<Vec<PlutusWitness>> for PlutusWitnesses {
     fn from(scripts: Vec<PlutusWitness>) -> Self {
         Self(scripts)

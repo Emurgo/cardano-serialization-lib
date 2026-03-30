@@ -24,3 +24,5 @@ impl TransactionBodies {
         self.0.push(elem.clone());
     }
 }
+
+impl_vec_wrapper!(TransactionBodies, TransactionBody);

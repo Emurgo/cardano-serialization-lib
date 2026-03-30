@@ -201,14 +201,7 @@ impl TransactionOutputs {
     }
 }
 
-impl<'a> IntoIterator for &'a TransactionOutputs {
-    type Item = &'a TransactionOutput;
-    type IntoIter = std::slice::Iter<'a, TransactionOutput>;
-
-    fn into_iter(self) -> std::slice::Iter<'a, TransactionOutput> {
-        self.0.iter()
-    }
-}
+impl_vec_wrapper!(TransactionOutputs, TransactionOutput);
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -804,6 +797,8 @@ impl RewardAddresses {
     }
 }
 
+impl_vec_wrapper!(RewardAddresses, RewardAddress);
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Withdrawals(LinkedHashMap<RewardAddress, Coin>);
@@ -992,6 +987,8 @@ impl GenesisHashes {
     }
 }
 
+impl_vec_wrapper!(GenesisHashes, GenesisHash);
+
 #[wasm_bindgen]
 #[derive(
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
@@ -1018,6 +1015,8 @@ impl ScriptHashes {
         self.0.push(elem.clone());
     }
 }
+
+impl_vec_wrapper!(ScriptHashes, ScriptHash);
 
 #[wasm_bindgen]
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -1317,6 +1316,8 @@ impl AssetNames {
     }
 }
 
+impl_vec_wrapper!(AssetNames, AssetName);
+
 pub type PolicyID = ScriptHash;
 pub type PolicyIDs = ScriptHashes;
 
@@ -1540,6 +1541,8 @@ impl MintsAssets {
         self.0.len()
     }
 }
+
+impl_vec_wrapper!(MintsAssets, MintAssets);
 
 #[wasm_bindgen]
 #[derive(

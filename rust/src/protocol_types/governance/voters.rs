@@ -35,3 +35,5 @@ impl Voters {
         self.0.len()
     }
 }
+
+impl_vec_wrapper!(Voters, Voter);

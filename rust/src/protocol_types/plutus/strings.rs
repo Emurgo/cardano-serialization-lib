@@ -22,3 +22,5 @@ impl Strings {
         self.0.push(elem);
     }
 }
+
+impl_vec_wrapper!(Strings, String);
