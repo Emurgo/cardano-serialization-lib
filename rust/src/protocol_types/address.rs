@@ -56,7 +56,7 @@ impl NetworkInfo {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, Hash)]
+#[derive(Debug, Clone, Default, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct MalformedAddress(pub(crate) Vec<u8>);
 
 #[wasm_bindgen]

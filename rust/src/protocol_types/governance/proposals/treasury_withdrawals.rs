@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
     PartialEq,
     PartialOrd,
     Hash,
+    Default,
     serde::Serialize,
     serde::Deserialize,
     JsonSchema,

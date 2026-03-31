@@ -1,7 +1,7 @@
 use crate::*;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Ord, PartialOrd)]
+#[derive(Clone, Debug, Default, Ord, PartialOrd)]
 pub struct Redeemers {
     pub(crate) redeemers: Vec<Redeemer>,
     pub(crate) serialization_format: Option<CborContainerType>,

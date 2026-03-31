@@ -12,6 +12,7 @@ use crate::*;
 #[derive(
     Clone,
     Debug,
+    Default
 )]
 pub struct Vkeywitnesses {
     witnesses: Vec<Arc<Vkeywitness>>,

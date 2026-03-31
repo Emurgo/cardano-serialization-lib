@@ -204,6 +204,7 @@ impl DRepVotingThresholds {
 #[derive(
     Clone,
     Debug,
+    Default,
     Hash,
     Eq,
     Ord,

@@ -3,7 +3,7 @@ use std::slice::{Iter, IterMut};
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug
+    Clone, Debug, Default
 )]
 pub struct NativeScripts {
     pub(crate) scripts: Vec<NativeScript>,

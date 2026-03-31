@@ -9,6 +9,7 @@ use crate::*;
 #[derive(
     Clone,
     Debug,
+    Default
 )]
 pub struct Credentials {
     pub(crate) credentials: Vec<Arc<Credential>>,

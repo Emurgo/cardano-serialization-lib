@@ -80,7 +80,7 @@ pub enum MIRKind {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Hash, Eq, Ord, PartialEq, PartialOrd)]
 pub struct MIRToStakeCredentials {
     pub(crate) rewards: LinkedHashMap<Credential, DeltaCoin>,
 }

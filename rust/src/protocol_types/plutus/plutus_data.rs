@@ -13,7 +13,7 @@ use schemars::JsonSchema;
 use serde::ser::SerializeStruct;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct ConstrPlutusData {
     pub(crate) alternative: BigNum,
     pub(crate) data: PlutusList,
@@ -110,7 +110,7 @@ impl PlutusMapValues {
 
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+#[derive(Clone, Default, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct PlutusMap(pub(crate) LinkedHashMap<PlutusData, PlutusMapValues>);
 
 to_from_bytes!(PlutusMap);
@@ -614,7 +614,7 @@ impl<'de> serde::de::Deserialize<'de> for PlutusData {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct PlutusList {
     pub(crate) elems: Vec<PlutusData>,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
