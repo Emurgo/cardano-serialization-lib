@@ -125,6 +125,26 @@ macro_rules! impl_vec_wrapper {
                 Self(Vec::from(slice))
             }
         }
+
+        impl Default for $wrapper {
+            fn default() -> Self {
+                Self(Vec::new())
+            }
+        }
+
+        impl std::ops::Deref for $wrapper {
+            type Target = [$item];
+
+            fn deref(&self) -> &[$item] {
+                &self.0
+            }
+        }
+
+        impl AsRef<[$item]> for $wrapper {
+            fn as_ref(&self) -> &[$item] {
+                &self.0
+            }
+        }
     };
 }
 
@@ -259,6 +279,29 @@ mod tests {
             let mut arr = [0; 32];
             arr.copy_from_slice(&(0..32).collect::<Vec<_>>());
             assert_eq!(TestWrapper::from(arr.clone()), TestWrapper(arr.to_vec()))
+        }
+
+        #[test]
+        fn default_is_empty() {
+            let wrapper = TestWrapper::default();
+            assert!(wrapper.is_empty());
+            assert!(!TestWrapper(vec![1]).is_empty());
+        }
+
+        #[test]
+        fn deref_to_slice() {
+            let wrapper = TestWrapper(vec![1, 2, 3]);
+            let slice: &[u32] = &wrapper;
+            assert_eq!(slice, &[1, 2, 3]);
+            assert_eq!(wrapper.first(), Some(&1));
+            assert_eq!(wrapper.last(), Some(&3));
+        }
+
+        #[test]
+        fn as_ref_slice() {
+            let wrapper = TestWrapper(vec![1, 2, 3]);
+            let slice: &[u32] = wrapper.as_ref();
+            assert_eq!(slice.len(), 3);
         }
     }
 }
