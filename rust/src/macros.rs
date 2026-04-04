@@ -77,6 +77,30 @@ macro_rules! impl_num_ops {
                 Self(num_traits::One::one())
             }
         }
+
+        impl num_traits::CheckedAdd for $wrapper {
+            fn checked_add(&self, v: &Self) -> Option<Self> {
+                num_traits::CheckedAdd::checked_add(&self.0, &v.0).map(Self)
+            }
+        }
+
+        impl num_traits::CheckedSub for $wrapper {
+            fn checked_sub(&self, v: &Self) -> Option<Self> {
+                num_traits::CheckedSub::checked_sub(&self.0, &v.0).map(Self)
+            }
+        }
+
+        impl num_traits::CheckedMul for $wrapper {
+            fn checked_mul(&self, v: &Self) -> Option<Self> {
+                num_traits::CheckedMul::checked_mul(&self.0, &v.0).map(Self)
+            }
+        }
+
+        impl num_traits::CheckedDiv for $wrapper {
+            fn checked_div(&self, v: &Self) -> Option<Self> {
+                num_traits::CheckedDiv::checked_div(&self.0, &v.0).map(Self)
+            }
+        }
     };
 }
 
@@ -207,6 +231,62 @@ mod tests {
         fn one() {
             use num_traits::One;
             assert_eq!(TestNum::one(), TestNum(1));
+        }
+
+        #[quickcheck]
+        fn checked_add(a: u32, b: u32) {
+            use num_traits::CheckedAdd;
+            let a = a as u64;
+            let b = b as u64;
+            assert_eq!(TestNum(a).checked_add(&TestNum(b)), Some(TestNum(a + b)));
+        }
+
+        #[test]
+        fn checked_add_overflow() {
+            use num_traits::CheckedAdd;
+            assert_eq!(TestNum(u64::MAX).checked_add(&TestNum(1)), None);
+        }
+
+        #[quickcheck]
+        fn checked_sub(a: u64, b: u64) {
+            use num_traits::CheckedSub;
+            if a >= b {
+                assert_eq!(TestNum(a).checked_sub(&TestNum(b)), Some(TestNum(a - b)));
+            }
+        }
+
+        #[test]
+        fn checked_sub_underflow() {
+            use num_traits::CheckedSub;
+            assert_eq!(TestNum(0).checked_sub(&TestNum(1)), None);
+        }
+
+        #[quickcheck]
+        fn checked_mul(a: u32, b: u32) {
+            use num_traits::CheckedMul;
+            let a = a as u64;
+            let b = b as u64;
+            assert_eq!(TestNum(a).checked_mul(&TestNum(b)), Some(TestNum(a * b)));
+        }
+
+        #[test]
+        fn checked_mul_overflow() {
+            use num_traits::CheckedMul;
+            assert_eq!(TestNum(u64::MAX).checked_mul(&TestNum(2)), None);
+        }
+
+        #[quickcheck]
+        fn checked_div(a: u64, b: u64) {
+            use num_traits::CheckedDiv;
+            if b != 0 {
+                assert_eq!(TestNum(a).checked_div(&TestNum(b)), Some(TestNum(a / b)));
+            }
+        }
+
+        #[test]
+        fn checked_div_by_zero() {
+            use num_traits::CheckedDiv;
+            assert_eq!(TestNum(1).checked_div(&TestNum(0)), None);
         }
     }
 

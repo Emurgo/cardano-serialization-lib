@@ -9,6 +9,14 @@ impl_to_from!(Int);
 impl_num_from!(Int, i32, u32, i64, u64, BigNum);
 impl_num_into!(Int, i128);
 
+impl std::ops::Neg for Int {
+    type Output = Int;
+
+    fn neg(self) -> Self::Output {
+        Self(-self.0)
+    }
+}
+
 #[wasm_bindgen]
 impl Int {
     pub fn new(x: &BigNum) -> Self {
