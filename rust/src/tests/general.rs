@@ -856,6 +856,116 @@ fn too_big_plutus_int_to_json() {
     }
 }
 
+mod is_zero {
+    use super::*;
+
+    mod assets {
+        use super::*;
+
+        #[test]
+        fn empty_is_zero() {
+            assert!(Assets::new().is_zero());
+        }
+
+        #[test]
+        fn all_zero_entries_is_zero() {
+            let a = assets! {
+                fake_asset_name(1) => BigNum::zero(),
+                fake_asset_name(2) => BigNum::zero(),
+            };
+            assert!(a.is_zero());
+        }
+
+        #[test]
+        fn any_nonzero_is_not_zero() {
+            let a = assets! {
+                fake_asset_name(1) => BigNum::zero(),
+                fake_asset_name(2) => BigNum::from(1u64),
+            };
+            assert!(!a.is_zero());
+        }
+
+        #[test]
+        fn single_nonzero_is_not_zero() {
+            assert!(!assets! { fake_asset_name(1) => BigNum::from(42u64) }.is_zero());
+        }
+    }
+
+    mod multi_asset {
+        use super::*;
+
+        #[test]
+        fn empty_is_zero() {
+            assert!(MultiAsset::new().is_zero());
+        }
+
+        #[test]
+        fn all_zero_amounts_is_zero() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::zero() }
+            };
+            assert!(ma.is_zero());
+        }
+
+        #[test]
+        fn any_nonzero_is_not_zero() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::from(1u64) }
+            };
+            assert!(!ma.is_zero());
+        }
+
+        #[test]
+        fn mixed_policies_one_nonzero() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::zero() },
+                fake_policy_id(2) => assets! { fake_asset_name(2) => BigNum::from(5u64) },
+            };
+            assert!(!ma.is_zero());
+        }
+    }
+
+    mod value {
+        use super::*;
+
+        #[test]
+        fn default_is_zero() {
+            assert!(Value::default().is_zero());
+        }
+
+        #[test]
+        fn zero_is_zero() {
+            assert!(Value::zero().is_zero());
+        }
+
+        #[test]
+        fn nonzero_coin_is_not_zero() {
+            assert!(!Value::lovelace(1u64).is_zero());
+        }
+
+        #[test]
+        fn zero_coin_with_nonzero_assets_is_not_zero() {
+            let v = Value::default().with_asset(
+                fake_policy_id(1),
+                fake_asset_name(1),
+                BigNum::from(10u64),
+            );
+            assert!(!v.is_zero());
+        }
+
+        #[test]
+        fn zero_coin_with_all_zero_assets_is_zero() {
+            let v = Value {
+                coin: Coin::zero(),
+                multiasset: Some(multi_asset! {
+                    fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::zero() }
+                }),
+            };
+            assert!(v.is_zero());
+        }
+    }
+}
+
 mod builder_methods {
     use super::*;
 

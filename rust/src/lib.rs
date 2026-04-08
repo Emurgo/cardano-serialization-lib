@@ -1378,6 +1378,10 @@ impl Assets {
                 .collect::<Vec<AssetName>>(),
         )
     }
+
+    pub fn is_zero(&self) -> bool {
+        self.0.values().all(BigNum::is_zero)
+    }
 }
 
 impl Assets {
@@ -1429,6 +1433,10 @@ impl MultiAsset {
     /// all assets under {policy_id}, if any exist, or else None (undefined in JS)
     pub fn get(&self, policy_id: &PolicyID) -> Option<Assets> {
         self.0.get(policy_id).map(|v| v.clone())
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0.values().all(Assets::is_zero)
     }
 
     /// sets the asset {asset_name} to {value} under policy {policy_id}
