@@ -27,7 +27,7 @@ pub fn from_bytes<T: Deserialize>(data: &Vec<u8>) -> Result<T, DeserializeError>
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionUnspentOutput {
     pub(crate) input: TransactionInput,
     pub(crate) output: TransactionOutput,
@@ -111,7 +111,7 @@ impl Deserialize for TransactionUnspentOutput {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct TransactionUnspentOutputs(pub(crate) Vec<TransactionUnspentOutput>);
 
 to_from_json!(TransactionUnspentOutputs);
