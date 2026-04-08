@@ -142,6 +142,7 @@ impl_vec_wrapper!(TransactionUnspentOutputs, TransactionUnspentOutput);
 #[derive(
     Clone,
     Debug,
+    Default,
     /*Hash,*/ Ord,
     serde::Serialize,
     serde::Deserialize,
@@ -175,7 +176,7 @@ impl Value {
     }
 
     pub fn zero() -> Value {
-        Value::new(&Coin::zero())
+        Self::default()
     }
 
     pub fn is_zero(&self) -> bool {
