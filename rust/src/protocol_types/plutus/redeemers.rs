@@ -8,6 +8,7 @@ pub struct Redeemers {
 }
 
 impl_to_from!(Redeemers);
+impl_vec_wrapper!(Redeemers, Redeemer, redeemers);
 
 #[wasm_bindgen]
 impl Redeemers {
@@ -58,12 +59,6 @@ impl Redeemers {
             tot_steps = tot_steps.checked_add(&r.ex_units().steps())?;
         }
         Ok(ExUnits::new(&tot_mem, &tot_steps))
-    }
-}
-
-impl NoneOrEmpty for Redeemers {
-    fn is_none_or_empty(&self) -> bool {
-        self.redeemers.is_empty()
     }
 }
 

@@ -77,6 +77,14 @@ pub struct PlutusMapValues {
     pub(crate) elems: Vec<PlutusData>,
 }
 
+impl_vec_wrapper!(PlutusMapValues, PlutusData, elems);
+
+impl From<Vec<PlutusData>> for PlutusMapValues {
+    fn from(elems: Vec<PlutusData>) -> Self {
+        Self { elems }
+    }
+}
+
 #[wasm_bindgen]
 impl PlutusMapValues {
     pub fn new() -> Self {
@@ -617,6 +625,7 @@ pub struct PlutusList {
 }
 
 to_from_bytes!(PlutusList);
+impl_vec_wrapper!(PlutusList, PlutusData, elems);
 
 #[wasm_bindgen]
 impl PlutusList {
@@ -692,12 +701,6 @@ impl PlutusList {
     }
 }
 
-impl NoneOrEmpty for PlutusList {
-    fn is_none_or_empty(&self) -> bool {
-        self.elems.is_empty()
-    }
-}
-
 #[derive(serde::Deserialize, JsonSchema)]
 struct PlutusListFields {
     elems: Vec<PlutusData>,
@@ -740,15 +743,6 @@ impl JsonSchema for PlutusList {
     }
     fn is_referenceable() -> bool {
         PlutusListFields::is_referenceable()
-    }
-}
-
-impl<'a> IntoIterator for &'a PlutusList {
-    type Item = &'a PlutusData;
-    type IntoIter = std::slice::Iter<'a, PlutusData>;
-
-    fn into_iter(self) -> std::slice::Iter<'a, PlutusData> {
-        self.elems.iter()
     }
 }
 
