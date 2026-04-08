@@ -156,14 +156,11 @@ impl_to_from!(Value);
 #[wasm_bindgen]
 impl Value {
     pub fn new(coin: &Coin) -> Value {
-        Self {
-            coin: coin.clone(),
-            multiasset: None,
-        }
+        Self::from(coin.clone())
     }
 
     pub fn new_from_assets(multiasset: &MultiAsset) -> Value {
-        Value::new_with_assets(&Coin::zero(), multiasset)
+        Value::from(multiasset.clone())
     }
 
     pub fn new_with_assets(coin: &Coin, multiasset: &MultiAsset) -> Value {
@@ -287,6 +284,20 @@ impl Value {
             Some(std::cmp::Ordering::Greater) => Some(1),
         }
     }
+}
+
+impl From<MultiAsset> for Value {
+   fn from(ma: MultiAsset) -> Self {
+       Self { coin: Coin::zero(), multiasset: Some(ma) }
+
+   }
+}
+
+impl From<Coin> for Value {
+    fn from(coin: Coin) -> Self {
+       Self { coin, multiasset: None }
+
+   }
 }
 
 impl PartialEq for Value {
