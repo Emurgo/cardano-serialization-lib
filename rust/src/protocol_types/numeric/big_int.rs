@@ -4,7 +4,7 @@ use num_traits::Signed;
 use crate::*;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct BigInt(pub(crate) num_bigint::BigInt);
 
 impl_to_from!(BigInt);
