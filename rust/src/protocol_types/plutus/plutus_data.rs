@@ -590,17 +590,11 @@ impl PlutusData {
     }
 
     fn from_pointer(pointer: &Pointer) -> Result<PlutusData, JsError> {
-        let mut data_list = PlutusList::new();
-        data_list.add(&PlutusData::new_integer(&pointer.slot_bignum().into()));
-        data_list.add(&PlutusData::new_integer(&pointer.tx_index_bignum().into()));
-        data_list.add(&PlutusData::new_integer(
-            &pointer.cert_index_bignum().into(),
-        ));
-
-        Ok(PlutusData::new_constr_plutus_data(&ConstrPlutusData::new(
-            &BigNum::from(1u32),
-            &data_list,
-        )))
+        Ok(ConstrPlutusData::new(&1u64.into(), &plutus_list![
+            pointer.slot_bignum(),
+            pointer.tx_index_bignum(),
+            pointer.cert_index_bignum()
+        ]).into())
     }
 
     fn as_pointer(&self) -> Result<Pointer, JsError> {
@@ -702,6 +696,19 @@ pub struct PlutusList {
 to_from_bytes!(PlutusList);
 impl_vec_wrapper!(PlutusList, PlutusData, elems);
 
+#[macro_export]
+macro_rules! plutus_list {
+    ($($item:expr),* $(,)?) => {
+        $crate::PlutusList::from(vec![$($crate::PlutusData::from($item)),*])
+    };
+    ($elem:expr; $n:expr) => {
+        {
+            let elem = $crate::PlutusData::from($elem);
+            $crate::PlutusList::from(vec![ elem ; $n ])
+        }
+    };
+}
+
 #[wasm_bindgen]
 impl PlutusList {
     pub fn new() -> Self {
@@ -721,8 +728,7 @@ impl PlutusList {
     }
 
     pub fn add(&mut self, elem: &PlutusData) {
-        self.elems.push(elem.clone());
-        self.definite_encoding = None;
+        self.push(elem.clone());
     }
 
     #[allow(dead_code)]
@@ -773,6 +779,13 @@ impl PlutusList {
 
     pub(crate) fn get_set_type(&self) -> Option<CborSetType> {
         self.cbor_set_type.clone()
+    }
+}
+
+impl PlutusList {
+    pub fn push(&mut self, data: PlutusData) {
+        self.elems.push(data);
+        self.definite_encoding = None;
     }
 }
 
