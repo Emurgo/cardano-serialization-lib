@@ -1380,6 +1380,17 @@ impl Assets {
     }
 }
 
+impl Assets {
+    pub fn with_asset(mut self, name: AssetName, amount: BigNum) -> Self {
+        if amount.is_zero() {
+            self.0.remove(&name);
+        } else {
+            self.0.insert(name, amount);
+        }
+        self
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Default, Eq, Ord, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct MultiAsset(pub(crate) std::collections::BTreeMap<PolicyID, Assets>);
@@ -1464,6 +1475,22 @@ impl MultiAsset {
         }
 
         None
+    }
+}
+
+impl MultiAsset {
+    pub fn with_assets(mut self, policy: PolicyID, assets: Assets) -> Self {
+        if assets.is_zero() {
+            self.0.remove(&policy);
+        } else {
+            self.0.insert(policy, assets);
+        }
+        self
+    }
+
+    pub fn with_asset(mut self, policy: PolicyID, name: AssetName, amount: BigNum) -> Self {
+        let assets = self.0.remove(&policy).unwrap_or_default().with_asset(name, amount);
+        self.with_assets(policy, assets)
     }
 }
 
