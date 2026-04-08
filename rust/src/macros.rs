@@ -126,6 +126,12 @@ macro_rules! impl_vec_wrapper {
             }
         }
 
+        impl std::convert::From<Vec<$item>> for $wrapper {
+            fn from(vec: Vec<$item>) -> $wrapper {
+                Self(vec)
+            }
+        }
+
         impl Default for $wrapper {
             fn default() -> Self {
                 Self(Vec::new())
@@ -279,6 +285,11 @@ mod tests {
             let mut arr = [0; 32];
             arr.copy_from_slice(&(0..32).collect::<Vec<_>>());
             assert_eq!(TestWrapper::from(arr.clone()), TestWrapper(arr.to_vec()))
+        }
+
+        #[quickcheck]
+        fn from_wraps_vec(vec: Vec<u32>) {
+            assert_eq!(TestWrapper::from(vec.clone()), TestWrapper(vec))
         }
 
         #[test]
