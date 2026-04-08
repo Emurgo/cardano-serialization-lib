@@ -9,7 +9,7 @@ use std::convert::TryInto;
 use std::io::{Cursor, Read};
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct Pointer {
     pub(crate) slot: BigNum,
     pub(crate) tx_index: BigNum,

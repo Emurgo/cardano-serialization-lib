@@ -56,7 +56,7 @@ impl NetworkInfo {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct MalformedAddress(pub(crate) Vec<u8>);
 
 #[wasm_bindgen]
@@ -119,7 +119,7 @@ impl JsonSchema for MalformedAddress {
     }
 }
 
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub(crate) enum AddrType {
     Base(BaseAddress),
     Ptr(PointerAddress),
@@ -130,7 +130,7 @@ pub(crate) enum AddrType {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct ByronAddress(pub(crate) ExtendedAddr);
 #[wasm_bindgen]
 impl ByronAddress {
@@ -235,7 +235,7 @@ impl ByronAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct Address(pub(crate) AddrType);
 
 from_bytes!(Address, data, { Self::from_bytes_impl_safe(data.as_ref()) });
@@ -571,7 +571,7 @@ impl Deserialize for Address {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct BaseAddress {
     pub(crate) network: u8,
     pub(crate) payment: Credential,
@@ -613,7 +613,7 @@ impl BaseAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct EnterpriseAddress {
     pub(crate) network: u8,
     pub(crate) payment: Credential,
@@ -752,7 +752,7 @@ impl Deserialize for RewardAddress {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct PointerAddress {
     pub(crate) network: u8,
     pub(crate) payment: Credential,
