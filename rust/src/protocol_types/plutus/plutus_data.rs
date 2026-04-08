@@ -85,6 +85,12 @@ impl From<Vec<PlutusData>> for PlutusMapValues {
     }
 }
 
+impl From<PlutusData> for PlutusMapValues {
+    fn from(data: PlutusData) -> Self {
+        Self { elems: vec![data] }
+    }
+}
+
 #[wasm_bindgen]
 impl PlutusMapValues {
     pub fn new() -> Self {
@@ -184,6 +190,66 @@ pub enum PlutusDataEnum {
     Bytes(Vec<u8>),
 }
 
+impl From<ConstrPlutusData> for PlutusDataEnum {
+    fn from(value: ConstrPlutusData) -> Self {
+        Self::ConstrPlutusData(value)
+    }
+}
+
+impl From<PlutusMap> for PlutusDataEnum {
+    fn from(value: PlutusMap) -> Self {
+        Self::Map(value)
+    }
+}
+
+impl From<PlutusList> for PlutusDataEnum {
+    fn from(value: PlutusList) -> Self {
+        Self::List(value)
+    }
+}
+
+impl From<BigInt> for PlutusDataEnum {
+    fn from(value: BigInt) -> Self {
+        Self::Integer(value)
+    }
+}
+
+impl From<BigNum> for PlutusDataEnum {
+    fn from(value: BigNum) -> Self {
+        Self::Integer(value.into())
+    }
+}
+
+impl From<u64> for PlutusDataEnum {
+    fn from(value: u64) -> Self {
+        Self::Integer(BigNum::from(value).into())
+    }
+}
+
+impl From<i32> for PlutusDataEnum {
+    fn from(value: i32) -> Self {
+        Self::Integer(BigInt::from(value))
+    }
+}
+
+impl From<i64> for PlutusDataEnum {
+    fn from(value: i64) -> Self {
+        Self::Integer(BigInt::from(value))
+    }
+}
+
+impl From<Vec<u8>> for PlutusDataEnum {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self::Bytes(bytes)
+    }
+}
+
+impl From<&[u8]> for PlutusDataEnum {
+    fn from(bytes: &[u8]) -> Self {
+        Self::Bytes(bytes.to_vec())
+    }
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct PlutusData {
@@ -191,6 +257,15 @@ pub struct PlutusData {
     // We should always preserve the original datums when deserialized as this is NOT canonicized
     // before computing datum hashes. So this field stores the original bytes to re-use.
     pub(crate) original_bytes: Option<Vec<u8>>,
+}
+
+impl<T> From<T> for PlutusData where PlutusDataEnum: From<T> {
+    fn from(value: T) -> Self {
+        Self {
+            datum: value.into(),
+            original_bytes: None
+        }
+    }
 }
 
 impl std::cmp::PartialEq<Self> for PlutusData {
