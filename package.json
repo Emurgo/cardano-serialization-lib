@@ -48,7 +48,7 @@
     "rust:publish": "cd rust && cargo publish && cd ../",
     "asm:build": "./binaryen/bin/wasm2js ./rust/pkg/cardano_serialization_lib_bg.wasm --output ./rust/pkg/cardano_serialization_lib.asm.js && node ./scripts/wasm-to-asm && node ./scripts/fix-buffer-ref.js",
     "rust:check-warnings": "(cd rust; RUSTFLAGS=\"-D warnings\" cargo +stable build)",
-    "rust:test": "(cd rust; cargo test)",
+    "rust:test": "(cd rust; cargo test --all-features --all-targets)",
     "js:flowgen": "flowgen ./rust/pkg/cardano_serialization_lib.d.ts -o ./rust/pkg/cardano_serialization_lib.js.flow --add-flow-header",
     "js:prepublish": "npm run rust:test && rimraf ./publish && cp -r ./rust/pkg ./publish && cp README.md publish/ && cp LICENSE publish/",
     "js:ts-json-gen": "cd rust/json-gen && cargo +stable run && cd ../.. && node ./scripts/run-json2ts.js && node ./scripts/json-ts-types.js",
