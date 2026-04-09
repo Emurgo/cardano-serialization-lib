@@ -16,7 +16,7 @@ exclude = [
 default = ["arbitrary-precision-json"]
 arbitrary-precision-json = ["serde_json/arbitrary_precision"]
 #TODO: need to review the features and delete legacy ones. List is defined to avoid warnings.
-property-test-api = []
+property-test-api = ["dep:quickcheck", "dep:rand_chacha"]
 generic-serialization = []
 with-bench = []
 dont-expose-wasm = []
@@ -47,6 +47,8 @@ serde = { version = "1.0", features = ["derive"] }
 num-derive = "0.4.0"
 num-traits = "0.2.16"
 num = "0.4.1"
+quickcheck = { version = "0.9.2", optional = true }
+rand_chacha = { version = "0.1", optional = true }
 
 # non-wasm
 [target.'cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))'.dependencies]
