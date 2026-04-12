@@ -105,13 +105,31 @@ macro_rules! impl_num_ops {
 }
 
 macro_rules! impl_vec_wrapper {
+    ($wrapper:ident, $item:ty, $field:ident) => {
+        impl_vec_wrapper!(@inner $wrapper, $item, $field);
+    };
     ($wrapper:ident, $item:ty) => {
+        impl_vec_wrapper!(@inner $wrapper, $item, 0);
+
+        impl std::convert::From<Vec<$item>> for $wrapper {
+            fn from(vec: Vec<$item>) -> $wrapper {
+                Self(vec)
+            }
+        }
+
+        impl Default for $wrapper {
+            fn default() -> Self {
+                Self(Vec::new())
+            }
+        }
+    };
+    (@inner $wrapper:ident, $item:ty, $field:tt) => {
         impl<'a> std::iter::IntoIterator for &'a $wrapper {
             type Item = &'a $item;
             type IntoIter = std::slice::Iter<'a, $item>;
 
             fn into_iter(self) -> std::slice::Iter<'a, $item> {
-                self.0.iter()
+                self.$field.iter()
             }
         }
 
@@ -120,19 +138,19 @@ macro_rules! impl_vec_wrapper {
             type IntoIter = std::vec::IntoIter<$item>;
 
             fn into_iter(self) -> std::vec::IntoIter<$item> {
-                self.0.into_iter()
+                self.$field.into_iter()
             }
         }
 
         impl std::iter::FromIterator<$item> for $wrapper {
             fn from_iter<I: IntoIterator<Item = $item>>(iter: I) -> Self {
-                Self(iter.into_iter().collect())
+                Self::from(iter.into_iter().collect::<Vec<_>>())
             }
         }
 
         impl std::iter::Extend<$item> for $wrapper {
             fn extend<I: IntoIterator<Item = $item>>(&mut self, iter: I) {
-                self.0.extend(iter);
+                self.$field.extend(iter);
             }
         }
 
@@ -140,13 +158,33 @@ macro_rules! impl_vec_wrapper {
             type Output = $item;
 
             fn index(&self, index: usize) -> &$item {
-                &self.0[index]
+                &self.$field[index]
             }
         }
 
         impl<const N: usize> std::convert::From<[$item; N]> for $wrapper {
             fn from(slice: [$item; N]) -> $wrapper {
-                Self(Vec::from(slice))
+                Self::from(Vec::from(slice))
+            }
+        }
+
+        impl std::ops::Deref for $wrapper {
+            type Target = [$item];
+
+            fn deref(&self) -> &[$item] {
+                &self.$field
+            }
+        }
+
+        impl AsRef<[$item]> for $wrapper {
+            fn as_ref(&self) -> &[$item] {
+                &self.$field
+            }
+        }
+
+        impl $crate::NoneOrEmpty for $wrapper {
+            fn is_none_or_empty(&self) -> bool {
+                self.$field.is_empty()
             }
         }
     };
@@ -339,6 +377,120 @@ mod tests {
             let mut arr = [0; 32];
             arr.copy_from_slice(&(0..32).collect::<Vec<_>>());
             assert_eq!(TestWrapper::from(arr.clone()), TestWrapper(arr.to_vec()))
+        }
+
+        #[quickcheck]
+        fn from_wraps_vec(vec: Vec<u32>) {
+            assert_eq!(TestWrapper::from(vec.clone()), TestWrapper(vec))
+        }
+
+        #[test]
+        fn default_is_empty() {
+            let wrapper = TestWrapper::default();
+            assert!(wrapper.is_empty());
+            assert!(!TestWrapper(vec![1]).is_empty());
+        }
+
+        #[test]
+        fn deref_to_slice() {
+            let wrapper = TestWrapper(vec![1, 2, 3]);
+            let slice: &[u32] = &wrapper;
+            assert_eq!(slice, &[1, 2, 3]);
+            assert_eq!(wrapper.first(), Some(&1));
+            assert_eq!(wrapper.last(), Some(&3));
+        }
+
+        #[test]
+        fn as_ref_slice() {
+            let wrapper = TestWrapper(vec![1, 2, 3]);
+            let slice: &[u32] = wrapper.as_ref();
+            assert_eq!(slice.len(), 3);
+        }
+
+        #[test]
+        fn none_or_empty() {
+            use crate::NoneOrEmpty;
+            assert!(TestWrapper(vec![]).is_none_or_empty());
+            assert!(!TestWrapper(vec![1]).is_none_or_empty());
+        }
+    }
+
+    mod impl_vec_wrapper_named_field {
+        #[derive(Debug, PartialEq)]
+        struct TestNamedWrapper {
+            items: Vec<u32>,
+            extra: Option<bool>,
+        }
+
+        impl_vec_wrapper!(TestNamedWrapper, u32, items);
+
+        impl From<Vec<u32>> for TestNamedWrapper {
+            fn from(items: Vec<u32>) -> Self {
+                Self { items, extra: None }
+            }
+        }
+
+        #[quickcheck]
+        fn uses_vec_into_iterator_owned(vec: Vec<u32>) {
+            let wrapper = TestNamedWrapper { items: vec.clone(), extra: None };
+            assert_eq!(wrapper.into_iter().collect::<Vec<_>>(), vec);
+        }
+
+        #[quickcheck]
+        fn uses_vec_into_iterator_ref(vec: Vec<u32>) {
+            let wrapper = TestNamedWrapper { items: vec.clone(), extra: None };
+            assert_eq!(
+                (&wrapper).into_iter().collect::<Vec<_>>(),
+                vec.iter().collect::<Vec<_>>()
+            );
+        }
+
+        #[quickcheck]
+        fn uses_vec_from_iterator(vec: Vec<u32>) {
+            let wrapper: TestNamedWrapper = vec.clone().into_iter().collect();
+            assert_eq!(wrapper.items, vec);
+            assert_eq!(wrapper.extra, None);
+        }
+
+        #[quickcheck]
+        fn uses_vec_extend(vec1: Vec<u32>, vec2: Vec<u32>) {
+            let mut wrapper = TestNamedWrapper { items: vec1.clone(), extra: Some(true) };
+            wrapper.extend(vec2.iter().cloned());
+            assert_eq!(wrapper.items, [vec1, vec2].concat());
+            assert_eq!(wrapper.extra, Some(true));
+        }
+
+        #[quickcheck]
+        fn uses_vec_index(vec: Vec<u32>, index: usize) {
+            let len = vec.len();
+            if len != 0 {
+                let wrapper = TestNamedWrapper { items: vec.clone(), extra: None };
+                assert_eq!(wrapper[index % len], vec[index % len]);
+            }
+        }
+
+        #[test]
+        fn from_slice_delegates_to_from_vec() {
+            let wrapper = TestNamedWrapper::from([1, 2, 3]);
+            assert_eq!(wrapper.items, vec![1, 2, 3]);
+            assert_eq!(wrapper.extra, None);
+        }
+
+        #[test]
+        fn deref_to_slice() {
+            let wrapper = TestNamedWrapper { items: vec![1, 2, 3], extra: None };
+            let slice: &[u32] = &wrapper;
+            assert_eq!(slice, &[1, 2, 3]);
+            assert_eq!(wrapper.first(), Some(&1));
+        }
+
+        #[test]
+        fn none_or_empty() {
+            use crate::NoneOrEmpty;
+            let empty = TestNamedWrapper { items: vec![], extra: None };
+            let non_empty = TestNamedWrapper { items: vec![1], extra: None };
+            assert!(empty.is_none_or_empty());
+            assert!(!non_empty.is_none_or_empty());
         }
     }
 }

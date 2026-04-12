@@ -1,5 +1,4 @@
 use crate::*;
-use std::vec::IntoIter;
 use std::slice::{Iter, IterMut};
 
 #[wasm_bindgen]
@@ -72,6 +71,7 @@ impl NativeScripts {
 }
 
 impl_to_from!(NativeScripts);
+impl_vec_wrapper!(NativeScripts, NativeScript, scripts);
 
 impl PartialEq for NativeScripts {
     fn eq(&self, other: &Self) -> bool {
@@ -111,12 +111,6 @@ impl From<Vec<&NativeScript>> for NativeScripts {
     }
 }
 
-impl NoneOrEmpty for NativeScripts {
-    fn is_none_or_empty(&self) -> bool {
-        self.scripts.is_empty()
-    }
-}
-
 impl From<&NativeScripts> for Ed25519KeyHashes {
     fn from(scripts: &NativeScripts) -> Self {
         scripts
@@ -125,24 +119,6 @@ impl From<&NativeScripts> for Ed25519KeyHashes {
                 set.extend_move(Ed25519KeyHashes::from(s));
                 set
             })
-    }
-}
-
-impl IntoIterator for NativeScripts {
-    type Item = NativeScript;
-    type IntoIter = IntoIter<NativeScript>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.scripts.into_iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a NativeScripts {
-    type Item = &'a NativeScript;
-    type IntoIter = Iter<'a, NativeScript>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.scripts.iter()
     }
 }
 

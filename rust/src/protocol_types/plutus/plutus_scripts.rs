@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use itertools::Itertools;
-use std::slice;
 use crate::*;
 
 #[wasm_bindgen]
@@ -11,10 +10,11 @@ pub struct PlutusScripts {
 }
 
 impl_to_from!(PlutusScripts);
+impl_vec_wrapper!(PlutusScripts, PlutusScript, scripts);
 
-impl NoneOrEmpty for PlutusScripts {
-    fn is_none_or_empty(&self) -> bool {
-        self.scripts.is_empty()
+impl From<Vec<PlutusScript>> for PlutusScripts {
+    fn from(scripts: Vec<PlutusScript>) -> Self {
+        Self { scripts, cbor_set_type: None }
     }
 }
 
@@ -142,15 +142,6 @@ impl PlutusScripts {
         if let Some(m) = &mut self.cbor_set_type {
             m.insert(language.clone(), cbor_set_type);
         }
-    }
-}
-
-impl<'a> IntoIterator for &'a PlutusScripts {
-    type Item = &'a PlutusScript;
-    type IntoIter = slice::Iter<'a, PlutusScript>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.scripts.iter()
     }
 }
 
