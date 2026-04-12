@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 use std::ops::Div;
+
 use crate::*;
 
 // Generic u64 wrapper for platforms that don't support u64 or BigInt/etc
@@ -54,24 +55,18 @@ impl BigNum {
     }
 
     pub fn checked_mul(&self, other: &BigNum) -> Result<BigNum, JsError> {
-        match self.0.checked_mul(other.0) {
-            Some(value) => Ok(BigNum(value)),
-            None => Err(JsError::from_str("overflow")),
-        }
+        <Self as num::CheckedMul>::checked_mul(&self, other)
+            .ok_or_else(|| JsError::from_str("overflow"))
     }
 
     pub fn checked_add(&self, other: &BigNum) -> Result<BigNum, JsError> {
-        match self.0.checked_add(other.0) {
-            Some(value) => Ok(BigNum(value)),
-            None => Err(JsError::from_str("overflow")),
-        }
+        <Self as num::CheckedAdd>::checked_add(&self, other)
+            .ok_or_else(|| JsError::from_str("overflow"))
     }
 
     pub fn checked_sub(&self, other: &BigNum) -> Result<BigNum, JsError> {
-        match self.0.checked_sub(other.0) {
-            Some(value) => Ok(BigNum(value)),
-            None => Err(JsError::from_str("underflow")),
-        }
+        <Self as num::CheckedSub>::checked_sub(&self, other)
+            .ok_or_else(|| JsError::from_str("underflow"))
     }
 
     /// returns 0 if it would otherwise underflow
