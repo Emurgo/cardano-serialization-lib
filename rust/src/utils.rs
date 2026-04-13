@@ -288,7 +288,7 @@ impl Value {
 
 impl From<MultiAsset> for Value {
    fn from(ma: MultiAsset) -> Self {
-       Self { coin: Coin::zero(), multiasset: Some(ma) }
+       Self { coin: Coin::zero(), multiasset: (ma.len() > 0).then_some(ma) }
 
    }
 }
