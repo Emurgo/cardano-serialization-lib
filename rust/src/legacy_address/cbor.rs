@@ -59,7 +59,6 @@ pub mod util {
         use super::*;
         use cbor_event::{
             self,
-            de::RawCbor,
             se::{Serialize, Serializer},
         };
 
@@ -76,15 +75,14 @@ pub mod util {
         #[bench]
         fn encode_crc32_with_cbor_event(b: &mut test::Bencher) {
             b.iter(|| {
-                let _ = encode_with_crc32_(&Test(BYTES), Serializer::new_vec()).unwrap();
+                let _ = encode_with_crc32_(&Test(BYTES), &mut Serializer::new_vec()).unwrap();
             })
         }
 
         #[bench]
         fn decode_crc32_with_cbor_event(b: &mut test::Bencher) {
             b.iter(|| {
-                let mut raw = RawCbor::from(CBOR);
-                let bytes = raw_with_crc32(&mut raw).unwrap();
+                let _ = raw_with_crc32(&mut Deserializer::from(CBOR)).unwrap();
             })
         }
 
