@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "with-bench", feature(test))]
+#![cfg_attr(all(test, feature = "with-bench"), feature(test))]
 #![allow(deprecated)]
 
 #[macro_use]

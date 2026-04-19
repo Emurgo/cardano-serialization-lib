@@ -26,7 +26,7 @@ use crate::wasm_bindgen;
 
 #[wasm_bindgen]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
-#[cfg_attr(feature = "generic-serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "generic-serialization", derive(serde::Serialize, serde::Deserialize))]
 pub enum ByronAddressType {
     ATPubKey,
     ATScript,
