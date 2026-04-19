@@ -8,8 +8,9 @@ pub enum CborContainerType {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub enum CborSetType {
+    #[default]
     Tagged = 0,
     Untagged = 1,
 }

@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use crate::*;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct BootstrapWitnesses {
     witnesses: Vec<Arc<BootstrapWitness>>,
     dedup: HashSet<Arc<BootstrapWitness>>,

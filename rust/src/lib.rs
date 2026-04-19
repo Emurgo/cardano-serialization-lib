@@ -800,7 +800,7 @@ impl RewardAddresses {
 impl_vec_wrapper!(RewardAddresses, RewardAddress);
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Withdrawals(LinkedHashMap<RewardAddress, Coin>);
 
 impl_to_from!(Withdrawals);
@@ -1019,7 +1019,7 @@ impl ScriptHashes {
 impl_vec_wrapper!(ScriptHashes, ScriptHash);
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct ProposedProtocolParameterUpdates(
     LinkedHashMap<GenesisHash, ProtocolParamUpdate>,
 );
@@ -1128,7 +1128,7 @@ impl ProtocolVersion {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct AuxiliaryDataSet(LinkedHashMap<TransactionIndex, AuxiliaryData>);
 
 #[wasm_bindgen]
@@ -1546,7 +1546,7 @@ impl_vec_wrapper!(MintsAssets, MintAssets);
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct MintAssets(std::collections::BTreeMap<AssetName, Int>);
 
@@ -1596,7 +1596,7 @@ impl MintAssets {
 
 #[wasm_bindgen]
 #[derive(
-    Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
+    Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct Mint(Vec<(PolicyID, MintAssets)>);
 

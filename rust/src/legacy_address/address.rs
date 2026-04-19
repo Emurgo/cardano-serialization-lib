@@ -25,7 +25,7 @@ use std::{
 use crate::wasm_bindgen;
 
 #[wasm_bindgen]
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash)]
 #[cfg_attr(feature = "generic-serialization", derive(serde::Serialize, serde::Deserialize))]
 pub enum ByronAddressType {
     ATPubKey,
@@ -279,7 +279,7 @@ impl cbor_event::de::Deserialize for Addr {
 const EXTENDED_ADDR_LEN: usize = 28;
 
 /// A valid cardano address deconstructed
-#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd, Hash)]
 pub struct ExtendedAddr {
     pub addr: [u8; EXTENDED_ADDR_LEN],
     pub attributes: Attributes,

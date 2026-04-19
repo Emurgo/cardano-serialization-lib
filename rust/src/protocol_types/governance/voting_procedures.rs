@@ -39,7 +39,7 @@ struct Vote {
     voting_procedure: VotingProcedure,
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[wasm_bindgen]
 pub struct VotingProcedures(
     pub(crate) BTreeMap<Voter, BTreeMap<GovernanceActionId, VotingProcedure>>,

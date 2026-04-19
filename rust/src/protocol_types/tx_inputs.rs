@@ -7,7 +7,7 @@ use std::slice;
 use std::sync::Arc;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct TransactionInputs {
     pub(crate) inputs: Vec<Arc<TransactionInput>>,
     pub(crate) dedup: BTreeSet<Arc<TransactionInput>>,

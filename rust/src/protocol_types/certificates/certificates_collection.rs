@@ -8,7 +8,7 @@ use std::slice;
 use std::sync::Arc;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Certificates {
     pub(crate) certs: Vec<Arc<Certificate>>,
     pub(crate) dedup: HashSet<Arc<Certificate>>,

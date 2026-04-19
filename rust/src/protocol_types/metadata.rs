@@ -4,7 +4,7 @@ use hashlink::LinkedHashMap;
 const MD_MAX_LEN: usize = 64;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct MetadataMap(pub(crate) LinkedHashMap<TransactionMetadatum, TransactionMetadatum>);
 
 to_from_bytes!(MetadataMap);
@@ -282,7 +282,7 @@ impl TransactionMetadatumLabels {
 impl_vec_wrapper!(TransactionMetadatumLabels, TransactionMetadatumLabel);
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct GeneralTransactionMetadata(
     pub(crate) LinkedHashMap<TransactionMetadatumLabel, TransactionMetadatum>,
 );
@@ -358,7 +358,7 @@ impl JsonSchema for GeneralTransactionMetadata {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Ord, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Default, Ord, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct AuxiliaryData {
     pub(crate) metadata: Option<GeneralTransactionMetadata>,
     pub(crate) native_scripts: Option<NativeScripts>,

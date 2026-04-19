@@ -40,14 +40,26 @@ JsonSchema,
 )]
 pub struct Credential(pub(crate) CredType);
 
+impl From<ScriptHash> for Credential {
+    fn from(hash: ScriptHash) -> Self {
+        Credential(CredType::Script(hash))
+    }
+}
+
+impl From<Ed25519KeyHash> for Credential {
+    fn from(hash: Ed25519KeyHash) -> Self {
+        Credential(CredType::Key(hash))
+    }
+}
+
 #[wasm_bindgen]
 impl Credential {
     pub fn from_keyhash(hash: &Ed25519KeyHash) -> Self {
-        Credential(CredType::Key(hash.clone()))
+        Credential::from(hash.clone())
     }
 
     pub fn from_scripthash(hash: &ScriptHash) -> Self {
-        Credential(CredType::Script(hash.clone()))
+        Self::from(hash.clone())
     }
 
     pub fn to_keyhash(&self) -> Option<Ed25519KeyHash> {

@@ -3,7 +3,7 @@ use itertools::Itertools;
 use crate::*;
 
 #[wasm_bindgen]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct PlutusScripts {
     scripts: Vec<PlutusScript>,
     cbor_set_type: Option<HashMap<Language, CborSetType>>,

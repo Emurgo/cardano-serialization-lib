@@ -13,6 +13,7 @@ pub type RequiredSigners = Ed25519KeyHashes;
 #[derive(
     Clone,
     Debug,
+    Default
 )]
 pub struct Ed25519KeyHashes {
     keyhashes: Vec<Arc<Ed25519KeyHash>>,

@@ -13,6 +13,7 @@ use crate::*;
 #[derive(
     Clone,
     Debug,
+    Default
 )]
 pub struct VotingProposals {
     proposals: Vec<Arc<VotingProposal>>,
