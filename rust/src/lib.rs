@@ -1337,6 +1337,7 @@ pub type PolicyIDs = ScriptHashes;
 pub struct Assets(pub(crate) std::collections::BTreeMap<AssetName, BigNum>);
 
 impl_to_from!(Assets);
+impl_btmap_wrapper!(Assets, AssetName, BigNum);
 
 #[wasm_bindgen]
 impl Assets {
@@ -1367,10 +1368,11 @@ impl Assets {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Ord, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, serde::Serialize, serde::Deserialize, JsonSchema)]
 pub struct MultiAsset(pub(crate) std::collections::BTreeMap<PolicyID, Assets>);
 
 impl_to_from!(MultiAsset);
+impl_btmap_wrapper!(MultiAsset, PolicyID, Assets, 0);
 
 #[wasm_bindgen]
 impl MultiAsset {
