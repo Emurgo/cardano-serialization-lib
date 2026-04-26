@@ -204,76 +204,17 @@ impl Value {
     }
 
     pub fn checked_add(&self, rhs: &Value) -> Result<Value, JsError> {
-        use std::collections::btree_map::Entry;
-        let coin = self.coin.checked_add(&rhs.coin)?;
-
-        let multiasset = match (&self.multiasset, &rhs.multiasset) {
-            (Some(lhs_multiasset), Some(rhs_multiasset)) => {
-                let mut multiasset = MultiAsset::new();
-
-                for ma in &[lhs_multiasset, rhs_multiasset] {
-                    for (policy, assets) in &ma.0 {
-                        for (asset_name, amount) in &assets.0 {
-                            match multiasset.0.entry(policy.clone()) {
-                                Entry::Occupied(mut assets) => {
-                                    match assets.get_mut().0.entry(asset_name.clone()) {
-                                        Entry::Occupied(mut assets) => {
-                                            let current = assets.get_mut();
-                                            *current = current.checked_add(&amount)?;
-                                        }
-                                        Entry::Vacant(vacant_entry) => {
-                                            vacant_entry.insert(amount.clone());
-                                        }
-                                    }
-                                }
-                                Entry::Vacant(entry) => {
-                                    let mut assets = Assets::new();
-                                    assets.0.insert(asset_name.clone(), amount.clone());
-                                    entry.insert(assets);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Some(multiasset)
-            }
-            (None, None) => None,
-            (Some(ma), None) => Some(ma.clone()),
-            (None, Some(ma)) => Some(ma.clone()),
-        };
-
-        Ok(Value { coin, multiasset })
+        <Self as num::CheckedAdd>::checked_add(self, rhs)
+            .ok_or_else(|| JsError::from_str("overflow"))
     }
 
     pub fn checked_sub(&self, rhs_value: &Value) -> Result<Value, JsError> {
-        let coin = self.coin.checked_sub(&rhs_value.coin)?;
-        let multiasset = match (&self.multiasset, &rhs_value.multiasset) {
-            (Some(lhs_ma), Some(rhs_ma)) => match lhs_ma.sub(rhs_ma).len() {
-                0 => None,
-                _ => Some(lhs_ma.sub(rhs_ma)),
-            },
-            (Some(lhs_ma), None) => Some(lhs_ma.clone()),
-            (None, Some(_rhs_ma)) => None,
-            (None, None) => None,
-        };
-
-        Ok(Value { coin, multiasset })
+        <Self as num::CheckedSub>::checked_sub(self, rhs_value)
+            .ok_or_else(|| JsError::from_str("underflow"))
     }
 
     pub fn clamped_sub(&self, rhs_value: &Value) -> Value {
-        let coin = self.coin.clamped_sub(&rhs_value.coin);
-        let multiasset = match (&self.multiasset, &rhs_value.multiasset) {
-            (Some(lhs_ma), Some(rhs_ma)) => match lhs_ma.sub(rhs_ma).len() {
-                0 => None,
-                _ => Some(lhs_ma.sub(rhs_ma)),
-            },
-            (Some(lhs_ma), None) => Some(lhs_ma.clone()),
-            (None, Some(_rhs_ma)) => None,
-            (None, None) => None,
-        };
-
-        Value { coin, multiasset }
+        <Self as num_traits::SaturatingSub>::saturating_sub(&self, rhs_value)
     }
 
     /// note: values are only partially comparable
