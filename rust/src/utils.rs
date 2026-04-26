@@ -4,6 +4,7 @@ use cbor_event::{
     se::{Serialize, Serializer},
 };
 use hex::FromHex;
+use num::Zero;
 use serde_json;
 use std::fmt::Display;
 use std::{
@@ -338,6 +339,112 @@ impl PartialOrd for Value {
                 (_, _) => None,
             }
         })
+    }
+}
+
+impl std::ops::Add for Value {
+    type Output = Value;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        <Self as num_traits::CheckedAdd>::checked_add(&self, &rhs).expect("Value overflow")
+    }
+}
+
+impl std::ops::Add<Coin> for Value {
+    type Output = Value;
+
+    fn add(self, rhs: Coin) -> Self::Output {
+        let coin = num::CheckedAdd::checked_add(&self.coin, &rhs).expect("Value overflow");
+        Value { coin, ..self }
+    }
+}
+
+impl std::ops::Add<MultiAsset> for Value {
+    type Output = Value;
+
+    fn add(self, rhs: MultiAsset) -> Self::Output {
+        self + Value::from(rhs)
+    }
+}
+
+impl std::ops::Sub for Value {
+    type Output = Value;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        <Self as num_traits::CheckedSub>::checked_sub(&self, &rhs).expect("Value underflow")
+    }
+}
+
+impl std::ops::Sub<Coin> for Value {
+    type Output = Value;
+
+    fn sub(self, rhs: Coin) -> Self::Output {
+        let coin = num::CheckedSub::checked_sub(&self.coin, &rhs).expect("Value underflow");
+        Value { coin, ..self }
+    }
+}
+
+impl std::ops::Sub<MultiAsset> for Value {
+    type Output = Value;
+
+    fn sub(self, rhs: MultiAsset) -> Self::Output {
+        self - Value::from(rhs)
+    }
+}
+
+impl num_traits::CheckedAdd for Value {
+    fn checked_add(&self, other: &Self) -> Option<Self> {
+        let coin = num::CheckedAdd::checked_add(&self.coin, &other.coin)?;
+        let multiasset = match (&self.multiasset, &other.multiasset) {
+            (Some(first), Some(second)) => Some(num::CheckedAdd::checked_add(first, second)?),
+            (Some(first), None) => Some(first.clone()),
+            (None, Some(second)) => Some(second.clone()),
+            (None, None) => None,
+        }
+        .filter(|ma| !ma.is_zero());
+        Some(Self { coin, multiasset })
+    }
+}
+
+impl num_traits::CheckedSub for Value {
+    fn checked_sub(&self, other: &Self) -> Option<Self> {
+        let coin = num::CheckedSub::checked_sub(&self.coin, &other.coin)?;
+        let multiasset = match (&self.multiasset, &other.multiasset) {
+            (Some(first), Some(second)) => Some(num::CheckedSub::checked_sub(first, second)?),
+            (Some(first), None) => Some(first.clone()),
+            (None, Some(second)) if !second.is_zero() => return None,
+            (None, Some(_zero)) => None,
+            (None, None) => None,
+        }
+        .filter(|ma| !ma.is_zero());
+        Some(Self { coin, multiasset })
+    }
+}
+
+impl num_traits::SaturatingSub for Value {
+    fn saturating_sub(&self, v: &Self) -> Self {
+        let coin = self.coin.saturating_sub(&v.coin);
+        let multiasset = match (&self.multiasset, &v.multiasset) {
+            (Some(first), Some(second)) => Some(first.saturating_sub(second)),
+            (Some(first), None) => Some(first.clone()),
+            (None, _) => None,
+        }
+        .filter(|ma| !ma.is_zero());
+        Self { coin, multiasset }
+    }
+}
+
+impl num_traits::SaturatingAdd for Value {
+    fn saturating_add(&self, v: &Self) -> Self {
+        let coin = self.coin.saturating_add(&v.coin);
+        let multiasset = match (&self.multiasset, &v.multiasset) {
+            (Some(first), Some(second)) => Some(first.saturating_add(second)),
+            (Some(first), None) => Some(first.clone()),
+            (None, Some(second)) => Some(second.clone()),
+            (None, None) => None,
+        }
+        .filter(|ma| !ma.is_zero());
+        Self { coin, multiasset }
     }
 }
 

@@ -651,6 +651,32 @@ pub(crate) fn fake_bootsrap_witness_with_attrs(x: u8, attributes: Vec<u8>) -> Bo
     )
 }
 
+pub(crate) fn fake_assets(assets: &[(u8, u64)]) -> Assets {
+    Assets(
+        assets
+            .iter()
+            .map(|(name, qty)| (fake_asset_name(*name), BigNum(*qty)))
+            .collect(),
+    )
+}
+
+
+pub(crate) fn fake_multiasset(policies: &[(u8, &[(u8, u64)])]) -> MultiAsset {
+    MultiAsset(
+        policies
+            .iter()
+            .map(|(pid, assets)| (fake_policy_id(*pid), fake_assets(assets)))
+            .collect(),
+    )
+}
+
+pub(crate) fn fake_value_with_assets(coin: u64, policies: &[(u8, &[(u8, u64)])]) -> Value {
+    Value {
+        coin: BigNum(coin),
+        multiasset: Some(fake_multiasset(policies)),
+    }
+}
+
 pub(crate) fn fake_plutus_script_and_hash(x: u8) -> (PlutusScript, ScriptHash) {
     let s = PlutusScript::new(fake_bytes_32(x));
     (s.clone(), s.hash())

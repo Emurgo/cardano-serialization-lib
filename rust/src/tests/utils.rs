@@ -1,3 +1,4 @@
+use super::fakes::{fake_multiasset, fake_value_with_assets};
 use crate::*;
 
 #[test]
@@ -791,6 +792,366 @@ fn value_empty_asset_equal() {
 
     assert_eq!(a, b);
     assert_eq!(a, c);
+}
+
+mod value_checked_arithmetic {
+    use super::*;
+    use num::{CheckedAdd, CheckedSub};
+
+    #[test]
+    fn checked_add_coin_only() {
+        let a = Value::from(BigNum(100));
+        let b = Value::from(BigNum(200));
+        let expected = Some(Value::from(BigNum(300)));
+        assert_eq!(CheckedAdd::checked_add(&a, &b), expected);
+    }
+
+    #[test]
+    fn checked_add_coin_overflow() {
+        let a = Value::from(BigNum(u64::MAX));
+        let b = Value::from(BigNum(1));
+        assert_eq!(CheckedAdd::checked_add(&a, &b), None);
+    }
+
+    #[test]
+    fn checked_add_both_have_multiasset() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = fake_value_with_assets(200, &[(0, &[(1, 5), (2, 20)])]);
+        let expected = fake_value_with_assets(300, &[(0, &[(1, 15), (2, 20)])]);
+        assert_eq!(CheckedAdd::checked_add(&a, &b), Some(expected));
+    }
+
+    #[test]
+    fn checked_add_one_side_none_multiasset() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = Value::from(BigNum(200));
+        let expected = fake_value_with_assets(300, &[(0, &[(1, 10)])]);
+        assert_eq!(CheckedAdd::checked_add(&a, &b), Some(expected.clone()));
+        assert_eq!(CheckedAdd::checked_add(&b, &a), Some(expected));
+    }
+
+    #[test]
+    fn checked_add_asset_overflow() {
+        let a = fake_value_with_assets(0, &[(0, &[(1, u64::MAX)])]);
+        let b = fake_value_with_assets(0, &[(0, &[(1, 1)])]);
+        assert_eq!(CheckedAdd::checked_add(&a, &b), None);
+    }
+
+    #[test]
+    fn checked_sub_coin_only() {
+        let a = Value::from(BigNum(300));
+        let b = Value::from(BigNum(100));
+        let expected = Some(Value::from(BigNum(200)));
+        assert_eq!(CheckedSub::checked_sub(&a, &b), expected);
+    }
+
+    #[test]
+    fn checked_sub_coin_underflow() {
+        let a = Value::from(BigNum(100));
+        let b = Value::from(BigNum(200));
+        assert_eq!(CheckedSub::checked_sub(&a, &b), None);
+    }
+
+    #[test]
+    fn checked_sub_both_have_multiasset() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 10), (2, 20)])]);
+        let b = fake_value_with_assets(100, &[(0, &[(1, 3)])]);
+        let expected = fake_value_with_assets(200, &[(0, &[(1, 7), (2, 20)])]);
+        assert_eq!(CheckedSub::checked_sub(&a, &b), Some(expected));
+    }
+
+    #[test]
+    fn checked_sub_asset_underflow() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 5)])]);
+        let b = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        assert_eq!(CheckedSub::checked_sub(&a, &b), None);
+    }
+
+    #[test]
+    fn checked_sub_lhs_none_rhs_nonzero_multiasset() {
+        let a = Value::from(BigNum(300));
+        let b = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        assert_eq!(CheckedSub::checked_sub(&a, &b), None);
+    }
+
+    #[test]
+    fn checked_sub_lhs_none_rhs_zero_multiasset() {
+        let a = Value::from(BigNum(300));
+        let b = Value {
+            coin: Coin::from(100u64),
+            multiasset: Some(MultiAsset::new()),
+        };
+        let expected = Some(Value::from(BigNum(200)));
+        assert_eq!(CheckedSub::checked_sub(&a, &b), expected);
+    }
+
+    #[test]
+    fn checked_sub_lhs_has_multiasset_rhs_none() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 10)])]);
+        let b = Value::from(BigNum(100));
+        let expected = Some(fake_value_with_assets(200, &[(0, &[(1, 10)])]));
+        assert_eq!(CheckedSub::checked_sub(&a, &b), expected);
+    }
+
+    #[test]
+    fn add_operator() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = fake_value_with_assets(200, &[(0, &[(1, 5)])]);
+        let expected = fake_value_with_assets(300, &[(0, &[(1, 15)])]);
+        assert_eq!(a + b, expected);
+    }
+
+    #[test]
+    #[should_panic(expected = "Value overflow")]
+    fn add_operator_panics_on_overflow() {
+        let a = Value::from(BigNum(u64::MAX));
+        let b = Value::from(BigNum(1));
+        let _ = a + b;
+    }
+
+    #[test]
+    fn sub_operator() {
+        let a = Value::from(BigNum(300));
+        let b = Value::from(BigNum(100));
+        let expected = Value::from(BigNum(200));
+        assert_eq!(a - b, expected);
+    }
+
+    #[test]
+    #[should_panic(expected = "Value underflow")]
+    fn sub_operator_panics_on_underflow() {
+        let a = Value::from(BigNum(100));
+        let b = Value::from(BigNum(200));
+        let _ = a - b;
+    }
+
+    #[test]
+    fn checked_add_disjoint_policies() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = fake_value_with_assets(200, &[(1, &[(1, 20)])]);
+        let expected = fake_value_with_assets(300, &[(0, &[(1, 10)]), (1, &[(1, 20)])]);
+        assert_eq!(CheckedAdd::checked_add(&a, &b), Some(expected));
+    }
+
+    #[test]
+    fn checked_sub_rhs_policy_not_in_lhs() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 10)])]);
+        let b = fake_value_with_assets(100, &[(1, &[(1, 5)])]);
+        assert_eq!(CheckedSub::checked_sub(&a, &b), None);
+    }
+
+    #[test]
+    fn checked_sub_rhs_asset_name_not_in_lhs() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 10)])]);
+        let b = fake_value_with_assets(100, &[(0, &[(2, 5)])]);
+        assert_eq!(CheckedSub::checked_sub(&a, &b), None);
+    }
+
+    #[test]
+    fn checked_sub_multiple_overlapping_policies() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 10)]), (1, &[(1, 20)])]);
+        let b = fake_value_with_assets(100, &[(0, &[(1, 3)]), (1, &[(1, 5)])]);
+        let expected = fake_value_with_assets(200, &[(0, &[(1, 7)]), (1, &[(1, 15)])]);
+        assert_eq!(CheckedSub::checked_sub(&a, &b), Some(expected));
+    }
+
+    #[test]
+    fn checked_sub_exact_assets_normalizes_to_none() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 10)])]);
+        let b = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let expected = Some(Value::from(BigNum(200)));
+        assert_eq!(CheckedSub::checked_sub(&a, &b), expected);
+    }
+}
+
+mod value_saturating_arithmetic {
+    use super::*;
+    use num_traits::{SaturatingAdd, SaturatingSub};
+
+    #[test]
+    fn saturating_sub_coin_clamps_to_zero() {
+        let a = Value::from(BigNum(100));
+        let b = Value::from(BigNum(200));
+        let expected = Value::from(BigNum(0));
+        assert_eq!(a.saturating_sub(&b), expected);
+    }
+
+    #[test]
+    fn saturating_sub_coin_within_range() {
+        let a = Value::from(BigNum(300));
+        let b = Value::from(BigNum(100));
+        let expected = Value::from(BigNum(200));
+        assert_eq!(a.saturating_sub(&b), expected);
+    }
+
+    #[test]
+    fn saturating_sub_assets_clamp_to_zero_and_removed() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 5)])]);
+        let b = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let expected = Value::from(BigNum(200));
+        assert_eq!(a.saturating_sub(&b), expected);
+    }
+
+    #[test]
+    fn saturating_sub_lhs_none_rhs_has_assets() {
+        let a = Value::from(BigNum(300));
+        let b = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let expected = Value::from(BigNum(200));
+        assert_eq!(a.saturating_sub(&b), expected);
+    }
+
+    #[test]
+    fn saturating_sub_lhs_has_assets_rhs_none() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 10)])]);
+        let b = Value::from(BigNum(100));
+        let expected = fake_value_with_assets(200, &[(0, &[(1, 10)])]);
+        assert_eq!(a.saturating_sub(&b), expected);
+    }
+
+    #[test]
+    fn saturating_sub_partial_asset_clamp() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 5), (2, 20)])]);
+        let b = fake_value_with_assets(100, &[(0, &[(1, 10), (2, 3)])]);
+        let expected = fake_value_with_assets(200, &[(0, &[(2, 17)])]);
+        assert_eq!(a.saturating_sub(&b), expected);
+    }
+
+    #[test]
+    fn saturating_add_coin_clamps_at_max() {
+        let a = Value::from(BigNum(u64::MAX));
+        let b = Value::from(BigNum(100));
+        let expected = Value::from(BigNum(u64::MAX));
+        assert_eq!(a.saturating_add(&b), expected);
+    }
+
+    #[test]
+    fn saturating_add_asset_clamps_at_max() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, u64::MAX)])]);
+        let b = fake_value_with_assets(200, &[(0, &[(1, 100), (2, 5)])]);
+        let expected = fake_value_with_assets(300, &[(0, &[(1, u64::MAX), (2, 5)])]);
+        assert_eq!(a.saturating_add(&b), expected);
+    }
+
+    #[test]
+    fn saturating_add_one_side_none_multiasset() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = Value::from(BigNum(200));
+        let expected = fake_value_with_assets(300, &[(0, &[(1, 10)])]);
+        assert_eq!(a.saturating_add(&b), expected.clone());
+        assert_eq!(b.saturating_add(&a), expected);
+    }
+
+    #[test]
+    fn saturating_add_both_none_multiasset() {
+        let a = Value::from(BigNum(100));
+        let b = Value::from(BigNum(200));
+        let expected = Value::from(BigNum(300));
+        assert_eq!(a.saturating_add(&b), expected);
+    }
+
+    #[test]
+    fn saturating_sub_disjoint_policies() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 10)])]);
+        let b = fake_value_with_assets(100, &[(1, &[(1, 5)])]);
+        let expected = fake_value_with_assets(200, &[(0, &[(1, 10)])]);
+        assert_eq!(a.saturating_sub(&b), expected);
+    }
+
+    #[test]
+    fn saturating_sub_rhs_asset_name_not_in_lhs() {
+        let a = fake_value_with_assets(300, &[(0, &[(1, 10)])]);
+        let b = fake_value_with_assets(100, &[(0, &[(2, 5)])]);
+        let expected = fake_value_with_assets(200, &[(0, &[(1, 10)])]);
+        assert_eq!(a.saturating_sub(&b), expected);
+    }
+
+    #[test]
+    fn saturating_add_overlapping_assets() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = fake_value_with_assets(200, &[(0, &[(1, 5)])]);
+        let expected = fake_value_with_assets(300, &[(0, &[(1, 15)])]);
+        assert_eq!(a.saturating_add(&b), expected);
+    }
+
+    #[test]
+    fn saturating_add_disjoint_policies() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = fake_value_with_assets(200, &[(1, &[(1, 20)])]);
+        let expected = fake_value_with_assets(300, &[(0, &[(1, 10)]), (1, &[(1, 20)])]);
+        assert_eq!(a.saturating_add(&b), expected);
+    }
+}
+
+mod value_sub_components {
+    use super::*;
+
+    #[test]
+    fn sub_coin_from_coin_only_value() {
+        let a = Value::from(BigNum(150));
+        let b = Coin::from(50u64);
+        let expected = Value::from(BigNum(100));
+        assert_eq!(a - b, expected);
+    }
+
+    #[test]
+    fn sub_coin_from_value_with_assets() {
+        let a = fake_value_with_assets(150, &[(0, &[(1, 10)])]);
+        let b = Coin::from(50u64);
+        let expected = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        assert_eq!(a - b, expected);
+    }
+
+    #[test]
+    fn sub_multiasset_from_value_with_assets() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = fake_multiasset(&[(0, &[(1, 4)])]);
+        let expected = fake_value_with_assets(100, &[(0, &[(1, 6)])]);
+        assert_eq!(a - b, expected);
+    }
+
+    #[test]
+    fn sub_multiasset_fully_removes_zeroed_asset() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = fake_multiasset(&[(0, &[(1, 10)])]);
+        let expected = Value::from(BigNum(100));
+        assert_eq!(a - b, expected);
+    }
+}
+
+mod value_add_components {
+    use super::*;
+
+    #[test]
+    fn add_coin_to_coin_only_value() {
+        let a = Value::from(BigNum(100));
+        let b = Coin::from(50u64);
+        let expected = Value::from(BigNum(150));
+        assert_eq!(a + b, expected);
+    }
+
+    #[test]
+    fn add_coin_to_value_with_assets() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = Coin::from(50u64);
+        let expected = fake_value_with_assets(150, &[(0, &[(1, 10)])]);
+        assert_eq!(a + b, expected);
+    }
+
+    #[test]
+    fn add_multiasset_to_coin_only_value() {
+        let a = Value::from(BigNum(100));
+        let b = fake_multiasset(&[(0, &[(1, 10)])]);
+        let expected = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        assert_eq!(a + b, expected);
+    }
+
+    #[test]
+    fn add_multiasset_to_value_with_assets() {
+        let a = fake_value_with_assets(100, &[(0, &[(1, 10)])]);
+        let b = fake_multiasset(&[(1, &[(2, 20)])]);
+        let expected = fake_value_with_assets(100, &[(0, &[(1, 10)]), (1, &[(2, 20)])]);
+        assert_eq!(a + b, expected);
+    }
 }
 
 #[test]
