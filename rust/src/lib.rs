@@ -27,6 +27,7 @@ use std::io::{BufRead, Seek, Write};
 #[cfg(any(not(all(target_arch = "wasm32", not(target_os = "emscripten"))), feature = "dont-expose-wasm"))]
 use noop_proc_macro::wasm_bindgen;
 
+use num_traits::SaturatingSub;
 #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten"), not(feature = "dont-expose-wasm")))]
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
@@ -1428,45 +1429,7 @@ impl MultiAsset {
     /// removes an asset from the list if the result is 0 or less
     /// does not modify this object, instead the result is returned
     pub fn sub(&self, rhs_ma: &MultiAsset) -> MultiAsset {
-        let mut lhs_ma = self.clone();
-        for (policy, assets) in &rhs_ma.0 {
-            for (asset_name, amount) in &assets.0 {
-                match lhs_ma.0.get_mut(policy) {
-                    Some(assets) => match assets.0.get_mut(asset_name) {
-                        Some(current) => match current.checked_sub(&amount) {
-                            Ok(new) => match new.compare(&BigNum(0)) {
-                                0 => {
-                                    assets.0.remove(asset_name);
-                                    match assets.0.len() {
-                                        0 => {
-                                            lhs_ma.0.remove(policy);
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                                _ => *current = new,
-                            },
-                            Err(_) => {
-                                assets.0.remove(asset_name);
-                                match assets.0.len() {
-                                    0 => {
-                                        lhs_ma.0.remove(policy);
-                                    }
-                                    _ => {}
-                                }
-                            }
-                        },
-                        None => {
-                            // asset name is missing from left hand side
-                        }
-                    },
-                    None => {
-                        // policy id missing from left hand side
-                    }
-                }
-            }
-        }
-        lhs_ma
+        <Self as SaturatingSub>::saturating_sub(self, rhs_ma)
     }
 
     pub(crate) fn reduce_empty_to_none(&self) -> Option<&MultiAsset> {
