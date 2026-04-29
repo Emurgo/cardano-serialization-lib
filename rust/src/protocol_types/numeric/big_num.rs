@@ -17,6 +17,7 @@ impl_to_from!(BigNum);
 impl_num_from!(BigNum, u8, u16, u32, u64);
 impl_num_into!(BigNum, u64, u128, i128);
 impl_num_ops!(BigNum, u64);
+impl_num_ops!(@saturating BigNum, u64);
 
 impl std::fmt::Display for BigNum {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -71,10 +72,7 @@ impl BigNum {
 
     /// returns 0 if it would otherwise underflow
     pub fn clamped_sub(&self, other: &BigNum) -> BigNum {
-        match self.0.checked_sub(other.0) {
-            Some(value) => BigNum(value),
-            None => BigNum(0),
-        }
+        <Self as num_traits::SaturatingSub>::saturating_sub(self, other)
     }
 
     pub fn compare(&self, rhs_value: &BigNum) -> i8 {

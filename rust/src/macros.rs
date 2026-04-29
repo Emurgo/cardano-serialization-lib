@@ -102,6 +102,19 @@ macro_rules! impl_num_ops {
             }
         }
     };
+    (@saturating $wrapper:ident, $inner:ty) => {
+        impl num_traits::SaturatingAdd for $wrapper {
+            fn saturating_add(&self, v: &Self) -> Self {
+                Self(num_traits::SaturatingAdd::saturating_add(&self.0, &v.0))
+            }
+        }
+
+        impl num_traits::SaturatingSub for $wrapper {
+            fn saturating_sub(&self, v: &Self) -> Self {
+                Self(num_traits::SaturatingSub::saturating_sub(&self.0, &v.0))
+            }
+        }
+    };
 }
 
 macro_rules! impl_vec_wrapper {
@@ -198,6 +211,7 @@ mod tests {
         impl_num_from!(TestNum, u32, u16, u8);
         impl_num_into!(TestNum, u128, u64);
         impl_num_ops!(TestNum, u64);
+        impl_num_ops!(@saturating TestNum, u64);
 
         #[quickcheck]
         fn from(inner: u32) {
@@ -325,6 +339,26 @@ mod tests {
         fn checked_div_by_zero() {
             use num_traits::CheckedDiv;
             assert_eq!(TestNum(1).checked_div(&TestNum(0)), None);
+        }
+
+        #[quickcheck]
+        fn saturating_add(a: u64, b: u64) {
+            use num_traits::SaturatingAdd;
+            if a <= u64::MAX - b {
+                assert_eq!(TestNum(a).saturating_add(&TestNum(b)), TestNum(a+b));
+            } else {
+                assert_eq!(TestNum(a).saturating_add(&TestNum(b)), TestNum(u64::MAX));
+            }
+        }
+
+        #[quickcheck]
+        fn saturating_sub_within_range(a: u64, b: u64) {
+            use num_traits::SaturatingSub;
+            if a >= b {
+                assert_eq!(TestNum(a).saturating_sub(&TestNum(b)), TestNum(a - b));
+            } else {
+                assert_eq!(TestNum(a).saturating_sub(&TestNum(b)), TestNum(0));
+            }
         }
     }
 
