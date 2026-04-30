@@ -203,6 +203,80 @@ macro_rules! impl_vec_wrapper {
     };
 }
 
+macro_rules! impl_btmap_wrapper {
+    ($wrapper:ident, $key:ty, $val:ty) => {
+        impl_btmap_wrapper!($wrapper, $key, $val, 0);
+    };
+    ($wrapper:ident, $key:ty, $val:ty, $field:tt) => {
+        impl num::Zero for $wrapper {
+            fn is_zero(&self) -> bool {
+                self.$field.values().all(<$val>::is_zero)
+            }
+
+            fn zero() -> Self {
+                Self::default()
+            }
+        }
+
+        impl_btmap_wrapper!(@ops $wrapper, $key, $val, $field,
+            std::ops::Add, add,
+            num::CheckedAdd, checked_add,
+            num_traits::SaturatingAdd, saturating_add, "overflow");
+        impl_btmap_wrapper!(@ops $wrapper, $key, $val, $field,
+            std::ops::Sub, sub,
+            num::CheckedSub, checked_sub,
+            num_traits::SaturatingSub, saturating_sub, "underflow");
+
+    };
+    (@ops $wrapper:ident, $key:ty, $val:ty, $field:tt,
+        $BaseOp:path, $base_op:ident,
+        $CheckedOp:path, $checked_op:ident,
+        $SaturatingOp:path, $saturating_op:ident, $error_str:expr
+    ) => {
+        impl $BaseOp for $wrapper {
+            type Output = $wrapper;
+
+            fn $base_op(self, rhs: Self) -> Self::Output {
+                <Self as $CheckedOp>::$checked_op(&self, &rhs)
+                    .expect(concat!(stringify!($wrapper :: $base_op), " ", $error_str))
+            }
+        }
+
+        impl $CheckedOp for $wrapper {
+            fn $checked_op(&self, other: &Self) -> Option<Self> {
+                let mut result = self.clone();
+                for (key, rhs) in &other.$field {
+                    let lhs = result.$field.get(&key).cloned().unwrap_or_default();
+                    let new_value = <$val as $CheckedOp>::$checked_op(&lhs, rhs)?;
+                    if !num_traits::Zero::is_zero(&new_value) {
+                        result.$field.insert(key.clone(), new_value);
+                    } else {
+                        result.$field.remove(key);
+                    }
+                }
+                Some(result)
+            }
+        }
+
+        impl $SaturatingOp for $wrapper {
+            fn $saturating_op(&self, other: &Self) -> Self {
+                let mut result = self.clone();
+                for (key, rhs) in &other.$field {
+                    let lhs = result.$field.get(&key).cloned().unwrap_or_default();
+                    let new_value = <$val as $SaturatingOp>::$saturating_op(&lhs, rhs);
+                    if !num_traits::Zero::is_zero(&new_value) {
+                        result.$field.insert(key.clone(), new_value);
+                    } else {
+                        result.$field.remove(key);
+                    }
+                }
+                result
+            }
+        }
+
+    };
+}
+
 #[cfg(test)]
 mod tests {
     mod impl_num {
@@ -359,6 +433,159 @@ mod tests {
             } else {
                 assert_eq!(TestNum(a).saturating_sub(&TestNum(b)), TestNum(0));
             }
+        }
+    }
+
+    mod impl_btmap_wrapper {
+        use std::collections::BTreeMap;
+
+        #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+        struct TestKey(u8);
+
+        #[derive(Clone, Debug, PartialEq, Default)]
+        struct TestValue(u64);
+        impl_num_ops!(TestValue, u64);
+        impl_num_ops!(@saturating TestValue, u64);
+
+        impl From<u64> for TestValue {
+            fn from(value: u64) -> Self {
+                Self(value)
+            }
+        }
+
+        #[derive(Clone, Debug, PartialEq, Default)]
+        struct TestMap(BTreeMap<TestKey, TestValue>);
+        impl_btmap_wrapper!(TestMap, TestKey, TestValue);
+
+        fn test_map(entries: &[(u8, u64)]) -> TestMap {
+            TestMap(
+                entries
+                    .iter()
+                    .map(|&(k, v)| (TestKey(k), TestValue(v)))
+                    .collect(),
+            )
+        }
+
+        #[test]
+        fn zero_is_empty_map() {
+            use num::Zero;
+            assert_eq!(TestMap::zero(), TestMap::default());
+            assert!(TestMap::zero().is_zero());
+        }
+
+        #[test]
+        fn all_zero_values_is_zero() {
+            use num::Zero;
+            assert!(test_map(&[(1, 0), (2, 0)]).is_zero());
+        }
+
+        #[test]
+        fn nonzero_value_is_not_zero() {
+            use num::Zero;
+            assert!(!test_map(&[(1, 1)]).is_zero());
+        }
+
+        #[test]
+        fn checked_add_overlapping_keys() {
+            use num::CheckedAdd;
+            assert_eq!(
+                test_map(&[(1, 10), (2, 20)]).checked_add(&test_map(&[(2, 5), (3, 30)])),
+                Some(test_map(&[(1, 10), (2, 25), (3, 30)]))
+            );
+        }
+
+        #[test]
+        fn checked_add_disjoint_keys() {
+            use num::CheckedAdd;
+            assert_eq!(
+                test_map(&[(1, 10)]).checked_add(&test_map(&[(2, 20)])),
+                Some(test_map(&[(1, 10), (2, 20)]))
+            );
+        }
+
+        #[test]
+        fn checked_add_overflow() {
+            use num::CheckedAdd;
+            assert_eq!(
+                test_map(&[(1, u64::MAX)]).checked_add(&test_map(&[(1, 1)])),
+                None
+            );
+        }
+
+        #[test]
+        fn checked_sub_overlapping_keys() {
+            use num::CheckedSub;
+            assert_eq!(
+                test_map(&[(1, 10), (2, 20)]).checked_sub(&test_map(&[(1, 3), (2, 5)])),
+                Some(test_map(&[(1, 7), (2, 15)]))
+            );
+        }
+
+        #[test]
+        fn checked_sub_exact() {
+            use num::CheckedSub;
+            assert_eq!(
+                test_map(&[(1, 10)]).checked_sub(&test_map(&[(1, 10)])),
+                Some(test_map(&[]))
+            );
+        }
+
+        #[test]
+        fn checked_sub_rhs_key_missing_from_lhs() {
+            use num::CheckedSub;
+            assert_eq!(test_map(&[(1, 10)]).checked_sub(&test_map(&[(2, 5)])), None);
+        }
+
+        #[test]
+        fn checked_sub_overflow() {
+            use num::CheckedSub;
+            assert_eq!(test_map(&[(1, 5)]).checked_sub(&test_map(&[(1, 10)])), None);
+        }
+
+        #[test]
+        fn add_operator() {
+            assert_eq!(
+                test_map(&[(1, 10)]) + test_map(&[(1, 5), (2, 3)]),
+                test_map(&[(1, 15), (2, 3)])
+            );
+        }
+
+        #[test]
+        #[should_panic(expected = "overflow")]
+        fn add_operator_panics_on_overflow() {
+            let _ = test_map(&[(1, u64::MAX)]) + test_map(&[(1, 1)]);
+        }
+
+        #[test]
+        fn sub_operator() {
+            assert_eq!(
+                test_map(&[(1, 10), (2, 3)]) - test_map(&[(1, 5)]),
+                test_map(&[(1, 5), (2, 3)])
+            );
+        }
+
+        #[test]
+        #[should_panic(expected = "underflow")]
+        fn sub_operator_panics_on_underflow() {
+            let _ = test_map(&[(1, 5)]) - test_map(&[(1, 10)]);
+        }
+
+        #[test]
+        fn saturating_add_clamps_at_max() {
+            use num_traits::SaturatingAdd;
+            assert_eq!(
+                test_map(&[(1, u64::MAX)]).saturating_add(&test_map(&[(1, 100), (2, 5)])),
+                test_map(&[(1, u64::MAX), (2, 5)])
+            );
+        }
+
+        #[test]
+        fn saturating_sub_clamps_at_zero() {
+            use num_traits::SaturatingSub;
+            assert_eq!(
+                test_map(&[(1, 5)]).saturating_sub(&test_map(&[(1, 10), (2, 3)])),
+                test_map(&[])
+            );
         }
     }
 
