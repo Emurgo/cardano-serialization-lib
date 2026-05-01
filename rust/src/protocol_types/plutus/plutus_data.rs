@@ -121,6 +121,30 @@ pub struct PlutusMap(pub(crate) LinkedHashMap<PlutusData, PlutusMapValues>);
 
 to_from_bytes!(PlutusMap);
 
+#[macro_export]
+macro_rules! plutus_map_values {
+    ($($item:expr),* $(,)?) => {
+        {
+            #[allow(unused_mut)]
+            let mut values = $crate::PlutusMapValues::new();
+            $(values.add(&$crate::PlutusData::from($item));)*
+            values
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! plutus_map {
+    ($($key:expr => $value:expr),* $(,)?) => {
+        {
+            #[allow(unused_mut)]
+            let mut plutus_map = $crate::PlutusMap::new();
+            $(plutus_map.insert(&$key.into(), &$value.into());)*
+            plutus_map
+        }
+    };
+}
+
 #[wasm_bindgen]
 impl PlutusMap {
     pub fn new() -> Self {
