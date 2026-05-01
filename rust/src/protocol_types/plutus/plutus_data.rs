@@ -274,6 +274,16 @@ impl From<&[u8]> for PlutusDataEnum {
     }
 }
 
+#[macro_export]
+macro_rules! plutus_bytes {
+    ($($byte:expr),* $(,)?) => {
+        $crate::PlutusData::from(vec![$($byte),*])
+    };
+    ($elem:expr; $n:expr) => {
+        $crate::PlutusData::from(vec![$elem ; $n])
+    };
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct PlutusData {
