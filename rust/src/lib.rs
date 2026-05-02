@@ -1343,12 +1343,8 @@ impl_btmap_wrapper!(Assets, AssetName, BigNum);
 #[macro_export]
 macro_rules! assets {
     ($($name:expr => $amount:expr),* $(,)?) => {
-        {
-            #[allow(unused_mut)]
-            let mut assets = $crate::Assets::new();
-            $(assets.insert(&$crate::AssetName::from($name), &$crate::BigNum::from($amount));)*
-            assets
-        }
+        $crate::Assets::new()
+            $(.with_asset($crate::AssetName::from($name), $crate::BigNum::from($amount)))*
     };
 }
 
@@ -1405,12 +1401,8 @@ impl_btmap_wrapper!(MultiAsset, PolicyID, Assets, 0);
 #[macro_export]
 macro_rules! multi_asset {
     ($($policy:expr => $assets:expr),* $(,)?) => {
-        {
-            #[allow(unused_mut)]
-            let mut ma = $crate::MultiAsset::new();
-            $(ma.insert(&$crate::PolicyID::from($policy), &$crate::Assets::from($assets));)*
-            ma
-        }
+        $crate::MultiAsset::new()
+            $(.with_assets($crate::PolicyID::from($policy), $crate::Assets::from($assets)))*
     };
 }
 
