@@ -1,6 +1,6 @@
 use crate::*;
 use crate::tests::helpers::harden;
-use crate::tests::fakes::{fake_plutus_script, fake_bootsrap_witness, fake_tx_input, fake_vkey_witness, fake_key_hash};
+use crate::tests::fakes::{fake_plutus_script, fake_bootsrap_witness, fake_tx_input, fake_vkey_witness, fake_key_hash, fake_policy_id, fake_asset_name};
 
 #[test]
 fn native_script_hash() {
@@ -853,5 +853,115 @@ fn too_big_plutus_int_to_json() {
     #[cfg(not(feature = "arbitrary-precision-json"))]
     {
         assert!(json.is_err());
+    }
+}
+
+mod constructor_macros {
+    use super::*;
+
+    mod assets {
+        use super::*;
+
+        #[test]
+        fn empty() {
+            assert_eq!(assets! {}, Assets::new());
+        }
+
+        #[test]
+        fn single_entry() {
+            let a = assets! { fake_asset_name(1) => BigNum::from(100u64) };
+            assert_eq!(a.len(), 1);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(100u64)));
+        }
+
+        #[test]
+        fn multiple_entries() {
+            let a = assets! {
+                fake_asset_name(1) => BigNum::from(100u64),
+                fake_asset_name(2) => BigNum::from(200u64),
+                fake_asset_name(3) => BigNum::from(300u64),
+            };
+            assert_eq!(a.len(), 3);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(100u64)));
+            assert_eq!(a.get(&fake_asset_name(2)), Some(BigNum::from(200u64)));
+            assert_eq!(a.get(&fake_asset_name(3)), Some(BigNum::from(300u64)));
+        }
+
+        #[test]
+        fn trailing_comma() {
+            let a = assets! { fake_asset_name(1) => BigNum::from(42u64), };
+            assert_eq!(a.len(), 1);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(42u64)));
+        }
+
+        #[test]
+        fn duplicate_key_uses_last() {
+            let a = assets! {
+                fake_asset_name(1) => BigNum::from(100u64),
+                fake_asset_name(1) => BigNum::from(999u64),
+            };
+            assert_eq!(a.len(), 1);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(999u64)));
+        }
+    }
+
+    mod multi_asset {
+        use super::*;
+
+        #[test]
+        fn empty() {
+            assert_eq!(multi_asset! {}, MultiAsset::new());
+        }
+
+        #[test]
+        fn single_policy() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::from(100u64) }
+            };
+            assert_eq!(ma.len(), 1);
+            let a = ma.get(&fake_policy_id(1)).unwrap();
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(100u64)));
+        }
+
+        #[test]
+        fn multiple_policies() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! {
+                    fake_asset_name(1) => BigNum::from(10u64),
+                    fake_asset_name(2) => BigNum::from(20u64),
+                },
+                fake_policy_id(2) => assets! {
+                    fake_asset_name(3) => BigNum::from(30u64),
+                },
+            };
+            assert_eq!(ma.len(), 2);
+            let a1 = ma.get(&fake_policy_id(1)).unwrap();
+            assert_eq!(a1.len(), 2);
+            assert_eq!(a1.get(&fake_asset_name(1)), Some(BigNum::from(10u64)));
+            assert_eq!(a1.get(&fake_asset_name(2)), Some(BigNum::from(20u64)));
+            let a2 = ma.get(&fake_policy_id(2)).unwrap();
+            assert_eq!(a2.len(), 1);
+            assert_eq!(a2.get(&fake_asset_name(3)), Some(BigNum::from(30u64)));
+        }
+
+        #[test]
+        fn trailing_comma() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::from(1u64) },
+            };
+            assert_eq!(ma.len(), 1);
+        }
+
+        #[test]
+        fn duplicate_policy_uses_last() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::from(100u64) },
+                fake_policy_id(1) => assets! { fake_asset_name(2) => BigNum::from(200u64) },
+            };
+            assert_eq!(ma.len(), 1);
+            let a = ma.get(&fake_policy_id(1)).unwrap();
+            assert_eq!(a.get(&fake_asset_name(1)), None);
+            assert_eq!(a.get(&fake_asset_name(2)), Some(BigNum::from(200u64)));
+        }
     }
 }

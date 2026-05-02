@@ -1340,6 +1340,18 @@ pub struct Assets(pub(crate) std::collections::BTreeMap<AssetName, BigNum>);
 impl_to_from!(Assets);
 impl_btmap_wrapper!(Assets, AssetName, BigNum);
 
+#[macro_export]
+macro_rules! assets {
+    ($($name:expr => $amount:expr),* $(,)?) => {
+        {
+            #[allow(unused_mut)]
+            let mut assets = $crate::Assets::new();
+            $(assets.insert(&$crate::AssetName::from($name), &$crate::BigNum::from($amount));)*
+            assets
+        }
+    };
+}
+
 #[wasm_bindgen]
 impl Assets {
     pub fn new() -> Self {
@@ -1374,6 +1386,18 @@ pub struct MultiAsset(pub(crate) std::collections::BTreeMap<PolicyID, Assets>);
 
 impl_to_from!(MultiAsset);
 impl_btmap_wrapper!(MultiAsset, PolicyID, Assets, 0);
+
+#[macro_export]
+macro_rules! multi_asset {
+    ($($policy:expr => $assets:expr),* $(,)?) => {
+        {
+            #[allow(unused_mut)]
+            let mut ma = $crate::MultiAsset::new();
+            $(ma.insert(&$crate::PolicyID::from($policy), &$crate::Assets::from($assets));)*
+            ma
+        }
+    };
+}
 
 #[wasm_bindgen]
 impl MultiAsset {
