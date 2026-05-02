@@ -889,4 +889,69 @@ mod constructor_macros {
             assert_eq!(data, PlutusData::new_bytes(vec![0xab, 0xab, 0xab, 0xab]));
         }
     }
+
+    mod plutus_constr {
+        use super::*;
+
+        #[test]
+        fn no_fields() {
+            assert_eq!(
+                plutus_constr!(0u32),
+                ConstrPlutusData::new(&BigNum::from(0u32), &PlutusList::new())
+            );
+        }
+
+        #[test]
+        fn single_field() {
+            assert_eq!(
+                plutus_constr!(0u32, 42u64),
+                ConstrPlutusData::new(&BigNum::from(0u32), &plutus_list![42u64])
+            );
+        }
+
+        #[test]
+        fn multiple_fields() {
+            assert_eq!(
+                plutus_constr!(1u32, 10u64, 20u64, 30u64),
+                ConstrPlutusData::new(&BigNum::from(1u32), &plutus_list![10u64, 20u64, 30u64])
+            );
+        }
+
+        #[test]
+        fn trailing_comma() {
+            assert_eq!(
+                plutus_constr!(0u32, 1u64, 2u64,),
+                ConstrPlutusData::new(&BigNum::from(0u32), &plutus_list![1u64, 2u64])
+            );
+        }
+
+        #[test]
+        fn non_zero_alternative() {
+            let constr = plutus_constr!(5u32);
+            assert_eq!(constr.alternative(), BigNum::from(5u32));
+            assert_eq!(constr.data(), PlutusList::new());
+        }
+
+        #[test]
+        fn mixed_field_types() {
+            let bytes_data = PlutusData::new_bytes(vec![0xde, 0xad]);
+            let constr = plutus_constr!(0u32, 42u64, bytes_data);
+            assert_eq!(constr.data().len(), 2);
+            assert_eq!(
+                constr.data().get(0),
+                PlutusData::new_integer(&BigInt::from(42i32))
+            );
+            assert_eq!(
+                constr.data().get(1),
+                PlutusData::new_bytes(vec![0xde, 0xad])
+            );
+        }
+
+        #[test]
+        fn bignum_alternative() {
+            let constr = plutus_constr!(BigNum::from(200u32), 1u64);
+            assert_eq!(constr.alternative(), BigNum::from(200u32));
+            assert_eq!(constr.data().len(), 1);
+        }
+    }
 }
