@@ -21,6 +21,16 @@ pub struct ConstrPlutusData {
 
 to_from_bytes!(ConstrPlutusData);
 
+#[macro_export]
+macro_rules! plutus_constr {
+    ($variant:expr $(, $field:expr)* $(,)?) => {
+        $crate::ConstrPlutusData::new(
+            &$crate::BigNum::from($variant),
+            &$crate::plutus_list![$($field),*]
+        )
+    };
+}
+
 #[wasm_bindgen]
 impl ConstrPlutusData {
     pub fn alternative(&self) -> BigNum {
