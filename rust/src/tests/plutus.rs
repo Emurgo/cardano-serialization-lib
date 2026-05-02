@@ -681,3 +681,212 @@ fn plutus_data_malformed_address_error() {
     let plutus_data = PlutusData::from_address(&malformed_address);
     assert!(plutus_data.is_err());
 }
+
+mod constructor_macros {
+    use super::*;
+
+    mod plutus_list {
+        use super::*;
+
+        #[test]
+        fn empty() {
+            assert_eq!(plutus_list![], PlutusList::new());
+        }
+
+        #[test]
+        fn single_item() {
+            let list = plutus_list![BigNum::from(42u32)];
+            assert_eq!(list.len(), 1);
+            assert_eq!(list.get(0), PlutusData::new_integer(&BigInt::from(42i32)));
+        }
+
+        #[test]
+        fn multiple_items() {
+            let list = plutus_list![BigNum::from(1u32), BigNum::from(2u32), BigNum::from(3u32)];
+            assert_eq!(list.len(), 3);
+            assert_eq!(list.get(0), PlutusData::new_integer(&BigInt::from(1i32)));
+            assert_eq!(list.get(1), PlutusData::new_integer(&BigInt::from(2i32)));
+            assert_eq!(list.get(2), PlutusData::new_integer(&BigInt::from(3i32)));
+        }
+
+        #[test]
+        fn trailing_comma() {
+            let list = plutus_list![BigNum::from(1u32), BigNum::from(2u32),];
+            assert_eq!(list.len(), 2);
+            assert_eq!(list.get(0), PlutusData::new_integer(&BigInt::from(1i32)));
+            assert_eq!(list.get(1), PlutusData::new_integer(&BigInt::from(2i32)));
+        }
+
+        #[test]
+        fn u64_values() {
+            let list = plutus_list![1u64, 2u64, 3u64];
+            assert_eq!(list.len(), 3);
+            assert_eq!(list.get(0), PlutusData::new_integer(&BigInt::from(1i32)));
+            assert_eq!(list.get(1), PlutusData::new_integer(&BigInt::from(2i32)));
+            assert_eq!(list.get(2), PlutusData::new_integer(&BigInt::from(3i32)));
+        }
+
+        #[test]
+        fn mixed_element_types() {
+            let constr = ConstrPlutusData::new(&BigNum::from(0u32), &PlutusList::new());
+            let list = plutus_list![constr, 2];
+            assert_eq!(list.len(), 2);
+            assert_eq!(
+                list.get(0),
+                PlutusData::new_constr_plutus_data(&ConstrPlutusData::new(
+                    &BigNum::from(0u32),
+                    &PlutusList::new()
+                ))
+            );
+            assert_eq!(list.get(1), PlutusData::new_integer(&BigInt::from(2i32)));
+        }
+
+        #[test]
+        fn array_syntax() {
+            let list = plutus_list![1; 3];
+
+            assert_eq!(list, PlutusList::from(vec![
+                PlutusData::new_integer(&1.into()),
+                PlutusData::new_integer(&1.into()),
+                PlutusData::new_integer(&1.into()),
+            ]));
+        }
+    }
+
+    mod plutus_map {
+        use super::*;
+
+        #[test]
+        fn empty() {
+            assert_eq!(plutus_map!{}, PlutusMap::new());
+        }
+
+        #[test]
+        fn single_entry() {
+            let map = plutus_map! {
+                BigNum::from(1u32) => PlutusData::new_integer(&BigInt::from(10i32))
+            };
+            assert_eq!(map.len(), 1);
+            assert_eq!(map.get(&PlutusData::from(1u64)), Some(PlutusMapValues::from(PlutusData::from(10u64))));
+        }
+
+        #[test]
+        fn multiple_entries() {
+            let map = plutus_map! {
+                BigNum::from(1u32) => PlutusData::new_integer(&BigInt::from(10i32)),
+                BigNum::from(2u32) => PlutusData::new_integer(&BigInt::from(20i32)),
+            };
+            assert_eq!(map.len(), 2);
+            assert_eq!(map.get(&PlutusData::from(1u64)), Some(PlutusMapValues::from(PlutusData::from(10u64))));
+            assert_eq!(map.get(&PlutusData::from(2u64)), Some(PlutusMapValues::from(PlutusData::from(20u64))));
+        }
+
+        #[test]
+        fn u64_keys() {
+            let map = plutus_map! {
+                1u64 => PlutusData::new_integer(&BigInt::from(100i32)),
+                2u64 => PlutusData::new_integer(&BigInt::from(200i32)),
+            };
+            assert_eq!(map.len(), 2);
+            assert_eq!(map.get(&PlutusData::from(1u64)), Some(PlutusMapValues::from(PlutusData::from(100u64))));
+            assert_eq!(map.get(&PlutusData::from(2u64)), Some(PlutusMapValues::from(PlutusData::from(200u64))));
+        }
+
+        #[test]
+        fn list_datum_value() {
+            let list_datum = PlutusData::new_list(&plutus_list![1u64, 2u64, 3u64]);
+            let map = plutus_map! { 1u64 => list_datum.clone() };
+            assert_eq!(map.len(), 1);
+            assert_eq!(
+                map.get(&PlutusData::from(1u64)),
+                Some(PlutusMapValues::from(list_datum))
+            );
+        }
+
+        #[test]
+        fn duplicate_entry_uses_last() {
+            let map = plutus_map! {
+                BigNum::from(1u32) => PlutusData::new_integer(&BigInt::from(10i32)),
+                BigNum::from(1u32) => PlutusData::new_integer(&BigInt::from(20i32)),
+            };
+            assert_eq!(map.len(), 1);
+            assert_eq!(map.get(&PlutusData::from(1u64)), Some(PlutusMapValues::from(PlutusData::from(20u64))));
+        }
+    }
+
+    mod plutus_map_values {
+        use super::*;
+
+        #[test]
+        fn empty() {
+            assert_eq!(plutus_map_values![], PlutusMapValues::new());
+        }
+
+        #[test]
+        fn single_value() {
+            let values = plutus_map_values![1u64];
+            assert_eq!(values.len(), 1);
+            assert_eq!(values.get(0), Some(PlutusData::from(1u64)));
+        }
+
+        #[test]
+        fn multiple_values() {
+            let values = plutus_map_values![1u64, 2u64, 3u64];
+            assert_eq!(values.len(), 3);
+            assert_eq!(values.get(0), Some(PlutusData::from(1u64)));
+            assert_eq!(values.get(1), Some(PlutusData::from(2u64)));
+            assert_eq!(values.get(2), Some(PlutusData::from(3u64)));
+        }
+
+        #[test]
+        fn trailing_comma() {
+            let values = plutus_map_values![1u64, 2u64,];
+            assert_eq!(values.len(), 2);
+        }
+
+        #[test]
+        fn mixed_types() {
+            let values = plutus_map_values![
+                1u64,
+                PlutusData::new_bytes(vec![0xab]),
+            ];
+            assert_eq!(values.len(), 2);
+            assert_eq!(values.get(0), Some(PlutusData::from(1u64)));
+            assert_eq!(values.get(1), Some(PlutusData::new_bytes(vec![0xab])));
+        }
+
+        #[test]
+        fn in_plutus_map() {
+            let map = plutus_map! {
+                1u64 => plutus_map_values![10u64, 20u64, 30u64]
+            };
+            assert_eq!(map.len(), 1);
+            let values = map.get(&PlutusData::from(1u64)).unwrap();
+            assert_eq!(values.len(), 3);
+            assert_eq!(values.get(0), Some(PlutusData::from(10u64)));
+            assert_eq!(values.get(2), Some(PlutusData::from(30u64)));
+        }
+    }
+
+    mod plutus_bytes {
+        use super::*;
+
+        #[test]
+        fn empty() {
+            let data = plutus_bytes![];
+            assert_eq!(data, PlutusData::new_bytes(vec![]));
+        }
+
+        #[test]
+        fn literal_bytes() {
+            let data = plutus_bytes![1, 2, 3];
+            assert_eq!(data, PlutusData::new_bytes(vec![1, 2, 3]));
+        }
+
+        #[test]
+        fn array_syntax() {
+            let data = plutus_bytes![0xab; 4];
+            assert_eq!(data, PlutusData::new_bytes(vec![0xab, 0xab, 0xab, 0xab]));
+        }
+    }
+}
