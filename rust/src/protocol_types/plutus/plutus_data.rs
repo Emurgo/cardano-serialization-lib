@@ -21,6 +21,16 @@ pub struct ConstrPlutusData {
 
 to_from_bytes!(ConstrPlutusData);
 
+#[macro_export]
+macro_rules! plutus_constr {
+    ($variant:expr $(, $field:expr)* $(,)?) => {
+        $crate::ConstrPlutusData::new(
+            &$crate::BigNum::from($variant),
+            &$crate::plutus_list![$($field),*]
+        )
+    };
+}
+
 #[wasm_bindgen]
 impl ConstrPlutusData {
     pub fn alternative(&self) -> BigNum {
@@ -85,6 +95,12 @@ impl From<Vec<PlutusData>> for PlutusMapValues {
     }
 }
 
+impl From<PlutusData> for PlutusMapValues {
+    fn from(data: PlutusData) -> Self {
+        Self { elems: vec![data] }
+    }
+}
+
 #[wasm_bindgen]
 impl PlutusMapValues {
     pub fn new() -> Self {
@@ -114,6 +130,30 @@ impl PlutusMapValues {
 pub struct PlutusMap(pub(crate) LinkedHashMap<PlutusData, PlutusMapValues>);
 
 to_from_bytes!(PlutusMap);
+
+#[macro_export]
+macro_rules! plutus_map_values {
+    ($($item:expr),* $(,)?) => {
+        {
+            #[allow(unused_mut)]
+            let mut values = $crate::PlutusMapValues::new();
+            $(values.add(&$crate::PlutusData::from($item));)*
+            values
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! plutus_map {
+    ($($key:expr => $value:expr),* $(,)?) => {
+        {
+            #[allow(unused_mut)]
+            let mut plutus_map = $crate::PlutusMap::new();
+            $(plutus_map.insert(&$key.into(), &$value.into());)*
+            plutus_map
+        }
+    };
+}
 
 #[wasm_bindgen]
 impl PlutusMap {
@@ -184,6 +224,76 @@ pub enum PlutusDataEnum {
     Bytes(Vec<u8>),
 }
 
+impl From<ConstrPlutusData> for PlutusDataEnum {
+    fn from(value: ConstrPlutusData) -> Self {
+        Self::ConstrPlutusData(value)
+    }
+}
+
+impl From<PlutusMap> for PlutusDataEnum {
+    fn from(value: PlutusMap) -> Self {
+        Self::Map(value)
+    }
+}
+
+impl From<PlutusList> for PlutusDataEnum {
+    fn from(value: PlutusList) -> Self {
+        Self::List(value)
+    }
+}
+
+impl From<BigInt> for PlutusDataEnum {
+    fn from(value: BigInt) -> Self {
+        Self::Integer(value)
+    }
+}
+
+impl From<BigNum> for PlutusDataEnum {
+    fn from(value: BigNum) -> Self {
+        Self::Integer(value.into())
+    }
+}
+
+impl From<u64> for PlutusDataEnum {
+    fn from(value: u64) -> Self {
+        Self::Integer(BigNum::from(value).into())
+    }
+}
+
+impl From<i32> for PlutusDataEnum {
+    fn from(value: i32) -> Self {
+        Self::Integer(BigInt::from(value))
+    }
+}
+
+impl From<i64> for PlutusDataEnum {
+    fn from(value: i64) -> Self {
+        Self::Integer(BigInt::from(value))
+    }
+}
+
+impl From<Vec<u8>> for PlutusDataEnum {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self::Bytes(bytes)
+    }
+}
+
+impl From<&[u8]> for PlutusDataEnum {
+    fn from(bytes: &[u8]) -> Self {
+        Self::Bytes(bytes.to_vec())
+    }
+}
+
+#[macro_export]
+macro_rules! plutus_bytes {
+    ($($byte:expr),* $(,)?) => {
+        $crate::PlutusData::from(vec![$($byte),*])
+    };
+    ($elem:expr; $n:expr) => {
+        $crate::PlutusData::from(vec![$elem ; $n])
+    };
+}
+
 #[wasm_bindgen]
 #[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct PlutusData {
@@ -191,6 +301,15 @@ pub struct PlutusData {
     // We should always preserve the original datums when deserialized as this is NOT canonicized
     // before computing datum hashes. So this field stores the original bytes to re-use.
     pub(crate) original_bytes: Option<Vec<u8>>,
+}
+
+impl<T> From<T> for PlutusData where PlutusDataEnum: From<T> {
+    fn from(value: T) -> Self {
+        Self {
+            datum: value.into(),
+            original_bytes: None
+        }
+    }
 }
 
 impl std::cmp::PartialEq<Self> for PlutusData {
@@ -515,17 +634,11 @@ impl PlutusData {
     }
 
     fn from_pointer(pointer: &Pointer) -> Result<PlutusData, JsError> {
-        let mut data_list = PlutusList::new();
-        data_list.add(&PlutusData::new_integer(&pointer.slot_bignum().into()));
-        data_list.add(&PlutusData::new_integer(&pointer.tx_index_bignum().into()));
-        data_list.add(&PlutusData::new_integer(
-            &pointer.cert_index_bignum().into(),
-        ));
-
-        Ok(PlutusData::new_constr_plutus_data(&ConstrPlutusData::new(
-            &BigNum::from(1u32),
-            &data_list,
-        )))
+        Ok(ConstrPlutusData::new(&1u64.into(), &plutus_list![
+            pointer.slot_bignum(),
+            pointer.tx_index_bignum(),
+            pointer.cert_index_bignum()
+        ]).into())
     }
 
     fn as_pointer(&self) -> Result<Pointer, JsError> {
@@ -627,6 +740,19 @@ pub struct PlutusList {
 to_from_bytes!(PlutusList);
 impl_vec_wrapper!(PlutusList, PlutusData, elems);
 
+#[macro_export]
+macro_rules! plutus_list {
+    ($($item:expr),* $(,)?) => {
+        $crate::PlutusList::from(vec![$($crate::PlutusData::from($item)),*])
+    };
+    ($elem:expr; $n:expr) => {
+        {
+            let elem = $crate::PlutusData::from($elem);
+            $crate::PlutusList::from(vec![ elem ; $n ])
+        }
+    };
+}
+
 #[wasm_bindgen]
 impl PlutusList {
     pub fn new() -> Self {
@@ -646,8 +772,7 @@ impl PlutusList {
     }
 
     pub fn add(&mut self, elem: &PlutusData) {
-        self.elems.push(elem.clone());
-        self.definite_encoding = None;
+        self.push(elem.clone());
     }
 
     #[allow(dead_code)]
@@ -698,6 +823,13 @@ impl PlutusList {
 
     pub(crate) fn get_set_type(&self) -> Option<CborSetType> {
         self.cbor_set_type.clone()
+    }
+}
+
+impl PlutusList {
+    pub fn push(&mut self, data: PlutusData) {
+        self.elems.push(data);
+        self.definite_encoding = None;
     }
 }
 
