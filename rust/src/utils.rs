@@ -4,7 +4,6 @@ use cbor_event::{
     se::{Serialize, Serializer},
 };
 use hex::FromHex;
-use num::Zero;
 use serde_json;
 use std::fmt::Display;
 use std::{
@@ -142,6 +141,7 @@ impl_vec_wrapper!(TransactionUnspentOutputs, TransactionUnspentOutput);
 #[derive(
     Clone,
     Debug,
+    Default,
     /*Hash,*/ Ord,
     serde::Serialize,
     serde::Deserialize,
@@ -165,26 +165,15 @@ impl Value {
     }
 
     pub fn new_with_assets(coin: &Coin, multiasset: &MultiAsset) -> Value {
-        match multiasset.0.is_empty() {
-            true => Value::new(coin),
-            false => Self {
-                coin: coin.clone(),
-                multiasset: Some(multiasset.clone()),
-            },
-        }
+        Self::from(multiasset.clone()).with_coin(*coin)
     }
 
     pub fn zero() -> Value {
-        Value::new(&Coin::zero())
+        Self::default()
     }
 
     pub fn is_zero(&self) -> bool {
-        self.coin.is_zero()
-            && self
-                .multiasset
-                .as_ref()
-                .map(|m| m.len() == 0)
-                .unwrap_or(true)
+        self.coin.is_zero() && self.multiasset.as_ref().is_none_or(MultiAsset::is_zero)
     }
 
     pub fn coin(&self) -> Coin {
@@ -225,6 +214,38 @@ impl Value {
             Some(std::cmp::Ordering::Less) => Some(-1),
             Some(std::cmp::Ordering::Greater) => Some(1),
         }
+    }
+}
+
+impl Value {
+    pub fn lovelace(amount: impl Into<Coin>) -> Self {
+        Self::from(amount.into())
+    }
+
+    pub fn with_asset(
+        self,
+        policy: PolicyID,
+        name: AssetName,
+        amount: BigNum,
+    ) -> Self {
+        let multiasset = self.multiasset.unwrap_or_default().with_asset(policy, name, amount);
+        let multiasset = (!multiasset.is_zero()).then_some(multiasset);
+        Self { multiasset, ..self }
+    }
+
+    pub fn with_assets(self, policy: PolicyID, assets: Assets) -> Self {
+        let multiasset = self.multiasset.unwrap_or_default().with_assets(policy, assets);
+        let multiasset = (!multiasset.is_zero()).then_some(multiasset);
+        Self { multiasset, ..self }
+    }
+
+    pub fn with_multiasset(self, multiasset: MultiAsset) -> Self {
+        let multiasset = (!multiasset.is_zero()).then_some(multiasset);
+        Self { multiasset, ..self }
+    }
+
+    pub fn with_coin(self, coin: Coin) -> Self {
+        Self { coin, ..self }
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::*;
 use crate::tests::helpers::harden;
-use crate::tests::fakes::{fake_plutus_script, fake_bootsrap_witness, fake_tx_input, fake_vkey_witness, fake_key_hash};
+use crate::tests::fakes::{fake_plutus_script, fake_bootsrap_witness, fake_tx_input, fake_vkey_witness, fake_key_hash, fake_policy_id, fake_asset_name};
 
 #[test]
 fn native_script_hash() {
@@ -853,5 +853,450 @@ fn too_big_plutus_int_to_json() {
     #[cfg(not(feature = "arbitrary-precision-json"))]
     {
         assert!(json.is_err());
+    }
+}
+
+mod is_zero {
+    use super::*;
+
+    mod assets {
+        use super::*;
+
+        #[test]
+        fn empty_is_zero() {
+            assert!(Assets::new().is_zero());
+        }
+
+        #[test]
+        fn all_zero_entries_is_zero() {
+            let a = assets! {
+                fake_asset_name(1) => BigNum::zero(),
+                fake_asset_name(2) => BigNum::zero(),
+            };
+            assert!(a.is_zero());
+        }
+
+        #[test]
+        fn any_nonzero_is_not_zero() {
+            let a = assets! {
+                fake_asset_name(1) => BigNum::zero(),
+                fake_asset_name(2) => BigNum::from(1u64),
+            };
+            assert!(!a.is_zero());
+        }
+
+        #[test]
+        fn single_nonzero_is_not_zero() {
+            assert!(!assets! { fake_asset_name(1) => BigNum::from(42u64) }.is_zero());
+        }
+    }
+
+    mod multi_asset {
+        use super::*;
+
+        #[test]
+        fn empty_is_zero() {
+            assert!(MultiAsset::new().is_zero());
+        }
+
+        #[test]
+        fn all_zero_amounts_is_zero() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::zero() }
+            };
+            assert!(ma.is_zero());
+        }
+
+        #[test]
+        fn any_nonzero_is_not_zero() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::from(1u64) }
+            };
+            assert!(!ma.is_zero());
+        }
+
+        #[test]
+        fn mixed_policies_one_nonzero() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::zero() },
+                fake_policy_id(2) => assets! { fake_asset_name(2) => BigNum::from(5u64) },
+            };
+            assert!(!ma.is_zero());
+        }
+    }
+
+    mod value {
+        use super::*;
+
+        #[test]
+        fn default_is_zero() {
+            assert!(Value::default().is_zero());
+        }
+
+        #[test]
+        fn zero_is_zero() {
+            assert!(Value::zero().is_zero());
+        }
+
+        #[test]
+        fn nonzero_coin_is_not_zero() {
+            assert!(!Value::lovelace(1u64).is_zero());
+        }
+
+        #[test]
+        fn zero_coin_with_nonzero_assets_is_not_zero() {
+            let v = Value::default().with_asset(
+                fake_policy_id(1),
+                fake_asset_name(1),
+                BigNum::from(10u64),
+            );
+            assert!(!v.is_zero());
+        }
+
+        #[test]
+        fn zero_coin_with_all_zero_assets_is_zero() {
+            let v = Value {
+                coin: Coin::zero(),
+                multiasset: Some(multi_asset! {
+                    fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::zero() }
+                }),
+            };
+            assert!(v.is_zero());
+        }
+    }
+}
+
+mod builder_methods {
+    use super::*;
+
+    mod assets {
+        use super::*;
+
+        #[test]
+        fn add_nonzero() {
+            let a = Assets::new().with_asset(fake_asset_name(1), BigNum::from(50u64));
+            assert_eq!(a.len(), 1);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(50u64)));
+        }
+
+        #[test]
+        fn add_zero_to_empty_stays_empty() {
+            let a = Assets::new().with_asset(fake_asset_name(1), BigNum::zero());
+            assert_eq!(a.len(), 0);
+        }
+
+        #[test]
+        fn set_zero_removes_existing() {
+            let a = Assets::new()
+                .with_asset(fake_asset_name(1), BigNum::from(100u64))
+                .with_asset(fake_asset_name(1), BigNum::zero());
+            assert_eq!(a.len(), 0);
+        }
+
+        #[test]
+        fn chaining() {
+            let a = Assets::new()
+                .with_asset(fake_asset_name(1), BigNum::from(10u64))
+                .with_asset(fake_asset_name(2), BigNum::from(20u64))
+                .with_asset(fake_asset_name(3), BigNum::from(30u64));
+            assert_eq!(a.len(), 3);
+            assert_eq!(a.get(&fake_asset_name(2)), Some(BigNum::from(20u64)));
+        }
+
+        #[test]
+        fn overwrite_existing() {
+            let a = Assets::new()
+                .with_asset(fake_asset_name(1), BigNum::from(10u64))
+                .with_asset(fake_asset_name(1), BigNum::from(99u64));
+            assert_eq!(a.len(), 1);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(99u64)));
+        }
+    }
+
+    mod multi_asset {
+        use super::*;
+
+        #[test]
+        fn with_assets_nonzero() {
+            let ma = MultiAsset::new().with_assets(
+                fake_policy_id(1),
+                assets! { fake_asset_name(1) => BigNum::from(10u64) },
+            );
+            assert_eq!(ma.len(), 1);
+        }
+
+        #[test]
+        fn with_assets_zero_removes_policy() {
+            let ma = MultiAsset::new()
+                .with_assets(
+                    fake_policy_id(1),
+                    assets! { fake_asset_name(1) => BigNum::from(10u64) },
+                )
+                .with_assets(
+                    fake_policy_id(1),
+                    assets! { fake_asset_name(1) => BigNum::zero() },
+                );
+            assert_eq!(ma.len(), 0);
+        }
+
+        #[test]
+        fn with_asset_adds_to_existing_policy() {
+            let ma = MultiAsset::new()
+                .with_asset(fake_policy_id(1), fake_asset_name(1), BigNum::from(10u64))
+                .with_asset(fake_policy_id(1), fake_asset_name(2), BigNum::from(20u64));
+            assert_eq!(ma.len(), 1);
+            let a = ma.get(&fake_policy_id(1)).unwrap();
+            assert_eq!(a.len(), 2);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(10u64)));
+            assert_eq!(a.get(&fake_asset_name(2)), Some(BigNum::from(20u64)));
+        }
+
+        #[test]
+        fn zeroing_one_of_two_assets_keeps_policy() {
+            let ma = MultiAsset::new()
+                .with_asset(fake_policy_id(1), fake_asset_name(1), BigNum::from(10u64))
+                .with_asset(fake_policy_id(1), fake_asset_name(2), BigNum::from(20u64))
+                .with_asset(fake_policy_id(1), fake_asset_name(1), BigNum::zero());
+            assert_eq!(ma.len(), 1);
+            let a = ma.get(&fake_policy_id(1)).unwrap();
+            assert_eq!(a.len(), 1);
+            assert_eq!(a.get(&fake_asset_name(2)), Some(BigNum::from(20u64)));
+        }
+
+        #[test]
+        fn zeroing_only_asset_removes_policy() {
+            let ma = MultiAsset::new()
+                .with_asset(fake_policy_id(1), fake_asset_name(1), BigNum::from(10u64))
+                .with_asset(fake_policy_id(1), fake_asset_name(1), BigNum::zero());
+            assert_eq!(ma.len(), 0);
+        }
+
+        #[test]
+        fn with_empty_assets_removes_policy() {
+            let ma = MultiAsset::new()
+                .with_assets(
+                    fake_policy_id(1),
+                    assets! { fake_asset_name(1) => BigNum::from(10u64) },
+                )
+                .with_assets(fake_policy_id(1), Assets::new());
+            assert_eq!(ma.len(), 0);
+        }
+    }
+
+    mod value {
+        use super::*;
+
+        #[test]
+        fn lovelace() {
+            let v = Value::lovelace(1_000_000u64);
+            assert_eq!(v.coin(), Coin::from(1_000_000u64));
+            assert!(v.multiasset().is_none());
+        }
+
+        #[test]
+        fn with_coin() {
+            let v = Value::default().with_coin(Coin::from(42u64));
+            assert_eq!(v.coin(), Coin::from(42u64));
+        }
+
+        #[test]
+        fn with_asset_on_coin_only() {
+            let v = Value::lovelace(5u64).with_asset(
+                fake_policy_id(1),
+                fake_asset_name(1),
+                BigNum::from(100u64),
+            );
+            assert_eq!(v.coin(), Coin::from(5u64));
+            assert!(v.multiasset().is_some());
+            let ma = v.multiasset().unwrap();
+            assert_eq!(
+                ma.get_asset(&fake_policy_id(1), &fake_asset_name(1)),
+                BigNum::from(100u64),
+            );
+        }
+
+        #[test]
+        fn zeroing_last_asset_clears_multiasset() {
+            let v = Value::lovelace(5u64)
+                .with_asset(fake_policy_id(1), fake_asset_name(1), BigNum::from(100u64))
+                .with_asset(fake_policy_id(1), fake_asset_name(1), BigNum::zero());
+            assert_eq!(v.coin(), Coin::from(5u64));
+            assert!(v.multiasset().is_none());
+        }
+
+        #[test]
+        fn chaining_multiple_policies() {
+            let v = Value::lovelace(1u64)
+                .with_asset(fake_policy_id(1), fake_asset_name(1), BigNum::from(10u64))
+                .with_asset(fake_policy_id(2), fake_asset_name(2), BigNum::from(20u64));
+            assert_eq!(v.coin(), Coin::from(1u64));
+            let ma = v.multiasset().unwrap();
+            assert_eq!(ma.len(), 2);
+        }
+
+        #[test]
+        fn with_coin_preserves_assets() {
+            let v = Value::default()
+                .with_asset(fake_policy_id(1), fake_asset_name(1), BigNum::from(10u64))
+                .with_coin(Coin::from(99u64));
+            assert_eq!(v.coin(), Coin::from(99u64));
+            assert!(v.multiasset().is_some());
+        }
+
+        #[test]
+        fn default_equals_zero() {
+            assert_eq!(Value::default(), Value::zero());
+            assert_eq!(Value::default(), Value::new(&Coin::zero()));
+        }
+
+        #[test]
+        fn with_multiasset_sets_assets() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::from(10u64) },
+            };
+            let v = Value::lovelace(5u64).with_multiasset(ma.clone());
+            assert_eq!(v.coin(), Coin::from(5u64));
+            assert_eq!(v.multiasset(), Some(ma));
+        }
+
+        #[test]
+        fn with_multiasset_empty_clears() {
+            let v = Value::lovelace(5u64)
+                .with_asset(fake_policy_id(1), fake_asset_name(1), BigNum::from(10u64))
+                .with_multiasset(MultiAsset::new());
+            assert_eq!(v.coin(), Coin::from(5u64));
+            assert!(v.multiasset().is_none());
+        }
+
+        #[test]
+        fn with_multiasset_all_zero_clears() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::zero() },
+            };
+            let v = Value::lovelace(5u64).with_multiasset(ma);
+            assert!(v.multiasset().is_none());
+        }
+
+        #[test]
+        fn with_multiasset_replaces_existing() {
+            let ma1 = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::from(10u64) },
+            };
+            let ma2 = multi_asset! {
+                fake_policy_id(2) => assets! { fake_asset_name(2) => BigNum::from(20u64) },
+            };
+            let v = Value::lovelace(1u64).with_multiasset(ma1).with_multiasset(ma2.clone());
+            assert_eq!(v.multiasset(), Some(ma2));
+        }
+    }
+}
+
+mod constructor_macros {
+    use super::*;
+
+    mod assets {
+        use super::*;
+
+        #[test]
+        fn empty() {
+            assert_eq!(assets! {}, Assets::new());
+        }
+
+        #[test]
+        fn single_entry() {
+            let a = assets! { fake_asset_name(1) => BigNum::from(100u64) };
+            assert_eq!(a.len(), 1);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(100u64)));
+        }
+
+        #[test]
+        fn multiple_entries() {
+            let a = assets! {
+                fake_asset_name(1) => BigNum::from(100u64),
+                fake_asset_name(2) => BigNum::from(200u64),
+                fake_asset_name(3) => BigNum::from(300u64),
+            };
+            assert_eq!(a.len(), 3);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(100u64)));
+            assert_eq!(a.get(&fake_asset_name(2)), Some(BigNum::from(200u64)));
+            assert_eq!(a.get(&fake_asset_name(3)), Some(BigNum::from(300u64)));
+        }
+
+        #[test]
+        fn trailing_comma() {
+            let a = assets! { fake_asset_name(1) => BigNum::from(42u64), };
+            assert_eq!(a.len(), 1);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(42u64)));
+        }
+
+        #[test]
+        fn duplicate_key_uses_last() {
+            let a = assets! {
+                fake_asset_name(1) => BigNum::from(100u64),
+                fake_asset_name(1) => BigNum::from(999u64),
+            };
+            assert_eq!(a.len(), 1);
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(999u64)));
+        }
+    }
+
+    mod multi_asset {
+        use super::*;
+
+        #[test]
+        fn empty() {
+            assert_eq!(multi_asset! {}, MultiAsset::new());
+        }
+
+        #[test]
+        fn single_policy() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::from(100u64) }
+            };
+            assert_eq!(ma.len(), 1);
+            let a = ma.get(&fake_policy_id(1)).unwrap();
+            assert_eq!(a.get(&fake_asset_name(1)), Some(BigNum::from(100u64)));
+        }
+
+        #[test]
+        fn multiple_policies() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! {
+                    fake_asset_name(1) => BigNum::from(10u64),
+                    fake_asset_name(2) => BigNum::from(20u64),
+                },
+                fake_policy_id(2) => assets! {
+                    fake_asset_name(3) => BigNum::from(30u64),
+                },
+            };
+            assert_eq!(ma.len(), 2);
+            let a1 = ma.get(&fake_policy_id(1)).unwrap();
+            assert_eq!(a1.len(), 2);
+            assert_eq!(a1.get(&fake_asset_name(1)), Some(BigNum::from(10u64)));
+            assert_eq!(a1.get(&fake_asset_name(2)), Some(BigNum::from(20u64)));
+            let a2 = ma.get(&fake_policy_id(2)).unwrap();
+            assert_eq!(a2.len(), 1);
+            assert_eq!(a2.get(&fake_asset_name(3)), Some(BigNum::from(30u64)));
+        }
+
+        #[test]
+        fn trailing_comma() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::from(1u64) },
+            };
+            assert_eq!(ma.len(), 1);
+        }
+
+        #[test]
+        fn duplicate_policy_uses_last() {
+            let ma = multi_asset! {
+                fake_policy_id(1) => assets! { fake_asset_name(1) => BigNum::from(100u64) },
+                fake_policy_id(1) => assets! { fake_asset_name(2) => BigNum::from(200u64) },
+            };
+            assert_eq!(ma.len(), 1);
+            let a = ma.get(&fake_policy_id(1)).unwrap();
+            assert_eq!(a.get(&fake_asset_name(1)), None);
+            assert_eq!(a.get(&fake_asset_name(2)), Some(BigNum::from(200u64)));
+        }
     }
 }

@@ -1340,6 +1340,14 @@ pub struct Assets(pub(crate) std::collections::BTreeMap<AssetName, BigNum>);
 impl_to_from!(Assets);
 impl_btmap_wrapper!(Assets, AssetName, BigNum);
 
+#[macro_export]
+macro_rules! assets {
+    ($($name:expr => $amount:expr),* $(,)?) => {
+        $crate::Assets::new()
+            $(.with_asset($crate::AssetName::from($name), $crate::BigNum::from($amount)))*
+    };
+}
+
 #[wasm_bindgen]
 impl Assets {
     pub fn new() -> Self {
@@ -1366,6 +1374,21 @@ impl Assets {
                 .collect::<Vec<AssetName>>(),
         )
     }
+
+    pub fn is_zero(&self) -> bool {
+        self.0.values().all(BigNum::is_zero)
+    }
+}
+
+impl Assets {
+    pub fn with_asset(mut self, name: AssetName, amount: BigNum) -> Self {
+        if amount.is_zero() {
+            self.0.remove(&name);
+        } else {
+            self.0.insert(name, amount);
+        }
+        self
+    }
 }
 
 #[wasm_bindgen]
@@ -1374,6 +1397,14 @@ pub struct MultiAsset(pub(crate) std::collections::BTreeMap<PolicyID, Assets>);
 
 impl_to_from!(MultiAsset);
 impl_btmap_wrapper!(MultiAsset, PolicyID, Assets, 0);
+
+#[macro_export]
+macro_rules! multi_asset {
+    ($($policy:expr => $assets:expr),* $(,)?) => {
+        $crate::MultiAsset::new()
+            $(.with_assets($crate::PolicyID::from($policy), $crate::Assets::from($assets)))*
+    };
+}
 
 #[wasm_bindgen]
 impl MultiAsset {
@@ -1394,6 +1425,10 @@ impl MultiAsset {
     /// all assets under {policy_id}, if any exist, or else None (undefined in JS)
     pub fn get(&self, policy_id: &PolicyID) -> Option<Assets> {
         self.0.get(policy_id).map(|v| v.clone())
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0.values().all(Assets::is_zero)
     }
 
     /// sets the asset {asset_name} to {value} under policy {policy_id}
@@ -1440,6 +1475,22 @@ impl MultiAsset {
         }
 
         None
+    }
+}
+
+impl MultiAsset {
+    pub fn with_assets(mut self, policy: PolicyID, assets: Assets) -> Self {
+        if assets.is_zero() {
+            self.0.remove(&policy);
+        } else {
+            self.0.insert(policy, assets);
+        }
+        self
+    }
+
+    pub fn with_asset(mut self, policy: PolicyID, name: AssetName, amount: BigNum) -> Self {
+        let assets = self.0.remove(&policy).unwrap_or_default().with_asset(name, amount);
+        self.with_assets(policy, assets)
     }
 }
 
