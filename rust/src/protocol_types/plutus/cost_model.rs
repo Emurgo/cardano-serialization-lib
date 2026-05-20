@@ -59,6 +59,14 @@ impl CostModel {
 
 impl From<Vec<i128>> for CostModel {
     fn from(values: Vec<i128>) -> Self {
-        CostModel(values.iter().map(|x| Int(*x)).collect())
+        CostModel(
+            values
+                .iter()
+                .map(|x| {
+                    Int::new_checked(*x)
+                        .expect("CostModel value out of CBOR int range")
+                })
+                .collect(),
+        )
     }
 }

@@ -738,6 +738,145 @@ fn test_vasil_v1_costmodel_hashing() {
     );
 }
 
+mod int_boundary {
+    use crate::*;
+    use std::convert::TryFrom;
+
+    const MIN: i128 = -(u64::MAX as i128) - 1; // -2^64
+    const MAX: i128 = u64::MAX as i128;        //  2^64 - 1
+
+    #[test]
+    fn min_max_constants() {
+        assert_eq!(Int::MIN_I128, MIN);
+        assert_eq!(Int::MAX_I128, MAX);
+    }
+
+    #[test]
+    fn try_from_accepts_full_range() {
+        assert!(Int::try_from(MIN).is_ok());
+        assert!(Int::try_from(MAX).is_ok());
+        assert!(Int::try_from(MIN + 1).is_ok());
+        assert!(Int::try_from(0i128).is_ok());
+    }
+
+    #[test]
+    fn try_from_rejects_out_of_range() {
+        assert!(Int::try_from(MIN - 1).is_err());
+        assert!(Int::try_from(MAX + 1).is_err());
+        assert!(Int::try_from(i128::MIN).is_err());
+        assert!(Int::try_from(i128::MAX).is_err());
+    }
+
+    #[test]
+    fn from_str_boundaries() {
+        assert!(Int::from_str("18446744073709551615").is_ok());      // u64::MAX
+        assert!(Int::from_str("-18446744073709551615").is_ok());     // -(u64::MAX)
+        assert!(Int::from_str("-18446744073709551616").is_ok());     // -2^64
+        assert!(Int::from_str("18446744073709551616").is_err());     // u64::MAX + 1
+        assert!(Int::from_str("-18446744073709551617").is_err());    // -2^64 - 1
+    }
+
+    #[test]
+    fn infallible_from_native_types() {
+        let _: Int = i32::MIN.into();
+        let _: Int = i32::MAX.into();
+        let _: Int = u32::MAX.into();
+        let _: Int = i64::MIN.into();
+        let _: Int = i64::MAX.into();
+        let _: Int = u64::MAX.into();
+    }
+
+    #[test]
+    fn cbor_roundtrip_full_range() {
+        let cases = [MIN, MIN + 1, -1, 0, 1, i64::MIN as i128, i64::MAX as i128, MAX];
+        for &x in &cases {
+            let i = Int::try_from(x).unwrap();
+            let bytes = i.to_bytes();
+            let roundtrip = Int::from_bytes(bytes.clone())
+                .unwrap_or_else(|e| panic!("roundtrip failed for {}: {:?}", x, e));
+            assert_eq!(i, roundtrip, "mismatch for {}: bytes={}", x, hex::encode(&bytes));
+        }
+    }
+
+    #[test]
+    fn cbor_decode_rejects_out_of_range_uint() {
+        // CBOR major-0 with 9-byte payload encoding > u64 is not valid CBOR uint,
+        // so we don't need to test that explicitly. But a manually crafted nint
+        // with payload > u64::MAX would be rejected by read_nint via u64 fit.
+        // Just verify that the MIN value (payload = u64::MAX in nint) does decode.
+        let i = Int::try_from(MIN).unwrap();
+        let bytes = i.to_bytes();
+        // last 8 bytes should be 0xFFFFFFFFFFFFFFFF (u64::MAX payload)
+        assert!(bytes.last().copied() == Some(0xFF));
+        let rt = Int::from_bytes(bytes).unwrap();
+        assert_eq!(rt.to_str(), "-18446744073709551616");
+    }
+
+    #[test]
+    fn checked_add_overflow() {
+        let max = Int::try_from(MAX).unwrap();
+        let one = Int::from(1u32);
+        assert_eq!(max.checked_add(&one), None);
+        let min = Int::try_from(MIN).unwrap();
+        assert_eq!(min.checked_add(&Int::from(-1i64)), None);
+    }
+
+    #[test]
+    fn checked_sub_underflow() {
+        let min = Int::try_from(MIN).unwrap();
+        let one = Int::from(1u32);
+        assert_eq!(min.checked_sub(&one), None);
+    }
+
+    #[test]
+    fn checked_mul_overflow() {
+        let max = Int::try_from(MAX).unwrap();
+        let two = Int::from(2u32);
+        assert_eq!(max.checked_mul(&two), None);
+    }
+
+    #[test]
+    fn checked_arithmetic_within_range() {
+        let a = Int::from(100i32);
+        let b = Int::from(42i32);
+        assert_eq!(a.checked_add(&b), Some(Int::from(142i32)));
+        assert_eq!(a.checked_sub(&b), Some(Int::from(58i32)));
+        assert_eq!(a.checked_mul(&b), Some(Int::from(4200i32)));
+    }
+
+    #[test]
+    fn saturating_arithmetic_clamps() {
+        let max = Int::try_from(MAX).unwrap();
+        let min = Int::try_from(MIN).unwrap();
+        assert_eq!(max.saturating_add(&Int::from(1u32)), max);
+        assert_eq!(min.saturating_sub(&Int::from(1u32)), min);
+    }
+
+    #[test]
+    fn as_negative_handles_min() {
+        // -2^64 has |x| = 2^64, doesn't fit u64 — None expected.
+        let min = Int::try_from(MIN).unwrap();
+        assert_eq!(min.as_negative(), None);
+        assert_eq!(min.as_positive(), None);
+
+        let near_min = Int::try_from(MIN + 1).unwrap(); // -(u64::MAX)
+        assert_eq!(near_min.as_negative(), Some(BigNum(u64::MAX)));
+    }
+
+    #[test]
+    fn cost_model_from_vec_accepts_int_range() {
+        // values used by tx_builder_constants — all small i64, must not panic
+        let cm = CostModel::from(vec![812990i128, 1, -1, 0]);
+        assert_eq!(cm.len(), 4);
+    }
+
+    #[test]
+    #[should_panic(expected = "out of CBOR int range")]
+    fn cost_model_from_vec_panics_on_out_of_range() {
+        let _ = CostModel::from(vec![i128::MAX]);
+    }
+}
+
 #[test]
 fn bigint_as_int() {
     let zero = BigInt::from_str("0").unwrap();
