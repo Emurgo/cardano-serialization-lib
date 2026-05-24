@@ -6,7 +6,7 @@ impl cbor_event::se::Serialize for Int {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        // Invariant: Int::MIN_I128 <= self.0 <= Int::MAX_I128, i.e. fits in CBOR int.
+        // Invariant: Int::CBOR_MIN <= self.0 <= Int::CBOR_MAX, i.e. fits in CBOR int.
         // For negatives we must use the i128-aware writer because nint payload
         // (-self.0 - 1) can be up to u64::MAX, which does not fit in i64.
         if self.0 < 0 {
@@ -23,13 +23,13 @@ impl Deserialize for Int {
         (|| -> Result<_, DeserializeError> {
             match raw.cbor_type()? {
                 cbor_event::Type::UnsignedInteger => {
-                    // raw u64 fits Int::MAX_I128 by construction.
+                    // raw u64 fits Int::CBOR_MAX by construction.
                     Ok(Self(raw.unsigned_integer()? as i128))
                 }
                 cbor_event::Type::NegativeInteger => {
                     let n = read_nint(raw)?;
                     // read_nint returns i128 in [-2^64, -1] which exactly matches
-                    // [Int::MIN_I128, -1]. Validate as defense-in-depth.
+                    // [Int::CBOR_MIN, -1]. Validate as defense-in-depth.
                     Int::new_checked(n).map_err(|e| {
                         DeserializeFailure::CustomError(format!("{}", e)).into()
                     })

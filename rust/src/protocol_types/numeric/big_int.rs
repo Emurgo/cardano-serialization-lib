@@ -97,7 +97,7 @@ impl BigInt {
             (num_bigint::Sign::NoSign, _) => Some(Int::new(&BigNum::zero())),
             (num_bigint::Sign::Plus, [lo]) => Some(Int::new(&BigNum(*lo))),
             (num_bigint::Sign::Minus, [lo]) => Some(Int::new_negative(&BigNum(*lo))),
-            (num_bigint::Sign::Minus, [0, 1]) => Some(Int(Int::MIN_I128)),
+            (num_bigint::Sign::Minus, [0, 1]) => Some(Int(Int::CBOR_MIN)),
             _ => None,
         }
     }

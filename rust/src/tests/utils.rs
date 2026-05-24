@@ -747,8 +747,8 @@ mod int_boundary {
 
     #[test]
     fn min_max_constants() {
-        assert_eq!(Int::MIN_I128, MIN);
-        assert_eq!(Int::MAX_I128, MAX);
+        assert_eq!(Int::CBOR_MIN, MIN);
+        assert_eq!(Int::CBOR_MAX, MAX);
     }
 
     #[test]

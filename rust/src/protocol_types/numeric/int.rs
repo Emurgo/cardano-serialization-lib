@@ -13,16 +13,16 @@ pub struct Int(pub(crate) i128);
 impl_to_from!(Int);
 
 impl Int {
-    pub(crate) const MIN_I128: i128 = -(u64::MAX as i128) - 1; // -2^64
-    pub(crate) const MAX_I128: i128 = u64::MAX as i128;        //  2^64 - 1
+    pub(crate) const CBOR_MIN: i128 = -(u64::MAX as i128) - 1; // -2^64
+    pub(crate) const CBOR_MAX: i128 = u64::MAX as i128;        //  2^64 - 1
 
     pub(crate) fn new_checked(x: i128) -> Result<Self, JsError> {
-        if x < Self::MIN_I128 || x > Self::MAX_I128 {
+        if x < Self::CBOR_MIN || x > Self::CBOR_MAX {
             Err(JsError::from_str(&format!(
                 "{} out of CBOR int range [{}, {}]",
                 x,
-                Self::MIN_I128,
-                Self::MAX_I128
+                Self::CBOR_MIN,
+                Self::CBOR_MAX
             )))
         } else {
             Ok(Self(x))
@@ -67,7 +67,7 @@ impl Int {
     /// This function will return the *absolute* BigNum representation
     /// only in case the underlying i128 value is negative AND the
     /// absolute value fits in a u64. The single CBOR-int value -2^64
-    /// (i.e. `Int::MIN_I128`) has |x| = 2^64, which does not fit a u64,
+    /// (i.e. `Int::CBOR_MIN`) has |x| = 2^64, which does not fit a u64,
     /// so `None` is returned in that case as well.
     pub fn as_negative(&self) -> Option<BigNum> {
         if self.is_positive() {
@@ -181,7 +181,7 @@ impl From<&Int> for i128 {
 // std::ops::{Add, Sub, Mul, Div, Rem, Neg} or num_traits::{CheckedAdd, ...}
 // (the latter require Sub/Add bounds) on Int — it is a codec/domain wrapper,
 // not a general numeric type. Callers that need math should use these
-// inherent methods (which validate against [MIN_I128, MAX_I128]) or convert
+// inherent methods (which validate against [CBOR_MIN, CBOR_MAX]) or convert
 // via `From<&Int> for i128`.
 impl Int {
     pub fn checked_add(&self, other: &Self) -> Option<Self> {
@@ -203,14 +203,14 @@ impl Int {
         Self(
             self.0
                 .saturating_add(other.0)
-                .clamp(Self::MIN_I128, Self::MAX_I128),
+                .clamp(Self::CBOR_MIN, Self::CBOR_MAX),
         )
     }
     pub fn saturating_sub(&self, other: &Self) -> Self {
         Self(
             self.0
                 .saturating_sub(other.0)
-                .clamp(Self::MIN_I128, Self::MAX_I128),
+                .clamp(Self::CBOR_MIN, Self::CBOR_MAX),
         )
     }
 }

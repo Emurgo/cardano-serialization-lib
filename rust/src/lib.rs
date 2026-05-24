@@ -1588,9 +1588,9 @@ impl MintAssets {
         }
         // MultiAsset value side is BigNum (u64), so each mint amount must be
         // expressible as |value| <= u64::MAX. The single CBOR-int value -2^64
-        // (Int::MIN_I128) has |x| = 2^64 and cannot be represented, which would
+        // (Int::CBOR_MIN) has |x| = 2^64 and cannot be represented, which would
         // panic later in as_negative_multiasset(). Reject it at construction.
-        if value.0 == Int::MIN_I128 {
+        if value.0 == Int::CBOR_MIN {
             return Err(JsError::from_str(
                 "MintAssets value -2^64 cannot be represented as a u64 burn amount",
             ));
