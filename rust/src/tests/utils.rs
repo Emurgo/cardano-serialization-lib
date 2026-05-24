@@ -875,6 +875,48 @@ mod int_boundary {
     fn cost_model_from_vec_panics_on_out_of_range() {
         let _ = CostModel::from(vec![i128::MAX]);
     }
+
+    #[test]
+    fn mint_assets_reject_min_i128() {
+        let asset = AssetName::new(vec![1, 2, 3]).unwrap();
+        let min = Int::try_from(MIN).unwrap();
+        assert!(MintAssets::new_from_entry(&asset, &min).is_err());
+        let mut ma = MintAssets::new();
+        assert!(ma.insert(&asset, &min).is_err());
+        let ok = Int::try_from(MIN + 1).unwrap();
+        assert!(MintAssets::new_from_entry(&asset, &ok).is_ok());
+    }
+
+    #[test]
+    fn mint_cbor_rejects_min_i128_amount() {
+        // map(1) { bytes(1)=0x00 : nint payload=u64::MAX → value = -2^64 }
+        let bytes: Vec<u8> = vec![
+            0xa1, 0x41, 0x00,
+            0x3b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        ];
+        use cbor_event::de::Deserializer;
+        use std::io::Cursor;
+        let mut raw = Deserializer::from(Cursor::new(bytes));
+        assert!(MintAssets::deserialize(&mut raw).is_err(),
+                "expected rejection of -2^64 mint amount");
+    }
+
+    #[test]
+    fn bigint_as_int_handles_min_i128() {
+        let s = "-18446744073709551616"; // -2^64
+        let bi = BigInt::from_str(s).unwrap();
+        let i = bi.as_int().unwrap_or_else(|| panic!("as_int returned None for {}", s));
+        assert_eq!(i.to_str(), s);
+
+        let too_small = BigInt::from_str("-18446744073709551617").unwrap();
+        assert!(too_small.as_int().is_none());
+
+        let too_big = BigInt::from_str("18446744073709551616").unwrap();
+        assert!(too_big.as_int().is_none());
+
+        let max = BigInt::from_str("18446744073709551615").unwrap();
+        assert_eq!(max.as_int().unwrap().to_str(), "18446744073709551615");
+    }
 }
 
 #[test]

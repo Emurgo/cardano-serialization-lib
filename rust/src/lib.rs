@@ -1573,9 +1573,6 @@ impl MintAssets {
     }
 
     pub fn new_from_entry(key: &AssetName, value: &Int) -> Result<MintAssets, JsError> {
-        if value.0 == 0 {
-            return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
-        }
         let mut ma = MintAssets::new();
         ma.insert(key, value)?;
         Ok(ma)
@@ -1588,6 +1585,15 @@ impl MintAssets {
     pub fn insert(&mut self, key: &AssetName, value: &Int) -> Result<Option<Int>, JsError> {
         if value.0 == 0 {
             return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
+        }
+        // MultiAsset value side is BigNum (u64), so each mint amount must be
+        // expressible as |value| <= u64::MAX. The single CBOR-int value -2^64
+        // (Int::MIN_I128) has |x| = 2^64 and cannot be represented, which would
+        // panic later in as_negative_multiasset(). Reject it at construction.
+        if value.0 == Int::MIN_I128 {
+            return Err(JsError::from_str(
+                "MintAssets value -2^64 cannot be represented as a u64 burn amount",
+            ));
         }
         Ok(self.0.insert(key.clone(), value.clone()))
     }
@@ -1680,7 +1686,13 @@ impl Mint {
                             true => e.1.as_positive(),
                             false => e.1.as_negative(),
                         };
-                        assets.insert(&e.0, &amount.unwrap());
+                        // MintAssets::insert and the CBOR deserializer both reject
+                        // values whose absolute magnitude exceeds u64::MAX, so this
+                        // unwrap is invariant-safe. If a future code path bypasses
+                        // those checks, skip the entry rather than panicking.
+                        if let Some(amount) = amount {
+                            assets.insert(&e.0, &amount);
+                        }
                     }
                     assets
                 });

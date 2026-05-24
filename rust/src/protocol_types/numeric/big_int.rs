@@ -90,14 +90,15 @@ impl BigInt {
 
     pub fn as_int(&self) -> Option<Int> {
         let (sign, u64_digits) = self.0.to_u64_digits();
-        let u64_digit = match u64_digits.len() {
-            0 => Some(BigNum::zero()),
-            1 => Some((*u64_digits.first().unwrap()).into()),
+        // CBOR int range is [-2^64, 2^64-1]. Positive values must fit a u64.
+        // Negative values may reach 2^64 in magnitude (the single value -2^64),
+        // which `to_u64_digits` represents as two u64 limbs: [0, 1].
+        match (sign, u64_digits.as_slice()) {
+            (num_bigint::Sign::NoSign, _) => Some(Int::new(&BigNum::zero())),
+            (num_bigint::Sign::Plus, [lo]) => Some(Int::new(&BigNum(*lo))),
+            (num_bigint::Sign::Minus, [lo]) => Some(Int::new_negative(&BigNum(*lo))),
+            (num_bigint::Sign::Minus, [0, 1]) => Some(Int(Int::MIN_I128)),
             _ => None,
-        }?;
-        match sign {
-            num_bigint::Sign::NoSign | num_bigint::Sign::Plus => Some(Int::new(&u64_digit)),
-            num_bigint::Sign::Minus => Some(Int::new_negative(&u64_digit)),
         }
     }
 
