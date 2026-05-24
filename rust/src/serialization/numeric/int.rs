@@ -7,8 +7,8 @@ impl cbor_event::se::Serialize for Int {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         // Invariant: Int::CBOR_MIN <= self.0 <= Int::CBOR_MAX, i.e. fits in CBOR int.
-        // For negatives we must use the i128-aware writer because nint payload
-        // (-self.0 - 1) can be up to u64::MAX, which does not fit in i64.
+        // For negatives we use the i128-aware writer: nint payload (-1 - value)
+        // can be up to u64::MAX, which does not fit in i64.
         if self.0 < 0 {
             let payload = (-self.0 - 1) as u64;
             serializer.write_negative_integer_sz(self.0, cbor_event::Sz::canonical(payload))
