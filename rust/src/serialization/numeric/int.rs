@@ -31,7 +31,7 @@ impl Deserialize for Int {
                     // read_nint returns i128 in [-2^64, -1] which exactly matches
                     // [Int::CBOR_MIN, -1]. Validate as defense-in-depth.
                     Int::new_checked(n).map_err(|e| {
-                        DeserializeFailure::CustomError(format!("{}", e)).into()
+                        DeserializeFailure::CustomError(format!("{:?}", e)).into()
                     })
                 }
                 _ => Err(DeserializeFailure::NoVariantMatched.into()),
