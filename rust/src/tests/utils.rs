@@ -901,6 +901,130 @@ mod int_boundary {
                 "expected rejection of -2^64 mint amount");
     }
 
+    // CDDL / RFC 8949 conformance vectors.
+    //
+    //   int  = uint / nint
+    //   uint = 0 .. 2^64 - 1
+    //   nint = -2^64 .. -1
+    //
+    // Canonical encoding (RFC 8949 §4.2.1) picks the smallest header form:
+    //   value in 0..=23                → 1-byte inline
+    //   value in 24..=255              → 1+1 bytes (0x18 / 0x38)
+    //   value in 256..=u16::MAX        → 1+2 bytes (0x19 / 0x39)
+    //   value in u16::MAX+1..=u32::MAX → 1+4 bytes (0x1a / 0x3a)
+    //   value > u32::MAX               → 1+8 bytes (0x1b / 0x3b)
+    // For nint, "value" above means the payload = -1 - n.
+    fn assert_enc(n: i128, expected_hex: &str) {
+        let i = Int::try_from(n).unwrap();
+        let got = hex::encode(i.to_bytes());
+        assert_eq!(got, expected_hex,
+                   "encoding mismatch for {}: expected {} got {}", n, expected_hex, got);
+        // round-trip
+        let back = Int::from_bytes(i.to_bytes()).unwrap();
+        assert_eq!(back, i, "round-trip mismatch for {}", n);
+    }
+
+    #[test]
+    fn cbor_canonical_uint_vectors() {
+        // RFC 8949 Appendix A examples.
+        assert_enc(0, "00");
+        assert_enc(1, "01");
+        assert_enc(10, "0a");
+        assert_enc(23, "17");
+        assert_enc(24, "1818");
+        assert_enc(25, "1819");
+        assert_enc(100, "1864");
+        assert_enc(255, "18ff");
+        assert_enc(256, "190100");
+        assert_enc(1000, "1903e8");
+        assert_enc(65535, "19ffff");
+        assert_enc(65536, "1a00010000");
+        assert_enc(1_000_000, "1a000f4240");
+        assert_enc(u32::MAX as i128, "1affffffff");
+        assert_enc(u32::MAX as i128 + 1, "1b0000000100000000");
+        assert_enc(1_000_000_000_000, "1b000000e8d4a51000");
+        assert_enc(i64::MAX as i128, "1b7fffffffffffffff");
+        assert_enc(i64::MAX as i128 + 1, "1b8000000000000000");
+        assert_enc(u64::MAX as i128, "1bffffffffffffffff"); // 2^64 - 1, CBOR_MAX
+    }
+
+    #[test]
+    fn cbor_canonical_nint_vectors() {
+        // RFC 8949 Appendix A examples + Cardano-relevant boundaries.
+        assert_enc(-1, "20");
+        assert_enc(-10, "29");
+        assert_enc(-24, "37");
+        assert_enc(-25, "3818");
+        assert_enc(-100, "3863");
+        assert_enc(-256, "38ff");
+        assert_enc(-257, "390100");
+        assert_enc(-1000, "3903e7");
+        assert_enc(-65536, "39ffff");
+        assert_enc(-65537, "3a00010000");
+        // payload boundary at u32::MAX (value = -(u32::MAX+1) = -2^32)
+        assert_enc(-(u32::MAX as i128) - 1, "3affffffff");
+        assert_enc(-(u32::MAX as i128) - 2, "3b0000000100000000");
+        // i64::MIN: payload = i64::MAX = 0x7fff_ffff_ffff_ffff
+        assert_enc(i64::MIN as i128, "3b7fffffffffffffff");
+        // -(2^63 + 1): payload = 2^63 = 0x8000_0000_0000_0000 (out of i64 range)
+        assert_enc(-(i64::MAX as i128) - 2, "3b8000000000000000");
+        // -u64::MAX: payload = u64::MAX - 1
+        assert_enc(-(u64::MAX as i128), "3bfffffffffffffffe");
+        // CBOR_MIN = -2^64: payload = u64::MAX
+        assert_enc(MIN, "3bffffffffffffffff");
+    }
+
+    #[test]
+    fn cbor_canonical_header_size_selection() {
+        // Both sides of every header-size boundary, positive and negative.
+        let boundaries: &[i128] = &[
+            // uint
+            23, 24, 255, 256, 65535, 65536, u32::MAX as i128, u32::MAX as i128 + 1,
+            // nint payload boundaries
+            -24, -25, -256, -257, -65536, -65537,
+            -(u32::MAX as i128) - 1, -(u32::MAX as i128) - 2,
+        ];
+        for &n in boundaries {
+            let bytes = Int::try_from(n).unwrap().to_bytes();
+            let expected_len = match n {
+                v if (0..=23).contains(&v) || (-24..=-1).contains(&v) => 1,
+                v if (24..=255).contains(&v) || (-256..=-25).contains(&v) => 2,
+                v if (256..=65535).contains(&v) || (-65536..=-257).contains(&v) => 3,
+                v if (65536..=u32::MAX as i128).contains(&v)
+                    || (-(u32::MAX as i128 + 1)..=-65537).contains(&v) => 5,
+                _ => 9,
+            };
+            assert_eq!(bytes.len(), expected_len,
+                       "wrong header form for {}: bytes={}", n, hex::encode(&bytes));
+        }
+    }
+
+    #[test]
+    fn cbor_decode_known_vectors() {
+        // Hand-crafted CBOR (canonical) decodes back to the right integer.
+        let cases: &[(&str, i128)] = &[
+            ("00", 0), ("17", 23), ("1818", 24), ("1864", 100),
+            ("1bffffffffffffffff", u64::MAX as i128),
+            ("20", -1), ("37", -24), ("3818", -25), ("3863", -100),
+            ("3b7fffffffffffffff", i64::MIN as i128),
+            ("3bffffffffffffffff", MIN),
+        ];
+        for (hexs, expected) in cases {
+            let i = Int::from_bytes(hex::decode(hexs).unwrap()).unwrap();
+            assert_eq!(i.to_str(), expected.to_string(),
+                       "decode mismatch for {}", hexs);
+        }
+    }
+
+    #[test]
+    fn cbor_decode_rejects_non_canonical_non_int_types() {
+        // Float, bytes, text — none are major-0 or major-1.
+        for hex_bytes in ["f93c00" /* float16 1.0 */, "4100" /* bytes(1) */, "6161" /* text "a" */, "80" /* empty array */] {
+            assert!(Int::from_bytes(hex::decode(hex_bytes).unwrap()).is_err(),
+                    "expected reject for non-int CBOR: {}", hex_bytes);
+        }
+    }
+
     #[test]
     fn bigint_as_int_handles_min_i128() {
         let s = "-18446744073709551616"; // -2^64
