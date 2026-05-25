@@ -877,28 +877,44 @@ mod int_boundary {
     }
 
     #[test]
-    fn mint_assets_reject_min_i128() {
+    fn mint_assets_reject_out_of_int64_range() {
+        // Conway CDDL constrains mint amounts to `nonzero_int64`. MintAssets
+        // must reject the lower CBOR-int corner (-2^64) and any other value
+        // whose magnitude exceeds i64::MAX, as well as zero.
         let asset = AssetName::new(vec![1, 2, 3]).unwrap();
-        let min = Int::try_from(MIN).unwrap();
-        assert!(MintAssets::new_from_entry(&asset, &min).is_err());
+
+        let min_cbor = Int::try_from(MIN).unwrap();           // -2^64
+        assert!(MintAssets::new_from_entry(&asset, &min_cbor).is_err());
+
+        let too_negative = Int::try_from(i64::MIN as i128 - 1).unwrap();
+        assert!(MintAssets::new_from_entry(&asset, &too_negative).is_err());
+
+        let too_positive = Int::try_from(i64::MAX as i128 + 1).unwrap();
+        assert!(MintAssets::new_from_entry(&asset, &too_positive).is_err());
+
         let mut ma = MintAssets::new();
-        assert!(ma.insert(&asset, &min).is_err());
-        let ok = Int::try_from(MIN + 1).unwrap();
-        assert!(MintAssets::new_from_entry(&asset, &ok).is_ok());
+        assert!(ma.insert(&asset, &Int::from(0i32)).is_err());
+
+        // Boundary values that DO fit int64 must succeed.
+        assert!(MintAssets::new_from_entry(&asset, &Int::from(i64::MIN)).is_ok());
+        assert!(MintAssets::new_from_entry(&asset, &Int::from(i64::MAX)).is_ok());
     }
 
     #[test]
-    fn mint_cbor_rejects_min_i128_amount() {
-        // map(1) { bytes(1)=0x00 : nint payload=u64::MAX → value = -2^64 }
+    fn mint_cbor_accepts_any_int_amount() {
+        // Deserialization does not enforce nonzero_int64 — that check lives
+        // at the construction boundary (MintAssets::insert / new_from_entry).
+        // Out-of-range mint amounts on the wire are preserved verbatim so
+        // that consumers can inspect or reject them with their own policy.
         let bytes: Vec<u8> = vec![
             0xa1, 0x41, 0x00,
-            0x3b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0x3b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // nint -2^64
         ];
         use cbor_event::de::Deserializer;
         use std::io::Cursor;
         let mut raw = Deserializer::from(Cursor::new(bytes));
-        assert!(MintAssets::deserialize(&mut raw).is_err(),
-                "expected rejection of -2^64 mint amount");
+        let ma = MintAssets::deserialize(&mut raw).unwrap();
+        assert_eq!(ma.len(), 1);
     }
 
     // CDDL / RFC 8949 conformance vectors.

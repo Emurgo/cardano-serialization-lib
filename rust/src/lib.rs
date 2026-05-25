@@ -1586,14 +1586,17 @@ impl MintAssets {
         if value.0 == 0 {
             return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
         }
-        // MultiAsset value side is BigNum (u64), so each mint amount must be
-        // expressible as |value| <= u64::MAX. The single CBOR-int value -2^64
-        // (Int::CBOR_MIN) has |x| = 2^64 and cannot be represented, which would
-        // panic later in as_negative_multiasset(). Reject it at construction.
-        if value.0 == Int::CBOR_MIN {
-            return Err(JsError::from_str(
-                "MintAssets value -2^64 cannot be represented as a u64 burn amount",
-            ));
+        // Conway CDDL: `mint = {+ policy_id => {+ asset_name => nonzero_int64}}`.
+        // Mint amounts must fit in int64; values outside are not valid on-chain
+        // and also cannot be converted to a `BigNum` burn amount in
+        // `MultiAsset` further down the pipeline.
+        if !value.fits_int64() {
+            return Err(JsError::from_str(&format!(
+                "MintAssets value {} is out of CDDL nonzero_int64 range [{}, -1] U [1, {}]",
+                value.0,
+                i64::MIN,
+                i64::MAX,
+            )));
         }
         Ok(self.0.insert(key.clone(), value.clone()))
     }

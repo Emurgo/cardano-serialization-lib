@@ -1503,13 +1503,6 @@ impl Deserialize for MintAssets {
                 }
                 let key = AssetName::deserialize(raw)?;
                 let value = Int::deserialize(raw)?;
-                // Same invariant as MintAssets::insert: -2^64 cannot be
-                // represented as a u64 burn amount in MultiAsset.
-                if value.0 == Int::CBOR_MIN {
-                    return Err(DeserializeFailure::CustomError(
-                        "MintAssets value -2^64 cannot be represented as a u64 burn amount".to_string(),
-                    ).into());
-                }
                 if table.insert(key.clone(), value).is_some() {
                     return Err(DeserializeFailure::DuplicateKey(Key::Str(String::from(
                         "some complicated/unsupported type",

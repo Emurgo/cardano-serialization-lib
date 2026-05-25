@@ -28,6 +28,14 @@ impl Int {
             Ok(Self(x))
         }
     }
+
+    /// Conway CDDL constrains a number of fields (`mint` amounts, every
+    /// element of a `cost_model`, native-script thresholds, etc.) to the
+    /// `int64` range rather than the full CBOR `int` range. Callers that
+    /// need to enforce that narrower constraint can use this helper.
+    pub(crate) fn fits_int64(&self) -> bool {
+        self.0 >= i64::MIN as i128 && self.0 <= i64::MAX as i128
+    }
 }
 
 #[wasm_bindgen]
