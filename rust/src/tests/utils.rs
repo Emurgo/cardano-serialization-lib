@@ -1057,6 +1057,44 @@ mod int_boundary {
         let max = BigInt::from_str("18446744073709551615").unwrap();
         assert_eq!(max.as_int().unwrap().to_str(), "18446744073709551615");
     }
+
+    // Cover every branch of `BigInt::as_int`'s match:
+    //   (Sign::NoSign, _)            → zero
+    //   (Sign::Plus,  [lo])          → 0 < n ≤ u64::MAX
+    //   (Sign::Minus, [lo])          → -u64::MAX ≤ n < 0
+    //   (Sign::Minus, [0, 1])        → -2^64 exactly
+    //   _                            → None
+    #[test]
+    fn bigint_as_int_branch_coverage() {
+        // NoSign: 0
+        let zero = BigInt::from_str("0").unwrap().as_int().unwrap();
+        assert_eq!(zero.to_str(), "0");
+
+        // Plus, single limb: small, mid, and u64::MAX upper edge
+        for s in &["1", "1024", "9223372036854775807", "18446744073709551615"] {
+            let i = BigInt::from_str(s).unwrap().as_int().unwrap();
+            assert_eq!(i.to_str(), *s);
+        }
+
+        // Minus, single limb: -1, mid, -u64::MAX lower-but-still-single-limb edge
+        for s in &["-1", "-1024", "-9223372036854775808", "-18446744073709551615"] {
+            let i = BigInt::from_str(s).unwrap().as_int().unwrap();
+            assert_eq!(i.to_str(), *s);
+        }
+
+        // Minus, two limbs [0, 1] is exactly -2^64 — covered by
+        // `bigint_as_int_handles_min_i128`. Any other multi-limb BigInt
+        // (positive >u64::MAX, negative <-2^64) must return None.
+        for s in &[
+            "18446744073709551616",      //  2^64 → Plus, [0, 1]
+            "36893488147419103232",      //  2 * 2^64
+            "-18446744073709551617",     // -(2^64 + 1)
+            "-36893488147419103232",     // -2 * 2^64
+        ] {
+            assert!(BigInt::from_str(s).unwrap().as_int().is_none(),
+                    "{} unexpectedly converted", s);
+        }
+    }
 }
 
 #[test]
