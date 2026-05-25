@@ -864,16 +864,23 @@ mod int_boundary {
     }
 
     #[test]
-    fn cost_model_from_vec_accepts_int_range() {
-        // values used by tx_builder_constants — all small i64, must not panic
-        let cm = CostModel::from(vec![812990i128, 1, -1, 0]);
+    fn cost_model_try_from_accepts_int_range() {
+        // Values used by tx_builder_constants — all small i64, must succeed.
+        let cm = CostModel::try_from(vec![812990i128, 1, -1, 0]).unwrap();
         assert_eq!(cm.len(), 4);
+
+        // CBOR int boundary values still succeed.
+        let cm = CostModel::try_from(vec![MIN, MAX]).unwrap();
+        assert_eq!(cm.len(), 2);
     }
 
     #[test]
-    #[should_panic(expected = "out of CBOR int range")]
-    fn cost_model_from_vec_panics_on_out_of_range() {
-        let _ = CostModel::from(vec![i128::MAX]);
+    fn cost_model_try_from_errors_on_out_of_range() {
+        for &v in &[i128::MAX, i128::MIN, MAX + 1, MIN - 1] {
+            let err = CostModel::try_from(vec![v]).unwrap_err();
+            assert!(err.to_string().contains("out of CBOR int range"),
+                    "unexpected error for {}: {}", v, err.to_string());
+        }
     }
 
     #[test]
