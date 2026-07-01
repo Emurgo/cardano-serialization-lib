@@ -343,6 +343,11 @@ fn deserialize_as_postalonzo_output<R: BufRead + Seek>(
             cbor_event::Len::Len(n) => read < n as usize,
             cbor_event::Len::Indefinite => true,
         } {
+            if let cbor_event::Len::Indefinite = len {
+                if is_break_tag(raw, "post-alonzo output map")? {
+                    break;
+                }
+            }
             match raw.cbor_type()? {
                 CBORType::UnsignedInteger => match raw.unsigned_integer()? {
                     0 => {
