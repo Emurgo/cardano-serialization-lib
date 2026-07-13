@@ -42,7 +42,8 @@ macro_rules! impl_hash_type {
             pub fn from_bech32(bech_str: &str) -> Result<$name, JsError> {
                 let (_hrp, u5data) =
                     bech32::decode(bech_str).map_err(|e| JsError::from_str(&e.to_string()))?;
-                let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data).unwrap();
+                let data: Vec<u8> = bech32::FromBase32::from_base32(&u5data)
+                    .map_err(|e| JsError::from_str(&format!("Base32 decode failed: {:?}", e)))?;
                 Ok(Self::from_bytes(data)?)
             }
 
