@@ -1456,7 +1456,7 @@ impl TransactionBuilder {
         self.add_mint_asset(policy_script, asset_name, amount)?;
         let multiasset =
             Mint::new_from_entry(&policy_id, &MintAssets::new_from_entry(asset_name, amount)?)
-                .as_positive_multiasset();
+                .as_positive_multiasset()?;
 
         self.add_output(
             &output_builder
@@ -1484,7 +1484,7 @@ impl TransactionBuilder {
         self.add_mint_asset(policy_script, asset_name, amount)?;
         let multiasset =
             Mint::new_from_entry(&policy_id, &MintAssets::new_from_entry(asset_name, amount)?)
-                .as_positive_multiasset();
+                .as_positive_multiasset()?;
 
         self.add_output(
             &output_builder
@@ -1745,22 +1745,22 @@ impl TransactionBuilder {
     }
 
     /// Returns mint as tuple of (mint_value, burn_value) or two zero values
-    fn get_mint_as_values(&self) -> (Value, Value) {
-        self.mint
-            .as_ref()
-            .map(|m| {
+    fn get_mint_as_values(&self) -> Result<(Value, Value), JsError> {
+        match &self.mint {
+            Some(m) => {
                 let mint = m.build_unchecked();
-                (
-                    Value::new_from_assets(&mint.as_positive_multiasset()),
-                    Value::new_from_assets(&mint.as_negative_multiasset()),
-                )
-            })
-            .unwrap_or((Value::zero(), Value::zero()))
+                Ok((
+                    Value::new_from_assets(&mint.as_positive_multiasset()?),
+                    Value::new_from_assets(&mint.as_negative_multiasset()?),
+                ))
+            }
+            None => Ok((Value::zero(), Value::zero())),
+        }
     }
 
     /// Return explicit input plus implicit input plus mint
     pub fn get_total_input(&self) -> Result<Value, JsError> {
-        let (mint_value, _) = self.get_mint_as_values();
+        let (mint_value, _) = self.get_mint_as_values()?;
         self.get_explicit_input()?
             .checked_add(&self.get_implicit_input()?)?
             .checked_add(&mint_value)
@@ -1768,7 +1768,7 @@ impl TransactionBuilder {
 
     /// Return explicit output plus deposit plus burn
     pub fn get_total_output(&self) -> Result<Value, JsError> {
-        let (_, burn_value) = self.get_mint_as_values();
+        let (_, burn_value) = self.get_mint_as_values()?;
         let mut total = self
             .get_explicit_output()?
             .checked_add(&Value::new(&self.get_deposit()?))?
