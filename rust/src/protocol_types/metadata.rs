@@ -566,9 +566,9 @@ pub fn encode_json_value_to_metadatum(
                 let mut map = MetadataMap::new();
                 for (raw_key, value) in json_obj {
                     let key = if schema == MetadataJsonSchema::BasicConversions {
-                        match raw_key.parse::<i128>() {
-                            Ok(x) => TransactionMetadatum::new_int(&Int(x)),
-                            Err(_) => encode_string(raw_key, schema)?,
+                        match raw_key.parse::<i128>().ok().and_then(|x| Int::new_checked(x).ok()) {
+                            Some(i) => TransactionMetadatum::new_int(&i),
+                            None => encode_string(raw_key, schema)?,
                         }
                     } else {
                         TransactionMetadatum::new_text(raw_key)?

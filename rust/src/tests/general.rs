@@ -82,7 +82,7 @@ fn mint_to_multiasset() {
     mint.insert(&policy_id1, &mass1);
     mint.insert(&policy_id2, &mass2);
 
-    let multiasset = mint.as_positive_multiasset();
+    let multiasset = mint.as_positive_multiasset().unwrap();
     assert_eq!(multiasset.len(), 2);
 
     let ass1 = multiasset.get(&policy_id1).unwrap();
@@ -119,8 +119,8 @@ fn mint_to_negative_multiasset() {
     mint.insert(&policy_id1, &mass1);
     mint.insert(&policy_id2, &mass2);
 
-    let p_multiasset = mint.as_positive_multiasset();
-    let n_multiasset = mint.as_negative_multiasset();
+    let p_multiasset = mint.as_positive_multiasset().unwrap();
+    let n_multiasset = mint.as_negative_multiasset().unwrap();
 
     assert_eq!(p_multiasset.len(), 2);
     assert_eq!(n_multiasset.len(), 2);
@@ -167,11 +167,11 @@ fn mint_to_negative_multiasset_empty() {
     let mut mint2 = Mint::new();
     mint2.insert(&policy_id1, &mass2);
 
-    let p_multiasset_some = mint1.as_positive_multiasset();
-    let p_multiasset_none = mint2.as_positive_multiasset();
+    let p_multiasset_some = mint1.as_positive_multiasset().unwrap();
+    let p_multiasset_none = mint2.as_positive_multiasset().unwrap();
 
-    let n_multiasset_none = mint1.as_negative_multiasset();
-    let n_multiasset_some = mint2.as_negative_multiasset();
+    let n_multiasset_none = mint1.as_negative_multiasset().unwrap();
+    let n_multiasset_some = mint2.as_negative_multiasset().unwrap();
 
     assert_eq!(p_multiasset_some.len(), 1);
     assert_eq!(p_multiasset_none.len(), 0);
@@ -187,6 +187,42 @@ fn mint_to_negative_multiasset_empty() {
 
     assert_eq!(p_ass.get(&name1).unwrap(), amount1);
     assert_eq!(n_ass.get(&name1).unwrap(), amount1);
+}
+
+#[test]
+fn mint_to_multiasset_amount_out_of_u64_range() {
+    // Conway CDDL says mint amounts are `nonzero_int64`, but the CBOR deserializer is
+    // deliberately permissive and accepts the full RFC 8949 int range. `MintAssets::insert`
+    // rejects out-of-`int64` amounts, so `-2^64` is only reachable off the wire.
+    //
+    // { h'00..00' (28 bytes) => { h'00010203' => -2^64 } }
+    // -2^64 encodes as major 1 with argument 2^64-1: 0x3b ff ff ff ff ff ff ff ff
+    let policy_id1 = PolicyID::from([0u8; 28]);
+    let name1 = AssetName::new(vec![0u8, 1, 2, 3]).unwrap();
+    let mint = Mint::from_hex(
+        "a1581c00000000000000000000000000000000000000000000000000000000\
+         a144000102033bffffffffffffffff",
+    )
+    .expect("deserializer must stay permissive for the full int range");
+
+    let amount = mint.get(&policy_id1).unwrap().get(0).unwrap().get(&name1).unwrap();
+    assert_eq!(amount.to_str(), "-18446744073709551616");
+    // |amount| == 2^64 does not fit BigNum, so there is no u64-backed projection.
+    assert!(amount.as_negative().is_none());
+
+    // The negative projection must error, not panic and not silently drop the entry.
+    let err = mint
+        .as_negative_multiasset()
+        .expect_err("out-of-u64 burn amount must be reported");
+    let msg = format!("{:?}", err);
+    assert!(
+        msg.contains("-18446744073709551616"),
+        "error must name the offending amount, got: {}",
+        msg
+    );
+
+    // The positive projection skips negative entries as usual and stays Ok.
+    assert_eq!(mint.as_positive_multiasset().unwrap().len(), 0);
 }
 
 fn pkscript(pk: &Ed25519KeyHash) -> NativeScript {

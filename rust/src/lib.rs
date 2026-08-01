@@ -1573,9 +1573,6 @@ impl MintAssets {
     }
 
     pub fn new_from_entry(key: &AssetName, value: &Int) -> Result<MintAssets, JsError> {
-        if value.0 == 0 {
-            return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
-        }
         let mut ma = MintAssets::new();
         ma.insert(key, value)?;
         Ok(ma)
@@ -1588,6 +1585,18 @@ impl MintAssets {
     pub fn insert(&mut self, key: &AssetName, value: &Int) -> Result<Option<Int>, JsError> {
         if value.0 == 0 {
             return Err(JsError::from_str("MintAssets cannot be created with 0 value"));
+        }
+        // Conway CDDL: `mint = {+ policy_id => {+ asset_name => nonzero_int64}}`.
+        // Mint amounts must fit in int64; values outside are not valid on-chain
+        // and also cannot be converted to a `BigNum` burn amount in
+        // `MultiAsset` further down the pipeline.
+        if !value.fits_int64() {
+            return Err(JsError::from_str(&format!(
+                "MintAssets value {} is out of CDDL nonzero_int64 range [{}, -1] U [1, {}]",
+                value.0,
+                i64::MIN,
+                i64::MAX,
+            )));
         }
         Ok(self.0.insert(key.clone(), value.clone()))
     }
@@ -1669,36 +1678,45 @@ impl Mint {
         )
     }
 
-    fn as_multiasset(&self, is_positive: bool) -> MultiAsset {
-        self.0
-            .iter()
-            .fold(MultiAsset::new(), |res, e: &(PolicyID, MintAssets)| {
-                let assets: Assets = (e.1).0.iter().fold(Assets::new(), |res, e| {
-                    let mut assets = res;
-                    if e.1.is_positive() == is_positive {
-                        let amount = match is_positive {
-                            true => e.1.as_positive(),
-                            false => e.1.as_negative(),
-                        };
-                        assets.insert(&e.0, &amount.unwrap());
-                    }
-                    assets
-                });
-                let mut ma = res;
-                if !assets.0.is_empty() {
-                    ma.insert(&e.0, &assets);
+    fn as_multiasset(&self, is_positive: bool) -> Result<MultiAsset, JsError> {
+        let mut ma = MultiAsset::new();
+        for (policy_id, mint_assets) in &self.0 {
+            let mut assets = Assets::new();
+            for (asset_name, amount) in &mint_assets.0 {
+                if amount.is_positive() != is_positive {
+                    continue;
                 }
-                ma
-            })
+                // Conway CDDL constrains mint amounts to `nonzero_int64`, but the
+                // CBOR deserializer is permissive and accepts the full int range
+                // [-2^64, 2^64-1]. The single value -2^64 has |x| = 2^64, which
+                // cannot be represented in a u64-backed MultiAsset, so surface it
+                // as an error rather than silently dropping the entry.
+                let value = match is_positive {
+                    true => amount.as_positive(),
+                    false => amount.as_negative(),
+                }
+                .ok_or_else(|| {
+                    JsError::from_str(&format!(
+                        "Mint amount {} for policy {} does not fit a u64 MultiAsset value",
+                        amount.0, policy_id
+                    ))
+                })?;
+                assets.insert(asset_name, &value);
+            }
+            if !assets.0.is_empty() {
+                ma.insert(policy_id, &assets);
+            }
+        }
+        Ok(ma)
     }
 
     /// Returns the multiasset where only positive (minting) entries are present
-    pub fn as_positive_multiasset(&self) -> MultiAsset {
+    pub fn as_positive_multiasset(&self) -> Result<MultiAsset, JsError> {
         self.as_multiasset(true)
     }
 
     /// Returns the multiasset where only negative (burning) entries are present
-    pub fn as_negative_multiasset(&self) -> MultiAsset {
+    pub fn as_negative_multiasset(&self) -> Result<MultiAsset, JsError> {
         self.as_multiasset(false)
     }
 }

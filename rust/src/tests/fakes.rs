@@ -2,6 +2,7 @@
 
 use crate::*;
 use crate::tests::helpers::harden;
+use std::convert::TryFrom;
 
 const MAX_VALUE_SIZE: u32 = 4000;
 const MAX_TX_SIZE: u32 = 8000; // might be out of date but suffices for our tests
@@ -172,7 +173,7 @@ pub(crate) fn fake_cost_models() -> Costmdls {
     let mut res = Costmdls::new();
     res.insert(
         &Language::new_plutus_v1(),
-        &CostModel::from(vec![
+        &CostModel::try_from(vec![
             197209, 0, 1, 1, 396231, 621, 0, 1, 150000, 1000, 0, 1, 150000, 32, 2477736, 29175, 4,
             29773, 100, 29773, 100, 29773, 100, 29773, 100, 29773, 100, 29773, 100, 100, 100,
             29773, 100, 150000, 32, 150000, 32, 150000, 32, 150000, 1000, 0, 1, 150000, 32, 150000,
@@ -184,7 +185,7 @@ pub(crate) fn fake_cost_models() -> Costmdls {
             0, 1, 1, 148000, 425507, 118, 0, 1, 1, 2477736, 29175, 4, 0, 82363, 4, 150000, 5000, 0,
             1, 150000, 32, 197209, 0, 1, 1, 150000, 32, 150000, 32, 150000, 32, 150000, 32, 150000,
             32, 150000, 32, 150000, 32, 3345831, 1, 1,
-        ]),
+        ]).unwrap(),
     );
     res
 }

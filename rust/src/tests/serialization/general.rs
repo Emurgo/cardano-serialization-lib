@@ -112,6 +112,55 @@ fn tx_output_deser_post_alonzo_with_datum() {
 }
 
 #[test]
+fn tx_output_deser_post_alonzo_indefinite_map() {
+    // Post-alonzo output encoded as an indefinite-length map (`bf .. ff`)
+    // instead of the canonical definite-length map (`a2 ..`). Both must
+    // deserialize to the same output. Previously the trailing `0xff` break
+    // byte tripped the deserializer with UnexpectedKeyType(Special).
+    let indefinite = "bf00581d60a1c146c212acfe02048afbf8d2e5e9c806165934d9935c696f85c3dc011a00493e00ff";
+    let definite = "a200581d60a1c146c212acfe02048afbf8d2e5e9c806165934d9935c696f85c3dc011a00493e00";
+
+    let from_indef = TransactionOutput::from_hex(indefinite).unwrap();
+    let from_def = TransactionOutput::from_hex(definite).unwrap();
+
+    assert_eq!(from_indef.address(), from_def.address());
+    assert_eq!(from_indef.amount(), from_def.amount());
+    // The two encodings decode identically and re-serialize the same way.
+    assert_eq!(from_indef.to_hex(), from_def.to_hex());
+}
+
+#[test]
+fn tx_output_deser_post_alonzo_indefinite_map_missing_break() {
+    // Indefinite-length map that never terminates with a break byte.
+    // Must fail (unexpected end of input), not loop or panic.
+    let no_break = "bf00581d60a1c146c212acfe02048afbf8d2e5e9c806165934d9935c696f85c3dc011a00493e00";
+    assert!(TransactionOutput::from_hex(no_break).is_err());
+}
+
+#[test]
+fn tx_output_deser_post_alonzo_indefinite_map_missing_mandatory_amount() {
+    // Indefinite-length map that closes after the address only. Amount
+    // (key 1) is mandatory, so this must error rather than yield a partial
+    // output once the break is honoured.
+    let no_amount = "bf00581d60a1c146c212acfe02048afbf8d2e5e9c806165934d9935c696f85c3dcff";
+    assert!(TransactionOutput::from_hex(no_amount).is_err());
+}
+
+#[test]
+fn tx_output_deser_post_alonzo_indefinite_map_duplicate_key() {
+    // Indefinite-length map with a duplicated address key (0). Must error.
+    let dup_key = "bf00581d60a1c146c212acfe02048afbf8d2e5e9c806165934d9935c696f85c3dc00581d60a1c146c212acfe02048afbf8d2e5e9c806165934d9935c696f85c3dc011a00493e00ff";
+    assert!(TransactionOutput::from_hex(dup_key).is_err());
+}
+
+#[test]
+fn tx_output_deser_post_alonzo_indefinite_map_unknown_key() {
+    // Indefinite-length map carrying an unknown key (9). Must error.
+    let unknown_key = "bf00581d60a1c146c212acfe02048afbf8d2e5e9c806165934d9935c696f85c3dc011a00493e00091a00000001ff";
+    assert!(TransactionOutput::from_hex(unknown_key).is_err());
+}
+
+#[test]
 fn tx_output_deser_post_alonzo_with_native_script_and_datum() {
     let mut txos = TransactionOutputs::new();
     let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();

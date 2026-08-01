@@ -124,12 +124,23 @@ function run(command, description) {
 function buildRust(target, variant, gc) {
   // Clean
   run('npx rimraf ./rust/pkg', 'Cleaning pkg directory');
-  
+
+  // Pin wasm-bindgen in the local Cargo.lock per variant. The asm.js path
+  // goes through binaryen's wasm2js, which rejects multi-table modules
+  // emitted by wasm-bindgen >=0.2.95; pin to 0.2.93 there. Other variants
+  // get 0.2.103. Cargo.lock is not checked in, so this only affects the
+  // current build.
+  const pinVersion = variant === 'asm' ? '0.2.93' : '0.2.103';
+  run(
+    `cd rust && cargo update -p wasm-bindgen --precise ${pinVersion}`,
+    `Pinning wasm-bindgen to ${pinVersion}`
+  );
+
   // Build
-  const buildCmd = gc 
+  const buildCmd = gc
     ? `cd rust && WASM_BINDGEN_WEAKREF=1 wasm-pack build --target=${target}`
     : `cd rust && wasm-pack build --target=${target}`;
-  
+
   run(buildCmd, `Building Rust for ${target}${gc ? ' (with GC)' : ''}`);
   
   // Post-build steps based on variant

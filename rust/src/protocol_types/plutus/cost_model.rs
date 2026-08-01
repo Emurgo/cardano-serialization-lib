@@ -57,8 +57,14 @@ impl CostModel {
     }
 }
 
-impl From<Vec<i128>> for CostModel {
-    fn from(values: Vec<i128>) -> Self {
-        CostModel(values.iter().map(|x| Int(*x)).collect())
+impl std::convert::TryFrom<Vec<i128>> for CostModel {
+    type Error = JsError;
+
+    fn try_from(values: Vec<i128>) -> Result<Self, Self::Error> {
+        values
+            .into_iter()
+            .map(Int::new_checked)
+            .collect::<Result<Vec<_>, _>>()
+            .map(CostModel)
     }
 }
