@@ -306,66 +306,6 @@ fn tx_output_deser_post_alonzo_with_plutus_script_and_datum_json() {
 }
 
 #[test]
-fn plutus_script_json_round_trip_preserves_language() {
-    // The language selects the namespace byte in the script hash, so losing it
-    // yields a script that hashes differently from the one serialized.
-    for script in [
-        PlutusScript::new([61u8; 29].to_vec()),
-        PlutusScript::new_v2([61u8; 29].to_vec()),
-        PlutusScript::new_v3([61u8; 29].to_vec()),
-    ] {
-        let json = serde_json::to_string(&script).unwrap();
-        let deser: PlutusScript = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(deser.language_version(), script.language_version(), "{json}");
-        assert_eq!(deser.bytes(), script.bytes(), "{json}");
-        assert_eq!(deser.hash(), script.hash(), "{json}");
-    }
-}
-
-#[test]
-fn plutus_script_json_v1_stays_a_bare_hex_string() {
-    // Previously written JSON has no language field, and everything this type
-    // ever emitted was Plutus V1. Both directions must keep working.
-    let script = PlutusScript::new([61u8; 29].to_vec());
-
-    assert_eq!(
-        serde_json::to_string(&script).unwrap(),
-        format!("\"{}\"", hex::encode([61u8; 29]))
-    );
-
-    let from_legacy: PlutusScript =
-        serde_json::from_str(&format!("\"{}\"", hex::encode([61u8; 29]))).unwrap();
-    assert_eq!(from_legacy.language_version(), Language::new_plutus_v1());
-    assert_eq!(from_legacy.bytes(), script.bytes());
-}
-
-#[test]
-fn tx_output_deser_post_alonzo_with_plutus_v2_script_and_datum_json() {
-    let mut txos = TransactionOutputs::new();
-    let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
-    let val = &Value::new(&BigNum::from_str("435464757").unwrap());
-    let mut txo = TransactionOutput {
-        address: addr.clone(),
-        amount: val.clone(),
-        plutus_data: None,
-        script_ref: None,
-        serialization_format: None,
-    };
-    txo.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
-    txo.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new_v2(
-        [61u8; 29].to_vec(),
-    )));
-    txos.add(&txo);
-
-    let json_txos = txos.to_json().unwrap();
-    let deser_txos = TransactionOutputs::from_json(json_txos.as_str()).unwrap();
-
-    assert_eq!(deser_txos.to_bytes(), txos.to_bytes());
-    assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
-}
-
-#[test]
 fn tx_output_deser_post_alonzo_with_plutus_script_json() {
     let mut txos = TransactionOutputs::new();
     let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
@@ -392,6 +332,156 @@ fn tx_output_deser_post_alonzo_with_plutus_script_json() {
 
     assert_eq!(deser_txos.to_bytes(), txos.to_bytes());
     assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
+}
+
+#[test]
+fn tx_output_deser_post_alonzo_with_plutus_v2_script_and_datum_json() {
+    let mut txos = TransactionOutputs::new();
+    let addr = Address::from_bech32("addr1qyxwnq9kylzrtqprmyu35qt8gwylk3eemq53kqd38m9kyduv2q928esxmrz4y5e78cvp0nffhxklfxsqy3vdjn3nty9s8zygkm").unwrap();
+    let val = &Value::new(&BigNum::from_str("435464757").unwrap());
+    let txo = TransactionOutput {
+        address: addr.clone(),
+        amount: val.clone(),
+        plutus_data: None,
+        script_ref: None,
+        serialization_format: None,
+    };
+    let mut txo_dh = txo.clone();
+    txo_dh.set_plutus_data(&PlutusData::new_bytes(fake_bytes_32(11)));
+    txo_dh.set_script_ref(&ScriptRef::new_plutus_script(&PlutusScript::new_v2(
+        [61u8; 29].to_vec(),
+    )));
+    txos.add(&txo);
+    txos.add(&txo_dh);
+    let json_txos = txos.to_json().unwrap();
+    let deser_txos = TransactionOutputs::from_json(json_txos.as_str()).unwrap();
+
+    assert_eq!(deser_txos.to_bytes(), txos.to_bytes());
+    assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
+}
+
+/// A real compiled Plutus script; do not replace it with filler bytes.
+const COMPILED_PLUTUS_SCRIPT: &str = "4e4d01000033222220051200120011";
+
+fn compiled_plutus_script_bytes() -> Vec<u8> {
+    hex::decode(COMPILED_PLUTUS_SCRIPT).unwrap()
+}
+
+#[test]
+fn plutus_script_json_round_trip_preserves_language() {
+    // The language is the namespace byte in the script hash.
+    let bytes = compiled_plutus_script_bytes();
+    for script in [
+        PlutusScript::new(bytes.clone()),
+        PlutusScript::new_v2(bytes.clone()),
+        PlutusScript::new_v3(bytes.clone()),
+    ] {
+        let json = serde_json::to_string(&script).unwrap();
+        let deser: PlutusScript = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deser.language_version(), script.language_version(), "{json}");
+        assert_eq!(deser.bytes(), script.bytes(), "{json}");
+        assert_eq!(deser.hash(), script.hash(), "{json}");
+    }
+}
+
+#[test]
+fn plutus_script_json_v1_stays_a_bare_hex_string() {
+    // Previously written JSON has no language field and was always Plutus V1.
+    let script = PlutusScript::new(compiled_plutus_script_bytes());
+
+    assert_eq!(
+        serde_json::to_string(&script).unwrap(),
+        format!("\"{}\"", COMPILED_PLUTUS_SCRIPT)
+    );
+
+    let from_legacy: PlutusScript =
+        serde_json::from_str(&format!("\"{}\"", COMPILED_PLUTUS_SCRIPT)).unwrap();
+    assert_eq!(from_legacy.language_version(), Language::new_plutus_v1());
+    assert_eq!(from_legacy.bytes(), script.bytes());
+}
+
+#[test]
+fn plutus_script_json_accepts_an_explicit_v1_language() {
+    // Accepted but never emitted, so nothing else pins this branch.
+    let json = format!("{{\"bytes\":\"{COMPILED_PLUTUS_SCRIPT}\",\"language\":\"PlutusV1\"}}");
+
+    let script: PlutusScript = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(script.language_version(), Language::new_plutus_v1());
+    assert_eq!(script.bytes(), compiled_plutus_script_bytes());
+}
+
+#[test]
+fn plutus_script_json_rejects_malformed_input() {
+    for (json, expected) in [
+        ("null", "invalid type"),
+        ("12345", "invalid type"),
+        ("\"zz\"", "invalid value"),
+        ("{}", "missing field `bytes`"),
+        ("{\"bytes\":\"4e4d01\"}", "missing field `language`"),
+        (
+            "{\"bytes\":\"4e4d01\",\"language\":\"PlutusV2\",\"extra\":1}",
+            "unknown field `extra`",
+        ),
+        (
+            "{\"bytes\":\"zz\",\"language\":\"PlutusV2\"}",
+            "invalid value",
+        ),
+    ] {
+        let err = serde_json::from_str::<PlutusScript>(json).unwrap_err();
+        assert!(
+            err.to_string().contains(expected),
+            "{} gave {}, expected {}",
+            json,
+            err,
+            expected
+        );
+    }
+}
+
+#[test]
+fn plutus_script_binary_serde_round_trip_preserves_language() {
+    // Non-self-describing formats take a fixed pair, not the either-shape form.
+    for script in [
+        PlutusScript::new(compiled_plutus_script_bytes()),
+        PlutusScript::new_v2(compiled_plutus_script_bytes()),
+        PlutusScript::new_v3(compiled_plutus_script_bytes()),
+    ] {
+        let encoded = bincode::serialize(&script).unwrap();
+        let deser: PlutusScript = bincode::deserialize(&encoded).unwrap();
+
+        assert_eq!(deser, script);
+    }
+}
+
+#[test]
+fn witness_set_json_round_trip_keeps_each_script_language() {
+    // The language picks the witness-set CBOR key and the script_data_hash cost model.
+    let bytes = compiled_plutus_script_bytes();
+    let mut scripts = PlutusScripts::new();
+    scripts.add(&PlutusScript::new(bytes.clone()));
+    scripts.add(&PlutusScript::new_v2(bytes.clone()));
+    scripts.add(&PlutusScript::new_v3(bytes.clone()));
+    let mut ws = TransactionWitnessSet::new();
+    ws.set_plutus_scripts(&scripts);
+
+    let deser = TransactionWitnessSet::from_json(ws.to_json().unwrap().as_str()).unwrap();
+
+    let langs: Vec<Language> = deser
+        .plutus_scripts()
+        .unwrap()
+        .into_iter()
+        .map(|s| s.language_version())
+        .collect();
+    assert_eq!(
+        langs,
+        vec![
+            Language::new_plutus_v1(),
+            Language::new_plutus_v2(),
+            Language::new_plutus_v3()
+        ]
+    );
 }
 
 #[test]
