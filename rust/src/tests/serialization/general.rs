@@ -360,7 +360,6 @@ fn tx_output_deser_post_alonzo_with_plutus_v2_script_and_datum_json() {
     assert_eq!(deser_txos.to_json().unwrap(), txos.to_json().unwrap());
 }
 
-/// A real compiled Plutus script; do not replace it with filler bytes.
 const COMPILED_PLUTUS_SCRIPT: &str = "4e4d01000033222220051200120011";
 
 fn compiled_plutus_script_bytes() -> Vec<u8> {
@@ -369,7 +368,6 @@ fn compiled_plutus_script_bytes() -> Vec<u8> {
 
 #[test]
 fn plutus_script_json_round_trip_preserves_language() {
-    // The language is the namespace byte in the script hash.
     let bytes = compiled_plutus_script_bytes();
     for script in [
         PlutusScript::new(bytes.clone()),
@@ -387,7 +385,6 @@ fn plutus_script_json_round_trip_preserves_language() {
 
 #[test]
 fn plutus_script_json_v1_stays_a_bare_hex_string() {
-    // Previously written JSON has no language field and was always Plutus V1.
     let script = PlutusScript::new(compiled_plutus_script_bytes());
 
     assert_eq!(
@@ -403,7 +400,6 @@ fn plutus_script_json_v1_stays_a_bare_hex_string() {
 
 #[test]
 fn plutus_script_json_accepts_an_explicit_v1_language() {
-    // Accepted but never emitted, so nothing else pins this branch.
     let json = format!("{{\"bytes\":\"{COMPILED_PLUTUS_SCRIPT}\",\"language\":\"PlutusV1\"}}");
 
     let script: PlutusScript = serde_json::from_str(&json).unwrap();
@@ -413,20 +409,45 @@ fn plutus_script_json_accepts_an_explicit_v1_language() {
 }
 
 #[test]
+fn plutus_script_json_object_ignores_field_order_and_unknown_fields() {
+    let json =
+        format!("{{\"language\":\"PlutusV3\",\"extra\":1,\"bytes\":\"{COMPILED_PLUTUS_SCRIPT}\"}}");
+
+    let script: PlutusScript = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(script.language_version(), Language::new_plutus_v3());
+    assert_eq!(script.bytes(), compiled_plutus_script_bytes());
+}
+
+#[test]
+fn plutus_script_json_schema_describes_both_shapes() {
+    let schema = serde_json::to_value(schemars::schema_for!(PlutusScript)).unwrap();
+
+    let shapes = schema["anyOf"].as_array().unwrap();
+    assert_eq!(shapes[0]["type"], "string");
+    assert_eq!(shapes[1]["required"], serde_json::json!(["bytes", "language"]));
+}
+
+#[test]
 fn plutus_script_json_rejects_malformed_input() {
     for (json, expected) in [
         ("null", "invalid type"),
         ("12345", "invalid type"),
         ("\"zz\"", "invalid value"),
         ("{}", "missing field `bytes`"),
+        ("[]", "invalid type"),
         ("{\"bytes\":\"4e4d01\"}", "missing field `language`"),
-        (
-            "{\"bytes\":\"4e4d01\",\"language\":\"PlutusV2\",\"extra\":1}",
-            "unknown field `extra`",
-        ),
         (
             "{\"bytes\":\"zz\",\"language\":\"PlutusV2\"}",
             "invalid value",
+        ),
+        (
+            "{\"bytes\":\"4e4d01\",\"bytes\":\"4e4d01\",\"language\":\"PlutusV2\"}",
+            "duplicate field `bytes`",
+        ),
+        (
+            "{\"bytes\":\"4e4d01\",\"language\":\"PlutusV2\",\"language\":\"PlutusV3\"}",
+            "duplicate field `language`",
         ),
     ] {
         let err = serde_json::from_str::<PlutusScript>(json).unwrap_err();
@@ -442,7 +463,6 @@ fn plutus_script_json_rejects_malformed_input() {
 
 #[test]
 fn plutus_script_binary_serde_round_trip_preserves_language() {
-    // Non-self-describing formats take a fixed pair, not the either-shape form.
     for script in [
         PlutusScript::new(compiled_plutus_script_bytes()),
         PlutusScript::new_v2(compiled_plutus_script_bytes()),
@@ -457,7 +477,6 @@ fn plutus_script_binary_serde_round_trip_preserves_language() {
 
 #[test]
 fn witness_set_json_round_trip_keeps_each_script_language() {
-    // The language picks the witness-set CBOR key and the script_data_hash cost model.
     let bytes = compiled_plutus_script_bytes();
     let mut scripts = PlutusScripts::new();
     scripts.add(&PlutusScript::new(bytes.clone()));
@@ -468,6 +487,7 @@ fn witness_set_json_round_trip_keeps_each_script_language() {
 
     let deser = TransactionWitnessSet::from_json(ws.to_json().unwrap().as_str()).unwrap();
 
+    assert_eq!(deser.to_bytes(), ws.to_bytes());
     let langs: Vec<Language> = deser
         .plutus_scripts()
         .unwrap()

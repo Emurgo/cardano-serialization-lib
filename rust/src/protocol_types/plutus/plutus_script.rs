@@ -127,8 +127,6 @@ enum PlutusScriptJson {
     },
 }
 
-const PLUTUS_SCRIPT_FIELDS: &'static [&'static str] = &["bytes", "language"];
-
 fn plutus_script_from_hex<E: serde::de::Error>(
     hex_str: &str,
     language: LanguageKind,
@@ -148,7 +146,7 @@ impl serde::Serialize for PlutusScript {
         where
             S: serde::Serializer,
     {
-        // Non-self-describing formats cannot decode the either-shape form below.
+        // Formats reporting is_human_readable() == false take a fixed pair instead.
         if !serializer.is_human_readable() {
             return (&self.bytes, Language(self.language)).serialize(serializer);
         }
@@ -204,11 +202,8 @@ impl<'de> serde::de::Visitor<'de> for PlutusScriptVisitor {
                     }
                     language = Some(map.next_value()?);
                 }
-                unknown => {
-                    return Err(serde::de::Error::unknown_field(
-                        unknown,
-                        PLUTUS_SCRIPT_FIELDS,
-                    ));
+                _ => {
+                    map.next_value::<serde::de::IgnoredAny>()?;
                 }
             }
         }
