@@ -76,7 +76,7 @@ checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
 
 [[package]]
 name = "cardano-serialization-lib"
-version = "16.0.0"
+version = "17.0.0"
 dependencies = [
  "bech32",
  "bincode",
