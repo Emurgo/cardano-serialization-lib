@@ -116,6 +116,7 @@ impl PlutusScript {
 }
 
 /// JSON form: a bare hex string means Plutus V1; V2 and V3 carry the language.
+/// The hex is the raw compiled script, not the cardano-cli "cborHex".
 #[derive(JsonSchema)]
 #[serde(untagged)]
 #[allow(dead_code)]
