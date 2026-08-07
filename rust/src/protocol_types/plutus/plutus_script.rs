@@ -115,12 +115,102 @@ impl PlutusScript {
     }
 }
 
+/// JSON form: a bare hex string means Plutus V1; V2 and V3 carry the language.
+/// The hex is the raw compiled script, not the cardano-cli "cborHex".
+#[derive(JsonSchema)]
+#[serde(untagged)]
+#[allow(dead_code)]
+enum PlutusScriptJson {
+    PlutusV1(String),
+    Versioned {
+        bytes: String,
+        language: Language,
+    },
+}
+
+fn plutus_script_from_hex<E: serde::de::Error>(
+    hex_str: &str,
+    language: LanguageKind,
+) -> Result<PlutusScript, E> {
+    hex::decode(hex_str)
+        .map(|bytes| PlutusScript { bytes, language })
+        .map_err(|_err| {
+            serde::de::Error::invalid_value(
+                serde::de::Unexpected::Str(hex_str),
+                &"PlutusScript as hex string e.g. F8AB28C2 (without CBOR bytes tag)",
+            )
+        })
+}
+
 impl serde::Serialize for PlutusScript {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
     {
-        serializer.serialize_str(&hex::encode(&self.bytes))
+        // Formats reporting is_human_readable() == false take a fixed pair instead.
+        if !serializer.is_human_readable() {
+            return (&self.bytes, Language(self.language)).serialize(serializer);
+        }
+        let bytes = hex::encode(&self.bytes);
+        match self.language {
+            LanguageKind::PlutusV1 => serializer.serialize_str(&bytes),
+            language => {
+                use serde::ser::SerializeStruct;
+                let mut state = serializer.serialize_struct("PlutusScript", 2)?;
+                state.serialize_field("bytes", &bytes)?;
+                state.serialize_field("language", &Language(language))?;
+                state.end()
+            }
+        }
+    }
+}
+
+struct PlutusScriptVisitor;
+
+impl<'de> serde::de::Visitor<'de> for PlutusScriptVisitor {
+    type Value = PlutusScript;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str(
+            "a Plutus V1 script as a hex string, or an object with `bytes` and `language`",
+        )
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+    {
+        plutus_script_from_hex(value, LanguageKind::PlutusV1)
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::MapAccess<'de>,
+    {
+        let mut bytes: Option<String> = None;
+        let mut language: Option<Language> = None;
+        while let Some(key) = map.next_key::<String>()? {
+            match key.as_str() {
+                "bytes" => {
+                    if bytes.is_some() {
+                        return Err(serde::de::Error::duplicate_field("bytes"));
+                    }
+                    bytes = Some(map.next_value()?);
+                }
+                "language" => {
+                    if language.is_some() {
+                        return Err(serde::de::Error::duplicate_field("language"));
+                    }
+                    language = Some(map.next_value()?);
+                }
+                _ => {
+                    map.next_value::<serde::de::IgnoredAny>()?;
+                }
+            }
+        }
+        let bytes = bytes.ok_or_else(|| serde::de::Error::missing_field("bytes"))?;
+        let language = language.ok_or_else(|| serde::de::Error::missing_field("language"))?;
+        plutus_script_from_hex(&bytes, language.kind())
     }
 }
 
@@ -129,15 +219,14 @@ impl<'de> serde::de::Deserialize<'de> for PlutusScript {
         where
             D: serde::de::Deserializer<'de>,
     {
-        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
-        hex::decode(&s)
-            .map(|bytes| PlutusScript::new(bytes))
-            .map_err(|_err| {
-                serde::de::Error::invalid_value(
-                    serde::de::Unexpected::Str(&s),
-                    &"PlutusScript as hex string e.g. F8AB28C2 (without CBOR bytes tag)",
-                )
-            })
+        if !deserializer.is_human_readable() {
+            let (bytes, language) = <(Vec<u8>, Language)>::deserialize(deserializer)?;
+            return Ok(PlutusScript {
+                bytes,
+                language: language.kind(),
+            });
+        }
+        deserializer.deserialize_any(PlutusScriptVisitor)
     }
 }
 
@@ -146,9 +235,9 @@ impl JsonSchema for PlutusScript {
         String::from("PlutusScript")
     }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        String::json_schema(gen)
+        PlutusScriptJson::json_schema(gen)
     }
     fn is_referenceable() -> bool {
-        String::is_referenceable()
+        PlutusScriptJson::is_referenceable()
     }
 }
