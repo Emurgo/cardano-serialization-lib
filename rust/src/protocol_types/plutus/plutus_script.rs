@@ -115,12 +115,34 @@ impl PlutusScript {
     }
 }
 
+/// JSON representation of a [PlutusScript].
+///
+/// A bare hex string means Plutus V1, which is the only shape this type has ever
+/// emitted, so previously written JSON keeps deserializing unchanged. V2 and V3
+/// carry the language alongside the bytes, because the language selects the
+/// namespace byte in [PlutusScript::hash] and dropping it yields a script that
+/// hashes differently from the one that was serialized.
+#[derive(serde::Serialize, serde::Deserialize, JsonSchema)]
+#[serde(untagged)]
+enum PlutusScriptJson {
+    PlutusV1(String),
+    Versioned {
+        bytes: String,
+        language: LanguageKind,
+    },
+}
+
 impl serde::Serialize for PlutusScript {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
     {
-        serializer.serialize_str(&hex::encode(&self.bytes))
+        let bytes = hex::encode(&self.bytes);
+        match self.language {
+            LanguageKind::PlutusV1 => PlutusScriptJson::PlutusV1(bytes),
+            language => PlutusScriptJson::Versioned { bytes, language },
+        }
+        .serialize(serializer)
     }
 }
 
@@ -129,9 +151,12 @@ impl<'de> serde::de::Deserialize<'de> for PlutusScript {
         where
             D: serde::de::Deserializer<'de>,
     {
-        let s = <String as serde::de::Deserialize>::deserialize(deserializer)?;
+        let (s, language) = match PlutusScriptJson::deserialize(deserializer)? {
+            PlutusScriptJson::PlutusV1(s) => (s, LanguageKind::PlutusV1),
+            PlutusScriptJson::Versioned { bytes, language } => (bytes, language),
+        };
         hex::decode(&s)
-            .map(|bytes| PlutusScript::new(bytes))
+            .map(|bytes| PlutusScript { bytes, language })
             .map_err(|_err| {
                 serde::de::Error::invalid_value(
                     serde::de::Unexpected::Str(&s),
@@ -146,9 +171,9 @@ impl JsonSchema for PlutusScript {
         String::from("PlutusScript")
     }
     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        String::json_schema(gen)
+        PlutusScriptJson::json_schema(gen)
     }
     fn is_referenceable() -> bool {
-        String::is_referenceable()
+        PlutusScriptJson::is_referenceable()
     }
 }
