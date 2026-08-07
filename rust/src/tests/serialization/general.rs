@@ -400,28 +400,30 @@ fn plutus_script_json_round_trip_preserves_language() {
 }
 
 #[test]
-fn plutus_script_json_v1_stays_a_bare_hex_string() {
+fn plutus_script_json_v1_carries_its_language() {
     let script = PlutusScript::new(compiled_plutus_script_bytes());
 
     assert_eq!(
         serde_json::to_string(&script).unwrap(),
-        format!("\"{}\"", COMPILED_PLUTUS_SCRIPT)
+        format!("{{\"bytes\":\"{COMPILED_PLUTUS_SCRIPT}\",\"language\":\"PlutusV1\"}}")
     );
 
-    let from_legacy: PlutusScript =
-        serde_json::from_str(&format!("\"{}\"", COMPILED_PLUTUS_SCRIPT)).unwrap();
-    assert_eq!(from_legacy.language_version(), Language::new_plutus_v1());
-    assert_eq!(from_legacy.bytes(), script.bytes());
+    let deser: PlutusScript = serde_json::from_str(
+        &format!("{{\"bytes\":\"{COMPILED_PLUTUS_SCRIPT}\",\"language\":\"PlutusV1\"}}"),
+    )
+    .unwrap();
+    assert_eq!(deser.language_version(), Language::new_plutus_v1());
+    assert_eq!(deser.bytes(), script.bytes());
 }
 
 #[test]
-fn plutus_script_json_accepts_an_explicit_v1_language() {
-    let json = format!("{{\"bytes\":\"{COMPILED_PLUTUS_SCRIPT}\",\"language\":\"PlutusV1\"}}");
+fn plutus_script_json_rejects_a_bare_hex_string() {
+    // 15.x wrote every script as a bare hex string, dropping the language. Reading
+    // one back as V1 would silently downgrade a V2/V3 script and change its hash.
+    let err = serde_json::from_str::<PlutusScript>(&format!("\"{COMPILED_PLUTUS_SCRIPT}\""))
+        .unwrap_err();
 
-    let script: PlutusScript = serde_json::from_str(&json).unwrap();
-
-    assert_eq!(script.language_version(), Language::new_plutus_v1());
-    assert_eq!(script.bytes(), compiled_plutus_script_bytes());
+    assert!(err.to_string().contains("invalid type"), "{}", err);
 }
 
 #[test]
@@ -436,12 +438,13 @@ fn plutus_script_json_object_ignores_field_order_and_unknown_fields() {
 }
 
 #[test]
-fn plutus_script_json_schema_describes_both_shapes() {
+fn plutus_script_json_schema_describes_one_shape() {
     let schema = serde_json::to_value(schemars::schema_for!(PlutusScript)).unwrap();
 
-    let shapes = schema["anyOf"].as_array().unwrap();
-    assert_eq!(shapes[0]["type"], "string");
-    assert_eq!(shapes[1]["required"], serde_json::json!(["bytes", "language"]));
+    assert!(schema.get("anyOf").is_none(), "{}", schema);
+    assert_eq!(schema["type"], "object");
+    assert_eq!(schema["required"], serde_json::json!(["bytes", "language"]));
+    assert_eq!(schema["properties"]["bytes"]["type"], "string");
 }
 
 #[test]
@@ -449,9 +452,9 @@ fn plutus_script_json_rejects_malformed_input() {
     for (json, expected) in [
         ("null", "invalid type"),
         ("12345", "invalid type"),
-        ("\"zz\"", "invalid value"),
+        ("\"zz\"", "invalid type"),
         ("{}", "missing field `bytes`"),
-        ("[]", "invalid type"),
+        ("[]", "invalid length"),
         ("{\"bytes\":\"4e4d01\"}", "missing field `language`"),
         (
             "{\"bytes\":\"zz\",\"language\":\"PlutusV2\"}",
