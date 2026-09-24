@@ -1,18 +1,98 @@
-use std::io::SeekFrom;
 use crate::*;
+use crate::serialization::utils::{check_len, check_len_indefinite, is_break_tag, skip_set_tag};
+use crate::stack_safe::Remaining;
 
 impl cbor_event::se::Serialize for NativeScript {
     fn serialize<'se, W: Write>(
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        self.0.serialize(serializer)
+        serialize_native_script_tree(self, serializer)
     }
+}
+
+fn serialize_native_script_tree<'se, W: Write>(
+    root: &NativeScript,
+    serializer: &'se mut Serializer<W>,
+) -> cbor_event::Result<&'se mut Serializer<W>> {
+    let mut stack: Vec<std::slice::Iter<'_, NativeScript>> = Vec::new();
+    let mut current = root;
+    loop {
+        write_native_script_header(current, serializer)?;
+        if let Some(children) = native_script_children(current) {
+            serializer.write_array(cbor_event::Len::Len(children.len() as u64))?;
+            let mut rest = children.iter();
+            if let Some(first) = rest.next() {
+                stack.push(rest);
+                current = first;
+                continue;
+            }
+        }
+        loop {
+            match stack.last_mut() {
+                None => return Ok(serializer),
+                Some(rest) => {
+                    if let Some(next) = rest.next() {
+                        current = next;
+                        break;
+                    } else {
+                        stack.pop();
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn native_script_children(script: &NativeScript) -> Option<&[NativeScript]> {
+    match &script.0 {
+        NativeScriptEnum::ScriptAll(x) => Some(x.native_scripts.scripts.as_slice()),
+        NativeScriptEnum::ScriptAny(x) => Some(x.native_scripts.scripts.as_slice()),
+        NativeScriptEnum::ScriptNOfK(x) => Some(x.native_scripts.scripts.as_slice()),
+        _ => None,
+    }
+}
+
+fn write_native_script_header<'se, W: Write>(
+    script: &NativeScript,
+    serializer: &'se mut Serializer<W>,
+) -> cbor_event::Result<&'se mut Serializer<W>> {
+    match &script.0 {
+        NativeScriptEnum::ScriptPubkey(x) => {
+            serializer.write_array(cbor_event::Len::Len(2))?;
+            serializer.write_unsigned_integer(0u64)?;
+            x.addr_keyhash.serialize(serializer)?;
+        }
+        NativeScriptEnum::ScriptAll(_) => {
+            serializer.write_array(cbor_event::Len::Len(2))?;
+            serializer.write_unsigned_integer(1u64)?;
+        }
+        NativeScriptEnum::ScriptAny(_) => {
+            serializer.write_array(cbor_event::Len::Len(2))?;
+            serializer.write_unsigned_integer(2u64)?;
+        }
+        NativeScriptEnum::ScriptNOfK(x) => {
+            serializer.write_array(cbor_event::Len::Len(3))?;
+            serializer.write_unsigned_integer(3u64)?;
+            x.n.serialize(serializer)?;
+        }
+        NativeScriptEnum::TimelockStart(x) => {
+            serializer.write_array(cbor_event::Len::Len(2))?;
+            serializer.write_unsigned_integer(4u64)?;
+            x.slot.serialize(serializer)?;
+        }
+        NativeScriptEnum::TimelockExpiry(x) => {
+            serializer.write_array(cbor_event::Len::Len(2))?;
+            serializer.write_unsigned_integer(5u64)?;
+            x.slot.serialize(serializer)?;
+        }
+    }
+    Ok(serializer)
 }
 
 impl Deserialize for NativeScript {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(NativeScriptEnum::deserialize(raw)?))
+        deserialize_native_script_tree(raw)
     }
 }
 
@@ -34,96 +114,182 @@ impl cbor_event::se::Serialize for NativeScriptEnum {
 
 impl Deserialize for NativeScriptEnum {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        (|| -> Result<_, DeserializeError> {
-            let len = raw.array()?;
-            //let mut read_len = CBORReadLen::new(len);
-            let initial_position = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(ScriptPubkey::deserialize_as_embedded_group(
-                    raw, /*&mut read_len, */ len,
-                )?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(NativeScriptEnum::ScriptPubkey(variant)),
-                Err(_) => raw
-                    .as_mut_ref()
-                    .seek(SeekFrom::Start(initial_position))
-                    .unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(ScriptAll::deserialize_as_embedded_group(
-                    raw, /*mut read_len, */ len,
-                )?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(NativeScriptEnum::ScriptAll(variant)),
-                Err(_) => raw
-                    .as_mut_ref()
-                    .seek(SeekFrom::Start(initial_position))
-                    .unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(ScriptAny::deserialize_as_embedded_group(
-                    raw, /*mut read_len, */ len,
-                )?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(NativeScriptEnum::ScriptAny(variant)),
-                Err(_) => raw
-                    .as_mut_ref()
-                    .seek(SeekFrom::Start(initial_position))
-                    .unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(ScriptNOfK::deserialize_as_embedded_group(
-                    raw, /*mut read_len, */ len,
-                )?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(NativeScriptEnum::ScriptNOfK(variant)),
-                Err(_) => raw
-                    .as_mut_ref()
-                    .seek(SeekFrom::Start(initial_position))
-                    .unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(TimelockStart::deserialize_as_embedded_group(
-                    raw, /*mut read_len, */ len,
-                )?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(NativeScriptEnum::TimelockStart(variant)),
-                Err(_) => raw
-                    .as_mut_ref()
-                    .seek(SeekFrom::Start(initial_position))
-                    .unwrap(),
-            };
-            match (|raw: &mut Deserializer<_>| -> Result<_, DeserializeError> {
-                Ok(TimelockExpiry::deserialize_as_embedded_group(
-                    raw, /*mut read_len, */ len,
-                )?)
-            })(raw)
-            {
-                Ok(variant) => return Ok(NativeScriptEnum::TimelockExpiry(variant)),
-                Err(_) => raw
-                    .as_mut_ref()
-                    .seek(SeekFrom::Start(initial_position))
-                    .unwrap(),
-            };
-            match len {
-                cbor_event::Len::Len(_) => (), /*read_len.finish()?*/
-                cbor_event::Len::Indefinite => match raw.special()? {
-                    CBORSpecial::Break => (), /*read_len.finish()?*/
-                    _ => return Err(DeserializeFailure::EndingBreakMissing.into()),
-                },
-            }
-            Err(DeserializeError::new(
-                "NativeScriptEnum",
-                DeserializeFailure::NoVariantMatched.into(),
-            ))
-        })()
-            .map_err(|e| e.annotate("NativeScriptEnum"))
+        Ok(NativeScript::deserialize(raw)?.into_enum())
     }
+}
+
+enum NativeScriptKindFrame {
+    All,
+    Any,
+    NOfK { n: u32 },
+}
+
+struct NativeScriptFrame {
+    kind: NativeScriptKindFrame,
+    remaining: Remaining,
+    acc: Vec<NativeScript>,
+    set_type: Option<CborSetType>,
+    outer_len: cbor_event::Len,
+}
+
+fn deserialize_native_script_tree<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+) -> Result<NativeScript, DeserializeError> {
+    (|| -> Result<_, DeserializeError> {
+        let mut stack: Vec<NativeScriptFrame> = Vec::new();
+        loop {
+            let produced = match deserialize_native_script_node(raw)? {
+                NativeNode::Complete(script) => script,
+                NativeNode::Open(frame) => {
+                    if children_finished(raw, &frame.remaining)? {
+                        finish_native_script_frame(raw, frame)?
+                    } else {
+                        stack.push(frame);
+                        continue;
+                    }
+                }
+            };
+            let mut completed = produced;
+            loop {
+                match stack.last_mut() {
+                    None => return Ok(completed),
+                    Some(frame) => {
+                        frame.acc.push(completed);
+                        frame.remaining.decrement();
+                        if children_finished(raw, &frame.remaining)? {
+                            let frame = stack.pop().unwrap();
+                            completed = finish_native_script_frame(raw, frame)?;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    })()
+    .map_err(|e: DeserializeError| e.annotate("NativeScriptEnum"))
+}
+
+enum NativeNode {
+    Complete(NativeScript),
+    Open(NativeScriptFrame),
+}
+
+fn children_finished<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+    remaining: &Remaining,
+) -> Result<bool, DeserializeError> {
+    match remaining {
+        Remaining::Definite(0) => Ok(true),
+        Remaining::Definite(_) => Ok(false),
+        Remaining::Indefinite => is_break_tag(raw, "NativeScripts"),
+    }
+}
+
+fn deserialize_native_script_node<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+) -> Result<NativeNode, DeserializeError> {
+    let outer_len = raw.array()?;
+    let tag = raw.unsigned_integer()?;
+    match tag {
+        0 => {
+            check_len(outer_len, 2, "[script_pubkey]")?;
+            let addr_keyhash = Ed25519KeyHash::deserialize(raw)?;
+            check_len_indefinite(raw, outer_len)?;
+            Ok(NativeNode::Complete(NativeScript(
+                NativeScriptEnum::ScriptPubkey(ScriptPubkey { addr_keyhash }),
+            )))
+        }
+        1 => {
+            check_len(outer_len, 2, "[script_all]")?;
+            Ok(NativeNode::Open(open_scripts_frame(
+                raw,
+                NativeScriptKindFrame::All,
+                outer_len,
+            )?))
+        }
+        2 => {
+            check_len(outer_len, 2, "[script_any]")?;
+            Ok(NativeNode::Open(open_scripts_frame(
+                raw,
+                NativeScriptKindFrame::Any,
+                outer_len,
+            )?))
+        }
+        3 => {
+            check_len(outer_len, 3, "[script_n_of_k]")?;
+            let n = u32::deserialize(raw)?;
+            Ok(NativeNode::Open(open_scripts_frame(
+                raw,
+                NativeScriptKindFrame::NOfK { n },
+                outer_len,
+            )?))
+        }
+        4 => {
+            check_len(outer_len, 2, "[timelock_start]")?;
+            let slot = SlotBigNum::deserialize(raw)?;
+            check_len_indefinite(raw, outer_len)?;
+            Ok(NativeNode::Complete(NativeScript(
+                NativeScriptEnum::TimelockStart(TimelockStart { slot }),
+            )))
+        }
+        5 => {
+            check_len(outer_len, 2, "[timelock_expiry]")?;
+            let slot = SlotBigNum::deserialize(raw)?;
+            check_len_indefinite(raw, outer_len)?;
+            Ok(NativeNode::Complete(NativeScript(
+                NativeScriptEnum::TimelockExpiry(TimelockExpiry { slot }),
+            )))
+        }
+        n => Err(DeserializeFailure::FixedValuesMismatch {
+            found: Key::Uint(n),
+            expected: vec![
+                Key::Uint(0),
+                Key::Uint(1),
+                Key::Uint(2),
+                Key::Uint(3),
+                Key::Uint(4),
+                Key::Uint(5),
+            ],
+        }
+        .into()),
+    }
+}
+
+fn open_scripts_frame<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+    kind: NativeScriptKindFrame,
+    outer_len: cbor_event::Len,
+) -> Result<NativeScriptFrame, DeserializeError> {
+    let has_tag = skip_set_tag(raw)?;
+    let scripts_len = raw.array()?;
+    let set_type = Some(if has_tag {
+        CborSetType::Tagged
+    } else {
+        CborSetType::Untagged
+    });
+    Ok(NativeScriptFrame {
+        kind,
+        remaining: Remaining::from_cbor_len(scripts_len),
+        acc: Vec::new(),
+        set_type,
+        outer_len,
+    })
+}
+
+fn finish_native_script_frame<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+    frame: NativeScriptFrame,
+) -> Result<NativeScript, DeserializeError> {
+    check_len_indefinite(raw, frame.outer_len)?;
+    let native_scripts = NativeScripts::from_vec_and_tag(frame.acc, frame.set_type);
+    Ok(match frame.kind {
+        NativeScriptKindFrame::All => NativeScript::from_script_all_moved(native_scripts),
+        NativeScriptKindFrame::Any => NativeScript::from_script_any_moved(native_scripts),
+        NativeScriptKindFrame::NOfK { n } => {
+            NativeScript::from_script_n_of_k_moved(n, native_scripts)
+        }
+    })
 }
 
 

@@ -295,7 +295,6 @@ macro_rules! plutus_bytes {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct PlutusData {
     pub(crate) datum: PlutusDataEnum,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
@@ -314,13 +313,13 @@ impl<T> From<T> for PlutusData where PlutusDataEnum: From<T> {
 
 impl std::cmp::PartialEq<Self> for PlutusData {
     fn eq(&self, other: &Self) -> bool {
-        self.datum.eq(&other.datum)
+        plutus_data_eq(self, other)
     }
 }
 
 impl Hash for PlutusData {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.datum.hash(state)
+        hash_plutus_datum(&self.datum, state)
     }
 }
 
@@ -376,6 +375,15 @@ impl PlutusData {
         Self {
             datum: PlutusDataEnum::Bytes(bytes),
             original_bytes: None,
+        }
+    }
+
+    pub(crate) fn into_datum(self) -> PlutusDataEnum {
+        let this = std::mem::ManuallyDrop::new(self);
+        unsafe {
+            let original_bytes = std::ptr::read(&this.original_bytes);
+            drop(original_bytes);
+            std::ptr::read(&this.datum)
         }
     }
 
@@ -1145,116 +1153,722 @@ pub fn encode_json_value_to_plutus_datum(
     }
 }
 
-//TODO: move it to serialize impl
 #[wasm_bindgen]
 pub fn decode_plutus_datum_to_json_str(
     datum: &PlutusData,
     schema: PlutusDatumSchema,
 ) -> Result<String, JsError> {
-    let value = decode_plutus_datum_to_json_value(datum, schema)?;
-    serde_json::to_string(&value).map_err(|e| JsError::from_str(&e.to_string()))
+    let value = plutus_datum_to_json_val(datum, schema)?;
+    Ok(crate::stack_safe::stringify_json(&value, false))
 }
 
-//TODO: move it to deserialize impl
 pub fn decode_plutus_datum_to_json_value(
     datum: &PlutusData,
     schema: PlutusDatumSchema,
 ) -> Result<serde_json::Value, JsError> {
-    use serde_json::Value;
-    let (type_tag, json_value) = match &datum.datum {
-        PlutusDataEnum::ConstrPlutusData(constr) => {
-            let mut obj = serde_json::map::Map::with_capacity(2);
-            obj.insert(
-                String::from("constructor"),
-                Value::from(constr.alternative.0)
-            );
-            let mut fields = Vec::new();
-            for field in constr.data.elems.iter() {
-                fields.push(decode_plutus_datum_to_json_value(field, schema)?);
-            }
-            obj.insert(
-                String::from("fields"),
-                Value::from(fields)
-            );
-            (None, Value::from(obj))
-        },
-        PlutusDataEnum::Map(map) => match schema {
-            PlutusDatumSchema::BasicConversions => (None, Value::from(map.0.iter().map(|(key, values)| {
-                let json_key: String = match &key.datum {
-                    PlutusDataEnum::ConstrPlutusData(_) => Err(JsError::from_str("plutus data constructors are not allowed as keys in this schema. Use DetailedSchema.")),
-                    PlutusDataEnum::Map(_) => Err(JsError::from_str("plutus maps are not allowed as keys in this schema. Use DetailedSchema.")),
-                    PlutusDataEnum::List(_) => Err(JsError::from_str("plutus lists are not allowed as keys in this schema. Use DetailedSchema.")),
-                    PlutusDataEnum::Integer(x) => Ok(x.to_str()),
-                    PlutusDataEnum::Bytes(bytes) => String::from_utf8(bytes.clone()).or_else(|_err| Ok(format!("0x{}", hex::encode(bytes))))
-                }?;
-                if values.len() > 1 {
-                    Err(JsError::from_str("plutus maps are not allowed to have more than one value per key in this schema. Use DetailedSchema."))
-                } else if let Some(value) = values.get(0) {
-                    let json_value = decode_plutus_datum_to_json_value(&value, schema)?;
-                    Ok((json_key, Value::from(json_value)))
-                } else {
-                    Err(JsError::from_str("plutus maps are not allowed to have empty values in this schema. Use DetailedSchema."))
-                }
-            }).collect::<Result<serde_json::map::Map<String, Value>, JsError>>()?)),
-            PlutusDatumSchema::DetailedSchema => {
-                let mut entries = Vec::new();
-                for (key, values) in map.0.iter() {
-                    for value in &values.elems {
-                        let k = decode_plutus_datum_to_json_value(key, schema)?;
-                        let v = decode_plutus_datum_to_json_value(value, schema)?;
-                        let mut kv_obj = serde_json::map::Map::with_capacity(2);
-                        kv_obj.insert(String::from("k"), k);
-                        kv_obj.insert(String::from("v"), v);
-                        entries.push(kv_obj);
-                    }
-                }
-                (Some("map"), Value::from(entries))
-            },
-        },
-        PlutusDataEnum::List(list) => {
-            let mut elems = Vec::new();
-            for elem in list.elems.iter() {
-                elems.push(decode_plutus_datum_to_json_value(elem, schema)?);
-            }
-            (Some("list"), Value::from(elems))
-        },
-        PlutusDataEnum::Integer(bigint) => (
-            Some("int"),
-            bigint_to_serde_value(bigint)?
-        ),
-        PlutusDataEnum::Bytes(bytes) => (Some("bytes"), Value::from(match schema {
-            PlutusDatumSchema::BasicConversions => {
-                // cardano-cli converts to a string only if bytes are utf8 and all characters are printable
-                String::from_utf8(bytes.clone())
-                    .ok()
-                    .filter(|utf8| utf8.chars().all(|c| !c.is_control()))
-                // otherwise we hex-encode the bytes with a 0x prefix
-                    .unwrap_or_else(|| format!("0x{}", hex::encode(bytes)))
-            },
-            PlutusDatumSchema::DetailedSchema => hex::encode(bytes),
-        })),
-    };
-    if type_tag.is_none() || schema != PlutusDatumSchema::DetailedSchema {
-        Ok(json_value)
-    } else {
-        let mut wrapper = serde_json::map::Map::with_capacity(1);
-        wrapper.insert(String::from(type_tag.unwrap()), json_value);
-        Ok(Value::from(wrapper))
+    let value = plutus_datum_to_json_val(datum, schema)?;
+    Ok(crate::stack_safe::json_val_to_serde(value))
+}
+
+fn wrap_json_tag(tag: &str, value: crate::stack_safe::JsonVal) -> crate::stack_safe::JsonVal {
+    crate::stack_safe::JsonVal::Object(vec![(tag.to_string(), value)])
+}
+
+fn plutus_basic_map_key(key: &PlutusData) -> Result<String, JsError> {
+    match &key.datum {
+        PlutusDataEnum::ConstrPlutusData(_) => Err(JsError::from_str(
+            "plutus data constructors are not allowed as keys in this schema. Use DetailedSchema.",
+        )),
+        PlutusDataEnum::Map(_) => Err(JsError::from_str(
+            "plutus maps are not allowed as keys in this schema. Use DetailedSchema.",
+        )),
+        PlutusDataEnum::List(_) => Err(JsError::from_str(
+            "plutus lists are not allowed as keys in this schema. Use DetailedSchema.",
+        )),
+        PlutusDataEnum::Integer(x) => Ok(x.to_str()),
+        PlutusDataEnum::Bytes(bytes) => String::from_utf8(bytes.clone())
+            .or_else(|_err| Ok(format!("0x{}", hex::encode(bytes)))),
     }
 }
 
-#[cfg(not(feature = "arbitrary-precision-json"))]
-fn bigint_to_serde_value(bigint: &BigInt) -> Result<serde_json::Value, JsError> {
-    bigint
-        .as_int()
-        .as_ref()
-        .map(|int| if int.0 >= 0 { serde_json::Value::from(int.0 as u64) } else {serde_json:: Value::from(int.0 as i64) })
-        .ok_or_else(|| JsError::from_str(&format!("Integer {} too big for our JSON support", bigint.to_str())))
+fn plutus_bytes_json(bytes: &[u8], schema: PlutusDatumSchema) -> String {
+    match schema {
+        PlutusDatumSchema::BasicConversions => String::from_utf8(bytes.to_vec())
+            .ok()
+            .filter(|utf8| utf8.chars().all(|c| !c.is_control()))
+            .unwrap_or_else(|| format!("0x{}", hex::encode(bytes))),
+        PlutusDatumSchema::DetailedSchema => hex::encode(bytes),
+    }
 }
 
-#[cfg(feature = "arbitrary-precision-json")]
-fn bigint_to_serde_value(bigint: &BigInt) -> Result<serde_json::Value, JsError> {
-    use serde_json::Number;
-    Ok(serde_json::Value::Number(Number::from_string_unchecked(bigint.to_str())))
+fn plutus_int_json_number(bigint: &BigInt) -> Result<crate::stack_safe::JsonVal, JsError> {
+    #[cfg(not(feature = "arbitrary-precision-json"))]
+    {
+        if bigint.as_int().is_none() {
+            return Err(JsError::from_str(&format!(
+                "Integer {} too big for our JSON support",
+                bigint.to_str()
+            )));
+        }
+    }
+    Ok(crate::stack_safe::JsonVal::Number(bigint.to_str()))
 }
 
+enum PlutusToJsonKind {
+    List { wrap: bool },
+    Constr { alternative: String },
+    MapBasic { keys: std::vec::IntoIter<String> },
+    MapDetailed,
+}
+
+struct PlutusToJsonFrame<'a> {
+    kind: PlutusToJsonKind,
+    rest: std::vec::IntoIter<&'a PlutusData>,
+    acc: Vec<crate::stack_safe::JsonVal>,
+}
+
+fn finish_plutus_to_json(
+    kind: PlutusToJsonKind,
+    acc: Vec<crate::stack_safe::JsonVal>,
+) -> crate::stack_safe::JsonVal {
+    use crate::stack_safe::JsonVal;
+    match kind {
+        PlutusToJsonKind::List { wrap } => {
+            let arr = JsonVal::Array(acc);
+            if wrap {
+                wrap_json_tag("list", arr)
+            } else {
+                arr
+            }
+        }
+        PlutusToJsonKind::Constr { alternative } => JsonVal::Object(vec![
+            ("constructor".to_string(), JsonVal::Number(alternative)),
+            ("fields".to_string(), JsonVal::Array(acc)),
+        ]),
+        PlutusToJsonKind::MapBasic { keys } => {
+            let mut obj = Vec::new();
+            let mut keys = keys;
+            for v in acc {
+                obj.push((keys.next().expect("plutus basic map json keys"), v));
+            }
+            // `serde_json::Map` semantics as in 16.0.0: keys sorted, a repeated key keeps its last value.
+            JsonVal::object_sorted(obj)
+        }
+        PlutusToJsonKind::MapDetailed => {
+            let mut entries = Vec::new();
+            let mut iter = acc.into_iter();
+            while let Some(k) = iter.next() {
+                let v = iter.next().expect("plutus detailed map k/v pairs");
+                entries.push(JsonVal::Object(vec![
+                    ("k".to_string(), k),
+                    ("v".to_string(), v),
+                ]));
+            }
+            wrap_json_tag("map", JsonVal::Array(entries))
+        }
+    }
+}
+
+fn plutus_datum_to_json_val(
+    root: &PlutusData,
+    schema: PlutusDatumSchema,
+) -> Result<crate::stack_safe::JsonVal, JsError> {
+    use crate::stack_safe::JsonVal;
+    let mut stack: Vec<PlutusToJsonFrame<'_>> = Vec::new();
+    let mut node = root;
+    loop {
+        let mut completed = match &node.datum {
+            PlutusDataEnum::Integer(bigint) => {
+                let n = plutus_int_json_number(bigint)?;
+                if schema == PlutusDatumSchema::DetailedSchema {
+                    wrap_json_tag("int", n)
+                } else {
+                    n
+                }
+            }
+            PlutusDataEnum::Bytes(bytes) => {
+                let s = JsonVal::String(plutus_bytes_json(bytes, schema));
+                if schema == PlutusDatumSchema::DetailedSchema {
+                    wrap_json_tag("bytes", s)
+                } else {
+                    s
+                }
+            }
+            PlutusDataEnum::List(list) => {
+                let kind = PlutusToJsonKind::List {
+                    wrap: schema == PlutusDatumSchema::DetailedSchema,
+                };
+                let mut rest = list.elems.iter();
+                if let Some(first) = rest.next() {
+                    stack.push(PlutusToJsonFrame {
+                        kind,
+                        rest: rest.collect::<Vec<_>>().into_iter(),
+                        acc: Vec::new(),
+                    });
+                    node = first;
+                    continue;
+                }
+                finish_plutus_to_json(kind, Vec::new())
+            }
+            PlutusDataEnum::ConstrPlutusData(constr) => {
+                let kind = PlutusToJsonKind::Constr {
+                    alternative: constr.alternative.0.to_string(),
+                };
+                let mut rest = constr.data.elems.iter();
+                if let Some(first) = rest.next() {
+                    stack.push(PlutusToJsonFrame {
+                        kind,
+                        rest: rest.collect::<Vec<_>>().into_iter(),
+                        acc: Vec::new(),
+                    });
+                    node = first;
+                    continue;
+                }
+                finish_plutus_to_json(kind, Vec::new())
+            }
+            PlutusDataEnum::Map(map) => match schema {
+                PlutusDatumSchema::BasicConversions => {
+                    let mut keys = Vec::new();
+                    let mut children = Vec::new();
+                    for (key, values) in map.0.iter() {
+                        if values.len() > 1 {
+                            return Err(JsError::from_str("plutus maps are not allowed to have more than one value per key in this schema. Use DetailedSchema."));
+                        }
+                        let value = values.elems.get(0).ok_or_else(|| {
+                            JsError::from_str("plutus maps are not allowed to have empty values in this schema. Use DetailedSchema.")
+                        })?;
+                        keys.push(plutus_basic_map_key(key)?);
+                        children.push(value);
+                    }
+                    let kind = PlutusToJsonKind::MapBasic {
+                        keys: keys.into_iter(),
+                    };
+                    let mut rest = children.into_iter();
+                    if let Some(first) = rest.next() {
+                        stack.push(PlutusToJsonFrame {
+                            kind,
+                            rest,
+                            acc: Vec::new(),
+                        });
+                        node = first;
+                        continue;
+                    }
+                    finish_plutus_to_json(kind, Vec::new())
+                }
+                PlutusDatumSchema::DetailedSchema => {
+                    let mut children = Vec::new();
+                    for (key, values) in map.0.iter() {
+                        for value in &values.elems {
+                            children.push(key);
+                            children.push(value);
+                        }
+                    }
+                    let kind = PlutusToJsonKind::MapDetailed;
+                    let mut rest = children.into_iter();
+                    if let Some(first) = rest.next() {
+                        stack.push(PlutusToJsonFrame {
+                            kind,
+                            rest,
+                            acc: Vec::new(),
+                        });
+                        node = first;
+                        continue;
+                    }
+                    finish_plutus_to_json(kind, Vec::new())
+                }
+            },
+        };
+
+        loop {
+            match stack.last_mut() {
+                None => return Ok(completed),
+                Some(frame) => {
+                    frame.acc.push(completed);
+                    if let Some(next) = frame.rest.next() {
+                        node = next;
+                        break;
+                    } else {
+                        let frame = stack.pop().unwrap();
+                        completed = finish_plutus_to_json(frame.kind, frame.acc);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+impl Drop for PlutusData {
+    fn drop(&mut self) {
+        crate::stack_safe::iterative_drop(self, take_plutus_children);
+    }
+}
+
+fn take_plutus_children(data: &mut PlutusData, stack: &mut Vec<PlutusData>) {
+    match &mut data.datum {
+        PlutusDataEnum::ConstrPlutusData(constr) => {
+            stack.extend(std::mem::take(&mut constr.data.elems));
+        }
+        PlutusDataEnum::List(list) => {
+            stack.extend(std::mem::take(&mut list.elems));
+        }
+        PlutusDataEnum::Map(map) => {
+            for (key, values) in std::mem::take(&mut map.0) {
+                stack.push(key);
+                stack.extend(values.elems);
+            }
+        }
+        PlutusDataEnum::Integer(_) | PlutusDataEnum::Bytes(_) => {}
+    }
+}
+
+enum PlutusCloneKind {
+    Constr {
+        alternative: BigNum,
+        definite_encoding: Option<bool>,
+        set_type: Option<CborSetType>,
+        original_bytes: Option<Vec<u8>>,
+    },
+    List {
+        definite_encoding: Option<bool>,
+        set_type: Option<CborSetType>,
+        original_bytes: Option<Vec<u8>>,
+    },
+    Map {
+        original_bytes: Option<Vec<u8>>,
+        /// Flattened key/value children: for each map value list of len L we emit
+        /// key then L values. `value_lens` remembers L per key so we can rebuild.
+        value_lens: Vec<usize>,
+    },
+}
+
+struct PlutusCloneFrame<'a> {
+    kind: PlutusCloneKind,
+    rest: std::vec::IntoIter<&'a PlutusData>,
+    acc: Vec<PlutusData>,
+}
+
+fn plutus_from_cloned(
+    kind: PlutusCloneKind,
+    acc: Vec<PlutusData>,
+) -> PlutusData {
+    match kind {
+        PlutusCloneKind::Constr {
+            alternative,
+            definite_encoding,
+            set_type,
+            original_bytes,
+        } => PlutusData {
+            datum: PlutusDataEnum::ConstrPlutusData(ConstrPlutusData {
+                alternative,
+                data: PlutusList {
+                    elems: acc,
+                    definite_encoding,
+                    cbor_set_type: set_type,
+                },
+            }),
+            original_bytes,
+        },
+        PlutusCloneKind::List {
+            definite_encoding,
+            set_type,
+            original_bytes,
+        } => PlutusData {
+            datum: PlutusDataEnum::List(PlutusList {
+                elems: acc,
+                definite_encoding,
+                cbor_set_type: set_type,
+            }),
+            original_bytes,
+        },
+        PlutusCloneKind::Map {
+            original_bytes,
+            value_lens,
+        } => {
+            let mut map = LinkedHashMap::new();
+            let mut iter = acc.into_iter();
+            for len in value_lens {
+                let key = iter.next().unwrap();
+                let mut values = PlutusMapValues::new();
+                for _ in 0..len {
+                    values.add_move(iter.next().unwrap());
+                }
+                map.insert(key, values);
+            }
+            PlutusData {
+                datum: PlutusDataEnum::Map(PlutusMap(map)),
+                original_bytes,
+            }
+        }
+    }
+}
+
+impl Clone for PlutusData {
+    fn clone(&self) -> Self {
+        let mut stack: Vec<PlutusCloneFrame<'_>> = Vec::new();
+        let mut node = self;
+        loop {
+            let mut completed = match &node.datum {
+                PlutusDataEnum::Integer(x) => PlutusData {
+                    datum: PlutusDataEnum::Integer(x.clone()),
+                    original_bytes: node.original_bytes.clone(),
+                },
+                PlutusDataEnum::Bytes(x) => PlutusData {
+                    datum: PlutusDataEnum::Bytes(x.clone()),
+                    original_bytes: node.original_bytes.clone(),
+                },
+                PlutusDataEnum::ConstrPlutusData(c) => {
+                    let kind = PlutusCloneKind::Constr {
+                        alternative: c.alternative,
+                        definite_encoding: c.data.definite_encoding,
+                        set_type: c.data.cbor_set_type.clone(),
+                        original_bytes: node.original_bytes.clone(),
+                    };
+                    let mut rest = c.data.elems.iter();
+                    if let Some(first) = rest.next() {
+                        stack.push(PlutusCloneFrame {
+                            kind,
+                            rest: rest.collect::<Vec<_>>().into_iter(),
+                            acc: Vec::new(),
+                        });
+                        node = first;
+                        continue;
+                    }
+                    plutus_from_cloned(kind, Vec::new())
+                }
+                PlutusDataEnum::List(l) => {
+                    let kind = PlutusCloneKind::List {
+                        definite_encoding: l.definite_encoding,
+                        set_type: l.cbor_set_type.clone(),
+                        original_bytes: node.original_bytes.clone(),
+                    };
+                    let mut rest = l.elems.iter();
+                    if let Some(first) = rest.next() {
+                        stack.push(PlutusCloneFrame {
+                            kind,
+                            rest: rest.collect::<Vec<_>>().into_iter(),
+                            acc: Vec::new(),
+                        });
+                        node = first;
+                        continue;
+                    }
+                    plutus_from_cloned(kind, Vec::new())
+                }
+                PlutusDataEnum::Map(m) => {
+                    let mut children = Vec::new();
+                    let mut value_lens = Vec::new();
+                    for (k, vs) in m.0.iter() {
+                        children.push(k);
+                        value_lens.push(vs.elems.len());
+                        children.extend(vs.elems.iter());
+                    }
+                    let kind = PlutusCloneKind::Map {
+                        original_bytes: node.original_bytes.clone(),
+                        value_lens,
+                    };
+                    let mut rest = children.into_iter();
+                    if let Some(first) = rest.next() {
+                        stack.push(PlutusCloneFrame {
+                            kind,
+                            rest,
+                            acc: Vec::new(),
+                        });
+                        node = first;
+                        continue;
+                    }
+                    plutus_from_cloned(kind, Vec::new())
+                }
+            };
+
+            loop {
+                match stack.last_mut() {
+                    None => return completed,
+                    Some(frame) => {
+                        frame.acc.push(completed);
+                        if let Some(next) = frame.rest.next() {
+                            node = next;
+                            break;
+                        } else {
+                            let frame = stack.pop().unwrap();
+                            completed = plutus_from_cloned(frame.kind, frame.acc);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn plutus_data_eq(a: &PlutusData, b: &PlutusData) -> bool {
+    let mut stack = vec![(a, b)];
+    while let Some((left, right)) = stack.pop() {
+        match (&left.datum, &right.datum) {
+            (PlutusDataEnum::Integer(x), PlutusDataEnum::Integer(y)) => {
+                if x != y {
+                    return false;
+                }
+            }
+            (PlutusDataEnum::Bytes(x), PlutusDataEnum::Bytes(y)) => {
+                if x != y {
+                    return false;
+                }
+            }
+            (PlutusDataEnum::List(x), PlutusDataEnum::List(y)) => {
+                if x.elems.len() != y.elems.len() {
+                    return false;
+                }
+                stack.extend(x.elems.iter().zip(y.elems.iter()));
+            }
+            (PlutusDataEnum::ConstrPlutusData(x), PlutusDataEnum::ConstrPlutusData(y)) => {
+                if x.alternative != y.alternative || x.data.elems.len() != y.data.elems.len() {
+                    return false;
+                }
+                stack.extend(x.data.elems.iter().zip(y.data.elems.iter()));
+            }
+            (PlutusDataEnum::Map(x), PlutusDataEnum::Map(y)) => {
+                if x.0.len() != y.0.len() {
+                    return false;
+                }
+                for ((lk, lv), (rk, rv)) in x.0.iter().zip(y.0.iter()) {
+                    if lv.elems.len() != rv.elems.len() {
+                        return false;
+                    }
+                    stack.push((lk, rk));
+                    stack.extend(lv.elems.iter().zip(rv.elems.iter()));
+                }
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
+fn hash_plutus_datum<H: Hasher>(datum: &PlutusDataEnum, state: &mut H) {
+    hash_plutus_datum_iter(datum, state);
+}
+
+fn hash_plutus_datum_iter<H: Hasher>(root: &PlutusDataEnum, state: &mut H) {
+    enum Job<'a> {
+        Datum(&'a PlutusDataEnum),
+        Data(&'a PlutusData),
+        Disc(u8),
+        Alt(BigNum),
+        Bytes(&'a [u8]),
+        OptBool(Option<bool>),
+        Integer(&'a BigInt),
+    }
+    let mut stack = vec![Job::Datum(root)];
+    while let Some(job) = stack.pop() {
+        match job {
+            Job::Disc(d) => d.hash(state),
+            Job::Alt(n) => n.hash(state),
+            Job::Bytes(b) => b.hash(state),
+            Job::OptBool(v) => v.hash(state),
+            Job::Integer(i) => i.hash(state),
+            Job::Data(data) => stack.push(Job::Datum(&data.datum)),
+            Job::Datum(datum) => match datum {
+                PlutusDataEnum::ConstrPlutusData(c) => {
+                    stack.push(Job::OptBool(c.data.definite_encoding));
+                    for elem in c.data.elems.iter().rev() {
+                        stack.push(Job::Data(elem));
+                    }
+                    stack.push(Job::Alt(c.alternative));
+                    stack.push(Job::Disc(0));
+                }
+                PlutusDataEnum::Map(m) => {
+                    for (k, vs) in m.0.iter().rev() {
+                        for v in vs.elems.iter().rev() {
+                            stack.push(Job::Data(v));
+                        }
+                        stack.push(Job::Data(k));
+                    }
+                    stack.push(Job::Disc(1));
+                }
+                PlutusDataEnum::List(l) => {
+                    stack.push(Job::OptBool(l.definite_encoding));
+                    for elem in l.elems.iter().rev() {
+                        stack.push(Job::Data(elem));
+                    }
+                    stack.push(Job::Disc(2));
+                }
+                PlutusDataEnum::Integer(i) => {
+                    stack.push(Job::Integer(i));
+                    stack.push(Job::Disc(3));
+                }
+                PlutusDataEnum::Bytes(b) => {
+                    stack.push(Job::Bytes(b));
+                    stack.push(Job::Disc(4));
+                }
+            },
+        }
+    }
+}
+
+enum PlutusCmpJob<'a> {
+    Data(&'a PlutusData, &'a PlutusData),
+    Datum(&'a PlutusDataEnum, &'a PlutusDataEnum),
+    Bytes(&'a [u8], &'a [u8]),
+    Ints(&'a BigInt, &'a BigInt),
+    Nums(BigNum, BigNum),
+    OptBool(Option<bool>, Option<bool>),
+    Orig(Option<&'a [u8]>, Option<&'a [u8]>),
+    Kind(u8, u8),
+    Lens(usize, usize),
+}
+
+impl PartialOrd for PlutusData {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PlutusData {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let mut stack = vec![
+            PlutusCmpJob::Orig(
+                self.original_bytes.as_deref(),
+                other.original_bytes.as_deref(),
+            ),
+            PlutusCmpJob::Datum(&self.datum, &other.datum),
+        ];
+        while let Some(job) = stack.pop() {
+            let ord = match job {
+                PlutusCmpJob::Kind(a, b) => a.cmp(&b),
+                PlutusCmpJob::Lens(a, b) => a.cmp(&b),
+                PlutusCmpJob::Nums(a, b) => a.cmp(&b),
+                PlutusCmpJob::OptBool(a, b) => a.cmp(&b),
+                PlutusCmpJob::Ints(a, b) => a.cmp(&b),
+                PlutusCmpJob::Bytes(a, b) => a.cmp(&b),
+                PlutusCmpJob::Orig(a, b) => a.cmp(&b),
+                PlutusCmpJob::Data(a, b) => {
+                    stack.push(PlutusCmpJob::Orig(
+                        a.original_bytes.as_deref(),
+                        b.original_bytes.as_deref(),
+                    ));
+                    stack.push(PlutusCmpJob::Datum(&a.datum, &b.datum));
+                    Ordering::Equal
+                }
+                PlutusCmpJob::Datum(a, b) => {
+                    match (a, b) {
+                        (PlutusDataEnum::Integer(x), PlutusDataEnum::Integer(y)) => {
+                            stack.push(PlutusCmpJob::Ints(x, y));
+                        }
+                        (PlutusDataEnum::Bytes(x), PlutusDataEnum::Bytes(y)) => {
+                            stack.push(PlutusCmpJob::Bytes(x, y));
+                        }
+                        (PlutusDataEnum::List(x), PlutusDataEnum::List(y)) => {
+                            stack.push(PlutusCmpJob::OptBool(
+                                x.definite_encoding,
+                                y.definite_encoding,
+                            ));
+                            push_plutus_vec_cmp(&mut stack, &x.elems, &y.elems);
+                        }
+                        (PlutusDataEnum::ConstrPlutusData(x), PlutusDataEnum::ConstrPlutusData(y)) => {
+                            stack.push(PlutusCmpJob::OptBool(
+                                x.data.definite_encoding,
+                                y.data.definite_encoding,
+                            ));
+                            push_plutus_vec_cmp(&mut stack, &x.data.elems, &y.data.elems);
+                            stack.push(PlutusCmpJob::Nums(x.alternative, y.alternative));
+                        }
+                        (PlutusDataEnum::Map(x), PlutusDataEnum::Map(y)) => {
+                            let xs: Vec<_> = x.0.iter().collect();
+                            let ys: Vec<_> = y.0.iter().collect();
+                            stack.push(PlutusCmpJob::Lens(xs.len(), ys.len()));
+                            let min_len = xs.len().min(ys.len());
+                            for i in (0..min_len).rev() {
+                                let (lk, lv) = xs[i];
+                                let (rk, rv) = ys[i];
+                                stack.push(PlutusCmpJob::Lens(lv.elems.len(), rv.elems.len()));
+                                let vmin = lv.elems.len().min(rv.elems.len());
+                                for j in (0..vmin).rev() {
+                                    stack.push(PlutusCmpJob::Data(&lv.elems[j], &rv.elems[j]));
+                                }
+                                stack.push(PlutusCmpJob::Data(lk, rk));
+                            }
+                        }
+                        _ => {}
+                    }
+                    stack.push(PlutusCmpJob::Kind(plutus_kind_index(a), plutus_kind_index(b)));
+                    Ordering::Equal
+                }
+            };
+            if ord != Ordering::Equal {
+                return ord;
+            }
+        }
+        Ordering::Equal
+    }
+}
+
+fn plutus_kind_index(datum: &PlutusDataEnum) -> u8 {
+    match datum {
+        PlutusDataEnum::ConstrPlutusData(_) => 0,
+        PlutusDataEnum::Map(_) => 1,
+        PlutusDataEnum::List(_) => 2,
+        PlutusDataEnum::Integer(_) => 3,
+        PlutusDataEnum::Bytes(_) => 4,
+    }
+}
+
+fn push_plutus_vec_cmp<'a>(
+    stack: &mut Vec<PlutusCmpJob<'a>>,
+    xs: &'a [PlutusData],
+    ys: &'a [PlutusData],
+) {
+    stack.push(PlutusCmpJob::Lens(xs.len(), ys.len()));
+    let min_len = xs.len().min(ys.len());
+    for i in (0..min_len).rev() {
+        stack.push(PlutusCmpJob::Data(&xs[i], &ys[i]));
+    }
+}
+
+impl std::fmt::Debug for PlutusData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.datum {
+            PlutusDataEnum::Integer(x) => f.debug_tuple("PlutusData").field(x).finish(),
+            PlutusDataEnum::Bytes(x) => f.debug_tuple("PlutusData").field(x).finish(),
+            PlutusDataEnum::List(x) => f
+                .debug_tuple("PlutusData")
+                .field(&format_args!("List(len={})", x.elems.len()))
+                .finish(),
+            PlutusDataEnum::Map(x) => f
+                .debug_tuple("PlutusData")
+                .field(&format_args!("Map(len={})", x.0.len()))
+                .finish(),
+            PlutusDataEnum::ConstrPlutusData(x) => f
+                .debug_tuple("PlutusData")
+                .field(&format_args!(
+                    "Constr(alt={}, len={})",
+                    x.alternative,
+                    x.data.elems.len()
+                ))
+                .finish(),
+        }
+    }
+}
+
+#[cfg(test)]
+impl ConstrPlutusData {
+    pub(crate) fn new_moved(alternative: BigNum, data: PlutusList) -> Self {
+        Self { alternative, data }
+    }
+}
+
+#[cfg(test)]
+impl PlutusData {
+    pub(crate) fn from_list_moved(list: PlutusList) -> Self {
+        Self {
+            datum: PlutusDataEnum::List(list),
+            original_bytes: None,
+        }
+    }
+
+    pub(crate) fn from_constr_moved(constr: ConstrPlutusData) -> Self {
+        Self {
+            datum: PlutusDataEnum::ConstrPlutusData(constr),
+            original_bytes: None,
+        }
+    }
+}
