@@ -1,6 +1,7 @@
 use crate::*;
 use std::io::SeekFrom;
 use crate::serialization::utils::{check_len, is_break_tag, skip_set_tag};
+use std::sync::{Arc, OnceLock};
 
 impl cbor_event::se::Serialize for ConstrPlutusData {
     fn serialize<'se, W: Write>(
@@ -125,7 +126,11 @@ impl cbor_event::se::Serialize for PlutusData {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        serialize_plutus_datum(&self.datum, self.original_bytes.as_deref(), serializer)
+        serialize_plutus_datum(
+            &self.datum,
+            self.original_bytes.as_ref().map(OriginalBytes::as_slice),
+            serializer,
+        )
     }
 }
 
@@ -167,7 +172,7 @@ fn serialize_plutus_data_ref<'se, W: Write>(
         let (close_indefinite, children) = match current {
             Root::Data(data) => {
                 if let Some(bytes) = &data.original_bytes {
-                    serializer.write_raw_bytes(bytes)?;
+                    serializer.write_raw_bytes(bytes.as_slice())?;
                     (false, Vec::new())
                 } else {
                     write_plutus_header(&data.datum, serializer)?
@@ -290,16 +295,27 @@ struct PlutusDeFrame {
     bytes_start: u64,
 }
 
+/// The buffer of the decode in progress and the position it starts at. Nodes record
+/// their span relative to `base`; the bytes are copied once, when the root is complete.
+struct SharedSpan {
+    buf: Arc<OnceLock<Box<[u8]>>>,
+    base: u64,
+}
+
 fn deserialize_plutus_data_tree<R: BufRead + Seek>(
     raw: &mut Deserializer<R>,
 ) -> Result<PlutusData, DeserializeError> {
+    let span = SharedSpan {
+        buf: Arc::new(OnceLock::new()),
+        base: raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap(),
+    };
     let mut stack: Vec<PlutusDeFrame> = Vec::new();
-    loop {
-        let produced = match deserialize_plutus_node(raw)? {
+    let root = 'root: loop {
+        let produced = match deserialize_plutus_node(raw, &span)? {
             PlutusDeNode::Complete(data) => data,
             PlutusDeNode::Open(frame) => {
                 if plutus_children_finished(raw, &frame)? {
-                    finish_plutus_frame(raw, frame)?
+                    finish_plutus_frame(raw, frame, &span)?
                 } else {
                     stack.push(frame);
                     continue;
@@ -309,7 +325,7 @@ fn deserialize_plutus_data_tree<R: BufRead + Seek>(
         let mut completed = produced;
         loop {
             match stack.last_mut() {
-                None => return Ok(completed),
+                None => break 'root completed,
                 Some(frame) => {
                     match &mut frame.kind {
                         PlutusDeKind::Map {
@@ -332,14 +348,19 @@ fn deserialize_plutus_data_tree<R: BufRead + Seek>(
                     }
                     if plutus_children_finished(raw, frame)? {
                         let frame = stack.pop().unwrap();
-                        completed = finish_plutus_frame(raw, frame)?;
+                        completed = finish_plutus_frame(raw, frame, &span)?;
                     } else {
                         break;
                     }
                 }
             }
         }
-    }
+    };
+    let bytes = copy_cbor_span(raw, span.base);
+    span.buf
+        .set(bytes.into_boxed_slice())
+        .expect("root buffer is set exactly once");
+    Ok(root)
 }
 
 enum PlutusDeNode {
@@ -383,17 +404,24 @@ fn copy_cbor_span<R: BufRead + Seek>(
 
 fn with_original_bytes<R: BufRead + Seek>(
     raw: &mut Deserializer<R>,
+    span: &SharedSpan,
     start: u64,
     datum: PlutusDataEnum,
 ) -> PlutusData {
+    let end = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
     PlutusData {
         datum,
-        original_bytes: Some(copy_cbor_span(raw, start)),
+        original_bytes: Some(OriginalBytes::new(
+            span.buf.clone(),
+            (start - span.base) as usize,
+            (end - span.base) as usize,
+        )),
     }
 }
 
 fn deserialize_plutus_node<R: BufRead + Seek>(
     raw: &mut Deserializer<R>,
+    span: &SharedSpan,
 ) -> Result<PlutusDeNode, DeserializeError> {
     let start = raw.as_mut_ref().seek(SeekFrom::Current(0)).unwrap();
     match raw.cbor_type()? {
@@ -401,6 +429,7 @@ fn deserialize_plutus_node<R: BufRead + Seek>(
             let integer = BigInt::deserialize(raw)?;
             Ok(PlutusDeNode::Complete(with_original_bytes(
                 raw,
+                span,
                 start,
                 PlutusDataEnum::Integer(integer),
             )))
@@ -409,6 +438,7 @@ fn deserialize_plutus_node<R: BufRead + Seek>(
             let bytes = read_bounded_bytes(raw)?;
             Ok(PlutusDeNode::Complete(with_original_bytes(
                 raw,
+                span,
                 start,
                 PlutusDataEnum::Bytes(bytes),
             )))
@@ -438,6 +468,7 @@ fn deserialize_plutus_node<R: BufRead + Seek>(
                     let integer = BigInt::deserialize(raw)?;
                     Ok(PlutusDeNode::Complete(with_original_bytes(
                         raw,
+                        span,
                         start,
                         PlutusDataEnum::Integer(integer),
                     )))
@@ -531,6 +562,7 @@ fn open_plutus_list_frame<R: BufRead + Seek>(
 fn finish_plutus_frame<R: BufRead + Seek>(
     raw: &mut Deserializer<R>,
     frame: PlutusDeFrame,
+    span: &SharedSpan,
 ) -> Result<PlutusData, DeserializeError> {
     let datum = match frame.kind {
         PlutusDeKind::List {
@@ -561,7 +593,7 @@ fn finish_plutus_frame<R: BufRead + Seek>(
         }
         PlutusDeKind::Map { map, .. } => PlutusDataEnum::Map(map),
     };
-    Ok(with_original_bytes(raw, frame.bytes_start, datum))
+    Ok(with_original_bytes(raw, span, frame.bytes_start, datum))
 }
 
 impl cbor_event::se::Serialize for PlutusList {

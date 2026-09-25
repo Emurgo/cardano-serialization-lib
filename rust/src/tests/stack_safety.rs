@@ -137,6 +137,8 @@ fn plutus_constr_spine_hash_ord_original_bytes() {
     assert!(decoded.original_bytes.is_some());
     assert_eq!(decoded.to_bytes(), encoded);
     assert_eq!(constructed, decoded);
+    assert_hash_eq(&constructed, &decoded);
+    assert_eq!(constructed.cmp(&decoded), Ordering::Equal);
     let cloned = constructed.clone();
     assert_eq!(cloned.cmp(&constructed), Ordering::Equal);
     assert_hash_eq(&cloned, &constructed);
@@ -257,4 +259,75 @@ fn plutus_general_form_constr_requires_two_element_array() {
     // `[alternative]` followed by a stray list used to be accepted
     assert!(PlutusData::from_bytes(hex::decode("d866810080").unwrap()).is_err());
     assert!(PlutusData::from_bytes(hex::decode("d86683008000").unwrap()).is_err());
+}
+
+#[test]
+fn plutus_original_bytes_are_windows_into_one_shared_buffer() {
+    // [[1], [2]] with definite lengths
+    let bytes = hex::decode("8281018102").unwrap();
+    let root = PlutusData::from_bytes(bytes.clone()).unwrap();
+    assert_eq!(root.to_bytes(), bytes);
+    let list = root.as_list().unwrap();
+    let (first, second) = (list.get(0), list.get(1));
+    assert_eq!(first.to_bytes(), hex::decode("8101").unwrap());
+    assert_eq!(second.to_bytes(), hex::decode("8102").unwrap());
+    let root_bytes = root.original_bytes.as_ref().unwrap();
+    assert!(first.original_bytes.as_ref().unwrap().shares_buffer_with(root_bytes));
+    assert!(second.original_bytes.as_ref().unwrap().shares_buffer_with(root_bytes));
+
+    // A 16k-deep spine used to keep a copy of its whole span in every node (~128 MB for
+    // 16 KB of input); every node is a window into the same buffer instead.
+    let mut spine = vec![0x81u8; 16_000];
+    spine.push(0x01);
+    let deep = PlutusData::from_bytes(spine.clone()).unwrap();
+    assert_eq!(deep.to_bytes(), spine);
+    let inner = deep.as_list().unwrap().get(0);
+    assert!(inner
+        .original_bytes
+        .as_ref()
+        .unwrap()
+        .shares_buffer_with(deep.original_bytes.as_ref().unwrap()));
+    assert_eq!(inner.to_bytes()[..], spine[1..]);
+    let cloned = deep.clone();
+    assert!(cloned
+        .original_bytes
+        .as_ref()
+        .unwrap()
+        .shares_buffer_with(deep.original_bytes.as_ref().unwrap()));
+}
+
+#[test]
+fn plutus_data_hash_and_ord_agree_with_eq_and_sets_dedup_by_bytes() {
+    let mut list = PlutusList::new();
+    list.add(&PlutusData::new_integer(&BigInt::from(1i32)));
+    // constructed lists serialize with an indefinite length: 9f 01 ff
+    let constructed = PlutusData::new_list(&list);
+    let definite = PlutusData::from_bytes(hex::decode("8101").unwrap()).unwrap();
+    let indefinite = PlutusData::from_bytes(hex::decode("9f01ff").unwrap()).unwrap();
+    for other in [&definite, &indefinite] {
+        assert_eq!(&constructed, other);
+        assert_hash_eq(&constructed, other);
+        assert_eq!(constructed.cmp(other), Ordering::Equal);
+    }
+
+    // Hash/Eq contract: a map keyed by one representation is found through the others.
+    let mut map = PlutusMap::new();
+    let mut values = PlutusMapValues::new();
+    values.add(&PlutusData::new_integer(&BigInt::from(7i32)));
+    map.insert(&constructed, &values);
+    assert!(map.get(&definite).is_some());
+    assert!(map.get(&indefinite).is_some());
+
+    // The witness set holds datums by bytes: same structure with different encodings are
+    // two datums (two hashes on chain), identical bytes collapse into one.
+    let mut datums = PlutusList::new();
+    datums.add(&constructed);
+    datums.add(&definite);
+    datums.add(&indefinite);
+    let mut witness_set = TransactionWitnessSet::new();
+    witness_set.set_plutus_data(&datums);
+    let kept = witness_set.plutus_data().unwrap();
+    assert_eq!(kept.len(), 2);
+    assert_eq!(kept.get(0).to_bytes(), hex::decode("9f01ff").unwrap());
+    assert_eq!(kept.get(1).to_bytes(), hex::decode("8101").unwrap());
 }

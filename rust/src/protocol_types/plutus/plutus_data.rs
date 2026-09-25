@@ -2,6 +2,7 @@ use crate::*;
 use core::hash::Hasher;
 use hashlink::LinkedHashMap;
 use std::hash::Hash;
+use std::sync::{Arc, OnceLock};
 
 use cbor_event::{
     self,
@@ -299,7 +300,37 @@ pub struct PlutusData {
     pub(crate) datum: PlutusDataEnum,
     // We should always preserve the original datums when deserialized as this is NOT canonicized
     // before computing datum hashes. So this field stores the original bytes to re-use.
-    pub(crate) original_bytes: Option<Vec<u8>>,
+    pub(crate) original_bytes: Option<OriginalBytes>,
+}
+
+/// The CBOR a datum was decoded from: a window into one buffer shared by every node of
+/// that decode. Nesting therefore costs three words per node instead of a copy of the
+/// node's whole span, which was quadratic in the depth. The buffer is filled once, when the
+/// root finishes decoding; no node is reachable before that.
+#[derive(Clone)]
+pub(crate) struct OriginalBytes {
+    buf: Arc<OnceLock<Box<[u8]>>>,
+    start: usize,
+    end: usize,
+}
+
+impl OriginalBytes {
+    pub(crate) fn new(buf: Arc<OnceLock<Box<[u8]>>>, start: usize, end: usize) -> Self {
+        Self { buf, start, end }
+    }
+
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        let buf = self
+            .buf
+            .get()
+            .expect("original bytes are attached once decoding finishes");
+        &buf[self.start..self.end]
+    }
+
+    #[cfg(test)]
+    pub(crate) fn shares_buffer_with(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.buf, &other.buf)
+    }
 }
 
 impl<T> From<T> for PlutusData where PlutusDataEnum: From<T> {
@@ -788,15 +819,15 @@ impl PlutusList {
         self.elems.contains(elem)
     }
 
+    /// Distinct elements as the ledger sees a `set<plutus_data>`: by encoded bytes, since
+    /// a datum is referenced by the hash of its bytes. Two structurally equal datums with
+    /// different encodings are two datums here even though they are `==`.
     pub(crate) fn deduplicated_view(&self) -> Vec<&PlutusData> {
-        let mut dedup = BTreeSet::new();
-        let mut datas = Vec::new();
-        for elem in &self.elems {
-            if dedup.insert(elem) {
-                datas.push(elem);
-            }
-        }
-        datas
+        let mut seen = BTreeSet::new();
+        self.elems
+            .iter()
+            .filter(|elem| seen.insert(elem.to_bytes()))
+            .collect()
     }
 
     pub(crate) fn to_set_bytes(&self) -> Vec<u8> {
@@ -806,15 +837,8 @@ impl PlutusList {
     }
 
     pub(crate) fn deduplicated_clone(&self) -> Self {
-        let mut dedup = BTreeSet::new();
-        let mut elems = Vec::new();
-        for elem in &self.elems {
-            if dedup.insert(elem) {
-                elems.push(elem.clone());
-            }
-        }
         Self {
-            elems,
+            elems: self.deduplicated_view().into_iter().cloned().collect(),
             definite_encoding: self.definite_encoding,
             cbor_set_type: self.cbor_set_type.clone(),
         }
@@ -886,28 +910,24 @@ impl JsonSchema for PlutusList {
     }
 }
 
+// `definite_encoding` and `cbor_set_type` describe how a list was encoded, not what it
+// is: they stay out of Eq, Hash and Ord alike, so the three agree. Sets that need byte
+// identity dedup by bytes (`deduplicated_view`).
 impl PartialOrd for PlutusList {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.elems.partial_cmp(&other.elems) {
-            Some(core::cmp::Ordering::Equal) => self.definite_encoding.partial_cmp(&other.definite_encoding),
-            non_eq => non_eq,
-        }
+        Some(self.cmp(other))
     }
 }
 
 impl Hash for PlutusList {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.elems.hash(state);
-        self.definite_encoding.hash(state);
     }
 }
 
 impl Ord for PlutusList {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match self.elems.cmp(&other.elems) {
-            core::cmp::Ordering::Equal => self.definite_encoding.cmp(&other.definite_encoding),
-            non_eq => non_eq,
-        }
+        self.elems.cmp(&other.elems)
     }
 }
 
@@ -1428,15 +1448,15 @@ enum PlutusCloneKind {
         alternative: BigNum,
         definite_encoding: Option<bool>,
         set_type: Option<CborSetType>,
-        original_bytes: Option<Vec<u8>>,
+        original_bytes: Option<OriginalBytes>,
     },
     List {
         definite_encoding: Option<bool>,
         set_type: Option<CborSetType>,
-        original_bytes: Option<Vec<u8>>,
+        original_bytes: Option<OriginalBytes>,
     },
     Map {
-        original_bytes: Option<Vec<u8>>,
+        original_bytes: Option<OriginalBytes>,
         /// Flattened key/value children: for each map value list of len L we emit
         /// key then L values. `value_lens` remembers L per key so we can rebuild.
         value_lens: Vec<usize>,
@@ -1644,6 +1664,9 @@ fn plutus_data_eq(a: &PlutusData, b: &PlutusData) -> bool {
     true
 }
 
+/// Structural, like `PartialEq`: encoding details (`definite_encoding`, `original_bytes`)
+/// are not part of a datum's identity, so `Eq`, `Hash` and `Ord` agree and map lookups work
+/// across constructed and decoded values.
 fn hash_plutus_datum<H: Hasher>(datum: &PlutusDataEnum, state: &mut H) {
     hash_plutus_datum_iter(datum, state);
 }
@@ -1655,7 +1678,6 @@ fn hash_plutus_datum_iter<H: Hasher>(root: &PlutusDataEnum, state: &mut H) {
         Disc(u8),
         Alt(BigNum),
         Bytes(&'a [u8]),
-        OptBool(Option<bool>),
         Integer(&'a BigInt),
     }
     let mut stack = vec![Job::Datum(root)];
@@ -1664,12 +1686,10 @@ fn hash_plutus_datum_iter<H: Hasher>(root: &PlutusDataEnum, state: &mut H) {
             Job::Disc(d) => d.hash(state),
             Job::Alt(n) => n.hash(state),
             Job::Bytes(b) => b.hash(state),
-            Job::OptBool(v) => v.hash(state),
             Job::Integer(i) => i.hash(state),
             Job::Data(data) => stack.push(Job::Datum(&data.datum)),
             Job::Datum(datum) => match datum {
                 PlutusDataEnum::ConstrPlutusData(c) => {
-                    stack.push(Job::OptBool(c.data.definite_encoding));
                     for elem in c.data.elems.iter().rev() {
                         stack.push(Job::Data(elem));
                     }
@@ -1686,7 +1706,6 @@ fn hash_plutus_datum_iter<H: Hasher>(root: &PlutusDataEnum, state: &mut H) {
                     stack.push(Job::Disc(1));
                 }
                 PlutusDataEnum::List(l) => {
-                    stack.push(Job::OptBool(l.definite_encoding));
                     for elem in l.elems.iter().rev() {
                         stack.push(Job::Data(elem));
                     }
@@ -1711,8 +1730,6 @@ enum PlutusCmpJob<'a> {
     Bytes(&'a [u8], &'a [u8]),
     Ints(&'a BigInt, &'a BigInt),
     Nums(BigNum, BigNum),
-    OptBool(Option<bool>, Option<bool>),
-    Orig(Option<&'a [u8]>, Option<&'a [u8]>),
     Kind(u8, u8),
     Lens(usize, usize),
 }
@@ -1725,27 +1742,15 @@ impl PartialOrd for PlutusData {
 
 impl Ord for PlutusData {
     fn cmp(&self, other: &Self) -> Ordering {
-        let mut stack = vec![
-            PlutusCmpJob::Orig(
-                self.original_bytes.as_deref(),
-                other.original_bytes.as_deref(),
-            ),
-            PlutusCmpJob::Datum(&self.datum, &other.datum),
-        ];
+        let mut stack = vec![PlutusCmpJob::Datum(&self.datum, &other.datum)];
         while let Some(job) = stack.pop() {
             let ord = match job {
                 PlutusCmpJob::Kind(a, b) => a.cmp(&b),
                 PlutusCmpJob::Lens(a, b) => a.cmp(&b),
                 PlutusCmpJob::Nums(a, b) => a.cmp(&b),
-                PlutusCmpJob::OptBool(a, b) => a.cmp(&b),
                 PlutusCmpJob::Ints(a, b) => a.cmp(&b),
                 PlutusCmpJob::Bytes(a, b) => a.cmp(&b),
-                PlutusCmpJob::Orig(a, b) => a.cmp(&b),
                 PlutusCmpJob::Data(a, b) => {
-                    stack.push(PlutusCmpJob::Orig(
-                        a.original_bytes.as_deref(),
-                        b.original_bytes.as_deref(),
-                    ));
                     stack.push(PlutusCmpJob::Datum(&a.datum, &b.datum));
                     Ordering::Equal
                 }
@@ -1758,17 +1763,9 @@ impl Ord for PlutusData {
                             stack.push(PlutusCmpJob::Bytes(x, y));
                         }
                         (PlutusDataEnum::List(x), PlutusDataEnum::List(y)) => {
-                            stack.push(PlutusCmpJob::OptBool(
-                                x.definite_encoding,
-                                y.definite_encoding,
-                            ));
                             push_plutus_vec_cmp(&mut stack, &x.elems, &y.elems);
                         }
                         (PlutusDataEnum::ConstrPlutusData(x), PlutusDataEnum::ConstrPlutusData(y)) => {
-                            stack.push(PlutusCmpJob::OptBool(
-                                x.data.definite_encoding,
-                                y.data.definite_encoding,
-                            ));
                             push_plutus_vec_cmp(&mut stack, &x.data.elems, &y.data.elems);
                             stack.push(PlutusCmpJob::Nums(x.alternative, y.alternative));
                         }
