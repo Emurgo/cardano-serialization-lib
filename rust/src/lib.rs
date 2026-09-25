@@ -66,6 +66,7 @@ pub mod typed_bytes;
 mod utils;
 pub use utils::*;
 mod serialization;
+mod stack_safe;
 mod rational;
 
 pub use serialization::*;
@@ -1773,16 +1774,25 @@ impl NetworkId {
 
 impl From<&NativeScript> for Ed25519KeyHashes {
     fn from(script: &NativeScript) -> Self {
-        match &script.0 {
-            NativeScriptEnum::ScriptPubkey(spk) => {
-                let mut set = Ed25519KeyHashes::new();
-                set.add_move(spk.addr_keyhash());
-                set
+        let mut set = Ed25519KeyHashes::new();
+        let mut stack = vec![script];
+        while let Some(s) = stack.pop() {
+            match &s.0 {
+                NativeScriptEnum::ScriptPubkey(spk) => {
+                    set.add_move(spk.addr_keyhash());
+                }
+                NativeScriptEnum::ScriptAll(all) => {
+                    stack.extend(all.native_scripts.iter());
+                }
+                NativeScriptEnum::ScriptAny(any) => {
+                    stack.extend(any.native_scripts.iter());
+                }
+                NativeScriptEnum::ScriptNOfK(ofk) => {
+                    stack.extend(ofk.native_scripts.iter());
+                }
+                _ => {}
             }
-            NativeScriptEnum::ScriptAll(all) => Ed25519KeyHashes::from(&all.native_scripts),
-            NativeScriptEnum::ScriptAny(any) => Ed25519KeyHashes::from(&any.native_scripts),
-            NativeScriptEnum::ScriptNOfK(ofk) => Ed25519KeyHashes::from(&ofk.native_scripts),
-            _ => Ed25519KeyHashes::new(),
         }
+        set
     }
 }

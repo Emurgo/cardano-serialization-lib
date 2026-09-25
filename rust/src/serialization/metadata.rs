@@ -85,39 +85,13 @@ impl cbor_event::se::Serialize for TransactionMetadatumEnum {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        match self {
-            TransactionMetadatumEnum::MetadataMap(x) => x.serialize(serializer),
-            TransactionMetadatumEnum::MetadataList(x) => x.serialize(serializer),
-            TransactionMetadatumEnum::Int(x) => x.serialize(serializer),
-            TransactionMetadatumEnum::Bytes(x) => serializer.write_bytes(&x),
-            TransactionMetadatumEnum::Text(x) => serializer.write_text(&x),
-        }
+        serialize_metadatum_enum(self, serializer)
     }
 }
 
 impl Deserialize for TransactionMetadatumEnum {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        match raw.cbor_type()? {
-            CBORType::Array => {
-                MetadataList::deserialize(raw).map(TransactionMetadatumEnum::MetadataList)
-            }
-            CBORType::Map => {
-                MetadataMap::deserialize(raw).map(TransactionMetadatumEnum::MetadataMap)
-            }
-            CBORType::Bytes => TransactionMetadatum::new_bytes(raw.bytes()?)
-                .map(|m| m.0)
-                .map_err(|e| DeserializeFailure::Metadata(e).into()),
-            CBORType::Text => TransactionMetadatum::new_text(raw.text()?)
-                .map(|m| m.0)
-                .map_err(|e| DeserializeFailure::Metadata(e).into()),
-            CBORType::UnsignedInteger | CBORType::NegativeInteger => {
-                Int::deserialize(raw).map(TransactionMetadatumEnum::Int)
-            }
-            _ => Err(DeserializeError::new(
-                "TransactionMetadatumEnum",
-                DeserializeFailure::NoVariantMatched.into(),
-            )),
-        }
+        Ok(TransactionMetadatum::deserialize(raw)?.into_enum())
     }
 }
 
@@ -126,13 +100,233 @@ impl cbor_event::se::Serialize for TransactionMetadatum {
         &self,
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
-        self.0.serialize(serializer)
+        serialize_metadatum_enum(&self.0, serializer)
     }
 }
 
 impl Deserialize for TransactionMetadatum {
     fn deserialize<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<Self, DeserializeError> {
-        Ok(Self(TransactionMetadatumEnum::deserialize(raw)?))
+        deserialize_metadatum_tree(raw)
+    }
+}
+
+struct MetadatumSerFrame<'a> {
+    rest: std::vec::IntoIter<&'a TransactionMetadatum>,
+}
+
+fn serialize_metadatum_enum<'se, W: Write>(
+    root: &TransactionMetadatumEnum,
+    serializer: &'se mut Serializer<W>,
+) -> cbor_event::Result<&'se mut Serializer<W>> {
+    enum Root<'a> {
+        Enum(&'a TransactionMetadatumEnum),
+        Node(&'a TransactionMetadatum),
+    }
+    let mut stack: Vec<MetadatumSerFrame<'_>> = Vec::new();
+    let mut current = Root::Enum(root);
+    loop {
+        let children = match current {
+            Root::Enum(e) => write_metadatum_header(e, serializer)?,
+            Root::Node(n) => write_metadatum_header(&n.0, serializer)?,
+        };
+        let mut rest = children.into_iter();
+        if let Some(first) = rest.next() {
+            stack.push(MetadatumSerFrame { rest });
+            current = Root::Node(first);
+            continue;
+        }
+        loop {
+            match stack.last_mut() {
+                None => return Ok(serializer),
+                Some(frame) => {
+                    if let Some(next) = frame.rest.next() {
+                        current = Root::Node(next);
+                        break;
+                    } else {
+                        stack.pop();
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn write_metadatum_header<'a, W: Write>(
+    datum: &'a TransactionMetadatumEnum,
+    serializer: &mut Serializer<W>,
+) -> cbor_event::Result<Vec<&'a TransactionMetadatum>> {
+    match datum {
+        TransactionMetadatumEnum::Int(x) => {
+            x.serialize(serializer)?;
+            Ok(Vec::new())
+        }
+        TransactionMetadatumEnum::Bytes(x) => {
+            serializer.write_bytes(x)?;
+            Ok(Vec::new())
+        }
+        TransactionMetadatumEnum::Text(x) => {
+            serializer.write_text(x)?;
+            Ok(Vec::new())
+        }
+        TransactionMetadatumEnum::MetadataList(list) => {
+            serializer.write_array(cbor_event::Len::Len(list.0.len() as u64))?;
+            Ok(list.0.iter().collect())
+        }
+        TransactionMetadatumEnum::MetadataMap(map) => {
+            serializer.write_map(cbor_event::Len::Len(map.0.len() as u64))?;
+            let mut children = Vec::new();
+            for (key, value) in &map.0 {
+                children.push(key);
+                children.push(value);
+            }
+            Ok(children)
+        }
+    }
+}
+
+enum MetadatumDeKind {
+    List,
+    Map {
+        pending_key: Option<TransactionMetadatum>,
+        map: MetadataMap,
+    },
+}
+
+struct MetadatumDeFrame {
+    kind: MetadatumDeKind,
+    remaining: crate::stack_safe::Remaining,
+    acc: Vec<TransactionMetadatum>,
+}
+
+enum MetadatumDeNode {
+    Complete(TransactionMetadatum),
+    Open(MetadatumDeFrame),
+}
+
+fn deserialize_metadatum_tree<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+) -> Result<TransactionMetadatum, DeserializeError> {
+    let mut stack: Vec<MetadatumDeFrame> = Vec::new();
+    loop {
+        let produced = match deserialize_metadatum_node(raw)? {
+            MetadatumDeNode::Complete(data) => data,
+            MetadatumDeNode::Open(frame) => {
+                if metadatum_children_finished(raw, &frame)? {
+                    finish_metadatum_frame(frame)?
+                } else {
+                    stack.push(frame);
+                    continue;
+                }
+            }
+        };
+        let mut completed = produced;
+        loop {
+            match stack.last_mut() {
+                None => return Ok(completed),
+                Some(frame) => {
+                    match &mut frame.kind {
+                        MetadatumDeKind::Map { pending_key, map } => {
+                            if pending_key.is_none() {
+                                *pending_key = Some(completed);
+                                break;
+                            } else {
+                                let key = pending_key.take().unwrap();
+                                map.insert_move(key, completed);
+                                frame.remaining.decrement();
+                            }
+                        }
+                        MetadatumDeKind::List => {
+                            frame.acc.push(completed);
+                            frame.remaining.decrement();
+                        }
+                    }
+                    if metadatum_children_finished(raw, frame)? {
+                        let frame = stack.pop().unwrap();
+                        completed = finish_metadatum_frame(frame)?;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn metadatum_children_finished<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+    frame: &MetadatumDeFrame,
+) -> Result<bool, DeserializeError> {
+    if let MetadatumDeKind::Map { pending_key, .. } = &frame.kind {
+        if pending_key.is_some() {
+            return Ok(false);
+        }
+    }
+    match frame.remaining {
+        crate::stack_safe::Remaining::Definite(0) => Ok(true),
+        crate::stack_safe::Remaining::Definite(_) => Ok(false),
+        crate::stack_safe::Remaining::Indefinite => {
+            let loc = match &frame.kind {
+                MetadatumDeKind::Map { .. } => "MetadataMap",
+                MetadatumDeKind::List => "MetadataList",
+            };
+            is_break_tag(raw, loc)
+        }
+    }
+}
+
+fn deserialize_metadatum_node<R: BufRead + Seek>(
+    raw: &mut Deserializer<R>,
+) -> Result<MetadatumDeNode, DeserializeError> {
+    match raw.cbor_type()? {
+        CBORType::Array => {
+            let len = raw.array()?;
+            Ok(MetadatumDeNode::Open(MetadatumDeFrame {
+                kind: MetadatumDeKind::List,
+                remaining: crate::stack_safe::Remaining::from_cbor_len(len),
+                acc: Vec::new(),
+            }))
+        }
+        CBORType::Map => {
+            let len = raw.map()?;
+            Ok(MetadatumDeNode::Open(MetadatumDeFrame {
+                kind: MetadatumDeKind::Map {
+                    pending_key: None,
+                    map: MetadataMap::new(),
+                },
+                remaining: crate::stack_safe::Remaining::from_cbor_len(len),
+                acc: Vec::new(),
+            }))
+        }
+        CBORType::Bytes => {
+            let m = TransactionMetadatum::new_bytes(raw.bytes()?)
+                .map_err(DeserializeFailure::Metadata)?;
+            Ok(MetadatumDeNode::Complete(m))
+        }
+        CBORType::Text => {
+            let m = TransactionMetadatum::new_text(raw.text()?)
+                .map_err(DeserializeFailure::Metadata)?;
+            Ok(MetadatumDeNode::Complete(m))
+        }
+        CBORType::UnsignedInteger | CBORType::NegativeInteger => {
+            Ok(MetadatumDeNode::Complete(TransactionMetadatum(
+                TransactionMetadatumEnum::Int(Int::deserialize(raw)?),
+            )))
+        }
+        _ => Err(DeserializeError::new(
+            "TransactionMetadatumEnum",
+            DeserializeFailure::NoVariantMatched.into(),
+        )),
+    }
+}
+
+fn finish_metadatum_frame(
+    frame: MetadatumDeFrame,
+) -> Result<TransactionMetadatum, DeserializeError> {
+    match frame.kind {
+        MetadatumDeKind::List => Ok(TransactionMetadatum::from_list_moved(
+            MetadataList::from_vec(frame.acc),
+        )),
+        MetadatumDeKind::Map { map, .. } => Ok(TransactionMetadatum::from_map_moved(map)),
     }
 }
 

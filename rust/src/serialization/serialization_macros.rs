@@ -116,9 +116,15 @@ macro_rules! to_from_json {
 
             #[cfg(all(target_arch = "wasm32", not(target_os = "emscripten"), not(feature = "dont-expose-wasm")))]
             pub fn to_js_value(&self) -> Result<JsValue, JsError> {
-                let serializer = serde_wasm_bindgen::Serializer::json_compatible();
-                serde::Serialize::serialize(self, &serializer)
-                    .map_err(|e| JsError::from_str(&format!("to_js_value: {}", e)))
+                // Go through the JSON text instead of `serde_wasm_bindgen`: `NativeScript`
+                // serializes as a pre-rendered `serde_json::RawValue`, which only serde_json
+                // serializers understand (anything else emits a struct keyed by the RawValue
+                // token). `JSON.parse` of `to_json()` yields the same JS shape
+                // `Serializer::json_compatible()` produced (maps as objects, `None` as null,
+                // integers as numbers) and stays stack-safe for deeply nested values.
+                let json = self.to_json()?;
+                js_sys::JSON::parse(&json)
+                    .map_err(|e| JsError::from_str(&format!("to_js_value: {:?}", e)))
             }
 
             pub fn from_json(json: &str) -> Result<$name, JsError> {

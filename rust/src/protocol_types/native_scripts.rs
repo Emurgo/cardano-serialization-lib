@@ -19,6 +19,16 @@ impl NativeScripts {
         }
     }
 
+    pub(crate) fn from_vec_and_tag(
+        scripts: Vec<NativeScript>,
+        cbor_tag_type: Option<CborSetType>,
+    ) -> Self {
+        Self {
+            scripts,
+            cbor_tag_type,
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.scripts.len()
     }
@@ -165,3 +175,9 @@ impl JsonSchema for NativeScripts {
     }
 }
 
+#[cfg(test)]
+impl NativeScripts {
+    pub(crate) fn push_move(&mut self, script: NativeScript) {
+        self.scripts.push(script);
+    }
+}

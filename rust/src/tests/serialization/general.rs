@@ -1,4 +1,4 @@
-use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionUnspentOutput, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes, CborSetType, ScriptPubkey, NativeScripts, Language, PlutusDatumSchema, AddressKind};
+use crate::{Address, BigInt, BigNum, Block, BlockHash, CborContainerType, Coin, Credential, DataHash, ExUnits, HeaderBody, HeaderLeaderCertEnum, Int, KESVKey, MIRPot, MIRToStakeCredentials, MoveInstantaneousReward, NativeScript, OperationalCert, PlutusData, PlutusList, PlutusScript, PlutusScripts, ProtocolVersion, Redeemer, RedeemerTag, Redeemers, ScriptHash, ScriptRef, TimelockStart, TransactionBody, TransactionInputs, TransactionOutput, TransactionOutputs, TransactionUnspentOutput, TransactionWitnessSet, VRFCert, VRFVKey, Value, Vkeywitness, Vkeywitnesses, VersionedBlock, BlockEra, to_bytes, BootstrapWitnesses, Credentials, Ed25519KeyHashes, CborSetType, ScriptPubkey, ScriptNOfK, NativeScripts, Language, PlutusDatumSchema, AddressKind};
 use crate::protocol_types::ScriptRefEnum;
 use crate::tests::fakes::{fake_base_address, fake_bootsrap_witness, fake_bytes_32, fake_data_hash, fake_key_hash, fake_signature, fake_tx_input, fake_tx_output, fake_value, fake_value2, fake_vkey, fake_vkey_witness};
 
@@ -1388,4 +1388,56 @@ fn block_with_tailed_address() {
     let bech32 = address.to_bech32(None).unwrap();
     let expected_bech32 = "addr1q9d66zzs27kppmx8qc8h43q7m4hkxp5d39377lvxefvxd8j7eukjsdqc5c97t2zg5guqadepqqx6rc9m7wtnxy6tajjq6r54x9";
     assert_eq!(bech32, expected_bech32);
+}
+
+#[test]
+fn native_script_n_of_k_count_is_int64_like_the_ledger() {
+    // script_n_of_k = (3, n : int64, [* native_script]). Seen on chain with n = -1:
+    // [3, -1, [sig(3118…), sig(e07c…)]]
+    let on_chain = hex::decode(
+        "830320828200581c3118644aa21ba172c82732ce80d1c94cdcb5f2e8891e1ad264570718\
+         8200581ce07caf4bf751495f75774ace30552441e4df84d141e5d1f5029cb04d",
+    )
+    .unwrap();
+    let script = NativeScript::from_bytes(on_chain.clone()).unwrap();
+    let n_of_k = script.as_script_n_of_k().unwrap();
+    assert_eq!(n_of_k.n(), Int::new_i32(-1));
+    assert_eq!(n_of_k.native_scripts().len(), 2);
+
+    // Exact round trip, so the hash matches the ledger's hash of the original bytes.
+    assert_eq!(script.to_bytes(), on_chain);
+    assert_eq!(n_of_k.to_bytes(), on_chain);
+    assert_eq!(ScriptNOfK::from_bytes(on_chain.clone()).unwrap(), n_of_k);
+
+    let built = NativeScript::new_script_n_of_k(
+        &ScriptNOfK::new_from_int(&Int::new_i32(-1), &n_of_k.native_scripts()).unwrap(),
+    );
+    assert_eq!(built, script);
+    assert_eq!(built.hash(), script.hash());
+
+    // JSON keeps `n` a plain number.
+    let json = script.to_json().unwrap();
+    assert!(json.contains("\"n\": -1"), "{json}");
+    assert_eq!(NativeScript::from_json(&json).unwrap(), script);
+
+    // int64 bounds round-trip, anything outside is rejected.
+    for (hex_bytes, expected) in [
+        ("83033b7fffffffffffffff80", Int::from(i64::MIN)),
+        ("83031b7fffffffffffffff80", Int::from(i64::MAX)),
+    ] {
+        let bytes = hex::decode(hex_bytes).unwrap();
+        let script = NativeScript::from_bytes(bytes.clone()).unwrap();
+        assert_eq!(script.as_script_n_of_k().unwrap().n(), expected);
+        assert_eq!(script.to_bytes(), bytes);
+    }
+    assert!(NativeScript::from_bytes(hex::decode("83031b800000000000000080").unwrap()).is_err());
+    assert!(NativeScript::from_bytes(hex::decode("83033b800000000000000080").unwrap()).is_err());
+    assert!(ScriptNOfK::new_from_int(
+        &Int::from_str("9223372036854775808").unwrap(),
+        &NativeScripts::new()
+    )
+    .is_err());
+
+    // The plain constructor is unchanged.
+    assert_eq!(ScriptNOfK::new(2, &NativeScripts::new()).n(), Int::new_i32(2));
 }

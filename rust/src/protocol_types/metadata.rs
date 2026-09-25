@@ -1,5 +1,7 @@
 use crate::*;
 use hashlink::LinkedHashMap;
+use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 const MD_MAX_LEN: usize = 64;
 
@@ -25,6 +27,14 @@ impl MetadataMap {
         value: &TransactionMetadatum,
     ) -> Option<TransactionMetadatum> {
         self.0.insert(key.clone(), value.clone())
+    }
+
+    pub(crate) fn insert_move(
+        &mut self,
+        key: TransactionMetadatum,
+        value: TransactionMetadatum,
+    ) -> Option<TransactionMetadatum> {
+        self.0.insert(key, value)
     }
 
     // convenience function for inserting as a string key
@@ -99,6 +109,10 @@ impl MetadataList {
     pub fn add(&mut self, elem: &TransactionMetadatum) {
         self.0.push(elem.clone());
     }
+
+    pub(crate) fn from_vec(elems: Vec<TransactionMetadatum>) -> Self {
+        Self(elems)
+    }
 }
 
 impl_vec_wrapper!(MetadataList, TransactionMetadatum);
@@ -123,7 +137,6 @@ pub(crate) enum TransactionMetadatumEnum {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct TransactionMetadatum(pub(crate) TransactionMetadatumEnum);
 
 to_from_bytes!(TransactionMetadatum);
@@ -208,6 +221,348 @@ impl TransactionMetadatum {
         match &self.0 {
             TransactionMetadatumEnum::Text(x) => Ok(x.clone()),
             _ => Err(JsError::from_str("not text")),
+        }
+    }
+}
+
+impl TransactionMetadatum {
+    pub(crate) fn from_map_moved(map: MetadataMap) -> Self {
+        Self(TransactionMetadatumEnum::MetadataMap(map))
+    }
+
+    pub(crate) fn from_list_moved(list: MetadataList) -> Self {
+        Self(TransactionMetadatumEnum::MetadataList(list))
+    }
+
+    pub(crate) fn into_enum(self) -> TransactionMetadatumEnum {
+        let this = std::mem::ManuallyDrop::new(self);
+        unsafe { std::ptr::read(&this.0) }
+    }
+
+    fn take_children(&mut self, stack: &mut Vec<TransactionMetadatum>) {
+        match &mut self.0 {
+            TransactionMetadatumEnum::MetadataList(list) => {
+                stack.extend(std::mem::take(&mut list.0));
+            }
+            TransactionMetadatumEnum::MetadataMap(map) => {
+                for (k, v) in std::mem::take(&mut map.0) {
+                    stack.push(k);
+                    stack.push(v);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn kind_index(&self) -> u8 {
+        match &self.0 {
+            TransactionMetadatumEnum::MetadataMap(_) => 0,
+            TransactionMetadatumEnum::MetadataList(_) => 1,
+            TransactionMetadatumEnum::Int(_) => 2,
+            TransactionMetadatumEnum::Bytes(_) => 3,
+            TransactionMetadatumEnum::Text(_) => 4,
+        }
+    }
+}
+
+impl Drop for TransactionMetadatum {
+    fn drop(&mut self) {
+        crate::stack_safe::iterative_drop(self, |node, stack| node.take_children(stack));
+    }
+}
+
+enum MetadatumCloneKind {
+    List,
+    Map,
+}
+
+struct MetadatumCloneFrame<'a> {
+    kind: MetadatumCloneKind,
+    rest: std::vec::IntoIter<&'a TransactionMetadatum>,
+    acc: Vec<TransactionMetadatum>,
+}
+
+fn finish_metadatum_clone(
+    kind: MetadatumCloneKind,
+    acc: Vec<TransactionMetadatum>,
+) -> TransactionMetadatum {
+    match kind {
+        MetadatumCloneKind::List => {
+            TransactionMetadatum::from_list_moved(MetadataList::from_vec(acc))
+        }
+        MetadatumCloneKind::Map => {
+            let mut map = MetadataMap::new();
+            let mut iter = acc.into_iter();
+            while let Some(key) = iter.next() {
+                let value = iter.next().expect("metadata map clone k/v pairs");
+                map.insert_move(key, value);
+            }
+            TransactionMetadatum::from_map_moved(map)
+        }
+    }
+}
+
+impl Clone for TransactionMetadatum {
+    fn clone(&self) -> Self {
+        let mut stack: Vec<MetadatumCloneFrame<'_>> = Vec::new();
+        let mut node = self;
+        loop {
+            let mut completed = match &node.0 {
+                TransactionMetadatumEnum::Int(x) => TransactionMetadatum::new_int(x),
+                TransactionMetadatumEnum::Bytes(x) => {
+                    TransactionMetadatum::new_bytes(x.clone()).expect("cloned bytes within limit")
+                }
+                TransactionMetadatumEnum::Text(x) => {
+                    TransactionMetadatum::new_text(x.clone()).expect("cloned text within limit")
+                }
+                TransactionMetadatumEnum::MetadataList(list) => {
+                    let mut rest = list.0.iter();
+                    if let Some(first) = rest.next() {
+                        stack.push(MetadatumCloneFrame {
+                            kind: MetadatumCloneKind::List,
+                            rest: rest.collect::<Vec<_>>().into_iter(),
+                            acc: Vec::new(),
+                        });
+                        node = first;
+                        continue;
+                    }
+                    finish_metadatum_clone(MetadatumCloneKind::List, Vec::new())
+                }
+                TransactionMetadatumEnum::MetadataMap(map) => {
+                    let mut children = Vec::new();
+                    for (k, v) in map.0.iter() {
+                        children.push(k);
+                        children.push(v);
+                    }
+                    let mut rest = children.into_iter();
+                    if let Some(first) = rest.next() {
+                        stack.push(MetadatumCloneFrame {
+                            kind: MetadatumCloneKind::Map,
+                            rest,
+                            acc: Vec::new(),
+                        });
+                        node = first;
+                        continue;
+                    }
+                    finish_metadatum_clone(MetadatumCloneKind::Map, Vec::new())
+                }
+            };
+            loop {
+                match stack.last_mut() {
+                    None => return completed,
+                    Some(frame) => {
+                        frame.acc.push(completed);
+                        if let Some(next) = frame.rest.next() {
+                            node = next;
+                            break;
+                        } else {
+                            let frame = stack.pop().unwrap();
+                            completed = finish_metadatum_clone(frame.kind, frame.acc);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl PartialEq for TransactionMetadatum {
+    fn eq(&self, other: &Self) -> bool {
+        let mut stack = vec![(self, other)];
+        while let Some((left, right)) = stack.pop() {
+            match (&left.0, &right.0) {
+                (TransactionMetadatumEnum::Int(x), TransactionMetadatumEnum::Int(y)) => {
+                    if x != y {
+                        return false;
+                    }
+                }
+                (TransactionMetadatumEnum::Bytes(x), TransactionMetadatumEnum::Bytes(y)) => {
+                    if x != y {
+                        return false;
+                    }
+                }
+                (TransactionMetadatumEnum::Text(x), TransactionMetadatumEnum::Text(y)) => {
+                    if x != y {
+                        return false;
+                    }
+                }
+                (
+                    TransactionMetadatumEnum::MetadataList(x),
+                    TransactionMetadatumEnum::MetadataList(y),
+                ) => {
+                    if x.0.len() != y.0.len() {
+                        return false;
+                    }
+                    stack.extend(x.0.iter().zip(y.0.iter()));
+                }
+                (
+                    TransactionMetadatumEnum::MetadataMap(x),
+                    TransactionMetadatumEnum::MetadataMap(y),
+                ) => {
+                    if x.0.len() != y.0.len() {
+                        return false;
+                    }
+                    for ((lk, lv), (rk, rv)) in x.0.iter().zip(y.0.iter()) {
+                        stack.push((lv, rv));
+                        stack.push((lk, rk));
+                    }
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
+}
+
+impl Eq for TransactionMetadatum {}
+
+impl Hash for TransactionMetadatum {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        enum Job<'a> {
+            Node(&'a TransactionMetadatum),
+            Disc(u8),
+            Len(usize),
+            Int(Int),
+            Bytes(&'a [u8]),
+            Text(&'a str),
+        }
+        let mut stack = vec![Job::Node(self)];
+        while let Some(job) = stack.pop() {
+            match job {
+                Job::Disc(d) => d.hash(state),
+                Job::Len(n) => n.hash(state),
+                Job::Int(i) => i.hash(state),
+                Job::Bytes(b) => b.hash(state),
+                Job::Text(s) => s.hash(state),
+                Job::Node(node) => match &node.0 {
+                    TransactionMetadatumEnum::MetadataMap(map) => {
+                        for (k, v) in map.0.iter().rev() {
+                            stack.push(Job::Node(v));
+                            stack.push(Job::Node(k));
+                        }
+                        stack.push(Job::Disc(0));
+                    }
+                    TransactionMetadatumEnum::MetadataList(list) => {
+                        for elem in list.0.iter().rev() {
+                            stack.push(Job::Node(elem));
+                        }
+                        stack.push(Job::Len(list.0.len()));
+                        stack.push(Job::Disc(1));
+                    }
+                    TransactionMetadatumEnum::Int(x) => {
+                        stack.push(Job::Int(*x));
+                        stack.push(Job::Disc(2));
+                    }
+                    TransactionMetadatumEnum::Bytes(x) => {
+                        stack.push(Job::Bytes(x));
+                        stack.push(Job::Disc(3));
+                    }
+                    TransactionMetadatumEnum::Text(x) => {
+                        stack.push(Job::Text(x));
+                        stack.push(Job::Disc(4));
+                    }
+                },
+            }
+        }
+    }
+}
+
+enum MetadatumCmpJob<'a> {
+    Node(&'a TransactionMetadatum, &'a TransactionMetadatum),
+    Kind(u8, u8),
+    Lens(usize, usize),
+    Ints(Int, Int),
+    Bytes(&'a [u8], &'a [u8]),
+    Text(&'a str, &'a str),
+}
+
+impl PartialOrd for TransactionMetadatum {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TransactionMetadatum {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let mut stack = vec![MetadatumCmpJob::Node(self, other)];
+        while let Some(job) = stack.pop() {
+            let ord = match job {
+                MetadatumCmpJob::Kind(a, b) => a.cmp(&b),
+                MetadatumCmpJob::Lens(a, b) => a.cmp(&b),
+                MetadatumCmpJob::Ints(a, b) => a.cmp(&b),
+                MetadatumCmpJob::Bytes(a, b) => a.cmp(&b),
+                MetadatumCmpJob::Text(a, b) => a.cmp(&b),
+                MetadatumCmpJob::Node(a, b) => {
+                    match (&a.0, &b.0) {
+                        (TransactionMetadatumEnum::Int(x), TransactionMetadatumEnum::Int(y)) => {
+                            stack.push(MetadatumCmpJob::Ints(*x, *y));
+                        }
+                        (
+                            TransactionMetadatumEnum::Bytes(x),
+                            TransactionMetadatumEnum::Bytes(y),
+                        ) => {
+                            stack.push(MetadatumCmpJob::Bytes(x, y));
+                        }
+                        (TransactionMetadatumEnum::Text(x), TransactionMetadatumEnum::Text(y)) => {
+                            stack.push(MetadatumCmpJob::Text(x, y));
+                        }
+                        (
+                            TransactionMetadatumEnum::MetadataList(x),
+                            TransactionMetadatumEnum::MetadataList(y),
+                        ) => {
+                            stack.push(MetadatumCmpJob::Lens(x.0.len(), y.0.len()));
+                            let min_len = x.0.len().min(y.0.len());
+                            for i in (0..min_len).rev() {
+                                stack.push(MetadatumCmpJob::Node(&x.0[i], &y.0[i]));
+                            }
+                        }
+                        (
+                            TransactionMetadatumEnum::MetadataMap(x),
+                            TransactionMetadatumEnum::MetadataMap(y),
+                        ) => {
+                            let xs: Vec<_> = x.0.iter().collect();
+                            let ys: Vec<_> = y.0.iter().collect();
+                            stack.push(MetadatumCmpJob::Lens(xs.len(), ys.len()));
+                            let min_len = xs.len().min(ys.len());
+                            for i in (0..min_len).rev() {
+                                let (lk, lv) = xs[i];
+                                let (rk, rv) = ys[i];
+                                stack.push(MetadatumCmpJob::Node(lv, rv));
+                                stack.push(MetadatumCmpJob::Node(lk, rk));
+                            }
+                        }
+                        _ => {}
+                    }
+                    stack.push(MetadatumCmpJob::Kind(a.kind_index(), b.kind_index()));
+                    Ordering::Equal
+                }
+            };
+            if ord != Ordering::Equal {
+                return ord;
+            }
+        }
+        Ordering::Equal
+    }
+}
+
+impl std::fmt::Debug for TransactionMetadatum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            TransactionMetadatumEnum::Int(x) => f.debug_tuple("TransactionMetadatum").field(x).finish(),
+            TransactionMetadatumEnum::Bytes(x) => {
+                f.debug_tuple("TransactionMetadatum").field(x).finish()
+            }
+            TransactionMetadatumEnum::Text(x) => {
+                f.debug_tuple("TransactionMetadatum").field(x).finish()
+            }
+            TransactionMetadatumEnum::MetadataList(x) => f
+                .debug_tuple("TransactionMetadatum")
+                .field(&format_args!("List(len={})", x.0.len()))
+                .finish(),
+            TransactionMetadatumEnum::MetadataMap(x) => f
+                .debug_tuple("TransactionMetadatum")
+                .field(&format_args!("Map(len={})", x.0.len()))
+                .finish(),
         }
     }
 }
@@ -636,121 +991,222 @@ pub fn decode_metadatum_to_json_str(
     metadatum: &TransactionMetadatum,
     schema: MetadataJsonSchema,
 ) -> Result<String, JsError> {
-    let value = decode_metadatum_to_json_value(metadatum, schema)?;
-    serde_json::to_string(&value).map_err(|e| JsError::from_str(&e.to_string()))
+    let value = metadatum_to_json_val(metadatum, schema)?;
+    Ok(crate::stack_safe::stringify_json(&value, false))
 }
 
 pub fn decode_metadatum_to_json_value(
     metadatum: &TransactionMetadatum,
     schema: MetadataJsonSchema,
 ) -> Result<serde_json::Value, JsError> {
-    use serde_json::Value;
+    let value = metadatum_to_json_val(metadatum, schema)?;
+    Ok(crate::stack_safe::json_val_to_serde(value))
+}
+
+fn decode_metadatum_key_string(
+    key: &TransactionMetadatum,
+    schema: MetadataJsonSchema,
+) -> Result<String, JsError> {
     use std::convert::TryFrom;
-    fn decode_key(
-        key: &TransactionMetadatum,
-        schema: MetadataJsonSchema,
-    ) -> Result<String, JsError> {
-        match &key.0 {
-            TransactionMetadatumEnum::Text(s) => Ok(s.clone()),
-            TransactionMetadatumEnum::Bytes(b) if schema != MetadataJsonSchema::NoConversions => {
-                Ok(bytes_to_hex_string(b.as_ref()))
+    match &key.0 {
+        TransactionMetadatumEnum::Text(s) => Ok(s.clone()),
+        TransactionMetadatumEnum::Bytes(b) if schema != MetadataJsonSchema::NoConversions => {
+            Ok(bytes_to_hex_string(b.as_ref()))
+        }
+        TransactionMetadatumEnum::Int(i) if schema != MetadataJsonSchema::NoConversions => {
+            let int_str = if i.0 >= 0 {
+                u64::try_from(i.0).map(|x| x.to_string())
+            } else {
+                i64::try_from(i.0).map(|x| x.to_string())
+            };
+            int_str.map_err(|e| JsError::from_str(&e.to_string()))
+        }
+        _ => Err(JsError::from_str(&format!(
+            "key type {:?} not allowed in JSON under specified schema",
+            key.0
+        ))),
+    }
+}
+
+fn metadatum_int_json(x: &Int) -> Result<crate::stack_safe::JsonVal, JsError> {
+    use std::convert::TryFrom;
+    if x.0 >= 0 {
+        Ok(crate::stack_safe::JsonVal::Number(
+            u64::try_from(x.0)
+                .map_err(|e| JsError::from_str(&e.to_string()))?
+                .to_string(),
+        ))
+    } else {
+        Ok(crate::stack_safe::JsonVal::Number(
+            i64::try_from(x.0)
+                .map_err(|e| JsError::from_str(&e.to_string()))?
+                .to_string(),
+        ))
+    }
+}
+
+fn wrap_metadatum_json(
+    type_key: &str,
+    value: crate::stack_safe::JsonVal,
+    schema: MetadataJsonSchema,
+) -> crate::stack_safe::JsonVal {
+    if supports_tagged_values(schema) {
+        crate::stack_safe::JsonVal::Object(vec![(type_key.to_string(), value)])
+    } else {
+        value
+    }
+}
+
+enum MetadatumToJsonKind {
+    List,
+    MapBasic { keys: std::vec::IntoIter<String> },
+    MapDetailed,
+}
+
+struct MetadatumToJsonFrame<'a> {
+    kind: MetadatumToJsonKind,
+    rest: std::vec::IntoIter<&'a TransactionMetadatum>,
+    acc: Vec<crate::stack_safe::JsonVal>,
+}
+
+fn finish_metadatum_to_json(
+    kind: MetadatumToJsonKind,
+    acc: Vec<crate::stack_safe::JsonVal>,
+    schema: MetadataJsonSchema,
+) -> crate::stack_safe::JsonVal {
+    use crate::stack_safe::JsonVal;
+    match kind {
+        MetadatumToJsonKind::List => wrap_metadatum_json("list", JsonVal::Array(acc), schema),
+        MetadatumToJsonKind::MapBasic { keys } => {
+            let mut obj = Vec::new();
+            let mut keys = keys;
+            for v in acc {
+                obj.push((keys.next().expect("metadata basic map json keys"), v));
             }
-            TransactionMetadatumEnum::Int(i) if schema != MetadataJsonSchema::NoConversions => {
-                let int_str = if i.0 >= 0 {
-                    u64::try_from(i.0).map(|x| x.to_string())
-                } else {
-                    i64::try_from(i.0).map(|x| x.to_string())
-                };
-                int_str.map_err(|e| JsError::from_str(&e.to_string()))
+            // `serde_json::Map` semantics as in 16.0.0: keys sorted, a repeated key keeps its last value.
+            wrap_metadatum_json("map", JsonVal::object_sorted(obj), schema)
+        }
+        MetadatumToJsonKind::MapDetailed => {
+            let mut entries = Vec::new();
+            let mut iter = acc.into_iter();
+            while let Some(k) = iter.next() {
+                let v = iter.next().expect("metadata detailed map k/v pairs");
+                entries.push(JsonVal::Object(vec![
+                    ("k".to_string(), k),
+                    ("v".to_string(), v),
+                ]));
             }
-            TransactionMetadatumEnum::MetadataList(list)
-                if schema == MetadataJsonSchema::DetailedSchema =>
-            {
-                decode_metadatum_to_json_str(&TransactionMetadatum::new_list(&list), schema)
-            }
-            TransactionMetadatumEnum::MetadataMap(map)
-                if schema == MetadataJsonSchema::DetailedSchema =>
-            {
-                decode_metadatum_to_json_str(&TransactionMetadatum::new_map(&map), schema)
-            }
-            _ => Err(JsError::from_str(&format!(
-                "key type {:?} not allowed in JSON under specified schema",
-                key.0
-            ))),
+            wrap_metadatum_json("map", JsonVal::Array(entries), schema)
         }
     }
-    let (type_key, value) = match &metadatum.0 {
-        TransactionMetadatumEnum::MetadataMap(map) => match schema {
-            MetadataJsonSchema::NoConversions | MetadataJsonSchema::BasicConversions => {
-                // treats maps directly as JSON maps
-                let mut json_map = serde_json::map::Map::with_capacity(map.len());
-                for (key, value) in map.0.iter() {
-                    json_map.insert(
-                        decode_key(key, schema)?,
-                        decode_metadatum_to_json_value(value, schema)?,
-                    );
-                }
-                ("map", Value::from(json_map))
-            }
+}
 
-            MetadataJsonSchema::DetailedSchema => (
-                "map",
-                Value::from(
-                    map.0
-                        .iter()
-                        .map(|(key, value)| {
-                            // must encode maps as JSON lists of objects with k/v keys
-                            // also in these schemas we support more key types than strings
-                            let k = decode_metadatum_to_json_value(key, schema)?;
-                            let v = decode_metadatum_to_json_value(value, schema)?;
-                            let mut kv_obj = serde_json::map::Map::with_capacity(2);
-                            kv_obj.insert(String::from("k"), Value::from(k));
-                            kv_obj.insert(String::from("v"), v);
-                            Ok(Value::from(kv_obj))
-                        })
-                        .collect::<Result<Vec<_>, JsError>>()?,
-                ),
-            ),
-        },
-        TransactionMetadatumEnum::MetadataList(arr) => (
-            "list",
-            Value::from(
-                arr.0
-                    .iter()
-                    .map(|e| decode_metadatum_to_json_value(e, schema))
-                    .collect::<Result<Vec<_>, JsError>>()?,
-            ),
-        ),
-        TransactionMetadatumEnum::Int(x) => (
-            "int",
-            if x.0 >= 0 {
-                Value::from(u64::try_from(x.0).map_err(|e| JsError::from_str(&e.to_string()))?)
-            } else {
-                Value::from(i64::try_from(x.0).map_err(|e| JsError::from_str(&e.to_string()))?)
-            },
-        ),
-        TransactionMetadatumEnum::Bytes(bytes) => (
-            "bytes",
-            match schema {
-                MetadataJsonSchema::NoConversions => Err(JsError::from_str(
-                    "bytes not allowed in JSON in specified schema",
-                )),
-                // 0x prefix
-                MetadataJsonSchema::BasicConversions => {
-                    Ok(Value::from(bytes_to_hex_string(bytes.as_ref())))
+fn metadatum_to_json_val(
+    root: &TransactionMetadatum,
+    schema: MetadataJsonSchema,
+) -> Result<crate::stack_safe::JsonVal, JsError> {
+    use crate::stack_safe::JsonVal;
+    let mut stack: Vec<MetadatumToJsonFrame<'_>> = Vec::new();
+    let mut node = root;
+    loop {
+        let mut completed = match &node.0 {
+            TransactionMetadatumEnum::Int(x) => {
+                wrap_metadatum_json("int", metadatum_int_json(x)?, schema)
+            }
+            TransactionMetadatumEnum::Bytes(bytes) => {
+                let s = match schema {
+                    MetadataJsonSchema::NoConversions => {
+                        return Err(JsError::from_str(
+                            "bytes not allowed in JSON in specified schema",
+                        ))
+                    }
+                    MetadataJsonSchema::BasicConversions => bytes_to_hex_string(bytes.as_ref()),
+                    MetadataJsonSchema::DetailedSchema => hex::encode(bytes),
+                };
+                wrap_metadatum_json("bytes", JsonVal::String(s), schema)
+            }
+            TransactionMetadatumEnum::Text(s) => {
+                wrap_metadatum_json("string", JsonVal::String(s.clone()), schema)
+            }
+            TransactionMetadatumEnum::MetadataList(arr) => {
+                let mut rest = arr.0.iter();
+                if let Some(first) = rest.next() {
+                    stack.push(MetadatumToJsonFrame {
+                        kind: MetadatumToJsonKind::List,
+                        rest: rest.collect::<Vec<_>>().into_iter(),
+                        acc: Vec::new(),
+                    });
+                    node = first;
+                    continue;
                 }
-                // no prefix
-                MetadataJsonSchema::DetailedSchema => Ok(Value::from(hex::encode(bytes))),
-            }?,
-        ),
-        TransactionMetadatumEnum::Text(s) => ("string", Value::from(s.clone())),
-    };
-    // potentially wrap value in a keyed map to represent more types
-    if supports_tagged_values(schema) {
-        let mut wrapper = serde_json::map::Map::with_capacity(1);
-        wrapper.insert(String::from(type_key), value);
-        Ok(Value::from(wrapper))
-    } else {
-        Ok(value)
+                finish_metadatum_to_json(MetadatumToJsonKind::List, Vec::new(), schema)
+            }
+            TransactionMetadatumEnum::MetadataMap(map) => match schema {
+                MetadataJsonSchema::NoConversions | MetadataJsonSchema::BasicConversions => {
+                    let mut keys = Vec::new();
+                    let mut children = Vec::new();
+                    for (key, value) in map.0.iter() {
+                        keys.push(decode_metadatum_key_string(key, schema)?);
+                        children.push(value);
+                    }
+                    let kind = MetadatumToJsonKind::MapBasic {
+                        keys: keys.into_iter(),
+                    };
+                    let mut rest = children.into_iter();
+                    if let Some(first) = rest.next() {
+                        stack.push(MetadatumToJsonFrame {
+                            kind,
+                            rest,
+                            acc: Vec::new(),
+                        });
+                        node = first;
+                        continue;
+                    }
+                    finish_metadatum_to_json(kind, Vec::new(), schema)
+                }
+                MetadataJsonSchema::DetailedSchema => {
+                    let mut children = Vec::new();
+                    for (key, value) in map.0.iter() {
+                        children.push(key);
+                        children.push(value);
+                    }
+                    let kind = MetadatumToJsonKind::MapDetailed;
+                    let mut rest = children.into_iter();
+                    if let Some(first) = rest.next() {
+                        stack.push(MetadatumToJsonFrame {
+                            kind,
+                            rest,
+                            acc: Vec::new(),
+                        });
+                        node = first;
+                        continue;
+                    }
+                    finish_metadatum_to_json(kind, Vec::new(), schema)
+                }
+            },
+        };
+
+        loop {
+            match stack.last_mut() {
+                None => return Ok(completed),
+                Some(frame) => {
+                    frame.acc.push(completed);
+                    if let Some(next) = frame.rest.next() {
+                        node = next;
+                        break;
+                    } else {
+                        let frame = stack.pop().unwrap();
+                        completed = finish_metadatum_to_json(frame.kind, frame.acc, schema);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+impl MetadataList {
+    pub(crate) fn push_move(&mut self, elem: TransactionMetadatum) {
+        self.0.push(elem);
     }
 }
