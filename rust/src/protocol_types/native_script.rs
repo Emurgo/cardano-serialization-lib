@@ -222,7 +222,9 @@ impl ScriptAny {
     Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, JsonSchema,
 )]
 pub struct ScriptNOfK {
-    pub(crate) n: u32,
+    // `script_n_of_k = (3, n : int64, [* native_script])`: the ledger decodes the count as a
+    // signed 64-bit integer, and scripts with a negative `n` exist on chain.
+    pub(crate) n: i64,
     pub(crate) native_scripts: NativeScripts,
 }
 
@@ -230,8 +232,10 @@ impl_to_from!(ScriptNOfK);
 
 #[wasm_bindgen]
 impl ScriptNOfK {
-    pub fn n(&self) -> u32 {
-        self.n
+    /// The count exactly as encoded: any int64, as the ledger allows. A negative count is
+    /// always satisfied, one above the number of scripts never is.
+    pub fn n(&self) -> Int {
+        Int::from(self.n)
     }
 
     pub fn native_scripts(&self) -> NativeScripts {
@@ -240,9 +244,20 @@ impl ScriptNOfK {
 
     pub fn new(n: u32, native_scripts: &NativeScripts) -> Self {
         Self {
-            n: n,
+            n: i64::from(n),
             native_scripts: native_scripts.clone(),
         }
+    }
+
+    /// Any int64 count, as the ledger allows; fails when `n` does not fit int64.
+    pub fn new_from_int(n: &Int, native_scripts: &NativeScripts) -> Result<ScriptNOfK, JsError> {
+        use std::convert::TryFrom;
+        let n = i64::try_from(i128::from(n))
+            .map_err(|_| JsError::from_str("ScriptNOfK: n must fit int64"))?;
+        Ok(Self {
+            n,
+            native_scripts: native_scripts.clone(),
+        })
     }
 }
 
@@ -363,7 +378,7 @@ impl NativeScript {
         Self(NativeScriptEnum::ScriptAny(ScriptAny { native_scripts }))
     }
 
-    pub(crate) fn from_script_n_of_k_moved(n: u32, native_scripts: NativeScripts) -> Self {
+    pub(crate) fn from_script_n_of_k_moved(n: i64, native_scripts: NativeScripts) -> Self {
         Self(NativeScriptEnum::ScriptNOfK(ScriptNOfK { n, native_scripts }))
     }
 
@@ -382,7 +397,7 @@ impl Drop for NativeScript {
 enum NativeCloneKind {
     All { tag: Option<CborSetType> },
     Any { tag: Option<CborSetType> },
-    NOfK { n: u32, tag: Option<CborSetType> },
+    NOfK { n: i64, tag: Option<CborSetType> },
 }
 
 struct NativeCloneFrame<'a> {
@@ -559,7 +574,7 @@ impl Eq for NativeScript {}
 enum NativeCmpJob<'a> {
     Nodes(&'a NativeScript, &'a NativeScript),
     Lens(usize, usize),
-    NOfK(u32, u32),
+    NOfK(i64, i64),
 }
 
 impl PartialOrd for NativeScript {
@@ -704,7 +719,7 @@ impl fmt::Debug for NativeScript {
 enum NativeJsonKind {
     All,
     Any,
-    NOfK { n: u32 },
+    NOfK { n: i64 },
 }
 
 struct NativeJsonFrame<'a> {
@@ -812,7 +827,7 @@ fn tagged_object(tag: &str, fields: Vec<(String, crate::stack_safe::JsonVal)>) -
 
 fn tagged_scripts_object(
     tag: &str,
-    n: Option<u32>,
+    n: Option<i64>,
     scripts: Vec<crate::stack_safe::JsonVal>,
 ) -> crate::stack_safe::JsonVal {
     let mut fields = Vec::new();

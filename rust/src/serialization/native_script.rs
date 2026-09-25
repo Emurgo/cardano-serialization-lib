@@ -74,7 +74,7 @@ fn write_native_script_header<'se, W: Write>(
         NativeScriptEnum::ScriptNOfK(x) => {
             serializer.write_array(cbor_event::Len::Len(3))?;
             serializer.write_unsigned_integer(3u64)?;
-            x.n.serialize(serializer)?;
+            Int::from(x.n).serialize(serializer)?;
         }
         NativeScriptEnum::TimelockStart(x) => {
             serializer.write_array(cbor_event::Len::Len(2))?;
@@ -121,7 +121,7 @@ impl Deserialize for NativeScriptEnum {
 enum NativeScriptKindFrame {
     All,
     Any,
-    NOfK { n: u32 },
+    NOfK { n: i64 },
 }
 
 struct NativeScriptFrame {
@@ -218,7 +218,7 @@ fn deserialize_native_script_node<R: BufRead + Seek>(
         }
         3 => {
             check_len(outer_len, 3, "[script_n_of_k]")?;
-            let n = u32::deserialize(raw)?;
+            let n = deserialize_int64(raw)?;
             Ok(NativeNode::Open(open_scripts_frame(
                 raw,
                 NativeScriptKindFrame::NOfK { n },
@@ -254,6 +254,20 @@ fn deserialize_native_script_node<R: BufRead + Seek>(
         }
         .into()),
     }
+}
+
+/// `script_n_of_k = (3, n : int64, [* native_script])`: the ledger reads `n` as a signed
+/// 64-bit integer, so negative and large counts are valid on chain and must round-trip
+/// byte for byte (the script hash is computed over the original bytes).
+fn deserialize_int64<R: BufRead + Seek>(raw: &mut Deserializer<R>) -> Result<i64, DeserializeError> {
+    use std::convert::TryFrom;
+    let n = Int::deserialize(raw)?;
+    i64::try_from(i128::from(&n)).map_err(|_| {
+        DeserializeError::new(
+            "n",
+            DeserializeFailure::CustomError("script_n_of_k: n does not fit int64".to_string()),
+        )
+    })
 }
 
 fn open_scripts_frame<R: BufRead + Seek>(
@@ -504,7 +518,7 @@ impl SerializeEmbeddedGroup for ScriptNOfK {
         serializer: &'se mut Serializer<W>,
     ) -> cbor_event::Result<&'se mut Serializer<W>> {
         serializer.write_unsigned_integer(3u64)?;
-        self.n.serialize(serializer)?;
+        Int::from(self.n).serialize(serializer)?;
         self.native_scripts.serialize(serializer)?;
         Ok(serializer)
     }
@@ -547,7 +561,7 @@ impl DeserializeEmbeddedGroup for ScriptNOfK {
             Ok(())
         })()
             .map_err(|e| e.annotate("index_0"))?;
-        let n = (|| -> Result<_, DeserializeError> { Ok(u32::deserialize(raw)?) })()
+        let n = (|| -> Result<_, DeserializeError> { deserialize_int64(raw) })()
             .map_err(|e| e.annotate("n"))?;
         let native_scripts =
             (|| -> Result<_, DeserializeError> { Ok(NativeScripts::deserialize(raw)?) })()

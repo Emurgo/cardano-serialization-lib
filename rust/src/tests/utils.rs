@@ -507,7 +507,7 @@ fn native_scripts_from_wallet_json() {
 
     let n_of_k = native_script.unwrap().as_script_n_of_k().unwrap();
     let from = n_of_k.native_scripts();
-    assert_eq!(n_of_k.n(), 2);
+    assert_eq!(n_of_k.n(), Int::new_i32(2));
     assert_eq!(from.len(), 3);
     let all = from.get(0).as_script_all().unwrap().native_scripts();
     assert_eq!(all.len(), 2);
